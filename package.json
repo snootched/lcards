@@ -1,0 +1,98 @@
+{
+  "name": "cb-lcars",
+  "version": "2025.08.1-fuk.89-69",
+  "description": "Home Assistant LCARS libary built on custom-button-card",
+  "main": "index.js",
+  "author": "Jason Weyermars",
+  "license": "MIT",
+  "homepage": "https://cb-lcars.unimatrix01.ca",
+  "directories": {
+    "doc": "doc"
+  },
+  "keywords": [
+    "HomeAssistant",
+    "Home Assistant",
+    "HASS",
+    "LCARS",
+    "Star Trek"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "webpack --mode production",
+    "generate-editor-json": "node src/editor/cb-lcars_generate_editor_forms.js",
+
+    "test:msd": "node scripts/msd/test-runner.js",
+    "test:msd:fast": "node scripts/msd/test-runner.js --fail-fast",
+    "test:msd:m1.1": "node scripts/msd/test-runner.js --milestone=1.1",
+    "test:msd:m1.2": "node scripts/msd/test-runner.js --milestone=1.2",
+    "test:msd:m1.3": "node scripts/msd/test-runner.js --milestone=1.3",
+
+    "test:msd:determinism": "node scripts/msd/test-determinism.js",
+    "test:msd:legacy": "node scripts/msd/test-legacy-removal.js",
+    "test:msd:validation": "node scripts/msd/test-validation-integration.js",
+    "test:msd:anchor": "node scripts/msd/test-anchor-validation.js",
+
+    "test:msd:performance": "node scripts/msd/test-performance.js",
+    "test:msd:export": "node scripts/msd/test-export-parity.js",
+
+    "test:msd:rules": "node scripts/msd/test-rules-engine.js",
+
+    "test:msd:palette": "node scripts/msd/test-palette-deep-merge.js",
+    "test:msd:anchor-prov": "node scripts/msd/test-anchor-provenance.js",
+    "test:msd:external": "node scripts/msd/test-external-packs.js",
+
+    "test:msd:rules-deps": "node scripts/msd/test-rule-dependencies.js",
+    "test:msd:rules-trace": "node scripts/msd/test-rule-tracing.js",
+
+    "test:msd:m2.1": "node scripts/msd/test-runner.js --milestone=2.1",
+    "test:msd:m2.2": "node scripts/msd/test-runner.js --milestone=2.2",
+
+
+    "test:msd:anim-registry": "node scripts/msd/test-animation-registry.js",
+    "test:msd:profile-system": "node scripts/msd/test-profile-system.js",
+    "test:msd:m3.1": "node scripts/msd/test-runner.js --milestone=3.1",
+    "test:msd:m3.2": "node scripts/msd/test-runner.js --milestone=3.2",
+
+
+    "test:msd:rendering": "node scripts/msd/test-advanced-rendering.js",
+    "test:msd:export-completion": "node scripts/msd/test-export-completion.js",
+
+    "test:msd:m4.1": "node scripts/msd/test-runner.js --milestone=4.1",
+    "test:msd:m4.2": "node scripts/msd/test-runner.js --milestone=4.2",
+
+    "test:msd:phase1": "node scripts/msd/test-phase1-data-layer.js",
+    "test:msd:phase2": "node scripts/msd/test-phase2-comprehensive.js",
+    "test:msd:phase3": "node scripts/msd/test-phase3-hud-system.js",
+    "test:msd:phase4": "node scripts/msd/test-phase4-controls-api.js",
+
+    "test:msd:real-data": "node scripts/msd/test-real-data-integration.js",
+    "test:msd:phase2-complete": "node scripts/msd/test-phase2-complete.js",
+    "test:msd:templates": "node scripts/msd/test-phase2-complete.js",
+
+    "test:msd:datasource": "node scripts/msd/test-datasource-integration.js",
+    "test:msd:sparkline-debug": "node scripts/msd/test-sparkline-debug.js",
+    "test:msd:debug-enhancements": "node scripts/msd/test-debug-enhancements.js",
+
+    "test:msd:export-panel": "node scripts/msd/test-export-panel.js",
+    "test:msd:status-grid-debug": "node scripts/msd/test-status-grid-debug-fixed.js",
+    "test:msd:status-grid-initial": "node scripts/msd/test-status-grid-initial-render.js",
+    "test:msd:bounding-boxes": "node scripts/msd/test-bounding-box-accuracy.js",
+
+    "test:all": "npm run test:msd",
+    "audit:form-ids": "node scripts/audit-form-ids.js"
+  },
+  "devDependencies": {
+    "clean-webpack-plugin": "^4.0.0",
+    "js-yaml": "^4.1.0",
+    "rimraf": "^6.0.1",
+    "webpack": "^5.94.0",
+    "webpack-bundle-analyzer": "^4.10.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.4"
+  },
+  "dependencies": {
+    "ha-editor-formbuilder-yaml": "github:snootched/ha-card-formbuilder",
+    "animejs": "^4.0.0"
+  }
+}
+

@@ -1,0 +1,394 @@
+cb-lcars-footer-picard:
+  template:
+    - cb-lcars-header-picard-base
+  variables:
+    card:
+      height: "[[[ return this.offsetHeight; ]]]"
+      width: "[[[ return this.offsetWidth; ]]]"
+      border:
+        bottom:
+          left_radius: var(--ha-card-border-radius)
+          right_radius: 0px !important
+        top:
+          left_radius: 0px !important
+          right_radius: 0px !important
+        inner:
+          factor: 1
+          width: 35px
+    label: " "
+    lcars:
+      border:
+        gap: 4px
+        factor: 4
+        top:
+          size: 0
+        left:
+          size: 180
+        bottom:
+          size: 20
+        right:
+          size: 0
+    lcars_outer:
+      card:
+        border:
+          left:
+            size: |
+              [[[
+                return "calc( ((" + variables.__get_num_with_unit(variables.lcars.border.left.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / " + variables.lcars.border.factor + ") * (" +
+                variables.lcars.border.factor + " - 1)" + ")";
+              ]]]
+          top:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.top.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+          bottom:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.bottom.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+          right:
+            size: |
+              [[[
+                return "calc( ((" + variables.__get_num_with_unit(variables.lcars.border.right.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / " + variables.lcars.border.factor + ") * (" +
+                variables.lcars.border.factor + " - 1)" + ")";
+              ]]]
+    lcars_inner:
+      card:
+        border:
+          left:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.left.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + " ) / " + variables.lcars.border.factor + ")";
+              ]]]
+          bottom:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.bottom.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+            left_radius: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.card.border.bottom.left_radius) + " ) / " + variables.card.border.inner.factor +" )";
+              ]]]
+          inner:
+            factor: 2
+  styles:
+    card:
+      - background-color: transparent
+      - height: "[[[ return variables.__get_num_with_unit(variables.card.height); ]]]"
+      - width: "[[[ return variables.__get_num_with_unit(variables.card.width); ]]]"
+      - border: 0
+      - border-top-left-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.top.left_radius);
+          ]]]
+      - border-top-right-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.top.right_radius);
+          ]]]
+      - border-bottom-left-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.bottom.left_radius);
+          ]]]
+      - border-bottom-right-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.bottom.right_radius);
+          ]]]
+    custom_fields:
+      lcars_outer:
+        - position: absolute
+        - top: 0
+        - left: 0
+      lcars_inner:
+        - position: absolute
+        - bottom: |
+            [[[
+              return "calc( (" + variables.__get_num_with_unit(variables.lcars_outer.card.border.bottom.size) + " + " +
+              variables.__get_num_with_unit(variables.lcars.border.gap) + ")  )";
+            ]]]
+        - left: |
+            [[[
+              return "calc( (" + variables.__get_num_with_unit(variables.lcars_outer.card.border.left.size) + " + " +
+              variables.__get_num_with_unit(variables.lcars.border.gap) + ")  )";
+            ]]]
+  custom_fields:
+    lcars_outer:
+      card:
+        type: custom:cblcars-button-card
+        template:
+          - cb-lcars-footer
+        entity: "[[[ return variables.entity; ]]]"
+        variables:
+          card:
+            color: "[[[ return variables.__deepMerge(variables.card.color,variables.lcars_outer.card.color||{}) ]]]"
+            width: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.width);
+              ]]]
+            height: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.height);
+              ]]]
+            border:
+              bottom:
+                left_radius: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.card.border.bottom.left_radius);
+                  ]]]
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_outer.card.border.bottom.size);
+                  ]]]
+                right_radius: 0px
+              left:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_outer.card.border.left.size);
+                  ]]]
+              inner:
+                factor: "[[[ return variables.card.border.inner.factor; ]]]"
+                width: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.card.border.inner.width);
+                  ]]]
+    lcars_inner:
+      card:
+        type: custom:cblcars-button-card
+        template:
+          - cb-lcars-footer
+        entity: "[[[ return variables.entity; ]]]"
+        variables:
+          card:
+            color: "[[[ return variables.__deepMerge(variables.card.color,variables.lcars_inner.card.color||{}) ]]]"
+            width: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.width);
+              ]]]
+            height: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.height);
+              ]]]
+            border:
+              left:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.left.size);
+                  ]]]
+              bottom:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.bottom.size);
+                  ]]]
+                left_radius: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.bottom.left_radius);
+                  ]]]
+                right_radius: 0px
+              inner:
+                factor: |
+                  [[[
+                    return variables.lcars_inner.card.border.inner.factor;
+                  ]]]
+cb-lcars-footer-picard-right:
+  template:
+    - cb-lcars-header-picard-base
+  variables:
+    card:
+      height: "[[[ return this.offsetHeight; ]]]"
+      width: "[[[ return this.offsetWidth; ]]]"
+      border:
+        bottom:
+          left_radius: 0px !important
+          right_radius: var(--ha-card-border-radius)
+        top:
+          left_radius: 0px !important
+          right_radius: 0px !important
+        inner:
+          factor: 1
+          width: 35px
+    label: " "
+    lcars:
+      border:
+        gap: 4px
+        factor: 4
+        top:
+          size: 0
+        left:
+          size: 0
+        bottom:
+          size: 20
+        right:
+          size: 180
+    lcars_outer:
+      card:
+        border:
+          left:
+            size: |
+              [[[
+                return "calc( ((" + variables.__get_num_with_unit(variables.lcars.border.left.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / " + variables.lcars.border.factor + ") * (" +
+                variables.lcars.border.factor + " - 1)" + ")";
+              ]]]
+          top:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.top.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+          bottom:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.bottom.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+          right:
+            size: |
+              [[[
+                return "calc( ((" + variables.__get_num_with_unit(variables.lcars.border.right.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / " + variables.lcars.border.factor + ") * (" +
+                variables.lcars.border.factor + " - 1)" + ")";
+              ]]]
+    lcars_inner:
+      card:
+        border:
+          right:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.right.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + " ) / " + variables.lcars.border.factor + ")";
+              ]]]
+          bottom:
+            size: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.lcars.border.bottom.size) + " - " +
+                variables.__get_num_with_unit(variables.lcars.border.gap) + ") / 2)";
+              ]]]
+            right_radius: |
+              [[[
+                return "calc((" + variables.__get_num_with_unit(variables.card.border.bottom.right_radius) + " ) / " + variables.card.border.inner.factor +" )";
+              ]]]
+          inner:
+            factor: 2
+  styles:
+    card:
+      - background-color: transparent
+      - height: "[[[ return variables.__get_num_with_unit(variables.card.height); ]]]"
+      - width: "[[[ return variables.__get_num_with_unit(variables.card.width); ]]]"
+      - border: 0
+      - border-top-left-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.top.left_radius);
+          ]]]
+      - border-top-right-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.top.right_radius);
+          ]]]
+      - border-bottom-left-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.bottom.left_radius);
+          ]]]
+      - border-bottom-right-radius: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.bottom.right_radius);
+          ]]]
+    custom_fields:
+      lcars_outer:
+        - position: absolute
+        - top: 0
+        - left: 0
+      lcars_inner:
+        - position: absolute
+        - bottom: |
+            [[[
+              return "calc( (" + variables.__get_num_with_unit(variables.lcars_outer.card.border.bottom.size) + " + " +
+              variables.__get_num_with_unit(variables.lcars.border.gap) + ")  )";
+            ]]]
+        - right: |
+            [[[
+              return "calc( (" + variables.__get_num_with_unit(variables.lcars_outer.card.border.right.size) + " + " +
+              variables.__get_num_with_unit(variables.lcars.border.gap) + ")  )";
+            ]]]
+  custom_fields:
+    lcars_outer:
+      card:
+        type: custom:cblcars-button-card
+        template:
+          - cb-lcars-footer-right
+        entity: "[[[ return variables.entity; ]]]"
+        variables:
+          card:
+            color: "[[[ return variables.__deepMerge(variables.card.color,variables.lcars_outer.card.color||{}) ]]]"
+            width: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.width);
+              ]]]
+            height: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.height);
+              ]]]
+            border:
+              bottom:
+                right_radius: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.card.border.bottom.right_radius);
+                  ]]]
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_outer.card.border.bottom.size);
+                  ]]]
+                left_radius: 0px
+              right:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_outer.card.border.right.size);
+                  ]]]
+              inner:
+                factor: "[[[ return variables.card.border.inner.factor; ]]]"
+                width: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.card.border.inner.width);
+                  ]]]
+    lcars_inner:
+      card:
+        type: custom:cblcars-button-card
+        template:
+          - cb-lcars-footer-right
+        entity: "[[[ return variables.entity; ]]]"
+        variables:
+          card:
+            color: "[[[ return variables.__deepMerge(variables.card.color,variables.lcars_inner.card.color||{}) ]]]"
+            width: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.width);
+              ]]]
+            height: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.height);
+              ]]]
+            border:
+              right:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.right.size);
+                  ]]]
+              bottom:
+                size: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.bottom.size);
+                  ]]]
+                right_radius: |
+                  [[[
+                    return variables.__get_num_with_unit(variables.lcars_inner.card.border.bottom.right_radius);
+                  ]]]
+                left_radius: 0px
+              inner:
+                factor: |
+                  [[[
+                    return variables.lcars_inner.card.border.inner.factor;
+                  ]]]

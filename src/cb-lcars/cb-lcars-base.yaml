@@ -1,0 +1,1351 @@
+cb-lcars-base:
+  template:
+    - cb-lcars-functions
+    - cb-lcars-actions-disable
+  label: '[[[ return variables.label ]]]'
+  entity: '[[[ return variables.entity ]]]'
+  triggers_update:
+    - '[[[ return variables.entity; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[0]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[1]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[2]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[3]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[4]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[5]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[6]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[7]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[8]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[9]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[10]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[11]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[12]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[13]?.entity) || null; ]]]'
+    - '[[[ return (variables.custom_states?.states?.[14]?.entity) || null; ]]]'
+  variables:
+    label: ' '
+    text:
+      label:
+        font_size: 20px
+        font_weight: normal
+        font_family: '''Antonio'', Arial, sans-serif'
+        align: left
+        align_items: center
+        justify: center
+        transform: none
+        padding:
+          top: 10px
+          left: 0px
+          right: 0px
+          bottom: 10px
+        color:
+          default: var(--primary-text-color)
+          active: var(--lcars-ui-secondary)
+          inactive: var(--lcars-ui-tertiary)
+          zero: var(--lcars-green)
+          non_zero: var(--lcars-blue)
+          hvac_heat: var(--lcars-orange)
+          hvac_cool: var(--lcars-blue)
+          unavailable: var(--lcars-card-button-unavailable)
+      name:
+        font_size: 20px
+        font_weight: normal
+        font_family: '''Antonio'', Arial, sans-serif'
+        align: left
+        align_items: center
+        justify: center
+        transform: none
+        padding:
+          top: 10px
+          left: 0px
+          right: 0px
+          bottom: 10px
+        color:
+          default: var(--primary-text-color)
+          active: var(--lcars-ui-secondary)
+          inactive: var(--lcars-ui-tertiary)
+          zero: var(--lcars-green)
+          non_zero: var(--lcars-blue)
+          hvac_heat: var(--lcars-orange)
+          hvac_cool: var(--lcars-blue)
+          unavailable: var(--lcars-card-button-unavailable)
+      state:
+        font_size: 20px
+        font_weight: normal
+        font_family: '''Antonio'', Arial, sans-serif'
+        align: left
+        align_items: center
+        justify: center
+        transform: none
+        padding:
+          top: 10px
+          left: 0px
+          right: 0px
+          bottom: 10px
+        color:
+          default: var(--primary-text-color)
+          active: var(--lcars-ui-secondary)
+          inactive: var(--lcars-ui-tertiary)
+          zero: var(--lcars-green)
+          non_zero: var(--lcars-blue)
+          hvac_heat: var(--lcars-orange)
+          hvac_cool: var(--lcars-blue)
+          unavailable: var(--lcars-card-button-unavailable)
+    card:
+      height: null
+      min_height: 10px
+      width: null
+      color:
+        default: var(--lcars-card-top-color, var(--picard-dark-gray))
+        active: var(--lcars-ui-secondary)
+        inactive: var(--lcars-ui-tertiary)
+        zero: var(--lcars-green)
+        non_zero: var(--lcars-blue)
+        hvac_heat: var(--lcars-orange)
+        hvac_cool: var(--lcars-blue)
+        unavailable: var(--lcars-card-button-unavailable)
+        background:
+          default: var(--lcars-card-top-color, var(--picard-dark-gray))
+          active: var(--lcars-ui-secondary)
+          inactive: var(--lcars-ui-tertiary)
+          zero: var(--lcars-green)
+          non_zero: var(--lcars-blue)
+          hvac_heat: var(--lcars-orange)
+          hvac_cool: var(--lcars-blue)
+          unavailable: var(--lcars-card-button-unavailable)
+      border:
+        top:
+          left_radius: 0px
+          right_radius: 0px
+          size: 0px
+        bottom:
+          left_radius: 0px
+          right_radius: 0px
+          size: 0px
+        left:
+          size: 0px
+        right:
+          size: 0px
+        inner:
+          factor: 2
+          min_radius: 30px
+          width: 35px
+    icon:
+      box_size: 35px
+      size: 24px
+      justify: left
+      color:
+        default: black
+        active: null
+        inactive: null
+        unavailable: null
+        background:
+          active: null
+          inactive: null
+    animation:
+      justify_content: center
+      align_items: center
+      transform_origin: center
+  show_label: false
+  show_state: false
+  show_units: true
+  show_icon: false
+  show_name: false
+  state_display: |
+    [[[
+      if (!entity) {
+        return 'n/a';
+      }
+      // use the custom button card helper to set state to an attribute if provided (arrays/objects are filtered out on the form)
+      return helpers.localize(entity, entity.attributes[variables.attribute],'card',this._config.show_units,this._config.units);
+    ]]]
+  custom_fields:
+    font_loader: |
+      [[[
+        // This field dynamically loads any fonts specified in variables or conditionally matched settings.
+        // It supports comma-separated font-family strings and de-dupes via window.cblcars.loadFont().
+
+        // Load fonts from variables and match settings
+        const fontSources = [
+          variables?.text?.label?.font_family,
+          variables?.text?.name?.font_family,
+          variables?.text?.state?.font_family,
+          variables?.animation?.alert?.text?.alert_text?.font_family,
+          variables?.animation?.alert?.text?.sub_text?.font_family,
+          variables?.animation?.cascade?.text?.font_family,
+          variables?.gauge?.label?.font_family,
+          this._config.cblcars_custom_match?.settings?.text?.label?.font_family,
+          this._config.cblcars_custom_match?.settings?.text?.name?.font_family,
+          this._config.cblcars_custom_match?.settings?.text?.state?.font_family,
+          this._config.cblcars_custom_match?.settings?.animation?.alert?.text?.alert_text?.font_family,
+          this._config.cblcars_custom_match?.settings?.animation?.alert?.text?.sub_text?.font_family
+        ];
+
+        fontSources.forEach(font => {
+          if (font && typeof font === 'string') {
+            window.cblcars?.loadFont(font);
+          }
+        });
+      ]]]
+  styles:
+    img_cell:
+      - justify-content: '[[[ return variables.icon.justify ]]]'
+    card:
+      - height: |
+          [[[
+            if (variables.card.height) {
+              return variables.__get_num_with_unit(variables.card.height);
+            } else {
+              return "100%";
+            }
+          ]]]
+      - min-height: |
+          [[[
+            if (variables.card.min_height) {
+                return variables.__get_num_with_unit(variables.card.min_height);
+            }
+          ]]]
+      - width: |
+          [[[
+            if (variables.card.width) {
+              return variables.__get_num_with_unit(variables.card.width);
+            }
+          ]]]
+      - border-top: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + (variables.card.border.top.color || variables.card.border.color || variables.card.color.default);
+          ]]]
+      - border-left: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + (variables.card.border.left.color || variables.card.border.color || variables.card.color.default);
+          ]]]
+      - border-right: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + (variables.card.border.right.color || variables.card.border.color || variables.card.color.default);
+          ]]]
+      - border-bottom: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + (variables.card.border.bottom.color || variables.card.border.color || variables.card.color.default);
+          ]]]
+      - background-color: '[[[ return variables.card.color.background.default ]]]'
+      - border-top-left-radius: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.top.left_radius) + " !important";
+          ]]]
+      - border-top-right-radius: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.top.right_radius) + " !important";
+          ]]]
+      - border-bottom-left-radius: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.bottom.left_radius) + " !important";
+          ]]]
+      - border-bottom-right-radius: |
+          [[[
+            return variables.__get_num_with_unit(variables.card.border.bottom.right_radius) + " !important";
+          ]]]
+      - position: relative
+    label:
+      - z-index: 1
+      - display: flex
+      - justify-content: '[[[ return variables.text.label.justify ]]]'
+      - align-items: '[[[ return variables.text.label.align_items ]]]'
+      - text-transform: '[[[ return variables.text.label.transform ]]]'
+      - border-left: 0
+      - border-top: 0
+      - border-top-left-radius: 0px
+      - border-top-right-radius: 0px
+      - background: none !important
+      - position: absolute
+      - top: 0px
+      - left: 0px
+      - width: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.label.padding.left) + "
+          - " +
+          variables.__get_num_with_unit(variables.text.label.padding.right) +
+          ")"; ]]]
+      - height: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.label.padding.top) + "
+          - " +
+          variables.__get_num_with_unit(variables.text.label.padding.bottom) +
+          ")"; ]]]
+      - color: '[[[ return variables.text.label.color.default ]]]'
+      - font-size: |
+          [[[
+            return variables.__get_num_with_unit(variables.text.label.font_size);
+          ]]]
+      - font-weight: '[[[ return variables.text.label.font_weight ]]]'
+      - font-family: '[[[ return variables.text.label.font_family ]]]'
+      - justify-self: start
+      - text-align: '[[[ return variables.text.label.align ]]]'
+      - padding-top: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.label.padding.top) ]]]
+      - padding-left: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.label.padding.left) ]]]
+      - padding-right: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.label.padding.right)
+          ]]]
+      - padding-bottom: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.label.padding.bottom)
+          ]]]
+      - outline: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.inner.width) + "
+          solid " + (variables.card.border.color ||
+          variables.card.color.default); ]]]
+    state:
+      - display: flex
+      - justify-content: '[[[ return variables.text.state.justify ]]]'
+      - align-items: '[[[ return variables.text.state.align_items ]]]'
+      - text-transform: '[[[ return variables.text.state.transform ]]]'
+      - border-left: 0
+      - border-top: 0
+      - border-top-left-radius: 0px
+      - border-top-right-radius: 0px
+      - background: none !important
+      - position: absolute
+      - top: 0px
+      - left: 0px
+      - width: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.state.padding.left) + "
+          - " +
+          variables.__get_num_with_unit(variables.text.state.padding.right) +
+          ")"; ]]]
+      - height: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.state.padding.top) + "
+          - " +
+          variables.__get_num_with_unit(variables.text.state.padding.bottom) +
+          ")"; ]]]
+      - color: '[[[ return variables.text.state.color.default ]]]'
+      - font-size: |
+          [[[
+            return variables.__get_num_with_unit(variables.text.state.font_size);
+          ]]]
+      - font-weight: '[[[ return variables.text.state.font_weight ]]]'
+      - font-family: '[[[ return variables.text.state.font_family ]]]'
+      - justify-self: start
+      - text-align: '[[[ return variables.text.state.align ]]]'
+      - padding-top: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.state.padding.top) ]]]
+      - padding-left: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.state.padding.left) ]]]
+      - padding-right: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.state.padding.right)
+          ]]]
+      - padding-bottom: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.state.padding.bottom)
+          ]]]
+      - outline: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.inner.width) + "
+          solid " + (variables.card.border.color ||
+          variables.card.color.default); ]]]
+    name:
+      - display: flex
+      - justify-content: '[[[ return variables.text.name.justify ]]]'
+      - align-items: '[[[ return variables.text.name.align_items ]]]'
+      - text-transform: '[[[ return variables.text.name.transform ]]]'
+      - border-left: 0
+      - border-top: 0
+      - border-top-left-radius: 0px
+      - border-top-right-radius: 0px
+      - background: none !important
+      - position: absolute
+      - top: 0px
+      - left: 0px
+      - width: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.name.padding.left) + "
+          - " +
+          variables.__get_num_with_unit(variables.text.name.padding.right) +
+          ")"; ]]]
+      - height: >-
+          [[[ return "calc(100% - " +
+          variables.__get_num_with_unit(variables.text.name.padding.top) + " -
+          " +
+          variables.__get_num_with_unit(variables.text.name.padding.bottom) +
+          ")"; ]]]
+      - color: '[[[ return variables.text.name.color.default ]]]'
+      - font-size: |
+          [[[
+              return variables.__get_num_with_unit(variables.text.name.font_size);
+          ]]]
+      - font-weight: '[[[ return variables.text.name.font_weight ]]]'
+      - font-family: '[[[ return variables.text.name.font_family ]]]'
+      - justify-self: start
+      - text-align: '[[[ return variables.text.name.align ]]]'
+      - padding-top: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.name.padding.top) ]]]
+      - padding-left: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.name.padding.left) ]]]
+      - padding-right: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.name.padding.right) ]]]
+      - padding-bottom: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.text.name.padding.bottom)
+          ]]]
+      - outline: >-
+          [[[ return
+          variables.__get_num_with_unit(variables.card.border.inner.width) + "
+          solid " + (variables.card.border.color ||
+          variables.card.color.default); ]]]
+    custom_fields:
+      font_loader:
+        - display: none
+      animation:
+        - display: flex
+        - position: absolute
+        - align-items: |
+            [[[
+              return variables.animation.align_items || 'center';
+            ]]]
+        - justify-content: |
+            [[[
+              return variables.animation.justify_content || 'center';
+            ]]]
+        - transform: |
+            [[[
+              if (variables.animation?.transform?.advanced) {
+                return variables.animation.transform.advanced;
+              }
+              const transform = variables.animation.transform || {};
+              const transforms = [];
+              if (transform.scale !== undefined) transforms.push(`scale(${transform.scale})`);
+              if (transform.scale_x !== undefined) transforms.push(`scaleX(${transform.scale_x})`);
+              if (transform.scale_y !== undefined) transforms.push(`scaleY(${transform.scale_y})`);
+              if (transform.scale_z !== undefined) transforms.push(`scaleZ(${transform.scale_z})`);
+              if (transform.rotate !== undefined) transforms.push(`rotate(${transform.rotate}deg)`);
+              if (transform.translate_x !== undefined) transforms.push(`translateX(${transform.translate_x}%)`);
+              if (transform.translate_y !== undefined) transforms.push(`translateY(${transform.translate_y}%)`);
+              if (transform.translate_z !== undefined) transforms.push(`translateZ(${transform.translate_z}px)`);
+              if (transform.skew !== undefined) transforms.push(`skew(${transform.skew}deg)`);
+              if (transform.perspective !== undefined) transforms.push(`perspective(${transform.perspective}px)`);
+              if (transform.rotate_x !== undefined) transforms.push(`rotateX(${transform.rotate_x}deg)`);
+              if (transform.rotate_y !== undefined) transforms.push(`rotateY(${transform.rotate_y}deg)`);
+              if (transform.rotate_z !== undefined) transforms.push(`rotateZ(${transform.rotate_z}deg)`);
+              return transforms.length > 0 ? transforms.join(' ') : 'none';
+            ]]]
+        - transform-origin: |
+            [[[
+                return (variables.animation?.transform_origin) ? variables.animation.transform_origin : 'center';
+            ]]]
+        - filter: |
+            [[[
+              if (variables.animation?.filter?.advanced) {
+                return variables.animation.filter.advanced;
+              }
+
+              const filter = variables.animation.filter || {};
+              const filters = [];
+
+              if (filter.blur !== undefined) filters.push(`blur(${filter.blur}px)`);
+              if (filter.brightness !== undefined) filters.push(`brightness(${filter.brightness}%)`);
+              if (filter.saturate !== undefined) filters.push(`saturate(${filter.saturate}%)`);
+              if (filter.invert !== undefined) filters.push(`invert(${filter.invert}%)`);
+              if (filter.sepia !== undefined) filters.push(`sepia(${filter.sepia}%)`);
+              if (filter.grayscale !== undefined) filters.push(`grayscale(${filter.grayscale}%)`);
+              if (filter.hue_rotate !== undefined) filters.push(`hue-rotate(${filter.hue_rotate}deg)`);
+              if (filter.contrast !== undefined) filters.push(`contrast(${filter.contrast}%)`);
+              if (filter.opacity !== undefined) filters.push(`opacity(${filter.opacity}%)`);
+
+              return filters.length > 0 ? filters.join(' ') : 'none';
+            ]]]
+        - height: |
+            [[[
+              return "calc( " + variables.__get_num_with_unit(variables.card.height) +
+              " - " +
+              variables.__get_num_with_unit(variables.card.border.top.size) +
+              " - " +
+              variables.__get_num_with_unit(variables.card.border.bottom.size)
+            ]]]
+        - width: |
+            [[[
+              return "calc( " + variables.__get_num_with_unit(variables.card.width) +
+              " - " +
+              variables.__get_num_with_unit(variables.card.border.left.size) +
+              " - " +
+              variables.__get_num_with_unit(variables.card.border.right.size)
+            ]]]
+  state:
+    - id: state_custom
+      operator: template
+      value: |
+        [[[
+          if (!variables.custom_states?.enabled) return false;
+          const matches = variables.custom_states.states || [];
+
+          // Default to global entity and attribute
+          let mainEntity = entity;
+          let value = entity?.state;
+          if (variables.attribute && entity?.attributes && entity.attributes.hasOwnProperty(variables.attribute)) {
+            value = entity.attributes[variables.attribute];
+            // Special handling for brightness: convert 0-255 to 0-100 percentage
+            if (variables.attribute === 'brightness' && value !== undefined && value !== null && !isNaN(parseFloat(value))) {
+              value = (parseFloat(value) / 256) * 100;
+            }
+          }
+
+          for (const entry of matches) {
+            // Use per-match entity if specified, else global
+            let matchEntity = mainEntity;
+            if (entry.entity && states[entry.entity]) {
+              matchEntity = states[entry.entity];
+            }
+
+            // Use per-match attribute if specified, else global
+            let matchValue = matchEntity?.state;
+            // Per-match attribute override (with brightness handling)
+            if (entry.attribute && matchEntity?.attributes && matchEntity.attributes.hasOwnProperty(entry.attribute)) {
+              matchValue = matchEntity.attributes[entry.attribute];
+              if (entry.attribute === 'brightness' && matchValue !== undefined && matchValue !== null && !isNaN(parseFloat(matchValue))) {
+                matchValue = (parseFloat(matchValue) / 256) * 100;
+              }
+            } else if (variables.attribute && matchEntity?.attributes && matchEntity.attributes.hasOwnProperty(variables.attribute)) {
+              matchValue = matchEntity.attributes[variables.attribute];
+              if (variables.attribute === 'brightness' && matchValue !== undefined && matchValue !== null && !isNaN(parseFloat(matchValue))) {
+                matchValue = (parseFloat(matchValue) / 256) * 100;
+              }
+            }
+
+            // If no match value is defined, skip this entry
+            if (matchValue === undefined || matchValue === null) {
+              // No value to match against
+              continue;
+            }
+            // Prepare numeric value for this match
+            let matchNumericValue = matchValue;
+            if (typeof matchValue === "string" && !isNaN(Number(matchValue))) {
+              matchNumericValue = Number(matchValue);
+            }
+
+            // 1. equals: strict match (string or number)
+            if ("equals" in entry && entry.equals !== undefined) {
+              if (matchValue == entry.equals) {
+                this._config.cblcars_custom_match = entry;
+                return true;
+              }
+            }
+
+            // 2. not_equals: value must not match
+            if ("not_equals" in entry && entry.not_equals !== undefined) {
+              if (matchValue != entry.not_equals) {
+                this._config.cblcars_custom_match = entry;
+                return true;
+              }
+            }
+
+            // 3. from/to: numeric range or single-sided match
+            if ("from" in entry || "to" in entry) {
+              if (typeof matchNumericValue === "number" && !isNaN(matchNumericValue)) {
+                if (
+                  (("from" in entry ? matchNumericValue >= entry.from : true)) &&
+                  (("to" in entry ? matchNumericValue <= entry.to : true))
+                ) {
+                  this._config.cblcars_custom_match = entry;
+                  return true;
+                }
+              }
+            }
+
+            // 4. in: match if value is in provided array
+            if ("in" in entry && Array.isArray(entry.in)) {
+              if (entry.in.includes(matchValue)) {
+                this._config.cblcars_custom_match = entry;
+                return true;
+              }
+            }
+
+            // 5. not_in: match if value is NOT in provided array
+            if ("not_in" in entry && Array.isArray(entry.not_in)) {
+              if (!entry.not_in.includes(matchValue)) {
+                this._config.cblcars_custom_match = entry;
+                return true;
+              }
+            }
+
+            // 6. regex: match if value matches regex (string only)
+            if ("regex" in entry && typeof entry.regex === "string") {
+              try {
+                const re = new RegExp(entry.regex);
+                if (typeof matchValue === "string" && re.test(matchValue)) {
+                  this._config.cblcars_custom_match = entry;
+                  return true;
+                }
+              } catch (e) {
+                // Invalid regex, ignore
+                variables.__cblcarsLog("error",`Invalid regex: ${e}`);
+              }
+            }
+          }
+          // No match found
+          return false;
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'custom';
+                return 'state_custom';
+              ]]]
+          - height: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.card?.height ??
+                  variables.card.height
+                ) ? variables.__get_num_with_unit(match?.settings?.card?.height ?? variables.card.height) : "100%";
+              ]]]
+          - min-height: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.card?.min_height ??
+                  variables.card.min_height
+                ) ? variables.__get_num_with_unit(match?.settings?.card?.min_height ?? variables.card.min_height) : undefined;
+              ]]]
+          - width: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.card?.width ??
+                  variables.card.width
+                ) ? variables.__get_num_with_unit(match?.settings?.card?.width ?? variables.card.width) : undefined;
+              ]]]
+          - border-top: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                const border = match?.settings?.card?.border?.top || variables.card.border.top;
+                const color =
+                  border.color ??
+                  match?.settings?.card?.border?.color ??
+                  variables.card.border.color ??
+                  variables.card.color.default;
+                return variables.__get_num_with_unit(border.size) + " solid " + color;
+              ]]]
+          - border-left: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                const border = match?.settings?.card?.border?.left || variables.card.border.left;
+                const color =
+                  border.color ??
+                  match?.settings?.card?.border?.color ??
+                  variables.card.border.color ??
+                  variables.card.color.default;
+                return variables.__get_num_with_unit(border.size) + " solid " + color;
+              ]]]
+          - border-right: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                const border = match?.settings?.card?.border?.right || variables.card.border.right;
+                const color =
+                  border.color ??
+                  match?.settings?.card?.border?.color ??
+                  variables.card.border.color ??
+                  variables.card.color.default;
+                return variables.__get_num_with_unit(border.size) + " solid " + color;
+              ]]]
+          - border-bottom: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                const border = match?.settings?.card?.border?.bottom || variables.card.border.bottom;
+                const color =
+                  border.color ??
+                  match?.settings?.card?.border?.color ??
+                  variables.card.border.color ??
+                  variables.card.color.default;
+                return variables.__get_num_with_unit(border.size) + " solid " + color;
+              ]]]
+          - background-color: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.card?.color?.background?.default ??
+                  variables.card.color.background.default
+                );
+              ]]]
+          - border-top-left-radius: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.top?.left_radius ?? variables.card.border.top.left_radius
+                ) + " !important";
+              ]]]
+          - border-top-right-radius: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.top?.right_radius ?? variables.card.border.top.right_radius
+                ) + " !important";
+              ]]]
+          - border-bottom-left-radius: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                    return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.bottom?.left_radius ?? variables.card.border.bottom.left_radius
+                ) + " !important";
+              ]]]
+          - border-bottom-right-radius: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                  return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.bottom?.right_radius ?? variables.card.border.bottom.right_radius
+                ) + " !important";
+              ]]]
+          - position: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.card?.position ?? "relative";
+              ]]]
+        label:
+          - color: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.text?.label?.color?.default ??
+                  variables.text.label.color.default
+                );
+              ]]]
+          - text-transform: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.label?.transform ?? variables.text.label.transform;
+              ]]]
+          - justify-content: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.label?.justify ?? variables.text.label.justify;
+              ]]]
+          - font-size: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.label?.font_size ?? variables.text.label.font_size
+                );
+              ]]]
+          - font-weight: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.label?.font_weight ?? variables.text.label.font_weight;
+              ]]]
+          - font-family: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.label?.font_family ?? variables.text.label.font_family;
+              ]]]
+          - padding-top: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.label?.padding?.top ?? variables.text.label.padding.top
+                );
+              ]]]
+          - padding-bottom: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.label?.padding?.bottom ?? variables.text.label.padding.bottom
+                );
+              ]]]
+          - padding-left: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.label?.padding?.left ?? variables.text.label.padding.left
+                );
+              ]]]
+          - padding-right: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.label?.padding?.right ?? variables.text.label.padding.right
+                );
+              ]]]
+        state:
+          - color: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.text?.state?.color?.default ??
+                  variables.text.state.color.default
+                );
+              ]]]
+          - text-transform: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.state?.transform ?? variables.text.state.transform;
+              ]]]
+          - justify-content: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.state?.justify ?? variables.text.state.justify;
+              ]]]
+          - font-size: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.state?.font_size ?? variables.text.state.font_size
+                );
+              ]]]
+          - font-weight: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.state?.font_weight ?? variables.text.state.font_weight;
+              ]]]
+          - font-family: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.state?.font_family ?? variables.text.state.font_family;
+              ]]]
+          - padding-top: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.state?.padding?.top ?? variables.text.state.padding.top
+                );
+              ]]]
+          - padding-bottom: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.state?.padding?.bottom ?? variables.text.state.padding.bottom
+                );
+              ]]]
+          - padding-left: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.state?.padding?.left ?? variables.text.state.padding.left
+                );
+              ]]]
+          - padding-right: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.state?.padding?.right ?? variables.text.state.padding.right
+                );
+              ]]]
+          - outline: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.inner?.width ?? variables.card.border.inner.width
+                ) + " solid " + (
+                  match?.settings?.card?.border?.color ?? variables.card.border.color ?? variables.card.color.default
+                );
+              ]]]
+        name:
+          - color: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.text?.name?.color?.default ??
+                  variables.text.name.color.default
+                );
+              ]]]
+          - text-transform: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.name?.transform ?? variables.text.name.transform;
+              ]]]
+          - justify-content: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.name?.justify ?? variables.text.name.justify;
+              ]]]
+          - font-size: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.name?.font_size ?? variables.text.name.font_size
+                );
+              ]]]
+          - font-weight: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.name?.font_weight ?? variables.text.name.font_weight;
+              ]]]
+          - font-family: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return match?.settings?.text?.name?.font_family ?? variables.text.name.font_family;
+              ]]]
+          - padding-top: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.name?.padding?.top ?? variables.text.name.padding.top
+                );
+              ]]]
+          - padding-bottom: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.name?.padding?.bottom ?? variables.text.name.padding.bottom
+                );
+              ]]]
+          - padding-left: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.name?.padding?.left ?? variables.text.name.padding.left
+                );
+              ]]]
+          - padding-right: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.text?.name?.padding?.right ?? variables.text.name.padding.right
+                );
+              ]]]
+          - outline: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return variables.__get_num_with_unit(
+                  match?.settings?.card?.border?.inner?.width ?? variables.card.border.inner.width
+                ) + " solid " + (
+                  match?.settings?.card?.border?.color ?? variables.card.border.color ?? variables.card.color.default
+                );
+              ]]]
+        icon:
+          - color: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.icon?.color?.inactive ??
+                  match?.settings?.icon?.color?.default ??
+                  variables.icon.color.inactive ?? variables.icon.color.default
+                );
+              ]]]
+          - background: |
+              [[[
+                const match = this._config.cblcars_custom_match;
+                return (
+                  match?.settings?.icon?.color?.background?.default ??
+                  variables.icon.color.background.default ?? variables.card.color.background.inactive
+                );
+              ]]]
+    - id: state_on
+      operator: template
+      value: |
+        [[[
+          return entity !== undefined && ['on', 'open', 'locked'].includes(states[entity.entity_id].state)
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'active'
+                return 'state_on'
+              ]]]
+          - transition: all 0.4s ease-in
+          - background-color: '[[[ return variables.card.color.background.active ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.active;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.active;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.active;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.active;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.active ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.active; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.active ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.active; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.active ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.active; ]]]
+        icon:
+          - color: >-
+              [[[ return variables.icon.color.active ||
+              variables.icon.color.default ]]]
+          - background: >-
+              [[[ return variables.icon.color.background.active ||
+              variables.card.color.background.active ]]]
+    - id: state_off
+      operator: template
+      value: |
+        [[[
+          return entity !== undefined && ['off', 'closed', 'unlocked'].includes(states[entity.entity_id].state)
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'inactive'
+                return 'state_off'
+              ]]]
+          - transition: all 0.4s ease-out
+          - background-color: '[[[ return variables.card.color.background.inactive ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.inactive;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.inactive;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.inactive;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.inactive;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.inactive ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.inactive; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.inactive ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.inactive; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.inactive ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.inactive; ]]]
+        icon:
+          - color: >-
+              [[[ return variables.icon.color.inactive ||
+              variables.icon.color.default ]]]
+          - background: >-
+              [[[ return variables.icon.color.background.inactive ||
+              variables.card.color.background.inactive ]]]
+    - id: state_heat
+      value: heat
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'heat'
+                return 'state_heat'
+              ]]]
+          - transition: all 0.4s ease-out
+          - background-color: '[[[ return variables.card.color.background.hvac_heat ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.hvac_heat;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.hvac_heat;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.hvac_heat;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.hvac_heat;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.hvac_heat ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_heat; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.hvac_heat ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_heat; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.hvac_heat ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_heat; ]]]
+    - id: state_cool
+      value: cool
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'cool'
+                return 'state_cool'
+              ]]]
+          - transition: all 0.4s ease-out
+          - background-color: '[[[ return variables.card.color.background.hvac_cool ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.hvac_cool;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.hvac_cool;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.hvac_cool;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.hvac_cool;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.hvac_cool ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_cool; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.hvac_cool ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_cool; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.hvac_cool ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.hvac_cool; ]]]
+    - id: state_unavailable
+      operator: template
+      value: |
+        [[[
+          return entity !== undefined && ['unknown', 'unavailable'].includes(states[entity.entity_id].state)
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'unavailable'
+                return 'state_unavailable'
+              ]]]
+          - background-color: '[[[ return variables.card.color.background.unavailable ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.unavailable;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.unavailable;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.unavailable;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.unavailable;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.unavailable ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.unavailable; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.unavailable ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.unavailable; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.unavailable ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.unavailable; ]]]
+        icon:
+          - color: >-
+              [[[ return variables.icon.color.unavailable ||
+              variables.icon.color.inactive || variables.icon.color.default
+              ]]]
+          - background: >-
+              [[[ return variables.icon.color.background.unavailable ||
+              variables.card.color.background.unavailable ||
+              variables.icon.color.background.inactive ||
+              variables.card.color.background.inactive ]]]
+    - id: state_zero
+      operator: template
+      value: |
+        [[[
+          if (entity === undefined) return false;
+          const val = Number(states[entity.entity_id].state);
+          return entity !== undefined && !isNaN(val) && val === 0;
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'zero'
+                return 'state_zero'
+              ]]]
+          - background-color: '[[[ return variables.card.color.background.zero ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.zero;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.zero;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.zero;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.zero;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.zero; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.zero; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.zero; ]]]
+    - id: state_nonzero
+      operator: template
+      value: |
+        [[[
+          if (entity === undefined) return false;
+          const val = Number(states[entity.entity_id].state);
+          return entity !== undefined && !isNaN(val) && val !== 0;
+        ]]]
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'non_zero'
+                return 'state_nonzero'
+              ]]]
+          - background-color: '[[[ return variables.card.color.background.non_zero ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.non_zero;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.non_zero;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.non_zero;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.non_zero;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.non_zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.non_zero; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.non_zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.non_zero; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.non_zero ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.non_zero; ]]]
+    - id: state_default
+      operator: default
+      styles:
+        card:
+          - cblcars_matched_state: |
+              [[[
+                this._config.cblcars_matched_state = 'default'
+                return 'state_default'
+              ]]]
+          - background-color: '[[[ return variables.card.color.background.default ]]]'
+          - border-top: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.top.size) + " solid " + variables.card.color.default;
+              ]]]
+          - border-left: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.left.size) + " solid " + variables.card.color.default;
+              ]]]
+          - border-right: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.right.size) + " solid " + variables.card.color.default;
+              ]]]
+          - border-bottom: |
+              [[[
+                return variables.__get_num_with_unit(variables.card.border.bottom.size) + " solid " + variables.card.color.default;
+              ]]]
+        state:
+          - color: '[[[ return variables.text.state.color.default ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.default; ]]]
+        label:
+          - color: '[[[ return variables.text.label.color.default ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.default; ]]]
+        name:
+          - color: '[[[ return variables.text.name.color.default ]]]'
+          - outline: >-
+              [[[ return
+              variables.__get_num_with_unit(variables.card.border.inner.width)
+              + " solid " + variables.card.color.default; ]]]
+        icon:
+          - color: >-
+              [[[ return variables.icon.color.default ||
+              variables.card.color.default ]]]
+          - background: >-
+              [[[ return variables.icon.color.background.default ||
+              variables.card.color.background.default ]]]

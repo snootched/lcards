@@ -1,0 +1,122 @@
+# LCARS MSD Line Attachment Schema V1
+# Comprehensive documentation for overlay-to-overlay line attachment capabilities
+
+# === LINE OVERLAY ATTACHMENT PROPERTIES ===
+
+line_overlay:
+  # --- Source Attachment Properties ---
+  anchor: <overlay_id> | [x, y] | <static_anchor_id>
+    # Description: Starting point for the line
+    # Values:
+    #   - overlay_id: Any overlay ID (text, sparkline, status_grid, control, history_bar)
+    #   - [x, y]: Static coordinates
+    #   - static_anchor_id: Static anchor from anchors: section
+    # Examples:
+    #   anchor: cpu_sparkline
+    #   anchor: [100, 200]
+    #   anchor: bridge_center
+
+  anchor_side: <attachment_side>
+    # Description: Which side/corner of the source overlay to attach from
+    # Required: Only when anchor is an overlay_id
+    # Default: center
+    # Values: center | top | bottom | left | right |
+    #         top-left | top-right | bottom-left | bottom-right |
+    #         left-top | left-bottom | right-top | right-bottom
+    # Aliases: topLeft | topRight | bottomLeft | bottomRight |
+    #          leftTop | leftBottom | rightTop | rightBottom
+    # Gap Direction: First part of compound names determines gap direction
+    #   - top-* → gap goes UP (negative Y)
+    #   - bottom-* → gap goes DOWN (positive Y)
+    #   - left-* → gap goes LEFT (negative X)
+    #   - right-* → gap goes RIGHT (positive X)
+    # Examples:
+    #   anchor_side: right
+    #   anchor_side: bottom-right  # gap goes DOWN
+    #   anchor_side: right-bottom  # gap goes RIGHT
+
+  anchor_gap: <number>
+    # Description: Gap offset from the source attachment point (pixels)
+    # Default: 0
+    # Direction: Applied outward from the overlay based on anchor_side
+    # Examples:
+    #   anchor_gap: 8    # 8px gap from source edge
+    #   anchor_gap: 0    # No gap (line touches overlay)
+
+  # --- Target Attachment Properties ---
+  attach_to: <overlay_id> | [x, y] | <static_anchor_id>
+    # Description: Ending point for the line
+    # Values:
+    #   - overlay_id: Any overlay ID (text, sparkline, status_grid, control, history_bar)
+    #   - [x, y]: Static coordinates
+    #   - static_anchor_id: Static anchor from anchors: section
+    # Examples:
+    #   attach_to: memory_status
+    #   attach_to: [800, 300]
+    #   attach_to: warp_core
+
+  attach_side: <attachment_side>
+    # Description: Which side/corner of the target overlay to attach to
+    # Required: Only when attach_to is an overlay_id
+    # Default: center
+    # Values: center | top | bottom | left | right |
+    #         top-left | top-right | bottom-left | bottom-right |
+    #         left-top | left-bottom | right-top | right-bottom
+    # Aliases: topLeft | topRight | bottomLeft | bottomRight |
+    #          leftTop | leftBottom | rightTop | rightBottom
+    # Gap Direction: First part of compound names determines gap direction
+    #   - top-* → gap goes UP (negative Y)
+    #   - bottom-* → gap goes DOWN (positive Y)
+    #   - left-* → gap goes LEFT (negative X)
+    #   - right-* → gap goes RIGHT (positive X)
+    # Examples:
+    #   attach_side: left
+    #   attach_side: top-right     # gap goes UP
+    #   attach_side: right-top     # gap goes RIGHT
+
+  attach_gap: <number>
+    # Description: Gap offset from the target attachment point (pixels)
+    # Default: 0
+    # Direction: Applied outward from the overlay based on attach_side
+    # Examples:
+    #   attach_gap: 12   # 12px gap from target edge
+    #   attach_gap: 0    # No gap (line touches overlay)
+
+  # Gap Direction Examples
+  gap_direction_examples:
+    # Vertical-Primary (gap moves vertically)
+    - attachment_side: bottom-right
+      gap: 15
+      result: "Line moves 15px DOWN from bottom-right corner"
+
+    - attachment_side: top-left
+      gap: 10
+      result: "Line moves 10px UP from top-left corner"
+
+    # Horizontal-Primary (gap moves horizontally)
+    - attachment_side: right-bottom
+      gap: 20
+      result: "Line moves 20px RIGHT from right-bottom corner"
+
+    - attachment_side: left-top
+      gap: 12
+      result: "Line moves 12px LEFT from left-top corner"
+
+    # Basic sides (gap moves outward)
+    - attachment_side: right
+      gap: 8
+      result: "Line moves 8px RIGHT from right edge"
+
+# === IMPLEMENTATION STATUS ===
+
+implementation_status:
+  version: "v2025.08.1-fuk.27-69"
+  status: "FULLY IMPLEMENTED AND TESTED"
+
+  completed_features:
+    - "Unified attachment point system for ALL overlay types"
+    - "Priority resolution (overlay > static > coordinates)"
+    - "Property propagation through configuration pipeline"
+    - "Comprehensive side/corner attachment support"
+    - "Gap offset calculations with directional awareness"
+    - "Backward compatibility with existing text attachments"
