@@ -1,18 +1,22 @@
 /**
  * ActionHelpers - Universal action system for MSD overlay elements
- * 🌉 Provides a bridge to button-card's proven action system for full compatibility
+ * 🚀 Native action handling using LCARdS architecture (no button-card dependency)
  *
  * Features:
  * - Works with any overlay type (status grids, sparklines, etc.)
- * - Button-card bridge pattern for full action support (toggle, call-service, navigate, etc.)
- * - Template evaluation, sounds, confirmations via button-card
- * - Non-reactive config injection to prevent MSD card re-renders
- * - Fallback to direct HASS calls when bridge unavailable
+ * - Native action handling via custom-card-helpers
+ * - Template evaluation, sounds, confirmations
+ * - Direct integration with Home Assistant
+ * - Clean architecture with no legacy button-card bridge
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { LCARdSActionHandler } from '../../base/LCARdSActionHandler.js';
 
 export class ActionHelpers {
+
+    // Static action handler instance for all MSD actions
+    static _actionHandler = new LCARdSActionHandler();
 
     /**
    * Attach simple actions (tap, hold, double-tap) to overlay element
@@ -69,7 +73,7 @@ export class ActionHelpers {
             animationManager.triggerAnimations(overlayId, 'on_hold');
           }
 
-          ActionHelpers.executeActionViaButtonCardBridge(simpleActions.hold_action, cardInstance, 'hold');
+          ActionHelpers.executeAction(simpleActions.hold_action, cardInstance, 'hold');
         }, 500);
       }
     };
@@ -109,7 +113,7 @@ export class ActionHelpers {
             animationManager.triggerAnimations(overlayId, 'on_double_tap');
           }
 
-          ActionHelpers.executeActionViaButtonCardBridge(simpleActions.double_tap_action, cardInstance, 'double_tap');
+          ActionHelpers.executeAction(simpleActions.double_tap_action, cardInstance, 'double_tap');
           lastTap = 0; // Reset to prevent triple-tap and single-tap
           return; // CRITICAL: Exit early to prevent single-tap logic
         }
@@ -129,7 +133,7 @@ export class ActionHelpers {
                   animationManager.triggerAnimations(overlayId, 'on_tap');
                 }
 
-                ActionHelpers.executeActionViaButtonCardBridge(simpleActions.tap_action, cardInstance, 'tap');
+                ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap');
               } else {
                 lcardsLog.debug(`[ActionHelpers] 🚫 Overlay single tap cancelled (double-tap occurred)`);
               }
@@ -143,7 +147,7 @@ export class ActionHelpers {
               animationManager.triggerAnimations(overlayId, 'on_tap');
             }
 
-            ActionHelpers.executeActionViaButtonCardBridge(simpleActions.tap_action, cardInstance, 'tap');
+            ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap');
           }
         }
       } else {
@@ -427,56 +431,45 @@ export class ActionHelpers {
   }
 
   /**
-   * Execute action via button-card bridge pattern
-   * Uses button-card's proven action system for full compatibility
+   * Execute action using native LCARdS action handler
+   * Uses custom-card-helpers for reliable action execution
    * @param {Object} action - Action configuration
-   * @param {Object} cardInstance - Button-card instance
+   * @param {Object} cardInstance - Card instance (for HASS access)
    * @param {string} actionType - Type of action (tap, hold, double_tap)
    * @static
    */
-  static executeActionViaButtonCardBridge(action, cardInstance, actionType = 'tap') {
+  static executeAction(action, cardInstance, actionType = 'tap') {
     if (!action || !cardInstance) {
-      lcardsLog.debug(`[ActionHelpers] Missing action or card instance for bridge execution`);
+      lcardsLog.debug(`[ActionHelpers] Missing action or card instance for execution`);
       return false;
     }
 
     try {
-      // Method 1: Try button-card's _handleAction with mock event
-      if (typeof cardInstance._handleAction === 'function') {
-        const mockEvent = {
-          detail: {
-            action: actionType
-          }
-        };
-
-        // CRITICAL: Store original config
-        const originalConfig = cardInstance._config;
-        const actionKey = `${actionType}_action`;
-
-        // Create temporary config object
-        const tempConfig = {
-          ...originalConfig,
-          [actionKey]: action
-        };
-
-        // Inject config
-        cardInstance._config = tempConfig;
-
-        try {
-          // Call button-card's action handler
-          cardInstance._handleAction(mockEvent);
-          return true;
-        } finally {
-          // Restore original config
-          cardInstance._config = originalConfig;
-        }
+      // Get HASS object from card instance
+      const hass = cardInstance.___hass || cardInstance._hass || cardInstance.hass || cardInstance.__hass;
+      
+      if (!hass) {
+        lcardsLog.warn(`[ActionHelpers] No HASS object available for action execution`);
+        return false;
       }
 
-      lcardsLog.warn(`[ActionHelpers] ⚠️ cardInstance._handleAction is not a function, falling back`);
-      return ActionHelpers._executeActionDirectly(action, cardInstance);
+      // Normalize action configuration
+      const normalizedAction = ActionHelpers._actionHandler.normalizeActionConfig(action);
+      
+      lcardsLog.debug(`[ActionHelpers] Executing ${actionType} action:`, normalizedAction);
+
+      // Execute action using native handler
+      ActionHelpers._actionHandler.handleAction(
+        cardInstance, // element
+        hass,         // hass object
+        normalizedAction, // action config
+        actionType    // action name
+      );
+
+      return true;
 
     } catch (error) {
-      lcardsLog.error(`[ActionHelpers] ❌ Bridge execution FAILED:`, error);
+      lcardsLog.error(`[ActionHelpers] ❌ Native action execution FAILED:`, error);
       return ActionHelpers._executeActionDirectly(action, cardInstance);
     }
   }  /**
@@ -935,7 +928,7 @@ export class ActionHelpers {
       event.stopImmediatePropagation();
 
       if (actions.tap_action) {
-        const executed = ActionHelpers.executeActionViaButtonCardBridge(actions.tap_action, cardInstance, 'tap');
+        const executed = ActionHelpers.executeAction(actions.tap_action, cardInstance, 'tap');
         if (!executed) {
           lcardsLog.warn(`[ActionHelpers] ⚠️ TAP ACTION EXECUTION RETURNED FALSE for ${cellId}`);
         }
