@@ -35,6 +35,7 @@
   "dependencies": {
     "animejs": "^4.0.0",
     "apexcharts": "^3.54.1",
+    "custom-card-helpers": "^1.9.0",
     "ha-editor-formbuilder-yaml": "github:snootched/ha-card-formbuilder"
   }
 }

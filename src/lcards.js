@@ -26,6 +26,9 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 // MSD system import
 import './msd/index.js';
 
+// Native card imports
+import { LCARdSMSDCard } from './cards/lcards-msd.js';
+
 // Unified API system import
 import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
 
@@ -135,7 +138,8 @@ initializeCustomCard()
         defineCustomElement('lcards-multimeter-card', LCARdSMultimeterCard, 'lcards-multimeter-card-editor', LCARdSCardEditor);
         defineCustomElement('lcards-dpad-card', LCARdSDPADCard, 'lcards-dpad-card-editor', LCARdSCardEditor);
         defineCustomElement('lcards-button-card', LCARdSButtonCard, 'lcards-button-card-editor', LCARdSCardEditor);
-        defineCustomElement('lcards-msd-card', LCARdSMSDCard, 'lcards-msd-card-editor', LCARdSCardEditor);
+        // defineCustomElement('lcards-msd-card', LCARdSMSDCard, 'lcards-msd-card-editor', LCARdSCardEditor);
+        // ↳ MSD Card now self-registers as native element (no button-card dependency)
     })
     .catch(error => {
         lcardsLog.error('[initializeCustomCard.then()] Error initializing custom card:', error);
@@ -899,8 +903,12 @@ class LCARdSElbowCard extends LCARdSBaseCard {
       }
 }
 
-
-class LCARdSMSDCard extends LCARdSBaseCard {
+// ============================================================================
+// LCARdS MSD Card (LEGACY - Replaced by Native Implementation)
+// ============================================================================
+// This class has been replaced by the native LCARdSMSDCard in src/cards/lcards-msd.js
+// TODO: Remove this legacy implementation once migration is complete
+class LCARdSMSDCardLegacy extends LCARdSBaseCard {
 
     static get editorType() {
         return 'lcards-msd-card-editor';
@@ -1157,7 +1165,7 @@ class LCARdSMSDCard extends LCARdSBaseCard {
 
         super.disconnectedCallback();
     }
-}
+} // End LCARdSMSDCardLegacy
 
 class LCARdSDoubleElbowCard extends LCARdSBaseCard {
     static get editorType() {
