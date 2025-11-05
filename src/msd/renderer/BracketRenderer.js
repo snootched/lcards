@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [BracketRenderer] Bracket renderer - generalized LCARS-style bracket system
@@ -19,7 +19,7 @@ export class BracketRenderer {
       return '';
     }
 
-    cblcarsLog.debug(`[BracketRenderer] 📐 Rendering ${bracketConfig.style || 'lcars'} brackets for ${overlayId}`);
+    lcardsLog.debug(`[BracketRenderer] 📐 Rendering ${bracketConfig.style || 'lcars'} brackets for ${overlayId}`);
 
     const config = BracketRenderer.resolveBracketConfig(bracketConfig);
 
@@ -129,7 +129,7 @@ export class BracketRenderer {
              data-bracket-style="lcars"/>`
     );
 
-    cblcarsLog.debug(`[BracketRenderer] 📐 Created ${bracketPaths.length} LCARS bracket paths`);
+    lcardsLog.debug(`[BracketRenderer] 📐 Created ${bracketPaths.length} LCARS bracket paths`);
     return `<g data-feature="brackets" data-bracket-style="lcars">${bracketPaths.join('\n')}</g>`;
   }
 
@@ -255,7 +255,7 @@ export class BracketRenderer {
              data-bracket-style="extended"/>`
     );
 
-    cblcarsLog.debug(`[BracketRenderer] Created ${bracketPaths.length} extended brackets`);
+    lcardsLog.debug(`[BracketRenderer] Created ${bracketPaths.length} extended brackets`);
     return `<g data-feature="brackets" data-bracket-style="extended">${bracketPaths.join('\n')}</g>`;
   }
 
@@ -303,13 +303,13 @@ export class BracketRenderer {
              data-bracket-style="minimal"/>`
     );
 
-    cblcarsLog.debug(`[BracketRenderer] Created ${bracketPaths.length} minimal bracket corners`);
+    lcardsLog.debug(`[BracketRenderer] Created ${bracketPaths.length} minimal bracket corners`);
     return `<g data-feature="brackets" data-bracket-style="minimal">${bracketPaths.join('\n')}</g>`;
   }
 
   /**
    * BG-Grid style brackets - sophisticated brackets with configurable width, height, and radius
-   * Inspired by the cb-lcars-animation-bg-grid template
+   * Inspired by the lcards-animation-bg-grid template
    * @private
    */
   static renderBgGridBrackets(width, height, config, overlayId) {
@@ -393,7 +393,7 @@ export class BracketRenderer {
       );
     }
 
-    cblcarsLog.debug(`[BracketRenderer] Created ${brackets.length} bg-grid style brackets with width=${bracketWidth}, height=${bracketHeight}, radius=${bracketRadius}`);
+    lcardsLog.debug(`[BracketRenderer] Created ${brackets.length} bg-grid style brackets with width=${bracketWidth}, height=${bracketHeight}, radius=${bracketRadius}`);
     return `<g data-feature="brackets" data-bracket-style="bg-grid">${brackets.join('\n')}</g>`;
   }
 

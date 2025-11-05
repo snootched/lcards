@@ -1,0 +1,60 @@
+lcards-callout-base:
+  variables:
+    card:
+      border:
+        top:
+          left_radius: 0
+          right_radius: 0
+        bottom:
+          left_radius: 0
+          right_radius: 0
+  styles:
+    label:
+      - border-top-right-radius: 0px
+      - border-top-left-radius: 0px
+      - border-bottom-right-radius: 0px
+      - border-bottom-left-radius: 0px
+lcards-header-callout:
+  template:
+    - lcards-header
+    - lcards-callout-base
+  variables:
+    card:
+      border:
+        top:
+          size: 10px
+        left:
+          size: 10px
+lcards-header-callout-right:
+  template:
+    - lcards-header-right
+    - lcards-callout-base
+  variables:
+    card:
+      border:
+        top:
+          size: 10px
+        right:
+          size: 10px
+lcards-footer-callout:
+  template:
+    - lcards-footer
+    - lcards-callout-base
+  variables:
+    card:
+      border:
+        bottom:
+          size: 10px
+        left:
+          size: 10px
+lcards-footer-callout-right:
+  template:
+    - lcards-footer-right
+    - lcards-callout-base
+  variables:
+    card:
+      border:
+        bottom:
+          size: 10px
+        right:
+          size: 10px

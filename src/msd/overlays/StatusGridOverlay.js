@@ -31,14 +31,14 @@
 
 import { OverlayBase } from './OverlayBase.js';
 import { StatusGridRenderer } from '../renderer/StatusGridRenderer.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * StatusGridOverlay - Instance-based status grid overlay
  *
  * Features:
  * - Grid of independent button cells
- * - Full CB-LCARS styling with inheritance
+ * - Full LCARdS styling with inheritance
  * - Cell-level actions (tap, hold, double_tap)
  * - Data source integration per cell
  * - Status ranges with color mapping
@@ -54,7 +54,7 @@ export class StatusGridOverlay extends OverlayBase {
     // Store card instance for action handling
     this.cardInstance = null;
 
-    cblcarsLog.debug(`[StatusGridOverlay] Created instance for overlay ${overlay.id}`);
+    lcardsLog.debug(`[StatusGridOverlay] Created instance for overlay ${overlay.id}`);
   }
 
   /**
@@ -71,13 +71,13 @@ export class StatusGridOverlay extends OverlayBase {
       // Resolve card instance for action handling
       this.cardInstance = this._resolveCardInstance();
 
-      cblcarsLog.debug(`[StatusGridOverlay] Initialized overlay ${this.overlay.id}:`, {
+      lcardsLog.debug(`[StatusGridOverlay] Initialized overlay ${this.overlay.id}:`, {
         hasCardInstance: !!this.cardInstance,
         cellCount: this.overlay.cells?.length || 0,
         hasPreset: !!(this.overlay.style?.lcars_button_preset)
       });
     } catch (error) {
-      cblcarsLog.error(`[StatusGridOverlay] Error initializing overlay ${this.overlay.id}:`, error);
+      lcardsLog.error(`[StatusGridOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
   }
@@ -125,7 +125,7 @@ export class StatusGridOverlay extends OverlayBase {
       };
 
     } catch (error) {
-      cblcarsLog.error(`[StatusGridOverlay] Rendering failed for overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[StatusGridOverlay] Rendering failed for overlay ${overlay.id}:`, error);
       return {
         markup: '',
         actionInfo: null,
@@ -150,7 +150,7 @@ export class StatusGridOverlay extends OverlayBase {
    */
   update(overlayElement, overlay, sourceData) {
     try {
-      cblcarsLog.trace(`[StatusGridOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
+      lcardsLog.trace(`[StatusGridOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
 
       // Update cached overlay reference
       this.overlay = overlay;
@@ -159,7 +159,7 @@ export class StatusGridOverlay extends OverlayBase {
       return StatusGridRenderer.updateGridData(overlayElement, overlay, sourceData);
 
     } catch (error) {
-      cblcarsLog.error(`[StatusGridOverlay] Error updating overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[StatusGridOverlay] Error updating overlay ${overlay.id}:`, error);
       return false;
     }
   }
@@ -169,7 +169,7 @@ export class StatusGridOverlay extends OverlayBase {
    * Cleanup resources (handled by OverlayBase for DataSource subscriptions)
    */
   destroy() {
-    cblcarsLog.debug(`[StatusGridOverlay] Destroying overlay ${this.overlay.id}`);
+    lcardsLog.debug(`[StatusGridOverlay] Destroying overlay ${this.overlay.id}`);
 
     // Clear references
     this.cardInstance = null;
@@ -197,7 +197,7 @@ export class StatusGridOverlay extends OverlayBase {
     }
 
     // 2. Pipeline instance
-    const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+    const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
     if (pipelineInstance?.cardInstance) {
       return pipelineInstance.cardInstance;
     }
@@ -213,12 +213,12 @@ export class StatusGridOverlay extends OverlayBase {
       return window._msdCardInstance;
     }
 
-    // 5. CB-LCARS card instance
+    // 5. LCARdS card instance
     if (window.cb_lcars_card_instance) {
       return window.cb_lcars_card_instance;
     }
 
-    cblcarsLog.warn(`[StatusGridOverlay] Could not resolve card instance for ${this.overlay.id}`);
+    lcardsLog.warn(`[StatusGridOverlay] Could not resolve card instance for ${this.overlay.id}`);
     return null;
   }
 

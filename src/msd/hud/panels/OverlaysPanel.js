@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [OverlaysPanel] Overlays inspection panel
  * 🎯 Lists resolved overlays with quick highlight and structural info
@@ -9,7 +9,7 @@ export class OverlaysPanel {
     const stats = { total: 0, byType: {} };
 
     try {
-      const pipeline = window.cblcars.debug.msd?.pipelineInstance;
+      const pipeline = window.lcards.debug.msd?.pipelineInstance;
       const model = pipeline?.getResolvedModel?.();
       if (model?.overlays) {
         model.overlays.forEach(o => {
@@ -34,7 +34,7 @@ export class OverlaysPanel {
         });
       }
     } catch (e) {
-      cblcarsLog.warn('[OverlaysPanel] ⚠️ captureData failed:', e);
+      lcardsLog.warn('[OverlaysPanel] ⚠️ captureData failed:', e);
     }
 
     return { overlays, stats };
@@ -44,10 +44,10 @@ export class OverlaysPanel {
   highlightOverlay(id) {
     try {
       if (!id) return;
-      const mount = window.cblcars.debug.msd?.pipelineInstance?.mountElement ||
-                    window.cblcars.debug.msd?.mountElement;
+      const mount = window.lcards.debug.msd?.pipelineInstance?.mountElement ||
+                    window.lcards.debug.msd?.mountElement;
       if (!mount) {
-        cblcarsLog.warn('[OverlaysPanel] ⚠️ No mountElement available for highlight');
+        lcardsLog.warn('[OverlaysPanel] ⚠️ No mountElement available for highlight');
         return;
       }
 
@@ -57,8 +57,8 @@ export class OverlaysPanel {
       const overlay = this._findOverlayModel(id);
       const isControlsType = overlay?.type === 'control'; // FIXED: singular 'control' not 'controls'
 
-      cblcarsLog.debug(`[OverlaysPanel] 🎯 Overlay "${id}":`, overlay);
-      cblcarsLog.debug(`[OverlaysPanel] 🏷️ Overlay type: "${overlay?.type}", isControlsType: ${isControlsType}`);
+      lcardsLog.debug(`[OverlaysPanel] 🎯 Overlay "${id}":`, overlay);
+      lcardsLog.debug(`[OverlaysPanel] 🏷️ Overlay type: "${overlay?.type}", isControlsType: ${isControlsType}`);
 
       // Search only inside mount (and shadow root if present)
       const roots = [mount];
@@ -76,12 +76,12 @@ export class OverlaysPanel {
       ] : [];
 
       roots.forEach(root => {
-        cblcarsLog.debug(`[OverlaysPanel] 🔍 Searching in root:`, root);
+        lcardsLog.debug(`[OverlaysPanel] 🔍 Searching in root:`, root);
 
         // Try standard selectors first
         const exactMatches = root.querySelectorAll(selectorExact);
         const byIdMatch = root.querySelector(selectorId);
-        cblcarsLog.debug(`[OverlaysPanel] 🎯 Standard selectors for "${id}":`, {
+        lcardsLog.debug(`[OverlaysPanel] 🎯 Standard selectors for "${id}":`, {
           selectorExact: selectorExact,
           exactMatches: exactMatches.length,
           selectorId: selectorId,
@@ -93,28 +93,28 @@ export class OverlaysPanel {
 
         // ADDED: Search for controls-specific elements
         if (isControlsType) {
-          cblcarsLog.debug(`[OverlaysPanel] 🎮 Searching for controls overlay: ${id}`);
-          cblcarsLog.debug(`[OverlaysPanel] 🎯 Controls selectors:`, controlsSelectors);
+          lcardsLog.debug(`[OverlaysPanel] 🎮 Searching for controls overlay: ${id}`);
+          lcardsLog.debug(`[OverlaysPanel] 🎯 Controls selectors:`, controlsSelectors);
           controlsSelectors.forEach(selector => {
             try {
               const found = root.querySelectorAll(selector);
-              cblcarsLog.debug(`[OverlaysPanel] 📋 Selector "${selector}" found ${found.length} elements:`, found);
+              lcardsLog.debug(`[OverlaysPanel] 📋 Selector "${selector}" found ${found.length} elements:`, found);
               found.forEach(el => {
                 if (!matches.includes(el)) matches.push(el);
               });
             } catch (e) {
-              cblcarsLog.warn(`[OverlaysPanel] ⚠️ Invalid selector: ${selector}`, e);
+              lcardsLog.warn(`[OverlaysPanel] ⚠️ Invalid selector: ${selector}`, e);
             }
           });
         } else {
-          cblcarsLog.debug(`[OverlaysPanel] 🚫 Not a controls type overlay, skipping controls selectors`);
+          lcardsLog.debug(`[OverlaysPanel] 🚫 Not a controls type overlay, skipping controls selectors`);
         }
       });
 
-      cblcarsLog.info(`[OverlaysPanel] 📊 Total matches found: ${matches.length}`, matches);
+      lcardsLog.info(`[OverlaysPanel] 📊 Total matches found: ${matches.length}`, matches);
 
       if (matches.length === 0) {
-        cblcarsLog.warn('[OverlaysPanel] ❌ No nodes found for overlay', id);
+        lcardsLog.warn('[OverlaysPanel] ❌ No nodes found for overlay', id);
         this._toast(`Overlay not found: ${id}`, '#ff4444');
         return;
       }
@@ -137,7 +137,7 @@ export class OverlaysPanel {
 
       this._toast(`Overlay: ${id} (${overlay?.type || 'unknown'})`, '#ff66ff');
     } catch (e) {
-      cblcarsLog.warn('[OverlaysPanel] ⚠️ highlightOverlay failed:', e);
+      lcardsLog.warn('[OverlaysPanel] ⚠️ highlightOverlay failed:', e);
     }
   }
 
@@ -297,11 +297,11 @@ export class OverlaysPanel {
 
   analyzeOverlay(id) {
     try {
-      const pipeline = window.cblcars.debug.msd?.pipelineInstance;
+      const pipeline = window.lcards.debug.msd?.pipelineInstance;
       const model = pipeline?.getResolvedModel?.();
       const overlay = model?.overlays?.find(o => o.id === id);
       if (!overlay) {
-        cblcarsLog.warn('[OverlaysPanel] ❌ analyzeOverlay: overlay not found', id);
+        lcardsLog.warn('[OverlaysPanel] ❌ analyzeOverlay: overlay not found', id);
         this._toast('Overlay not found', '#ff4444');
         return;
       }
@@ -326,23 +326,23 @@ export class OverlaysPanel {
         console.log('Style Sources (detailed):', overlay._styleSources);
         // ADDED: Log each source individually for debugging
         overlay._styleSources.forEach((source, i) => {
-          cblcarsLog.debug(`[OverlaysPanel] 📋 Source ${i}:`, source);
+          lcardsLog.debug(`[OverlaysPanel] 📋 Source ${i}:`, source);
         });
       }
       if (overlay._patches) {
-        cblcarsLog.debug('[OverlaysPanel] 🔄 Rule Patches:', overlay._patches);
+        lcardsLog.debug('[OverlaysPanel] 🔄 Rule Patches:', overlay._patches);
       }
       if (overlay.__meta) {
-        cblcarsLog.debug('[OverlaysPanel] 🏷️ Metadata:', overlay.__meta);
+        lcardsLog.debug('[OverlaysPanel] 🏷️ Metadata:', overlay.__meta);
       }
       // ADDED: Log full overlay object for debugging
-      cblcarsLog.debug('[OverlaysPanel] 📊 Full Overlay Object:', overlay);
+      lcardsLog.debug('[OverlaysPanel] 📊 Full Overlay Object:', overlay);
       console.groupEnd();
 
       // Popup
       this._showOverlayPopup(overlay);
     } catch (e) {
-      cblcarsLog.warn('[OverlaysPanel] ⚠️ analyzeOverlay failed:', e);
+      lcardsLog.warn('[OverlaysPanel] ⚠️ analyzeOverlay failed:', e);
     }
   }
 
@@ -351,7 +351,7 @@ export class OverlaysPanel {
     if (existing) existing.remove();
 
     // ADDED: Get proportional font sizes for popup
-    const baseFontSize = window.cblcars.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
     const sectionFontSize = Math.round(baseFontSize * 1.0); // 12px when base is 12px
     const metricFontSize = Math.round(baseFontSize * 0.92); // 11px when base is 12px
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
@@ -387,8 +387,8 @@ export class OverlaysPanel {
 
       try {
         const finalStyleProps = overlay.finalStyle ? Object.keys(overlay.finalStyle) : [];
-        cblcarsLog.debug('[OverlaysPanel] 🎨 Final style properties:', finalStyleProps);
-        cblcarsLog.debug('[OverlaysPanel] 🔢 Number of sources:', overlay._styleSources.length);
+        lcardsLog.debug('[OverlaysPanel] 🎨 Final style properties:', finalStyleProps);
+        lcardsLog.debug('[OverlaysPanel] 🔢 Number of sources:', overlay._styleSources.length);
 
         // FIXED: Show each property individually with its source
         const propertyMappings = [];
@@ -400,7 +400,7 @@ export class OverlaysPanel {
           if (index < finalStyleProps.length) {
             const property = finalStyleProps[index];
             propertyMappings.push(`${property} <span style="color:#ffaa00;font-weight:bold;font-size:${Math.round(controlsFontSize * 1.3)}px;"> ◀ </span> ${sourceLabel}`);
-            cblcarsLog.debug(`[OverlaysPanel] 🔗 Source ${index} (${sourceLabel}) → ${property}`);
+            lcardsLog.debug(`[OverlaysPanel] 🔗 Source ${index} (${sourceLabel}) → ${property}`);
           }
         });
 
@@ -415,7 +415,7 @@ export class OverlaysPanel {
         // Format as individual property lines
         return propertyMappings.join('<br>') || 'none';
       } catch (e) {
-        cblcarsLog.warn('[OverlaysPanel] ⚠️ Error processing sources:', e);
+        lcardsLog.warn('[OverlaysPanel] ⚠️ Error processing sources:', e);
         // Fallback to simple list
         return overlay._styleSources.map((s, i) => `property${i} <span style="color:#ffaa00;font-weight:bold;font-size:${Math.round(controlsFontSize * 1.3)}px;"> ◀ </span> ${s.kind || 'unknown'}:${s.id || 'unnamed'}`).join('<br>');
       }
@@ -484,7 +484,7 @@ export class OverlaysPanel {
   // NEW helper: locate overlay model object
   _findOverlayModel(id) {
     try {
-      const model = window.cblcars.debug.msd?.pipelineInstance?.getResolvedModel?.();
+      const model = window.lcards.debug.msd?.pipelineInstance?.getResolvedModel?.();
       return model?.overlays?.find(o => o.id === id);
     } catch {
       return null;
@@ -497,8 +497,8 @@ export class OverlaysPanel {
       const anchorId = overlay.anchor;
       const attachId = overlay.attach_to;
       const mount =
-        window.cblcars.debug.msd?.pipelineInstance?.mountElement ||
-        window.cblcars.debug.msd?.mountElement ||
+        window.lcards.debug.msd?.pipelineInstance?.mountElement ||
+        window.lcards.debug.msd?.mountElement ||
         document;
 
       const anchorEl = anchorId ? mount.querySelector(`[data-anchor-id="${CSS.escape(anchorId)}"],#${CSS.escape(anchorId)}`) : null;
@@ -527,7 +527,7 @@ export class OverlaysPanel {
         '#ff66ff'
       );
     } catch (e) {
-      cblcarsLog.warn('[OverlaysPanel] ⚠️ _highlightBoundingBoxFromModel failed:', e);
+      lcardsLog.warn('[OverlaysPanel] ⚠️ _highlightBoundingBoxFromModel failed:', e);
     }
   }
 
@@ -548,7 +548,7 @@ export class OverlaysPanel {
 
   _toast(msg, color = '#ff66ff') {
     // ADDED: Get proportional font size for toast
-    const baseFontSize = window.cblcars.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
 
     const el = document.createElement('div');
@@ -569,14 +569,14 @@ export class OverlaysPanel {
    */
   destroy() {
     // No specific resources to clean up for this panel
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(data) {
     const { overlays = [], stats = {} } = data;
 
     // ADDED: Get font size from HUD manager context for proportional scaling
-    const baseFontSize = window.cblcars.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
     const metricFontSize = Math.round(baseFontSize * 0.92); // 11px when base is 12px
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
     const smallFontSize = Math.round(baseFontSize * 0.75); // 9px when base is 12px

@@ -13,7 +13,7 @@
  * @module msd/validation/DataSourceValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * DataSource Validator
@@ -37,7 +37,7 @@ export class DataSourceValidator {
       'metric'
     ];
 
-    cblcarsLog.debug('[DataSourceValidator] Initialized');
+    lcardsLog.debug('[DataSourceValidator] Initialized');
   }
 
   /**
@@ -243,7 +243,7 @@ export class DataSourceValidator {
         });
       }
     } catch (error) {
-      cblcarsLog.debug('[DataSourceValidator] Error getting data source data:', error);
+      lcardsLog.debug('[DataSourceValidator] Error getting data source data:', error);
     }
   }
   /**
@@ -310,7 +310,7 @@ export class DataSourceValidator {
           });
         }
       } catch (error) {
-        cblcarsLog.debug('[DataSourceValidator] Error validating transformation:', error);
+        lcardsLog.debug('[DataSourceValidator] Error validating transformation:', error);
       }
     }
 
@@ -352,7 +352,7 @@ export class DataSourceValidator {
           }
         }
       } catch (error) {
-        cblcarsLog.debug('[DataSourceValidator] Error validating aggregation:', error);
+        lcardsLog.debug('[DataSourceValidator] Error validating aggregation:', error);
       }
     }
 
@@ -399,7 +399,7 @@ export class DataSourceValidator {
       return partialMatch || null;
 
     } catch (error) {
-      cblcarsLog.debug('[DataSourceValidator] Error suggesting similar source:', error);
+      lcardsLog.debug('[DataSourceValidator] Error suggesting similar source:', error);
       return null;
     }
   }

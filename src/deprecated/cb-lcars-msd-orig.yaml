@@ -1,6 +1,6 @@
-cb-lcars-msd:
+lcards-msd:
   template:
-    - cb-lcars-header
+    - lcards-header
   variables:
     msd:
       base_svg: 'builtin:ncc-1701-blue'   # Use 'builtin:' for built-in SVGs, or '/local/' for custom SVGs
@@ -211,7 +211,7 @@ cb-lcars-msd:
         } else if (variables.msd.base_svg && variables.msd.base_svg.startsWith('/local/')) {
           svgKey = variables.msd.base_svg.split('/').pop().replace('.svg','');
         }
-        svgContent = svgKey && window.cblcars?.msd?.svg_templates?.[svgKey];
+        svgContent = svgKey && window.lcards?.msd?.svg_templates?.[svgKey];
         if (!svgContent) {
           return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:gray;">Loading SVG...</div>`;
         }
@@ -248,7 +248,7 @@ cb-lcars-msd:
         // Calculate aspect ratio for overlays container
         const aspect = width && height ? (width / height) : 2;
 
-        // Deep merge utility (from cb-lcars-svg-alert)
+        // Deep merge utility (from lcards-svg-alert)
         function deepMerge(target, ...sources) {
           if (!sources.length) return target;
           const source = sources.shift();
@@ -268,7 +268,7 @@ cb-lcars-msd:
           return deepMerge(target, ...sources);
         }
 
-        // --- State Resolver System (adapted from cb-lcars-base custom_states) ---
+        // --- State Resolver System (adapted from lcards-base custom_states) ---
         function resolveCalloutState(callout, hass) {
           const stateConfig = callout.state_resolver || variables.msd.state_resolver || {};
           if (!stateConfig.enabled || !Array.isArray(stateConfig.states) || !stateConfig.states.length) {
@@ -609,7 +609,7 @@ cb-lcars-msd:
             svgContent = `<svg width="100%" height="100%"><text x="50%" y="50%" text-anchor="middle" fill="gray">[SVG Loaded Here]</text></svg>`;
           } else if (variables.msd.base_svg && variables.msd.base_svg.startsWith('builtin:')) {
             const key = variables.msd.base_svg.replace('builtin:', '');
-            svgContent = window.cblcars?.msd?.svg_templates?.[key] || window.cblcars?.msd?.svg_templates?.['test'] || '';
+            svgContent = window.lcards?.msd?.svg_templates?.[key] || window.lcards?.msd?.svg_templates?.['test'] || '';
           }
           const match = svgContent.match(/viewBox="[^"]*([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)"/);
           if (match) {

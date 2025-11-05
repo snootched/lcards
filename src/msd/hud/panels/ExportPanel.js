@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [ExportPanel] Export panel for MSD HUD
  * 📤 Interactive configuration export/import/diff tools
@@ -13,38 +13,38 @@ export class ExportPanel {
 
   exportCollapsed() {
     try {
-      // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-      const pipeline = window.cblcars?.debug?.msd?.pipelineInstance;
+      // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+      const pipeline = window.lcards?.debug?.msd?.pipelineInstance;
       if (pipeline?.exportCollapsedJson) {
-        cblcarsLog.info('[ExportPanel] 📤 Exporting collapsed configuration');
+        lcardsLog.info('[ExportPanel] 📤 Exporting collapsed configuration');
         const json = pipeline.exportCollapsedJson(true);
         this.downloadJson(json, 'msd-config-collapsed');
         this.updateTextarea('collapsed', json);
       } else {
-        cblcarsLog.warn('[ExportPanel] ⚠️ Pipeline or exportCollapsedJson method not available');
+        lcardsLog.warn('[ExportPanel] ⚠️ Pipeline or exportCollapsedJson method not available');
       }
     } catch (e) {
-      cblcarsLog.error('[ExportPanel] ❌ Collapsed export failed:', e);
+      lcardsLog.error('[ExportPanel] ❌ Collapsed export failed:', e);
     }
   }
 
   exportFull(includeMeta = false) {
     try {
-      // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-      const pipeline = window.cblcars?.debug?.msd?.pipelineInstance;
+      // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+      const pipeline = window.lcards?.debug?.msd?.pipelineInstance;
       if (pipeline?.exportFullSnapshotJson) {
         const metaText = includeMeta ? ' with metadata' : '';
-        cblcarsLog.info(`[ExportPanel] 📋 Exporting full snapshot${metaText}`);
+        lcardsLog.info(`[ExportPanel] 📋 Exporting full snapshot${metaText}`);
         const options = includeMeta ? { include_meta: true } : {};
         const json = pipeline.exportFullSnapshotJson(options, true);
         const filename = includeMeta ? 'msd-snapshot-with-meta' : 'msd-snapshot';
         this.downloadJson(json, filename);
         this.updateTextarea('full', json);
       } else {
-        cblcarsLog.warn('[ExportPanel] ⚠️ Pipeline or exportFullSnapshotJson method not available');
+        lcardsLog.warn('[ExportPanel] ⚠️ Pipeline or exportFullSnapshotJson method not available');
       }
     } catch (e) {
-      cblcarsLog.error('[ExportPanel] ❌ Full export failed:', e);
+      lcardsLog.error('[ExportPanel] ❌ Full export failed:', e);
     }
   }
 
@@ -62,7 +62,7 @@ export class ExportPanel {
       navigator.clipboard.writeText(textarea.value).then(() => {
         this.showFeedback('📋 Copied to clipboard!');
       }).catch(e => {
-        cblcarsLog.warn('[ExportPanel] ⚠️ Clipboard copy failed:', e);
+        lcardsLog.warn('[ExportPanel] ⚠️ Clipboard copy failed:', e);
         textarea.select();
         textarea.setSelectionRange(0, 99999);
       });
@@ -83,7 +83,7 @@ export class ExportPanel {
 
       this.showFeedback(`📥 Downloaded: ${a.download}`, 'success');
     } catch (e) {
-      cblcarsLog.error('[ExportPanel] ❌ Download failed:', e);
+      lcardsLog.error('[ExportPanel] ❌ Download failed:', e);
     }
   }
 
@@ -124,8 +124,8 @@ export class ExportPanel {
   }
 
   captureData() {
-    // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-    const pipeline = window.cblcars?.debug?.msd?.pipelineInstance;
+    // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+    const pipeline = window.lcards?.debug?.msd?.pipelineInstance;
 
     // FIXED: Add more detailed debugging for export panel visibility
     const data = {
@@ -139,7 +139,7 @@ export class ExportPanel {
 
     // FIXED: Only log data capture issues, not every successful capture
     if (!data.available) {
-      cblcarsLog.warn('[ExportPanel] ⚠️ Pipeline not available for export functionality');
+      lcardsLog.warn('[ExportPanel] ⚠️ Pipeline not available for export functionality');
     }
 
     return data;
@@ -152,7 +152,7 @@ export class ExportPanel {
     // Clear any initialization state
     this.initialized = false;
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(exportData) {

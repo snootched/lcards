@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [ValidationPanel] Validation monitoring panel for MSD HUD
  * ✅ Displays validation errors and warnings with overlay highlighting
@@ -10,18 +10,18 @@ export class ValidationPanel {
     const warnings = [];
 
     try {
-      cblcarsLog.debug('[ValidationPanel] 📋 Capturing validation data');
+      lcardsLog.debug('[ValidationPanel] 📋 Capturing validation data');
       // FIXED: Use centralized silent debug status access
-      const debugStatus = window.cblcars.debug.msd?.getDebugStatusSilent?.() || {};
+      const debugStatus = window.lcards.debug.msd?.getDebugStatusSilent?.() || {};
       let validationData = {};
 
-      if (debugStatus.enabled && window.cblcars.debug.msd?.validation?.issues) {
-        validationData = window.cblcars.debug.msd.validation.issues() || {};
-        cblcarsLog.debug('[ValidationPanel] 🔍 Retrieved validation data from debug interface');
+      if (debugStatus.enabled && window.lcards.debug.msd?.validation?.issues) {
+        validationData = window.lcards.debug.msd.validation.issues() || {};
+        lcardsLog.debug('[ValidationPanel] 🔍 Retrieved validation data from debug interface');
       } else {
         // Fallback: try direct access without debug interface
-        validationData = window.cblcars.debug.msd?.pipelineInstance?.getValidationIssues?.() || {};
-        cblcarsLog.debug('[ValidationPanel] 🔄 Using fallback validation data access');
+        validationData = window.lcards.debug.msd?.pipelineInstance?.getValidationIssues?.() || {};
+        lcardsLog.debug('[ValidationPanel] 🔄 Using fallback validation data access');
       }
 
       if (validationData.errors) {
@@ -34,7 +34,7 @@ export class ValidationPanel {
             anchor: error.anchor
           });
         });
-        cblcarsLog.debug(`[ValidationPanel] ❌ Processed ${validationData.errors.length} validation errors`);
+        lcardsLog.debug(`[ValidationPanel] ❌ Processed ${validationData.errors.length} validation errors`);
       }
 
       if (validationData.warnings) {
@@ -47,17 +47,17 @@ export class ValidationPanel {
             anchor: warning.anchor
           });
         });
-        cblcarsLog.debug(`[ValidationPanel] ⚠️ Processed ${validationData.warnings.length} validation warnings`);
+        lcardsLog.debug(`[ValidationPanel] ⚠️ Processed ${validationData.warnings.length} validation warnings`);
       }
 
       const totalIssues = errors.length + warnings.length;
       if (totalIssues === 0) {
-        cblcarsLog.debug('[ValidationPanel] ✅ No validation issues found');
+        lcardsLog.debug('[ValidationPanel] ✅ No validation issues found');
       } else {
-        cblcarsLog.info(`[ValidationPanel] 📊 Found ${errors.length} errors and ${warnings.length} warnings`);
+        lcardsLog.info(`[ValidationPanel] 📊 Found ${errors.length} errors and ${warnings.length} warnings`);
       }
     } catch (e) {
-      cblcarsLog.warn('[ValidationPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[ValidationPanel] ⚠️ Data capture failed:', e);
     }
 
     return { errors, warnings };
@@ -68,7 +68,7 @@ export class ValidationPanel {
    */
   destroy() {
     // No specific resources to clean up for this panel
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(validation) {

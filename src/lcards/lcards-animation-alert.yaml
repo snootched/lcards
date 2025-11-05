@@ -1,0 +1,200 @@
+lcards-animation-alert:
+  template:
+    - lcards-functions
+    - lcards-svg-alert
+  variables:
+    animation:
+      alert:
+        size: default
+        alert_text: alert
+        sub_text: condition
+        preset: default
+        text:
+          alert_text:
+            font_size: 14
+            font_weight: 500
+            font_family: >-
+              cb-lcars_microgramma,cb-lcars_jeffries,cb-lcars_antonio,Antonio,Arial,sans-serif
+            align: center
+            transform: uppercase
+            stretch: true
+            color:
+              default: var(--error-color)
+          sub_text:
+            font_size: 6
+            font_weight: 200
+            font_family: >-
+              cb-lcars_microgramma,cb-lcars_jeffries,cb-lcars_antonio,Antonio,Arial,sans-serif
+            align: center
+            transform: uppercase
+            stretch: true
+            color:
+              default: var(--primary-text-color)
+        color:
+          bars:
+            default: var(--lcars-ui-primary)
+            animation_base: var(--lcars-ui-quaternary)
+            animation_flash: var(--lcars-alert-blue)
+          shape:
+            default: var(--lcars-ui-primary)
+        enable_bar_animation: true
+        animation_duration: 2
+        enable_blink: true
+        blink_duration: 4
+        blink_delay: 2
+        custom_alert_presets:
+          my_condition:
+            alert_text: my custom alert
+            animation_duration: 1.5
+        alert_presets:
+          condition_red:
+            alert_text: Alert
+            sub_text: 'condition: red'
+            color:
+              bars:
+                default: var(--lcars-alert-red)
+                animation_base: var(--lcars-alert-red)
+                animation_flash: var(--picard-lightest-orange)
+              shape:
+                default: var(--lcars-alert-red)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-red)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-red)
+          condition_blue:
+            alert_text: Alert
+            sub_text: 'condition: blue'
+            color:
+              bars:
+                default: var(--lcars-alert-blue)
+                animation_base: var(--lcars-alert-blue)
+                animation_flash: var(--picard-light-blue)
+              shape:
+                default: var(--lcars-alert-blue)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-blue)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-blue)
+          condition_green:
+            alert_text: Alert
+            sub_text: 'condition: green'
+            color:
+              bars:
+                default: var(--picard-green)
+                animation_base: var(--picard-green)
+                animation_flash: var(--picard-light-green)
+              shape:
+                default: var(--picard-green)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--picard-green)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--picard-green)
+          condition_yellow:
+            alert_text: Alert
+            sub_text: 'condition: yellow'
+            color:
+              bars:
+                default: var(--lcars-alert-yellow)
+                animation_base: var(--lcars-alert-yellow)
+                animation_flash: var(--picard-yellow)
+              shape:
+                default: var(--lcars-alert-yellow)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-yellow)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--lcars-alert-yellow)
+          condition_grey:
+            alert_text: Alert
+            sub_text: 'condition: grey'
+            color:
+              bars:
+                default: var(--picard-grey)
+                animation_base: var(--picard-darkest-gray)
+                animation_flash: var(--picard-medium-light-gray)
+              shape:
+                default: var(--picard-dark-gray)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--picard-dark-gray)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--picard-dark-gray)
+          condition_black:
+            alert_text: Alert
+            sub_text: 'condition: black'
+            color:
+              bars:
+                default: var(--picard-lightest-blue)
+                animation_base: var(--picard-lightest-blue)
+                animation_flash: black
+              shape:
+                default: var(--picard-lightest-blue)
+            text:
+              alert_text:
+                stretch: true
+                color:
+                  default: var(--picard-lightest-blue)
+              sub_text:
+                stretch: true
+                color:
+                  default: var(--picard-lightest-blue)
+        range:
+          enabled: false
+          ranges:
+            - from: 0
+              to: 50
+              preset: condition_green
+            - from: 50
+              to: 80
+              preset: condition_yellow
+            - from: 80
+              to: 100
+              preset: condition_red
+        black_box_x: 18
+        black_box_y: 27
+        black_box_width: 64
+        black_box_height: 22
+        alert_text_box_height: 12
+        sub_text_box_height: 8
+        text_box_gap: 0
+        padding:
+          top: 5
+          left: 5
+          right: 5
+          bottom: 5
+  custom_fields:
+    animation: |
+      [[[
+
+        const params = {
+          animation: variables.animation,
+          card: variables.card,
+          entity: entity,
+          attribute: variables.attribute,
+        };
+        return variables.get_memoized_svg.call(this,'z_alert_svg')(params);
+
+      ]]]

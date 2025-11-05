@@ -1,11 +1,11 @@
 {
-  "name": "cb-lcars",
-  "version": "2025.10.1-msd.06.69",
-  "description": "Home Assistant LCARS libary built on custom-button-card",
+  "name": "lcards",
+  "version": "1.0.0",
+  "description": "LCARdS - Modern LCARS card system for Home Assistant",
   "main": "index.js",
   "author": "Jason Weyermars",
   "license": "MIT",
-  "homepage": "https://cb-lcars.unimatrix01.ca",
+  "homepage": "https://lcards.io",
   "directories": {
     "doc": "doc"
   },

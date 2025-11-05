@@ -7,7 +7,7 @@
  * @module msd/styles/StyleValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Style Validator for style value validation
@@ -110,7 +110,7 @@ export class StyleValidator {
           this.stats.warnings++;
         }
       } catch (error) {
-        cblcarsLog.warn('[StyleValidator] Custom validation error:', property, error);
+        lcardsLog.warn('[StyleValidator] Custom validation error:', property, error);
       }
     }
 

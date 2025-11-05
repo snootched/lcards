@@ -13,7 +13,7 @@
  */
 
 import { ColorUtils } from './ColorUtils.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * ThemeTokenResolver - Resolves design tokens to values
@@ -120,7 +120,7 @@ export class ThemeTokenResolver {
   clearCache() {
     this.resolutionCache.clear();
     this.computedCache.clear();
-    cblcarsLog.debug('[ThemeTokenResolver] Cache cleared');
+    lcardsLog.debug('[ThemeTokenResolver] Cache cleared');
   }
 
   /**
@@ -135,7 +135,7 @@ export class ThemeTokenResolver {
   _resolveTokenPath(path, fallback, context) {
     // Detect circular references
     if (this.resolutionStack.includes(path)) {
-      cblcarsLog.warn('[ThemeTokenResolver] Circular reference detected:', path);
+      lcardsLog.warn('[ThemeTokenResolver] Circular reference detected:', path);
       return fallback;
     }
 
@@ -289,7 +289,7 @@ export class ThemeTokenResolver {
       // Parse expression: functionName(arg1, arg2, ...)
       const match = expression.match(/^(\w+)\((.+)\)$/);
       if (!match) {
-        cblcarsLog.warn('[ThemeTokenResolver] Invalid computed token:', expression);
+        lcardsLog.warn('[ThemeTokenResolver] Invalid computed token:', expression);
         return expression;
       }
 
@@ -333,7 +333,7 @@ export class ThemeTokenResolver {
           result = ColorUtils.mix(resolvedArgs[0], resolvedArgs[1], resolvedArgs[2]);
           break;
         default:
-          cblcarsLog.warn('[ThemeTokenResolver] Unknown computed function:', functionName);
+          lcardsLog.warn('[ThemeTokenResolver] Unknown computed function:', functionName);
           return expression;
       }
 
@@ -343,7 +343,7 @@ export class ThemeTokenResolver {
       return result;
 
     } catch (error) {
-      cblcarsLog.error('[ThemeTokenResolver] Error resolving computed token:', expression, error);
+      lcardsLog.error('[ThemeTokenResolver] Error resolving computed token:', expression, error);
       return expression;
     }
   }
@@ -439,7 +439,7 @@ export let themeTokenResolver = null;
  */
 export function initializeTokenResolver(tokens, rootElement = null) {
   themeTokenResolver = new ThemeTokenResolver(tokens, rootElement);
-  cblcarsLog.debug('[ThemeTokenResolver] Initialized with tokens:', Object.keys(tokens));
+  lcardsLog.debug('[ThemeTokenResolver] Initialized with tokens:', Object.keys(tokens));
 }
 
 /**

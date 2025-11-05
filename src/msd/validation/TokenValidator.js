@@ -14,7 +14,7 @@
  * @module msd/validation/TokenValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Token Validator
@@ -42,7 +42,7 @@ export class TokenValidator {
       'components'
     ];
 
-    cblcarsLog.debug('[TokenValidator] Initialized');
+    lcardsLog.debug('[TokenValidator] Initialized');
   }
 
   /**
@@ -274,7 +274,7 @@ export class TokenValidator {
       return current !== undefined && current !== null;
 
     } catch (error) {
-      cblcarsLog.debug('[TokenValidator] Error checking token existence:', error);
+      lcardsLog.debug('[TokenValidator] Error checking token existence:', error);
       return false;
     }
   }
@@ -311,7 +311,7 @@ export class TokenValidator {
       return similar;
 
     } catch (error) {
-      cblcarsLog.debug('[TokenValidator] Error suggesting similar token:', error);
+      lcardsLog.debug('[TokenValidator] Error suggesting similar token:', error);
       return null;
     }
   }

@@ -17,7 +17,7 @@
  * @module msd/validation/ValidationService
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { SchemaRegistry } from './SchemaRegistry.js';
 import { OverlayValidator } from './OverlayValidator.js';
 import { TokenValidator } from './TokenValidator.js';
@@ -73,7 +73,7 @@ export class ValidationService {
     this.validationCache = new Map();
     this.cacheEnabled = true;
 
-    cblcarsLog.debug('[ValidationService] Initialized', this.config);
+    lcardsLog.debug('[ValidationService] Initialized', this.config);
   }
 
   /**
@@ -105,7 +105,7 @@ export class ValidationService {
     const cacheKey = this._generateCacheKey(overlay, context);
     if (this.cacheEnabled && this.validationCache.has(cacheKey)) {
       const cached = this.validationCache.get(cacheKey);
-      cblcarsLog.debug('[ValidationService] Cache hit:', overlay.id);
+      lcardsLog.debug('[ValidationService] Cache hit:', overlay.id);
       return cached;
     }
 
@@ -134,7 +134,7 @@ export class ValidationService {
     const enhancedContext = {
       ...context,
       dataSourceManager: context.dataSourceManager ||
-                        window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager
+                        window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager
     };
 
     // 1. Structural validation (schema-based)
@@ -143,7 +143,7 @@ export class ValidationService {
       result.errors.push(...structuralValidation.errors);
       result.warnings.push(...structuralValidation.warnings);
     } catch (error) {
-      cblcarsLog.error('[ValidationService] Structural validation failed:', error);
+      lcardsLog.error('[ValidationService] Structural validation failed:', error);
       result.errors.push({
         field: 'overlay',
         type: 'validation_error',
@@ -161,7 +161,7 @@ export class ValidationService {
         this.stats.tokenValidations++;
       } catch (error) {
         if (this.config.debug) {
-          cblcarsLog.debug('[ValidationService] Token validation failed:', error);
+          lcardsLog.debug('[ValidationService] Token validation failed:', error);
         }
       }
     }
@@ -175,7 +175,7 @@ export class ValidationService {
         this.stats.dataSourceValidations++;
       } catch (error) {
         if (this.config.debug) {
-          cblcarsLog.debug('[ValidationService] DataSource validation failed:', error);
+          lcardsLog.debug('[ValidationService] DataSource validation failed:', error);
         }
       }
     }
@@ -230,7 +230,7 @@ export class ValidationService {
       if (!result.valid) {
         hasErrors = true;
         if (this.config.stopOnError) {
-          cblcarsLog.debug('[ValidationService] Stopping on first error');
+          lcardsLog.debug('[ValidationService] Stopping on first error');
           break;
         }
       }
@@ -279,7 +279,7 @@ export class ValidationService {
       this.overlayValidator.valueValidator.setThemeManager(themeManager);
     }
 
-    cblcarsLog.debug('[ValidationService] ThemeManager connected for token validation');
+    lcardsLog.debug('[ValidationService] ThemeManager connected for token validation');
   }
 
   /**
@@ -289,7 +289,7 @@ export class ValidationService {
    */
   setDataSourceManager(dataSourceManager) {
     this.dataSourceValidator = new DataSourceValidator(dataSourceManager);
-    cblcarsLog.debug('[ValidationService] DataSourceManager connected for data source validation');
+    lcardsLog.debug('[ValidationService] DataSourceManager connected for data source validation');
   }
 
   /**
@@ -324,7 +324,7 @@ export class ValidationService {
       };
     }
 
-    cblcarsLog.debug('[ValidationService] Cache cleared', { clearStats });
+    lcardsLog.debug('[ValidationService] Cache cleared', { clearStats });
   }
 
   /**
@@ -337,7 +337,7 @@ export class ValidationService {
     if (!enabled) {
       this.validationCache.clear();
     }
-    cblcarsLog.debug('[ValidationService] Caching:', enabled);
+    lcardsLog.debug('[ValidationService] Caching:', enabled);
   }
 
   /**
@@ -373,22 +373,22 @@ export class ValidationService {
 
 // Make globally accessible for debugging
 if (typeof window !== 'undefined') {
-  window.cblcars = window.cblcars || {};
-  window.cblcars.debug = window.cblcars.debug || {};
-  window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+  window.lcards = window.lcards || {};
+  window.lcards.debug = window.lcards.debug || {};
+  window.lcards.debug.msd = window.lcards.debug.msd || {};
 
   // ✅ PHASE 4: Move to _internal namespace
-  if (!window.cblcars.debug.msd.pipelineInstance) {
-    window.cblcars.debug.msd.pipelineInstance = {};
+  if (!window.lcards.debug.msd.pipelineInstance) {
+    window.lcards.debug.msd.pipelineInstance = {};
   }
-  if (!window.cblcars.debug.msd.pipelineInstance._internal) {
-    window.cblcars.debug.msd.pipelineInstance._internal = {};
+  if (!window.lcards.debug.msd.pipelineInstance._internal) {
+    window.lcards.debug.msd.pipelineInstance._internal = {};
   }
 
-  window.cblcars.debug.msd.pipelineInstance._internal.ValidationService = ValidationService;
+  window.lcards.debug.msd.pipelineInstance._internal.ValidationService = ValidationService;
 
   // ✅ PHASE 4: Deprecated - use pipelineInstance._internal.ValidationService
-  window.cblcars.debug.msd.ValidationService = ValidationService;
+  window.lcards.debug.msd.ValidationService = ValidationService;
 }
 
 export default ValidationService;

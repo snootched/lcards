@@ -15,11 +15,11 @@
  * - Supports time windowing and data decimation
  *
  * @module ApexChartsAdapter
- * @requires cblcars-logging
+ * @requires lcards-logging
  */
 
 import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export class ApexChartsAdapter {
   /**
@@ -60,7 +60,7 @@ export class ApexChartsAdapter {
       const { dataSource, dataPath } = this._resolveDataSourcePath(sourceRef, dataSourceManager);
 
       if (!dataSource) {
-        cblcarsLog.warn(`[ApexChartsAdapter] DataSource not found: ${sourceRef}`);
+        lcardsLog.warn(`[ApexChartsAdapter] DataSource not found: ${sourceRef}`);
         return [];
       }
 
@@ -73,12 +73,12 @@ export class ApexChartsAdapter {
           data = this._getRawData(dataSource, config);
         }
       } catch (dataError) {
-        cblcarsLog.error(`[ApexChartsAdapter] Error getting data for ${sourceRef}:`, dataError);
+        lcardsLog.error(`[ApexChartsAdapter] Error getting data for ${sourceRef}:`, dataError);
         return [];
       }
 
       if (!data || data.length === 0) {
-        cblcarsLog.warn(`[ApexChartsAdapter] No data available for: ${sourceRef}`);
+        lcardsLog.warn(`[ApexChartsAdapter] No data available for: ${sourceRef}`);
         return [];
       }
 
@@ -107,7 +107,7 @@ export class ApexChartsAdapter {
             );
 
             if (!isValid && config.debug) {
-              cblcarsLog.debug(`[ApexChartsAdapter] Filtered invalid multi-value point:`, { x, y, point });
+              lcardsLog.debug(`[ApexChartsAdapter] Filtered invalid multi-value point:`, { x, y, point });
             }
 
             return isValid;
@@ -120,7 +120,7 @@ export class ApexChartsAdapter {
         // ✅ NEW: Log info about multi-value data processing
         if (validData.length > 0 && config.debug) {
           const sampleY = validData[0].y;
-          cblcarsLog.debug(`[ApexChartsAdapter] Processing multi-value data for ${seriesName}:`, {
+          lcardsLog.debug(`[ApexChartsAdapter] Processing multi-value data for ${seriesName}:`, {
             points: validData.length,
             valuesPerPoint: sampleY.length,
             sample: sampleY
@@ -129,7 +129,7 @@ export class ApexChartsAdapter {
 
         // ✅ FIXED: Log warning if data was filtered
         if (validData.length < data.length) {
-          cblcarsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid multi-value points from ${sourceRef}`, {
+          lcardsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid multi-value points from ${sourceRef}`, {
             original: data.length,
             valid: validData.length
           });
@@ -137,7 +137,7 @@ export class ApexChartsAdapter {
 
         // ✅ FIXED: Return empty series if no valid data
         if (validData.length === 0) {
-          cblcarsLog.warn(`[ApexChartsAdapter] No valid multi-value data points for series ${seriesName} (${sourceRef})`);
+          lcardsLog.warn(`[ApexChartsAdapter] No valid multi-value data points for series ${seriesName} (${sourceRef})`);
           return [{
             name: seriesName,
             data: []
@@ -168,7 +168,7 @@ export class ApexChartsAdapter {
           );
 
           if (!isValid && config.debug) {
-            cblcarsLog.debug(`[ApexChartsAdapter] Filtered invalid point:`, { x, y, point });
+            lcardsLog.debug(`[ApexChartsAdapter] Filtered invalid point:`, { x, y, point });
           }
 
           return isValid;
@@ -180,7 +180,7 @@ export class ApexChartsAdapter {
 
       // ✅ FIXED: Log warning if data was filtered
       if (validData.length < data.length) {
-        cblcarsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid points from ${sourceRef}`, {
+        lcardsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid points from ${sourceRef}`, {
           original: data.length,
           valid: validData.length
         });
@@ -188,7 +188,7 @@ export class ApexChartsAdapter {
 
       // ✅ FIXED: Return empty series if no valid data (prevents ApexCharts errors)
       if (validData.length === 0) {
-        cblcarsLog.warn(`[ApexChartsAdapter] No valid data points for series ${seriesName} (${sourceRef})`);
+        lcardsLog.warn(`[ApexChartsAdapter] No valid data points for series ${seriesName} (${sourceRef})`);
         return [{
           name: seriesName,
           data: []  // Empty array is safe for ApexCharts
@@ -201,7 +201,7 @@ export class ApexChartsAdapter {
       }];
 
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsAdapter] Critical error in convertToSeries for ${sourceRef}:`, error);
+      lcardsLog.error(`[ApexChartsAdapter] Critical error in convertToSeries for ${sourceRef}:`, error);
       return [];
     }
   }
@@ -232,7 +232,7 @@ export class ApexChartsAdapter {
         // Validate each series has at least some data or is intentionally empty
         const validSeries = series.filter(s => {
           if (!s.data || !Array.isArray(s.data)) {
-            cblcarsLog.warn(`[ApexChartsAdapter] Series ${s.name} has invalid data structure`);
+            lcardsLog.warn(`[ApexChartsAdapter] Series ${s.name} has invalid data structure`);
             return false;
           }
           return true;  // Keep series even if empty (ApexCharts can handle empty arrays)
@@ -244,7 +244,7 @@ export class ApexChartsAdapter {
 
     // ✅ FIXED: Ensure at least one series exists (even if empty)
     if (allSeries.length === 0) {
-      cblcarsLog.warn(`[ApexChartsAdapter] No valid series data from sources:`, sourceRefs);
+      lcardsLog.warn(`[ApexChartsAdapter] No valid series data from sources:`, sourceRefs);
       // Return single empty series to prevent ApexCharts initialization errors
       return [{
         name: 'No Data',
@@ -278,7 +278,7 @@ export class ApexChartsAdapter {
 
     // Validate chart type
     if (!this.VALID_CHART_TYPES.includes(chartType)) {
-      cblcarsLog.warn(`[ApexChartsAdapter] Invalid chart type: ${chartType}, defaulting to 'line'`);
+      lcardsLog.warn(`[ApexChartsAdapter] Invalid chart type: ${chartType}, defaulting to 'line'`);
       chartType = 'line';
     }
 
@@ -690,7 +690,7 @@ export class ApexChartsAdapter {
           ...optionsWithTypeDefaults.chart.animations,
           ...animationPreset
         };
-        cblcarsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${style.animation_preset}`);
+        lcardsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${style.animation_preset}`);
       }
     }
 
@@ -698,7 +698,7 @@ export class ApexChartsAdapter {
     // LOG WHAT WE GENERATED
     // ============================================================================
 
-    cblcarsLog.debug('[ApexChartsAdapter] Generated ApexCharts options:', {
+    lcardsLog.debug('[ApexChartsAdapter] Generated ApexCharts options:', {
       chartType,
       seriesColors: colors?.length || 0,
       strokeColors: strokeColors?.length || 0,
@@ -721,7 +721,7 @@ export class ApexChartsAdapter {
 
     if (style.chart_options) {
       finalOptions = this._deepMerge(optionsWithTypeDefaults, style.chart_options);
-      cblcarsLog.debug('[ApexChartsAdapter] Applied chart_options overrides');
+      lcardsLog.debug('[ApexChartsAdapter] Applied chart_options overrides');
     }
 
     // ============================================================================
@@ -734,9 +734,9 @@ export class ApexChartsAdapter {
     // - Variables that slipped through earlier resolution
     //
     // CRITICAL: ApexCharts is canvas-based and doesn't understand CSS variables
-    cblcarsLog.debug('[ApexChartsAdapter] 🔍 Starting final CSS variable resolution pass');
+    lcardsLog.debug('[ApexChartsAdapter] 🔍 Starting final CSS variable resolution pass');
     finalOptions = this._resolveAllCssVariables(finalOptions);
-    cblcarsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
+    lcardsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
 
     return finalOptions;
   }
@@ -750,10 +750,10 @@ export class ApexChartsAdapter {
   static _getAnimationPreset(presetName) {
     try {
       // Access pack registry via global debug object
-      const packRegistry = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.packRegistry;
+      const packRegistry = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.packRegistry;
 
       if (!packRegistry) {
-        cblcarsLog.warn('[ApexChartsAdapter] PackRegistry not available for animation presets');
+        lcardsLog.warn('[ApexChartsAdapter] PackRegistry not available for animation presets');
         return null;
       }
 
@@ -761,16 +761,16 @@ export class ApexChartsAdapter {
       const packs = packRegistry.getAllPacks();
       for (const pack of packs) {
         if (pack.chartAnimationPresets && pack.chartAnimationPresets[presetName]) {
-          cblcarsLog.debug(`[ApexChartsAdapter] Found animation preset '${presetName}' in pack: ${pack.id}`);
+          lcardsLog.debug(`[ApexChartsAdapter] Found animation preset '${presetName}' in pack: ${pack.id}`);
           return pack.chartAnimationPresets[presetName];
         }
       }
 
-      cblcarsLog.warn(`[ApexChartsAdapter] Animation preset not found: ${presetName}`);
+      lcardsLog.warn(`[ApexChartsAdapter] Animation preset not found: ${presetName}`);
       return null;
 
     } catch (error) {
-      cblcarsLog.error('[ApexChartsAdapter] Error loading animation preset:', error);
+      lcardsLog.error('[ApexChartsAdapter] Error loading animation preset:', error);
       return null;
     }
   }
@@ -1169,7 +1169,7 @@ export class ApexChartsAdapter {
         const computed = getComputedStyle(root).getPropertyValue(varName).trim();
 
         if (computed) {
-          cblcarsLog.trace(`[ApexChartsAdapter] ✅ Resolved CSS variable: ${colorValue} → ${computed}`);
+          lcardsLog.trace(`[ApexChartsAdapter] ✅ Resolved CSS variable: ${colorValue} → ${computed}`);
           return computed;
         }
 
@@ -1179,15 +1179,15 @@ export class ApexChartsAdapter {
           if (fallback.startsWith('var(')) {
             return this._resolveCssVariable(fallback);
           }
-          cblcarsLog.trace(`[ApexChartsAdapter] ⚠️ Using fallback: ${colorValue} → ${fallback}`);
+          lcardsLog.trace(`[ApexChartsAdapter] ⚠️ Using fallback: ${colorValue} → ${fallback}`);
           return fallback;
         }
 
-        cblcarsLog.warn(`[ApexChartsAdapter] ❌ Failed to resolve CSS variable: ${colorValue} (no computed value or fallback)`);
+        lcardsLog.warn(`[ApexChartsAdapter] ❌ Failed to resolve CSS variable: ${colorValue} (no computed value or fallback)`);
         return colorValue;  // Return original if can't resolve
 
       } catch (error) {
-        cblcarsLog.error(`[ApexChartsAdapter] ❌ Error resolving CSS variable: ${colorValue}`, error);
+        lcardsLog.error(`[ApexChartsAdapter] ❌ Error resolving CSS variable: ${colorValue}`, error);
         return colorValue;
       }
     }
@@ -1229,7 +1229,7 @@ export class ApexChartsAdapter {
       const original = obj;
       const resolved = this._resolveCssVariable(obj);
       if (original !== resolved) {
-        cblcarsLog.debug(`[ApexChartsAdapter] 🎨 Resolved CSS variable: ${original} → ${resolved}`);
+        lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved CSS variable: ${original} → ${resolved}`);
       }
       return resolved;
     }
@@ -1333,7 +1333,7 @@ static _getRawData(dataSource, config) {
         const history = dataSource.getTransformedHistory(transformKey, config.max_points || 500);
 
         if (!history || history.length === 0) {
-          cblcarsLog.warn(`[ApexChartsAdapter] No transformed history for ${dataPath}`);
+          lcardsLog.warn(`[ApexChartsAdapter] No transformed history for ${dataPath}`);
           return [];
         }
 
@@ -1353,7 +1353,7 @@ static _getRawData(dataSource, config) {
           value: point.value || point.v
         }));
       } catch (error) {
-        cblcarsLog.error(`[ApexChartsAdapter] Error getting transformed history:`, error);
+        lcardsLog.error(`[ApexChartsAdapter] Error getting transformed history:`, error);
         return [];
       }
     }

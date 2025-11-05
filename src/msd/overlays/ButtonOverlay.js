@@ -26,7 +26,7 @@ import { RendererUtils } from '../renderer/RendererUtils.js';
 import { DataSourceMixin } from '../renderer/DataSourceMixin.js';
 import { ActionHelpers } from '../renderer/ActionHelpers.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
 
 /**
@@ -54,7 +54,7 @@ export class ButtonOverlay extends OverlayBase {
     this._cachedPosition = null;
     this._lastRenderResult = null;
 
-    cblcarsLog.debug(`[ButtonOverlay] Created instance for overlay ${overlay.id}`);
+    lcardsLog.debug(`[ButtonOverlay] Created instance for overlay ${overlay.id}`);
   }
 
   /**
@@ -75,14 +75,14 @@ export class ButtonOverlay extends OverlayBase {
       // Pre-resolve content
       this._cachedContent = this._resolveButtonContent(this.overlay);
 
-      cblcarsLog.debug(`[ButtonOverlay] Initialized overlay ${this.overlay.id}:`, {
+      lcardsLog.debug(`[ButtonOverlay] Initialized overlay ${this.overlay.id}:`, {
         hasStyle: !!this._cachedButtonStyle,
         hasContent: !!this._cachedContent,
         hasLabel: !!this._cachedContent?.label,
         hasActions: !!(this.overlay.tap_action || this.overlay.hold_action || this.overlay.double_tap_action)
       });
     } catch (error) {
-      cblcarsLog.error(`[ButtonOverlay] Error initializing overlay ${this.overlay.id}:`, error);
+      lcardsLog.error(`[ButtonOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
   }
@@ -101,7 +101,7 @@ export class ButtonOverlay extends OverlayBase {
     // Resolve position
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
     if (!position) {
-      cblcarsLog.warn(`[ButtonOverlay] ⚠️ Button overlay position could not be resolved:`, overlay.id);
+      lcardsLog.warn(`[ButtonOverlay] ⚠️ Button overlay position could not be resolved:`, overlay.id);
       return {
         markup: '',
         actionInfo: null,
@@ -172,13 +172,13 @@ export class ButtonOverlay extends OverlayBase {
       if (hasActions && cardInstance) {
         actionInfo = ActionHelpers.processOverlayActions(overlay, buttonStyle, cardInstance);
 
-        cblcarsLog.debug(`[ButtonOverlay] 🎯 Processed actions for overlay ${overlay.id}:`, {
+        lcardsLog.debug(`[ButtonOverlay] 🎯 Processed actions for overlay ${overlay.id}:`, {
           hasTap: !!overlay.tap_action,
           hasHold: !!overlay.hold_action,
           hasDoubleTap: !!overlay.double_tap_action
         });
       } else if (hasActions && !cardInstance) {
-        cblcarsLog.warn(`[ButtonOverlay] ⚠️ Overlay ${overlay.id} has actions but no cardInstance available`);
+        lcardsLog.warn(`[ButtonOverlay] ⚠️ Overlay ${overlay.id} has actions but no cardInstance available`);
       }
 
       // Wrap in overlay group with proper data attributes
@@ -218,7 +218,7 @@ export class ButtonOverlay extends OverlayBase {
       return this._lastRenderResult;
 
     } catch (error) {
-      cblcarsLog.error(`[ButtonOverlay] ❌ Rendering failed for overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[ButtonOverlay] ❌ Rendering failed for overlay ${overlay.id}:`, error);
       return {
         markup: this._renderFallbackButton(overlay, x, y, width, height),
         actionInfo: null,
@@ -245,7 +245,7 @@ export class ButtonOverlay extends OverlayBase {
    */
   update(overlayElement, overlay, sourceData) {
     try {
-      cblcarsLog.trace(`[ButtonOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
+      lcardsLog.trace(`[ButtonOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
 
       // Update cached overlay reference
       this.overlay = overlay;
@@ -266,7 +266,7 @@ export class ButtonOverlay extends OverlayBase {
 
           if (totalRunning > 0) {
             hadActiveAnimations = true;
-            cblcarsLog.debug(`[ButtonOverlay] 🎬 Pausing ${totalRunning} active animations for content update on ${overlay.id}`);
+            lcardsLog.debug(`[ButtonOverlay] 🎬 Pausing ${totalRunning} active animations for content update on ${overlay.id}`);
             animationManager.stopAnimations(overlay.id);
           }
         }
@@ -278,7 +278,7 @@ export class ButtonOverlay extends OverlayBase {
                             this._cachedContent?.content !== newContent.content;
 
       if (contentChanged) {
-        cblcarsLog.debug(`[ButtonOverlay] Content changed for ${overlay.id}`);
+        lcardsLog.debug(`[ButtonOverlay] Content changed for ${overlay.id}`);
         this._cachedContent = newContent;
 
         // ✅ FIX: Create proper config object with label/content for ButtonRenderer
@@ -306,7 +306,7 @@ export class ButtonOverlay extends OverlayBase {
       const styleChanged = this._hasStyleChanged(this._cachedButtonStyle, newStyle);
 
       if (styleChanged) {
-        cblcarsLog.debug(`[ButtonOverlay] Style changed for ${overlay.id}`, {
+        lcardsLog.debug(`[ButtonOverlay] Style changed for ${overlay.id}`, {
           old: this._cachedButtonStyle,
           new: newStyle
         });
@@ -322,17 +322,17 @@ export class ButtonOverlay extends OverlayBase {
       }
 
       if (!updated) {
-        cblcarsLog.debug(`[ButtonOverlay] No changes detected for overlay ${overlay.id}`);
+        lcardsLog.debug(`[ButtonOverlay] No changes detected for overlay ${overlay.id}`);
       }
 
       if (hadActiveAnimations) {
-        cblcarsLog.debug(`[ButtonOverlay] 🎬 Content updated, animations will restart on next trigger`);
+        lcardsLog.debug(`[ButtonOverlay] 🎬 Content updated, animations will restart on next trigger`);
       }
 
       return updated;
 
     } catch (error) {
-      cblcarsLog.error(`[ButtonOverlay] Error updating overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[ButtonOverlay] Error updating overlay ${overlay.id}:`, error);
       return false;
     }
   }
@@ -386,7 +386,7 @@ export class ButtonOverlay extends OverlayBase {
    * Cleanup resources and subscriptions (handled by OverlayBase)
    */
   destroy() {
-    cblcarsLog.debug(`[ButtonOverlay] Destroying overlay ${this.overlay.id}`);
+    lcardsLog.debug(`[ButtonOverlay] Destroying overlay ${this.overlay.id}`);
 
     // Clear caches
     this._cachedButtonStyle = null;
@@ -526,7 +526,7 @@ export class ButtonOverlay extends OverlayBase {
       show_labels: style.show_labels !== false, // Default true
       show_values: style.show_values !== false, // Default true
 
-      // CB-LCARS presets
+      // LCARdS presets
       lcars_button_preset: style.lcars_button_preset || null,
       lcars_text_preset: style.lcars_text_preset || null,
 
@@ -562,7 +562,7 @@ export class ButtonOverlay extends OverlayBase {
       standardStyles
     };
 
-    cblcarsLog.debug(`[ButtonOverlay] 🔲 Resolved button style for ${overlayId}:`, {
+    lcardsLog.debug(`[ButtonOverlay] 🔲 Resolved button style for ${overlayId}:`, {
       color: buttonStyle.color,
       preset: buttonStyle.lcars_button_preset,
       border_width: buttonStyle.border_width,
@@ -671,8 +671,8 @@ export class ButtonOverlay extends OverlayBase {
    * @returns {Object|null} Card instance
    */
   _resolveCardInstance() {
-    if (window.cblcars.debug.msd?.pipelineInstance?.cardInstance) {
-      return window.cblcars.debug.msd.pipelineInstance.cardInstance;
+    if (window.lcards.debug.msd?.pipelineInstance?.cardInstance) {
+      return window.lcards.debug.msd.pipelineInstance.cardInstance;
     }
 
     if (window._msdCardInstance) {
@@ -701,7 +701,7 @@ export class ButtonOverlay extends OverlayBase {
     const style = overlay.finalStyle || overlay.style || {};
     const color = style.color || 'var(--lcars-gray)';
 
-    cblcarsLog.warn(`[ButtonOverlay] ⚠️ Using fallback rendering for overlay ${overlay.id}`);
+    lcardsLog.warn(`[ButtonOverlay] ⚠️ Using fallback rendering for overlay ${overlay.id}`);
 
     return `<g id="${overlay.id}" data-overlay-id="${overlay.id}" data-overlay-type="button" data-fallback="true">
               <g transform="translate(${x}, ${y})">
@@ -777,7 +777,7 @@ export class ButtonOverlay extends OverlayBase {
    * @returns {Element|null} The target element or null if not found
    */
   getAnimationTarget(targetSpec) {
-    cblcarsLog.debug(`[ButtonOverlay] getAnimationTarget called for ${this.overlay.id}:`, {
+    lcardsLog.debug(`[ButtonOverlay] getAnimationTarget called for ${this.overlay.id}:`, {
       targetSpec,
       hasElement: !!this.element,
       elementId: this.element?.id,
@@ -785,7 +785,7 @@ export class ButtonOverlay extends OverlayBase {
     });
 
     if (!this.element) {
-      cblcarsLog.warn(`[ButtonOverlay] No element available for target resolution: ${this.overlay.id}`);
+      lcardsLog.warn(`[ButtonOverlay] No element available for target resolution: ${this.overlay.id}`);
       return null;
     }
 
@@ -797,13 +797,13 @@ export class ButtonOverlay extends OverlayBase {
     // Named targets for button text elements
     if (targetSpec === 'label') {
       const el = this.element.querySelector('[data-button-text-type="label"]');
-      cblcarsLog.debug(`[ButtonOverlay] Label target search result:`, { found: !!el, element: el });
+      lcardsLog.debug(`[ButtonOverlay] Label target search result:`, { found: !!el, element: el });
       return el;
     }
 
     if (targetSpec === 'content' || targetSpec === 'value') {
       const el = this.element.querySelector('[data-button-text-type="value"]');
-      cblcarsLog.debug(`[ButtonOverlay] Content/value target search result:`, { found: !!el, element: el });
+      lcardsLog.debug(`[ButtonOverlay] Content/value target search result:`, { found: !!el, element: el });
       return el;
     }
 
@@ -812,12 +812,12 @@ export class ButtonOverlay extends OverlayBase {
     if (arrayMatch) {
       const idx = parseInt(arrayMatch[1], 10);
       const el = this.element.querySelector(`[data-button-text-index="${idx}"]`);
-      cblcarsLog.debug(`[ButtonOverlay] Array index target search result:`, { idx, found: !!el, element: el });
+      lcardsLog.debug(`[ButtonOverlay] Array index target search result:`, { idx, found: !!el, element: el });
       return el;
     }
 
     // Fallback: CSS selector within button element
-    cblcarsLog.debug(`[ButtonOverlay] Using CSS selector fallback: ${targetSpec}`);
+    lcardsLog.debug(`[ButtonOverlay] Using CSS selector fallback: ${targetSpec}`);
     return super.getAnimationTarget(targetSpec);
   }
 
@@ -845,14 +845,14 @@ export class ButtonOverlay extends OverlayBase {
    * @returns {boolean} True if update succeeded
    */
   static updateIncremental(overlay, overlayElement, context) {
-    cblcarsLog.debug(`[ButtonOverlay] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
+    lcardsLog.debug(`[ButtonOverlay] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
 
     try {
       // Get updated style (already patched by SystemsManager)
       const style = overlay.finalStyle || overlay.style || {};
 
       // DEBUG: Log what we received
-      cblcarsLog.debug(`[ButtonOverlay] 📥 Input style for ${overlay.id}:`, {
+      lcardsLog.debug(`[ButtonOverlay] 📥 Input style for ${overlay.id}:`, {
         hasFinalStyle: !!overlay.finalStyle,
         hasBorder: !!style.border,
         borderColor: style.border?.color,
@@ -870,7 +870,7 @@ export class ButtonOverlay extends OverlayBase {
       // The button markup is nested inside the <g data-overlay-id> wrapper
       const buttonElement = overlayElement.querySelector('[data-button-id]');
       if (!buttonElement) {
-        cblcarsLog.warn(`[ButtonOverlay] ⚠️ Button element not found for ${overlay.id}`);
+        lcardsLog.warn(`[ButtonOverlay] ⚠️ Button element not found for ${overlay.id}`);
         return false;
       }
 
@@ -892,21 +892,21 @@ export class ButtonOverlay extends OverlayBase {
       // - true: Successfully updated attributes incrementally
       // - false: Geometry changes detected, needs full re-render (will trigger fallback)
       if (styleUpdated === false) {
-        cblcarsLog.debug(`[ButtonOverlay] ⚠️ Geometry changes detected - returning false to trigger selective re-render: ${overlay.id}`);
+        lcardsLog.debug(`[ButtonOverlay] ⚠️ Geometry changes detected - returning false to trigger selective re-render: ${overlay.id}`);
         return false;  // Trigger fallback to selective re-render
       }
 
       if (styleUpdated) {
-        cblcarsLog.debug(`[ButtonOverlay] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
+        lcardsLog.debug(`[ButtonOverlay] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
         return true;
       } else {
         // This shouldn't happen anymore, but keep for safety
-        cblcarsLog.debug(`[ButtonOverlay] ℹ️ No style changes for ${overlay.id}`);
+        lcardsLog.debug(`[ButtonOverlay] ℹ️ No style changes for ${overlay.id}`);
         return true;
       }
 
     } catch (error) {
-      cblcarsLog.error(`[ButtonOverlay] ❌ INCREMENTAL UPDATE ERROR for ${overlay.id}:`, error);
+      lcardsLog.error(`[ButtonOverlay] ❌ INCREMENTAL UPDATE ERROR for ${overlay.id}:`, error);
       return false;
     }
   }

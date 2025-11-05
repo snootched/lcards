@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [DataSourcePanel] Enhanced data source monitoring panel for MSD HUD
  * 📊 DataSourceManager integration health checks and subscription diagnostics
@@ -17,29 +17,29 @@ export class DataSourcePanel {
   _setupGlobalHelpers() {
     // Global entity inspection function with direct DataSourceManager access
     window.__msdInspectDataEntity = (entityId) => {
-      cblcarsLog.info('[DataSourcePanel] 🔍 Inspecting entity:', entityId);
+      lcardsLog.info('[DataSourcePanel] 🔍 Inspecting entity:', entityId);
 
-      const dsManager = window.cblcars.debug.msd?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+      const dsManager = window.lcards.debug.msd?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
 
       if (!dsManager?.getEntity) {
-        cblcarsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available');
+        lcardsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available');
         return;
       }
 
       const entity = dsManager.getEntity(entityId);
       if (!entity) {
-        cblcarsLog.warn('[DataSourcePanel] ❌ Entity not found:', entityId);
+        lcardsLog.warn('[DataSourcePanel] ❌ Entity not found:', entityId);
         return;
       }
 
       // Show available methods for debugging
-      cblcarsLog.debug('[DataSourcePanel] 🛠️ Available dsManager methods:', Object.getOwnPropertyNames(dsManager).filter(name => typeof dsManager[name] === 'function'));
+      lcardsLog.debug('[DataSourcePanel] 🛠️ Available dsManager methods:', Object.getOwnPropertyNames(dsManager).filter(name => typeof dsManager[name] === 'function'));
 
       // Console logging
       console.group(`🔍 Entity Inspection: ${entityId}`);
-      cblcarsLog.info('[DataSourcePanel] 📊 Entity Data:', entity);
+      lcardsLog.info('[DataSourcePanel] 📊 Entity Data:', entity);
       console.table([entity]);
       console.groupEnd();
 
@@ -49,14 +49,14 @@ export class DataSourcePanel {
 
     // Global subscription inspection function with direct DataSourceManager access
     window.__msdInspectDataSubscription = (sourceName) => {
-      cblcarsLog.info('[DataSourcePanel] 🔗 Inspecting subscription:', sourceName);
+      lcardsLog.info('[DataSourcePanel] 🔗 Inspecting subscription:', sourceName);
 
-      const dsManager = window.cblcars.debug.msd?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+      const dsManager = window.lcards.debug.msd?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
 
       if (!dsManager?.getStats) {
-        cblcarsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available');
+        lcardsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available');
         return;
       }
 
@@ -67,36 +67,36 @@ export class DataSourcePanel {
       let subscribers = [];
       try {
         subscribers = dsManager.getSourceSubscribers?.(sourceName) || [];
-        cblcarsLog.debug('[DataSourcePanel] 👥 Found subscribers via API:', subscribers);
+        lcardsLog.debug('[DataSourcePanel] 👥 Found subscribers via API:', subscribers);
       } catch (e) {
-        cblcarsLog.warn('[DataSourcePanel] ⚠️ Error getting subscribers:', e);
+        lcardsLog.warn('[DataSourcePanel] ⚠️ Error getting subscribers:', e);
       }
 
       // Console logging
       console.group(`🔍 Subscription Inspection: ${sourceName}`);
-      cblcarsLog.info('[DataSourcePanel] 📊 Source Stats:', sourceData);
-      cblcarsLog.info('[DataSourcePanel] 👥 Subscribers:', subscribers);
-      cblcarsLog.debug('[DataSourcePanel] 📋 All Stats:', stats);
+      lcardsLog.info('[DataSourcePanel] 📊 Source Stats:', sourceData);
+      lcardsLog.info('[DataSourcePanel] 👥 Subscribers:', subscribers);
+      lcardsLog.debug('[DataSourcePanel] 📋 All Stats:', stats);
       console.groupEnd();
 
       // Show popup with the subscription data and subscriber details
       this._showSubscriptionPopup(sourceName, sourceData, subscribers);
     };    // Simple refresh function
     window.__msdRefreshDataSources = () => {
-      const dsManager = window.cblcars.debug.msd?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.dataSourceManager ||
-                       window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+      const dsManager = window.lcards.debug.msd?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.dataSourceManager ||
+                       window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
 
       if (dsManager?.refreshSubscriptions) {
         dsManager.refreshSubscriptions();
-        cblcarsLog.info('[DataSourcePanel] ✅ Subscriptions refreshed');
+        lcardsLog.info('[DataSourcePanel] ✅ Subscriptions refreshed');
       } else {
-        cblcarsLog.warn('[DataSourcePanel] ❌ Refresh not available');
+        lcardsLog.warn('[DataSourcePanel] ❌ Refresh not available');
       }
 
       // Trigger HUD refresh
-      if (window.cblcars.debug.msd?.hud?.refresh) {
-        window.cblcars.debug.msd.hud.refresh();
+      if (window.lcards.debug.msd?.hud?.refresh) {
+        window.lcards.debug.msd.hud.refresh();
       }
     };
   }
@@ -458,26 +458,26 @@ export class DataSourcePanel {
   _showSubscriptionInspectionPopup(sourceName) {
     try {
       if (!this._currentData?.subscriptions) {
-        cblcarsLog.warn('[DataSourcePanel] No subscription data available');
+        lcardsLog.warn('[DataSourcePanel] No subscription data available');
         return;
       }
 
       const sourceData = this._currentData.subscriptions[sourceName];
       if (!sourceData) {
-        cblcarsLog.warn('[DataSourcePanel] Subscription not found:', sourceName);
+        lcardsLog.warn('[DataSourcePanel] Subscription not found:', sourceName);
         return;
       }
 
       // Log to console
       console.group(`🔍 Subscription Inspection: ${sourceName}`);
-      cblcarsLog.info('Source Stats:', sourceData);
+      lcardsLog.info('Source Stats:', sourceData);
       console.groupEnd();
 
       // Show detailed popup
       this._createSubscriptionPopup(sourceName, sourceData, {});
 
     } catch (e) {
-      cblcarsLog.warn('[DataSourcePanel] ⚠️ Subscription inspection failed:', e);
+      lcardsLog.warn('[DataSourcePanel] ⚠️ Subscription inspection failed:', e);
     }
   }
 
@@ -591,13 +591,13 @@ export class DataSourcePanel {
   refreshSubscriptions() {
     // REMOVED: Not useful - DataSourceManager doesn't have refreshSubscriptions method
     // and HUD auto-refreshes anyway
-    cblcarsLog.info('[DataSourcePanel] Refresh functionality removed - HUD auto-refreshes');
+    lcardsLog.info('[DataSourcePanel] Refresh functionality removed - HUD auto-refreshes');
   }
 
   clearHistory() {
     // REMOVED: Only clears internal panel history, rebuilds automatically
     // this.entityChangeHistory.clear();
-    cblcarsLog.info('[DataSourcePanel] Clear history functionality removed - limited utility');
+    lcardsLog.info('[DataSourcePanel] Clear history functionality removed - limited utility');
   }
 
   captureData() {
@@ -608,10 +608,10 @@ export class DataSourcePanel {
     const recentChanges = [];
 
     try {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       const dsManager = pipelineInstance?.dataSourceManager ||
                        pipelineInstance?.systemsManager?.dataSourceManager ||
-                       window.cblcars.debug.msd?.dataSourceManager;
+                       window.lcards.debug.msd?.dataSourceManager;
 
       if (dsManager) {
         // Get comprehensive stats
@@ -685,11 +685,11 @@ export class DataSourcePanel {
         });
 
       } else {
-        cblcarsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available via consolidated interface');
+        lcardsLog.warn('[DataSourcePanel] ❌ DataSourceManager not available via consolidated interface');
         stats.error = 'DataSourceManager not available';
       }
     } catch (e) {
-      cblcarsLog.warn('[DataSourcePanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[DataSourcePanel] ⚠️ Data capture failed:', e);
       stats.error = e.message;
     }
 
@@ -716,7 +716,7 @@ export class DataSourcePanel {
       delete window.__msdRefreshDataSources;
     }
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(entityData) {

@@ -33,11 +33,11 @@ const LCARS_FX_PACK = {
   routing: {}
 };
 
-// CB-LCARS Button Styles Pack (Phase 2) - Complete button presets for status grids
+// LCARdS Button Styles Pack (Phase 2) - Complete button presets for status grids
 const CB_LCARS_BUTTONS_PACK = {
   id: 'cb_lcars_buttons',
   version: '1.0.0',
-  description: 'CB-LCARS button styles for status grids - recreates custom-button-card appearances',
+  description: 'LCARdS button styles for status grids - recreates custom-button-card appearances',
   animations: [],
   timelines: [],
   rules: [],

@@ -445,7 +445,7 @@ class MsdTemplateEngine {
                 return window.hass.states;
             }
 
-            // CB-LCARS card instance context
+            // LCARdS card instance context
             const card = window.cb_lcars_card_instance;
             if (card && (card.hass || card._hass)) {
                 const hass = card.hass || card._hass;

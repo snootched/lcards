@@ -18,7 +18,7 @@ export function getLovelace() {
 
   export function checkLovelaceTemplates(config) {
     const ll = getLovelace();
-    const lovelaceTemplates = ll && ll.config && ll.config.cblcars_card_templates ? ll.config.cblcars_card_templates : {};
+    const lovelaceTemplates = ll && ll.config && ll.config.lcards_card_templates ? ll.config.lcards_card_templates : {};
     let isUsingLovelaceTemplate = false;
     let overriddenTemplates = [];
 

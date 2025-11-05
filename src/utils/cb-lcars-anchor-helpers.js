@@ -49,7 +49,7 @@ export function getSvgContent(base_svg) {
   } else if (base_svg && base_svg.startsWith('/local/')) {
     svgKey = base_svg.split('/').pop().replace('.svg','');
   }
-  return svgKey && window.cblcars?.assets?.svg_templates?.[svgKey];
+  return svgKey && window.lcards?.assets?.svg_templates?.[svgKey];
 }
 
 export function getSvgViewBox(svgContent) {

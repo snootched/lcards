@@ -1,6 +1,6 @@
 import { perfGetAll } from '../perf/PerfCounters.js';
 import { MsdIntrospection } from '../introspection/MsdIntrospection.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ChartDataValidator } from '../validation/ChartDataValidator.js';
 
 /**
@@ -8,7 +8,7 @@ import { ChartDataValidator } from '../validation/ChartDataValidator.js';
  * Wraps legacy methods with deprecation warnings that guide users to new API.
  * Non-breaking: Old methods still work, but log helpful migration messages.
  *
- * @param {Object} dbg - Debug interface object (window.cblcars.debug.msd)
+ * @param {Object} dbg - Debug interface object (window.lcards.debug.msd)
  */
 function setupDeprecationWarnings(dbg) {
   // Store original implementations before wrapping
@@ -28,109 +28,109 @@ function setupDeprecationWarnings(dbg) {
 
   // Wrap getPerf -> perf.summary()
   dbg.getPerf = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getPerf() is DEPRECATED. Use window.cblcars.debug.msd.perf.summary() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.summary()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getPerf() is DEPRECATED. Use window.lcards.debug.msd.perf.summary() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.summary()');
     return dbg.perf?.summary?.() || originalMethods.getPerf?.();
   };
 
   // Wrap getPerformanceSummary -> perf.summary()
   dbg.getPerformanceSummary = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getPerformanceSummary() is DEPRECATED. Use window.cblcars.debug.msd.perf.summary() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.summary()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getPerformanceSummary() is DEPRECATED. Use window.lcards.debug.msd.perf.summary() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.summary()');
     return dbg.perf?.summary?.() || originalMethods.getPerformanceSummary?.();
   };
 
   // Wrap getSlowestOverlays -> perf.slowestOverlays()
   dbg.getSlowestOverlays = function(count = 5) {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getSlowestOverlays() is DEPRECATED. Use window.cblcars.debug.msd.perf.slowestOverlays() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.slowestOverlays(' + count + ')');
+    lcardsLog.warn('[DebugInterface] ⚠️ getSlowestOverlays() is DEPRECATED. Use window.lcards.debug.msd.perf.slowestOverlays() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.slowestOverlays(' + count + ')');
     return dbg.perf?.slowestOverlays?.(count) || originalMethods.getSlowestOverlays?.(count);
   };
 
   // Wrap getRendererPerformance -> perf.byRenderer()
   dbg.getRendererPerformance = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getRendererPerformance() is DEPRECATED. Use window.cblcars.debug.msd.perf.byRenderer() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.byRenderer()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getRendererPerformance() is DEPRECATED. Use window.lcards.debug.msd.perf.byRenderer() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.byRenderer()');
     return dbg.perf?.byRenderer?.() || originalMethods.getRendererPerformance?.();
   };
 
   // Wrap getOverlayPerformance -> perf.byOverlay()
   dbg.getOverlayPerformance = function(overlayId) {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getOverlayPerformance() is DEPRECATED. Use window.cblcars.debug.msd.perf.byOverlay() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.byOverlay("' + overlayId + '")');
+    lcardsLog.warn('[DebugInterface] ⚠️ getOverlayPerformance() is DEPRECATED. Use window.lcards.debug.msd.perf.byOverlay() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.byOverlay("' + overlayId + '")');
     return dbg.perf?.byOverlay?.(overlayId) || originalMethods.getOverlayPerformance?.(overlayId);
   };
 
   // Wrap getPerformanceWarnings -> perf.warnings()
   dbg.getPerformanceWarnings = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getPerformanceWarnings() is DEPRECATED. Use window.cblcars.debug.msd.perf.warnings() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.warnings()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getPerformanceWarnings() is DEPRECATED. Use window.lcards.debug.msd.perf.warnings() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.warnings()');
     return dbg.perf?.warnings?.() || originalMethods.getPerformanceWarnings?.();
   };
 
   // Wrap getRenderTimeline -> perf.timeline()
   dbg.getRenderTimeline = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getRenderTimeline() is DEPRECATED. Use window.cblcars.debug.msd.perf.timeline() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.timeline()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getRenderTimeline() is DEPRECATED. Use window.lcards.debug.msd.perf.timeline() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.timeline()');
     return dbg.perf?.timeline?.() || originalMethods.getRenderTimeline?.();
   };
 
   // Wrap compareRendererPerformance -> perf.compare()
   dbg.compareRendererPerformance = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ compareRendererPerformance() is DEPRECATED. Use window.cblcars.debug.msd.perf.compare() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.perf.compare()');
-    cblcarsLog.info('[DebugInterface] Note: perf.compare() returns NOT_IMPLEMENTED - planned for Phase 5');
+    lcardsLog.warn('[DebugInterface] ⚠️ compareRendererPerformance() is DEPRECATED. Use window.lcards.debug.msd.perf.compare() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.perf.compare()');
+    lcardsLog.info('[DebugInterface] Note: perf.compare() returns NOT_IMPLEMENTED - planned for Phase 5');
     return dbg.perf?.compare?.() || originalMethods.compareRendererPerformance?.();
   };
 
   // Wrap getStyleResolutions -> styles.resolutions()
   dbg.getStyleResolutions = function(overlayId) {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getStyleResolutions() is DEPRECATED. Use window.cblcars.debug.msd.styles.resolutions() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.styles.resolutions("' + overlayId + '")');
+    lcardsLog.warn('[DebugInterface] ⚠️ getStyleResolutions() is DEPRECATED. Use window.lcards.debug.msd.styles.resolutions() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.styles.resolutions("' + overlayId + '")');
     return dbg.styles?.resolutions?.(overlayId) || originalMethods.getStyleResolutions?.(overlayId);
   };
 
   // Wrap findOverlaysByToken -> styles.findByToken()
   dbg.findOverlaysByToken = function(tokenPath) {
-    cblcarsLog.warn('[DebugInterface] ⚠️ findOverlaysByToken() is DEPRECATED. Use window.cblcars.debug.msd.styles.findByToken() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.styles.findByToken("' + tokenPath + '")');
+    lcardsLog.warn('[DebugInterface] ⚠️ findOverlaysByToken() is DEPRECATED. Use window.lcards.debug.msd.styles.findByToken() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.styles.findByToken("' + tokenPath + '")');
     return dbg.styles?.findByToken?.(tokenPath) || originalMethods.findOverlaysByToken?.(tokenPath);
   };
 
   // Wrap getGlobalStyleSummary -> styles.provenance()
   dbg.getGlobalStyleSummary = function() {
-    cblcarsLog.warn('[DebugInterface] ⚠️ getGlobalStyleSummary() is DEPRECATED. Use window.cblcars.debug.msd.styles.provenance() instead.');
-    cblcarsLog.info('[DebugInterface] Migration: window.cblcars.debug.msd.styles.provenance()');
+    lcardsLog.warn('[DebugInterface] ⚠️ getGlobalStyleSummary() is DEPRECATED. Use window.lcards.debug.msd.styles.provenance() instead.');
+    lcardsLog.info('[DebugInterface] Migration: window.lcards.debug.msd.styles.provenance()');
     return dbg.styles?.provenance?.() || originalMethods.getGlobalStyleSummary?.();
   };
 
-  cblcarsLog.debug('[DebugInterface] ✅ Phase 4 deprecation warnings installed (11 legacy methods wrapped)');
+  lcardsLog.debug('[DebugInterface] ✅ Phase 4 deprecation warnings installed (11 legacy methods wrapped)');
 }
 
 export function setupDebugInterface(pipelineApi, mergedConfig, provenance, systemsManager, modelBuilder) {
   if (typeof window === 'undefined') return;
 
-  // ✅ PHASE 3: Updated to use window.cblcars.debug.msd namespace
-  // CRITICAL: Do NOT reassign window.cblcars.debug.msd, just ensure it exists
-  window.cblcars = window.cblcars || {};
-  window.cblcars.debug = window.cblcars.debug || {};
-  window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+  // ✅ PHASE 3: Updated to use window.lcards.debug.msd namespace
+  // CRITICAL: Do NOT reassign window.lcards.debug.msd, just ensure it exists
+  window.lcards = window.lcards || {};
+  window.lcards.debug = window.lcards.debug || {};
+  window.lcards.debug.msd = window.lcards.debug.msd || {};
 
   // Reference the existing namespace (do NOT reassign it)
-  const dbg = window.cblcars.debug.msd;
+  const dbg = window.lcards.debug.msd;
 
   // ✅ PHASE 3: Add backward compatibility shim for window.__msdDebug
   if (!window.__msdDebug) {
     Object.defineProperty(window, '__msdDebug', {
       get() {
         console.warn('⚠️ [DebugInterface] window.__msdDebug is DEPRECATED.');
-        console.warn('   Use window.cblcars.debug.msd instead.');
-        console.warn('   Migration guide: https://github.com/CB-LCARS/cb-lcars/blob/dev-animejs/doc/api/MIGRATION_GUIDE.md');
-        return window.cblcars.debug.msd;
+        console.warn('   Use window.lcards.debug.msd instead.');
+        console.warn('   Migration guide: https://github.com/LCARdS/cb-lcars/blob/dev-animejs/doc/api/MIGRATION_GUIDE.md');
+        return window.lcards.debug.msd;
       },
       set(value) {
-        console.warn('⚠️ [DebugInterface] Setting window.__msdDebug is DEPRECATED. Use window.cblcars.debug.msd instead.');
-        window.cblcars.debug.msd = value;
+        console.warn('⚠️ [DebugInterface] Setting window.__msdDebug is DEPRECATED. Use window.lcards.debug.msd instead.');
+        window.lcards.debug.msd = value;
       },
       configurable: true
     });
@@ -140,7 +140,7 @@ export function setupDebugInterface(pipelineApi, mergedConfig, provenance, syste
   const debugConfig = mergedConfig?.debug || {};
 
   // REDUCED: Minimal startup logging
-  cblcarsLog.debug('[DebugInterface] 🛠️ Debug interface ready - type window.cblcars.debug.msd.help() for usage');
+  lcardsLog.debug('[DebugInterface] 🛠️ Debug interface ready - type window.lcards.debug.msd.help() for usage');
 
   // Core pipeline access - UNIFIED: Only set pipelineInstance
   dbg.pipelineInstance = pipelineApi;
@@ -149,7 +149,7 @@ export function setupDebugInterface(pipelineApi, mergedConfig, provenance, syste
   if (!dbg.hasOwnProperty('pipeline')) {
     Object.defineProperty(dbg, 'pipeline', {
       get() {
-        cblcarsLog.warn('[DebugInterface] ⚠️ window.cblcars.debug.msd.pipeline is deprecated. Use window.cblcars.debug.msd.pipelineInstance instead.');
+        lcardsLog.warn('[DebugInterface] ⚠️ window.lcards.debug.msd.pipeline is deprecated. Use window.lcards.debug.msd.pipelineInstance instead.');
         return this.pipelineInstance;
       },
       configurable: true
@@ -173,12 +173,12 @@ export function setupDebugInterface(pipelineApi, mergedConfig, provenance, syste
   // ✅ PHASE 4: Add deprecation warnings for legacy duplicate methods
   setupDeprecationWarnings(dbg);
 
- // cblcarsLog.debug('[DebugInterface] Debug interface setup complete');
- // cblcarsLog.debug('[DebugInterface] Available methods:', Object.keys(dbg));
+ // lcardsLog.debug('[DebugInterface] Debug interface setup complete');
+ // lcardsLog.debug('[DebugInterface] Available methods:', Object.keys(dbg));
 
   // Log debug config state (REDUCED)
   if (debugConfig.enabled) {
-    cblcarsLog.debug('[DebugInterface] Debug mode enabled');
+    lcardsLog.debug('[DebugInterface] Debug mode enabled');
   }
 }
 
@@ -190,7 +190,7 @@ function setupRoutingDebugInterface(dbg, pipelineApi, systemsManager) {
       try {
         return systemsManager.router.stats?.() || { cacheHits: 0, pathsComputed: 0, invalidations: 0 };
       } catch (e) {
-        cblcarsLog.warn('[DebugInterface] ⚠️ routing.stats failed:', e);
+        lcardsLog.warn('[DebugInterface] ⚠️ routing.stats failed:', e);
         return { cacheHits: 0, pathsComputed: 0, invalidations: 0, error: e.message };
       }
     },
@@ -209,7 +209,7 @@ function setupRoutingDebugInterface(dbg, pipelineApi, systemsManager) {
         systemsManager.router.invalidate && systemsManager.router.invalidate('*');
         return res;
       } catch (e) {
-        cblcarsLog.warn('[DebugInterface] ⚠️ inspectAs failed', e);
+        lcardsLog.warn('[DebugInterface] ⚠️ inspectAs failed', e);
         return null;
       }
     }
@@ -243,7 +243,7 @@ function setupDataSourceDebugInterface(dbg, systemsManager) {
         dump: () => systemsManager.dataSourceManager?.debugDump() || { error: 'DataSourceManager not initialized' },
         manager: () => systemsManager.dataSourceManager
       };
-      cblcarsLog.debug('[DebugInterface] Created dataSourcesDebug as alternative access due to getter conflict');
+      lcardsLog.debug('[DebugInterface] Created dataSourcesDebug as alternative access due to getter conflict');
     }
   }
 
@@ -251,15 +251,15 @@ function setupDataSourceDebugInterface(dbg, systemsManager) {
   // This provides entity-like access through DataSourceManager
   dbg.entities = {
     list: () => {
-      cblcarsLog.warn('[DebugInterface] ⚠️ entities.list() is deprecated. Use window.__msdDebug.dataSourceManager.listIds() instead.');
+      lcardsLog.warn('[DebugInterface] ⚠️ entities.list() is deprecated. Use window.__msdDebug.dataSourceManager.listIds() instead.');
       return systemsManager.dataSourceManager?.listIds() || [];
     },
     get: (id) => {
-      cblcarsLog.warn('[DebugInterface] ⚠️ entities.get() is deprecated. Use window.__msdDebug.dataSourceManager.getEntity() instead.');
+      lcardsLog.warn('[DebugInterface] ⚠️ entities.get() is deprecated. Use window.__msdDebug.dataSourceManager.getEntity() instead.');
       return systemsManager.dataSourceManager?.getEntity(id) || null;
     },
     stats: () => {
-      cblcarsLog.warn('[DebugInterface] ⚠️ entities.stats() is deprecated. Use window.__msdDebug.dataSources.stats() instead.');
+      lcardsLog.warn('[DebugInterface] ⚠️ entities.stats() is deprecated. Use window.__msdDebug.dataSources.stats() instead.');
       const dsStats = systemsManager.dataSourceManager?.getStats() || {};
       const entityCount = systemsManager.dataSourceManager?.listIds()?.length || 0;
 
@@ -293,11 +293,11 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
         try {
           const pipelineInstance = window.__msdDebug?.pipelineInstance;
           if (pipelineInstance?.reRender) {
-            cblcarsLog.debug('[DebugInterface] Force re-render after enable:', feature);
+            lcardsLog.debug('[DebugInterface] Force re-render after enable:', feature);
             pipelineInstance.reRender();
           }
         } catch (error) {
-          cblcarsLog.warn('[DebugInterface] ⚠️ Failed to trigger re-render:', error);
+          lcardsLog.warn('[DebugInterface] ⚠️ Failed to trigger re-render:', error);
         }
       }, 10);
     },
@@ -314,57 +314,57 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
         try {
           const pipelineInstance = window.__msdDebug?.pipelineInstance;
           if (pipelineInstance?.reRender) {
-            cblcarsLog.debug('[DebugInterface] Force re-render after disable:', feature);
+            lcardsLog.debug('[DebugInterface] Force re-render after disable:', feature);
             pipelineInstance.reRender();
           }
         } catch (error) {
-          cblcarsLog.warn('[DebugInterface] Failed to trigger re-render:', error);
+          lcardsLog.warn('[DebugInterface] Failed to trigger re-render:', error);
         }
       }, 10);
     },
 
     // Manual debug render test
     testRender: () => {
-      cblcarsLog.debug('[DebugInterface] Testing debug render directly...');
+      lcardsLog.debug('[DebugInterface] Testing debug render directly...');
       try {
         const debugState = debugManager.getSnapshot();
-        cblcarsLog.debug('[DebugInterface] Current state:', debugState);
+        lcardsLog.debug('[DebugInterface] Current state:', debugState);
 
         // Get pipeline instance to access the shadowRoot context
         const pipelineInstance = window.__msdDebug?.pipelineInstance;
         if (!pipelineInstance) {
-          cblcarsLog.warn('[DebugInterface] No pipeline instance available');
+          lcardsLog.warn('[DebugInterface] No pipeline instance available');
           return;
         }
 
         // Try to get the shadowRoot from the systems manager
         const systemsManager = pipelineInstance.systemsManager;
         if (!systemsManager) {
-          cblcarsLog.warn('[DebugInterface] No systems manager available');
+          lcardsLog.warn('[DebugInterface] No systems manager available');
           return;
         }
 
         // Use the renderer's mount element (shadowRoot)
         const mountEl = systemsManager.renderer?.mountEl;
         if (!mountEl) {
-          cblcarsLog.warn('[DebugInterface] No mount element found in renderer');
+          lcardsLog.warn('[DebugInterface] No mount element found in renderer');
           return;
         }
 
-        cblcarsLog.debug('[DebugInterface] Found mount element:', mountEl.constructor.name);
+        lcardsLog.debug('[DebugInterface] Found mount element:', mountEl.constructor.name);
 
         // Get resolved model for proper context
         const resolvedModel = pipelineInstance.getResolvedModel();
         if (!resolvedModel) {
-          cblcarsLog.warn('[DebugInterface] No resolved model available');
+          lcardsLog.warn('[DebugInterface] No resolved model available');
           return;
         }
 
-        cblcarsLog.debug('[DebugInterface] Calling renderDebugAndControls with shadowRoot context');
+        lcardsLog.debug('[DebugInterface] Calling renderDebugAndControls with shadowRoot context');
         systemsManager.renderDebugAndControls(resolvedModel, mountEl);
 
       } catch (error) {
-        cblcarsLog.error('[DebugInterface] testRender failed:', error);
+        lcardsLog.error('[DebugInterface] testRender failed:', error);
       }
     },
 
@@ -390,10 +390,10 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
         const pipelineInstance = window.__msdDebug?.pipelineInstance;
         if (pipelineInstance?.reRender) {
           pipelineInstance.reRender();
-          cblcarsLog.debug('[DebugInterface] Debug overlays refreshed');
+          lcardsLog.debug('[DebugInterface] Debug overlays refreshed');
         }
       } catch (error) {
-        cblcarsLog.warn('[DebugInterface] Failed to trigger pipeline re-render:', error);
+        lcardsLog.warn('[DebugInterface] Failed to trigger pipeline re-render:', error);
       }
     },
 
@@ -412,39 +412,39 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
       test: (overlayId) => {
         const pipelineInstance = window.__msdDebug?.pipelineInstance;
         if (!pipelineInstance) {
-          cblcarsLog.warn('[DebugInterface] No pipeline instance available');
+          lcardsLog.warn('[DebugInterface] No pipeline instance available');
           return null;
         }
 
         const model = pipelineInstance.getResolvedModel?.();
         if (!model) {
-          cblcarsLog.warn('[DebugInterface] No resolved model available');
+          lcardsLog.warn('[DebugInterface] No resolved model available');
           return null;
         }
 
         const overlay = model.overlays.find(o => o.id === overlayId);
         if (!overlay) {
-          cblcarsLog.warn(`[DebugInterface] Overlay "${overlayId}" not found`);
+          lcardsLog.warn(`[DebugInterface] Overlay "${overlayId}" not found`);
           return null;
         }
 
         // Get the debug renderer from systems manager
         const debugRenderer = systemsManager.debugRenderer;
         if (!debugRenderer) {
-          cblcarsLog.warn('[DebugInterface] Debug renderer not available');
+          lcardsLog.warn('[DebugInterface] Debug renderer not available');
           return null;
         }
 
         const position = overlay.position;
         if (!position || !Array.isArray(position)) {
-          cblcarsLog.warn(`[DebugInterface] Invalid position for overlay "${overlayId}"`);
+          lcardsLog.warn(`[DebugInterface] Invalid position for overlay "${overlayId}"`);
           return null;
         }
 
         const [x, y] = position;
         const dimensions = debugRenderer._getOverlayDimensions(overlay, x, y);
 
-        cblcarsLog.debug(`[DebugInterface] Bounding box test for "${overlayId}":`, {
+        lcardsLog.debug(`[DebugInterface] Bounding box test for "${overlayId}":`, {
           overlay: {
             id: overlay.id,
             type: overlay.type,
@@ -463,19 +463,19 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
       compare: (overlayId) => {
         const pipelineInstance = window.__msdDebug?.pipelineInstance;
         if (!pipelineInstance) {
-          cblcarsLog.warn('[DebugInterface] No pipeline instance available');
+          lcardsLog.warn('[DebugInterface] No pipeline instance available');
           return null;
         }
 
         const model = pipelineInstance.getResolvedModel?.();
         if (!model) {
-          cblcarsLog.warn('[DebugInterface] No resolved model available');
+          lcardsLog.warn('[DebugInterface] No resolved model available');
           return null;
         }
 
         const overlay = model.overlays.find(o => o.id === overlayId);
         if (!overlay || overlay.type !== 'text') {
-          cblcarsLog.warn(`[DebugInterface] Text overlay "${overlayId}" not found`);
+          lcardsLog.warn(`[DebugInterface] Text overlay "${overlayId}" not found`);
           return null;
         }
 
@@ -501,7 +501,7 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
         // Method 2: TextOverlayRenderer computation
         try {
           const container = systemsManager.renderer?.mountEl;
-          const attachmentData = window.cblcars?.TextOverlayRenderer?.computeAttachmentPoints?.(
+          const attachmentData = window.lcards?.TextOverlayRenderer?.computeAttachmentPoints?.(
             overlay,
             model.anchors || {},
             container
@@ -611,15 +611,15 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
 
   dbg.renderAdvanced = (options) => {
     try {
-      cblcarsLog.debug('[DebugInterface] renderAdvanced called - using AdvancedRenderer');
+      lcardsLog.debug('[DebugInterface] renderAdvanced called - using AdvancedRenderer');
       const model = modelBuilder.getResolvedModel();
       if (model) {
         return systemsManager.renderer.render(model);
       }
-      cblcarsLog.warn('[DebugInterface] renderAdvanced: No resolved model available');
+      lcardsLog.warn('[DebugInterface] renderAdvanced: No resolved model available');
       return { svgMarkup: '' };
     } catch (error) {
-      cblcarsLog.error('[DebugInterface] renderAdvanced failed:', error);
+      lcardsLog.error('[DebugInterface] renderAdvanced failed:', error);
       return { svgMarkup: '', error: error.message };
     }
   };
@@ -639,7 +639,7 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
       if (debugConfig?.hud?.auto_show) {
         setTimeout(() => {
           systemsManager.hudManager.show();
-          cblcarsLog.debug('[DebugInterface] HUD auto-shown based on config');
+          lcardsLog.debug('[DebugInterface] HUD auto-shown based on config');
         }, 2000);
       }
     }
@@ -660,7 +660,7 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
 
   // ADD: Help system
   dbg.help = function() {
-    cblcarsLog.info(`
+    lcardsLog.info(`
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                          MSD Debug Interface Help                            ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -733,7 +733,7 @@ function setupRenderingDebugInterface(dbg, systemsManager, modelBuilder, pipelin
 
   // ADD: Simplified usage examples
   dbg.usage = function() {
-    cblcarsLog.info(`
+    lcardsLog.info(`
 🔧 Quick MSD Debug Commands:
 
 Enable debug features:
@@ -774,7 +774,7 @@ For full help: __msdDebug.help()
 
   // Log debug config state (REDUCED)
   if (debugConfig.enabled) {
-    cblcarsLog.debug('[DebugInterface] Debug mode enabled');
+    lcardsLog.debug('[DebugInterface] Debug mode enabled');
   }
 }
 
@@ -1131,7 +1131,7 @@ function setupUtilityDebugInterface(dbg, mergedConfig, systemsManager) {
       try {
         return mergedConfig.__issues || { errors: [], warnings: [] };
       } catch (e) {
-        cblcarsLog.warn('[DebugInterface] validation.issues failed:', e);
+        lcardsLog.warn('[DebugInterface] validation.issues failed:', e);
         return { errors: [], warnings: [] };
       }
     }
@@ -1440,7 +1440,7 @@ function setupUtilityDebugInterface(dbg, mergedConfig, systemsManager) {
     markersEnabled: false,
     showMarkers(flag=true){
       this.markersEnabled=!!flag;
-      cblcarsLog.info('[DebugInterface] line endpoint markers', this.markersEnabled?'ENABLED':'DISABLED');
+      lcardsLog.info('[DebugInterface] line endpoint markers', this.markersEnabled?'ENABLED':'DISABLED');
     },
     forceRedraw: () => {
       // Connect to the reRender callback through systems manager

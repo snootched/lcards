@@ -166,8 +166,8 @@ export class AnimationRegistry {
   createAnimationInstance(definition, targets) {
     try {
       // Use the global animation system if available
-      if (typeof window !== 'undefined' && window.cblcars?.anim?.create) {
-        return window.cblcars.anim.create(definition, targets);
+      if (typeof window !== 'undefined' && window.lcards?.anim?.create) {
+        return window.lcards.anim.create(definition, targets);
       }
 
       // Fallback mock for testing

@@ -3,13 +3,13 @@
  * 🔍 Enables runtime overlay discovery, bounding box calculation, and visual highlighting for debugging
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export class MsdIntrospection {
   static getOverlaysSvg(root) {
     // Try specific wrapper IDs first (backward compatibility), then direct SVG query
     return root?.querySelector?.('#msd_svg_overlays svg') ||
-           root?.querySelector?.('#cblcars-msd-wrapper svg') ||
+           root?.querySelector?.('#lcards-msd-wrapper svg') ||
            root?.querySelector?.('svg') || null;
   }
 
@@ -23,11 +23,11 @@ export class MsdIntrospection {
     const overlaysById = new Map((resolvedModel.overlays || []).map(o => [o.id, o]));
 
     // Find overlay elements
-    let nodes = Array.from(svg.querySelectorAll('[id][data-cblcars-root="true"]'));
+    let nodes = Array.from(svg.querySelectorAll('[id][data-lcards-root="true"]'));
     if (!nodes.length) {
       // Fallback: find any elements with IDs, excluding debug layers
       nodes = Array.from(svg.querySelectorAll('[id]'))
-        .filter(n => n.id && n.id !== 'cblcars-debug-layer' && n.id !== 'cblcars-highlight-layer');
+        .filter(n => n.id && n.id !== 'lcards-debug-layer' && n.id !== 'lcards-highlight-layer');
     }
 
     for (const node of nodes) {
@@ -37,7 +37,7 @@ export class MsdIntrospection {
 
       out.push({
         id,
-        type: overlay?.type || node.getAttribute?.('data-cblcars-type') || node.tagName?.toLowerCase() || 'unknown',
+        type: overlay?.type || node.getAttribute?.('data-lcards-type') || node.tagName?.toLowerCase() || 'unknown',
         bbox,
         hasErrors: false, // TODO: Integration with validation system
         hasWarnings: false,
@@ -52,23 +52,23 @@ export class MsdIntrospection {
   static getOverlayBBox(id, root) {
     if (!id || !root) return null;
 
-    cblcarsLog.debug(`[MsdIntrospection] 📦 Getting bbox for overlay: ${id}`);
+    lcardsLog.debug(`[MsdIntrospection] 📦 Getting bbox for overlay: ${id}`);
 
     // Get SVG element first - we need to search within it
     const svg = this.getOverlaysSvg(root);
     if (!svg) {
-      cblcarsLog.warn(`[MsdIntrospection] ⚠️ No SVG found for bbox lookup`);
+      lcardsLog.warn(`[MsdIntrospection] ⚠️ No SVG found for bbox lookup`);
       return null;
     }
 
     // 1) Try SVG element getBBox using getElementById on the SVG or querySelector
     let el = svg.getElementById?.(id) || svg.querySelector(`#${CSS.escape(id)}`);
-    cblcarsLog.debug(`[MsdIntrospection] 🎯 Found element for '${id}':`, !!el);
+    lcardsLog.debug(`[MsdIntrospection] 🎯 Found element for '${id}':`, !!el);
 
     if (el && typeof el.getBBox === 'function') {
       try {
         const gbb = el.getBBox();
-        cblcarsLog.debug(`[MsdIntrospection] 📏 getBBox() result:`, gbb);
+        lcardsLog.debug(`[MsdIntrospection] 📏 getBBox() result:`, gbb);
         if (gbb && Number.isFinite(gbb.width) && Number.isFinite(gbb.height)) {
           let x = gbb.x;
           let y = gbb.y;
@@ -83,7 +83,7 @@ export class MsdIntrospection {
               if (Number.isFinite(tx) && Number.isFinite(ty)) {
                 x += tx;
                 y += ty;
-                cblcarsLog.debug(`[MsdIntrospection] 🔄 Applied transform translate(${tx}, ${ty})`);
+                lcardsLog.debug(`[MsdIntrospection] 🔄 Applied transform translate(${tx}, ${ty})`);
               }
             }
           }
@@ -91,7 +91,7 @@ export class MsdIntrospection {
           return { x, y, w: gbb.width, h: gbb.height };
         }
       } catch (e) {
-        cblcarsLog.debug(`[MsdIntrospection] ⚠️ getBBox() failed:`, e);
+        lcardsLog.debug(`[MsdIntrospection] ⚠️ getBBox() failed:`, e);
       }
     }
 
@@ -129,19 +129,19 @@ export class MsdIntrospection {
 
     // Require explicit root element - no document fallback
     if (!root) {
-      cblcarsLog.warn('[MsdIntrospection] ⚠️ Root element required for highlighting');
+      lcardsLog.warn('[MsdIntrospection] ⚠️ Root element required for highlighting');
       return;
     }
 
     const svg = this.getOverlaysSvg(root);
     if (!svg) {
-      cblcarsLog.warn('[MsdIntrospection] ⚠️ No SVG found for highlighting');
+      lcardsLog.warn('[MsdIntrospection] ⚠️ No SVG found for highlighting');
       return;
     }
 
-    cblcarsLog.debug(`[MsdIntrospection] 🎯 Highlighting overlays:`, idList);
-    cblcarsLog.debug(`[MsdIntrospection] 📍 Root:`, root);
-    cblcarsLog.debug(`[MsdIntrospection] 🎨 SVG:`, svg);
+    lcardsLog.debug(`[MsdIntrospection] 🎯 Highlighting overlays:`, idList);
+    lcardsLog.debug(`[MsdIntrospection] 📍 Root:`, root);
+    lcardsLog.debug(`[MsdIntrospection] 🎨 SVG:`, svg);
 
     const viewBox = this.getViewBox(root, svg) || [0, 0, 400, 200];
     const color = opts.color || '#ffcc00';
@@ -153,18 +153,18 @@ export class MsdIntrospection {
     // Use proper createElementNS from root's document
     const doc = root.ownerDocument || root.document;
     if (!doc || !doc.createElementNS) {
-      cblcarsLog.warn('[MsdIntrospection] ⚠️ createElementNS not available');
+      lcardsLog.warn('[MsdIntrospection] ⚠️ createElementNS not available');
       return;
     }
 
     // Ensure highlight layer exists
-    let highlightLayer = svg.querySelector('#cblcars-highlight-layer');
+    let highlightLayer = svg.querySelector('#lcards-highlight-layer');
     if (!highlightLayer) {
       highlightLayer = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
-      highlightLayer.setAttribute('id', 'cblcars-highlight-layer');
+      highlightLayer.setAttribute('id', 'lcards-highlight-layer');
       highlightLayer.style.pointerEvents = 'none';
       svg.appendChild(highlightLayer);
-      cblcarsLog.debug(`[MsdIntrospection] ✨ Created highlight layer`);
+      lcardsLog.debug(`[MsdIntrospection] ✨ Created highlight layer`);
     }
 
     // Clear existing highlights
@@ -174,7 +174,7 @@ export class MsdIntrospection {
     let highlightCount = 0;
     for (const id of idList) {
       const bbox = this.getOverlayBBox(id, root);
-      cblcarsLog.debug(`[MsdIntrospection] 📏 BBox for ${id}:`, bbox);
+      lcardsLog.debug(`[MsdIntrospection] 📏 BBox for ${id}:`, bbox);
 
       if (bbox) {
         const rect = doc.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -190,19 +190,19 @@ export class MsdIntrospection {
 
         highlightLayer.appendChild(rect);
         highlightCount++;
-        cblcarsLog.debug(`[MsdIntrospection] ✅ Created highlight rect for ${id}:`, { x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h });
+        lcardsLog.debug(`[MsdIntrospection] ✅ Created highlight rect for ${id}:`, { x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h });
       } else {
-        cblcarsLog.warn(`[MsdIntrospection] ⚠️ No bbox found for overlay: ${id}`);
+        lcardsLog.warn(`[MsdIntrospection] ⚠️ No bbox found for overlay: ${id}`);
       }
     }
 
-    cblcarsLog.info(`[MsdIntrospection] 🎯 Created ${highlightCount} highlight(s)`);
+    lcardsLog.info(`[MsdIntrospection] 🎯 Created ${highlightCount} highlight(s)`);
 
     // Auto-clear after duration
     setTimeout(() => {
       if (highlightLayer && highlightLayer.parentNode) {
         highlightLayer.innerHTML = '';
-        cblcarsLog.debug(`[MsdIntrospection] 🧹 Cleared highlights`);
+        lcardsLog.debug(`[MsdIntrospection] 🧹 Cleared highlights`);
       }
     }, duration);
   }

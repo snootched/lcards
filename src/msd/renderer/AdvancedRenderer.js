@@ -11,7 +11,7 @@ import { AttachmentPointManager } from './AttachmentPointManager.js';
 import { StatusGridRenderer } from './StatusGridRenderer.js';
 import { ApexChartsOverlayRenderer } from './ApexChartsOverlayRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ActionHelpers } from './ActionHelpers.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 
@@ -73,7 +73,7 @@ export class AdvancedRenderer {
     this._performance.overlayCount = 0;
 
     if (!resolvedModel) {
-      cblcarsLog.warn('[AdvancedRenderer] ⚠️ No resolved model provided');
+      lcardsLog.warn('[AdvancedRenderer] ⚠️ No resolved model provided');
       return { svgMarkup: '', overlayCount: 0 };
     }
 
@@ -82,7 +82,7 @@ export class AdvancedRenderer {
     // Store static anchors for use throughout render
     this._staticAnchors = anchors;
 
-    cblcarsLog.debug(`[AdvancedRenderer] 🎨 Rendering ${overlays.length} overlays, ${Object.keys(anchors).length} anchors`);
+    lcardsLog.debug(`[AdvancedRenderer] 🎨 Rendering ${overlays.length} overlays, ${Object.keys(anchors).length} anchors`);
 
     // ✅ NEW: Stage 1 - Preparation (Phase 5.3)
     const prepStart = performance.now();
@@ -92,7 +92,7 @@ export class AdvancedRenderer {
     // Phase rendering requires live SVG early
     const svg = this.mountEl?.querySelector('svg');
     if (!svg) {
-      cblcarsLog.warn('[AdvancedRenderer] ❌ SVG element not found in container');
+      lcardsLog.warn('[AdvancedRenderer] ❌ SVG element not found in container');
       return { svgMarkup: '', overlayCount: 0 };
     }
 
@@ -135,7 +135,7 @@ export class AdvancedRenderer {
 
         const result = this.renderOverlay(ov, anchors, viewBox);
 
-        cblcarsLog.trace(`[AdvancedRenderer] 📊 Phase 1 overlay result:`, {
+        lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 1 overlay result:`, {
           resultType: typeof result,
           isObject: result && typeof result === 'object',
           hasMarkup: result?.markup,
@@ -152,7 +152,7 @@ export class AdvancedRenderer {
           svgMarkupAccum += result.markup;
 
           if (result.actionInfo) {
-            cblcarsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 1 action for ${result.overlayId}`);
+            lcardsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 1 action for ${result.overlayId}`);
             phase1ActionQueue.push({
               overlayId: result.overlayId,
               actionInfo: result.actionInfo
@@ -194,7 +194,7 @@ export class AdvancedRenderer {
 
         processedCount++;
       } catch (e) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Phase1 render failed for overlay ${ov.id}:`, e);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase1 render failed for overlay ${ov.id}:`, e);
 
         // ✅ NEW: Track failed overlay (Phase 5.3)
         provenance.overlays[ov.id] = {
@@ -206,7 +206,7 @@ export class AdvancedRenderer {
       }
     });
 
-    cblcarsLog.trace(`[AdvancedRenderer] 📋 Phase 1 action queue:`, {
+    lcardsLog.trace(`[AdvancedRenderer] 📋 Phase 1 action queue:`, {
       queueSize: phase1ActionQueue.length,
       overlayIds: phase1ActionQueue.map(a => a.overlayId)
     });
@@ -215,12 +215,12 @@ export class AdvancedRenderer {
     overlayGroup.innerHTML = svgMarkupAccum;
 
     // ADDED: Attach Phase 1 actions immediately after Phase 1 DOM injection
-    cblcarsLog.trace(`[AdvancedRenderer] 🎯 Attaching Phase 1 actions`);
+    lcardsLog.trace(`[AdvancedRenderer] 🎯 Attaching Phase 1 actions`);
 
     phase1ActionQueue.forEach(({ overlayId, actionInfo }) => {
       const element = this.mountEl.querySelector(`[data-overlay-id="${overlayId}"]`);
 
-      cblcarsLog.debug(`[AdvancedRenderer] 🔍 Looking for Phase 1 element ${overlayId}:`, {
+      lcardsLog.debug(`[AdvancedRenderer] 🔍 Looking for Phase 1 element ${overlayId}:`, {
         found: !!element,
         alreadyAttached: element?.hasAttribute('data-actions-attached')
       });
@@ -238,12 +238,12 @@ export class AdvancedRenderer {
             { animationManager }
           );
           element.setAttribute('data-actions-attached', 'true');
-          cblcarsLog.debug(`[AdvancedRenderer] ✅ Attached Phase 1 actions to ${overlayId}`);
+          lcardsLog.debug(`[AdvancedRenderer] ✅ Attached Phase 1 actions to ${overlayId}`);
         } catch (error) {
-          cblcarsLog.error(`[AdvancedRenderer] ❌ Failed to attach Phase 1 actions to ${overlayId}:`, error);
+          lcardsLog.error(`[AdvancedRenderer] ❌ Failed to attach Phase 1 actions to ${overlayId}:`, error);
         }
       } else {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Phase 1 element not found for overlay ${overlayId}`);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase 1 element not found for overlay ${overlayId}`);
       }
     });
 
@@ -273,7 +273,7 @@ export class AdvancedRenderer {
 
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
-        cblcarsLog.debug(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
+        lcardsLog.debug(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
           resultType: typeof result,
           isObject: result && typeof result === 'object',
           hasMarkup: result?.markup,
@@ -289,7 +289,7 @@ export class AdvancedRenderer {
           markup = result.markup;
 
           if (result.actionInfo) {
-            cblcarsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 2a action for ${result.overlayId}`);
+            lcardsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 2a action for ${result.overlayId}`);
             phase2ActionQueue.push({
               overlayId: result.overlayId,
               actionInfo: result.actionInfo,
@@ -331,7 +331,7 @@ export class AdvancedRenderer {
 
         processedCount++;
       } catch (e) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Phase2a render failed for overlay ${ov.id}:`, e);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2a render failed for overlay ${ov.id}:`, e);
       }
     });
 
@@ -356,7 +356,7 @@ export class AdvancedRenderer {
 
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
-        cblcarsLog.debug(`[AdvancedRenderer] 📊 Phase 2b overlay ${ov.id} result:`, {
+        lcardsLog.debug(`[AdvancedRenderer] 📊 Phase 2b overlay ${ov.id} result:`, {
           resultType: typeof result,
           isObject: result && typeof result === 'object',
           hasMarkup: result?.markup,
@@ -372,7 +372,7 @@ export class AdvancedRenderer {
 
           // CHANGED: Collect Phase 2 actions in separate queue
           if (result.actionInfo) {
-            cblcarsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 2b action for ${result.overlayId}`);
+            lcardsLog.debug(`[AdvancedRenderer] 📝 Queuing Phase 2b action for ${result.overlayId}`);
             phase2ActionQueue.push({
               overlayId: result.overlayId,
               actionInfo: result.actionInfo,
@@ -431,7 +431,7 @@ export class AdvancedRenderer {
                   const req = this.routerCore.buildRouteRequest(ov, anchorPt, targetPt);
                   this.routerCore.computePath(req);
                 } catch (e) {
-                  cblcarsLog.debug('[AdvancedRenderer] 🔗 Route registration failed for overlay', ov.id, e);
+                  lcardsLog.debug('[AdvancedRenderer] 🔗 Route registration failed for overlay', ov.id, e);
                 }
               }
             }
@@ -448,7 +448,7 @@ export class AdvancedRenderer {
 
         processedCount++;
       } catch (e) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Phase2b render failed for overlay ${ov.id}:`, e);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2b render failed for overlay ${ov.id}:`, e);
 
         // ✅ NEW: Track failed overlay (Phase 5.3)
         provenance.overlays[ov.id] = {
@@ -466,12 +466,12 @@ export class AdvancedRenderer {
     const domStart = performance.now();
 
     // ADDED: Attach Phase 2 actions (buttons, status grids, etc.) AFTER Phase 2 DOM injection
-    cblcarsLog.debug(`[AdvancedRenderer] 🎯 Attaching ${phase2ActionQueue.length} Phase 2 actions`);
+    lcardsLog.debug(`[AdvancedRenderer] 🎯 Attaching ${phase2ActionQueue.length} Phase 2 actions`);
 
     phase2ActionQueue.forEach(({ overlayId, actionInfo, overlay, cardInstance }) => {
       const element = this.mountEl.querySelector(`[data-overlay-id="${overlayId}"]`);
 
-      cblcarsLog.debug(`[AdvancedRenderer] 🔍 Looking for Phase 2 element ${overlayId}:`, {
+      lcardsLog.debug(`[AdvancedRenderer] 🔍 Looking for Phase 2 element ${overlayId}:`, {
         found: !!element,
         alreadyAttached: element?.hasAttribute('data-actions-attached'),
         hasActionInfo: !!actionInfo,
@@ -495,7 +495,7 @@ export class AdvancedRenderer {
             );
           } else if (actionInfo.config.enhanced) {
             // Enhanced cell-level actions (status grids)
-            cblcarsLog.debug(`[AdvancedRenderer] 🔲 Attaching enhanced cell actions for ${overlayId}`);
+            lcardsLog.debug(`[AdvancedRenderer] 🔲 Attaching enhanced cell actions for ${overlayId}`);
 
             // Attach cell-specific actions using ActionHelpers
             if (actionInfo.cells && actionInfo.cells.length > 0) {
@@ -530,18 +530,18 @@ export class AdvancedRenderer {
           }
 
           element.setAttribute('data-actions-attached', 'true');
-          cblcarsLog.debug(`[AdvancedRenderer] ✅ Attached Phase 2 actions to ${overlayId}`);
+          lcardsLog.debug(`[AdvancedRenderer] ✅ Attached Phase 2 actions to ${overlayId}`);
         } catch (error) {
-          cblcarsLog.error(`[AdvancedRenderer] ❌ Failed to attach Phase 2 actions to ${overlayId}:`, error);
+          lcardsLog.error(`[AdvancedRenderer] ❌ Failed to attach Phase 2 actions to ${overlayId}:`, error);
         }
       } else if (!element) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Phase 2 element not found for overlay ${overlayId}`);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase 2 element not found for overlay ${overlayId}`);
       }
     });
 
     this._performance.stages.domInjection = performance.now() - domStart;
 
-    cblcarsLog.debug('[AdvancedRenderer] Injected elements (after phased render):', {
+    lcardsLog.debug('[AdvancedRenderer] Injected elements (after phased render):', {
       total: this.overlayElementCache.size,
       text: overlayGroup.querySelectorAll('[data-overlay-type="text"]').length,
       lines: overlayGroup.querySelectorAll('[data-overlay-type="line"]').length,
@@ -570,7 +570,7 @@ export class AdvancedRenderer {
     provenance.performance = this._getPerformanceSummary();
 
     // ✅ NEW: Log performance summary (Phase 5.3)
-    cblcarsLog.debug('[AdvancedRenderer] Render complete', {
+    lcardsLog.debug('[AdvancedRenderer] Render complete', {
       overlays: overlays.length,
       processed: processedCount,
       errors: overlays.length - processedCount,
@@ -583,7 +583,7 @@ export class AdvancedRenderer {
     });
 
     // ✅ NEW: Store provenance in config (Phase 5.3)
-    const config = window.cblcars.debug.msd?.pipelineInstance?.config;
+    const config = window.lcards.debug.msd?.pipelineInstance?.config;
     if (config && config.__provenance) {
       config.__provenance.advanced_renderer = provenance;
     }
@@ -630,11 +630,11 @@ export class AdvancedRenderer {
         case 'apexchart':
           return ApexChartsOverlayRenderer.computeAttachmentPoints(overlay, anchors, container, viewBox);
         default:
-          cblcarsLog.warn(`[AdvancedRenderer] Unknown overlay type for attachment points: ${overlay.type}`);
+          lcardsLog.warn(`[AdvancedRenderer] Unknown overlay type for attachment points: ${overlay.type}`);
           return null;
       }
     } catch (error) {
-      cblcarsLog.warn(`[AdvancedRenderer] Failed to compute attachment points for ${overlay.id}:`, error);
+      lcardsLog.warn(`[AdvancedRenderer] Failed to compute attachment points for ${overlay.id}:`, error);
       return null;
     }
   }  // Individual attachment point computation methods for each overlay type
@@ -667,7 +667,7 @@ export class AdvancedRenderer {
     const attachmentPoints = OverlayUtils.computeAttachmentPoints(overlay, anchors);
 
     if (!attachmentPoints) {
-      cblcarsLog.debug(`[AdvancedRenderer] Cannot compute attachment points for ${type} ${overlay.id}: missing position or size`);
+      lcardsLog.debug(`[AdvancedRenderer] Cannot compute attachment points for ${type} ${overlay.id}: missing position or size`);
       return null;
     }
 
@@ -677,7 +677,7 @@ export class AdvancedRenderer {
     attachmentPoints.points['bottom-left'] = attachmentPoints.points.bottomLeft;
     attachmentPoints.points['bottom-right'] = attachmentPoints.points.bottomRight;
 
-    cblcarsLog.debug(`[AdvancedRenderer] 🔗 Created attachment points for ${type} ${overlay.id}`);
+    lcardsLog.debug(`[AdvancedRenderer] 🔗 Created attachment points for ${type} ${overlay.id}`);
 
     return attachmentPoints;
   }  _ensureOverlayGroup(svg) {
@@ -714,7 +714,7 @@ export class AdvancedRenderer {
       const attachmentPointData = this.attachmentManager.getAttachmentPoints(dest);
       if (!attachmentPointData || !attachmentPointData.points) {
         // Some overlays don't need attachment points (e.g., anchors, controls)
-        cblcarsLog.debug(`[AdvancedRenderer] No attachment points found for ${dest}`);
+        lcardsLog.debug(`[AdvancedRenderer] No attachment points found for ${dest}`);
         return;
       }
 
@@ -723,16 +723,16 @@ export class AdvancedRenderer {
       let lineAnchor = null;
       const sourceAttachmentPoints = this.attachmentManager.getAttachmentPoints(raw.anchor);
 
-      cblcarsLog.debug(`[AdvancedRenderer] 🔍 Source anchor resolution for ${line.id}:`);
-      cblcarsLog.debug(`  raw.anchor: "${raw.anchor}"`);
-      cblcarsLog.debug(`  hasSourceAttachmentPoints: ${!!sourceAttachmentPoints}`);
+      lcardsLog.debug(`[AdvancedRenderer] 🔍 Source anchor resolution for ${line.id}:`);
+      lcardsLog.debug(`  raw.anchor: "${raw.anchor}"`);
+      lcardsLog.debug(`  hasSourceAttachmentPoints: ${!!sourceAttachmentPoints}`);
 
       if (sourceAttachmentPoints?.points) {
         // Anchor is an overlay - resolve the appropriate side
         const anchorSide = (raw.anchor_side || raw.anchorSide || '').toLowerCase();
 
-        cblcarsLog.debug(`  anchorSide config: "${anchorSide}"`);
-        cblcarsLog.debug(`  destination center: [${attachmentPointData.points.center.join(', ')}]`);
+        lcardsLog.debug(`  anchorSide config: "${anchorSide}"`);
+        lcardsLog.debug(`  destination center: [${attachmentPointData.points.center.join(', ')}]`);
 
         const { point: sourcePt, side: sourceEffectiveSide } = this._resolveOverlayAttachmentPoint(
           sourceAttachmentPoints.points,
@@ -740,8 +740,8 @@ export class AdvancedRenderer {
           attachmentPointData.points.center  // Use destination center to auto-determine source side
         );
 
-        cblcarsLog.debug(`  resolved sourcePt: [${sourcePt ? sourcePt.join(', ') : 'null'}]`);
-        cblcarsLog.debug(`  resolved sourceEffectiveSide: "${sourceEffectiveSide}"`);
+        lcardsLog.debug(`  resolved sourcePt: [${sourcePt ? sourcePt.join(', ') : 'null'}]`);
+        lcardsLog.debug(`  resolved sourceEffectiveSide: "${sourceEffectiveSide}"`);
 
         lineAnchor = sourcePt;
 
@@ -759,7 +759,7 @@ export class AdvancedRenderer {
           // CRITICAL: Write back auto-determined side to overlay config so LineOverlay can use it
           raw.anchor_side = sourceEffectiveSide;
           line.anchor_side = sourceEffectiveSide;  // Also write to top-level object
-          cblcarsLog.debug(`[AdvancedRenderer] 💾 Wrote back anchor_side to overlay config:`, {
+          lcardsLog.debug(`[AdvancedRenderer] 💾 Wrote back anchor_side to overlay config:`, {
             overlayId: line.id,
             anchor_side: sourceEffectiveSide
           });
@@ -773,14 +773,14 @@ export class AdvancedRenderer {
 
       const configSide = (raw.attach_side || raw.attachSide || '').toLowerCase();
 
-      cblcarsLog.debug(`[AdvancedRenderer] 🔗 Building anchor for line ${line.id}:`);
-      cblcarsLog.debug(`  dest: ${dest}`);
-      cblcarsLog.debug(`  configSide: "${configSide}" (empty=${!configSide})`);
-      cblcarsLog.debug(`  lineAnchor: [${lineAnchor ? lineAnchor.join(', ') : 'null'}]`);
-      cblcarsLog.debug(`  availablePoints: ${Object.keys(attachmentPointData.points).join(', ')}`);
-      cblcarsLog.debug(`  center: [${attachmentPointData.points.center.join(', ')}]`);
-      cblcarsLog.debug(`  right: [${attachmentPointData.points.right.join(', ')}]`);
-      cblcarsLog.debug(`  left: [${attachmentPointData.points.left.join(', ')}]`);
+      lcardsLog.debug(`[AdvancedRenderer] 🔗 Building anchor for line ${line.id}:`);
+      lcardsLog.debug(`  dest: ${dest}`);
+      lcardsLog.debug(`  configSide: "${configSide}" (empty=${!configSide})`);
+      lcardsLog.debug(`  lineAnchor: [${lineAnchor ? lineAnchor.join(', ') : 'null'}]`);
+      lcardsLog.debug(`  availablePoints: ${Object.keys(attachmentPointData.points).join(', ')}`);
+      lcardsLog.debug(`  center: [${attachmentPointData.points.center.join(', ')}]`);
+      lcardsLog.debug(`  right: [${attachmentPointData.points.right.join(', ')}]`);
+      lcardsLog.debug(`  left: [${attachmentPointData.points.left.join(', ')}]`);
 
       const { point: basePt, side: effectiveSide } = this._resolveOverlayAttachmentPoint(
         attachmentPointData.points,
@@ -788,11 +788,11 @@ export class AdvancedRenderer {
         lineAnchor
       );
 
-      cblcarsLog.debug(`[AdvancedRenderer] 🎯 Resolved attachment point:`);
-      cblcarsLog.debug(`  effectiveSide: "${effectiveSide}"`);
-      cblcarsLog.debug(`  basePt: [${basePt ? basePt.join(', ') : 'null'}]`);
-      cblcarsLog.debug(`  configSide was: "${configSide}"`);      if (!basePt) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ No base point resolved for ${line.id}`);
+      lcardsLog.debug(`[AdvancedRenderer] 🎯 Resolved attachment point:`);
+      lcardsLog.debug(`  effectiveSide: "${effectiveSide}"`);
+      lcardsLog.debug(`  basePt: [${basePt ? basePt.join(', ') : 'null'}]`);
+      lcardsLog.debug(`  configSide was: "${configSide}"`);      if (!basePt) {
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ No base point resolved for ${line.id}`);
         return;
       }
       const gapPt = this._applyAttachGap(basePt, effectiveSide, raw, attachmentPointData.bbox);
@@ -800,10 +800,10 @@ export class AdvancedRenderer {
       // Construct the proper virtual anchor ID based on effective side (which may be auto-determined)
       const virtualAnchorId = effectiveSide && effectiveSide !== 'center' ? `${dest}.${effectiveSide}` : dest;
 
-      cblcarsLog.debug(`[AdvancedRenderer] 💾 Storing virtual anchor:`);
-      cblcarsLog.debug(`  virtualAnchorId: "${virtualAnchorId}"`);
-      cblcarsLog.debug(`  gapPt: [${gapPt.join(', ')}]`);
-      cblcarsLog.debug(`  effectiveSide: "${effectiveSide}"`);
+      lcardsLog.debug(`[AdvancedRenderer] 💾 Storing virtual anchor:`);
+      lcardsLog.debug(`  virtualAnchorId: "${virtualAnchorId}"`);
+      lcardsLog.debug(`  gapPt: [${gapPt.join(', ')}]`);
+      lcardsLog.debug(`  effectiveSide: "${effectiveSide}"`);
 
       // Store in attachment manager
       this.attachmentManager.setAnchor(virtualAnchorId, gapPt);
@@ -812,7 +812,7 @@ export class AdvancedRenderer {
       if (effectiveSide && effectiveSide !== 'center' && !configSide) {
         raw.attach_side = effectiveSide;
         line.attach_side = effectiveSide;  // Also write to top-level object
-        cblcarsLog.debug(`[AdvancedRenderer] 💾 Wrote back attach_side to overlay config:`, {
+        lcardsLog.debug(`[AdvancedRenderer] 💾 Wrote back attach_side to overlay config:`, {
           overlayId: line.id,
           attach_side: effectiveSide
         });
@@ -829,7 +829,7 @@ export class AdvancedRenderer {
             this.routerCore.computePath(req);
           }
         } catch(e) {
-          cblcarsLog.info('[AdvancedRenderer] Route registration (initial) failed', line.id, e);
+          lcardsLog.info('[AdvancedRenderer] Route registration (initial) failed', line.id, e);
         }
       }
       // Track dependency
@@ -847,7 +847,7 @@ export class AdvancedRenderer {
 
       // Log what attachment points we're reading for title_overlay
       if (id === 'title_overlay') {
-        cblcarsLog.trace(`[AdvancedRenderer] 🔍 _updateDynamicAnchorsForOverlays reading title_overlay attachment points:`, {
+        lcardsLog.trace(`[AdvancedRenderer] 🔍 _updateDynamicAnchorsForOverlays reading title_overlay attachment points:`, {
           right: tap.points.right,
           bboxRight: tap.bbox?.right,
           bboxWidth: tap.bbox?.width
@@ -881,7 +881,7 @@ export class AdvancedRenderer {
 
         // Log for title_overlay
         if (id === 'title_overlay' && effectiveSide === 'right') {
-          cblcarsLog.trace(`[AdvancedRenderer] 🔍 _updateDynamicAnchorsForOverlays setting title_overlay.right:`, {
+          lcardsLog.trace(`[AdvancedRenderer] 🔍 _updateDynamicAnchorsForOverlays setting title_overlay.right:`, {
             basePt,
             gapPt,
             gap: raw.attach_gap
@@ -902,7 +902,7 @@ export class AdvancedRenderer {
               this.routerCore.computePath(req);
             }
           } catch(e) {
-            cblcarsLog.info('[AdvancedRenderer] Route registration (update) failed', line.id, e);
+            lcardsLog.info('[AdvancedRenderer] Route registration (update) failed', line.id, e);
           }
         }
       });
@@ -915,7 +915,7 @@ export class AdvancedRenderer {
     const gapX = Number(raw.attach_gap_x || raw.attachGapX || raw.anchor_gap_x || raw.anchorGapX || gap || 0);
     const gapY = Number(raw.attach_gap_y || raw.attachGapY || raw.anchor_gap_y || raw.anchorGapY || gap || 0);
 
-    cblcarsLog.trace(`[AdvancedRenderer] 🔧 _applyAttachGap:`, {
+    lcardsLog.trace(`[AdvancedRenderer] 🔧 _applyAttachGap:`, {
       point,
       side,
       gap,
@@ -928,7 +928,7 @@ export class AdvancedRenderer {
     });
 
     if (!(gapX || gapY)) {
-      cblcarsLog.debug(`[AdvancedRenderer] ⏭️ No gap to apply, returning original point`);
+      lcardsLog.debug(`[AdvancedRenderer] ⏭️ No gap to apply, returning original point`);
       return point;
     }
 
@@ -947,7 +947,7 @@ export class AdvancedRenderer {
     }
 
     const result = [x + dx, y + dy];
-    cblcarsLog.trace(`[AdvancedRenderer] ✅ Applied gap: [${point}] + [${dx}, ${dy}] = [${result}]`);
+    lcardsLog.trace(`[AdvancedRenderer] ✅ Applied gap: [${point}] + [${dx}, ${dy}] = [${result}]`);
     return result;
   }
 
@@ -961,7 +961,7 @@ export class AdvancedRenderer {
 
     // Auto-determine side if not specified
     if (!side || side === '') {
-      cblcarsLog.debug('[AdvancedRenderer] 🔍 Auto-determination check:', {
+      lcardsLog.debug('[AdvancedRenderer] 🔍 Auto-determination check:', {
         hasLineAnchor: !!lineAnchor,
         lineAnchor,
         hasCenter: !!points?.center,
@@ -987,7 +987,7 @@ export class AdvancedRenderer {
           effectiveSide = dy < 0 ? 'top' : 'bottom';
         }
 
-        cblcarsLog.debug('[AdvancedRenderer] ✅ Auto-determined attach_side:', effectiveSide, {
+        lcardsLog.debug('[AdvancedRenderer] ✅ Auto-determined attach_side:', effectiveSide, {
           lineAnchor,
           center: points.center,
           dx,
@@ -1117,7 +1117,7 @@ export class AdvancedRenderer {
         // NOTE: Line overlays are already updated during font stabilization via _rerenderAllDependentOverlays()
         // No additional refresh needed here
 
-        cblcarsLog.debug('[AdvancedRenderer] Font stabilization complete', {
+        lcardsLog.debug('[AdvancedRenderer] Font stabilization complete', {
           passes: pass,
           changed: Array.from(changedTargets),
           hadFontChanges: anyFontChanges
@@ -1132,7 +1132,7 @@ export class AdvancedRenderer {
               return g && g.getAttribute('data-font-stabilized') !== '1';
             });
           if (remaining) {
-            cblcarsLog.debug('[AdvancedRenderer] 🔤 Running safety stabilization pass');
+            lcardsLog.debug('[AdvancedRenderer] 🔤 Running safety stabilization pass');
             pass = 0;
             globalStabilizationNeeded = true;
             requestAnimationFrame(run);
@@ -1147,14 +1147,14 @@ export class AdvancedRenderer {
       // Wait for fonts to load, then give extra time for them to be applied
       fontAPI.ready
         .then(() => {
-          cblcarsLog.debug('[AdvancedRenderer] Fonts loaded, waiting for render...');
+          lcardsLog.debug('[AdvancedRenderer] Fonts loaded, waiting for render...');
           // Double RAF to ensure fonts are applied before measuring
           requestAnimationFrame(() => {
             requestAnimationFrame(run);
           });
         })
         .catch(() => {
-          cblcarsLog.warn('[AdvancedRenderer] Font loading failed, proceeding anyway');
+          lcardsLog.warn('[AdvancedRenderer] Font loading failed, proceeding anyway');
           requestAnimationFrame(run);
         });
     } else {
@@ -1169,7 +1169,7 @@ export class AdvancedRenderer {
     // Phase 3: Deferred line refresh is now handled during font stabilization
     // via _rerenderAllDependentOverlays() which properly updates lines
     // This method kept for backwards compatibility but does nothing
-    cblcarsLog.debug('[AdvancedRenderer] Deferred line refresh scheduled (handled during font stabilization)');
+    lcardsLog.debug('[AdvancedRenderer] Deferred line refresh scheduled (handled during font stabilization)');
   }
 
   /**
@@ -1239,7 +1239,7 @@ export class AdvancedRenderer {
     }
 
     // Unknown overlay type
-    cblcarsLog.warn(`[AdvancedRenderer] ⚠️ No renderer available for overlay type: ${overlay.type}`);
+    lcardsLog.warn(`[AdvancedRenderer] ⚠️ No renderer available for overlay type: ${overlay.type}`);
     return null;
   }
 
@@ -1252,10 +1252,10 @@ export class AdvancedRenderer {
    * @returns {boolean} True if all overlays were successfully re-rendered
    */
   reRenderOverlays(overlaysToReRender, resolvedModel) {
-    cblcarsLog.debug(`[AdvancedRenderer] 🔄 Selectively re-rendering overlay(s)`);
+    lcardsLog.debug(`[AdvancedRenderer] 🔄 Selectively re-rendering overlay(s)`);
 
     if (!resolvedModel || !overlaysToReRender || overlaysToReRender.length === 0) {
-      cblcarsLog.warn('[AdvancedRenderer] ⚠️ Invalid parameters for selective re-render');
+      lcardsLog.warn('[AdvancedRenderer] ⚠️ Invalid parameters for selective re-render');
       return false;
     }
 
@@ -1263,13 +1263,13 @@ export class AdvancedRenderer {
     const svg = this.mountEl?.querySelector('svg');
 
     if (!svg) {
-      cblcarsLog.error('[AdvancedRenderer] ❌ SVG element not found - cannot selective re-render');
+      lcardsLog.error('[AdvancedRenderer] ❌ SVG element not found - cannot selective re-render');
       return false;
     }
 
     const overlayGroup = svg.querySelector('#msd-overlay-container');
     if (!overlayGroup) {
-      cblcarsLog.error('[AdvancedRenderer] ❌ Overlay container not found - cannot selective re-render');
+      lcardsLog.error('[AdvancedRenderer] ❌ Overlay container not found - cannot selective re-render');
       return false;
     }
 
@@ -1278,13 +1278,13 @@ export class AdvancedRenderer {
 
     overlaysToReRender.forEach(overlay => {
       try {
-        cblcarsLog.debug(`[AdvancedRenderer] 🎨 Re-rendering overlay: ${overlay.id}`);
+        lcardsLog.debug(`[AdvancedRenderer] 🎨 Re-rendering overlay: ${overlay.id}`);
 
         // Find and remove existing overlay element
         const existingElement = overlayGroup.querySelector(`[data-overlay-id="${overlay.id}"]`);
         if (existingElement) {
           existingElement.remove();
-          cblcarsLog.debug(`[AdvancedRenderer] 🗑️ Removed existing overlay element: ${overlay.id}`);
+          lcardsLog.debug(`[AdvancedRenderer] 🗑️ Removed existing overlay element: ${overlay.id}`);
         }
 
         // Re-render the overlay
@@ -1301,7 +1301,7 @@ export class AdvancedRenderer {
           // Check for parsing errors
           const parserError = svgDoc.querySelector('parsererror');
           if (parserError) {
-            cblcarsLog.error(`[AdvancedRenderer] ❌ SVG parsing error for ${overlay.id}:`, parserError.textContent);
+            lcardsLog.error(`[AdvancedRenderer] ❌ SVG parsing error for ${overlay.id}:`, parserError.textContent);
             allSucceeded = false;
             return;
           }
@@ -1314,7 +1314,7 @@ export class AdvancedRenderer {
             const importedElement = document.importNode(newElement, true);
             overlayGroup.appendChild(importedElement);
             reRenderedIds.add(overlay.id);
-            cblcarsLog.trace(`[AdvancedRenderer] ✅ Re-rendered overlay: ${overlay.id}`);
+            lcardsLog.trace(`[AdvancedRenderer] ✅ Re-rendered overlay: ${overlay.id}`);
 
             // Re-attach actions if present
             if (result.actionInfo && !newElement.hasAttribute('data-actions-attached')) {
@@ -1330,41 +1330,41 @@ export class AdvancedRenderer {
                   { animationManager }
                 );
                 newElement.setAttribute('data-actions-attached', 'true');
-                cblcarsLog.debug(`[AdvancedRenderer] 🎯 Re-attached actions for: ${overlay.id}`);
+                lcardsLog.debug(`[AdvancedRenderer] 🎯 Re-attached actions for: ${overlay.id}`);
               } catch (actionError) {
-                cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Failed to re-attach actions for ${overlay.id}:`, actionError);
+                lcardsLog.warn(`[AdvancedRenderer] ⚠️ Failed to re-attach actions for ${overlay.id}:`, actionError);
               }
             }
           } else {
-            cblcarsLog.warn(`[AdvancedRenderer] ⚠️ No element created for overlay: ${overlay.id}`);
+            lcardsLog.warn(`[AdvancedRenderer] ⚠️ No element created for overlay: ${overlay.id}`);
             allSucceeded = false;
           }
         } else {
-          cblcarsLog.warn(`[AdvancedRenderer] ⚠️ No markup returned for overlay: ${overlay.id}`);
+          lcardsLog.warn(`[AdvancedRenderer] ⚠️ No markup returned for overlay: ${overlay.id}`);
           allSucceeded = false;
         }
       } catch (error) {
-        cblcarsLog.error(`[AdvancedRenderer] ❌ Failed to re-render overlay ${overlay.id}:`, error);
+        lcardsLog.error(`[AdvancedRenderer] ❌ Failed to re-render overlay ${overlay.id}:`, error);
         allSucceeded = false;
       }
     });
 
     // ✅ NEW: Update dynamic anchors and re-render dependent lines
     if (reRenderedIds.size > 0 && allOverlays && this._staticAnchors) {
-      cblcarsLog.debug(`[AdvancedRenderer] 🔗 Updating dynamic anchors for ${reRenderedIds.size} re-rendered overlay(s)`);
+      lcardsLog.debug(`[AdvancedRenderer] 🔗 Updating dynamic anchors for ${reRenderedIds.size} re-rendered overlay(s)`);
 
       // Update dynamic anchors for re-rendered overlays
       this._updateDynamicAnchorsForOverlays(reRenderedIds, allOverlays, this._staticAnchors);
 
       // Re-render dependent line overlays
-      cblcarsLog.debug(`[AdvancedRenderer] 📍 Re-rendering dependent line overlays`);
+      lcardsLog.debug(`[AdvancedRenderer] 📍 Re-rendering dependent line overlays`);
       this._rerenderAllDependentOverlays(allOverlays, Array.from(reRenderedIds), viewBox);
     }
 
     if (allSucceeded) {
-      cblcarsLog.info(`[AdvancedRenderer] ✅ Successfully re-rendered all ${overlaysToReRender.length} overlay(s)`);
+      lcardsLog.info(`[AdvancedRenderer] ✅ Successfully re-rendered all ${overlaysToReRender.length} overlay(s)`);
     } else {
-      cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Some overlays failed to re-render`);
+      lcardsLog.warn(`[AdvancedRenderer] ⚠️ Some overlays failed to re-render`);
     }
 
     return allSucceeded;
@@ -1381,7 +1381,7 @@ export class AdvancedRenderer {
    */
   renderOverlay(overlay, anchors, viewBox, svgContainer) {
     try {
-      cblcarsLog.trace(`[AdvancedRenderer] 🎨 Rendering overlay: ${overlay.type} (${overlay.id})`);
+      lcardsLog.trace(`[AdvancedRenderer] 🎨 Rendering overlay: ${overlay.type} (${overlay.id})`);
 
       let result;
 
@@ -1390,7 +1390,7 @@ export class AdvancedRenderer {
 
       if (renderer instanceof OverlayBase) {
         // Instance-based overlay - all overlays now use this pattern
-        cblcarsLog.trace(`[AdvancedRenderer] 🎯 Using instance-based renderer for ${overlay.id}`);
+        lcardsLog.trace(`[AdvancedRenderer] 🎯 Using instance-based renderer for ${overlay.id}`);
 
         // Handle special cases for different overlay types
 
@@ -1431,9 +1431,9 @@ export class AdvancedRenderer {
         // No renderer available - expected for control overlays (embedded HA cards)
         const isControl = overlay.type === 'control';
         if (isControl) {
-          cblcarsLog.debug(`[AdvancedRenderer] Control overlay ${overlay.id} has no renderer (uses embedded HA card)`);
+          lcardsLog.debug(`[AdvancedRenderer] Control overlay ${overlay.id} has no renderer (uses embedded HA card)`);
         } else {
-          cblcarsLog.warn(`[AdvancedRenderer] ⚠️ No renderer instance for overlay ${overlay.id} (type: ${overlay.type})`);
+          lcardsLog.warn(`[AdvancedRenderer] ⚠️ No renderer instance for overlay ${overlay.id} (type: ${overlay.type})`);
         }
         return '';
       }
@@ -1450,7 +1450,7 @@ export class AdvancedRenderer {
       return result;
 
     } catch (error) {
-      cblcarsLog.error(`[AdvancedRenderer] ❌ Error rendering overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[AdvancedRenderer] ❌ Error rendering overlay ${overlay.id}:`, error);
 
       // ✅ NEW: Track failed render
       this._storeFailedRendererProvenance(overlay.id, overlay.type, error);
@@ -1470,7 +1470,7 @@ export class AdvancedRenderer {
    */
   _storeRendererProvenance(overlayId, provenance) {
     // Get config from pipeline
-    const config = window.cblcars.debug.msd?.pipelineInstance?.config;
+    const config = window.lcards.debug.msd?.pipelineInstance?.config;
     if (!config || !config.__provenance) {
       return;
     }
@@ -1483,7 +1483,7 @@ export class AdvancedRenderer {
     // Store provenance
     config.__provenance.renderers[overlayId] = provenance;
 
-    cblcarsLog.trace(`[AdvancedRenderer] 📊 Stored renderer provenance for ${overlayId}`, provenance);
+    lcardsLog.trace(`[AdvancedRenderer] 📊 Stored renderer provenance for ${overlayId}`, provenance);
   }
 
   /**
@@ -1496,7 +1496,7 @@ export class AdvancedRenderer {
    * @param {string} overlayType - Overlay type
    */
   _storeBasicRendererProvenance(overlayId, overlayType) {
-    const config = window.cblcars.debug.msd?.pipelineInstance?.config;
+    const config = window.lcards.debug.msd?.pipelineInstance?.config;
     if (!config || !config.__provenance) {
       return;
     }
@@ -1517,7 +1517,7 @@ export class AdvancedRenderer {
       note: 'Renderer returned string markup only (no provenance data)'
     };
 
-    cblcarsLog.debug(`[AdvancedRenderer] 📊 Stored basic provenance for legacy renderer: ${overlayId}`);
+    lcardsLog.debug(`[AdvancedRenderer] 📊 Stored basic provenance for legacy renderer: ${overlayId}`);
   }
 
   /**
@@ -1531,7 +1531,7 @@ export class AdvancedRenderer {
    * @param {Error} error - Error that occurred
    */
   _storeFailedRendererProvenance(overlayId, overlayType, error) {
-    const config = window.cblcars.debug.msd?.pipelineInstance?.config;
+    const config = window.lcards.debug.msd?.pipelineInstance?.config;
     if (!config || !config.__provenance) {
       return;
     }
@@ -1552,14 +1552,14 @@ export class AdvancedRenderer {
       timestamp: Date.now()
     };
 
-    cblcarsLog.debug(`[AdvancedRenderer] 📊 Stored failed render provenance for ${overlayId}:`, error.message);
+    lcardsLog.debug(`[AdvancedRenderer] 📊 Stored failed render provenance for ${overlayId}:`, error.message);
   }
 
 
   injectSvgContent(svgContent) {
     const svg = this.mountEl.querySelector('svg');
     if (!svg) {
-      cblcarsLog.info('[AdvancedRenderer] No SVG element found for overlay injection');
+      lcardsLog.info('[AdvancedRenderer] No SVG element found for overlay injection');
       return;
     }
 
@@ -1574,7 +1574,7 @@ export class AdvancedRenderer {
 
     try {
       overlayGroup.innerHTML = svgContent;
-      cblcarsLog.debug('[AdvancedRenderer] SVG content injected successfully');
+      lcardsLog.debug('[AdvancedRenderer] SVG content injected successfully');
 
       // Build element cache after injection
       this.overlayElementCache.clear();
@@ -1590,14 +1590,14 @@ export class AdvancedRenderer {
       const lines = overlayGroup.querySelectorAll('[data-overlay-type="line"]');
       const texts = overlayGroup.querySelectorAll('[data-overlay-type="text"]');
 
-      cblcarsLog.debug('[AdvancedRenderer] Injected elements:', {
+      lcardsLog.debug('[AdvancedRenderer] Injected elements:', {
         lines: lines.length,
         texts: texts.length,
         cached: this.overlayElementCache.size
       });
 
     } catch (error) {
-      cblcarsLog.info('[AdvancedRenderer] Failed to inject SVG content:', error);
+      lcardsLog.info('[AdvancedRenderer] Failed to inject SVG content:', error);
     }
   }
 
@@ -1613,7 +1613,7 @@ export class AdvancedRenderer {
    */
   updateOverlayData(overlayId, sourceData) {
     try {
-      cblcarsLog.debug(`[AdvancedRenderer] 📊 Updating overlay ${overlayId} with DataSource data`, {
+      lcardsLog.debug(`[AdvancedRenderer] 📊 Updating overlay ${overlayId} with DataSource data`, {
         hasData: !!sourceData,
         value: sourceData?.v,
         isPeriodicUpdate: sourceData?.isPeriodicUpdate,
@@ -1633,20 +1633,20 @@ export class AdvancedRenderer {
           // Update cache with fresh element
           if (overlayElement && overlayElement.isConnected) {
             this.overlayElementCache.set(overlayId, overlayElement);
-            cblcarsLog.debug(`[AdvancedRenderer] 🔄 Refreshed stale cache entry for ${overlayId}`);
+            lcardsLog.debug(`[AdvancedRenderer] 🔄 Refreshed stale cache entry for ${overlayId}`);
           }
         }
       }
 
       if (!overlayElement) {
-        cblcarsLog.warn(`[AdvancedRenderer] Overlay element not found for: ${overlayId}`);
+        lcardsLog.warn(`[AdvancedRenderer] Overlay element not found for: ${overlayId}`);
         return;
       }
 
       // Get the overlay configuration
       const overlay = this._findOverlayById(overlayId);
       if (!overlay) {
-        cblcarsLog.warn(`[AdvancedRenderer] Overlay configuration not found: ${overlayId}`);
+        lcardsLog.warn(`[AdvancedRenderer] Overlay configuration not found: ${overlayId}`);
         return;
       }
 
@@ -1659,7 +1659,7 @@ export class AdvancedRenderer {
       }
 
       // Fallback for any overlays without instance renderers (shouldn't happen with Phase 3 complete)
-      cblcarsLog.warn(`[AdvancedRenderer] No instance renderer found for overlay ${overlayId}, using legacy update`);
+      lcardsLog.warn(`[AdvancedRenderer] No instance renderer found for overlay ${overlayId}, using legacy update`);
 
       // Handle different overlay types
       switch (overlay.type) {
@@ -1676,11 +1676,11 @@ export class AdvancedRenderer {
           break;
 
         default:
-          cblcarsLog.debug(`[AdvancedRenderer] No update handler for overlay type: ${overlay.type}`);
+          lcardsLog.debug(`[AdvancedRenderer] No update handler for overlay type: ${overlay.type}`);
       }
 
     } catch (error) {
-      cblcarsLog.error(`[AdvancedRenderer] Error updating overlay ${overlayId}:`, error);
+      lcardsLog.error(`[AdvancedRenderer] Error updating overlay ${overlayId}:`, error);
     }
   }
 
@@ -1697,7 +1697,7 @@ export class AdvancedRenderer {
       // Find the text element
       const textElement = overlayElement.querySelector('text');
       if (!textElement) {
-        cblcarsLog.warn(`[AdvancedRenderer] Text element not found in overlay`);
+        lcardsLog.warn(`[AdvancedRenderer] Text element not found in overlay`);
         return;
       }
 
@@ -1711,14 +1711,14 @@ export class AdvancedRenderer {
       if (processedContent && processedContent !== textElement.textContent) {
         textElement.textContent = processedContent;
 
-        cblcarsLog.debug(`[AdvancedRenderer] ✅ Updated text overlay content: ${overlay.id}`, {
+        lcardsLog.debug(`[AdvancedRenderer] ✅ Updated text overlay content: ${overlay.id}`, {
           oldContent: textElement.textContent.substring(0, 50),
           newContent: processedContent.substring(0, 50)
         });
       }
 
     } catch (error) {
-      cblcarsLog.error(`[AdvancedRenderer] Error updating text overlay content:`, error);
+      lcardsLog.error(`[AdvancedRenderer] Error updating text overlay content:`, error);
     }
   }
 
@@ -1734,9 +1734,9 @@ export class AdvancedRenderer {
     }
 
     // Get DataSourceManager
-    const dataSourceManager = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+    const dataSourceManager = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
     if (!dataSourceManager) {
-      cblcarsLog.debug(`[AdvancedRenderer] DataSourceManager not available`);
+      lcardsLog.debug(`[AdvancedRenderer] DataSourceManager not available`);
       return template;
     }
     // Process template
@@ -1752,7 +1752,7 @@ export class AdvancedRenderer {
         // Get the data source
         const dataSource = dataSourceManager.getSource(sourceName);
         if (!dataSource) {
-          cblcarsLog.debug(`[AdvancedRenderer] DataSource not found: ${sourceName}`);
+          lcardsLog.debug(`[AdvancedRenderer] DataSource not found: ${sourceName}`);
           return match;
         }
 
@@ -1776,7 +1776,7 @@ export class AdvancedRenderer {
         }
 
         if (value === null || value === undefined) {
-          cblcarsLog.debug(`[AdvancedRenderer] Value not found for: ${cleanRef}`);
+          lcardsLog.debug(`[AdvancedRenderer] Value not found for: ${cleanRef}`);
           return match;
         }
 
@@ -1788,7 +1788,7 @@ export class AdvancedRenderer {
         return String(value);
 
       } catch (error) {
-        cblcarsLog.warn(`[AdvancedRenderer] Template processing error:`, error);
+        lcardsLog.warn(`[AdvancedRenderer] Template processing error:`, error);
         return match;
       }
     });
@@ -1883,7 +1883,7 @@ export class AdvancedRenderer {
     const overlayGroup = svg?.querySelector('#msd-overlay-container');
 
     if (!svg || !overlayGroup) {
-      cblcarsLog.warn('[AdvancedRenderer] ⚠️ Cannot re-render dependent overlays - missing SVG or overlay container');
+      lcardsLog.warn('[AdvancedRenderer] ⚠️ Cannot re-render dependent overlays - missing SVG or overlay container');
       return;
     }
 
@@ -1901,7 +1901,7 @@ export class AdvancedRenderer {
         if (overlay.type === 'line') {
           const renderer = this._getRendererForOverlay(overlay);
           if (renderer) {
-            cblcarsLog.trace(`[AdvancedRenderer] 🔗 Re-rendering line overlay with updated attachment points: ${overlayId}`);
+            lcardsLog.trace(`[AdvancedRenderer] 🔗 Re-rendering line overlay with updated attachment points: ${overlayId}`);
           }
         }
 
@@ -1921,7 +1921,7 @@ export class AdvancedRenderer {
 
           const parserError = svgDoc.querySelector('parsererror');
           if (parserError) {
-            cblcarsLog.error(`[AdvancedRenderer] ❌ SVG parsing error for ${overlayId}:`, parserError.textContent);
+            lcardsLog.error(`[AdvancedRenderer] ❌ SVG parsing error for ${overlayId}:`, parserError.textContent);
             continue;
           }
 
@@ -1930,11 +1930,11 @@ export class AdvancedRenderer {
           if (newElement) {
             const importedElement = document.importNode(newElement, true);
             overlayGroup.appendChild(importedElement);
-            cblcarsLog.trace(`[AdvancedRenderer] ✅ Re-rendered dependent overlay: ${overlayId}`);
+            lcardsLog.trace(`[AdvancedRenderer] ✅ Re-rendered dependent overlay: ${overlayId}`);
           }
         }
       } catch (e) {
-        cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Re-render failed for overlay ${overlayId}:`, e);
+        lcardsLog.warn(`[AdvancedRenderer] ⚠️ Re-render failed for overlay ${overlayId}:`, e);
       }
 
       // Queue up dependencies for re-rendering
@@ -2038,7 +2038,7 @@ export class AdvancedRenderer {
       createdAnchors.push({ id: overlay.id, point: attachmentPoints.center });
 
       if (createdAnchors.length > 0) {
-        cblcarsLog.trace(`[AdvancedRenderer] 🔗 Created virtual anchors for overlay ${overlay.id}:`, createdAnchors);
+        lcardsLog.trace(`[AdvancedRenderer] 🔗 Created virtual anchors for overlay ${overlay.id}:`, createdAnchors);
       }
     });
   }
@@ -2063,7 +2063,7 @@ export class AdvancedRenderer {
 
     // Validate bbox - skip if invalid (text not rendered yet or during font load)
     if (bb.width <= 0 || bb.height <= 0) {
-      cblcarsLog.trace(`[AdvancedRenderer] ⏭️ Skipping attachment point update for ${overlay.id} - invalid bbox:`, bb);
+      lcardsLog.trace(`[AdvancedRenderer] ⏭️ Skipping attachment point update for ${overlay.id} - invalid bbox:`, bb);
       return;
     }
 
@@ -2113,9 +2113,9 @@ export class AdvancedRenderer {
       if (expandedBboxAttr) {
         try {
           bbox = JSON.parse(expandedBboxAttr);
-          cblcarsLog.trace(`[AdvancedRenderer] 📍 Read expanded bbox from DOM for ${overlay.id}:`, bbox);
+          lcardsLog.trace(`[AdvancedRenderer] 📍 Read expanded bbox from DOM for ${overlay.id}:`, bbox);
         } catch (e) {
-          cblcarsLog.warn(`[AdvancedRenderer] Failed to parse expanded bbox for ${overlay.id}`, e);
+          lcardsLog.warn(`[AdvancedRenderer] Failed to parse expanded bbox for ${overlay.id}`, e);
         }
       }
 
@@ -2138,9 +2138,9 @@ export class AdvancedRenderer {
               centerX: bb.x + bb.width / 2,
               centerY: bb.y + bb.height / 2
             };
-            cblcarsLog.debug(`[AdvancedRenderer] 📍 Measured bbox from DOM for ${overlay.id}:`, bbox);
+            lcardsLog.debug(`[AdvancedRenderer] 📍 Measured bbox from DOM for ${overlay.id}:`, bbox);
           } catch (e) {
-            cblcarsLog.warn(`[AdvancedRenderer] Failed to measure bbox for ${overlay.id}`, e);
+            lcardsLog.warn(`[AdvancedRenderer] Failed to measure bbox for ${overlay.id}`, e);
             return;
           }
         }
@@ -2176,7 +2176,7 @@ export class AdvancedRenderer {
       // Store in attachment manager (single source of truth)
       this.attachmentManager.setAttachmentPoints(overlay.id, attachmentPoints);
 
-      cblcarsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id}`, {
+      lcardsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id}`, {
         right: bbox.right,
         expandedRight: bbox.right,
         hasExpandedBbox: !!expandedBboxAttr
@@ -2235,7 +2235,7 @@ export class AdvancedRenderer {
       // Store in attachment manager (single source of truth)
       this.attachmentManager.setAttachmentPoints(overlay.id, attachmentPoints);
 
-      cblcarsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id} (${overlay.type})`, {
+      lcardsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id} (${overlay.type})`, {
         bbox: bbox,
         center: [bbox.centerX, bbox.centerY]
       });
@@ -2253,7 +2253,7 @@ export class AdvancedRenderer {
     const [width, height] = size;
     const color = 'var(--lcars-gray)';
 
-    cblcarsLog.warn(`[AdvancedRenderer] ⚠️ Using fallback rendering for overlay ${overlay.id}`);
+    lcardsLog.warn(`[AdvancedRenderer] ⚠️ Using fallback rendering for overlay ${overlay.id}`);
 
     return `<g data-overlay-id="${overlay.id}" data-overlay-type="${overlay.type}" data-fallback="true">
               <g transform="translate(${x}, ${y})">
@@ -2302,12 +2302,12 @@ export class AdvancedRenderer {
         markup = result.markup;
         actionInfo = result.actionInfo; // ADDED: Extract actionInfo from result
       } else {
-        cblcarsLog.warn(`[AdvancedRenderer] Invalid render result for ${overlay.id}`);
+        lcardsLog.warn(`[AdvancedRenderer] Invalid render result for ${overlay.id}`);
         return null;
       }
 
       if (!markup || typeof markup !== 'string') {
-        cblcarsLog.warn(`[AdvancedRenderer] No valid markup for ${overlay.id}`);
+        lcardsLog.warn(`[AdvancedRenderer] No valid markup for ${overlay.id}`);
         return null;
       }
 
@@ -2324,7 +2324,7 @@ export class AdvancedRenderer {
       // CRITICAL FIX: Re-attach actions if they were attached before
       if (hadActions && actionInfo) {
         try {
-          cblcarsLog.debug(`[AdvancedRenderer] 🔄 Re-attaching actions after font stabilization for ${overlay.id}`);
+          lcardsLog.debug(`[AdvancedRenderer] 🔄 Re-attaching actions after font stabilization for ${overlay.id}`);
 
           // Get animationManager from systemsManager to support animation triggers
           const animationManager = this.systemsManager?.animationManager;
@@ -2337,9 +2337,9 @@ export class AdvancedRenderer {
             { animationManager }
           );
           newGroup.setAttribute('data-actions-attached', 'true');
-          cblcarsLog.debug(`[AdvancedRenderer] ✅ Actions re-attached to ${overlay.id}`);
+          lcardsLog.debug(`[AdvancedRenderer] ✅ Actions re-attached to ${overlay.id}`);
         } catch (error) {
-          cblcarsLog.error(`[AdvancedRenderer] ❌ Failed to re-attach actions to ${overlay.id}:`, error);
+          lcardsLog.error(`[AdvancedRenderer] ❌ Failed to re-attach actions to ${overlay.id}:`, error);
         }
       }
 
@@ -2349,7 +2349,7 @@ export class AdvancedRenderer {
 
       return newGroup;
     } catch(e) {
-      cblcarsLog.info('[AdvancedRenderer] Re-render text overlay failed', overlay.id, e);
+      lcardsLog.info('[AdvancedRenderer] Re-render text overlay failed', overlay.id, e);
       return null;
     }
   }
@@ -2365,8 +2365,8 @@ export class AdvancedRenderer {
     }
 
     // Try pipeline instance
-    if (window.cblcars.debug.msd?.pipelineInstance?.cardInstance) {
-      return window.cblcars.debug.msd.pipelineInstance.cardInstance;
+    if (window.lcards.debug.msd?.pipelineInstance?.cardInstance) {
+      return window.lcards.debug.msd.pipelineInstance.cardInstance;
     }
 
     // Try global references
@@ -2392,7 +2392,7 @@ export class AdvancedRenderer {
 
       // Validate textBBox - skip if invalid (text not rendered yet)
       if (!textBBox || textBBox.width <= 0 || textBBox.height <= 0) {
-        cblcarsLog.trace('[AdvancedRenderer] ⏭️ Skipping status indicator update - invalid textBBox:', textBBox);
+        lcardsLog.trace('[AdvancedRenderer] ⏭️ Skipping status indicator update - invalid textBBox:', textBBox);
         return;
       }
 
@@ -2525,13 +2525,13 @@ export class AdvancedRenderer {
                 try {
                   renderer.update(lineElement, lineOverlay, this._sourceData);
                 } catch (e) {
-                  cblcarsLog.warn(`[AdvancedRenderer] Failed to update line ${lineId}:`, e);
+                  lcardsLog.warn(`[AdvancedRenderer] Failed to update line ${lineId}:`, e);
                 }
               }
             });
           }
 
-          cblcarsLog.debug(`[AdvancedRenderer] ✅ Updated attachment points and lines for ${overlayId}`, {
+          lcardsLog.debug(`[AdvancedRenderer] ✅ Updated attachment points and lines for ${overlayId}`, {
             textRight: textBBox.right,
             expandedRight: expandedBbox.right,
             circleCenter: cx,
@@ -2541,7 +2541,7 @@ export class AdvancedRenderer {
       }
 
     } catch(err) {
-      cblcarsLog.warn('[AdvancedRenderer] Error in _updateStatusIndicatorPosition:', err);
+      lcardsLog.warn('[AdvancedRenderer] Error in _updateStatusIndicatorPosition:', err);
     }
   }
 
@@ -2555,7 +2555,7 @@ export class AdvancedRenderer {
       const radius = parsedSize * multiplier;
       circleElement.setAttribute('r', radius);
     } else {
-      cblcarsLog.warn(`[AdvancedRenderer] Invalid fontSize for circle radius: "${fontSize}", using fallback`);
+      lcardsLog.warn(`[AdvancedRenderer] Invalid fontSize for circle radius: "${fontSize}", using fallback`);
       circleElement.setAttribute('r', '6'); // Safe fallback radius
     }
   }
@@ -2569,7 +2569,7 @@ export class AdvancedRenderer {
 
     // Validate textBbox - skip if invalid (text not rendered yet or during font load)
     if (textBbox.width <= 0 || textBbox.height <= 0) {
-      cblcarsLog.trace(`[AdvancedRenderer] ⏭️ Skipping attachment point update after stabilization for ${overlay.id} - invalid textBbox:`, textBbox);
+      lcardsLog.trace(`[AdvancedRenderer] ⏭️ Skipping attachment point update after stabilization for ${overlay.id} - invalid textBbox:`, textBbox);
       return;
     }
 
@@ -2678,7 +2678,7 @@ export class AdvancedRenderer {
       // No need to manually invalidate global routing cache
 
     } catch (error) {
-      cblcarsLog.warn(`[AdvancedRenderer] Error updating attachment points after stabilization for ${overlay.id}:`, error);
+      lcardsLog.warn(`[AdvancedRenderer] Error updating attachment points after stabilization for ${overlay.id}:`, error);
     }
   }
 

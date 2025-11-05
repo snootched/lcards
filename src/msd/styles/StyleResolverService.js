@@ -17,7 +17,7 @@
  * @module msd/styles/StyleResolverService
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { CacheManager } from './CacheManager.js';
 import { TokenResolver } from './TokenResolver.js';
 import { PresetManager } from './PresetManager.js';
@@ -75,7 +75,7 @@ export class StyleResolverService {
     this.initialized = false;
     this._init();
 
-    cblcarsLog.debug('[StyleResolverService] ✅ Initialized');
+    lcardsLog.debug('[StyleResolverService] ✅ Initialized');
   }
 
   /**
@@ -143,7 +143,7 @@ export class StyleResolverService {
         this.stats.cacheHits++;
 
         if (this.config.debug) {
-          cblcarsLog.debug('[StyleResolverService] Cache hit:', property, cached.value);
+          lcardsLog.debug('[StyleResolverService] Cache hit:', property, cached.value);
         }
 
         return {
@@ -201,7 +201,7 @@ export class StyleResolverService {
         }
       } catch (error) {
         if (this.config.debug) {
-          cblcarsLog.debug('[StyleResolverService] Theme default lookup failed:', error);
+          lcardsLog.debug('[StyleResolverService] Theme default lookup failed:', error);
         }
       }
     }
@@ -247,7 +247,7 @@ export class StyleResolverService {
     }
 
     if (this.config.debug) {
-      cblcarsLog.debug('[StyleResolverService] Resolved:', property, '→', result.value, `(${result.source})`);
+      lcardsLog.debug('[StyleResolverService] Resolved:', property, '→', result.value, `(${result.source})`);
     }
 
     return result;
@@ -352,7 +352,7 @@ export class StyleResolverService {
     // Load preset
     const preset = this.presetManager.getPreset(presetName, overlay.type);
     if (!preset) {
-      cblcarsLog.warn('[StyleResolverService] Preset not found:', presetName);
+      lcardsLog.warn('[StyleResolverService] Preset not found:', presetName);
       return this.resolveOverlayStyles(overlay, context);
     }
 
@@ -399,7 +399,7 @@ export class StyleResolverService {
     if (scope === 'all') {
       this.cache.clear();
       this.tokenResolver.clearCache();
-      cblcarsLog.debug('[StyleResolverService] All caches cleared');
+      lcardsLog.debug('[StyleResolverService] All caches cleared');
     } else if (scope === 'token') {
       if (id) {
         this.tokenResolver.clearToken(id);
@@ -480,7 +480,7 @@ export class StyleResolverService {
    * @private
    */
   _handleThemeChange(themeName, theme) {
-    cblcarsLog.info('[StyleResolverService] Theme changed:', themeName);
+    lcardsLog.info('[StyleResolverService] Theme changed:', themeName);
 
     // Invalidate all caches
     this.invalidateCache('all');
@@ -490,7 +490,7 @@ export class StyleResolverService {
       try {
         callback(themeName, theme);
       } catch (error) {
-        cblcarsLog.error('[StyleResolverService] Theme change callback error:', error);
+        lcardsLog.error('[StyleResolverService] Theme change callback error:', error);
       }
     });
   }

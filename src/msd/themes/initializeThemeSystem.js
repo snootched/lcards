@@ -9,7 +9,7 @@
 
 import { initializeTokenResolver } from './ThemeTokenResolver.js';
 import { lcarsClassicTokens } from './tokens/lcarsClassicTokens.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Initialize theme system with pack themes
@@ -21,7 +21,7 @@ import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
  */
 export function initializeThemeSystem(packs, config = {}, rootElement = null) {
   try {
-    cblcarsLog.debug('[ThemeSystem] Initializing theme system...', {
+    lcardsLog.debug('[ThemeSystem] Initializing theme system...', {
       packCount: packs.length,
       requestedTheme: config.theme
     });
@@ -30,7 +30,7 @@ export function initializeThemeSystem(packs, config = {}, rootElement = null) {
     const packWithThemes = packs.find(pack => pack.themes && Object.keys(pack.themes).length > 0);
 
     if (!packWithThemes) {
-      cblcarsLog.warn('[ThemeSystem] No pack with themes found, using fallback');
+      lcardsLog.warn('[ThemeSystem] No pack with themes found, using fallback');
       return initializeFallbackTheme(rootElement);
     }
 
@@ -39,7 +39,7 @@ export function initializeThemeSystem(packs, config = {}, rootElement = null) {
     const theme = packWithThemes.themes[requestedTheme];
 
     if (!theme) {
-      cblcarsLog.warn('[ThemeSystem] Requested theme not found:', requestedTheme);
+      lcardsLog.warn('[ThemeSystem] Requested theme not found:', requestedTheme);
       // Try default theme
       const defaultTheme = packWithThemes.themes[packWithThemes.defaultTheme];
       if (defaultTheme) {
@@ -51,7 +51,7 @@ export function initializeThemeSystem(packs, config = {}, rootElement = null) {
     return initializeThemeFromPack(theme, requestedTheme, rootElement);
 
   } catch (error) {
-    cblcarsLog.error('[ThemeSystem] Failed to initialize theme system:', error);
+    lcardsLog.error('[ThemeSystem] Failed to initialize theme system:', error);
     return {
       success: false,
       theme: null,
@@ -72,7 +72,7 @@ export function initializeThemeSystem(packs, config = {}, rootElement = null) {
 function initializeThemeFromPack(theme, themeId, rootElement) {
   try {
     if (!theme.tokens) {
-      cblcarsLog.warn('[ThemeSystem] Theme has no tokens:', themeId);
+      lcardsLog.warn('[ThemeSystem] Theme has no tokens:', themeId);
       return initializeFallbackTheme(rootElement);
     }
 
@@ -84,7 +84,7 @@ function initializeThemeFromPack(theme, themeId, rootElement) {
       loadThemeCssFile(theme.cssFile, themeId);
     }
 
-    cblcarsLog.info('[ThemeSystem] ✅ Theme system initialized:', {
+    lcardsLog.info('[ThemeSystem] ✅ Theme system initialized:', {
       theme: themeId,
       name: theme.name,
       tokenCount: countTokens(theme.tokens),
@@ -103,7 +103,7 @@ function initializeThemeFromPack(theme, themeId, rootElement) {
     };
 
   } catch (error) {
-    cblcarsLog.error('[ThemeSystem] Failed to initialize theme:', themeId, error);
+    lcardsLog.error('[ThemeSystem] Failed to initialize theme:', themeId, error);
     return {
       success: false,
       theme: null,
@@ -121,7 +121,7 @@ function initializeThemeFromPack(theme, themeId, rootElement) {
  */
 function initializeFallbackTheme(rootElement) {
   try {
-    cblcarsLog.info('[ThemeSystem] Using fallback theme: LCARS Classic');
+    lcardsLog.info('[ThemeSystem] Using fallback theme: LCARS Classic');
 
     initializeTokenResolver(lcarsClassicTokens, rootElement);
 
@@ -137,7 +137,7 @@ function initializeFallbackTheme(rootElement) {
     };
 
   } catch (error) {
-    cblcarsLog.error('[ThemeSystem] Failed to initialize fallback theme:', error);
+    lcardsLog.error('[ThemeSystem] Failed to initialize fallback theme:', error);
     return {
       success: false,
       theme: null,
@@ -158,7 +158,7 @@ function loadThemeCssFile(cssFile, themeId) {
     // Check if CSS file already loaded
     const existingLink = document.querySelector(`link[data-theme-id="${themeId}"]`);
     if (existingLink) {
-      cblcarsLog.debug('[ThemeSystem] Theme CSS already loaded:', themeId);
+      lcardsLog.debug('[ThemeSystem] Theme CSS already loaded:', themeId);
       return;
     }
 
@@ -171,10 +171,10 @@ function loadThemeCssFile(cssFile, themeId) {
     // Add to document head
     document.head.appendChild(link);
 
-    cblcarsLog.debug('[ThemeSystem] Loaded theme CSS:', cssFile);
+    lcardsLog.debug('[ThemeSystem] Loaded theme CSS:', cssFile);
 
   } catch (error) {
-    cblcarsLog.warn('[ThemeSystem] Failed to load theme CSS:', cssFile, error);
+    lcardsLog.warn('[ThemeSystem] Failed to load theme CSS:', cssFile, error);
   }
 }
 
@@ -212,7 +212,7 @@ function countTokens(tokens) {
  */
 export function switchTheme(packs, newThemeId, rootElement = null) {
   try {
-    cblcarsLog.info('[ThemeSystem] Switching theme to:', newThemeId);
+    lcardsLog.info('[ThemeSystem] Switching theme to:', newThemeId);
 
     // Find pack with the requested theme
     let theme = null;
@@ -234,13 +234,13 @@ export function switchTheme(packs, newThemeId, rootElement = null) {
     const result = initializeThemeFromPack(theme, newThemeId, rootElement);
 
     if (result.success) {
-      cblcarsLog.info('[ThemeSystem] ✅ Theme switched successfully:', newThemeId);
+      lcardsLog.info('[ThemeSystem] ✅ Theme switched successfully:', newThemeId);
     }
 
     return result;
 
   } catch (error) {
-    cblcarsLog.error('[ThemeSystem] Failed to switch theme:', error);
+    lcardsLog.error('[ThemeSystem] Failed to switch theme:', error);
     return {
       success: false,
       theme: null,

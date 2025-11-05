@@ -4,7 +4,7 @@ const fs = require('fs');
 const yaml = require('js-yaml');
 
 // Read the master YAML file containing all card editor definitions
-const yamlContent = fs.readFileSync('src/editor/cb-lcars-card-editor-forms.yaml', 'utf8');
+const yamlContent = fs.readFileSync('src/editor/lcards-card-editor-forms.yaml', 'utf8');
 
 // Parse the YAML content into a JavaScript object
 const doc = yaml.load(yamlContent);

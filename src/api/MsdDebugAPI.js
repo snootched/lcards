@@ -1,15 +1,15 @@
 /**
- * MsdDebugAPI - Debug and introspection API for CB-LCARS MSD
+ * MsdDebugAPI - Debug and introspection API for LCARdS MSD
  *
  * Provides advanced debugging, introspection, and analysis tools for developers.
- * Accessible via window.cblcars.debug.msd namespace.
+ * Accessible via window.lcards.debug.msd namespace.
  *
  * Phase 1: Core debug functionality (performance, routing, data, styles, charts)
  *
  * @module api/MsdDebugAPI
  */
 
-import { cblcarsLog } from '../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../utils/lcards-logging.js';
 
 export class MsdDebugAPI {
   /**
@@ -29,10 +29,10 @@ export class MsdDebugAPI {
        *
        * @example
        * // Show all available namespaces
-       * window.cblcars.debug.msd.help();
+       * window.lcards.debug.msd.help();
        *
        * // Show methods in a specific namespace
-       * window.cblcars.debug.msd.help('perf');
+       * window.lcards.debug.msd.help('perf');
        */
       help(topic) {
         const namespaces = {
@@ -83,14 +83,14 @@ export class MsdDebugAPI {
         };
 
         if (!topic) {
-          console.log('%c CB-LCARS Debug API Help ', 'background: #ff9900; color: #000; font-weight: bold; padding: 4px 8px;');
+          console.log('%c LCARdS Debug API Help ', 'background: #ff9900; color: #000; font-weight: bold; padding: 4px 8px;');
           console.log('\n%cAvailable namespaces:', 'font-weight: bold; color: #ff9900;');
           Object.entries(namespaces).forEach(([name, info]) => {
             console.log(`  %c${name}%c - ${info.desc}`, 'color: #66ccff; font-weight: bold', 'color: inherit');
           });
           console.log('\n%cUsage:', 'font-weight: bold; color: #ff9900;');
-          console.log('  window.cblcars.debug.msd.help("namespace") - Show methods in a namespace');
-          console.log('  window.cblcars.debug.msd.usage("namespace") - Show usage examples');
+          console.log('  window.lcards.debug.msd.help("namespace") - Show methods in a namespace');
+          console.log('  window.lcards.debug.msd.usage("namespace") - Show usage examples');
           console.log('\n%cExample:', 'font-weight: bold; color: #ff9900;');
           console.log('  msd.help("perf")  // Show performance methods');
           return;
@@ -118,10 +118,10 @@ export class MsdDebugAPI {
        *
        * @example
        * // Show examples for all namespaces
-       * window.cblcars.debug.msd.usage();
+       * window.lcards.debug.msd.usage();
        *
        * // Show examples for specific namespace
-       * window.cblcars.debug.msd.usage('perf');
+       * window.lcards.debug.msd.usage('perf');
        */
       usage(namespace) {
         const examples = {
@@ -246,9 +246,9 @@ export class MsdDebugAPI {
         };
 
         if (!namespace) {
-          console.log('%c CB-LCARS Debug API Usage Examples ', 'background: #ff9900; color: #000; font-weight: bold; padding: 4px 8px;');
+          console.log('%c LCARdS Debug API Usage Examples ', 'background: #ff9900; color: #000; font-weight: bold; padding: 4px 8px;');
           console.log('\n%cQuick Start:', 'font-weight: bold; color: #ff9900;');
-          console.log('  const msd = window.cblcars.debug.msd;  // Shorthand');
+          console.log('  const msd = window.lcards.debug.msd;  // Shorthand');
           console.log('  msd.help();                             // List all namespaces');
           console.log('  msd.help("perf");                       // Show perf methods');
           console.log('  msd.usage("perf");                      // Show perf examples');
@@ -283,7 +283,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Performance summary with stage breakdowns
          *
          * @example
-         * const perf = window.cblcars.debug.msd.perf.summary();
+         * const perf = window.lcards.debug.msd.perf.summary();
          * console.log('Total render time:', perf.total_render_time_ms, 'ms');
          * console.log('Overlays:', perf.overlay_count);
          * console.log('Slowest:', perf.slowest_overlays);
@@ -293,13 +293,13 @@ export class MsdDebugAPI {
             // Delegate to existing DebugInterface method
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getPerformanceSummary !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Performance summary not available');
+              lcardsLog.warn('[DebugAPI] Performance summary not available');
               return null;
             }
 
             return dbg.getPerformanceSummary();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting performance summary:', error);
+            lcardsLog.error('[DebugAPI] Error getting performance summary:', error);
             return null;
           }
         },
@@ -313,7 +313,7 @@ export class MsdDebugAPI {
          * @returns {Array|null} Array of slowest overlay performance data
          *
          * @example
-         * const slowest = window.cblcars.debug.msd.perf.slowestOverlays(10);
+         * const slowest = window.lcards.debug.msd.perf.slowestOverlays(10);
          * slowest.forEach(ov => {
          *   console.log(`${ov.overlay_id}: ${ov.duration_ms}ms`);
          * });
@@ -322,13 +322,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getSlowestOverlays !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Slowest overlays not available');
+              lcardsLog.warn('[DebugAPI] Slowest overlays not available');
               return null;
             }
 
             return dbg.getSlowestOverlays(n);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting slowest overlays:', error);
+            lcardsLog.error('[DebugAPI] Error getting slowest overlays:', error);
             return null;
           }
         },
@@ -342,7 +342,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Performance data grouped by type
          *
          * @example
-         * const byType = window.cblcars.debug.msd.perf.byRenderer();
+         * const byType = window.lcards.debug.msd.perf.byRenderer();
          * console.log('Status grids:', byType.status_grid);
          * console.log('Text overlays:', byType.text);
          */
@@ -350,13 +350,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getRendererPerformance !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Renderer performance not available');
+              lcardsLog.warn('[DebugAPI] Renderer performance not available');
               return null;
             }
 
             return dbg.getRendererPerformance();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting renderer performance:', error);
+            lcardsLog.error('[DebugAPI] Error getting renderer performance:', error);
             return null;
           }
         },
@@ -370,7 +370,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Performance data for the overlay
          *
          * @example
-         * const perf = window.cblcars.debug.msd.perf.byOverlay('title_overlay');
+         * const perf = window.lcards.debug.msd.perf.byOverlay('title_overlay');
          * console.log('Duration:', perf.duration_ms, 'ms');
          * console.log('Percentage:', perf.percentage_of_total, '%');
          */
@@ -378,13 +378,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getOverlayPerformance !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Overlay performance not available');
+              lcardsLog.warn('[DebugAPI] Overlay performance not available');
               return null;
             }
 
             return dbg.getOverlayPerformance(overlayId);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting overlay performance:', error);
+            lcardsLog.error('[DebugAPI] Error getting overlay performance:', error);
             return null;
           }
         },
@@ -398,7 +398,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Performance warnings with details
          *
          * @example
-         * const warnings = window.cblcars.debug.msd.perf.warnings();
+         * const warnings = window.lcards.debug.msd.perf.warnings();
          * if (warnings.has_warnings) {
          *   console.log('Warnings:', warnings.count);
          *   warnings.warnings.forEach(w => console.warn(w.message));
@@ -408,13 +408,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getPerformanceWarnings !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Performance warnings not available');
+              lcardsLog.warn('[DebugAPI] Performance warnings not available');
               return null;
             }
 
             return dbg.getPerformanceWarnings();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting performance warnings:', error);
+            lcardsLog.error('[DebugAPI] Error getting performance warnings:', error);
             return null;
           }
         },
@@ -428,20 +428,20 @@ export class MsdDebugAPI {
          * @returns {Object|null} Timeline of render stages
          *
          * @example
-         * const timeline = window.cblcars.debug.msd.perf.timeline();
+         * const timeline = window.lcards.debug.msd.perf.timeline();
          * console.log('Stages:', timeline.stages);
          */
         timeline() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg || typeof dbg.getRenderTimeline !== 'function') {
-              cblcarsLog.warn('[DebugAPI] Render timeline not available');
+              lcardsLog.warn('[DebugAPI] Render timeline not available');
               return null;
             }
 
             return dbg.getRenderTimeline();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting render timeline:', error);
+            lcardsLog.error('[DebugAPI] Error getting render timeline:', error);
             return null;
           }
         },
@@ -453,11 +453,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const comparison = window.cblcars.debug.msd.perf.compare();
+         * const comparison = window.lcards.debug.msd.perf.compare();
          */
         compare(baseline) {
-          cblcarsLog.warn('[DebugAPI] perf.compare() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will enable A/B performance comparison between configs');
+          lcardsLog.warn('[DebugAPI] perf.compare() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will enable A/B performance comparison between configs');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -485,7 +485,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Routing inspection data
          *
          * @example
-         * const routing = window.cblcars.debug.msd.routing.inspect('button_1');
+         * const routing = window.lcards.debug.msd.routing.inspect('button_1');
          * console.log('Route mode:', routing.route_mode);
          * console.log('Paths:', routing.paths);
          */
@@ -493,13 +493,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.routing?.inspect) {
-              cblcarsLog.warn('[DebugAPI] Routing inspect not available');
+              lcardsLog.warn('[DebugAPI] Routing inspect not available');
               return null;
             }
 
             return dbg.routing.inspect(overlayId);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error inspecting routing:', error);
+            lcardsLog.error('[DebugAPI] Error inspecting routing:', error);
             return null;
           }
         },
@@ -513,7 +513,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Routing statistics
          *
          * @example
-         * const stats = window.cblcars.debug.msd.routing.stats();
+         * const stats = window.lcards.debug.msd.routing.stats();
          * console.log('Cache hits:', stats.cacheHits);
          * console.log('Paths computed:', stats.pathsComputed);
          */
@@ -521,13 +521,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.routing?.stats) {
-              cblcarsLog.warn('[DebugAPI] Routing stats not available');
+              lcardsLog.warn('[DebugAPI] Routing stats not available');
               return null;
             }
 
             return dbg.routing.stats();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting routing stats:', error);
+            lcardsLog.error('[DebugAPI] Error getting routing stats:', error);
             return null;
           }
         },
@@ -543,24 +543,24 @@ export class MsdDebugAPI {
          *
          * @example
          * // Invalidate all routing
-         * window.cblcars.debug.msd.routing.invalidate();
+         * window.lcards.debug.msd.routing.invalidate();
          *
          * // Invalidate specific overlay
-         * window.cblcars.debug.msd.routing.invalidate('button_1');
+         * window.lcards.debug.msd.routing.invalidate('button_1');
          */
         invalidate(id = '*') {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.routing?.invalidate) {
-              cblcarsLog.warn('[DebugAPI] Routing invalidate not available');
+              lcardsLog.warn('[DebugAPI] Routing invalidate not available');
               return false;
             }
 
             dbg.routing.invalidate(id);
-            cblcarsLog.debug(`[DebugAPI] Invalidated routing cache: ${id}`);
+            lcardsLog.debug(`[DebugAPI] Invalidated routing cache: ${id}`);
             return true;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error invalidating routing:', error);
+            lcardsLog.error('[DebugAPI] Error invalidating routing:', error);
             return false;
           }
         },
@@ -576,20 +576,20 @@ export class MsdDebugAPI {
          * @returns {Object|null} Routing inspection with tested mode
          *
          * @example
-         * const routing = window.cblcars.debug.msd.routing.inspectAs('button_1', 'full');
+         * const routing = window.lcards.debug.msd.routing.inspectAs('button_1', 'full');
          * console.log('Full mode routing:', routing);
          */
         inspectAs(overlayId, mode = 'smart') {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.routing?.inspectAs) {
-              cblcarsLog.warn('[DebugAPI] Routing inspectAs not available');
+              lcardsLog.warn('[DebugAPI] Routing inspectAs not available');
               return null;
             }
 
             return dbg.routing.inspectAs(overlayId, mode);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error in inspectAs:', error);
+            lcardsLog.error('[DebugAPI] Error in inspectAs:', error);
             return null;
           }
         },
@@ -603,11 +603,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const viz = window.cblcars.debug.msd.routing.visualize('button_1');
+         * const viz = window.lcards.debug.msd.routing.visualize('button_1');
          */
         visualize(overlayId) {
-          cblcarsLog.warn('[DebugAPI] routing.visualize() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will draw routing paths directly on the MSD');
+          lcardsLog.warn('[DebugAPI] routing.visualize() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will draw routing paths directly on the MSD');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -634,7 +634,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Data source statistics
          *
          * @example
-         * const stats = window.cblcars.debug.msd.data.stats();
+         * const stats = window.lcards.debug.msd.data.stats();
          * console.log('Sources:', stats.sources);
          * console.log('Total entities:', stats.totalEntities);
          */
@@ -642,13 +642,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.dataSources?.stats) {
-              cblcarsLog.warn('[DebugAPI] Data source stats not available');
+              lcardsLog.warn('[DebugAPI] Data source stats not available');
               return null;
             }
 
             return dbg.dataSources.stats();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting data stats:', error);
+            lcardsLog.error('[DebugAPI] Error getting data stats:', error);
             return null;
           }
         },
@@ -661,20 +661,20 @@ export class MsdDebugAPI {
          * @returns {Array<string>} Array of data source names
          *
          * @example
-         * const sources = window.cblcars.debug.msd.data.list();
+         * const sources = window.lcards.debug.msd.data.list();
          * console.log('Available sources:', sources);
          */
         list() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.dataSources?.list) {
-              cblcarsLog.warn('[DebugAPI] Data source list not available');
+              lcardsLog.warn('[DebugAPI] Data source list not available');
               return [];
             }
 
             return dbg.dataSources.list();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing data sources:', error);
+            lcardsLog.error('[DebugAPI] Error listing data sources:', error);
             return [];
           }
         },
@@ -688,20 +688,20 @@ export class MsdDebugAPI {
          * @returns {Object|null} Data source details
          *
          * @example
-         * const hass = window.cblcars.debug.msd.data.get('hass');
+         * const hass = window.lcards.debug.msd.data.get('hass');
          * console.log('HASS entities:', hass.entityCount);
          */
         get(sourceName) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.dataSources?.get) {
-              cblcarsLog.warn('[DebugAPI] Data source get not available');
+              lcardsLog.warn('[DebugAPI] Data source get not available');
               return null;
             }
 
             return dbg.dataSources.get(sourceName);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting data source:', error);
+            lcardsLog.error('[DebugAPI] Error getting data source:', error);
             return null;
           }
         },
@@ -714,20 +714,20 @@ export class MsdDebugAPI {
          * @returns {Object|null} Complete data source dump
          *
          * @example
-         * const dump = window.cblcars.debug.msd.data.dump();
+         * const dump = window.lcards.debug.msd.data.dump();
          * console.log('Full data dump:', dump);
          */
         dump() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.dataSources?.dump) {
-              cblcarsLog.warn('[DebugAPI] Data source dump not available');
+              lcardsLog.warn('[DebugAPI] Data source dump not available');
               return null;
             }
 
             return dbg.dataSources.dump();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error dumping data sources:', error);
+            lcardsLog.error('[DebugAPI] Error dumping data sources:', error);
             return null;
           }
         },
@@ -741,7 +741,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Entity trace data
          *
          * @example
-         * const trace = window.cblcars.debug.msd.data.trace('sensor.temperature');
+         * const trace = window.lcards.debug.msd.data.trace('sensor.temperature');
          * console.log('Used by overlays:', trace.overlays);
          */
         trace(entityId) {
@@ -750,7 +750,7 @@ export class MsdDebugAPI {
             const dataManager = dbg?.pipelineInstance?.systemsManager?.dataSourceManager;
 
             if (!dataManager) {
-              cblcarsLog.warn('[DebugAPI] DataSourceManager not available');
+              lcardsLog.warn('[DebugAPI] DataSourceManager not available');
               return null;
             }
 
@@ -778,7 +778,7 @@ export class MsdDebugAPI {
               }))
             };
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error tracing entity:', error);
+            lcardsLog.error('[DebugAPI] Error tracing entity:', error);
             return null;
           }
         },
@@ -793,11 +793,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const history = window.cblcars.debug.msd.data.history('sensor.temp', 5);
+         * const history = window.lcards.debug.msd.data.history('sensor.temp', 5);
          */
         history(entityId, n = 10) {
-          cblcarsLog.warn('[DebugAPI] data.history() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will show historical entity state changes');
+          lcardsLog.warn('[DebugAPI] data.history() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will show historical entity state changes');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -826,7 +826,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Style resolution data
          *
          * @example
-         * const styles = window.cblcars.debug.msd.styles.resolutions('button_1');
+         * const styles = window.lcards.debug.msd.styles.resolutions('button_1');
          * console.log('Total properties:', styles.total);
          * console.log('By source:', styles.by_source);
          */
@@ -834,13 +834,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.getStyleResolutions) {
-              cblcarsLog.warn('[DebugAPI] Style resolutions not available');
+              lcardsLog.warn('[DebugAPI] Style resolutions not available');
               return null;
             }
 
             return dbg.getStyleResolutions(overlayId);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting style resolutions:', error);
+            lcardsLog.error('[DebugAPI] Error getting style resolutions:', error);
             return null;
           }
         },
@@ -855,20 +855,20 @@ export class MsdDebugAPI {
          * @returns {Array|null} Overlays using this token
          *
          * @example
-         * const overlays = window.cblcars.debug.msd.styles.findByToken('colors.primary');
+         * const overlays = window.lcards.debug.msd.styles.findByToken('colors.primary');
          * overlays.forEach(ov => console.log(ov.overlayId, ov.properties));
          */
         findByToken(tokenPath) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.findOverlaysByToken) {
-              cblcarsLog.warn('[DebugAPI] findOverlaysByToken not available');
+              lcardsLog.warn('[DebugAPI] findOverlaysByToken not available');
               return null;
             }
 
             return dbg.findOverlaysByToken(tokenPath);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error finding overlays by token:', error);
+            lcardsLog.error('[DebugAPI] Error finding overlays by token:', error);
             return null;
           }
         },
@@ -882,7 +882,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Global style summary
          *
          * @example
-         * const summary = window.cblcars.debug.msd.styles.provenance();
+         * const summary = window.lcards.debug.msd.styles.provenance();
          * console.log('Total overlays:', summary.total_overlays);
          * console.log('By source:', summary.by_source);
          */
@@ -890,13 +890,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.getGlobalStyleSummary) {
-              cblcarsLog.warn('[DebugAPI] Global style summary not available');
+              lcardsLog.warn('[DebugAPI] Global style summary not available');
               return null;
             }
 
             return dbg.getGlobalStyleSummary();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting style provenance:', error);
+            lcardsLog.error('[DebugAPI] Error getting style provenance:', error);
             return null;
           }
         },
@@ -909,13 +909,13 @@ export class MsdDebugAPI {
          * @returns {Array|null} Theme tokens
          *
          * @example
-         * const tokens = window.cblcars.debug.msd.styles.listTokens();
+         * const tokens = window.lcards.debug.msd.styles.listTokens();
          */
         listTokens() {
           try {
-            const theme = window.cblcars?.theme;
+            const theme = window.lcards?.theme;
             if (!theme) {
-              cblcarsLog.warn('[DebugAPI] Theme manager not available');
+              lcardsLog.warn('[DebugAPI] Theme manager not available');
               return null;
             }
 
@@ -939,7 +939,7 @@ export class MsdDebugAPI {
 
             return collectPaths(activeTheme);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing tokens:', error);
+            lcardsLog.error('[DebugAPI] Error listing tokens:', error);
             return null;
           }
         },
@@ -953,13 +953,13 @@ export class MsdDebugAPI {
          * @returns {*} Token value
          *
          * @example
-         * const color = window.cblcars.debug.msd.styles.getTokenValue('colors.primary');
+         * const color = window.lcards.debug.msd.styles.getTokenValue('colors.primary');
          */
         getTokenValue(tokenPath) {
           try {
-            const theme = window.cblcars?.theme;
+            const theme = window.lcards?.theme;
             if (!theme) {
-              cblcarsLog.warn('[DebugAPI] Theme manager not available');
+              lcardsLog.warn('[DebugAPI] Theme manager not available');
               return null;
             }
 
@@ -979,7 +979,7 @@ export class MsdDebugAPI {
 
             return value;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting token value:', error);
+            lcardsLog.error('[DebugAPI] Error getting token value:', error);
             return null;
           }
         }
@@ -1000,7 +1000,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Validation result with errors/warnings
          *
          * @example
-         * const result = window.cblcars.debug.msd.charts.validate('chart_1');
+         * const result = window.lcards.debug.msd.charts.validate('chart_1');
          * if (!result.valid) {
          *   result.errors.forEach(err => console.error(err.message));
          * }
@@ -1009,13 +1009,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.charts?.validate) {
-              cblcarsLog.warn('[DebugAPI] Chart validation not available');
+              lcardsLog.warn('[DebugAPI] Chart validation not available');
               return null;
             }
 
             return dbg.charts.validate(overlayId);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error validating chart:', error);
+            lcardsLog.error('[DebugAPI] Error validating chart:', error);
             return null;
           }
         },
@@ -1029,20 +1029,20 @@ export class MsdDebugAPI {
          * @returns {Object|null} Validation summary
          *
          * @example
-         * const summary = window.cblcars.debug.msd.charts.validateAll();
+         * const summary = window.lcards.debug.msd.charts.validateAll();
          * console.log(`Valid: ${summary.validCount}, Invalid: ${summary.invalidCount}`);
          */
         validateAll() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.charts?.validateAll) {
-              cblcarsLog.warn('[DebugAPI] Chart validateAll not available');
+              lcardsLog.warn('[DebugAPI] Chart validateAll not available');
               return null;
             }
 
             return dbg.charts.validateAll();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error validating all charts:', error);
+            lcardsLog.error('[DebugAPI] Error validating all charts:', error);
             return null;
           }
         },
@@ -1057,19 +1057,19 @@ export class MsdDebugAPI {
          * @returns {Object|null} Format specification
          *
          * @example
-         * const spec = window.cblcars.debug.msd.charts.getFormatSpec('line');
+         * const spec = window.lcards.debug.msd.charts.getFormatSpec('line');
          */
         getFormatSpec(chartType) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.charts?.getFormatSpec) {
-              cblcarsLog.warn('[DebugAPI] Chart getFormatSpec not available');
+              lcardsLog.warn('[DebugAPI] Chart getFormatSpec not available');
               return null;
             }
 
             return dbg.charts.getFormatSpec(chartType);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting format spec:', error);
+            lcardsLog.error('[DebugAPI] Error getting format spec:', error);
             return null;
           }
         },
@@ -1082,7 +1082,7 @@ export class MsdDebugAPI {
          * @returns {Array<string>} Chart types
          *
          * @example
-         * const types = window.cblcars.debug.msd.charts.listTypes();
+         * const types = window.lcards.debug.msd.charts.listTypes();
          */
         listTypes() {
           try {
@@ -1095,7 +1095,7 @@ export class MsdDebugAPI {
 
             return dbg.charts.listTypes();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing chart types:', error);
+            lcardsLog.error('[DebugAPI] Error listing chart types:', error);
             return [];
           }
         }
@@ -1115,7 +1115,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Rules trace data
          *
          * @example
-         * const trace = window.cblcars.debug.msd.rules.trace();
+         * const trace = window.lcards.debug.msd.rules.trace();
          * console.log('Rules evaluated:', trace.evaluated);
          * console.log('Rules fired:', trace.fired);
          */
@@ -1123,13 +1123,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.rules?.trace) {
-              cblcarsLog.warn('[DebugAPI] Rules trace not available');
+              lcardsLog.warn('[DebugAPI] Rules trace not available');
               return null;
             }
 
             return dbg.rules.trace();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting rules trace:', error);
+            lcardsLog.error('[DebugAPI] Error getting rules trace:', error);
             return null;
           }
         },
@@ -1143,11 +1143,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const result = window.cblcars.debug.msd.rules.evaluate('rule_1');
+         * const result = window.lcards.debug.msd.rules.evaluate('rule_1');
          */
         evaluate(ruleId) {
-          cblcarsLog.warn('[DebugAPI] rules.evaluate() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will test rule evaluation against current state');
+          lcardsLog.warn('[DebugAPI] rules.evaluate() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will test rule evaluation against current state');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -1172,13 +1172,13 @@ export class MsdDebugAPI {
          *
          * @example
          * // Get only enabled rules
-         * const active = window.cblcars.debug.msd.rules.listActive();
+         * const active = window.lcards.debug.msd.rules.listActive();
          *
          * // Get all rules including disabled
-         * const all = window.cblcars.debug.msd.rules.listActive({ includeDisabled: true });
+         * const all = window.lcards.debug.msd.rules.listActive({ includeDisabled: true });
          *
          * // Get detailed rule information
-         * const detailed = window.cblcars.debug.msd.rules.listActive({ verbose: true });
+         * const detailed = window.lcards.debug.msd.rules.listActive({ verbose: true });
          */
         listActive(options = {}) {
           try {
@@ -1207,7 +1207,7 @@ export class MsdDebugAPI {
               description: rule.description || rule.id
             }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing active rules:', error);
+            lcardsLog.error('[DebugAPI] Error listing active rules:', error);
             return [];
           }
         },
@@ -1220,11 +1220,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const result = window.cblcars.debug.msd.rules.debugRule('rule_1', testState);
+         * const result = window.lcards.debug.msd.rules.debugRule('rule_1', testState);
          */
         debugRule(ruleId, state) {
-          cblcarsLog.warn('[DebugAPI] rules.debugRule() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will enable step-by-step rule debugging with test state');
+          lcardsLog.warn('[DebugAPI] rules.debugRule() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will enable step-by-step rule debugging with test state');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -1250,7 +1250,7 @@ export class MsdDebugAPI {
          * @returns {Array} Active animations with overlay, state, and progress info
          *
          * @example
-         * const active = window.cblcars.debug.msd.animations.active();
+         * const active = window.lcards.debug.msd.animations.active();
          * active.forEach(anim => console.log(anim.overlayId, anim.state, anim.progress));
          */
         active() {
@@ -1259,13 +1259,13 @@ export class MsdDebugAPI {
             const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
 
             if (!animationManager) {
-              cblcarsLog.warn('[DebugAPI] AnimationManager not available');
+              lcardsLog.warn('[DebugAPI] AnimationManager not available');
               return [];
             }
 
             return animationManager.getActiveAnimations();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting active animations:', error);
+            lcardsLog.error('[DebugAPI] Error getting active animations:', error);
             return [];
           }
         },
@@ -1279,7 +1279,7 @@ export class MsdDebugAPI {
          * @returns {Object} Animation definitions
          *
          * @example
-         * const dump = window.cblcars.debug.msd.animations.dump();
+         * const dump = window.lcards.debug.msd.animations.dump();
          * console.log('Custom presets:', dump.customPresets);
          * console.log('Overlay animations:', dump.overlayAnimations);
          * console.log('Timelines:', dump.timelines);
@@ -1290,13 +1290,13 @@ export class MsdDebugAPI {
             const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
 
             if (!animationManager) {
-              cblcarsLog.warn('[DebugAPI] AnimationManager not available');
+              lcardsLog.warn('[DebugAPI] AnimationManager not available');
               return null;
             }
 
             return animationManager.getAllAnimationDefinitions();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error dumping animations:', error);
+            lcardsLog.error('[DebugAPI] Error dumping animations:', error);
             return null;
           }
         },
@@ -1309,7 +1309,7 @@ export class MsdDebugAPI {
          * @returns {Object} Registry statistics
          *
          * @example
-         * const stats = window.cblcars.debug.msd.animations.registryStats();
+         * const stats = window.lcards.debug.msd.animations.registryStats();
          * console.log('Cache hit rate:', stats.hitRate);
          * console.log('Stored animations:', stats.size);
          */
@@ -1319,13 +1319,13 @@ export class MsdDebugAPI {
             const registry = dbg?.pipelineInstance?.systemsManager?.animRegistry;
 
             if (!registry) {
-              cblcarsLog.warn('[DebugAPI] AnimationRegistry not available');
+              lcardsLog.warn('[DebugAPI] AnimationRegistry not available');
               return null;
             }
 
             return registry.getStats();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting registry stats:', error);
+            lcardsLog.error('[DebugAPI] Error getting registry stats:', error);
             return null;
           }
         },
@@ -1340,7 +1340,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Overlay animation state
          *
          * @example
-         * const state = window.cblcars.debug.msd.animations.inspect('cpu_status');
+         * const state = window.lcards.debug.msd.animations.inspect('cpu_status');
          * console.log('Scope:', state.scope);
          * console.log('Active animations:', state.activeAnimations);
          * console.log('Triggers:', state.triggers);
@@ -1351,13 +1351,13 @@ export class MsdDebugAPI {
             const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
 
             if (!animationManager) {
-              cblcarsLog.warn('[DebugAPI] AnimationManager not available');
+              lcardsLog.warn('[DebugAPI] AnimationManager not available');
               return null;
             }
 
             return animationManager.inspectOverlay(overlayId);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error inspecting overlay:', error);
+            lcardsLog.error('[DebugAPI] Error inspecting overlay:', error);
             return null;
           }
         },
@@ -1371,7 +1371,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Timeline details
          *
          * @example
-         * const timeline = window.cblcars.debug.msd.animations.timeline('startup_sequence');
+         * const timeline = window.lcards.debug.msd.animations.timeline('startup_sequence');
          */
         timeline(timelineId) {
           try {
@@ -1380,7 +1380,7 @@ export class MsdDebugAPI {
             const timelines = config?.timelines || [];
             return timelines.find(tl => tl.id === timelineId) || null;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting timeline:', error);
+            lcardsLog.error('[DebugAPI] Error getting timeline:', error);
             return null;
           }
         },
@@ -1396,7 +1396,7 @@ export class MsdDebugAPI {
          * @returns {Object} Result object
          *
          * @example
-         * window.cblcars.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 });
+         * window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 });
          */
         trigger(overlayId, presetName, params = {}) {
           try {
@@ -1404,7 +1404,7 @@ export class MsdDebugAPI {
             const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
 
             if (!animationManager) {
-              cblcarsLog.warn('[DebugAPI] AnimationManager not available');
+              lcardsLog.warn('[DebugAPI] AnimationManager not available');
               return {
                 error: 'NO_ANIMATION_MANAGER',
                 message: 'Animation system not initialized'
@@ -1418,7 +1418,7 @@ export class MsdDebugAPI {
             });
 
             if (result) {
-              cblcarsLog.debug(`[DebugAPI] Animation triggered: ${overlayId} / ${presetName}`);
+              lcardsLog.debug(`[DebugAPI] Animation triggered: ${overlayId} / ${presetName}`);
               return { success: true, overlayId, preset: presetName, params };
             } else {
               return {
@@ -1429,7 +1429,7 @@ export class MsdDebugAPI {
               };
             }
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error triggering animation:', error);
+            lcardsLog.error('[DebugAPI] Error triggering animation:', error);
             return {
               error: 'EXCEPTION',
               message: error.message
@@ -1454,23 +1454,23 @@ export class MsdDebugAPI {
          *
          * @example
          * // Get counts
-         * const counts = window.cblcars.debug.msd.packs.list();
+         * const counts = window.lcards.debug.msd.packs.list();
          * console.log('Overlays:', counts.overlays);
          *
          * // Get specific type
-         * const overlays = window.cblcars.debug.msd.packs.list('overlays');
+         * const overlays = window.lcards.debug.msd.packs.list('overlays');
          */
         list(type) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.packs?.list) {
-              cblcarsLog.warn('[DebugAPI] Packs list not available');
+              lcardsLog.warn('[DebugAPI] Packs list not available');
               return type ? [] : {};
             }
 
             return dbg.packs.list(type);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing packs:', error);
+            lcardsLog.error('[DebugAPI] Error listing packs:', error);
             return type ? [] : {};
           }
         },
@@ -1485,19 +1485,19 @@ export class MsdDebugAPI {
          * @returns {Object|null} Pack item
          *
          * @example
-         * const overlay = window.cblcars.debug.msd.packs.get('overlays', 'button_1');
+         * const overlay = window.lcards.debug.msd.packs.get('overlays', 'button_1');
          */
         get(type, id) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.packs?.get) {
-              cblcarsLog.warn('[DebugAPI] Packs get not available');
+              lcardsLog.warn('[DebugAPI] Packs get not available');
               return null;
             }
 
             return dbg.packs.get(type, id);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pack item:', error);
+            lcardsLog.error('[DebugAPI] Error getting pack item:', error);
             return null;
           }
         },
@@ -1510,20 +1510,20 @@ export class MsdDebugAPI {
          * @returns {Array|null} Configuration issues
          *
          * @example
-         * const issues = window.cblcars.debug.msd.packs.issues();
+         * const issues = window.lcards.debug.msd.packs.issues();
          * issues.forEach(issue => console.error(issue.message));
          */
         issues() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.packs?.issues) {
-              cblcarsLog.warn('[DebugAPI] Packs issues not available');
+              lcardsLog.warn('[DebugAPI] Packs issues not available');
               return null;
             }
 
             return dbg.packs.issues();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pack issues:', error);
+            lcardsLog.error('[DebugAPI] Error getting pack issues:', error);
             return null;
           }
         },
@@ -1536,11 +1536,11 @@ export class MsdDebugAPI {
          * @returns {Object} NOT_IMPLEMENTED response
          *
          * @example
-         * const order = window.cblcars.debug.msd.packs.order();
+         * const order = window.lcards.debug.msd.packs.order();
          */
         order() {
-          cblcarsLog.warn('[DebugAPI] packs.order() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[DebugAPI] This will show pack merge order and provenance');
+          lcardsLog.warn('[DebugAPI] packs.order() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[DebugAPI] This will show pack merge order and provenance');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -1569,29 +1569,29 @@ export class MsdDebugAPI {
          *
          * @example
          * // Enable bounding boxes
-         * window.cblcars.debug.msd.visual.enable('bounding_boxes');
+         * window.lcards.debug.msd.visual.enable('bounding_boxes');
          *
          * // Enable all debug visuals
-         * window.cblcars.debug.msd.visual.enable('all');
+         * window.lcards.debug.msd.visual.enable('all');
          *
          * // Enable specific feature
-         * window.cblcars.debug.msd.visual.enable('anchors');
-         * window.cblcars.debug.msd.visual.enable('routing');
-         * window.cblcars.debug.msd.visual.enable('performance');
+         * window.lcards.debug.msd.visual.enable('anchors');
+         * window.lcards.debug.msd.visual.enable('routing');
+         * window.lcards.debug.msd.visual.enable('performance');
          */
         enable(feature) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.debug?.enable) {
-              cblcarsLog.warn('[DebugAPI] Visual debug not available');
+              lcardsLog.warn('[DebugAPI] Visual debug not available');
               return false;
             }
 
             dbg.debug.enable(feature);
-            cblcarsLog.debug(`[DebugAPI] Enabled visual debug: ${feature}`);
+            lcardsLog.debug(`[DebugAPI] Enabled visual debug: ${feature}`);
             return true;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error enabling visual debug:', error);
+            lcardsLog.error('[DebugAPI] Error enabling visual debug:', error);
             return false;
           }
         },
@@ -1606,24 +1606,24 @@ export class MsdDebugAPI {
          *
          * @example
          * // Disable bounding boxes
-         * window.cblcars.debug.msd.visual.disable('bounding_boxes');
+         * window.lcards.debug.msd.visual.disable('bounding_boxes');
          *
          * // Disable all debug visuals
-         * window.cblcars.debug.msd.visual.disable('all');
+         * window.lcards.debug.msd.visual.disable('all');
          */
         disable(feature) {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.debug?.disable) {
-              cblcarsLog.warn('[DebugAPI] Visual debug not available');
+              lcardsLog.warn('[DebugAPI] Visual debug not available');
               return false;
             }
 
             dbg.debug.disable(feature);
-            cblcarsLog.debug(`[DebugAPI] Disabled visual debug: ${feature}`);
+            lcardsLog.debug(`[DebugAPI] Disabled visual debug: ${feature}`);
             return true;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error disabling visual debug:', error);
+            lcardsLog.error('[DebugAPI] Error disabling visual debug:', error);
             return false;
           }
         },
@@ -1637,7 +1637,7 @@ export class MsdDebugAPI {
          * @returns {boolean} New state (true = enabled, false = disabled)
          *
          * @example
-         * const newState = window.cblcars.debug.msd.visual.toggle('bounding_boxes');
+         * const newState = window.lcards.debug.msd.visual.toggle('bounding_boxes');
          * console.log('Bounding boxes now:', newState ? 'enabled' : 'disabled');
          */
         toggle(feature) {
@@ -1654,7 +1654,7 @@ export class MsdDebugAPI {
               return true;
             }
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error toggling visual debug:', error);
+            lcardsLog.error('[DebugAPI] Error toggling visual debug:', error);
             return false;
           }
         },
@@ -1667,7 +1667,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Debug feature status
          *
          * @example
-         * const status = window.cblcars.debug.msd.visual.status();
+         * const status = window.lcards.debug.msd.visual.status();
          * console.log('Anchors enabled:', status.anchors);
          * console.log('Bounding boxes enabled:', status.bounding_boxes);
          * console.table(status);
@@ -1676,13 +1676,13 @@ export class MsdDebugAPI {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.debug?.getStatus) {
-              cblcarsLog.warn('[DebugAPI] Visual debug status not available');
+              lcardsLog.warn('[DebugAPI] Visual debug status not available');
               return null;
             }
 
             return dbg.debug.getStatus();
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting visual debug status:', error);
+            lcardsLog.error('[DebugAPI] Error getting visual debug status:', error);
             return null;
           }
         },
@@ -1695,7 +1695,7 @@ export class MsdDebugAPI {
          * @returns {Array<string>} Active feature names
          *
          * @example
-         * const active = window.cblcars.debug.msd.visual.getActive();
+         * const active = window.lcards.debug.msd.visual.getActive();
          * console.log('Active debug features:', active);
          * // ['bounding_boxes', 'anchors']
          */
@@ -1708,7 +1708,7 @@ export class MsdDebugAPI {
               .filter(([key, value]) => value === true && key !== 'scale')
               .map(([key]) => key);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting active features:', error);
+            lcardsLog.error('[DebugAPI] Error getting active features:', error);
             return [];
           }
         },
@@ -1721,20 +1721,20 @@ export class MsdDebugAPI {
          * @returns {boolean} Success status
          *
          * @example
-         * window.cblcars.debug.msd.visual.refresh();
+         * window.lcards.debug.msd.visual.refresh();
          */
         refresh() {
           try {
             const dbg = window.__msdDebug;
             if (!dbg?.debug?.refresh) {
-              cblcarsLog.warn('[DebugAPI] Visual debug refresh not available');
+              lcardsLog.warn('[DebugAPI] Visual debug refresh not available');
               return false;
             }
 
             dbg.debug.refresh();
             return true;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error refreshing visual debug:', error);
+            lcardsLog.error('[DebugAPI] Error refreshing visual debug:', error);
             return false;
           }
         }
@@ -1755,7 +1755,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Overlay details
          *
          * @example
-         * const overlay = window.cblcars.debug.msd.overlays.inspect('button_1');
+         * const overlay = window.lcards.debug.msd.overlays.inspect('button_1');
          * console.log('Type:', overlay.type);
          * console.log('BBox:', overlay.bbox);
          * console.log('Config:', overlay.config);
@@ -1765,7 +1765,7 @@ export class MsdDebugAPI {
             const dbg = window.__msdDebug;
             const pipelineInstance = dbg?.pipelineInstance;
             if (!pipelineInstance) {
-              cblcarsLog.warn('[DebugAPI] Pipeline instance not available');
+              lcardsLog.warn('[DebugAPI] Pipeline instance not available');
               return null;
             }
 
@@ -1795,7 +1795,7 @@ export class MsdDebugAPI {
               visible: overlay.visible !== false
             };
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error inspecting overlay:', error);
+            lcardsLog.error('[DebugAPI] Error inspecting overlay:', error);
             return null;
           }
         },
@@ -1809,7 +1809,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Bounding box {x, y, w, h}
          *
          * @example
-         * const bbox = window.cblcars.debug.msd.overlays.getBBox('button_1');
+         * const bbox = window.lcards.debug.msd.overlays.getBBox('button_1');
          * console.log(`Position: (${bbox.x}, ${bbox.y})`);
          * console.log(`Size: ${bbox.w} x ${bbox.h}`);
          */
@@ -1820,19 +1820,19 @@ export class MsdDebugAPI {
             const root = renderer?.mountEl;
 
             if (!root) {
-              cblcarsLog.warn('[DebugAPI] Mount element not available');
+              lcardsLog.warn('[DebugAPI] Mount element not available');
               return null;
             }
 
             const MsdIntrospection = window.MsdIntrospection;
             if (!MsdIntrospection) {
-              cblcarsLog.warn('[DebugAPI] MsdIntrospection not available');
+              lcardsLog.warn('[DebugAPI] MsdIntrospection not available');
               return null;
             }
 
             return MsdIntrospection.getOverlayBBox(overlayId, root);
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting bbox:', error);
+            lcardsLog.error('[DebugAPI] Error getting bbox:', error);
             return null;
           }
         },
@@ -1846,7 +1846,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Transform data
          *
          * @example
-         * const transform = window.cblcars.debug.msd.overlays.getTransform('status_grid_1');
+         * const transform = window.lcards.debug.msd.overlays.getTransform('status_grid_1');
          * if (transform.translate) {
          *   console.log(`Translate: (${transform.translate.x}, ${transform.translate.y})`);
          * }
@@ -1902,7 +1902,7 @@ export class MsdDebugAPI {
 
             return result;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting transform:', error);
+            lcardsLog.error('[DebugAPI] Error getting transform:', error);
             return null;
           }
         },
@@ -1916,7 +1916,7 @@ export class MsdDebugAPI {
          * @returns {*} Overlay state/data
          *
          * @example
-         * const state = window.cblcars.debug.msd.overlays.getState('temp_display');
+         * const state = window.lcards.debug.msd.overlays.getState('temp_display');
          */
         getState(overlayId) {
           try {
@@ -1932,7 +1932,7 @@ export class MsdDebugAPI {
             // Return the resolved data if available
             return overlay.data || overlay.state || null;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting overlay state:', error);
+            lcardsLog.error('[DebugAPI] Error getting overlay state:', error);
             return null;
           }
         },
@@ -1946,7 +1946,7 @@ export class MsdDebugAPI {
          * @returns {Array} Matching overlays
          *
          * @example
-         * const buttons = window.cblcars.debug.msd.overlays.findByType('button');
+         * const buttons = window.lcards.debug.msd.overlays.findByType('button');
          * console.log('Found buttons:', buttons.length);
          * buttons.forEach(btn => console.log(btn.id));
          */
@@ -1966,7 +1966,7 @@ export class MsdDebugAPI {
                 size: o.size
               }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error finding overlays by type:', error);
+            lcardsLog.error('[DebugAPI] Error finding overlays by type:', error);
             return [];
           }
         },
@@ -1980,7 +1980,7 @@ export class MsdDebugAPI {
          * @returns {Array} Overlays using this entity
          *
          * @example
-         * const overlays = window.cblcars.debug.msd.overlays.findByEntity('sensor.temperature');
+         * const overlays = window.lcards.debug.msd.overlays.findByEntity('sensor.temperature');
          */
         findByEntity(entityId) {
           try {
@@ -2000,7 +2000,7 @@ export class MsdDebugAPI {
                 route: o.route
               }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error finding overlays by entity:', error);
+            lcardsLog.error('[DebugAPI] Error finding overlays by entity:', error);
             return [];
           }
         },
@@ -2013,7 +2013,7 @@ export class MsdDebugAPI {
          * @returns {Array} Overlay tree
          *
          * @example
-         * const tree = window.cblcars.debug.msd.overlays.tree();
+         * const tree = window.lcards.debug.msd.overlays.tree();
          */
         tree() {
           try {
@@ -2035,7 +2035,7 @@ export class MsdDebugAPI {
               overlays
             }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting overlay tree:', error);
+            lcardsLog.error('[DebugAPI] Error getting overlay tree:', error);
             return [];
           }
         },
@@ -2048,7 +2048,7 @@ export class MsdDebugAPI {
          * @returns {Array} All overlays
          *
          * @example
-         * const all = window.cblcars.debug.msd.overlays.list();
+         * const all = window.lcards.debug.msd.overlays.list();
          * console.log('Total overlays:', all.length);
          */
         list() {
@@ -2064,7 +2064,7 @@ export class MsdDebugAPI {
               visible: o.visible !== false
             }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error listing overlays:', error);
+            lcardsLog.error('[DebugAPI] Error listing overlays:', error);
             return [];
           }
         }
@@ -2083,7 +2083,7 @@ export class MsdDebugAPI {
          * @returns {Array} Pipeline stages
          *
          * @example
-         * const stages = window.cblcars.debug.msd.pipeline.stages();
+         * const stages = window.lcards.debug.msd.pipeline.stages();
          * stages.forEach(stage => {
          *   console.log(`${stage.name}: ${stage.status}`);
          * });
@@ -2110,7 +2110,7 @@ export class MsdDebugAPI {
               timing: null // Could extract from provenance
             }));
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pipeline stages:', error);
+            lcardsLog.error('[DebugAPI] Error getting pipeline stages:', error);
             return [];
           }
         },
@@ -2123,7 +2123,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Pipeline timing
          *
          * @example
-         * const timing = window.cblcars.debug.msd.pipeline.timing();
+         * const timing = window.lcards.debug.msd.pipeline.timing();
          * console.log('Total time:', timing.total_ms, 'ms');
          */
         timing() {
@@ -2150,7 +2150,7 @@ export class MsdDebugAPI {
 
             return timing;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pipeline timing:', error);
+            lcardsLog.error('[DebugAPI] Error getting pipeline timing:', error);
             return null;
           }
         },
@@ -2163,7 +2163,7 @@ export class MsdDebugAPI {
          * @returns {Object|null} Pipeline config
          *
          * @example
-         * const config = window.cblcars.debug.msd.pipeline.config();
+         * const config = window.lcards.debug.msd.pipeline.config();
          * console.log('Anchors:', config.anchors);
          * console.log('ViewBox:', config.viewBox);
          */
@@ -2172,7 +2172,7 @@ export class MsdDebugAPI {
             const dbg = window.__msdDebug;
             return dbg?.pipelineInstance?.config || null;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pipeline config:', error);
+            lcardsLog.error('[DebugAPI] Error getting pipeline config:', error);
             return null;
           }
         },
@@ -2185,7 +2185,7 @@ export class MsdDebugAPI {
          * @returns {Array} Pipeline errors
          *
          * @example
-         * const errors = window.cblcars.debug.msd.pipeline.errors();
+         * const errors = window.lcards.debug.msd.pipeline.errors();
          * if (errors.length > 0) {
          *   errors.forEach(err => console.error(err.message));
          * }
@@ -2220,7 +2220,7 @@ export class MsdDebugAPI {
 
             return errors;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pipeline errors:', error);
+            lcardsLog.error('[DebugAPI] Error getting pipeline errors:', error);
             return [];
           }
         },
@@ -2233,7 +2233,7 @@ export class MsdDebugAPI {
          * @returns {boolean} Success status
          *
          * @example
-         * window.cblcars.debug.msd.pipeline.rerun();
+         * window.lcards.debug.msd.pipeline.rerun();
          */
         rerun() {
           try {
@@ -2241,15 +2241,15 @@ export class MsdDebugAPI {
             const pipelineInstance = dbg?.pipelineInstance;
 
             if (!pipelineInstance?.reRender) {
-              cblcarsLog.warn('[DebugAPI] Pipeline rerun not available');
+              lcardsLog.warn('[DebugAPI] Pipeline rerun not available');
               return false;
             }
 
             pipelineInstance.reRender();
-            cblcarsLog.debug('[DebugAPI] Pipeline re-run triggered');
+            lcardsLog.debug('[DebugAPI] Pipeline re-run triggered');
             return true;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error re-running pipeline:', error);
+            lcardsLog.error('[DebugAPI] Error re-running pipeline:', error);
             return false;
           }
         },
@@ -2262,14 +2262,14 @@ export class MsdDebugAPI {
          * @returns {Object|null} Pipeline instance
          *
          * @example
-         * const pipeline = window.cblcars.debug.msd.pipeline.getInstance();
+         * const pipeline = window.lcards.debug.msd.pipeline.getInstance();
          */
         getInstance() {
           try {
             const dbg = window.__msdDebug;
             return dbg?.pipelineInstance || null;
           } catch (error) {
-            cblcarsLog.error('[DebugAPI] Error getting pipeline instance:', error);
+            lcardsLog.error('[DebugAPI] Error getting pipeline instance:', error);
             return null;
           }
         }

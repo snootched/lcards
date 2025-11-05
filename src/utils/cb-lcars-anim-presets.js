@@ -1,8 +1,8 @@
-import { cblcarsLog } from './cb-lcars-logging.js';
-import * as svgHelpers from './cb-lcars-svg-helpers.js';
+import { lcardsLog } from './lcards-logging.js';
+import * as svgHelpers from './lcards-svg-helpers.js';
 
 // legacy - svg errors logged to overlay need to be ported to v1 style
-//import { svgOverlayManager } from './cb-lcars-overlay-helpers.js';
+//import { svgOverlayManager } from './lcards-overlay-helpers.js';
 
 /**
  * Utility: test if a path 'd' string has drawable geometry beyond a single move.
@@ -23,7 +23,7 @@ export const animPresets = {
      */
     draw: (params, element, options = {}) => {
         // Use animejs v4 createDrawable for robust SVG path drawing
-        const [drawable] = window.cblcars.animejs.svg.createDrawable(element);
+        const [drawable] = window.lcards.animejs.svg.createDrawable(element);
 
         // Standard anime.js options
         const duration = params.duration ?? options.duration ?? 1200;
@@ -82,7 +82,7 @@ export const animPresets = {
      * @param {object} options
      */
     pulse: (params, element, options = {}) => {
-        cblcarsLog.debug('[pulse preset] Before mutation:', { params, element, options });
+        lcardsLog.debug('[pulse preset] Before mutation:', { params, element, options });
 
         // Prefer pulse config from params.pulse, then options.pulse, then options, then defaults
         const pulseCfg = params.pulse || options.pulse || options || {};
@@ -118,7 +118,7 @@ export const animPresets = {
                 const textEl = element.querySelector('text');
                 if (textEl) {
                     targetElement = textEl;
-                    cblcarsLog.debug('[pulse preset] Animating text child instead of group wrapper:', {
+                    lcardsLog.debug('[pulse preset] Animating text child instead of group wrapper:', {
                         groupId: element.id,
                         textElement: textEl
                     });
@@ -141,7 +141,7 @@ export const animPresets = {
             // Override the params to use the text element as target
             params.targets = targetElement;
 
-            cblcarsLog.debug('[pulse preset] Set transformOrigin/transformBox for text/group:', {
+            lcardsLog.debug('[pulse preset] Set transformOrigin/transformBox for text/group:', {
                 id: element.id,
                 tagName: element.tagName,
                 isTextGroup,
@@ -159,7 +159,7 @@ export const animPresets = {
                 loop,
                 alternate
             });
-            cblcarsLog.debug('[pulse preset] Pulsing line:', {
+            lcardsLog.debug('[pulse preset] Pulsing line:', {
                 id: element.id,
                 strokeWidth: width,
                 maxScale
@@ -174,7 +174,7 @@ export const animPresets = {
                 alternate
             });
         }
-        cblcarsLog.debug('[pulse preset] After mutation:', { params, element });
+        lcardsLog.debug('[pulse preset] After mutation:', { params, element });
     },
     /**
      * @preset blink
@@ -213,16 +213,16 @@ export const animPresets = {
      * Contract:
      *  - tracer is required; if missing, the preset aborts and surfaces an overlay error.
      *  - Waits until the target <path> has a valid 'd' before building transforms.
-     *  - If the path has data-cblcars-pending="true" (sparkline baseline), trail is hidden until real data arrives.
-     *  - Listens for 'd' and 'data-cblcars-pending' changes, re-binding tracer and syncing trail as the path updates.
+     *  - If the path has data-lcards-pending="true" (sparkline baseline), trail is hidden until real data arrives.
+     *  - Listens for 'd' and 'data-lcards-pending' changes, re-binding tracer and syncing trail as the path updates.
      *
      * Anime.js v4 notes:
-     *  - Use window.cblcars.anim.anime(targets, vars)
-     *  - Use window.cblcars.animejs.svg.createMotionPath(pathEl) → { translateX, translateY, rotate }
-     *  - Use window.cblcars.animejs.svg.createDrawable(pathEl) for draw animations
+     *  - Use window.lcards.anim.anime(targets, vars)
+     *  - Use window.lcards.animejs.svg.createMotionPath(pathEl) → { translateX, translateY, rotate }
+     *  - Use window.lcards.animejs.svg.createDrawable(pathEl) for draw animations
      *
      * Required external helpers (already in this project):
-     *  - window.cblcars.waitForElement(selector, root)
+     *  - window.lcards.waitForElement(selector, root)
      *  - svgOverlayManager.push(msg) for user-visible overlay errors
      */
 
@@ -236,14 +236,14 @@ export const animPresets = {
             const root = options.root ?? document;
 
             // Provide waitForElement alias if missing
-            if (!window.cblcars.waitForElement && window.cblcars.anim?.waitForElement) {
-                window.cblcars.waitForElement = window.cblcars.anim.waitForElement;
+            if (!window.lcards.waitForElement && window.lcards.anim?.waitForElement) {
+                window.lcards.waitForElement = window.lcards.anim.waitForElement;
             }
 
             const tracerCfg = options.tracer;
             if (!tracerCfg) {
                 const msg = '[motionpath] tracer is required';
-                cblcarsLog.warn(msg, { element });
+                lcardsLog.warn(msg, { element });
                 //svgOverlayManager.push(msg);
                 params.targets = null;
                 return;
@@ -251,19 +251,19 @@ export const animPresets = {
 
             const pathSelector = options.path_selector;
             let pathEl = pathSelector
-                ? (await window.cblcars.waitForElement(pathSelector, root).catch(() => null))
+                ? (await window.lcards.waitForElement(pathSelector, root).catch(() => null))
                 : element;
 
             if (!pathEl) {
                 const errorMsg = `Motionpath: path not found for selector "${pathSelector || '(self)'}"`;
-                cblcarsLog.error(errorMsg);
+                lcardsLog.error(errorMsg);
                 //svgOverlayManager.push(errorMsg);
                 params.targets = null;
                 return;
             }
             if (String(pathEl.tagName).toLowerCase() !== 'path') {
                 const msg = '[motionpath] Target is not an SVG <path>';
-                cblcarsLog.warn(msg, { id: pathEl.id });
+                lcardsLog.warn(msg, { id: pathEl.id });
                 //svgOverlayManager.push(msg);
                 params.targets = null;
                 return;
@@ -285,13 +285,13 @@ export const animPresets = {
                     return false;
                 }
             };
-            const isPending = (el) => el?.getAttribute('data-cblcars-pending') === 'true';
+            const isPending = (el) => el?.getAttribute('data-lcards-pending') === 'true';
 
             const cleanupArtifacts = () => {
                 const svgRoot = pathEl.ownerSVGElement || pathEl.closest('svg') || root;
                 if (!svgRoot) return;
-                const priorTracer = svgRoot.querySelector(`#${baseId}_tracer[data-cblcars-owned="motionpath"]`);
-                const priorTrail = svgRoot.querySelector(`#${baseId}_trail[data-cblcars-owned="motionpath"]`);
+                const priorTracer = svgRoot.querySelector(`#${baseId}_tracer[data-lcards-owned="motionpath"]`);
+                const priorTrail = svgRoot.querySelector(`#${baseId}_trail[data-lcards-owned="motionpath"]`);
                 if (priorTracer?.parentNode) priorTracer.parentNode.removeChild(priorTracer);
                 if (priorTrail?.parentNode) priorTrail.parentNode.removeChild(priorTrail);
             };
@@ -308,7 +308,7 @@ export const animPresets = {
                 try {
                     trailPath = pathEl.cloneNode(true);
                     trailPath.id = `${baseId}_trail`;
-                    trailPath.setAttribute('data-cblcars-owned', 'motionpath');
+                    trailPath.setAttribute('data-lcards-owned', 'motionpath');
                     const stroke = trailOpt.stroke || pathEl.getAttribute('stroke') || 'var(--lcars-yellow)';
                     const sw = trailOpt['stroke-width']
                         ?? options['stroke-width']
@@ -329,16 +329,16 @@ export const animPresets = {
 
                     pathEl.parentNode.insertBefore(trailPath, pathEl.nextSibling);
 
-                    const [drawable] = window.cblcars.animejs.svg.createDrawable(trailPath);
+                    const [drawable] = window.lcards.animejs.svg.createDrawable(trailPath);
                     const trailVars = {
                         draw: '0 1',
                         duration: trailOpt.duration ?? params.duration ?? 1000,
                         easing: trailOpt.easing ?? params.easing ?? 'linear',
                         loop: trailOpt.loop ?? params.loop ?? true
                     };
-                    window.cblcars.anim.anime(drawable, trailVars);
+                    window.lcards.anim.anime(drawable, trailVars);
                 } catch (e) {
-                    cblcarsLog.error('[motionpath] Trail setup failed:', e);
+                    lcardsLog.error('[motionpath] Trail setup failed:', e);
                 }
             };
 
@@ -347,7 +347,7 @@ export const animPresets = {
                 let tid = tracerCfg.id || `${baseId}_tracer`;
                 const svgRoot = pathEl.ownerSVGElement || pathEl.closest('svg') || pathEl.parentNode;
                 const existing = svgRoot ? svgRoot.getElementById?.(tid) : null;
-                if (existing && existing.getAttribute('data-cblcars-owned') !== 'motionpath') {
+                if (existing && existing.getAttribute('data-lcards-owned') !== 'motionpath') {
                     tid = `${tid}_mptrc`;
                 }
 
@@ -375,13 +375,13 @@ export const animPresets = {
                 const temp = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 temp.innerHTML = tracerMarkup;
                 tracerNode = temp.firstElementChild;
-                tracerNode.setAttribute('data-cblcars-owned', 'motionpath');
+                tracerNode.setAttribute('data-lcards-owned', 'motionpath');
                 (svgRoot || pathEl.parentNode).appendChild(tracerNode);
             };
 
             const bindTracerAnimation = () => {
                 if (!tracerNode || !pathEl) return;
-                const { translateX, translateY, rotate } = window.cblcars.animejs.svg.createMotionPath(pathEl);
+                const { translateX, translateY, rotate } = window.lcards.animejs.svg.createMotionPath(pathEl);
 
                 const exclude = new Set([
                     'tracer', 'trail', 'path_selector', 'root', 'targets', 'type', 'animation',
@@ -394,12 +394,12 @@ export const animPresets = {
                 });
 
                 try {
-                    if (tracerNode.__cblcars_motion && typeof tracerNode.__cblcars_motion.pause === 'function') {
-                        tracerNode.__cblcars_motion.pause();
+                    if (tracerNode.__lcards_motion && typeof tracerNode.__lcards_motion.pause === 'function') {
+                        tracerNode.__lcards_motion.pause();
                     }
                 } catch (_) {}
 
-                tracerNode.__cblcars_motion = window.cblcars.anim.anime(tracerNode, {
+                tracerNode.__lcards_motion = window.lcards.anim.anime(tracerNode, {
                     ...merged,
                     translateX,
                     translateY,
@@ -422,7 +422,7 @@ export const animPresets = {
                     }
                     bindTracerAnimation();
                 } catch (e) {
-                    cblcarsLog.warn('[motionpath] rebind failed', { reason, e });
+                    lcardsLog.warn('[motionpath] rebind failed', { reason, e });
                 }
             };
 
@@ -463,7 +463,7 @@ export const animPresets = {
 
             if (!ready) {
                 const msg = `[motionpath] Timed out waiting for usable path geometry (id=${pathEl.id})`;
-                cblcarsLog.warn(msg);
+                lcardsLog.warn(msg);
                 //svgOverlayManager.push(msg);
                 params.targets = null;
                 return;
@@ -477,7 +477,7 @@ export const animPresets = {
                     let needs = false;
                     for (const m of muts) {
                         if (m.type === 'attributes' &&
-                            (m.attributeName === 'd' || m.attributeName === 'data-cblcars-pending')) {
+                            (m.attributeName === 'd' || m.attributeName === 'data-lcards-pending')) {
                             needs = true;
                             break;
                         }
@@ -490,7 +490,7 @@ export const animPresets = {
                         rebindAll('mutation');
                     }
                 });
-                pathMutationObserver.observe(pathEl, { attributes: true, attributeFilter: ['d', 'data-cblcars-pending'] });
+                pathMutationObserver.observe(pathEl, { attributes: true, attributeFilter: ['d', 'data-lcards-pending'] });
             } catch (_) {}
 
             // Lightweight poll for element replacement
@@ -499,7 +499,7 @@ export const animPresets = {
                 if (!alive) return;
                 const current = (root.getElementById && root.getElementById(pathId)) || pathEl;
                 if (current !== pathEl && current instanceof SVGPathElement) {
-                    cblcarsLog.debug('[motionpath] Path element replaced; reinitializing', { id: pathId });
+                    lcardsLog.debug('[motionpath] Path element replaced; reinitializing', { id: pathId });
                     try { pathMutationObserver?.disconnect(); } catch (_) {}
                     pathEl = current;
                     cleanupArtifacts();
@@ -514,14 +514,14 @@ export const animPresets = {
                                     let needs = false;
                                     for (const m of muts) {
                                         if (m.type === 'attributes' &&
-                                            (m.attributeName === 'd' || m.attributeName === 'data-cblcars-pending')) {
+                                            (m.attributeName === 'd' || m.attributeName === 'data-lcards-pending')) {
                                             needs = true;
                                             break;
                                         }
                                     }
                                     if (needs) rebindAll('mutation(replaced)');
                                 });
-                                pathMutationObserver.observe(pathEl, { attributes: true, attributeFilter: ['d', 'data-cblcars-pending'] });
+                                pathMutationObserver.observe(pathEl, { attributes: true, attributeFilter: ['d', 'data-lcards-pending'] });
                             } catch (_) {}
                         }
                     });
@@ -534,17 +534,17 @@ export const animPresets = {
             params.targets = null;
 
             // Cleanup hook if needed later
-            element.__cblcars_motionpath_cleanup = () => {
+            element.__lcards_motionpath_cleanup = () => {
                 alive = false;
                 try { pathMutationObserver?.disconnect(); } catch (_) {}
                 try {
-                    if (tracerNode?.__cblcars_motion?.pause) tracerNode.__cblcars_motion.pause();
+                    if (tracerNode?.__lcards_motion?.pause) tracerNode.__lcards_motion.pause();
                 } catch (_) {}
                 try { cleanupArtifacts(); } catch (_) {}
             };
 
         } catch (e) {
-            cblcarsLog.error('[motionpath] Unhandled error', e);
+            lcardsLog.error('[motionpath] Unhandled error', e);
             //svgOverlayManager.push(`[motionpath] ${e?.message || e}`);
             params.targets = null;
         }
@@ -634,7 +634,7 @@ export const animPresets = {
 
                 styleSheet.insertRule(keyframesStr, styleSheet.cssRules.length);
             } catch (e) {
-                cblcarsLog.error('Failed to add CSS animation to Shadow DOM:', e);
+                lcardsLog.error('Failed to add CSS animation to Shadow DOM:', e);
                 fallbackStyleInjection();
             }
         } else {
@@ -675,7 +675,7 @@ export const animPresets = {
      * @param {object} options
      */
     glow: (params, element, options = {}) => {
-        cblcarsLog.debug('[glow preset] Before mutation:', { params, element, options });
+        lcardsLog.debug('[glow preset] Before mutation:', { params, element, options });
 
         // Configurable values with defaults
         const glowCfg = options.glow || {};
@@ -715,9 +715,9 @@ export const animPresets = {
         delete params.stroke;
         element.style.transformOrigin = 'center';
         element.style.transformBox = 'fill-box';
-        cblcarsLog.debug('[glow preset] Animating drop-shadow:', { color, intensity, blurMin, blurMax, opacityMin, opacityMax, duration, easing, loop, alternate });
+        lcardsLog.debug('[glow preset] Animating drop-shadow:', { color, intensity, blurMin, blurMax, opacityMin, opacityMax, duration, easing, loop, alternate });
 
-        cblcarsLog.debug('[glow preset] After mutation:', { params, element });
+        lcardsLog.debug('[glow preset] After mutation:', { params, element });
     },
 
     /**
@@ -766,7 +766,7 @@ export const animPresets = {
     cascade: (params, element, options = {}) => {
         Object.assign(params, {
             opacity: [0, 1],
-            delay: window.cblcars.animejs.stagger(options.stagger ?? 100),
+            delay: window.lcards.animejs.stagger(options.stagger ?? 100),
             easing: 'easeOutQuad',
             duration: options.duration ?? 800
         });
@@ -836,12 +836,12 @@ export const animPresets = {
 
         let animeSetWorked = false;
         try {
-        if (window.cblcars?.anim?.utils?.set) {
-            window.cblcars.anim.utils.set(element, propsToSet);
+        if (window.lcards?.anim?.utils?.set) {
+            window.lcards.anim.utils.set(element, propsToSet);
             animeSetWorked = true;
         }
         } catch (e) {
-        cblcarsLog.warn('[set preset] animejs.utils.set() failed, will fallback to manual mutation.', { e });
+        lcardsLog.warn('[set preset] animejs.utils.set() failed, will fallback to manual mutation.', { e });
         }
 
         if (!animeSetWorked) {
@@ -853,7 +853,7 @@ export const animPresets = {
                 element.setAttribute(key, value);
             }
             } catch (e) {
-            cblcarsLog.warn(`[set preset] Could not set "${key}"="${value}" manually`, { e });
+            lcardsLog.warn(`[set preset] Could not set "${key}"="${value}" manually`, { e });
             }
         }
         }

@@ -13,7 +13,7 @@
  * @module msd/templates/ChartTemplateRegistry
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Registry for chart templates
@@ -50,7 +50,7 @@ export class ChartTemplateRegistry {
     }
     this.packTemplates.get(packId).add(id);
 
-    cblcarsLog.debug(`[ChartTemplateRegistry] Registered template: ${id} (pack: ${packId})`);
+    lcardsLog.debug(`[ChartTemplateRegistry] Registered template: ${id} (pack: ${packId})`);
   }
 
   /**
@@ -61,7 +61,7 @@ export class ChartTemplateRegistry {
    */
   registerFromPack(packId, chartTemplates) {
     if (!chartTemplates || typeof chartTemplates !== 'object') {
-      cblcarsLog.warn(`[ChartTemplateRegistry] Invalid chartTemplates for pack: ${packId}`);
+      lcardsLog.warn(`[ChartTemplateRegistry] Invalid chartTemplates for pack: ${packId}`);
       return;
     }
 
@@ -71,7 +71,7 @@ export class ChartTemplateRegistry {
       count++;
     });
 
-    cblcarsLog.debug(`[ChartTemplateRegistry] Registered templates from pack: ${packId}`);
+    lcardsLog.debug(`[ChartTemplateRegistry] Registered templates from pack: ${packId}`);
   }
 
   /**
@@ -82,7 +82,7 @@ export class ChartTemplateRegistry {
    */
   get(id) {
     if (!this.templates.has(id)) {
-      cblcarsLog.warn(`[ChartTemplateRegistry] Template not found: ${id}`);
+      lcardsLog.warn(`[ChartTemplateRegistry] Template not found: ${id}`);
       return null;
     }
 
@@ -94,7 +94,7 @@ export class ChartTemplateRegistry {
       if (parent) {
         return this._mergeTemplates(parent, template);
       } else {
-        cblcarsLog.warn(`[ChartTemplateRegistry] Parent template not found: ${template.extends}`);
+        lcardsLog.warn(`[ChartTemplateRegistry] Parent template not found: ${template.extends}`);
         return template; // Return child without parent merge
       }
     }
@@ -133,7 +133,7 @@ export class ChartTemplateRegistry {
 
     const template = this.get(overlay.template);
     if (!template) {
-      cblcarsLog.warn(`[ChartTemplateRegistry] Template not found: ${overlay.template}`);
+      lcardsLog.warn(`[ChartTemplateRegistry] Template not found: ${overlay.template}`);
       return overlay; // Return unchanged
     }
 
@@ -149,7 +149,7 @@ export class ChartTemplateRegistry {
     delete merged._templateId;
     delete merged.extends;
 
-    cblcarsLog.debug(`[ChartTemplateRegistry] Applied template: ${overlay.template} to overlay: ${overlay.id}`);
+    lcardsLog.debug(`[ChartTemplateRegistry] Applied template: ${overlay.template} to overlay: ${overlay.id}`);
 
     return merged;
   }
@@ -224,7 +224,7 @@ export class ChartTemplateRegistry {
   clear() {
     this.templates.clear();
     this.packTemplates.clear();
-    cblcarsLog.debug('[ChartTemplateRegistry] Cleared all templates');
+    lcardsLog.debug('[ChartTemplateRegistry] Cleared all templates');
   }
 }
 
@@ -234,25 +234,25 @@ export const chartTemplateRegistry = new ChartTemplateRegistry();
 // NEW: Make registry globally accessible for debugging
 if (typeof window !== 'undefined') {
   // Safely create nested namespace structure
-  window.cblcars = window.cblcars || {};
-  window.cblcars.debug = window.cblcars.debug || {};
-  window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+  window.lcards = window.lcards || {};
+  window.lcards.debug = window.lcards.debug || {};
+  window.lcards.debug.msd = window.lcards.debug.msd || {};
 
   // ✅ PHASE 4: Move to _internal namespace
-  if (!window.cblcars.debug.msd.pipelineInstance) {
-    window.cblcars.debug.msd.pipelineInstance = {};
+  if (!window.lcards.debug.msd.pipelineInstance) {
+    window.lcards.debug.msd.pipelineInstance = {};
   }
-  if (!window.cblcars.debug.msd.pipelineInstance._internal) {
-    window.cblcars.debug.msd.pipelineInstance._internal = {};
+  if (!window.lcards.debug.msd.pipelineInstance._internal) {
+    window.lcards.debug.msd.pipelineInstance._internal = {};
   }
 
-  window.cblcars.debug.msd.pipelineInstance._internal.chartTemplateRegistry = chartTemplateRegistry;
+  window.lcards.debug.msd.pipelineInstance._internal.chartTemplateRegistry = chartTemplateRegistry;
 
   // ✅ PHASE 4: Deprecated - use pipelineInstance._internal.chartTemplateRegistry
-  window.cblcars.debug.msd.chartTemplateRegistry = chartTemplateRegistry;
+  window.lcards.debug.msd.chartTemplateRegistry = chartTemplateRegistry;
 
   // Add helper methods to window for easier console access
-  window.cblcars.debug.msd.templates = {
+  window.lcards.debug.msd.templates = {
     list: (packId) => chartTemplateRegistry.listTemplates(packId),
     get: (id) => chartTemplateRegistry.get(id),
     apply: (overlay) => chartTemplateRegistry.applyTemplate(overlay)

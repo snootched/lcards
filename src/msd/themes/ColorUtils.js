@@ -8,7 +8,7 @@
  * @module msd/themes/ColorUtils
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * ColorUtils - Utilities for color manipulation
@@ -107,7 +107,7 @@ export class ColorUtils {
   static saturate(color, percent = 0.2) {
     // CSS variables require browser-side computation (future enhancement)
     if (this._isCssVariable(color)) {
-      cblcarsLog.warn('[ColorUtils] saturate() with CSS variables not yet supported, returning original');
+      lcardsLog.warn('[ColorUtils] saturate() with CSS variables not yet supported, returning original');
       return color;
     }
 
@@ -131,7 +131,7 @@ export class ColorUtils {
   static desaturate(color, percent = 0.2) {
     // CSS variables require browser-side computation (future enhancement)
     if (this._isCssVariable(color)) {
-      cblcarsLog.warn('[ColorUtils] desaturate() with CSS variables not yet supported, returning original');
+      lcardsLog.warn('[ColorUtils] desaturate() with CSS variables not yet supported, returning original');
       return color;
     }
 

@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 /**
  * [MsdHudManager] MSD HUD manager - coordinates all debug panels
  * 🎛️ Provides development interface for monitoring MSD v1 pipeline
@@ -19,17 +19,17 @@ import { SelectionManager } from './hudService.js'; // ADDED
 import { OverlaysPanel } from './panels/OverlaysPanel.js'; // ADDED
 
 // FIXED: Move debug verification to constructor only, not on every import
-cblcarsLog.debug('[MsdHudManager] 📋 Importing ExportPanel class');
+lcardsLog.debug('[MsdHudManager] 📋 Importing ExportPanel class');
 
 export class MsdHudManager {
   constructor() {
     // FIXED: Test ExportPanel instantiation only once during construction
-    cblcarsLog.debug('[MsdHudManager] 🔧 Testing ExportPanel instantiation...');
+    lcardsLog.debug('[MsdHudManager] 🔧 Testing ExportPanel instantiation...');
     try {
       const testExportPanel = new ExportPanel();
-      cblcarsLog.debug('[MsdHudManager] ✅ ExportPanel test successful');
+      lcardsLog.debug('[MsdHudManager] ✅ ExportPanel test successful');
     } catch (e) {
-      cblcarsLog.error('[MsdHudManager] ❌ ExportPanel instantiation failed:', e);
+      lcardsLog.error('[MsdHudManager] ❌ ExportPanel instantiation failed:', e);
     }
 
     this.bus = new HudEventBus(); // ADDED
@@ -50,7 +50,7 @@ export class MsdHudManager {
     };
 
     // FIXED: Only log panel creation once during construction
-    cblcarsLog.debug('[MsdHudManager] 📊 Created panels:', Object.keys(this.panels));
+    lcardsLog.debug('[MsdHudManager] 📊 Created panels:', Object.keys(this.panels));
 
     this.state = {
       visible: false,
@@ -83,7 +83,7 @@ export class MsdHudManager {
     };
 
     // FIXED: Only log state once during construction
-    cblcarsLog.debug('[MsdHudManager] 📋 Initial panel order:', this.state.panelOrder);
+    lcardsLog.debug('[MsdHudManager] 📋 Initial panel order:', this.state.panelOrder);
 
     this.hudElement = null;
     this.refreshInterval = null;
@@ -186,7 +186,7 @@ export class MsdHudManager {
           }
         }
 
-        cblcarsLog.debug('[MsdHudManager] 🎛️ Panel manager toggled:', self.state.panelManagerOpen);
+        lcardsLog.debug('[MsdHudManager] 🎛️ Panel manager toggled:', self.state.panelManagerOpen);
       },
 
       // ADDED: Close panel manager handler
@@ -198,7 +198,7 @@ export class MsdHudManager {
           manager.style.display = 'none';
         }
 
-        cblcarsLog.debug('[MsdHudManager] 🚫 Panel manager closed');
+        lcardsLog.debug('[MsdHudManager] 🚫 Panel manager closed');
       },
 
       // ADDED: Font size controls
@@ -215,7 +215,7 @@ export class MsdHudManager {
         if (newSize !== self.state.fontSize) {
           self.state.fontSize = newSize;
           self._applyFontAndScale();
-          cblcarsLog.debug(`[MsdHudManager] 🔤 Font size adjusted to ${newSize}px`);
+          lcardsLog.debug(`[MsdHudManager] 🔤 Font size adjusted to ${newSize}px`);
         }
       },
 
@@ -224,7 +224,7 @@ export class MsdHudManager {
         if (newSize !== self.state.fontSize) {
           self.state.fontSize = newSize;
           self._applyFontAndScale();
-          cblcarsLog.debug(`[MsdHudManager] 🔤 Font size set to ${newSize}px`);
+          lcardsLog.debug(`[MsdHudManager] 🔤 Font size set to ${newSize}px`);
         }
       },
 
@@ -242,7 +242,7 @@ export class MsdHudManager {
         if (Math.abs(newScale - self.state.hudScale) > 0.05) {
           self.state.hudScale = newScale;
           self._applyFontAndScale();
-          cblcarsLog.debug(`[MsdHudManager] 📏 HUD scale adjusted to ${newScale.toFixed(2)}x`);
+          lcardsLog.debug(`[MsdHudManager] 📏 HUD scale adjusted to ${newScale.toFixed(2)}x`);
         }
       },
 
@@ -251,13 +251,13 @@ export class MsdHudManager {
         if (Math.abs(newScale - self.state.hudScale) > 0.05) {
           self.state.hudScale = newScale;
           self._applyFontAndScale();
-          cblcarsLog.debug(`[MsdHudManager] 📏 HUD scale set to ${newScale.toFixed(2)}x`);
+          lcardsLog.debug(`[MsdHudManager] 📏 HUD scale set to ${newScale.toFixed(2)}x`);
         }
       },
 
       // ADDED: Font family controls
       setFontFamily: function(family) {
-        cblcarsLog.debug(`[MsdHudManager] 🎨 setFontFamily called with: "${family}"`);
+        lcardsLog.debug(`[MsdHudManager] 🎨 setFontFamily called with: "${family}"`);
         const validFamilies = [
           '"Antonio", monospace',
           'monospace',
@@ -273,16 +273,16 @@ export class MsdHudManager {
           normalizedFamily = family.replace(/&quot;/g, '"');
         }
 
-        cblcarsLog.debug(`[MsdHudManager] 🔄 Normalized font family: "${normalizedFamily}"`);
+        lcardsLog.debug(`[MsdHudManager] 🔄 Normalized font family: "${normalizedFamily}"`);
 
         if (validFamilies.includes(normalizedFamily)) {
           self.state.fontFamily = normalizedFamily;
           self._applyFontAndScale();
           // FIXED: Don't force a content update that might close dropdowns
           // setTimeout(() => self.updateHudContent(), 50);
-          cblcarsLog.debug(`[MsdHudManager] ✅ Font family successfully set to: ${normalizedFamily}`);
+          lcardsLog.debug(`[MsdHudManager] ✅ Font family successfully set to: ${normalizedFamily}`);
         } else {
-          cblcarsLog.warn(`[MsdHudManager] ⚠️ Invalid font family: "${family}" (normalized: "${normalizedFamily}")`, {
+          lcardsLog.warn(`[MsdHudManager] ⚠️ Invalid font family: "${family}" (normalized: "${normalizedFamily}")`, {
             validFamilies,
             received: family,
             normalized: normalizedFamily
@@ -327,7 +327,7 @@ export class MsdHudManager {
       }
     }
 
-    cblcarsLog.debug(`[MsdHudManager] 🎨 Applied font: ${baseFontSize}px ${family}, scale: ${scale}x`);
+    lcardsLog.debug(`[MsdHudManager] 🎨 Applied font: ${baseFontSize}px ${family}, scale: ${scale}x`);
   }
 
   // ADDED: Auto-positioning logic
@@ -388,7 +388,7 @@ export class MsdHudManager {
       this.hudElement.style.transition = '';
     }, 300);
 
-    cblcarsLog.debug(`[MsdHudManager] 📏 Auto-positioned to (${left}, ${top}) avoiding header:${headerHeight}px sidebar:${sidebarWidth}px`);
+    lcardsLog.debug(`[MsdHudManager] 📏 Auto-positioned to (${left}, ${top}) avoiding header:${headerHeight}px sidebar:${sidebarWidth}px`);
   }
 
   // ADDED: Handle window resize for auto-positioning
@@ -417,36 +417,36 @@ export class MsdHudManager {
 
     // ENHANCED: Store mount element in debug interface for panels to access
     // ✅ PHASE 4: Move to _internal namespace
-    if (window.cblcars?.debug?.msd?.pipelineInstance) {
-      if (!window.cblcars.debug.msd.pipelineInstance._internal) {
-        window.cblcars.debug.msd.pipelineInstance._internal = {};
+    if (window.lcards?.debug?.msd?.pipelineInstance) {
+      if (!window.lcards.debug.msd.pipelineInstance._internal) {
+        window.lcards.debug.msd.pipelineInstance._internal = {};
       }
-      window.cblcars.debug.msd.pipelineInstance._internal.mountElement = mountElement;
+      window.lcards.debug.msd.pipelineInstance._internal.mountElement = mountElement;
 
       // ✅ PHASE 4: Deprecated - use pipelineInstance._internal.mountElement
-      window.cblcars.debug.msd.mountElement = mountElement;
+      window.lcards.debug.msd.mountElement = mountElement;
     }
 
     // ADDED: Setup centralized debug status access for panels
     this._setupDebugStatusHelper();
 
-    cblcarsLog.debug('[MsdHudManager] 🔗 Initialized with pipeline mount element reference');
+    lcardsLog.debug('[MsdHudManager] 🔗 Initialized with pipeline mount element reference');
   }
 
   // ADDED: Centralized debug status access for all panels
   _setupDebugStatusHelper() {
-    // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-    if (window.cblcars?.debug?.msd?.getDebugStatusSilent) return; // Already setup
+    // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+    if (window.lcards?.debug?.msd?.getDebugStatusSilent) return; // Already setup
 
     const W = typeof window !== 'undefined' ? window : {};
-    W.cblcars = W.cblcars || {};
-    W.cblcars.debug = W.cblcars.debug || {};
-    W.cblcars.debug.msd = W.cblcars.debug.msd || {};
+    W.lcards = W.lcards || {};
+    W.lcards.debug = W.lcards.debug || {};
+    W.lcards.debug.msd = W.lcards.debug.msd || {};
 
-    W.cblcars.debug.msd.getDebugStatusSilent = function() {
+    W.lcards.debug.msd.getDebugStatusSilent = function() {
       try {
         // Try debugManager first (preferred)
-        const pipelineInstance = W.cblcars?.debug?.msd?.pipelineInstance;
+        const pipelineInstance = W.lcards?.debug?.msd?.pipelineInstance;
         const debugManager = pipelineInstance?.systemsManager?.debugManager;
         if (debugManager?.getSnapshot) {
           return debugManager.getSnapshot();
@@ -514,31 +514,31 @@ export class MsdHudManager {
 
     // ADDED: HUD settings controls
     this.bus.on('refresh-rate:change', ({ value }) => {
-      cblcarsLog.debug('[MsdHudManager] ♻️ Refresh rate change event:', value);
+      lcardsLog.debug('[MsdHudManager] ♻️ Refresh rate change event:', value);
       const rate = parseInt(value);
       if (!isNaN(rate) && rate > 0) {
         this.setRefreshRate(rate);
-        cblcarsLog.debug('[MsdHudManager] ✅ Refresh rate set to:', rate);
+        lcardsLog.debug('[MsdHudManager] ✅ Refresh rate set to:', rate);
       }
     });
 
     this.bus.on('width:adjust', ({ delta }) => {
-      cblcarsLog.debug('[MsdHudManager] 📏 Width adjust event:', delta);
+      lcardsLog.debug('[MsdHudManager] 📏 Width adjust event:', delta);
       this.adjustWidth(parseInt(delta));
     });
 
     this.bus.on('font:adjust', ({ delta }) => {
-      cblcarsLog.debug('[MsdHudManager] 🔤 Font adjust event:', delta, 'throttled:', !!this._fontSizeThrottle);
+      lcardsLog.debug('[MsdHudManager] 🔤 Font adjust event:', delta, 'throttled:', !!this._fontSizeThrottle);
       window.__msdHudPanelControls?.adjustFontSize(parseInt(delta));
     });
 
     this.bus.on('scale:adjust', ({ delta }) => {
-      cblcarsLog.debug('[MsdHudManager] 📏 Scale adjust event:', delta, 'throttled:', !!this._scaleThrottle);
+      lcardsLog.debug('[MsdHudManager] 📏 Scale adjust event:', delta, 'throttled:', !!this._scaleThrottle);
       window.__msdHudPanelControls?.adjustHudScale(parseFloat(delta));
     });
 
     this.bus.on('font-family:change', ({ value }) => {
-      cblcarsLog.debug('[MsdHudManager] 🎨 Font family change event:', value);
+      lcardsLog.debug('[MsdHudManager] 🎨 Font family change event:', value);
       // FIXED: Add small delay to prevent event conflicts
       setTimeout(() => {
         window.__msdHudPanelControls?.setFontFamily(value);
@@ -546,13 +546,13 @@ export class MsdHudManager {
     });
 
     this.bus.on('font:reset', () => {
-      cblcarsLog.debug('[MsdHudManager] 🔄 Font reset event');
+      lcardsLog.debug('[MsdHudManager] 🔄 Font reset event');
       this.state.fontSize = 14;
       this.state.hudScale = 1.0;
       this.state.fontFamily = '"Antonio", monospace';
       this._applyFontAndScale();
       this.updateHudContent();
-      cblcarsLog.debug('[MsdHudManager] ✅ Font settings reset to defaults');
+      lcardsLog.debug('[MsdHudManager] ✅ Font settings reset to defaults');
     });
   }
 
@@ -712,7 +712,7 @@ export class MsdHudManager {
       <span style="background:#222;border:1px solid #444;padding:2px 6px;border-radius:4px;font-size:9px;">
         Focus: <strong style="color:#ffaa00;">${this.state.focusPanel}</strong>
         <button style="margin-left:6px;font-size:9px;background:#333;color:#ccc;border:1px solid #555;border-radius:3px;cursor:pointer;padding:0 4px;"
-          onclick="__msdHudBus && window.cblcars?.debug?.msd?.hud?.manager?.toggleFocusPanel && window.cblcars.debug.msd.hud.manager.toggleFocusPanel('${this.state.focusPanel}')">
+          onclick="__msdHudBus && window.lcards?.debug?.msd?.hud?.manager?.toggleFocusPanel && window.lcards.debug.msd.hud.manager.toggleFocusPanel('${this.state.focusPanel}')">
           Exit
         </button>
       </span>
@@ -800,7 +800,7 @@ export class MsdHudManager {
           if (/^-?\d+(\.\d+)?$/.test(rest[k])) rest[k] = Number(rest[k]);
         });
 
-        cblcarsLog.debug(`[MsdHudManager] 📡 Bus event: ${target.dataset.busEvent}`, rest);
+        lcardsLog.debug(`[MsdHudManager] 📡 Bus event: ${target.dataset.busEvent}`, rest);
         this.bus.emit(target.dataset.busEvent, rest);
       }, true);
     };
@@ -826,7 +826,7 @@ export class MsdHudManager {
     // FIXED: Skip update if any dropdown is currently open
     const openDropdowns = this.hudElement.querySelectorAll('select:focus, select:focus-within');
     if (openDropdowns.length > 0) {
-      cblcarsLog.debug('[MsdHudManager] 🚫 Skipping refresh - dropdown is open');
+      lcardsLog.debug('[MsdHudManager] 🚫 Skipping refresh - dropdown is open');
       return;
     }
 
@@ -842,7 +842,7 @@ export class MsdHudManager {
           data[panelName] = panel.captureData();
         }
       } catch (error) {
-        cblcarsLog.warn(`[MsdHudManager] ⚠️ Panel ${panelName} data capture failed:`, error);
+        lcardsLog.warn(`[MsdHudManager] ⚠️ Panel ${panelName} data capture failed:`, error);
         data[panelName] = { error: error.message };
       }
     });
@@ -880,11 +880,11 @@ export class MsdHudManager {
         }
       }
     } catch (error) {
-      cblcarsLog.error('[MsdHudManager] ❌ HUD render failed:', error);
+      lcardsLog.error('[MsdHudManager] ❌ HUD render failed:', error);
       this.hudElement.innerHTML = `
         <div class="msd-hud-header">
           <span class="msd-hud-title">MSD Debug HUD - Error</span>
-          <span class="msd-hud-close" onclick="window.cblcars?.debug?.msd?.hud?.hide?.()" title="Close">✕</span>
+          <span class="msd-hud-close" onclick="window.lcards?.debug?.msd?.hud?.hide?.()" title="Close">✕</span>
         </div>
         <div style="padding:8px;color:#ff6666;">
           Render failed: ${error.message}
@@ -1026,8 +1026,8 @@ export class MsdHudManager {
         <div id="msd-selection-badge" style="flex:1;display:flex;justify-content:center;"></div>
         <div class="msd-hud-controls">
           <span class="msd-hud-menu" onclick="window.__msdHudPanelControls?.togglePanelManager?.()" title="Panel Settings">⚙</span>
-          <span class="msd-hud-refresh" onclick="window.cblcars?.debug?.msd?.hud?.refresh?.()" title="Refresh">⟳</span>
-          <span class="msd-hud-close" onclick="window.cblcars?.debug?.msd?.hud?.hide?.()" title="Close">✕</span>
+          <span class="msd-hud-refresh" onclick="window.lcards?.debug?.msd?.hud?.refresh?.()" title="Refresh">⟳</span>
+          <span class="msd-hud-close" onclick="window.lcards?.debug?.msd?.hud?.hide?.()" title="Close">✕</span>
         </div>
       </div>
     `;
@@ -1041,7 +1041,7 @@ export class MsdHudManager {
     this.state.panelOrder.forEach(panelName => {
       const panel = this.panels[panelName];
       if (!panel) {
-        cblcarsLog.warn(`[MsdHudManager] ⚠️ Panel '${panelName}' not found in panels object`);
+        lcardsLog.warn(`[MsdHudManager] ⚠️ Panel '${panelName}' not found in panels object`);
         return;
       }
 
@@ -1064,7 +1064,7 @@ export class MsdHudManager {
 
         renderedPanelCount++;
       } catch (error) {
-        cblcarsLog.error(`[MsdHudManager] ❌ Panel ${panelName} render failed:`, error);
+        lcardsLog.error(`[MsdHudManager] ❌ Panel ${panelName} render failed:`, error);
         html += `<div class="msd-hud-panel ${hiddenClass}" data-panel="${panelName}">
           <h3>${panelName} (Error)</h3>
           <div class="msd-hud-section">Panel render failed: ${error.message}</div>
@@ -1200,7 +1200,7 @@ export class MsdHudManager {
   refresh() {
     if (this.state.visible && this.hudElement) {
       this.updateHudContent();
-      cblcarsLog.debug('[MsdHudManager] ♻️ Manual refresh triggered');
+      lcardsLog.debug('[MsdHudManager] ♻️ Manual refresh triggered');
     }
   }
 
@@ -1344,7 +1344,7 @@ export class MsdHudManager {
       // NOTE: Refresh rate, font controls, and width controls now use the event bus system
       // No manual event listeners needed for dropdowns and buttons with data-bus-event
     } catch (e) {
-      cblcarsLog.warn('[MsdHudManager] ⚠️ Failed to attach panel manager event listeners:', e);
+      lcardsLog.warn('[MsdHudManager] ⚠️ Failed to attach panel manager event listeners:', e);
     }
   }
 
@@ -1357,7 +1357,7 @@ export class MsdHudManager {
         this.hudElement.style.width = newWidth + 'px';
       }
 
-      cblcarsLog.debug(`[MsdHudManager] 📏 HUD width adjusted to ${newWidth}px`);
+      lcardsLog.debug(`[MsdHudManager] 📏 HUD width adjusted to ${newWidth}px`);
 
       setTimeout(() => this.updateHudContent(), 100);
     }
@@ -1440,9 +1440,9 @@ export class MsdHudManager {
     // ADDED: Apply font and scale settings after creating HUD element
     this._applyFontAndScale();
 
-    // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-    if (window.cblcars?.debug?.msd) {
-      window.cblcars.debug.msd.hud = {
+    // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+    if (window.lcards?.debug?.msd) {
+      window.lcards.debug.msd.hud = {
         manager: this,
         refresh: () => this.refresh(),
         hide: () => this.hide(),
@@ -1455,7 +1455,7 @@ export class MsdHudManager {
     if (this.state.autoPosition) {
       setTimeout(() => this._autoPositionHud(), 100);
     }
-    cblcarsLog.debug('[MsdHudManager] ✅ HUD activated and exposed globally');
+    lcardsLog.debug('[MsdHudManager] ✅ HUD activated and exposed globally');
   }
 
   // ADDED: Previously removed hide() method
@@ -1467,6 +1467,6 @@ export class MsdHudManager {
       this.hudElement.remove();
       this.hudElement = null;
     }
-    cblcarsLog.debug('[MsdHudManager] 🚫 HUD deactivated');
+    lcardsLog.debug('[MsdHudManager] 🚫 HUD deactivated');
   }
 }

@@ -12,7 +12,7 @@
  * @module msd/styles/TokenResolver
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Token Resolver for theme token resolution
@@ -87,7 +87,7 @@ export class TokenResolver {
   _resolveToken(tokenPath, fallback, context, depth) {
     // Check recursion depth
     if (depth >= this.maxRecursionDepth) {
-      cblcarsLog.warn('[TokenResolver] Max recursion depth reached for:', tokenPath);
+      lcardsLog.warn('[TokenResolver] Max recursion depth reached for:', tokenPath);
       this.stats.failures++;
       return {
         value: fallback,
@@ -152,7 +152,7 @@ export class TokenResolver {
         try {
           value = value(context);
         } catch (error) {
-          cblcarsLog.warn('[TokenResolver] Context function error:', tokenPath, error);
+          lcardsLog.warn('[TokenResolver] Context function error:', tokenPath, error);
           this.stats.failures++;
           return {
             value: fallback,
@@ -184,7 +184,7 @@ export class TokenResolver {
       };
 
     } catch (error) {
-      cblcarsLog.warn('[TokenResolver] Resolution error:', tokenPath, error);
+      lcardsLog.warn('[TokenResolver] Resolution error:', tokenPath, error);
       this.stats.failures++;
       return {
         value: fallback,
@@ -271,7 +271,7 @@ export class TokenResolver {
 
       return null;
     } catch (error) {
-      cblcarsLog.warn('[TokenResolver] Error getting theme:', error);
+      lcardsLog.warn('[TokenResolver] Error getting theme:', error);
       return null;
     }
   }

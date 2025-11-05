@@ -12,7 +12,7 @@
  * @module MsdRuntimeAPI
  */
 
-import { cblcarsLog } from '../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../utils/lcards-logging.js';
 import { MsdInstanceManager } from '../msd/pipeline/MsdInstanceManager.js';
 import { MsdIntrospection } from '../msd/introspection/MsdIntrospection.js';
 
@@ -40,7 +40,7 @@ export class MsdRuntimeAPI {
        * @returns {Object|null} Pipeline API instance or null if not available
        *
        * @example
-       * const instance = window.cblcars.msd.getInstance();
+       * const instance = window.lcards.msd.getInstance();
        * console.log('Instance:', instance);
        */
       getInstance(cardId = null) {
@@ -48,19 +48,19 @@ export class MsdRuntimeAPI {
           const instance = MsdInstanceManager.getCurrentInstance();
 
           if (!instance) {
-            cblcarsLog.debug('[RuntimeAPI] No MSD instance available');
+            lcardsLog.debug('[RuntimeAPI] No MSD instance available');
             return null;
           }
 
           // In Phase X, we'd use cardId to select specific instance
           // For now, just log if cardId was provided (for future compatibility testing)
           if (cardId) {
-            cblcarsLog.debug('[RuntimeAPI] cardId parameter provided but ignored in single-instance mode:', cardId);
+            lcardsLog.debug('[RuntimeAPI] cardId parameter provided but ignored in single-instance mode:', cardId);
           }
 
           return instance;
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] Error getting instance:', error);
+          lcardsLog.error('[RuntimeAPI] Error getting instance:', error);
           return null;
         }
       },
@@ -74,7 +74,7 @@ export class MsdRuntimeAPI {
        * @returns {Object|null} Current pipeline API instance
        *
        * @example
-       * const current = window.cblcars.msd.getCurrentInstance();
+       * const current = window.lcards.msd.getCurrentInstance();
        * if (current) {
        *   console.log('MSD is active');
        * }
@@ -91,7 +91,7 @@ export class MsdRuntimeAPI {
        * @returns {Array} Array of pipeline instances (length 0 or 1 in Phase 0)
        *
        * @example
-       * const instances = window.cblcars.msd.getAllInstances();
+       * const instances = window.lcards.msd.getAllInstances();
        * console.log(`Found ${instances.length} instance(s)`);
        */
       getAllInstances() {
@@ -113,7 +113,7 @@ export class MsdRuntimeAPI {
        * @returns {Object|null} State object or null if instance not available
        *
        * @example
-       * const state = window.cblcars.msd.getState();
+       * const state = window.lcards.msd.getState();
        * console.log('Overlays:', state.overlays);
        * console.log('Anchors:', state.anchors);
        */
@@ -133,7 +133,7 @@ export class MsdRuntimeAPI {
             hasBaseSvg: !!model.base_svg
           };
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] Error getting state:', error);
+          lcardsLog.error('[RuntimeAPI] Error getting state:', error);
           return null;
         }
       },
@@ -148,7 +148,7 @@ export class MsdRuntimeAPI {
        * @returns {Object|null} Configuration object or null
        *
        * @example
-       * const config = window.cblcars.msd.getConfig();
+       * const config = window.lcards.msd.getConfig();
        * console.log('Base SVG:', config.base_svg);
        * console.log('Overlays:', config.overlays);
        */
@@ -160,7 +160,7 @@ export class MsdRuntimeAPI {
           const model = instance.getResolvedModel?.();
           return model || null;
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] Error getting config:', error);
+          lcardsLog.error('[RuntimeAPI] Error getting config:', error);
           return null;
         }
       },
@@ -176,7 +176,7 @@ export class MsdRuntimeAPI {
        * @returns {Object} Validation result with success flag, errors, and warnings
        *
        * @example
-       * const result = window.cblcars.msd.validate();
+       * const result = window.lcards.msd.validate();
        * if (!result.success) {
        *   console.error('Validation errors:', result.errors);
        *   console.warn('Validation warnings:', result.warnings);
@@ -234,13 +234,13 @@ export class MsdRuntimeAPI {
           }
 
           // Fallback if validation results not available (shouldn't normally happen)
-          cblcarsLog.warn('[RuntimeAPI.validate] No validation results found in model');
+          lcardsLog.warn('[RuntimeAPI.validate] No validation results found in model');
           return {
             success: true,
             message: 'Validation results not available (validation may not have run)',
             warning: 'Consider rebuilding configuration to get validation results'
           };        } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] Validation error:', error);
+          lcardsLog.error('[RuntimeAPI] Validation error:', error);
           return {
             success: false,
             error: {
@@ -269,11 +269,11 @@ export class MsdRuntimeAPI {
          *
          * @example
          * // Apply theme (single-instance - cardId optional)
-         * window.cblcars.msd.theme.apply('lcars-ds9');
+         * window.lcards.msd.theme.apply('lcars-ds9');
          *
          * @example
          * // Future: specify card instance
-         * window.cblcars.msd.theme.apply('my-card', 'lcars-voyager');
+         * window.lcards.msd.theme.apply('my-card', 'lcars-voyager');
          */
         apply(cardId, themeName) {
           // Handle flexible arguments: apply(themeName) or apply(cardId, themeName)
@@ -284,22 +284,22 @@ export class MsdRuntimeAPI {
 
           try {
             // Get theme manager from global namespace
-            const themeManager = window.cblcars?.theme;
+            const themeManager = window.lcards?.theme;
 
             if (!themeManager) {
-              cblcarsLog.error('[RuntimeAPI] ThemeManager not available');
+              lcardsLog.error('[RuntimeAPI] ThemeManager not available');
               return false;
             }
 
             if (!themeManager.initialized) {
-              cblcarsLog.warn('[RuntimeAPI] ThemeManager not initialized');
+              lcardsLog.warn('[RuntimeAPI] ThemeManager not initialized');
               return false;
             }
 
             // Check if theme exists
             if (!themeManager.themes.has(themeName)) {
-              cblcarsLog.error(`[RuntimeAPI] Theme not found: ${themeName}`);
-              cblcarsLog.info('[RuntimeAPI] Available themes:', themeManager.listThemes());
+              lcardsLog.error(`[RuntimeAPI] Theme not found: ${themeName}`);
+              lcardsLog.info('[RuntimeAPI] Available themes:', themeManager.listThemes());
               return false;
             }
 
@@ -308,11 +308,11 @@ export class MsdRuntimeAPI {
             // In multi-instance phase, we'd need to get the instance and activate theme per-instance
             themeManager.activateTheme(themeName);
 
-            cblcarsLog.info(`[RuntimeAPI] ✅ Theme applied: ${themeName}`);
+            lcardsLog.info(`[RuntimeAPI] ✅ Theme applied: ${themeName}`);
             return true;
 
           } catch (error) {
-            cblcarsLog.error('[RuntimeAPI] Error applying theme:', error);
+            lcardsLog.error('[RuntimeAPI] Error applying theme:', error);
             return false;
           }
         },
@@ -327,29 +327,29 @@ export class MsdRuntimeAPI {
          * @returns {Object|null} Current theme info or null if not available
          *
          * @example
-         * const theme = window.cblcars.msd.theme.getCurrent();
+         * const theme = window.lcards.msd.theme.getCurrent();
          * console.log('Active theme:', theme.name);
          * console.log('Theme ID:', theme.id);
          * console.log('From pack:', theme.packId);
          */
         getCurrent(cardId = null) {
           try {
-            const themeManager = window.cblcars?.theme;
+            const themeManager = window.lcards?.theme;
 
             if (!themeManager) {
-              cblcarsLog.warn('[RuntimeAPI] ThemeManager not available');
+              lcardsLog.warn('[RuntimeAPI] ThemeManager not available');
               return null;
             }
 
             if (!themeManager.initialized) {
-              cblcarsLog.warn('[RuntimeAPI] ThemeManager not initialized');
+              lcardsLog.warn('[RuntimeAPI] ThemeManager not initialized');
               return null;
             }
 
             return themeManager.getActiveTheme();
 
           } catch (error) {
-            cblcarsLog.error('[RuntimeAPI] Error getting current theme:', error);
+            lcardsLog.error('[RuntimeAPI] Error getting current theme:', error);
             return null;
           }
         },
@@ -363,27 +363,27 @@ export class MsdRuntimeAPI {
          * @returns {Array} Array of theme info objects
          *
          * @example
-         * const themes = window.cblcars.msd.theme.list();
+         * const themes = window.lcards.msd.theme.list();
          * themes.forEach(theme => {
          *   console.log(`${theme.id}: ${theme.name} (from ${theme.packId})`);
          * });
          *
          * @example
          * // Get just the theme IDs
-         * const themeIds = window.cblcars.msd.theme.list().map(t => t.id);
+         * const themeIds = window.lcards.msd.theme.list().map(t => t.id);
          * console.log('Available themes:', themeIds);
          */
         list() {
           try {
-            const themeManager = window.cblcars?.theme;
+            const themeManager = window.lcards?.theme;
 
             if (!themeManager) {
-              cblcarsLog.warn('[RuntimeAPI] ThemeManager not available');
+              lcardsLog.warn('[RuntimeAPI] ThemeManager not available');
               return [];
             }
 
             if (!themeManager.initialized) {
-              cblcarsLog.warn('[RuntimeAPI] ThemeManager not initialized');
+              lcardsLog.warn('[RuntimeAPI] ThemeManager not initialized');
               return [];
             }
 
@@ -392,7 +392,7 @@ export class MsdRuntimeAPI {
             return themeIds.map(id => themeManager.getTheme(id)).filter(Boolean);
 
           } catch (error) {
-            cblcarsLog.error('[RuntimeAPI] Error listing themes:', error);
+            lcardsLog.error('[RuntimeAPI] Error listing themes:', error);
             return [];
           }
         }
@@ -413,7 +413,7 @@ export class MsdRuntimeAPI {
          * @returns {Array} Array of overlay objects
          *
          * @example
-         * const overlays = window.cblcars.msd.overlays.list();
+         * const overlays = window.lcards.msd.overlays.list();
          * console.log(`Found ${overlays.length} overlays`);
          * overlays.forEach(ov => console.log(ov.id, ov.type));
          */
@@ -433,7 +433,7 @@ export class MsdRuntimeAPI {
               size: overlay.size || [100, 50]
             }));
           } catch (error) {
-            cblcarsLog.error('[RuntimeAPI] Error listing overlays:', error);
+            lcardsLog.error('[RuntimeAPI] Error listing overlays:', error);
             return [];
           }
         },
@@ -450,7 +450,7 @@ export class MsdRuntimeAPI {
          *
          * @example
          * // Show specific overlay
-         * window.cblcars.msd.overlays.show('overlay-1');
+         * window.lcards.msd.overlays.show('overlay-1');
          */
         show(cardId, overlayId) {
           // Handle single-arg case: show(overlayId)
@@ -459,8 +459,8 @@ export class MsdRuntimeAPI {
             cardId = null;
           }
 
-          cblcarsLog.warn('[RuntimeAPI] overlays.show() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[RuntimeAPI] This will control overlay visibility dynamically');
+          lcardsLog.warn('[RuntimeAPI] overlays.show() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[RuntimeAPI] This will control overlay visibility dynamically');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -485,7 +485,7 @@ export class MsdRuntimeAPI {
          *
          * @example
          * // Hide specific overlay
-         * window.cblcars.msd.overlays.hide('overlay-1');
+         * window.lcards.msd.overlays.hide('overlay-1');
          */
         hide(cardId, overlayId) {
           // Handle single-arg case: hide(overlayId)
@@ -494,8 +494,8 @@ export class MsdRuntimeAPI {
             cardId = null;
           }
 
-          cblcarsLog.warn('[RuntimeAPI] overlays.hide() not yet implemented - planned for Phase 5');
-          cblcarsLog.info('[RuntimeAPI] This will control overlay visibility dynamically');
+          lcardsLog.warn('[RuntimeAPI] overlays.hide() not yet implemented - planned for Phase 5');
+          lcardsLog.info('[RuntimeAPI] This will control overlay visibility dynamically');
           return {
             error: 'NOT_IMPLEMENTED',
             message: 'Feature planned for Phase 5',
@@ -521,10 +521,10 @@ export class MsdRuntimeAPI {
          *
          * @example
          * // Highlight overlay for 2 seconds (default)
-         * window.cblcars.msd.overlays.highlight('overlay-1');
+         * window.lcards.msd.overlays.highlight('overlay-1');
          *
          * // Highlight for custom duration
-         * window.cblcars.msd.overlays.highlight('overlay-1', 3000);
+         * window.lcards.msd.overlays.highlight('overlay-1', 3000);
          */
         highlight(cardId, overlayId, duration = 2000) {
           // Handle argument variations:
@@ -550,24 +550,24 @@ export class MsdRuntimeAPI {
             const mountEl = instance?.renderer?.mountEl;
 
             if (!mountEl) {
-              cblcarsLog.warn('[RuntimeAPI] Mount element not available for highlighting');
+              lcardsLog.warn('[RuntimeAPI] Mount element not available for highlighting');
               return false;
             }
 
             // Check if MsdIntrospection.highlight is available
             if (typeof MsdIntrospection?.highlight === 'function') {
               MsdIntrospection.highlight([overlayId], { root: mountEl, duration });
-              cblcarsLog.debug('[RuntimeAPI] Highlighted overlay:', overlayId, 'for', duration, 'ms');
+              lcardsLog.debug('[RuntimeAPI] Highlighted overlay:', overlayId, 'for', duration, 'ms');
               return true;
             }
 
             // Fallback if MsdIntrospection not available
-            cblcarsLog.warn('[RuntimeAPI] MsdIntrospection.highlight not available');
-            cblcarsLog.debug('[RuntimeAPI] Would highlight:', overlayId, 'for', duration, 'ms');
+            lcardsLog.warn('[RuntimeAPI] MsdIntrospection.highlight not available');
+            lcardsLog.debug('[RuntimeAPI] Would highlight:', overlayId, 'for', duration, 'ms');
             return false;
 
           } catch (error) {
-            cblcarsLog.error('[RuntimeAPI] Error highlighting overlay:', error);
+            lcardsLog.error('[RuntimeAPI] Error highlighting overlay:', error);
             return false;
           }
         }
@@ -593,8 +593,8 @@ export class MsdRuntimeAPI {
           cardId = null;
         }
 
-        cblcarsLog.warn('[RuntimeAPI] trigger() not yet implemented - planned for Phase 5');
-        cblcarsLog.info('[RuntimeAPI] This will enable programmatic action triggering');
+        lcardsLog.warn('[RuntimeAPI] trigger() not yet implemented - planned for Phase 5');
+        lcardsLog.info('[RuntimeAPI] This will enable programmatic action triggering');
         return {
           error: 'NOT_IMPLEMENTED',
           message: 'Feature planned for Phase 5',
@@ -618,18 +618,18 @@ export class MsdRuntimeAPI {
        *
        * @example
        * // Simple usage
-       * window.cblcars.msd.animate('cpu_status', 'pulse');
+       * window.lcards.msd.animate('cpu_status', 'pulse');
        *
        * @example
        * // With parameters
-       * window.cblcars.msd.animate('cpu_status', 'pulse', {
+       * window.lcards.msd.animate('cpu_status', 'pulse', {
        *   duration: 500,
        *   color: 'var(--lcars-red)'
        * });
        *
        * @example
        * // With cardId (future multi-instance support)
-       * window.cblcars.msd.animate('card-123', 'cpu_status', 'glow', { duration: 800 });
+       * window.lcards.msd.animate('card-123', 'cpu_status', 'glow', { duration: 800 });
        */
       animate(cardId, overlayId, presetName, params = {}) {
         // Handle flexible arguments
@@ -644,7 +644,7 @@ export class MsdRuntimeAPI {
           overlayId = cardId;
           cardId = null;
         } else {
-          cblcarsLog.error('[RuntimeAPI] animate() invalid arguments');
+          lcardsLog.error('[RuntimeAPI] animate() invalid arguments');
           return {
             error: 'INVALID_ARGUMENTS',
             message: 'Expected: animate(overlayId, preset, [params]) or animate(cardId, overlayId, preset, [params])'
@@ -654,7 +654,7 @@ export class MsdRuntimeAPI {
         try {
           const instance = MsdRuntimeAPI.create().getInstance(cardId);
           if (!instance) {
-            cblcarsLog.warn('[RuntimeAPI] animate() - No MSD instance available');
+            lcardsLog.warn('[RuntimeAPI] animate() - No MSD instance available');
             return {
               error: 'NO_INSTANCE',
               message: 'MSD instance not available'
@@ -665,7 +665,7 @@ export class MsdRuntimeAPI {
           const animationManager = systemsManager?.animationManager;
 
           if (!animationManager) {
-            cblcarsLog.warn('[RuntimeAPI] animate() - AnimationManager not available');
+            lcardsLog.warn('[RuntimeAPI] animate() - AnimationManager not available');
             return {
               error: 'NO_ANIMATION_MANAGER',
               message: 'Animation system not initialized'
@@ -680,7 +680,7 @@ export class MsdRuntimeAPI {
           });
 
           if (result) {
-            cblcarsLog.debug(`[RuntimeAPI] Animation triggered: ${overlayId} / ${presetName}`);
+            lcardsLog.debug(`[RuntimeAPI] Animation triggered: ${overlayId} / ${presetName}`);
             return {
               success: true,
               overlayId,
@@ -696,7 +696,7 @@ export class MsdRuntimeAPI {
             };
           }
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] animate() error:', error);
+          lcardsLog.error('[RuntimeAPI] animate() error:', error);
           return {
             error: 'EXCEPTION',
             message: error.message
@@ -712,7 +712,7 @@ export class MsdRuntimeAPI {
        * @returns {Object} Result object
        *
        * @example
-       * window.cblcars.msd.stopAnimation('cpu_status');
+       * window.lcards.msd.stopAnimation('cpu_status');
        */
       stopAnimation(cardId, overlayId) {
         // Handle flexible arguments
@@ -734,10 +734,10 @@ export class MsdRuntimeAPI {
 
           animationManager.stopAnimation(overlayId);
 
-          cblcarsLog.debug(`[RuntimeAPI] Animation stopped: ${overlayId}`);
+          lcardsLog.debug(`[RuntimeAPI] Animation stopped: ${overlayId}`);
           return { success: true, overlayId };
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] stopAnimation() error:', error);
+          lcardsLog.error('[RuntimeAPI] stopAnimation() error:', error);
           return { error: 'EXCEPTION', message: error.message };
         }
       },
@@ -750,7 +750,7 @@ export class MsdRuntimeAPI {
        * @returns {Object} Result object
        *
        * @example
-       * window.cblcars.msd.pauseAnimation('cpu_status');
+       * window.lcards.msd.pauseAnimation('cpu_status');
        */
       pauseAnimation(cardId, overlayId) {
         // Handle flexible arguments
@@ -772,10 +772,10 @@ export class MsdRuntimeAPI {
 
           animationManager.pauseOverlay(overlayId);
 
-          cblcarsLog.debug(`[RuntimeAPI] Animation paused: ${overlayId}`);
+          lcardsLog.debug(`[RuntimeAPI] Animation paused: ${overlayId}`);
           return { success: true, overlayId };
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] pauseAnimation() error:', error);
+          lcardsLog.error('[RuntimeAPI] pauseAnimation() error:', error);
           return { error: 'EXCEPTION', message: error.message };
         }
       },
@@ -788,7 +788,7 @@ export class MsdRuntimeAPI {
        * @returns {Object} Result object
        *
        * @example
-       * window.cblcars.msd.resumeAnimation('cpu_status');
+       * window.lcards.msd.resumeAnimation('cpu_status');
        */
       resumeAnimation(cardId, overlayId) {
         // Handle flexible arguments
@@ -810,10 +810,10 @@ export class MsdRuntimeAPI {
 
           animationManager.resumeOverlay(overlayId);
 
-          cblcarsLog.debug(`[RuntimeAPI] Animation resumed: ${overlayId}`);
+          lcardsLog.debug(`[RuntimeAPI] Animation resumed: ${overlayId}`);
           return { success: true, overlayId };
         } catch (error) {
-          cblcarsLog.error('[RuntimeAPI] resumeAnimation() error:', error);
+          lcardsLog.error('[RuntimeAPI] resumeAnimation() error:', error);
           return { error: 'EXCEPTION', message: error.message };
         }
       }

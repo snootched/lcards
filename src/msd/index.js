@@ -17,18 +17,18 @@ export { mergePacks, validateMerged };
   if (typeof window === 'undefined') return;
 
   // Safely create nested namespace structure
-  window.cblcars = window.cblcars || {};
-  window.cblcars.debug = window.cblcars.debug || {};
-  window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+  window.lcards = window.lcards || {};
+  window.lcards.debug = window.lcards.debug || {};
+  window.lcards.debug.msd = window.lcards.debug.msd || {};
 
   // CRITICAL: Attach MsdInstanceManager FIRST before anything else
-  window.cblcars.debug.msd.MsdInstanceManager = MsdInstanceManager;
+  window.lcards.debug.msd.MsdInstanceManager = MsdInstanceManager;
 
-  console.log('[MSD index.js] ✅ MsdInstanceManager attached to window.cblcars.debug.msd:', !!window.cblcars.debug.msd.MsdInstanceManager);
+  console.log('[MSD index.js] ✅ MsdInstanceManager attached to window.lcards.debug.msd:', !!window.lcards.debug.msd.MsdInstanceManager);
 
   // CRITICAL FIX: Single Object.assign to preserve MsdInstanceManager
   // Previous bug: Two Object.assign calls caused the second to overwrite the first
-  Object.assign(window.cblcars.debug.msd, {
+  Object.assign(window.lcards.debug.msd, {
     // Core functions (preserve from first Object.assign)
     mergePacks,
     buildCardModel,
@@ -258,11 +258,11 @@ export { mergePacks, validateMerged };
   });
 
   // DataSourceManager property with getter
-  Object.defineProperty(window.cblcars.debug.msd, 'dataSourceManager', {
+  Object.defineProperty(window.lcards.debug.msd, 'dataSourceManager', {
     get() {
       // Simplified: Use pipelineInstance as single source of truth
-      return window.cblcars.debug.msd.pipelineInstance?.dataSourceManager ||
-             window.cblcars.debug.msd.pipelineInstance?.systemsManager?.dataSourceManager;
+      return window.lcards.debug.msd.pipelineInstance?.dataSourceManager ||
+             window.lcards.debug.msd.pipelineInstance?.systemsManager?.dataSourceManager;
     },
     configurable: true  // Allow it to be redefined if needed
   });

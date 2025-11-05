@@ -22,7 +22,7 @@
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * LineOverlay - Instance-based line overlay
@@ -57,7 +57,7 @@ export class LineOverlay extends OverlayBase {
     // Attachment points for overlay-to-overlay connections
     this.overlayAttachmentPoints = null;
 
-    cblcarsLog.debug(`[LineOverlay] Created instance for overlay ${overlay.id}`);
+    lcardsLog.debug(`[LineOverlay] Created instance for overlay ${overlay.id}`);
   }
 
   /**
@@ -72,7 +72,7 @@ export class LineOverlay extends OverlayBase {
 
     try {
       if (!this.routerCore) {
-        cblcarsLog.error(`[LineOverlay] RouterCore not available for overlay ${this.overlay.id}`);
+        lcardsLog.error(`[LineOverlay] RouterCore not available for overlay ${this.overlay.id}`);
         throw new Error('RouterCore not available');
       }
 
@@ -81,13 +81,13 @@ export class LineOverlay extends OverlayBase {
       const style = this.overlay.finalStyle || this.overlay.style || {};
       this._cachedLineStyle = this._resolveLineStyles(style, this.overlay.id, viewBox);
 
-      cblcarsLog.debug(`[LineOverlay] Initialized overlay ${this.overlay.id}:`, {
+      lcardsLog.debug(`[LineOverlay] Initialized overlay ${this.overlay.id}:`, {
         hasStyle: !!this._cachedLineStyle,
         features: this._cachedLineStyle?.features?.length || 0,
         routingStrategy: this.overlay.routing_strategy
       });
     } catch (error) {
-      cblcarsLog.error(`[LineOverlay] Error initializing overlay ${this.overlay.id}:`, error);
+      lcardsLog.error(`[LineOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
   }
@@ -99,7 +99,7 @@ export class LineOverlay extends OverlayBase {
    */
   setOverlayAttachmentPoints(overlayAttachmentPoints) {
     this.overlayAttachmentPoints = overlayAttachmentPoints;
-    cblcarsLog.debug(`[LineOverlay] Updated with ${overlayAttachmentPoints?.size || 0} attachment points`);
+    lcardsLog.debug(`[LineOverlay] Updated with ${overlayAttachmentPoints?.size || 0} attachment points`);
   }
 
   /**
@@ -114,7 +114,7 @@ export class LineOverlay extends OverlayBase {
    */
   render(overlay, anchors, viewBox, svgContainer, cardInstance) {
     if (!this.routerCore) {
-      cblcarsLog.error(`[LineOverlay] RouterCore not available for overlay ${overlay.id}`);
+      lcardsLog.error(`[LineOverlay] RouterCore not available for overlay ${overlay.id}`);
       return {
         markup: '',
         actionInfo: null,
@@ -134,11 +134,11 @@ export class LineOverlay extends OverlayBase {
     let anchor = this._resolveAnchor(overlay, anchors);
     let anchor2 = this._resolveAttachTo(overlay, anchors);
 
-    cblcarsLog.trace(`[LineOverlay] 📍 Resolved anchors for ${overlay.id}: anchor=[${anchor}], anchor2=[${anchor2}], attach_gap=${overlay.attach_gap}, anchor_gap=${overlay.anchor_gap}`);
+    lcardsLog.trace(`[LineOverlay] 📍 Resolved anchors for ${overlay.id}: anchor=[${anchor}], anchor2=[${anchor2}], attach_gap=${overlay.attach_gap}, anchor_gap=${overlay.anchor_gap}`);
 
     // Validate anchors
     if (!anchor || !Array.isArray(anchor) || anchor.length !== 2) {
-      cblcarsLog.error(`[LineOverlay] Invalid anchor for ${overlay.id}:`, { anchor });
+      lcardsLog.error(`[LineOverlay] Invalid anchor for ${overlay.id}:`, { anchor });
       return {
         markup: '',
         actionInfo: null,
@@ -157,7 +157,7 @@ export class LineOverlay extends OverlayBase {
       const pathResult = this.routerCore.computePath(routeRequest);
 
       if (!pathResult?.d) {
-        cblcarsLog.warn(`[LineOverlay] No path computed for line ${overlay.id}`);
+        lcardsLog.warn(`[LineOverlay] No path computed for line ${overlay.id}`);
         return {
           markup: '',
           actionInfo: null,
@@ -190,7 +190,7 @@ export class LineOverlay extends OverlayBase {
         this._buildEffects(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
 
-      cblcarsLog.debug(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
+      lcardsLog.debug(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
 
       const markup = `<g id="${overlay.id}"
                 data-overlay-id="${overlay.id}"
@@ -220,7 +220,7 @@ export class LineOverlay extends OverlayBase {
       };
 
     } catch (error) {
-      cblcarsLog.error(`[LineOverlay] Rendering failed for line ${overlay.id}:`, error);
+      lcardsLog.error(`[LineOverlay] Rendering failed for line ${overlay.id}:`, error);
 
       const fallback = this._renderFallbackLine(overlay, anchor, anchor2);
       return {
@@ -249,7 +249,7 @@ export class LineOverlay extends OverlayBase {
   update(overlayElement, overlay, sourceData) {
     // Lines typically don't update based on data changes
     // They update when anchor positions change, which triggers a full re-render
-    cblcarsLog.debug(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
+    lcardsLog.debug(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
     return true;
   }
 
@@ -258,7 +258,7 @@ export class LineOverlay extends OverlayBase {
    * Cleanup cached definitions and resources
    */
   destroy() {
-    cblcarsLog.debug(`[LineOverlay] Destroying overlay ${this.overlay.id}`);
+    lcardsLog.debug(`[LineOverlay] Destroying overlay ${this.overlay.id}`);
 
     // Clear caches
     this._cachedLineStyle = null;
@@ -417,7 +417,7 @@ export class LineOverlay extends OverlayBase {
    * @private
    */
   _resolveAnchor(overlay, anchors) {
-    cblcarsLog.trace(`[LineOverlay] 🎯 _resolveAnchor for ${overlay.id}:`, {
+    lcardsLog.trace(`[LineOverlay] 🎯 _resolveAnchor for ${overlay.id}:`, {
       anchor: overlay.anchor,
       anchor_side: overlay.anchor_side,
       hasOverlayAttachmentPoints: this.overlayAttachmentPoints?.has(overlay.anchor)
@@ -433,7 +433,7 @@ export class LineOverlay extends OverlayBase {
         ? `${overlay.anchor}.${anchorSide}`
         : overlay.anchor;
 
-      cblcarsLog.trace(`[LineOverlay] 🔍 Trying virtual anchor:`, {
+      lcardsLog.trace(`[LineOverlay] 🔍 Trying virtual anchor:`, {
         anchorSide,
         virtualAnchorId,
         hasInAnchors: !!anchors[virtualAnchorId]
@@ -442,7 +442,7 @@ export class LineOverlay extends OverlayBase {
       // Try to resolve the virtual anchor first (gap already applied by AdvancedRenderer)
       const virtualAnchor = OverlayUtils.resolvePosition(virtualAnchorId, anchors);
       if (virtualAnchor) {
-        cblcarsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
+        lcardsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
         return virtualAnchor;
       }
     }
@@ -457,7 +457,7 @@ export class LineOverlay extends OverlayBase {
         if (sourcePoint) {
           const anchorGap = overlay.anchor_gap || 0;
           const result = this._applyGapToAttachmentPoint(sourcePoint, anchorSide, anchorGap, sourceAttachmentPoints.bbox);
-          cblcarsLog.debug(`[LineOverlay] ✅ Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
+          lcardsLog.debug(`[LineOverlay] ✅ Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
           return result;
         }
       }
@@ -465,7 +465,7 @@ export class LineOverlay extends OverlayBase {
 
     // PRIORITY 3: Standard anchor resolution (final fallback)
     const fallback = OverlayUtils.resolvePosition(overlay.anchor, anchors);
-    cblcarsLog.debug(`[LineOverlay] 🔄 Using fallback resolution:`, fallback);
+    lcardsLog.debug(`[LineOverlay] 🔄 Using fallback resolution:`, fallback);
     return fallback;
   }
 
@@ -475,7 +475,7 @@ export class LineOverlay extends OverlayBase {
    * @private
    */
   _resolveAttachTo(overlay, anchors) {
-    cblcarsLog.trace(`[LineOverlay] 🎯 _resolveAttachTo for ${overlay.id}:`, {
+    lcardsLog.trace(`[LineOverlay] 🎯 _resolveAttachTo for ${overlay.id}:`, {
       attach_to: overlay.attach_to,
       attach_side: overlay.attach_side,
       hasOverlayAttachmentPoints: this.overlayAttachmentPoints?.has(overlay.attach_to)
@@ -491,7 +491,7 @@ export class LineOverlay extends OverlayBase {
         ? `${overlay.attach_to}.${attachSide}`
         : overlay.attach_to;
 
-      cblcarsLog.trace(`[LineOverlay] 🔍 Trying virtual anchor:`, {
+      lcardsLog.trace(`[LineOverlay] 🔍 Trying virtual anchor:`, {
         attachSide,
         virtualAnchorId,
         hasInAnchors: !!anchors[virtualAnchorId]
@@ -500,7 +500,7 @@ export class LineOverlay extends OverlayBase {
       // Try to resolve the virtual anchor first (gap already applied by AdvancedRenderer)
       const virtualAnchor = OverlayUtils.resolvePosition(virtualAnchorId, anchors);
       if (virtualAnchor) {
-        cblcarsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
+        lcardsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
         return virtualAnchor;
       }
     }
@@ -515,7 +515,7 @@ export class LineOverlay extends OverlayBase {
         if (targetPoint) {
           const attachGap = overlay.attach_gap || 0;
           const result = this._applyGapToAttachmentPoint(targetPoint, attachSide, attachGap, targetAttachmentPoints.bbox);
-          cblcarsLog.debug(`[LineOverlay] ✅ Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
+          lcardsLog.debug(`[LineOverlay] ✅ Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
           return result;
         }
       }
@@ -523,7 +523,7 @@ export class LineOverlay extends OverlayBase {
 
     // PRIORITY 3: Standard attach_to resolution (final fallback)
     const fallback = OverlayUtils.resolvePosition(overlay.attach_to, anchors);
-    cblcarsLog.debug(`[LineOverlay] 🔄 Using fallback resolution:`, fallback);
+    lcardsLog.debug(`[LineOverlay] 🔄 Using fallback resolution:`, fallback);
     return fallback;
   }
 
@@ -695,7 +695,7 @@ export class LineOverlay extends OverlayBase {
     const [x2, y2] = anchor2 || anchor;
     const color = overlay.style?.color || 'var(--lcars-orange)';
 
-    cblcarsLog.warn(`[LineOverlay] Using fallback rendering for overlay ${overlay.id}`);
+    lcardsLog.warn(`[LineOverlay] Using fallback rendering for overlay ${overlay.id}`);
 
     return `<g id="${overlay.id}" data-overlay-id="${overlay.id}" data-overlay-type="line" data-fallback="true">
               <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"

@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [DataSourceManager] Data source manager - manages multiple data sources and overlay subscriptions
@@ -39,7 +39,7 @@ export class DataSourceManager {
       throw new Error('DataSourceManager has been destroyed');
     }
 
-    cblcarsLog.debug(`[DataSourceManager] 🚀 Initializing ${Object.keys(dataSourceConfigs || {}).length} data sources`);
+    lcardsLog.debug(`[DataSourceManager] 🚀 Initializing ${Object.keys(dataSourceConfigs || {}).length} data sources`);
 
     // Create all data sources from config
     const promises = Object.entries(dataSourceConfigs || {}).map(async ([name, config]) => {
@@ -48,7 +48,7 @@ export class DataSourceManager {
         this._stats.sourcesCreated++;
         return source;
       } catch (error) {
-        cblcarsLog.warn(`[DataSourceManager] ⚠️ Failed to create source ${name}:`, error);
+        lcardsLog.warn(`[DataSourceManager] ⚠️ Failed to create source ${name}:`, error);
         this._stats.errors++;
         throw error;
       }
@@ -63,7 +63,7 @@ export class DataSourceManager {
 
     const successful = this.sources.size;
     const failed = Object.keys(dataSourceConfigs || {}).length - successful;
-    cblcarsLog.debug(`[DataSourceManager] ✅ Initialization complete: ${successful} successful, ${failed} failed`);
+    lcardsLog.debug(`[DataSourceManager] ✅ Initialization complete: ${successful} successful, ${failed} failed`);
 
     return successful;
   }
@@ -85,7 +85,7 @@ export class DataSourceManager {
         // CRITICAL: Update our hass object with the new state from the DataSource
         if (this.hass && this.hass.states && source._lastOriginalState) {
           this.hass.states[config.entity] = source._lastOriginalState;
-          cblcarsLog.debug(`[DataSourceManager] 🔄 Updated hass.states['${config.entity}'] to: ${source._lastOriginalState.state}`);
+          lcardsLog.debug(`[DataSourceManager] 🔄 Updated hass.states['${config.entity}'] to: ${source._lastOriginalState.state}`);
         }
 
         this._notifyGlobalEntityChangeListeners([config.entity]);
@@ -108,7 +108,7 @@ export class DataSourceManager {
       }
 
     } catch (error) {
-      cblcarsLog.warn(`[DataSourceManager] ⚠️ Failed to start source ${name}:`, error);
+      lcardsLog.warn(`[DataSourceManager] ⚠️ Failed to start source ${name}:`, error);
       this.sources.delete(name);
       this.entityIndex.delete(config.entity);
       this._stats.errors++;
@@ -127,7 +127,7 @@ export class DataSourceManager {
     const startTime = Date.now();
     const checkInterval = 100;
 
-    cblcarsLog.debug(`[DataSourceManager] ⏳ Waiting for history preloading...`);
+    lcardsLog.debug(`[DataSourceManager] ⏳ Waiting for history preloading...`);
 
     while (Date.now() - startTime < maxWaitMs) {
       let allReady = true;
@@ -145,11 +145,11 @@ export class DataSourceManager {
       }
 
       if (readySources > 0) {
-        cblcarsLog.debug(`[DataSourceManager] History loading progress: ${readySources}/${totalSources} sources ready`);
+        lcardsLog.debug(`[DataSourceManager] History loading progress: ${readySources}/${totalSources} sources ready`);
       }
 
       if (allReady || totalSources === 0) {
-        cblcarsLog.debug(`[DataSourceManager] ✅ History preloading complete in ${Date.now() - startTime}ms`);
+        lcardsLog.debug(`[DataSourceManager] ✅ History preloading complete in ${Date.now() - startTime}ms`);
         break;
       }
 
@@ -192,7 +192,7 @@ export class DataSourceManager {
             try {
               return source.buffer.getRecent(count || 100);
             } catch (error) {
-              cblcarsLog.warn(`[DataSourceManager] Error getting historical data for ${sourceId}:`, error);
+              lcardsLog.warn(`[DataSourceManager] Error getting historical data for ${sourceId}:`, error);
               return [];
             }
           },
@@ -200,7 +200,7 @@ export class DataSourceManager {
             try {
               return source.getTransformedHistory(transformKey, count || 100);
             } catch (error) {
-              cblcarsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${sourceId}.${transformKey}:`, error);
+              lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${sourceId}.${transformKey}:`, error);
               return [];
             }
           }
@@ -223,7 +223,7 @@ export class DataSourceManager {
           try {
             return source.buffer.getRecent(count || 100);
           } catch (error) {
-            cblcarsLog.warn(`[DataSourceManager] ⚠️ Error getting historical data for ${entityId}:`, error);
+            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting historical data for ${entityId}:`, error);
             return [];
           }
         },
@@ -231,7 +231,7 @@ export class DataSourceManager {
           try {
             return source.getTransformedHistory(transformKey, count || 100);
           } catch (error) {
-            cblcarsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${entityId}.${transformKey}:`, error);
+            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${entityId}.${transformKey}:`, error);
             return [];
           }
         },
@@ -334,7 +334,7 @@ export class DataSourceManager {
           try {
             return source.getTransformedHistory(transformKey, count || 100);
           } catch (error) {
-            cblcarsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${transformKey}:`, error);
+            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${transformKey}:`, error);
             return [];
           }
         };
@@ -361,7 +361,7 @@ export class DataSourceManager {
       try {
         callback(changedEntityIds);
       } catch (error) {
-        cblcarsLog.warn('[DataSourceManager] ⚠️ Global entity listener error:', error);
+        lcardsLog.warn('[DataSourceManager] ⚠️ Global entity listener error:', error);
       }
     });
   }
@@ -374,17 +374,17 @@ export class DataSourceManager {
    */
   subscribeOverlay(overlay, callback) {
     if (!overlay.source) {
-      cblcarsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: No source specified for overlay', overlay.id);
+      lcardsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: No source specified for overlay', overlay.id);
       return;
     }
 
     const source = this.sources.get(overlay.source);
     if (!source) {
-      cblcarsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: Source not found:', overlay.source);
+      lcardsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: Source not found:', overlay.source);
       return;
     }
 
-    cblcarsLog.debug(`[DataSourceManager] 🔗 Setting up subscription for ${overlay.id} to ${overlay.source}`);
+    lcardsLog.debug(`[DataSourceManager] 🔗 Setting up subscription for ${overlay.id} to ${overlay.source}`);
 
     // Subscribe to the data source with enhanced data for sparklines
     const unsubscribe = source.subscribeWithMetadata?.((data) => {
@@ -429,7 +429,7 @@ export class DataSourceManager {
     // This fixes the timing issue where overlays subscribe after data is ready
     const currentData = source.getCurrentData();
     if (currentData && (currentData.buffer?.size?.() > 0 || currentData.v !== undefined)) {
-      cblcarsLog.debug(`[DataSourceManager] 🔄 Providing immediate data for ${overlay.id}`);
+      lcardsLog.debug(`[DataSourceManager] 🔄 Providing immediate data for ${overlay.id}`);
 
       const immediateData = {
         ...currentData,
@@ -456,7 +456,7 @@ export class DataSourceManager {
     this.overlaySubscriptions.get(overlay.id).push(unsubscribe);
     this._stats.subscriptionsActive++;
 
-    cblcarsLog.debug(`[DataSourceManager] ✅ Subscribed ${overlay.type} overlay ${overlay.id} to source ${overlay.source} (${source.subscribers?.size || 0} total subscribers)`);
+    lcardsLog.debug(`[DataSourceManager] ✅ Subscribed ${overlay.type} overlay ${overlay.id} to source ${overlay.source} (${source.subscribers?.size || 0} total subscribers)`);
 
     return unsubscribe;
   }
@@ -468,7 +468,7 @@ export class DataSourceManager {
         try {
           unsubscribe();
         } catch (error) {
-          cblcarsLog.warn(`[DataSourceManager] ⚠️ Error unsubscribing overlay ${overlayId}:`, error);
+          lcardsLog.warn(`[DataSourceManager] ⚠️ Error unsubscribing overlay ${overlayId}:`, error);
           this._stats.errors++;
         }
       });
@@ -590,7 +590,7 @@ export class DataSourceManager {
           stopPromises.push(source.destroy());
         }
       } catch (error) {
-        cblcarsLog.warn(`[DataSourceManager] ⚠️ Error stopping source ${name}:`, error);
+        lcardsLog.warn(`[DataSourceManager] ⚠️ Error stopping source ${name}:`, error);
       }
     }
 
@@ -624,11 +624,11 @@ export class DataSourceManager {
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      cblcarsLog.warn('[DataSourceManager] ingestHass: Invalid HASS provided');
+      lcardsLog.warn('[DataSourceManager] ingestHass: Invalid HASS provided');
       return;
     }
 
-    cblcarsLog.debug('[DataSourceManager] 📥 ingestHass: Updating tracked entities', {
+    lcardsLog.debug('[DataSourceManager] 📥 ingestHass: Updating tracked entities', {
       entityCount: Object.keys(hass.states).length,
       trackedCount: this.entityIndex.size
     });
@@ -642,7 +642,7 @@ export class DataSourceManager {
     for (const [entityId, dataSource] of this.entityIndex.entries()) {
       if (hass.states[entityId]) {
         const freshState = hass.states[entityId];
-        cblcarsLog.debug(`[DataSourceManager] 🔄 Refreshing entity: ${entityId}`);
+        lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing entity: ${entityId}`);
 
         // Notify the data source of the fresh state
         // The data source will handle notifying its subscribers
@@ -652,6 +652,6 @@ export class DataSourceManager {
       }
     }
 
-    cblcarsLog.debug('[DataSourceManager] ✅ ingestHass: Complete');
+    lcardsLog.debug('[DataSourceManager] ✅ ingestHass: Complete');
   }
 }

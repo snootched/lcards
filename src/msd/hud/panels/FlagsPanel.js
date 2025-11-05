@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [FlagsPanel] Flags panel for MSD HUD
  * 🚩 Runtime debug feature management using actual MSD debug interface
@@ -14,19 +14,19 @@ export class FlagsPanel {
   }
 
   toggleFeature(feature) {
-    cblcarsLog.info('[FlagsPanel] 🔄 Toggle feature called:', feature);
+    lcardsLog.info('[FlagsPanel] 🔄 Toggle feature called:', feature);
 
-    if (!window.cblcars.debug.msd?.debug) {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ Debug interface not available');
+    if (!window.lcards.debug.msd?.debug) {
+      lcardsLog.warn('[FlagsPanel] ⚠️ Debug interface not available');
       return;
     }
 
     // FIXED: Use silent status access instead of status() which dumps to console
-    const debugManager = window.cblcars.debug.msd?.debugManager ||
-                         window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.debugManager;
+    const debugManager = window.lcards.debug.msd?.debugManager ||
+                         window.lcards.debug.msd?.pipelineInstance?.systemsManager?.debugManager;
 
     if (!debugManager) {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ DebugManager not available');
+      lcardsLog.warn('[FlagsPanel] ⚠️ DebugManager not available');
       return;
     }
 
@@ -34,72 +34,72 @@ export class FlagsPanel {
     const currentlyEnabled = currentStatus[feature];
 
     if (currentlyEnabled) {
-      window.cblcars.debug.msd.debug.disable(feature);
+      window.lcards.debug.msd.debug.disable(feature);
     } else {
-      window.cblcars.debug.msd.debug.enable(feature);
+      window.lcards.debug.msd.debug.enable(feature);
     }
 
     // FIXED: Force immediate re-render after state change
     setTimeout(() => {
       try {
-        const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+        const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
         if (pipelineInstance?.reRender) {
-          cblcarsLog.debug('[FlagsPanel] 🔄 Triggering re-render after', feature, currentlyEnabled ? 'disable' : 'enable');
+          lcardsLog.debug('[FlagsPanel] 🔄 Triggering re-render after', feature, currentlyEnabled ? 'disable' : 'enable');
           pipelineInstance.reRender();
         } else {
-          cblcarsLog.warn('[FlagsPanel] ⚠️ No reRender method available on pipeline instance');
+          lcardsLog.warn('[FlagsPanel] ⚠️ No reRender method available on pipeline instance');
         }
       } catch (error) {
-        cblcarsLog.warn('[FlagsPanel] ⚠️ Failed to trigger re-render:', error);
+        lcardsLog.warn('[FlagsPanel] ⚠️ Failed to trigger re-render:', error);
       }
     }, 50);
 
     // Refresh HUD after a delay to show updated state
     setTimeout(() => {
-      if (window.cblcars.debug.msd?.hud?.refresh) {
-        window.cblcars.debug.msd.hud.refresh();
+      if (window.lcards.debug.msd?.hud?.refresh) {
+        window.lcards.debug.msd.hud.refresh();
       }
     }, 100);
   }
 
   adjustScale(direction) {
-    if (!window.cblcars.debug.msd?.debug?.status) {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ Debug status not available for scale adjustment');
+    if (!window.lcards.debug.msd?.debug?.status) {
+      lcardsLog.warn('[FlagsPanel] ⚠️ Debug status not available for scale adjustment');
       return;
     }
 
-    const currentScale = window.cblcars.debug.msd.debug.status().scale || 1.0;
+    const currentScale = window.lcards.debug.msd.debug.status().scale || 1.0;
     const step = 0.1;
     const newScale = direction > 0 ? currentScale + step : currentScale - step;
     const clampedScale = Math.max(0.5, Math.min(3.0, newScale));
 
-    if (window.cblcars.debug.msd.debug.setScale) {
-      cblcarsLog.debug(`[FlagsPanel] 🔧 Adjusting scale from ${currentScale.toFixed(1)} to ${clampedScale.toFixed(1)}`);
-      window.cblcars.debug.msd.debug.setScale(clampedScale);
+    if (window.lcards.debug.msd.debug.setScale) {
+      lcardsLog.debug(`[FlagsPanel] 🔧 Adjusting scale from ${currentScale.toFixed(1)} to ${clampedScale.toFixed(1)}`);
+      window.lcards.debug.msd.debug.setScale(clampedScale);
     } else {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ setScale method not available');
+      lcardsLog.warn('[FlagsPanel] ⚠️ setScale method not available');
     }
   }
 
   setScale(scale) {
     const numScale = parseFloat(scale);
     if (isNaN(numScale)) {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ Invalid scale value:', scale);
+      lcardsLog.warn('[FlagsPanel] ⚠️ Invalid scale value:', scale);
       return;
     }
     const clampedScale = Math.max(0.5, Math.min(3.0, numScale));
 
-    if (window.cblcars.debug.msd?.debug?.setScale) {
-      cblcarsLog.debug(`[FlagsPanel] 📏 Setting scale to ${clampedScale.toFixed(1)}`);
-      window.cblcars.debug.msd.debug.setScale(clampedScale);
+    if (window.lcards.debug.msd?.debug?.setScale) {
+      lcardsLog.debug(`[FlagsPanel] 📏 Setting scale to ${clampedScale.toFixed(1)}`);
+      window.lcards.debug.msd.debug.setScale(clampedScale);
     } else {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ setScale method not available');
+      lcardsLog.warn('[FlagsPanel] ⚠️ setScale method not available');
     }
   }
 
   refreshDebug() {
-    cblcarsLog.debug('[FlagsPanel] ♻️ Refreshing debug interface');
-    window.cblcars.debug.msd?.debug?.refresh?.();
+    lcardsLog.debug('[FlagsPanel] ♻️ Refreshing debug interface');
+    window.lcards.debug.msd?.debug?.refresh?.();
   }
 
   captureData() {
@@ -108,15 +108,15 @@ export class FlagsPanel {
 
     try {
       // FIXED: Use centralized silent debug status access
-      const debugStatus = window.cblcars.debug.msd?.getDebugStatusSilent?.() || {};
+      const debugStatus = window.lcards.debug.msd?.getDebugStatusSilent?.() || {};
 
       // FIXED: Properly capture debug features and readiness
       Object.assign(debugFeatures, debugStatus);
 
       // Get current debug flags (legacy support)
-      Object.assign(flags, window.cblcars.debug.msd?._debugFlags || {});
+      Object.assign(flags, window.lcards.debug.msd?._debugFlags || {});
     } catch (e) {
-      cblcarsLog.warn('[FlagsPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[FlagsPanel] ⚠️ Data capture failed:', e);
     }
 
     return { flags, debugFeatures };
@@ -129,7 +129,7 @@ export class FlagsPanel {
     // Clear debug features list
     this.debugFeatures = null;
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(flagsData) {

@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { MsdTemplateEngine } from '../templates/MsdTemplateEngine.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 
@@ -68,7 +68,7 @@ export class DataSourceMixin {
    */
   static resolveDataSourceContent(dataSourceRef, style, rendererName = 'Renderer') {
     try {
-      const dataSourceManager = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+      const dataSourceManager = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
       if (!dataSourceManager) {
         // DataSourceManager not available - this is normal during initial rendering
         return null;
@@ -80,7 +80,7 @@ export class DataSourceMixin {
 
       if (!dataSource) {
         // Not necessarily an error - data sources may be optional or not initialized yet
-        cblcarsLog.debug(`[${rendererName}] DataSource '${sourceName}' not found`);
+        lcardsLog.debug(`[${rendererName}] DataSource '${sourceName}' not found`);
         return `[Source: ${sourceName} not found]`;
       }
 
@@ -111,7 +111,7 @@ export class DataSourceMixin {
       return `[${dataSourceRef}: no data]`;
 
     } catch (error) {
-      cblcarsLog.error(`[${rendererName}] ❌ Error resolving DataSource content:`, error);
+      lcardsLog.error(`[${rendererName}] ❌ Error resolving DataSource content:`, error);
       return `[DataSource Error: ${error.message}]`;
     }
   }
@@ -258,7 +258,7 @@ export class DataSourceMixin {
    */
   static processEnhancedTemplateStringsWithFallback(content, rendererName = 'Renderer', fallbackToOriginal = true) {
     try {
-      const dataSourceManager = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+      const dataSourceManager = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
       if (!dataSourceManager) {
         return fallbackToOriginal ? content : null;
       }
@@ -274,7 +274,7 @@ export class DataSourceMixin {
 
           if (!dataSource) {
             // Not necessarily an error - data sources may be optional or not initialized yet
-            cblcarsLog.debug(`[${rendererName}] DataSource '${sourceName}' not found`);
+            lcardsLog.debug(`[${rendererName}] DataSource '${sourceName}' not found`);
             hasUnresolvedTemplates = true;
             return fallbackToOriginal ? match : `[Source: ${sourceName} not found]`;
           }
@@ -293,7 +293,7 @@ export class DataSourceMixin {
             const aggData = currentData.aggregations[aggKey];
 
             if (aggData === null || aggData === undefined) {
-              cblcarsLog.warn(`[${rendererName}] 🔗 Aggregation '${aggKey}' not found in ${sourceName}`);
+              lcardsLog.warn(`[${rendererName}] 🔗 Aggregation '${aggKey}' not found in ${sourceName}`);
               hasUnresolvedTemplates = true;
               return fallbackToOriginal ? match : `[No data: ${reference}]`;
             }
@@ -319,7 +319,7 @@ export class DataSourceMixin {
           }
 
           if (value === null || value === undefined) {
-            cblcarsLog.warn(`[${rendererName}] 🔗 Template value not found: ${reference}`);
+            lcardsLog.warn(`[${rendererName}] 🔗 Template value not found: ${reference}`);
             hasUnresolvedTemplates = true;
             return fallbackToOriginal ? match : `[No data: ${reference}]`;
           }
@@ -336,7 +336,7 @@ export class DataSourceMixin {
           return String(value);
 
         } catch (error) {
-          cblcarsLog.error(`[${rendererName}] ❌ Template processing error for '${reference}':`, error);
+          lcardsLog.error(`[${rendererName}] ❌ Template processing error for '${reference}':`, error);
           hasUnresolvedTemplates = true;
           return fallbackToOriginal ? match : `[Error: ${reference}]`;
         }
@@ -344,13 +344,13 @@ export class DataSourceMixin {
 
       // Log whether templates were successfully resolved
       if (!hasUnresolvedTemplates && processedContent !== content) {
-        cblcarsLog.debug(`[${rendererName}] 🔗 Successfully resolved all templates`);
+        lcardsLog.debug(`[${rendererName}] 🔗 Successfully resolved all templates`);
       }
 
       return processedContent;
 
     } catch (error) {
-      cblcarsLog.error(`[${rendererName}] ❌ Enhanced template processing failed:`, error);
+      lcardsLog.error(`[${rendererName}] ❌ Enhanced template processing failed:`, error);
       return fallbackToOriginal ? content : null;
     }
   }
@@ -386,7 +386,7 @@ export class DataSourceMixin {
       return processedContent;
 
     } catch (error) {
-      cblcarsLog.error(`[${rendererName}] ❌ Unified template processing failed:`, error);
+      lcardsLog.error(`[${rendererName}] ❌ Unified template processing failed:`, error);
       return content;
     }
   }
@@ -414,7 +414,7 @@ export class DataSourceMixin {
       const compiled = templateEngine.compileTemplate(content, templateId);
       const result = templateEngine.evaluateTemplate(compiled, hassStates);
 
-      cblcarsLog.debug(`[${rendererName}] 🏠 HA template processed:`, {
+      lcardsLog.debug(`[${rendererName}] 🏠 HA template processed:`, {
         original: content,
         result: result,
         entityDependencies: compiled.entityDependencies
@@ -423,7 +423,7 @@ export class DataSourceMixin {
       return result;
 
     } catch (error) {
-      cblcarsLog.error(`[${rendererName}] ❌ HA template processing error:`, error);
+      lcardsLog.error(`[${rendererName}] ❌ HA template processing error:`, error);
       return content;
     }
   }
@@ -444,7 +444,7 @@ export class DataSourceMixin {
       }
       return engine;
     } catch (error) {
-      cblcarsLog.error('[DataSourceMixin] Failed to create MsdTemplateEngine instance:', error);
+      lcardsLog.error('[DataSourceMixin] Failed to create MsdTemplateEngine instance:', error);
       return null;
     }
   }
@@ -481,7 +481,7 @@ export class DataSourceMixin {
       try { engine.compiledTemplates?.delete?.(tempId); } catch (_) {}
       return deps;
     } catch (err) {
-      cblcarsLog.error('[DataSourceMixin] Error extracting HA entity dependencies:', err);
+      lcardsLog.error('[DataSourceMixin] Error extracting HA entity dependencies:', err);
       return [];
     }
   }
@@ -543,7 +543,7 @@ export class DataSourceMixin {
    * @returns {Object|null} DataSourceManager instance or null
    */
   static getDataSourceManager() {
-    return window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager || null;
+    return window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager || null;
   }
 
   /**

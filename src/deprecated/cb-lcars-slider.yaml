@@ -1,7 +1,7 @@
-cb-lcars-slider:
+lcards-slider:
   template:
-    - cb-lcars-card-base
-    - cb-lcars-functions
+    - lcards-card-base
+    - lcards-functions
   entity: '[[[ return variables.__get_random_entity("light"); ]]]'
   triggers_update: '[[[ return variables.entity ]]]'
   variables:
@@ -20,7 +20,7 @@ cb-lcars-slider:
     entity_match_slider_end: false
     meter:
       template:
-        - cb-lcars-meter
+        - lcards-meter
       variables:
         gradient_start_color: >
           [[[ return  variables.entity_match_slider_start ?
@@ -66,7 +66,7 @@ cb-lcars-slider:
   custom_fields:
     meter:
       card:
-        type: custom:cblcars-button-card
+        type: custom:lcards-button-card
         template: '[[[ return variables.meter.template ]]]'
         variables: '[[[ return variables.meter.variables ]]]'
     slider:
@@ -92,18 +92,18 @@ cb-lcars-slider:
             - background: none
           thumb:
             - background: none
-cb-lcars-slider-horizontal:
+lcards-slider-horizontal:
   template:
-    - cb-lcars-slider
+    - lcards-slider
   entity: '[[[ return variables.__get_random_entity("light"); ]]]'
   variables:
     meter:
-      template: cb-lcars-meter-horizontal
+      template: lcards-meter-horizontal
       variables:
         _gradient:
           gap: 5px
         button:
-          template: cb-lcars-button-picard-filled
+          template: lcards-button-picard-filled
           variables:
             card:
               height: '[[[ return variables.card.height ]]]'

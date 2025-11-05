@@ -1,5 +1,5 @@
 import { perfTime } from '../perf/PerfCounters.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export async function buildCardModel(mergedConfig) {
   return perfTime('cardModel.build', async () => {
@@ -7,8 +7,8 @@ export async function buildCardModel(mergedConfig) {
     // Extract actual viewBox from SVG content instead of hardcoding
     let viewBox = [0, 0, 400, 200]; // fallback only
 
-    cblcarsLog.trace('[CardModel] Initial viewBox (fallback):', viewBox);
-    cblcarsLog.trace('[CardModel] Merged config base_svg:', mergedConfig.base_svg);
+    lcardsLog.trace('[CardModel] Initial viewBox (fallback):', viewBox);
+    lcardsLog.trace('[CardModel] Merged config base_svg:', mergedConfig.base_svg);
 
     // Handle base_svg in multiple formats:
     // Format 1: base_svg: "builtin:template-name"
@@ -25,60 +25,60 @@ export async function buildCardModel(mergedConfig) {
       baseSvgFilterPreset = mergedConfig.base_svg.filter_preset;
     }
 
-    cblcarsLog.trace('[CardModel] Resolved base_svg source:', baseSvgSource);
+    lcardsLog.trace('[CardModel] Resolved base_svg source:', baseSvgSource);
 
     // Resolve filter preset if specified (merge with explicit filters)
     let resolvedFilters = null;
     if (baseSvgFilterPreset || baseSvgFilters) {
       // Get ThemeManager instance to resolve preset
-      const themeManager = window.cblcars?.theme;
+      const themeManager = window.lcards?.theme;
 
       if (baseSvgFilterPreset && themeManager) {
         const presetFilters = themeManager.getFilterPreset(baseSvgFilterPreset);
         if (presetFilters) {
           resolvedFilters = { ...presetFilters };
-          cblcarsLog.debug('[CardModel] Resolved filter preset:', baseSvgFilterPreset, presetFilters);
+          lcardsLog.debug('[CardModel] Resolved filter preset:', baseSvgFilterPreset, presetFilters);
         } else {
-          cblcarsLog.warn('[CardModel] Unknown filter preset:', baseSvgFilterPreset);
+          lcardsLog.warn('[CardModel] Unknown filter preset:', baseSvgFilterPreset);
         }
       }
 
       // Merge explicit filters (they override preset values)
       if (baseSvgFilters) {
         resolvedFilters = resolvedFilters ? { ...resolvedFilters, ...baseSvgFilters } : { ...baseSvgFilters };
-        cblcarsLog.debug('[CardModel] Applied explicit filters:', resolvedFilters);
+        lcardsLog.debug('[CardModel] Applied explicit filters:', resolvedFilters);
       }
     }
 
     // Try to extract actual SVG viewBox from base_svg (unless source is "none")
     if (baseSvgSource && baseSvgSource !== 'none') {
-      cblcarsLog.debug('[CardModel] Using SVG source:', baseSvgSource);
-      const { getSvgContent, getSvgViewBox } = await import('../../utils/cb-lcars-anchor-helpers.js');
+      lcardsLog.debug('[CardModel] Using SVG source:', baseSvgSource);
+      const { getSvgContent, getSvgViewBox } = await import('../../utils/lcards-anchor-helpers.js');
       const svgContent = getSvgContent(baseSvgSource);
       if (svgContent) {
         const extractedViewBox = getSvgViewBox(svgContent);
         if (extractedViewBox && Array.isArray(extractedViewBox) && extractedViewBox.length === 4) {
           viewBox = extractedViewBox;
-          cblcarsLog.debug('[CardModel] Extracted viewBox from SVG:', viewBox);
+          lcardsLog.debug('[CardModel] Extracted viewBox from SVG:', viewBox);
         } else {
-          cblcarsLog.warn('[CardModel] Could not extract viewBox from SVG content');
+          lcardsLog.warn('[CardModel] Could not extract viewBox from SVG content');
         }
       } else {
-        cblcarsLog.warn('[CardModel] Could not get SVG content for:', baseSvgSource);
+        lcardsLog.warn('[CardModel] Could not get SVG content for:', baseSvgSource);
       }
     } else if (baseSvgSource === 'none') {
       // When source is "none", use explicit view_box from config
       if (mergedConfig.view_box && Array.isArray(mergedConfig.view_box)) {
         viewBox = mergedConfig.view_box;
-        cblcarsLog.debug('[CardModel] Using explicit viewBox for base_svg="none":', viewBox);
+        lcardsLog.debug('[CardModel] Using explicit viewBox for base_svg="none":', viewBox);
       } else {
-        cblcarsLog.warn('[CardModel] base_svg is "none" but no explicit view_box provided, using fallback');
+        lcardsLog.warn('[CardModel] base_svg is "none" but no explicit view_box provided, using fallback');
       }
     } else {
-      cblcarsLog.warn('[CardModel] No base_svg specified in merged config');
+      lcardsLog.warn('[CardModel] No base_svg specified in merged config');
     }
 
-    cblcarsLog.debug('[CardModel] Final viewBox:', viewBox);
+    lcardsLog.debug('[CardModel] Final viewBox:', viewBox);
 
     // Build baseSvg object for model
     const baseSvg = {

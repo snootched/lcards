@@ -10,7 +10,7 @@
  * @module msd/validation/OverlayValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ValueValidator } from './ValueValidator.js';
 
 /**
@@ -248,7 +248,7 @@ export class OverlayValidator {
           }
         }
       } catch (error) {
-        cblcarsLog.error('[OverlayValidator] Custom validator failed:', error);
+        lcardsLog.error('[OverlayValidator] Custom validator failed:', error);
         result.warnings.push({
           field: 'validator',
           type: 'validator_error',

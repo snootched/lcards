@@ -22,7 +22,7 @@
  * - on_tap, on_hold, on_hover, on_double_tap ➡️ See ActionHelpers.js
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export class TriggerManager {
   constructor(overlayId, element, animationManager) {
@@ -36,7 +36,7 @@ export class TriggerManager {
     // Maps trigger type to cleanup function
     this.listeners = new Map(); // trigger -> cleanup function
 
-    cblcarsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
+    lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 
   /**
@@ -59,7 +59,7 @@ export class TriggerManager {
     // Add animation definition to this trigger
     this.registrations.get(trigger).push(animDef);
 
-    cblcarsLog.debug(`[TriggerManager] Registered animation for ${this.overlayId} on trigger: ${trigger}`);
+    lcardsLog.debug(`[TriggerManager] Registered animation for ${this.overlayId} on trigger: ${trigger}`);
   }
 
   /**
@@ -71,23 +71,23 @@ export class TriggerManager {
     // Interactive triggers (tap, hold, hover, leave, double_tap) are handled by ActionHelpers
     const interactiveTriggers = ['on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_double_tap'];
     if (interactiveTriggers.includes(trigger)) {
-      cblcarsLog.debug(`[TriggerManager] ${trigger} handled by ActionHelpers (skipping)`);
+      lcardsLog.debug(`[TriggerManager] ${trigger} handled by ActionHelpers (skipping)`);
       return;
     }
 
     switch(trigger) {
       case 'on_datasource_change':
         // Handled by AnimationManager via DataSourceManager subscriptions
-        cblcarsLog.debug(`[TriggerManager] on_datasource_change will be handled by AnimationManager`);
+        lcardsLog.debug(`[TriggerManager] on_datasource_change will be handled by AnimationManager`);
         break;
 
       case 'on_state_change':
                 // Phase 2: Will be handled by AnimationManager via HA state subscriptions
-        cblcarsLog.debug(`[TriggerManager] on_state_change will be handled by AnimationManager (Phase 2)`);
+        lcardsLog.debug(`[TriggerManager] on_state_change will be handled by AnimationManager (Phase 2)`);
         break;
 
       default:
-        cblcarsLog.warn(`[TriggerManager] Unknown trigger type: ${trigger}`);
+        lcardsLog.warn(`[TriggerManager] Unknown trigger type: ${trigger}`);
     }
   }
 
@@ -102,7 +102,7 @@ export class TriggerManager {
    */
   setupTapTrigger() {
     const tapHandler = (event) => {
-      cblcarsLog.debug(`[TriggerManager] 👆 Tap triggered on ${this.overlayId}`);
+      lcardsLog.debug(`[TriggerManager] 👆 Tap triggered on ${this.overlayId}`);
 
       // Get all animations registered for this trigger
       const animations = this.registrations.get('on_tap') || [];
@@ -127,7 +127,7 @@ export class TriggerManager {
     // Make element visually interactive (cursor pointer)
     this.element.style.cursor = 'pointer';
 
-    cblcarsLog.debug(`[TriggerManager] ✅ Tap trigger setup for ${this.overlayId}`);
+    lcardsLog.debug(`[TriggerManager] ✅ Tap trigger setup for ${this.overlayId}`);
   }
 
   /**
@@ -138,12 +138,12 @@ export class TriggerManager {
     const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
     if (!isDesktop) {
-      cblcarsLog.debug(`[TriggerManager] Skipping hover trigger on mobile device for ${this.overlayId}`);
+      lcardsLog.debug(`[TriggerManager] Skipping hover trigger on mobile device for ${this.overlayId}`);
       return;
     }
 
     const hoverHandler = (event) => {
-      cblcarsLog.debug(`[TriggerManager] 🖱️ Hover triggered on ${this.overlayId}`);
+      lcardsLog.debug(`[TriggerManager] 🖱️ Hover triggered on ${this.overlayId}`);
 
       const animations = this.registrations.get('on_hover') || [];
 
@@ -162,7 +162,7 @@ export class TriggerManager {
     this.element.style.pointerEvents = 'all';
     this.element.style.cursor = 'pointer';
 
-    cblcarsLog.debug(`[TriggerManager] ✅ Hover trigger setup for ${this.overlayId}`);
+    lcardsLog.debug(`[TriggerManager] ✅ Hover trigger setup for ${this.overlayId}`);
   }
 
   /**
@@ -174,7 +174,7 @@ export class TriggerManager {
 
     const startHold = (event) => {
       holdTimer = setTimeout(() => {
-        cblcarsLog.debug(`[TriggerManager] ✊ Hold triggered on ${this.overlayId}`);
+        lcardsLog.debug(`[TriggerManager] ✊ Hold triggered on ${this.overlayId}`);
 
         const animations = this.registrations.get('on_hold') || [];
 
@@ -220,7 +220,7 @@ export class TriggerManager {
     this.element.style.pointerEvents = 'all';
     this.element.style.cursor = 'pointer';
 
-    cblcarsLog.debug(`[TriggerManager] ✅ Hold trigger setup for ${this.overlayId}`);
+    lcardsLog.debug(`[TriggerManager] ✅ Hold trigger setup for ${this.overlayId}`);
   }
 
   /**
@@ -256,15 +256,15 @@ export class TriggerManager {
    * Cleanup all event listeners and resources
    */
   destroy() {
-    cblcarsLog.debug(`[TriggerManager] 🗑️ Destroying trigger manager for ${this.overlayId}`);
+    lcardsLog.debug(`[TriggerManager] 🗑️ Destroying trigger manager for ${this.overlayId}`);
 
     // Execute all cleanup functions
     this.listeners.forEach((cleanup, trigger) => {
       try {
         cleanup();
-        cblcarsLog.debug(`[TriggerManager] Cleaned up listener for trigger: ${trigger}`);
+        lcardsLog.debug(`[TriggerManager] Cleaned up listener for trigger: ${trigger}`);
       } catch (error) {
-        cblcarsLog.error(`[TriggerManager] Failed to cleanup listener for ${trigger}:`, error);
+        lcardsLog.error(`[TriggerManager] Failed to cleanup listener for ${trigger}:`, error);
       }
     });
 
@@ -277,6 +277,6 @@ export class TriggerManager {
       this.element.style.cursor = '';
     }
 
-    cblcarsLog.debug(`[TriggerManager] ✅ Trigger manager destroyed for ${this.overlayId}`);
+    lcardsLog.debug(`[TriggerManager] ✅ Trigger manager destroyed for ${this.overlayId}`);
   }
 }

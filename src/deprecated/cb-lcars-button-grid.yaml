@@ -1,6 +1,6 @@
-cb-lcars-button-grid:
+lcards-button-grid:
   template:
-    - cb-lcars-grid
+    - lcards-grid
   variables:
     card:
       width: null
@@ -15,7 +15,7 @@ cb-lcars-button-grid:
       auto_rows: null
       gap: 5px
     button:
-      type: custom:cblcars-button-card
+      type: custom:lcards-button-card
       variables:
         card:
           width: 180px
@@ -39,11 +39,11 @@ cb-lcars-button-grid:
             active: null
             inactive: null
       template:
-        - cb-lcars-button-picard-filled
-        - cb-lcars-button-picard-label-se
-        - cb-lcars-button-picard-name-nw
-        - cb-lcars-button-picard-state-sw
-        - cb-lcars-actions-disable
+        - lcards-button-picard-filled
+        - lcards-button-picard-label-se
+        - lcards-button-picard-name-nw
+        - lcards-button-picard-state-sw
+        - lcards-actions-disable
       size: 22px
       show_name: false
       show_state: false

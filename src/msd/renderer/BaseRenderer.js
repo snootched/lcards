@@ -13,7 +13,7 @@
  * @module msd/renderer/BaseRenderer
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Base class for all MSD overlay renderers
@@ -63,9 +63,9 @@ export class BaseRenderer {
     this._styleResolutions = [];
 
     if (this.styleResolver) {
-      cblcarsLog.debug(`[${this.rendererName}] ✅ StyleResolverService available`);
+      lcardsLog.debug(`[${this.rendererName}] ✅ StyleResolverService available`);
     } else {
-      cblcarsLog.debug(`[${this.rendererName}] ⚠️ StyleResolverService not available, using fallback`);
+      lcardsLog.debug(`[${this.rendererName}] ⚠️ StyleResolverService not available, using fallback`);
     }
   }
 
@@ -73,7 +73,7 @@ export class BaseRenderer {
    * Resolve ThemeManager from various sources
    *
    * Checks multiple locations for ThemeManager instance:
-   * 1. Global CB-LCARS namespace (window.cblcars.theme)
+   * 1. Global LCARdS namespace (window.lcards.theme)
    * 2. Pipeline instance via systemsManager
    * 3. Direct pipeline access
    * 4. Systems manager global reference
@@ -82,14 +82,14 @@ export class BaseRenderer {
    * @returns {Object|null} ThemeManager instance or null if not found
    */
   _resolveThemeManager() {
-    // 1. Global CB-LCARS namespace (preferred)
-    if (typeof window !== 'undefined' && window.cblcars?.theme) {
-      return window.cblcars.theme;
+    // 1. Global LCARdS namespace (preferred)
+    if (typeof window !== 'undefined' && window.lcards?.theme) {
+      return window.lcards.theme;
     }
 
     // 2. Pipeline instance via systemsManager
     if (typeof window !== 'undefined') {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.themeManager) {
         return pipelineInstance.systemsManager.themeManager;
       }
@@ -100,7 +100,7 @@ export class BaseRenderer {
       }
 
       // 4. Systems manager global reference
-      const systemsManager = window.cblcars.debug.msd?.systemsManager;
+      const systemsManager = window.lcards.debug.msd?.systemsManager;
       if (systemsManager?.themeManager) {
         return systemsManager.themeManager;
       }
@@ -326,11 +326,11 @@ export class BaseRenderer {
     if (!this.themeManager) return null;
 
     if (typeof window !== 'undefined') {
-      if (window.cblcars?.theme === this.themeManager) {
-        return 'window.cblcars.theme';
+      if (window.lcards?.theme === this.themeManager) {
+        return 'window.lcards.theme';
       }
 
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.themeManager === this.themeManager) {
         return 'pipelineInstance.systemsManager.themeManager';
       }
@@ -339,7 +339,7 @@ export class BaseRenderer {
         return 'pipelineInstance.themeManager';
       }
 
-      const systemsManager = window.cblcars.debug.msd?.systemsManager;
+      const systemsManager = window.lcards.debug.msd?.systemsManager;
       if (systemsManager?.themeManager === this.themeManager) {
         return 'systemsManager.themeManager';
       }
@@ -383,14 +383,14 @@ export class BaseRenderer {
    * @returns {Object|null} StyleResolverService instance or null
    */
   _resolveStyleResolver() {
-    // Priority 1: Global CB-LCARS namespace (preferred)
-    if (typeof window !== 'undefined' && window.cblcars?.styleResolver) {
-      return window.cblcars.styleResolver;
+    // Priority 1: Global LCARdS namespace (preferred)
+    if (typeof window !== 'undefined' && window.lcards?.styleResolver) {
+      return window.lcards.styleResolver;
     }
 
     // Priority 2: Pipeline instance via systemsManager
     if (typeof window !== 'undefined') {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.styleResolver) {
         return pipelineInstance.systemsManager.styleResolver;
       }
@@ -401,7 +401,7 @@ export class BaseRenderer {
       }
 
       // Priority 4: SystemsManager global reference
-      const systemsManager = window.__msdSystemsManager || window.cblcars.debug.msd?.systemsManager;
+      const systemsManager = window.__msdSystemsManager || window.lcards.debug.msd?.systemsManager;
       if (systemsManager?.styleResolver) {
         return systemsManager.styleResolver;
       }
@@ -477,7 +477,7 @@ export class BaseRenderer {
         return result.value;
 
       } catch (error) {
-        cblcarsLog.warn(`[${this.rendererName}] StyleResolver error, using fallback:`, error);
+        lcardsLog.warn(`[${this.rendererName}] StyleResolver error, using fallback:`, error);
         // Fall through to manual resolution
       }
     }
@@ -519,7 +519,7 @@ export class BaseRenderer {
             return tokenValue;
           }
         } catch (error) {
-          cblcarsLog.debug(`[${this.rendererName}] Token resolution failed for ${tokenPath}:`, error);
+          lcardsLog.debug(`[${this.rendererName}] Token resolution failed for ${tokenPath}:`, error);
         }
       }
 
@@ -553,7 +553,7 @@ export class BaseRenderer {
           }
         }
       } catch (error) {
-        cblcarsLog.debug(`[${this.rendererName}] Theme default lookup failed:`, error);
+        lcardsLog.debug(`[${this.rendererName}] Theme default lookup failed:`, error);
       }
     }
 
@@ -680,7 +680,7 @@ export class BaseRenderer {
    * @param {...*} args - Additional arguments to log
    */
   _logDebug(message, ...args) {
-    cblcarsLog.debug(`[${this.rendererName}] ${message}`, ...args);
+    lcardsLog.debug(`[${this.rendererName}] ${message}`, ...args);
   }
 
   /**
@@ -694,7 +694,7 @@ export class BaseRenderer {
    * @param {...*} args - Additional arguments to log
    */
   _logWarn(message, ...args) {
-    cblcarsLog.warn(`[${this.rendererName}] ${message}`, ...args);
+    lcardsLog.warn(`[${this.rendererName}] ${message}`, ...args);
   }
 
   /**
@@ -708,7 +708,7 @@ export class BaseRenderer {
    * @param {...*} args - Additional arguments to log
    */
   _logError(message, ...args) {
-    cblcarsLog.error(`[${this.rendererName}] ${message}`, ...args);
+    lcardsLog.error(`[${this.rendererName}] ${message}`, ...args);
   }
 
   /**
@@ -725,14 +725,14 @@ export class BaseRenderer {
   _resolveContainerElement() {
     // Method 1: From pipeline renderer (most reliable)
     if (typeof window !== 'undefined') {
-      const renderer = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.renderer;
+      const renderer = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.renderer;
       if (renderer?.mountEl) {
         this._logDebug('Resolved container from pipeline renderer');
         return renderer.mountEl;
       }
 
       // Method 2: From card instance shadow root
-      const cardInstance = window.cblcars.debug.msd?.pipelineInstance?.cardInstance ||
+      const cardInstance = window.lcards.debug.msd?.pipelineInstance?.cardInstance ||
                            window._msdCardInstance ||
                            window.cb_lcars_card_instance;
 

@@ -24,7 +24,7 @@
 
 import { OverlayBase } from './OverlayBase.js';
 import { ApexChartsOverlayRenderer } from '../renderer/ApexChartsOverlayRenderer.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * ApexChartsOverlay - Instance-based ApexCharts overlay
@@ -44,7 +44,7 @@ export class ApexChartsOverlay extends OverlayBase {
     // Store card instance for ApexChartsOverlayRenderer
     this.cardInstance = null;
 
-    cblcarsLog.debug(`[ApexChartsOverlay] Created instance for overlay ${overlay.id}`);
+    lcardsLog.debug(`[ApexChartsOverlay] Created instance for overlay ${overlay.id}`);
   }
 
   /**
@@ -61,13 +61,13 @@ export class ApexChartsOverlay extends OverlayBase {
       // Resolve card instance for ApexChartsOverlayRenderer
       this.cardInstance = this._resolveCardInstance();
 
-      cblcarsLog.debug(`[ApexChartsOverlay] Initialized overlay ${this.overlay.id}:`, {
+      lcardsLog.debug(`[ApexChartsOverlay] Initialized overlay ${this.overlay.id}:`, {
         hasCardInstance: !!this.cardInstance,
         chartType: this.overlay.chart_type,
         hasTemplate: !!this.overlay.template
       });
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsOverlay] Error initializing overlay ${this.overlay.id}:`, error);
+      lcardsLog.error(`[ApexChartsOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
   }
@@ -115,7 +115,7 @@ export class ApexChartsOverlay extends OverlayBase {
       };
 
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsOverlay] Rendering failed for overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[ApexChartsOverlay] Rendering failed for overlay ${overlay.id}:`, error);
       return {
         markup: '',
         actionInfo: null,
@@ -140,7 +140,7 @@ export class ApexChartsOverlay extends OverlayBase {
    */
   update(overlayElement, overlay, sourceData) {
     try {
-      cblcarsLog.trace(`[ApexChartsOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
+      lcardsLog.trace(`[ApexChartsOverlay] Updating overlay ${overlay.id} with data:`, sourceData);
 
       // Update cached overlay reference
       this.overlay = overlay;
@@ -149,7 +149,7 @@ export class ApexChartsOverlay extends OverlayBase {
       const dataSourceManager = this.systemsManager?.dataSourceManager;
 
       if (!dataSourceManager) {
-        cblcarsLog.warn(`[ApexChartsOverlay] No DataSourceManager available for update of ${overlay.id}`);
+        lcardsLog.warn(`[ApexChartsOverlay] No DataSourceManager available for update of ${overlay.id}`);
         return false;
       }
 
@@ -159,7 +159,7 @@ export class ApexChartsOverlay extends OverlayBase {
       return true;
 
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsOverlay] Error updating overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[ApexChartsOverlay] Error updating overlay ${overlay.id}:`, error);
       return false;
     }
   }
@@ -169,13 +169,13 @@ export class ApexChartsOverlay extends OverlayBase {
    * Cleanup chart instance and subscriptions
    */
   destroy() {
-    cblcarsLog.debug(`[ApexChartsOverlay] Destroying overlay ${this.overlay.id}`);
+    lcardsLog.debug(`[ApexChartsOverlay] Destroying overlay ${this.overlay.id}`);
 
     try {
       // Delegate to static renderer's destroy method
       ApexChartsOverlayRenderer.destroyChart(this.overlay.id);
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsOverlay] Error destroying chart ${this.overlay.id}:`, error);
+      lcardsLog.error(`[ApexChartsOverlay] Error destroying chart ${this.overlay.id}:`, error);
     }
 
     // Clear references
@@ -199,7 +199,7 @@ export class ApexChartsOverlay extends OverlayBase {
     // Try various sources in priority order
 
     // 1. Pipeline instance
-    const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+    const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
     if (pipelineInstance?.cardInstance) {
       return pipelineInstance.cardInstance;
     }
@@ -209,7 +209,7 @@ export class ApexChartsOverlay extends OverlayBase {
       return window._msdCardInstance;
     }
 
-    // 3. CB-LCARS card instance
+    // 3. LCARdS card instance
     if (window.cb_lcars_card_instance) {
       return window.cb_lcars_card_instance;
     }
@@ -219,7 +219,7 @@ export class ApexChartsOverlay extends OverlayBase {
       return this.systemsManager.cardInstance;
     }
 
-    cblcarsLog.warn(`[ApexChartsOverlay] Could not resolve card instance for ${this.overlay.id}`);
+    lcardsLog.warn(`[ApexChartsOverlay] Could not resolve card instance for ${this.overlay.id}`);
     return null;
   }
 

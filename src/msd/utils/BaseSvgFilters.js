@@ -3,7 +3,7 @@
  * Provides CSS filter application and transition support for base SVG layers
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Generate CSS filter string from filter object
@@ -75,11 +75,11 @@ export function generateFilterString(filters, normalize = false) {
  */
 export function applyBaseSvgFilters(svgElement, filters, transition) {
   if (!svgElement) {
-    cblcarsLog.warn('[BaseSvgFilters] No SVG element provided');
+    lcardsLog.warn('[BaseSvgFilters] No SVG element provided');
     return;
   }
 
-  cblcarsLog.trace('[BaseSvgFilters] 🎨 Applying filters to base content:', {
+  lcardsLog.trace('[BaseSvgFilters] 🎨 Applying filters to base content:', {
     element: svgElement.tagName,
     elementId: svgElement.id,
     filters,
@@ -91,7 +91,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   const useNormalized = transition && transition > 0;
   const filterString = generateFilterString(filters, useNormalized);
 
-  cblcarsLog.trace('[BaseSvgFilters] 🎨 Generated filter string:', filterString, useNormalized ? '(normalized for transition)' : '');
+  lcardsLog.trace('[BaseSvgFilters] 🎨 Generated filter string:', filterString, useNormalized ? '(normalized for transition)' : '');
 
   // Apply transition if specified - MUST be set BEFORE changing the filter
   if (transition && transition > 0) {
@@ -106,7 +106,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
       // Apply the filter after transition is set
       svgElement.style.filter = filterString;
 
-      cblcarsLog.debug('[BaseSvgFilters] ✅ Filter applied with transition to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
+      lcardsLog.debug('[BaseSvgFilters] ✅ Filter applied with transition to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
 
       // Remove transition after it completes to avoid interfering with other updates
       setTimeout(() => {
@@ -116,7 +116,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   } else {
     // No transition - apply immediately
     svgElement.style.filter = filterString;
-    cblcarsLog.debug('[BaseSvgFilters] ✅ Filter applied instantly to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
+    lcardsLog.debug('[BaseSvgFilters] ✅ Filter applied instantly to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
   }
 }
 
@@ -130,19 +130,19 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 export function transitionBaseSvgFilters(svgElement, newFilters, duration = 1000) {
   return new Promise((resolve) => {
     if (!svgElement) {
-      cblcarsLog.warn('[BaseSvgFilters] No SVG element provided');
+      lcardsLog.warn('[BaseSvgFilters] No SVG element provided');
       resolve();
       return;
     }
 
-    cblcarsLog.trace('[BaseSvgFilters] Starting transition to new filters:', { duration, filters: newFilters });
+    lcardsLog.trace('[BaseSvgFilters] Starting transition to new filters:', { duration, filters: newFilters });
 
     // Apply transition with the specified duration
     applyBaseSvgFilters(svgElement, newFilters, duration);
 
     // Resolve after transition completes
     setTimeout(() => {
-      cblcarsLog.trace('[BaseSvgFilters] Transition complete');
+      lcardsLog.trace('[BaseSvgFilters] Transition complete');
       resolve();
     }, duration);
   });
@@ -158,7 +158,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
     return;
   }
 
-  cblcarsLog.debug('[BaseSvgFilters] Clearing filters', { hasTransition: !!transition, transition });
+  lcardsLog.debug('[BaseSvgFilters] Clearing filters', { hasTransition: !!transition, transition });
 
   if (transition && transition > 0) {
     // Use normalized default filters for smooth transition to "no effect"
@@ -169,7 +169,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
     requestAnimationFrame(() => {
       svgElement.style.filter = defaultFilters;
 
-      cblcarsLog.trace('[BaseSvgFilters] Cleared to default filters with transition');
+      lcardsLog.trace('[BaseSvgFilters] Cleared to default filters with transition');
 
       setTimeout(() => {
         svgElement.style.transition = '';
@@ -179,7 +179,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
     });
   } else {
     svgElement.style.filter = '';
-    cblcarsLog.trace('[BaseSvgFilters] Cleared filters instantly');
+    lcardsLog.trace('[BaseSvgFilters] Cleared filters instantly');
   }
 }
 

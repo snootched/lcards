@@ -7,7 +7,7 @@
  * @module msd/validation/SchemaRegistry
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Schema Registry
@@ -22,7 +22,7 @@ export class SchemaRegistry {
     /** @type {Object} Common schema (inherited by all) */
     this.commonSchema = null;
 
-    cblcarsLog.debug('[SchemaRegistry] Initialized');
+    lcardsLog.debug('[SchemaRegistry] Initialized');
   }
 
   /**
@@ -51,7 +51,7 @@ export class SchemaRegistry {
     }
 
     this.schemas.set(type, schema);
-    cblcarsLog.debug(`[SchemaRegistry] Registered schema for type: ${type}`);
+    lcardsLog.debug(`[SchemaRegistry] Registered schema for type: ${type}`);
   }
 
   /**
@@ -70,7 +70,7 @@ export class SchemaRegistry {
    */
   registerCommon(schema) {
     this.commonSchema = schema;
-    cblcarsLog.debug('[SchemaRegistry] Registered common schema');
+    lcardsLog.debug('[SchemaRegistry] Registered common schema');
   }
 
   /**
@@ -128,7 +128,7 @@ export class SchemaRegistry {
   clear() {
     this.schemas.clear();
     this.commonSchema = null;
-    cblcarsLog.debug('[SchemaRegistry] Cleared all schemas');
+    lcardsLog.debug('[SchemaRegistry] Cleared all schemas');
   }
 
   /**

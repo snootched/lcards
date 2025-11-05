@@ -46,7 +46,7 @@
  * @module msd/data/transformations/TransformationProcessor
  */
 
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 /**
  * [TransformationProcessor] Data transformation system - chainable transformations with type-safe pipeline
@@ -92,7 +92,7 @@ export class TransformationProcessor {
       return result;
     } catch (error) {
       this._stats.errors++;
-      cblcarsLog.warn(`[${this.constructor.name}] ⚠️ Transform failed:`, error);
+      lcardsLog.warn(`[${this.constructor.name}] ⚠️ Transform failed:`, error);
       return this._getFallbackValue(value);
     }
   }
@@ -570,7 +570,7 @@ export class ExpressionProcessor extends TransformationProcessor {
 
       if (!Number.isFinite(result)) {
         if (this.config.debug) {
-          cblcarsLog.warn(
+          lcardsLog.warn(
             `[ExpressionProcessor] Expression returned non-finite value: ${result}\n` +
             `  Expression: ${this.expression}\n` +
             `  Input value: ${value}\n` +
@@ -584,7 +584,7 @@ export class ExpressionProcessor extends TransformationProcessor {
 
     } catch (error) {
       if (this.config.debug) {
-        cblcarsLog.warn(
+        lcardsLog.warn(
           `[ExpressionProcessor] Expression evaluation failed: ${error.message}\n` +
           `  Expression: ${this.expression}\n` +
           `  Value: ${value}\n` +
@@ -595,7 +595,7 @@ export class ExpressionProcessor extends TransformationProcessor {
 
       // Log first few failures at error level for visibility
       if (this._stats.errors < 3) {
-        cblcarsLog.error(
+        lcardsLog.error(
           `[ExpressionProcessor] Expression failed (will suppress further errors): ${error.message}`
         );
       }

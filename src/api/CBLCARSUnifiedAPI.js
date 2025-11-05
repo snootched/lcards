@@ -1,27 +1,27 @@
 /**
- * CB-LCARS Unified API - Main Entry Point
+ * LCARdS Unified API - Main Entry Point
  *
  * Orchestrates all API tiers and provides single attachment point.
  * This is the foundation of the standardized API structure:
  *
- * - Runtime API (window.cblcars.msd) - User-facing stable API
- * - Debug API (window.cblcars.debug.msd) - Developer introspection
- * - Dev API (window.cblcars.dev) - Internal development tools
- * - Animation API (window.cblcars.anim) - Already set up in cb-lcars.js
+ * - Runtime API (window.lcards.msd) - User-facing stable API
+ * - Debug API (window.lcards.debug.msd) - Developer introspection
+ * - Dev API (window.lcards.dev) - Internal development tools
+ * - Animation API (window.lcards.anim) - Already set up in cb-lcars.js
  *
  * Phase 0: Foundation & Runtime API
  * Phase 1-3: Debug API, CLI features, cleanup
  *
- * @module CBLCARSUnifiedAPI
+ * @module LCARdSUnifiedAPI
  */
 
-import { cblcarsLog } from '../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../utils/lcards-logging.js';
 import { MsdRuntimeAPI } from './MsdRuntimeAPI.js';
 import { MsdDebugAPI } from './MsdDebugAPI.js';
 
-export class CBLCARSUnifiedAPI {
+export class LCARdSUnifiedAPI {
   /**
-   * Attach all API tiers to window.cblcars
+   * Attach all API tiers to window.lcards
    *
    * This method is called once during initialization to set up the
    * entire API structure. It ensures clean namespace organization
@@ -29,87 +29,87 @@ export class CBLCARSUnifiedAPI {
    */
   static attach() {
     if (typeof window === 'undefined') {
-      cblcarsLog.warn('[UnifiedAPI] Window not available, skipping API attach');
+      lcardsLog.warn('[UnifiedAPI] Window not available, skipping API attach');
       return;
     }
 
     try {
       // Ensure namespace exists
-      window.cblcars = window.cblcars || {};
+      window.lcards = window.lcards || {};
 
-      cblcarsLog.debug('[UnifiedAPI] 🚀 Attaching unified API structure...');
+      lcardsLog.debug('[UnifiedAPI] 🚀 Attaching unified API structure...');
 
       // ==========================================
       // PHASE 0: Runtime API
       // ==========================================
-      window.cblcars.msd = MsdRuntimeAPI.create();
-      cblcarsLog.debug('[UnifiedAPI] Runtime API attached');
+      window.lcards.msd = MsdRuntimeAPI.create();
+      lcardsLog.debug('[UnifiedAPI] Runtime API attached');
 
       // ==========================================
       // PHASE 1: Debug API
       // ==========================================
-      window.cblcars.debug = window.cblcars.debug || {};
+      window.lcards.debug = window.lcards.debug || {};
       // CRITICAL: Preserve existing debug.msd properties (e.g., MsdInstanceManager from index.js)
       // by merging DebugAPI instead of replacing
-      window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+      window.lcards.debug.msd = window.lcards.debug.msd || {};
 
       // Debug logging to trace API attachment
       const debugAPIMethods = MsdDebugAPI.create();
-      cblcarsLog.debug('[UnifiedAPI] Debug API methods to merge:', Object.keys(debugAPIMethods));
-      cblcarsLog.debug('[UnifiedAPI] Existing debug.msd keys before merge:', Object.keys(window.cblcars.debug.msd));
+      lcardsLog.debug('[UnifiedAPI] Debug API methods to merge:', Object.keys(debugAPIMethods));
+      lcardsLog.debug('[UnifiedAPI] Existing debug.msd keys before merge:', Object.keys(window.lcards.debug.msd));
 
       // CRITICAL: Delete deprecated properties that would block Object.assign()
 
       // Delete 'pipeline' getter (read-only property can't be overwritten)
-      if ('pipeline' in window.cblcars.debug.msd) {
-        const descriptor = Object.getOwnPropertyDescriptor(window.cblcars.debug.msd, 'pipeline');
+      if ('pipeline' in window.lcards.debug.msd) {
+        const descriptor = Object.getOwnPropertyDescriptor(window.lcards.debug.msd, 'pipeline');
         if (descriptor && descriptor.get && !descriptor.set) {
-          delete window.cblcars.debug.msd.pipeline;
-          cblcarsLog.debug('[UnifiedAPI] Deleted read-only pipeline getter to allow merge');
+          delete window.lcards.debug.msd.pipeline;
+          lcardsLog.debug('[UnifiedAPI] Deleted read-only pipeline getter to allow merge');
         }
       }
 
       // Delete legacy 'perf' function (needs to become an object namespace)
-      if ('perf' in window.cblcars.debug.msd && typeof window.cblcars.debug.msd.perf === 'function') {
-        delete window.cblcars.debug.msd.perf;
-        cblcarsLog.debug('[UnifiedAPI] Deleted legacy perf function to allow namespace merge');
+      if ('perf' in window.lcards.debug.msd && typeof window.lcards.debug.msd.perf === 'function') {
+        delete window.lcards.debug.msd.perf;
+        lcardsLog.debug('[UnifiedAPI] Deleted legacy perf function to allow namespace merge');
       }
 
-      Object.assign(window.cblcars.debug.msd, debugAPIMethods);
+      Object.assign(window.lcards.debug.msd, debugAPIMethods);
 
-      cblcarsLog.debug('[UnifiedAPI] Existing debug.msd keys after merge:', Object.keys(window.cblcars.debug.msd));
-      cblcarsLog.debug('[UnifiedAPI] Debug API attached');
+      lcardsLog.debug('[UnifiedAPI] Existing debug.msd keys after merge:', Object.keys(window.lcards.debug.msd));
+      lcardsLog.debug('[UnifiedAPI] Debug API attached');
 
 
 
       // ==========================================
       // PHASE 0: Dev API (placeholder stub)
       // ==========================================
-      window.cblcars.dev = {
+      window.lcards.dev = {
         _placeholder: true,
         _version: 'phase0-stub',
         _status: 'Dev API will be implemented in Phase 3'
       };
 
       // ==========================================
-      // Animation API (window.cblcars.anim)
+      // Animation API (window.lcards.anim)
       // ==========================================
       // Already set up in cb-lcars.js - we'll refactor in Phase 3
       // Just log that it exists
-      if (window.cblcars.anim) {
-        cblcarsLog.debug('[UnifiedAPI] Animation API already initialized');
+      if (window.lcards.anim) {
+        lcardsLog.debug('[UnifiedAPI] Animation API already initialized');
       }
 
-      cblcarsLog.debug('[UnifiedAPI] ✅ Unified API structure attached successfully');
-      cblcarsLog.debug('[UnifiedAPI] Available namespaces:', {
-        runtime: !!window.cblcars.msd,
-        debug: !!window.cblcars.debug?.msd,
-        dev: !!window.cblcars.dev,
-        animation: !!window.cblcars.anim
+      lcardsLog.debug('[UnifiedAPI] ✅ Unified API structure attached successfully');
+      lcardsLog.debug('[UnifiedAPI] Available namespaces:', {
+        runtime: !!window.lcards.msd,
+        debug: !!window.lcards.debug?.msd,
+        dev: !!window.lcards.dev,
+        animation: !!window.lcards.anim
       });
 
     } catch (error) {
-      cblcarsLog.error('[UnifiedAPI] ❌ Failed to attach API:', error);
+      lcardsLog.error('[UnifiedAPI] ❌ Failed to attach API:', error);
     }
   }
 
@@ -123,13 +123,13 @@ export class CBLCARSUnifiedAPI {
     if (typeof window === 'undefined') return;
 
     try {
-      delete window.cblcars?.msd;
-      delete window.cblcars?.debug?.msd;
-      delete window.cblcars?.dev;
+      delete window.lcards?.msd;
+      delete window.lcards?.debug?.msd;
+      delete window.lcards?.dev;
 
-      cblcarsLog.info('[UnifiedAPI] API detached');
+      lcardsLog.info('[UnifiedAPI] API detached');
     } catch (error) {
-      cblcarsLog.error('[UnifiedAPI] Error during detach:', error);
+      lcardsLog.error('[UnifiedAPI] Error during detach:', error);
     }
   }
 
@@ -149,20 +149,20 @@ export class CBLCARSUnifiedAPI {
     return {
       phase: 0,
       runtime: {
-        version: window.cblcars?.msd?._version || 'not-loaded',
-        placeholder: window.cblcars?.msd?._placeholder || false
+        version: window.lcards?.msd?._version || 'not-loaded',
+        placeholder: window.lcards?.msd?._placeholder || false
       },
       debug: {
-        version: window.cblcars?.debug?.msd?._version || 'not-loaded',
-        placeholder: window.cblcars?.debug?.msd?._placeholder || false
+        version: window.lcards?.debug?.msd?._version || 'not-loaded',
+        placeholder: window.lcards?.debug?.msd?._placeholder || false
       },
       dev: {
-        version: window.cblcars?.dev?._version || 'not-loaded',
-        placeholder: window.cblcars?.dev?._placeholder || false
+        version: window.lcards?.dev?._version || 'not-loaded',
+        placeholder: window.lcards?.dev?._placeholder || false
       },
       animation: {
-        loaded: !!window.cblcars?.anim,
-        hasAnimejs: !!window.cblcars?.anim?.animejs
+        loaded: !!window.lcards?.anim,
+        hasAnimejs: !!window.lcards?.anim?.animejs
       }
     };
   }
@@ -180,12 +180,12 @@ export class CBLCARSUnifiedAPI {
     return {
       available: true,
       namespaces: {
-        runtime: !!window.cblcars?.msd,
-        debug: !!window.cblcars?.debug?.msd,
-        dev: !!window.cblcars?.dev,
-        animation: !!window.cblcars?.anim
+        runtime: !!window.lcards?.msd,
+        debug: !!window.lcards?.debug?.msd,
+        dev: !!window.lcards?.dev,
+        animation: !!window.lcards?.anim
       },
-      versions: CBLCARSUnifiedAPI.getVersion()
+      versions: LCARdSUnifiedAPI.getVersion()
     };
   }
 }
@@ -193,9 +193,9 @@ export class CBLCARSUnifiedAPI {
 // ALWAYS attach when module loads - no conditionals
 if (typeof window !== 'undefined') {
   // Expose class first so DebugInterface can call attach() again if needed
-  window.CBLCARSUnifiedAPI = CBLCARSUnifiedAPI;
+  window.LCARdSUnifiedAPI = LCARdSUnifiedAPI;
 
   // Force attach immediately
-  CBLCARSUnifiedAPI.attach();
-  cblcarsLog.debug('[UnifiedAPI] ✅ Auto-attached at module load');
+  LCARdSUnifiedAPI.attach();
+  lcardsLog.debug('[UnifiedAPI] ✅ Auto-attached at module load');
 }

@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [RoutingPanel] Enhanced routing diagnostics panel for MSD HUD
  * 🔀 Displays routing statistics and path computation data with filtering and analysis
@@ -28,11 +28,11 @@ export class RoutingPanel {
   _setupGlobalHelpers() {
     // Global route analysis function that includes both console and popup
     window.__msdAnalyzeRoute = (routeId) => {
-      cblcarsLog.info('[RoutingPanel] 🔍 Global analyze for:', routeId);
+      lcardsLog.info('[RoutingPanel] 🔍 Global analyze for:', routeId);
 
-      const routing = window.cblcars.debug.msd?.routing;
+      const routing = window.lcards.debug.msd?.routing;
       if (!routing?.inspect) {
-        cblcarsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
+        lcardsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
         return;
       }
 
@@ -251,34 +251,34 @@ export class RoutingPanel {
   // ADDED: Former global handlers as instance methods
   setFilter(key, value) {
     this.filters[key] = value;
-    cblcarsLog.debug(`[RoutingPanel] 🔧 Set filter ${key}: ${value}`);
+    lcardsLog.debug(`[RoutingPanel] 🔧 Set filter ${key}: ${value}`);
   }
   updateCostFilter(type, value) {
     const n = parseFloat(value);
     if (!isNaN(n)) {
       this.filters[type] = n;
-      cblcarsLog.debug(`[RoutingPanel] 💰 Updated cost filter ${type}: ${n}`);
+      lcardsLog.debug(`[RoutingPanel] 💰 Updated cost filter ${type}: ${n}`);
     }
   }
   finalizeCostFilter() {
-    cblcarsLog.debug('[RoutingPanel] ✅ Finalized cost filter changes');
+    lcardsLog.debug('[RoutingPanel] ✅ Finalized cost filter changes');
   }
   setInputFocus(field, focused) {
     this.inputStates[field] = focused;
-    cblcarsLog.debug(`[RoutingPanel] 🔍 Input focus ${field}: ${focused}`);
+    lcardsLog.debug(`[RoutingPanel] 🔍 Input focus ${field}: ${focused}`);
   }
   highlightRoute(routeId) {
-    cblcarsLog.info('[RoutingPanel] 🎯 Highlighting route:', routeId);
+    lcardsLog.info('[RoutingPanel] 🎯 Highlighting route:', routeId);
 
     try {
       // Get the mount element from the pipeline/debug interface
-      const mountElement = window.cblcars.debug.msd?.pipelineInstance?.mountElement ||
-                          window.cblcars.debug.msd?.mountElement ||
-                          document.querySelector('cb-lcars-msd-card')?.shadowRoot ||
+      const mountElement = window.lcards.debug.msd?.pipelineInstance?.mountElement ||
+                          window.lcards.debug.msd?.mountElement ||
+                          document.querySelector('lcards-msd-card')?.shadowRoot ||
                           document;
 
       if (!mountElement) {
-        cblcarsLog.warn('[RoutingPanel] ⚠️ No mount element found for route highlighting');
+        lcardsLog.warn('[RoutingPanel] ⚠️ No mount element found for route highlighting');
         return;
       }
 
@@ -338,22 +338,22 @@ export class RoutingPanel {
       this.showRouteHighlightFeedback(routeId);
 
     } catch (e) {
-      cblcarsLog.warn('[RoutingPanel] ⚠️ Route highlighting failed:', e);
+      lcardsLog.warn('[RoutingPanel] ⚠️ Route highlighting failed:', e);
     }
 
     // Emit routing focus event for other panels
-    if (window.cblcars.debug.msd?.hud?.emit) {
-      window.cblcars.debug.msd.hud.emit('routing:focus', { id: routeId });
+    if (window.lcards.debug.msd?.hud?.emit) {
+      window.lcards.debug.msd.hud.emit('routing:focus', { id: routeId });
     }
   }  analyzeRoute(routeId) {
-    cblcarsLog.info('[RoutingPanel] 🔍 analyzeRoute called with:', routeId);
+    lcardsLog.info('[RoutingPanel] 🔍 analyzeRoute called with:', routeId);
 
     if (!routeId) {
-      cblcarsLog.warn('[RoutingPanel] ⚠️ No route ID provided for analysis');
+      lcardsLog.warn('[RoutingPanel] ⚠️ No route ID provided for analysis');
       return;
     }
 
-    const routing = window.cblcars.debug.msd?.routing;
+    const routing = window.lcards.debug.msd?.routing;
     if (routing?.inspect) {
       const analysis = routing.inspect(routeId);
 
@@ -401,7 +401,7 @@ export class RoutingPanel {
       // FIXED: Also show visual feedback in HUD
       this.showRouteAnalysisFeedback(routeId, analysis);
     } else {
-      cblcarsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
+      lcardsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
     }
   }
 
@@ -515,7 +515,7 @@ export class RoutingPanel {
     const performance = {};
 
     try {
-      const routing = window.cblcars.debug.msd?.routing;
+      const routing = window.lcards.debug.msd?.routing;
       if (routing) {
         // Get routing statistics
         const routingStats = routing.stats?.() || {};
@@ -527,7 +527,7 @@ export class RoutingPanel {
         }
 
         // Get route inspections for line overlays
-        const pipeline = window.cblcars.debug.msd?.pipelineInstance;
+        const pipeline = window.lcards.debug.msd?.pipelineInstance;
         if (pipeline) {
           const model = pipeline.getResolvedModel?.();
           if (model?.overlays) {
@@ -575,14 +575,14 @@ export class RoutingPanel {
                   };
                 }
               } catch (e) {
-                cblcarsLog.warn(`[RoutingPanel] ⚠️ Route inspection failed for ${overlay.id}:`, e);
+                lcardsLog.warn(`[RoutingPanel] ⚠️ Route inspection failed for ${overlay.id}:`, e);
               }
             });
           }
         }
       }
     } catch (e) {
-      cblcarsLog.warn('[RoutingPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[RoutingPanel] ⚠️ Data capture failed:', e);
     }
 
     return { stats, routes, performance };
@@ -611,7 +611,7 @@ export class RoutingPanel {
       return true;
     });
 
-    cblcarsLog.debug(`[RoutingPanel] 📊 Filtered ${allRoutes.length} routes to ${filtered.length} matches`);
+    lcardsLog.debug(`[RoutingPanel] 📊 Filtered ${allRoutes.length} routes to ${filtered.length} matches`);
     return filtered;
   }
 
@@ -773,7 +773,7 @@ export class RoutingPanel {
       delete window.__msdAnalyzeRoute;
     }
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   // FIXED: Add method to check if inputs are focused (prevents refresh interference)

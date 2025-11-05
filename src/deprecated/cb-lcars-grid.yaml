@@ -1,7 +1,7 @@
-cb-lcars-grid:
+lcards-grid:
   template:
-    - cb-lcars-card-base
-    - cb-lcars-functions
+    - lcards-card-base
+    - lcards-functions
   variables:
     card:
       width: null
@@ -16,7 +16,7 @@ cb-lcars-grid:
       auto_rows: null
       gap: 5px
     button:
-      type: custom:cblcars-button-card
+      type: custom:lcards-button-card
       variables:
         card:
           width: 180px

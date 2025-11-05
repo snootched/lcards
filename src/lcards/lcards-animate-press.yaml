@@ -1,0 +1,10 @@
+lcards-animate-press:
+  variables:
+    animations:
+      ripple:
+        ripple_color: var(--lcars-card-top-color)
+        ripple_opacity: 0.5
+  styles:
+    card:
+      - '--mdc-ripple-color': '[[[ return variables.animations.ripple.ripple_color; ]]]'
+      - '--mdc-ripple-press-opacity': '[[[ return variables.animations.ripple.ripple_opacity; ]]]'

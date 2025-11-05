@@ -1,5 +1,5 @@
 import { AggregationProcessor } from './AggregationProcessor.js';
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 /**
  * Rolling Statistics Aggregation
@@ -48,7 +48,7 @@ export class RollingStatisticsAggregation extends AggregationProcessor {
     // Result (array or object)
     this._result = null;
 
-    cblcarsLog.debug(
+    lcardsLog.debug(
       `[RollingStatistics] Initialized "${this.key}": stats=[${this.stats.join(', ')}], ` +
       `window=${this.window}ms, format=${this.outputFormat}`
     );

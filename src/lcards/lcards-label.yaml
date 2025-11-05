@@ -1,0 +1,46 @@
+lcards-label:
+  enable_resize_observer: true
+  template:
+    - lcards-base
+  show_label: true
+  variables:
+    card:
+      min_height: 40px
+      color:
+        background:
+          default: transparent
+          active: transparent
+          inactive: transparent
+          zero: transparent
+          non_zero: transparent
+          hvac_heat: transparent
+          hvac_cool: transparent
+          unavailable: transparent
+    text:
+      label:
+        font_size: 40px
+        font_weight: bold
+        padding:
+          top: 0px
+          bottom: 5px
+        transform: uppercase
+        align: center
+        justify: center
+      state:
+        font_size: 40px
+        font_weight: bold
+        padding:
+          top: 0px
+          bottom: 5px
+        transform: uppercase
+        align: center
+        justify: center
+      name:
+        font_size: 40px
+        font_weight: bold
+        padding:
+          top: 0px
+          bottom: 5px
+        transform: uppercase
+        align: center
+        justify: center

@@ -11,7 +11,7 @@
  * @module msd/styles/PresetManager
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Preset Manager for style preset management
@@ -55,7 +55,7 @@ export class PresetManager {
    */
   getPreset(presetName, componentType) {
     if (!this.presets[componentType]) {
-      cblcarsLog.warn('[PresetManager] Unknown component type:', componentType);
+      lcardsLog.warn('[PresetManager] Unknown component type:', componentType);
       return null;
     }
 
@@ -90,7 +90,7 @@ export class PresetManager {
     }
 
     this.presets[componentType][presetName] = presetStyles;
-    cblcarsLog.debug('[PresetManager] Added preset:', componentType, presetName);
+    lcardsLog.debug('[PresetManager] Added preset:', componentType, presetName);
   }
 
   /**
@@ -166,7 +166,7 @@ export class PresetManager {
       });
     });
 
-    cblcarsLog.debug('[PresetManager] Presets loaded');
+    lcardsLog.debug('[PresetManager] Presets loaded');
   }
 
   /**
@@ -231,7 +231,7 @@ export class PresetManager {
     // Get base preset
     const basePreset = this.presets[componentType][extendsName];
     if (!basePreset) {
-      cblcarsLog.warn('[PresetManager] Base preset not found:', extendsName);
+      lcardsLog.warn('[PresetManager] Base preset not found:', extendsName);
       return result;
     }
 

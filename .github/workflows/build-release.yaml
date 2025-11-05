@@ -75,17 +75,17 @@ jobs:
           mkdir -p ./dist/editor
           cp -v ./src/editor/*.json ./dist/editor/
 
-      - name: Create full yaml with version and manage_config as cb-lcars-lovelace.yaml
+      - name: Create full yaml with version and manage_config as lcards-lovelace.yaml
         run: |
           mkdir -p ./dist
-          ./create_full_yaml.sh --output ./dist/cb-lcars-lovelace.yaml --path ./src/cb-lcars
-          echo "cblcars:" > ./dist/temp.yaml
+          ./create_full_yaml.sh --output ./dist/lcards-lovelace.yaml --path ./src/cb-lcars
+          echo "lcards:" > ./dist/temp.yaml
           echo "  version: ${{ steps.get_version.outputs.version }}" >> ./dist/temp.yaml
           echo "  manage_config: true" >> ./dist/temp.yaml
-          cat ./dist/cb-lcars-lovelace.yaml >> ./dist/temp.yaml
-          mv -f ./dist/temp.yaml ./dist/cb-lcars-lovelace.yaml
-          echo "Head of generated cb-lcars-lovelace.yaml"
-          head -10 ./dist/cb-lcars-lovelace.yaml
+          cat ./dist/lcards-lovelace.yaml >> ./dist/temp.yaml
+          mv -f ./dist/temp.yaml ./dist/lcards-lovelace.yaml
+          echo "Head of generated lcards-lovelace.yaml"
+          head -10 ./dist/lcards-lovelace.yaml
           echo "Copy artifacts from src to dist..."
           cp -v ./src/*.yaml ./dist
           cp -Rv ./src/fonts ./dist/

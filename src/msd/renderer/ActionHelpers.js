@@ -10,7 +10,7 @@
  * - Fallback to direct HASS calls when bridge unavailable
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export class ActionHelpers {
 
@@ -25,7 +25,7 @@ export class ActionHelpers {
    * @static
    */
   static _attachSimpleActions(element, simpleActions, cardInstance, options = {}) {
-    cblcarsLog.debug(`[ActionHelpers] 🔗 Attaching overlay actions to element`, {
+    lcardsLog.debug(`[ActionHelpers] 🔗 Attaching overlay actions to element`, {
       elementType: element.tagName,
       overlayId: element.getAttribute('data-overlay-id'),
       actions: simpleActions,
@@ -49,20 +49,20 @@ export class ActionHelpers {
                           event.target.getAttribute('data-has-cell-actions') === 'true');
       if (targetCell) {
         const cellId = targetCell.getAttribute('data-cell-id') || event.target.getAttribute('data-cell-id');
-        cblcarsLog.debug(`[ActionHelpers] 🚫 Overlay ignoring event - clicked on cell with own actions:`, cellId);
+        lcardsLog.debug(`[ActionHelpers] 🚫 Overlay ignoring event - clicked on cell with own actions:`, cellId);
         return; // Don't handle overlay actions on cells with their own actions
       }
 
-      cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay pointer down - starting hold timer`);
+      lcardsLog.debug(`[ActionHelpers] 🔲 Overlay pointer down - starting hold timer`);
       event.preventDefault();
       event.stopImmediatePropagation();
 
       if (simpleActions.hold_action) {
         isHolding = false;
-        cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay setting hold timer for 500ms`);
+        lcardsLog.debug(`[ActionHelpers] 🔲 Overlay setting hold timer for 500ms`);
         holdTimer = setTimeout(() => {
           isHolding = true;
-          cblcarsLog.debug(`[ActionHelpers] 🎯 Overlay HOLD ACTION TRIGGERED after 500ms`);
+          lcardsLog.debug(`[ActionHelpers] 🎯 Overlay HOLD ACTION TRIGGERED after 500ms`);
 
           // Trigger animation if animation manager is available
           if (animationManager && overlayId) {
@@ -81,11 +81,11 @@ export class ActionHelpers {
                           event.target.getAttribute('data-has-cell-actions') === 'true');
       if (targetCell) {
         const cellId = targetCell.getAttribute('data-cell-id') || event.target.getAttribute('data-cell-id');
-        cblcarsLog.debug(`[ActionHelpers] 🚫 Overlay ignoring up event - clicked on cell with own actions:`, cellId);
+        lcardsLog.debug(`[ActionHelpers] 🚫 Overlay ignoring up event - clicked on cell with own actions:`, cellId);
         return; // Don't handle overlay actions on cells with their own actions
       }
 
-      cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay pointer up, wasHolding: ${isHolding}, hadTimer: ${!!holdTimer}`);
+      lcardsLog.debug(`[ActionHelpers] 🔲 Overlay pointer up, wasHolding: ${isHolding}, hadTimer: ${!!holdTimer}`);
       event.preventDefault();
       event.stopImmediatePropagation();
 
@@ -93,7 +93,7 @@ export class ActionHelpers {
       if (holdTimer) {
         clearTimeout(holdTimer);
         holdTimer = null;
-        cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay cleared hold timer`);
+        lcardsLog.debug(`[ActionHelpers] 🔲 Overlay cleared hold timer`);
       }
 
       // Only process tap/double-tap if we weren't holding
@@ -102,7 +102,7 @@ export class ActionHelpers {
 
         // Check for double-tap first
         if (simpleActions.double_tap_action && (now - lastTap < 300) && lastTap > 0) {
-          cblcarsLog.debug(`[ActionHelpers] 🎯 Overlay DOUBLE-TAP ACTION TRIGGERED`);
+          lcardsLog.debug(`[ActionHelpers] 🎯 Overlay DOUBLE-TAP ACTION TRIGGERED`);
 
           // Trigger animation if animation manager is available
           if (animationManager && overlayId) {
@@ -122,7 +122,7 @@ export class ActionHelpers {
             const tapTimestamp = now;
             setTimeout(() => {
               if (lastTap === tapTimestamp) { // No double-tap happened (lastTap wasn't reset)
-                cblcarsLog.debug(`[ActionHelpers] 🎯 Overlay SINGLE TAP ACTION TRIGGERED (delayed)`);
+                lcardsLog.debug(`[ActionHelpers] 🎯 Overlay SINGLE TAP ACTION TRIGGERED (delayed)`);
 
                 // Trigger animation if animation manager is available
                 if (animationManager && overlayId) {
@@ -131,12 +131,12 @@ export class ActionHelpers {
 
                 ActionHelpers.executeActionViaButtonCardBridge(simpleActions.tap_action, cardInstance, 'tap');
               } else {
-                cblcarsLog.debug(`[ActionHelpers] 🚫 Overlay single tap cancelled (double-tap occurred)`);
+                lcardsLog.debug(`[ActionHelpers] 🚫 Overlay single tap cancelled (double-tap occurred)`);
               }
             }, 300);
           } else {
             // No double-tap action, execute immediately
-            cblcarsLog.debug(`[ActionHelpers] 🎯 Overlay SINGLE TAP ACTION TRIGGERED (immediate)`);
+            lcardsLog.debug(`[ActionHelpers] 🎯 Overlay SINGLE TAP ACTION TRIGGERED (immediate)`);
 
             // Trigger animation if animation manager is available
             if (animationManager && overlayId) {
@@ -147,7 +147,7 @@ export class ActionHelpers {
           }
         }
       } else {
-        cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay hold was completed, skipping tap processing`);
+        lcardsLog.debug(`[ActionHelpers] 🔲 Overlay hold was completed, skipping tap processing`);
       }
 
       // Reset hold state
@@ -156,7 +156,7 @@ export class ActionHelpers {
 
     const handlePointerLeave = (event) => {
       // Always clear timers on leave, regardless of target
-      cblcarsLog.debug(`[ActionHelpers] 🔲 Overlay pointer leave - clearing hold timer`);
+      lcardsLog.debug(`[ActionHelpers] 🔲 Overlay pointer leave - clearing hold timer`);
       if (holdTimer) {
         clearTimeout(holdTimer);
         holdTimer = null;
@@ -176,19 +176,19 @@ export class ActionHelpers {
     // Add hover support for animations (desktop only)
     if (animationManager && overlayId) {
       const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-      cblcarsLog.debug(`[ActionHelpers] 🖱️ Hover handler check for ${overlayId}: {hasAnimationManager: true, isDesktop: ${isDesktop}}`);
+      lcardsLog.debug(`[ActionHelpers] 🖱️ Hover handler check for ${overlayId}: {hasAnimationManager: true, isDesktop: ${isDesktop}}`);
 
       if (isDesktop) {
         // On hover - start animations
         const hoverHandler = () => {
-          cblcarsLog.debug(`[ActionHelpers] 🖱️ Hover triggered on ${overlayId}`);
+          lcardsLog.debug(`[ActionHelpers] 🖱️ Hover triggered on ${overlayId}`);
           animationManager.triggerAnimations(overlayId, 'on_hover');
         };
         element.addEventListener('mouseenter', hoverHandler, { capture: false });
 
         // ✨ NEW: On leave - stop hover animations and trigger leave animations
         const leaveHandler = () => {
-          cblcarsLog.debug(`[ActionHelpers] 🖱️ Leave triggered on ${overlayId}`);
+          lcardsLog.debug(`[ActionHelpers] 🖱️ Leave triggered on ${overlayId}`);
 
           // Stop any looping hover animations
           animationManager.stopAnimations(overlayId, 'on_hover');
@@ -198,9 +198,9 @@ export class ActionHelpers {
         };
         element.addEventListener('mouseleave', leaveHandler, { capture: false });
 
-        cblcarsLog.debug(`[ActionHelpers] ✅ Hover/leave handlers attached for ${overlayId}`);
+        lcardsLog.debug(`[ActionHelpers] ✅ Hover/leave handlers attached for ${overlayId}`);
       } else {
-        cblcarsLog.debug(`[ActionHelpers] ⏭️ Skipping hover handlers for ${overlayId} (not desktop)`);
+        lcardsLog.debug(`[ActionHelpers] ⏭️ Skipping hover handlers for ${overlayId} (not desktop)`);
       }
     }
   }
@@ -213,7 +213,7 @@ export class ActionHelpers {
     const target = this.resolveActionTarget(event.target, overlay, actionConfig);
 
     if (target) {
-      cblcarsLog.debug(`[ActionHelpers] Processing tap action for target:`, target);
+      lcardsLog.debug(`[ActionHelpers] Processing tap action for target:`, target);
 
       // Stop event propagation to prevent conflicts
       event.stopPropagation();
@@ -231,7 +231,7 @@ export class ActionHelpers {
     const target = this.resolveActionTarget(event.target, overlay, actionConfig);
 
     if (target && target.hold_action) {
-      cblcarsLog.debug(`[ActionHelpers] Processing hold action for target:`, target);
+      lcardsLog.debug(`[ActionHelpers] Processing hold action for target:`, target);
 
       // Execute the appropriate hold action
       this.executeAction(target.hold_action, target.context, cardInstance);
@@ -285,7 +285,7 @@ export class ActionHelpers {
       const cellRow = cellElement.getAttribute('data-cell-row');
       const cellCol = cellElement.getAttribute('data-cell-col');
 
-      cblcarsLog.debug(`[ActionHelpers] Clicked on cell:`, { cellId, cellRow, cellCol });
+      lcardsLog.debug(`[ActionHelpers] Clicked on cell:`, { cellId, cellRow, cellCol });
 
       // Check for cell-specific overrides first
       if (enhancedActions.cell_overrides) {
@@ -344,7 +344,7 @@ export class ActionHelpers {
    */
   static resolveRulesTarget(clickedElement, overlay, rulesActions) {
     // TODO: Implement in Phase 4 when we integrate with Rules Engine
-    cblcarsLog.debug(`[ActionHelpers] Rules-based actions not yet implemented`);
+    lcardsLog.debug(`[ActionHelpers] Rules-based actions not yet implemented`);
     return null;
   }
 
@@ -356,11 +356,11 @@ export class ActionHelpers {
    */
   static executeAction(actionDef, context, cardInstance) {
     if (!actionDef || !cardInstance) {
-      cblcarsLog.debug(`[ActionHelpers] Skipping action execution - missing action or card instance`);
+      lcardsLog.debug(`[ActionHelpers] Skipping action execution - missing action or card instance`);
       return;
     }
 
-    cblcarsLog.debug(`[ActionHelpers] Executing action:`, { actionDef, context });
+    lcardsLog.debug(`[ActionHelpers] Executing action:`, { actionDef, context });
 
     try {
       // Process templates in action definition using context
@@ -415,14 +415,14 @@ export class ActionHelpers {
           if (cardInstance._handleAction) {
             cardInstance._handleAction(processedAction, processedAction.entity);
           } else {
-            cblcarsLog.warn(`[ActionHelpers] Unknown action type: ${processedAction.action}`);
+            lcardsLog.warn(`[ActionHelpers] Unknown action type: ${processedAction.action}`);
           }
       }
 
-      cblcarsLog.debug(`[ActionHelpers] ✅ Action executed successfully`);
+      lcardsLog.debug(`[ActionHelpers] ✅ Action executed successfully`);
 
     } catch (error) {
-      cblcarsLog.error(`[ActionHelpers] ❌ Error executing action:`, error);
+      lcardsLog.error(`[ActionHelpers] ❌ Error executing action:`, error);
     }
   }
 
@@ -436,7 +436,7 @@ export class ActionHelpers {
    */
   static executeActionViaButtonCardBridge(action, cardInstance, actionType = 'tap') {
     if (!action || !cardInstance) {
-      cblcarsLog.debug(`[ActionHelpers] Missing action or card instance for bridge execution`);
+      lcardsLog.debug(`[ActionHelpers] Missing action or card instance for bridge execution`);
       return false;
     }
 
@@ -472,11 +472,11 @@ export class ActionHelpers {
         }
       }
 
-      cblcarsLog.warn(`[ActionHelpers] ⚠️ cardInstance._handleAction is not a function, falling back`);
+      lcardsLog.warn(`[ActionHelpers] ⚠️ cardInstance._handleAction is not a function, falling back`);
       return ActionHelpers._executeActionDirectly(action, cardInstance);
 
     } catch (error) {
-      cblcarsLog.error(`[ActionHelpers] ❌ Bridge execution FAILED:`, error);
+      lcardsLog.error(`[ActionHelpers] ❌ Bridge execution FAILED:`, error);
       return ActionHelpers._executeActionDirectly(action, cardInstance);
     }
   }  /**
@@ -492,7 +492,7 @@ export class ActionHelpers {
       const hassObject = cardInstance.___hass || cardInstance._hass || cardInstance.hass || cardInstance.__hass;
 
       if (!hassObject || typeof hassObject.callService !== 'function') {
-        cblcarsLog.warn(`[ActionHelpers] No HASS object with callService method available`);
+        lcardsLog.warn(`[ActionHelpers] No HASS object with callService method available`);
         return false;
       }
 
@@ -502,7 +502,7 @@ export class ActionHelpers {
           if (action.entity) {
             const domain = action.entity.split('.')[0];
             hassObject.callService(domain, 'toggle', { entity_id: action.entity });
-            cblcarsLog.debug(`[ActionHelpers] ✅ Direct toggle executed for ${action.entity}`);
+            lcardsLog.debug(`[ActionHelpers] ✅ Direct toggle executed for ${action.entity}`);
             return true;
           }
           break;
@@ -512,7 +512,7 @@ export class ActionHelpers {
             const [domain, service] = action.service.split('.');
             const serviceData = action.service_data || action.data || {};
             hassObject.callService(domain, service, serviceData);
-            cblcarsLog.debug(`[ActionHelpers] ✅ Direct service call executed: ${action.service}`);
+            lcardsLog.debug(`[ActionHelpers] ✅ Direct service call executed: ${action.service}`);
             return true;
           }
           break;
@@ -520,7 +520,7 @@ export class ActionHelpers {
         case 'more-info':
           if (action.entity && hassObject.showMoreInfoDialog) {
             hassObject.showMoreInfoDialog(action.entity);
-            cblcarsLog.debug(`[ActionHelpers] ✅ Direct more-info executed for ${action.entity}`);
+            lcardsLog.debug(`[ActionHelpers] ✅ Direct more-info executed for ${action.entity}`);
             return true;
           }
           break;
@@ -528,7 +528,7 @@ export class ActionHelpers {
         case 'navigate':
           if (action.navigation_path && window.history) {
             window.history.pushState(null, '', action.navigation_path);
-            cblcarsLog.debug(`[ActionHelpers] ✅ Direct navigation executed to ${action.navigation_path}`);
+            lcardsLog.debug(`[ActionHelpers] ✅ Direct navigation executed to ${action.navigation_path}`);
             return true;
           }
           break;
@@ -536,21 +536,21 @@ export class ActionHelpers {
         case 'url':
           if (action.url_path) {
             window.open(action.url_path, action.new_tab ? '_blank' : '_self');
-            cblcarsLog.debug(`[ActionHelpers] ✅ Direct URL action executed: ${action.url_path}`);
+            lcardsLog.debug(`[ActionHelpers] ✅ Direct URL action executed: ${action.url_path}`);
             return true;
           }
           break;
 
         default:
-          cblcarsLog.warn(`[ActionHelpers] Unsupported direct action type: ${action.action}`);
+          lcardsLog.warn(`[ActionHelpers] Unsupported direct action type: ${action.action}`);
           return false;
       }
 
-      cblcarsLog.warn(`[ActionHelpers] Direct action execution failed - missing required parameters`);
+      lcardsLog.warn(`[ActionHelpers] Direct action execution failed - missing required parameters`);
       return false;
 
     } catch (error) {
-      cblcarsLog.error(`[ActionHelpers] ❌ Direct action execution error:`, error);
+      lcardsLog.error(`[ActionHelpers] ❌ Direct action execution error:`, error);
       return false;
     }
   }
@@ -596,7 +596,7 @@ export class ActionHelpers {
 
     // TODO: Add more sophisticated template processing later (DataSource references, etc.)
 
-    cblcarsLog.debug(`[ActionHelpers] Template resolved: "${template}" → "${resolved}"`);
+    lcardsLog.debug(`[ActionHelpers] Template resolved: "${template}" → "${resolved}"`);
     return resolved;
   }
 
@@ -615,7 +615,7 @@ export class ActionHelpers {
     overlayElement.removeAttribute('data-actions-enabled');
     overlayElement.style.cursor = '';
 
-    cblcarsLog.debug(`[ActionHelpers] Actions detached from overlay element`);
+    lcardsLog.debug(`[ActionHelpers] Actions detached from overlay element`);
   }
 
   /**
@@ -629,7 +629,7 @@ export class ActionHelpers {
    */
   static processOverlayActions(overlay, style = {}, cardInstance = null) {
     if (!cardInstance) {
-      cblcarsLog.debug(`[ActionHelpers] No card instance available for ${overlay.type || 'overlay'} ${overlay.id}`);
+      lcardsLog.debug(`[ActionHelpers] No card instance available for ${overlay.type || 'overlay'} ${overlay.id}`);
       return null;
     }
 
@@ -799,8 +799,8 @@ export class ActionHelpers {
     // Try various methods to get the card instance
 
     // Method 1: From MSD pipeline if available
-    if (window.cblcars.debug.msd?.pipelineInstance?.cardInstance) {
-      return window.cblcars.debug.msd.pipelineInstance.cardInstance;
+    if (window.lcards.debug.msd?.pipelineInstance?.cardInstance) {
+      return window.lcards.debug.msd.pipelineInstance.cardInstance;
     }
 
     // Method 2: From global MSD context
@@ -808,12 +808,12 @@ export class ActionHelpers {
       return window._msdCardInstance;
     }
 
-    // Method 3: From CB-LCARS global context
+    // Method 3: From LCARdS global context
     if (window.cb_lcars_card_instance) {
       return window.cb_lcars_card_instance;
     }
 
-    cblcarsLog.debug(`[ActionHelpers] Could not resolve card instance from global context`);
+    lcardsLog.debug(`[ActionHelpers] Could not resolve card instance from global context`);
     return null;
   }
 
@@ -826,23 +826,23 @@ export class ActionHelpers {
    * @static
    */
   static _attachEnhancedActions(overlayElement, enhancedActions, cardInstance) {
-    cblcarsLog.debug(`[ActionHelpers] 🎯 Attaching enhanced actions:`, enhancedActions);
+    lcardsLog.debug(`[ActionHelpers] 🎯 Attaching enhanced actions:`, enhancedActions);
 
     // LEGACY: Handle old-style cell actions (style.actions.cells) for backward compatibility
     if (enhancedActions.cells && Array.isArray(enhancedActions.cells)) {
-      cblcarsLog.debug(`[ActionHelpers] ⚠️ Using legacy cell action format - consider moving actions to cell configs`);
+      lcardsLog.debug(`[ActionHelpers] ⚠️ Using legacy cell action format - consider moving actions to cell configs`);
 
       enhancedActions.cells.forEach(cellAction => {
         const cellId = cellAction.cell_id;
         if (!cellId) {
-          cblcarsLog.warn(`[ActionHelpers] Cell action missing cell_id:`, cellAction);
+          lcardsLog.warn(`[ActionHelpers] Cell action missing cell_id:`, cellAction);
           return;
         }
 
         // Find the cell element within the overlay
         const cellElement = overlayElement.querySelector(`[data-cell-id="${cellId}"]`);
         if (!cellElement) {
-          cblcarsLog.warn(`[ActionHelpers] Cell element not found for ${cellId}`);
+          lcardsLog.warn(`[ActionHelpers] Cell element not found for ${cellId}`);
           return;
         }
 
@@ -853,7 +853,7 @@ export class ActionHelpers {
     // Handle other element-specific actions (for future overlay types)
     if (enhancedActions.elements && Array.isArray(enhancedActions.elements)) {
       // TODO: Implement generic element-specific actions for other overlay types
-      cblcarsLog.debug(`[ActionHelpers] � Generic element actions not yet implemented`);
+      lcardsLog.debug(`[ActionHelpers] � Generic element actions not yet implemented`);
     }
   }
 
@@ -866,17 +866,17 @@ export class ActionHelpers {
    */
   static attachCellActionsFromConfigs(overlayElement, cells, cardInstance) {
     if (!cells || !Array.isArray(cells)) {
-      cblcarsLog.debug(`[ActionHelpers] No cells provided for action attachment`);
+      lcardsLog.debug(`[ActionHelpers] No cells provided for action attachment`);
       return;
     }
 
-    cblcarsLog.debug(`[ActionHelpers] 🔍 Processing ${cells.length} cells for action attachment`);
+    lcardsLog.debug(`[ActionHelpers] 🔍 Processing ${cells.length} cells for action attachment`);
 
     cells.forEach(cell => {
 
 
       if (!cell.actions || (!cell.actions.tap_action && !cell.actions.hold_action && !cell.actions.double_tap_action)) {
-        cblcarsLog.debug(`[ActionHelpers] No actions on cell ${cell.id}`);
+        lcardsLog.debug(`[ActionHelpers] No actions on cell ${cell.id}`);
         return; // No actions on this cell
       }
 
@@ -884,7 +884,7 @@ export class ActionHelpers {
       const cellElement = overlayElement.querySelector(`[data-cell-id="${cell.id}"]`);
       if (!cellElement) {
         const availableCells = Array.from(overlayElement.querySelectorAll('[data-cell-id]')).map(el => el.getAttribute('data-cell-id'));
-        cblcarsLog.error(`[ActionHelpers] ❌ Cell element not found for "${cell.id}"`, {
+        lcardsLog.error(`[ActionHelpers] ❌ Cell element not found for "${cell.id}"`, {
           searchedFor: cell.id,
           availableCells: availableCells,
           overlayId: overlayElement.getAttribute('data-overlay-id'),
@@ -896,14 +896,14 @@ export class ActionHelpers {
 
       // CRITICAL: Attach actions to ALL elements that belong to this cell (rect, text elements, etc.)
       const cellParts = overlayElement.querySelectorAll(`[data-cell-id="${cell.id}"]`);
-      cblcarsLog.debug(`[ActionHelpers] 🔍 Found ${cellParts.length} elements for cell ${cell.id}`);
+      lcardsLog.debug(`[ActionHelpers] 🔍 Found ${cellParts.length} elements for cell ${cell.id}`);
 
       cellParts.forEach((element, index) => {
         const elementType = element.tagName.toLowerCase();
         const elementDesc = elementType === 'rect' ? 'cell-rect' :
                            elementType === 'text' ? 'cell-text' :
                            `cell-${elementType}`;
-        cblcarsLog.debug(`[ActionHelpers] 🔲 Attaching actions to ${elementDesc} ${index + 1}/${cellParts.length} for ${cell.id}`);
+        lcardsLog.debug(`[ActionHelpers] 🔲 Attaching actions to ${elementDesc} ${index + 1}/${cellParts.length} for ${cell.id}`);
         ActionHelpers._attachCellActions(element, cell.actions, cardInstance, `${cell.id}-${elementDesc}`);
       });
     });
@@ -920,7 +920,7 @@ export class ActionHelpers {
    */
   static _attachCellActions(cellElement, actions, cardInstance, cellId) {
     if (!cellElement || !actions) {
-      cblcarsLog.warn(`[ActionHelpers] Missing cellElement or actions for ${cellId}`);
+      lcardsLog.warn(`[ActionHelpers] Missing cellElement or actions for ${cellId}`);
       return;
     }
 
@@ -937,7 +937,7 @@ export class ActionHelpers {
       if (actions.tap_action) {
         const executed = ActionHelpers.executeActionViaButtonCardBridge(actions.tap_action, cardInstance, 'tap');
         if (!executed) {
-          cblcarsLog.warn(`[ActionHelpers] ⚠️ TAP ACTION EXECUTION RETURNED FALSE for ${cellId}`);
+          lcardsLog.warn(`[ActionHelpers] ⚠️ TAP ACTION EXECUTION RETURNED FALSE for ${cellId}`);
         }
       }
       return false;
@@ -949,7 +949,7 @@ export class ActionHelpers {
 
     // Mark as attached
     cellElement.setAttribute('data-actions-attached', 'true');
-    cblcarsLog.debug(`[ActionHelpers] ✅ Attached cell actions to ${cellId}`);
+    lcardsLog.debug(`[ActionHelpers] ✅ Attached cell actions to ${cellId}`);
   }
 
   /**
@@ -964,12 +964,12 @@ export class ActionHelpers {
    */
   static attachActions(element, overlay, actionConfig, cardInstance, options = {}) {
     if (!element || !actionConfig || !cardInstance) {
-      cblcarsLog.debug(`[ActionHelpers] Missing required parameters for action attachment`);
+      lcardsLog.debug(`[ActionHelpers] Missing required parameters for action attachment`);
       return;
     }
 
     const hasAnimationManager = !!options.animationManager;
-    cblcarsLog.debug(`[ActionHelpers] 🔗 Attaching actions to ${overlay.type || 'overlay'} ${overlay.id} (animationManager: ${hasAnimationManager})`);
+    lcardsLog.debug(`[ActionHelpers] 🔗 Attaching actions to ${overlay.type || 'overlay'} ${overlay.id} (animationManager: ${hasAnimationManager})`);
 
     // Attach simple actions (tap, hold, double_tap)
     if (actionConfig.simple) {
@@ -981,7 +981,7 @@ export class ActionHelpers {
       ActionHelpers._attachEnhancedActions(element, actionConfig.enhanced, cardInstance);
     }
 
-    cblcarsLog.debug(`[ActionHelpers] ✅ Actions attached to ${overlay.type || 'overlay'} ${overlay.id}`);
+    lcardsLog.debug(`[ActionHelpers] ✅ Actions attached to ${overlay.type || 'overlay'} ${overlay.id}`);
   }
 }
 

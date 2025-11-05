@@ -10,7 +10,7 @@
  * @module msd/styles/CacheManager
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Cache Manager for style resolution caching
@@ -69,7 +69,7 @@ export class CacheManager {
 
     const cache = this.caches[type];
     if (!cache) {
-      cblcarsLog.warn('[CacheManager] Unknown cache type:', type);
+      lcardsLog.warn('[CacheManager] Unknown cache type:', type);
       return null;
     }
 
@@ -95,7 +95,7 @@ export class CacheManager {
 
     const cache = this.caches[type];
     if (!cache) {
-      cblcarsLog.warn('[CacheManager] Unknown cache type:', type);
+      lcardsLog.warn('[CacheManager] Unknown cache type:', type);
       return;
     }
 
@@ -121,13 +121,13 @@ export class CacheManager {
         this.caches[t].clear();
         this.accessOrder[t] = [];
       });
-      cblcarsLog.debug('[CacheManager] All caches cleared');
+      lcardsLog.debug('[CacheManager] All caches cleared');
     } else if (id === null) {
       // Clear entire cache type
       if (this.caches[type]) {
         this.caches[type].clear();
         this.accessOrder[type] = [];
-        cblcarsLog.debug(`[CacheManager] Cache cleared: ${type}`);
+        lcardsLog.debug(`[CacheManager] Cache cleared: ${type}`);
       }
     } else {
       // Clear specific entry
@@ -146,7 +146,7 @@ export class CacheManager {
         });
 
         if (keysToDelete.length > 0) {
-          cblcarsLog.debug(`[CacheManager] Cleared ${keysToDelete.length} entries for ${type}:${id}`);
+          lcardsLog.debug(`[CacheManager] Cleared ${keysToDelete.length} entries for ${type}:${id}`);
         }
       }
     }
@@ -221,7 +221,7 @@ export class CacheManager {
     cache.delete(lruKey);
     this.stats[type].evictions++;
 
-    cblcarsLog.debug(`[CacheManager] LRU eviction: ${type}:${lruKey}`);
+    lcardsLog.debug(`[CacheManager] LRU eviction: ${type}:${lruKey}`);
   }
 }
 

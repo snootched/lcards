@@ -1,11 +1,11 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { initMsdPipeline } from './PipelineCore.js';
 
 /**
  * MSD Instance Manager - Provides single-instance protection for MSD system
  *
  * The MSD system is designed for single-instance operation due to:
- * - Global window references (window.cblcars.debug.msd, window.cblcars.msd.api)
+ * - Global window references (window.lcards.debug.msd, window.lcards.msd.api)
  * - Singleton HUD Manager attached to document.body
  * - Shared resource managers with no namespace isolation
  * - Global card instance storage
@@ -47,10 +47,10 @@ export class MsdInstanceManager {
       // Method 1: Check global references (most reliable)
       const globalCard = window.cb_lcars_card_instance ||
                         window._currentCardInstance ||
-                        window.cblcars.debug.msd?.cardInstance;
+                        window.lcards.debug.msd?.cardInstance;
 
       if (globalCard && globalCard._msdInstanceGuid) {
-        cblcarsLog.debug('[MsdInstanceManager] Found card instance via globals:',
+        lcardsLog.debug('[MsdInstanceManager] Found card instance via globals:',
           globalCard._msdInstanceGuid);
         return globalCard;
       }
@@ -58,7 +58,7 @@ export class MsdInstanceManager {
       // Method 2: Also generate GUID if card exists but doesn't have one yet
       if (globalCard && !globalCard._msdInstanceGuid) {
         globalCard._msdInstanceGuid = MsdInstanceManager._generateGuid();
-        cblcarsLog.debug('[MsdInstanceManager] Generated missing GUID for existing card:',
+        lcardsLog.debug('[MsdInstanceManager] Generated missing GUID for existing card:',
           globalCard._msdInstanceGuid);
         return globalCard;
       }
@@ -68,7 +68,7 @@ export class MsdInstanceManager {
       for (let i = 0; i < 10 && current; i++) {
         // Check if current element IS the card
         if (current._msdInstanceGuid) {
-          cblcarsLog.debug('[MsdInstanceManager] Found card instance via traversal:',
+          lcardsLog.debug('[MsdInstanceManager] Found card instance via traversal:',
             current._msdInstanceGuid);
           return current;
         }
@@ -86,11 +86,11 @@ export class MsdInstanceManager {
         }
       }
 
-      cblcarsLog.warn('[MsdInstanceManager] Could not find card instance with GUID');
+      lcardsLog.warn('[MsdInstanceManager] Could not find card instance with GUID');
       return null;
 
     } catch (error) {
-      cblcarsLog.error('[MsdInstanceManager] Error extracting card instance:', error);
+      lcardsLog.error('[MsdInstanceManager] Error extracting card instance:', error);
       return null;
     }
   }
@@ -104,7 +104,7 @@ export class MsdInstanceManager {
    * @returns {Promise<Object>} Pipeline API or preview/blocked content
    */
   static async requestInstance(userMsdConfig, mountEl, hass, isPreview = false) {
-    cblcarsLog.debug('[MsdInstanceManager] 🚀 requestInstance called:', {
+    lcardsLog.debug('[MsdInstanceManager] 🚀 requestInstance called:', {
       hasExistingInstance: !!MsdInstanceManager._currentInstance,
       currentGuid: MsdInstanceManager._currentInstanceGuid,
       isInitializing: MsdInstanceManager._isInitializing,
@@ -115,7 +115,7 @@ export class MsdInstanceManager {
 
     // Handle preview mode specially
     if (isPreview) {
-      cblcarsLog.debug('[MsdInstanceManager] 🔍 Preview mode detected - returning preview content');
+      lcardsLog.debug('[MsdInstanceManager] 🔍 Preview mode detected - returning preview content');
       return MsdInstanceManager._createPreviewContent(userMsdConfig, mountEl);
     }
 
@@ -123,7 +123,7 @@ export class MsdInstanceManager {
     const requestingCard = MsdInstanceManager._getCardInstanceFromMount(mountEl);
     const requestingGuid = requestingCard?._msdInstanceGuid;
 
-    cblcarsLog.debug('[MsdInstanceManager] Request identity:', {
+    lcardsLog.debug('[MsdInstanceManager] Request identity:', {
       hasCardInstance: !!requestingCard,
       requestingGuid: requestingGuid,
       currentGuid: MsdInstanceManager._currentInstanceGuid
@@ -131,7 +131,7 @@ export class MsdInstanceManager {
 
     // Handle race condition: if we're already initializing, wait for completion
     if (MsdInstanceManager._isInitializing && MsdInstanceManager._initializationPromise) {
-      cblcarsLog.debug('[MsdInstanceManager] ⏳ Instance initialization in progress, waiting...');
+      lcardsLog.debug('[MsdInstanceManager] ⏳ Instance initialization in progress, waiting...');
       try {
         const existingInstance = await MsdInstanceManager._initializationPromise;
 
@@ -139,11 +139,11 @@ export class MsdInstanceManager {
         if (existingInstance &&
             requestingGuid &&
             MsdInstanceManager._currentInstanceGuid === requestingGuid) {
-          cblcarsLog.debug('[MsdInstanceManager] ✅ Returning completed initialization (GUID match)');
+          lcardsLog.debug('[MsdInstanceManager] ✅ Returning completed initialization (GUID match)');
           return existingInstance;
         }
       } catch (error) {
-        cblcarsLog.warn('[MsdInstanceManager] ⚠️ Previous initialization failed, proceeding with new attempt');
+        lcardsLog.warn('[MsdInstanceManager] ⚠️ Previous initialization failed, proceeding with new attempt');
       }
     }
 
@@ -156,7 +156,7 @@ export class MsdInstanceManager {
 
       // If the "current" card instance doesn't match our tracked instance, the tracked instance is stale
       if (currentCardGuid && MsdInstanceManager._currentInstanceGuid !== currentCardGuid) {
-        cblcarsLog.warn('[MsdInstanceManager] Tracked instance GUID mismatch - instance is stale, cleaning up:', {
+        lcardsLog.warn('[MsdInstanceManager] Tracked instance GUID mismatch - instance is stale, cleaning up:', {
           trackedGuid: MsdInstanceManager._currentInstanceGuid,
           currentCardGuid: currentCardGuid
         });
@@ -165,7 +165,7 @@ export class MsdInstanceManager {
       } else {
         // ✅ NEW: GUID-based matching (legitimate re-initialization)
         if (requestingGuid && requestingGuid === MsdInstanceManager._currentInstanceGuid) {
-          cblcarsLog.debug('[MsdInstanceManager] ✅ GUID match - returning existing instance', {
+          lcardsLog.debug('[MsdInstanceManager] ✅ GUID match - returning existing instance', {
             guid: requestingGuid,
             reason: 'same_card_reinitializing'
           });
@@ -174,7 +174,7 @@ export class MsdInstanceManager {
 
         // ✅ NEW: Different GUID = truly different card (block it)
         if (requestingGuid && requestingGuid !== MsdInstanceManager._currentInstanceGuid) {
-          cblcarsLog.warn('[MsdInstanceManager] 🚨 Different GUID - blocking new instance:', {
+          lcardsLog.warn('[MsdInstanceManager] 🚨 Different GUID - blocking new instance:', {
             existingGuid: MsdInstanceManager._currentInstanceGuid,
             requestingGuid: requestingGuid
           });
@@ -196,7 +196,7 @@ export class MsdInstanceManager {
 
         // ✅ FALLBACK: No GUID on requesting card (shouldn't happen but be defensive)
         if (!requestingGuid) {
-          cblcarsLog.warn('[MsdInstanceManager] ⚠️ No GUID on requesting card - blocking as precaution');
+          lcardsLog.warn('[MsdInstanceManager] ⚠️ No GUID on requesting card - blocking as precaution');
           return {
             enabled: false,
             blocked: true,
@@ -219,7 +219,7 @@ export class MsdInstanceManager {
       const pipelineApi = await MsdInstanceManager._initializationPromise;
       return pipelineApi;
     } catch (error) {
-      cblcarsLog.error('[MsdInstanceManager] ❌ Failed to create MSD instance:', error);
+      lcardsLog.error('[MsdInstanceManager] ❌ Failed to create MSD instance:', error);
       throw error;
     } finally {
       MsdInstanceManager._isInitializing = false;
@@ -233,7 +233,7 @@ export class MsdInstanceManager {
    */
   static async _performInitialization(userMsdConfig, mountEl, hass, requestingGuid) {
     try {
-      cblcarsLog.debug('[MsdInstanceManager] 🔧 Starting MSD pipeline initialization with GUID:', requestingGuid);
+      lcardsLog.debug('[MsdInstanceManager] 🔧 Starting MSD pipeline initialization with GUID:', requestingGuid);
 
       const pipelineApi = await initMsdPipeline(userMsdConfig, mountEl, hass);
 
@@ -253,16 +253,16 @@ export class MsdInstanceManager {
       if (pipelineApi.setCardInstance && typeof pipelineApi.setCardInstance === 'function') {
         const cardInstance = window.cb_lcars_card_instance || window._currentCardInstance;
         if (cardInstance) {
-          cblcarsLog.debug('[MsdInstanceManager] 🔧 Setting card instance via pipeline setCardInstance');
+          lcardsLog.debug('[MsdInstanceManager] 🔧 Setting card instance via pipeline setCardInstance');
           pipelineApi.setCardInstance(cardInstance);
         }
       }
 
-      cblcarsLog.debug('[MsdInstanceManager] ✅ New MSD instance created and registered');
+      lcardsLog.debug('[MsdInstanceManager] ✅ New MSD instance created and registered');
       return pipelineApi;
 
     } catch (error) {
-      cblcarsLog.error('[MsdInstanceManager] ❌ Pipeline initialization failed:', error);
+      lcardsLog.error('[MsdInstanceManager] ❌ Pipeline initialization failed:', error);
       throw error;
     }
   }
@@ -307,7 +307,7 @@ export class MsdInstanceManager {
     // Preview mode if we have primary indicators, or fallback indicators when no primary ones exist
     const isPreview = primaryIndicators.length > 0 || (primaryIndicators.length === 0 && fallbackIndicators.length > 0);
 
-    cblcarsLog.debug('[MsdInstanceManager] 🔍 Preview mode detection:', {
+    lcardsLog.debug('[MsdInstanceManager] 🔍 Preview mode detection:', {
       isPreview,
       primaryIndicators: primaryIndicators.map(i => i.name),
       fallbackIndicators: fallbackIndicators.map(i => i.name),
@@ -374,7 +374,7 @@ export class MsdInstanceManager {
         const shadowElementEditor = current.shadowRoot.querySelector('.element-editor');
 
         if (shadowPreview || shadowHuiSection || shadowElementEditor) {
-          cblcarsLog.debug('[MsdInstanceManager] 🎯 Found preview indicator in shadow DOM:', {
+          lcardsLog.debug('[MsdInstanceManager] 🎯 Found preview indicator in shadow DOM:', {
             element: current.tagName,
             foundPreview: !!shadowPreview,
             foundHuiSection: !!shadowHuiSection,
@@ -449,7 +449,7 @@ export class MsdInstanceManager {
     const lowPriorityMatch = lowPriorityPatterns.find(pattern => pattern.test(extendedPath));
 
     if (highPriorityMatch) {
-      cblcarsLog.debug('[MsdInstanceManager] 🎯 Found HIGH PRIORITY preview pattern:', {
+      lcardsLog.debug('[MsdInstanceManager] 🎯 Found HIGH PRIORITY preview pattern:', {
         pattern: highPriorityMatch.source,
         path: extendedPath
       });
@@ -457,7 +457,7 @@ export class MsdInstanceManager {
     }
 
     if (lowPriorityMatch) {
-      cblcarsLog.debug('[MsdInstanceManager] 🔍 Found low priority edit mode pattern:', {
+      lcardsLog.debug('[MsdInstanceManager] 🔍 Found low priority edit mode pattern:', {
         pattern: lowPriorityMatch.source,
         path: extendedPath,
         note: 'Edit mode detected but not necessarily card preview'
@@ -473,10 +473,10 @@ export class MsdInstanceManager {
    */
   static _findCardElement(mountEl) {
     // Try to get the card instance from global references
-    const cardInstance = window.cb_lcars_card_instance || window._currentCardInstance || window.cblcars.debug.msd?.cardInstance;
+    const cardInstance = window.cb_lcars_card_instance || window._currentCardInstance || window.lcards.debug.msd?.cardInstance;
 
     if (cardInstance) {
-      return cardInstance; // This should be the cb-lcars-msd-card element
+      return cardInstance; // This should be the lcards-msd-card element
     }
 
     // Fallback: try to traverse up from mount element
@@ -491,7 +491,7 @@ export class MsdInstanceManager {
           current = shadowRoot.host; // Jump to shadow host
 
           // Check if this is our card element
-          if (current.tagName && current.tagName.toLowerCase().includes('cb-lcars-msd-card')) {
+          if (current.tagName && current.tagName.toLowerCase().includes('lcards-msd-card')) {
             return current;
           }
 
@@ -500,7 +500,7 @@ export class MsdInstanceManager {
       }
 
       // Regular DOM traversal
-      if (current.tagName && current.tagName.toLowerCase().includes('cb-lcars-msd-card')) {
+      if (current.tagName && current.tagName.toLowerCase().includes('lcards-msd-card')) {
         return current;
       }
 
@@ -524,14 +524,14 @@ export class MsdInstanceManager {
                              cardInstance.closest?.('.element-editor');
 
         if (cardInPreview) {
-          cblcarsLog.debug('[MsdInstanceManager] 🎯 Found preview via card instance');
+          lcardsLog.debug('[MsdInstanceManager] 🎯 Found preview via card instance');
           return true;
         }
       }
 
       return false;
     } catch (error) {
-      cblcarsLog.warn('[MsdInstanceManager] ⚠️ Error checking card instance preview:', error);
+      lcardsLog.warn('[MsdInstanceManager] ⚠️ Error checking card instance preview:', error);
       return false;
     }
   }
@@ -564,11 +564,11 @@ export class MsdInstanceManager {
    */
   static async destroyInstance() {
     if (!MsdInstanceManager._currentInstance) {
-      cblcarsLog.debug('[MsdInstanceManager] No active instance to destroy');
+      lcardsLog.debug('[MsdInstanceManager] No active instance to destroy');
       return;
     }
 
-    cblcarsLog.debug('[MsdInstanceManager] 🧹 Destroying MSD instance:', {
+    lcardsLog.debug('[MsdInstanceManager] 🧹 Destroying MSD instance:', {
       guid: MsdInstanceManager._currentInstanceGuid,
       timestamp: new Date().toISOString()
     });
@@ -581,7 +581,7 @@ export class MsdInstanceManager {
         try {
           await instance.systemsManager.destroy();
         } catch (error) {
-          cblcarsLog.warn('[MsdInstanceManager] ⚠️ SystemsManager destroy failed:', error);
+          lcardsLog.warn('[MsdInstanceManager] ⚠️ SystemsManager destroy failed:', error);
         }
       }
 
@@ -590,16 +590,16 @@ export class MsdInstanceManager {
         try {
           await instance.destroy();
         } catch (error) {
-          cblcarsLog.warn('[MsdInstanceManager] ⚠️ Pipeline destroy failed:', error);
+          lcardsLog.warn('[MsdInstanceManager] ⚠️ Pipeline destroy failed:', error);
         }
       }
 
       // Clear global references
       if (typeof window !== 'undefined') {
-        delete window.cblcars.debug.msd?.pipelineInstance;
-        delete window.cblcars.debug.msd?.systemsManager;
-        delete window.cblcars.debug.msd?.routing;
-        delete window.cblcars.debug.msd?.hud;
+        delete window.lcards.debug.msd?.pipelineInstance;
+        delete window.lcards.debug.msd?.systemsManager;
+        delete window.lcards.debug.msd?.routing;
+        delete window.lcards.debug.msd?.hud;
 
         // Clear card instance references
         delete window.cb_lcars_card_instance;
@@ -611,8 +611,8 @@ export class MsdInstanceManager {
         delete window.__msdHudPanelControls;
 
         // Clear debug references
-        delete window.cblcars.debug.msd?.cardInstance;
-        delete window.cblcars.debug.msd?.debugManager;
+        delete window.lcards.debug.msd?.cardInstance;
+        delete window.lcards.debug.msd?.debugManager;
       }
 
       // Clear instance references
@@ -620,10 +620,10 @@ export class MsdInstanceManager {
       MsdInstanceManager._currentMountElement = null;
       MsdInstanceManager._currentInstanceGuid = null; // ✅ NEW: Clear GUID
 
-      cblcarsLog.debug('[MsdInstanceManager] ✅ MSD instance destroyed and GUID cleared');
+      lcardsLog.debug('[MsdInstanceManager] ✅ MSD instance destroyed and GUID cleared');
 
     } catch (error) {
-      cblcarsLog.error('[MsdInstanceManager] ❌ Error during instance destruction:', error);
+      lcardsLog.error('[MsdInstanceManager] ❌ Error during instance destruction:', error);
     }
   }
 
@@ -648,7 +648,7 @@ export class MsdInstanceManager {
     const replacingCard = MsdInstanceManager._getCardInstanceFromMount(mountEl);
     const replacingGuid = replacingCard?._msdInstanceGuid;
 
-    cblcarsLog.warn('[MsdInstanceManager] 🔄 Force replacing MSD instance:', {
+    lcardsLog.warn('[MsdInstanceManager] 🔄 Force replacing MSD instance:', {
       oldGuid: MsdInstanceManager._currentInstanceGuid,
       newGuid: replacingGuid
     });
@@ -662,7 +662,7 @@ export class MsdInstanceManager {
    * @private
    */
   static _createPreviewContent(userMsdConfig, mountEl) {
-    cblcarsLog.debug('[MsdInstanceManager] 🎨 Generating MSD preview content', userMsdConfig);
+    lcardsLog.debug('[MsdInstanceManager] 🎨 Generating MSD preview content', userMsdConfig);
 
     // userMsdConfig is already at the MSD level, not wrapped in .msd
     const msdConfig = userMsdConfig || {};
@@ -687,8 +687,8 @@ export class MsdInstanceManager {
       } else {
         // Try to validate the SVG source
         try {
-          if (typeof window !== 'undefined' && window.cblcars?.getSvgContent) {
-            const svgContent = window.cblcars.getSvgContent(source);
+          if (typeof window !== 'undefined' && window.lcards?.getSvgContent) {
+            const svgContent = window.lcards.getSvgContent(source);
             if (!svgContent) {
               const isBuiltin = source.startsWith('builtin:');
               const isUrl = source.startsWith('http');
@@ -826,7 +826,7 @@ export class MsdInstanceManager {
           <!-- Content -->
           <div style="z-index: 1; text-align: center; width: 90%; max-height: 100%; overflow-y: auto;">
             <div style="font-size: 24px; font-weight: bold; margin-bottom: 16px; color: var(--lcars-orange, #ff9900);">
-              CB-LCARS MSD Preview
+              LCARdS MSD Preview
             </div>
 
             <div style="font-size: 14px; margin-bottom: 8px;">
@@ -1084,8 +1084,8 @@ export class MsdInstanceManager {
    */
   static _getAvailableSvgTemplates() {
     try {
-      // Access the SVG templates from window.cblcars.assets.svg_templates
-      const svgTemplates = window?.cblcars?.assets?.svg_templates;
+      // Access the SVG templates from window.lcards.assets.svg_templates
+      const svgTemplates = window?.lcards?.assets?.svg_templates;
       if (svgTemplates && typeof svgTemplates === 'object') {
         return Object.keys(svgTemplates).sort();
       }
@@ -1093,7 +1093,7 @@ export class MsdInstanceManager {
       // Fallback to known templates if registry not available
       return ['ncc-1701-a-blue', 'ncc-1701-d', 'nx-01'];
     } catch (error) {
-      cblcarsLog.debug('[MsdInstanceManager] Could not access SVG templates registry:', error);
+      lcardsLog.debug('[MsdInstanceManager] Could not access SVG templates registry:', error);
       return ['ncc-1701-a-blue', 'ncc-1701-d', 'nx-01'];
     }
   }
@@ -1106,7 +1106,7 @@ if (typeof window !== 'undefined') {
     const currentMount = MsdInstanceManager._currentMountElement;
 
     if (currentInstance && currentMount) {
-      cblcarsLog.warn('[MsdInstanceManager] 🔄 Force replace triggered from global helper');
+      lcardsLog.warn('[MsdInstanceManager] 🔄 Force replace triggered from global helper');
       await MsdInstanceManager.destroyInstance();
 
       // Try to get the card instance to trigger a re-render
@@ -1115,7 +1115,7 @@ if (typeof window !== 'undefined') {
         cardInstance.requestUpdate();
       }
     } else {
-      cblcarsLog.debug('[MsdInstanceManager] 📊 No active instance to force replace');
+      lcardsLog.debug('[MsdInstanceManager] 📊 No active instance to force replace');
     }
   };
 

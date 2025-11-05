@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [ChannelTrendPanel] Advanced channel trend panel for MSD HUD
  * 📈 Historical channel usage analysis with conflict detection
@@ -13,7 +13,7 @@ export class ChannelTrendPanel {
   }
 
   captureData() {
-    const routing = window.cblcars.debug.msd?.routing;
+    const routing = window.lcards.debug.msd?.routing;
     const current = routing?.channels?._occupancy || {};
     const conflicts = [];
     const trends = {};
@@ -98,7 +98,7 @@ export class ChannelTrendPanel {
       }
 
     } catch (e) {
-      cblcarsLog.warn('[ChannelTrendPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[ChannelTrendPanel] ⚠️ Data capture failed:', e);
     }
 
     return { current, conflicts, trends, recommendations };
@@ -124,7 +124,7 @@ export class ChannelTrendPanel {
     // Clear last snapshot
     this.lastSnapshot = null;
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderSparkline(history, maxValue = null) {

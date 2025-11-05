@@ -1,9 +1,9 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/cb-lcars.js',
+    entry: './src/lcards.js',
     output: {
-        filename: 'cb-lcars.js',
+        filename: 'lcards.js',
         path: path.resolve(__dirname, 'dist'),
     },
     module: {

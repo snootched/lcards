@@ -19,7 +19,7 @@ import { RendererUtils } from '../renderer/RendererUtils.js';
 import { ActionHelpers } from '../renderer/ActionHelpers.js';
 import { TextRenderer } from '../renderer/core/TextRenderer.js';
 import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 import { DataSourceMixin } from '../renderer/DataSourceMixin.js';
 
@@ -47,7 +47,7 @@ export class TextOverlay extends OverlayBase {
    * @returns {Object} Initialization result with metadata
    */
   initialize(context) {
-    cblcarsLog.debug(`[TextOverlay] 🎬 Initializing text overlay: ${this.overlay.id}`);
+    lcardsLog.debug(`[TextOverlay] 🎬 Initializing text overlay: ${this.overlay.id}`);
 
     this.container = context.container;
     this.viewBox = context.viewBox;
@@ -85,17 +85,17 @@ export class TextOverlay extends OverlayBase {
    */
   render(overlay, anchors, viewBox, svgContainer, cardInstance) {
     try {
-      cblcarsLog.trace(`[TextOverlay] 🎨 Rendering text overlay: ${overlay.id}`);
+      lcardsLog.trace(`[TextOverlay] 🎨 Rendering text overlay: ${overlay.id}`);
 
       // Use passed overlay (with finalStyle if present) instead of this.overlay
       const style = overlay.finalStyle || overlay.style || {};
 
       // DEBUG: Check status_indicator on initial load
       if (style.status_indicator) {
-        cblcarsLog.trace(`[TextOverlay] 📍 Status indicator present: ${style.status_indicator}, position: ${style.status_indicator_position}, size: ${style.status_indicator_size}, padding: ${style.status_indicator_padding}`);
+        lcardsLog.trace(`[TextOverlay] 📍 Status indicator present: ${style.status_indicator}, position: ${style.status_indicator_position}, size: ${style.status_indicator_size}, padding: ${style.status_indicator_padding}`);
       } else {
         // Not an issue - status indicators are optional decorations
-        cblcarsLog.trace(`[TextOverlay] 📍 No status_indicator configured for ${overlay.id}`);
+        lcardsLog.trace(`[TextOverlay] 📍 No status_indicator configured for ${overlay.id}`);
       }
 
       this.container = svgContainer;
@@ -135,7 +135,7 @@ export class TextOverlay extends OverlayBase {
 
       // Runtime check: Verify resolved content
       if (!textContent) {
-        cblcarsLog.warn(`[TextOverlay] ⚠️ No text content for overlay ${overlay.id} - DataSource or template resolved to empty`);
+        lcardsLog.warn(`[TextOverlay] ⚠️ No text content for overlay ${overlay.id} - DataSource or template resolved to empty`);
         return { markup: '', actionInfo: null, overlayId: overlay.id };
       }
 
@@ -157,7 +157,7 @@ export class TextOverlay extends OverlayBase {
 
       // Check if renderResult has the expected structure
       if (!renderResult || !renderResult.markup) {
-        cblcarsLog.warn(`[TextOverlay] Core renderer returned empty or invalid result for ${overlay.id}`);
+        lcardsLog.warn(`[TextOverlay] Core renderer returned empty or invalid result for ${overlay.id}`);
         return this._renderFallbackText(overlay, x, y);
       }
 
@@ -178,7 +178,7 @@ export class TextOverlay extends OverlayBase {
       const estimatedWidth = textBBox ? textBBox.width : 0;
       const estimatedHeight = textBBox ? textBBox.height : 0;
 
-      cblcarsLog.trace(`[TextOverlay] Text bbox from renderer:`, {
+      lcardsLog.trace(`[TextOverlay] Text bbox from renderer:`, {
         overlayId: overlay.id,
         bbox: textBBox,
         hasMetadata: !!renderResult.metadata
@@ -243,7 +243,7 @@ ${renderResult.markup}
       };
 
     } catch (error) {
-      cblcarsLog.error(`[TextOverlay] ❌ Render failed for text overlay ${this.overlay.id}:`, error);
+      lcardsLog.error(`[TextOverlay] ❌ Render failed for text overlay ${this.overlay.id}:`, error);
       return {
         markup: '',
         actionInfo: null,
@@ -264,7 +264,7 @@ ${renderResult.markup}
    */
   update(overlayElement, overlay, sourceData) {
     try {
-      cblcarsLog.debug(`[TextOverlay] 🔄 Updating text overlay: ${overlay.id}`, {
+      lcardsLog.debug(`[TextOverlay] 🔄 Updating text overlay: ${overlay.id}`, {
         hasSourceData: !!sourceData,
         sourceDataKeys: sourceData ? Object.keys(sourceData) : []
       });
@@ -278,15 +278,15 @@ ${renderResult.markup}
       if (!rawContent && overlay._raw?.content) rawContent = overlay._raw.content;
       if (!rawContent && overlay._raw?.text) rawContent = overlay._raw.text;
 
-      cblcarsLog.debug(`[TextOverlay] 📝 Raw content for ${overlay.id}: "${rawContent}"`);
+      lcardsLog.debug(`[TextOverlay] 📝 Raw content for ${overlay.id}: "${rawContent}"`);
 
       // Process templates with current datasource values using the same method as ButtonRenderer
       const textContent = DataSourceMixin.processUnifiedTemplateStrings(rawContent, 'TextOverlay');
 
-      cblcarsLog.debug(`[TextOverlay] 🎯 Processed content for ${overlay.id}: "${textContent}"`);
+      lcardsLog.debug(`[TextOverlay] 🎯 Processed content for ${overlay.id}: "${textContent}"`);
 
       if (!textContent) {
-        cblcarsLog.warn(`[TextOverlay] ⚠️ Update produced empty content for ${overlay.id}`);
+        lcardsLog.warn(`[TextOverlay] ⚠️ Update produced empty content for ${overlay.id}`);
         return false;
       }
 
@@ -307,7 +307,7 @@ ${renderResult.markup}
 
           if (totalRunning > 0) {
             hadActiveAnimations = true;
-            cblcarsLog.debug(`[TextOverlay] 🎬 Pausing ${totalRunning} active animations for content update on ${overlay.id}`);
+            lcardsLog.debug(`[TextOverlay] 🎬 Pausing ${totalRunning} active animations for content update on ${overlay.id}`);
 
             // Temporarily revert all animations to clear inline styles
             // This allows the content update to be visible
@@ -325,35 +325,35 @@ ${renderResult.markup}
         const tspans = textElement.querySelectorAll('tspan');
         if (tspans.length > 0) {
           // Multi-line text - update all tspans with the new content
-          cblcarsLog.debug(`[TextOverlay] 📋 Found ${tspans.length} tspan elements for ${overlay.id}`);
+          lcardsLog.debug(`[TextOverlay] 📋 Found ${tspans.length} tspan elements for ${overlay.id}`);
 
           // For now, just replace the first tspan's content
           // TODO: Proper multi-line handling if content has line breaks
           tspans[0].textContent = textContent;
 
-          cblcarsLog.debug(`[TextOverlay] ✅ Updated tspan in text overlay ${overlay.id}: "${oldContent}" → "${textContent}"`);
+          lcardsLog.debug(`[TextOverlay] ✅ Updated tspan in text overlay ${overlay.id}: "${oldContent}" → "${textContent}"`);
         } else {
           // Single-line text - update text element directly
           textElement.textContent = textContent;
 
-          cblcarsLog.debug(`[TextOverlay] ✅ Updated text overlay ${overlay.id}: "${oldContent}" → "${textContent}"`);
+          lcardsLog.debug(`[TextOverlay] ✅ Updated text overlay ${overlay.id}: "${oldContent}" → "${textContent}"`);
         }
 
         // Force browser repaint by triggering a reflow
         void textElement.getBBox();
 
         if (hadActiveAnimations) {
-          cblcarsLog.debug(`[TextOverlay] 🎬 Content updated, animations will restart on next trigger`);
+          lcardsLog.debug(`[TextOverlay] 🎬 Content updated, animations will restart on next trigger`);
         }
 
         return true;
       }
 
-      cblcarsLog.warn(`[TextOverlay] ⚠️ No text element found in overlay ${overlay.id}`);
+      lcardsLog.warn(`[TextOverlay] ⚠️ No text element found in overlay ${overlay.id}`);
       return false;
 
     } catch (error) {
-      cblcarsLog.error(`[TextOverlay] ❌ Update failed for text overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[TextOverlay] ❌ Update failed for text overlay ${overlay.id}:`, error);
       return false;
     }
   }
@@ -372,7 +372,7 @@ ${renderResult.markup}
       // Get the actual DOM element for this overlay
       const overlayElement = container.querySelector(`[data-overlay-id="${overlay.id}"]`);
       if (!overlayElement) {
-        cblcarsLog.debug(`[TextOverlay] No DOM element found for attachment points: ${overlay.id}`);
+        lcardsLog.debug(`[TextOverlay] No DOM element found for attachment points: ${overlay.id}`);
         return null;
       }
 
@@ -399,12 +399,12 @@ ${renderResult.markup}
         return attachmentPoints;
 
       } catch (bboxError) {
-        cblcarsLog.debug(`[TextOverlay] Could not get bbox for ${overlay.id}:`, bboxError.message);
+        lcardsLog.debug(`[TextOverlay] Could not get bbox for ${overlay.id}:`, bboxError.message);
         return null;
       }
 
     } catch (error) {
-      cblcarsLog.warn(`[TextOverlay] Error computing attachment points for ${overlay.id}:`, error);
+      lcardsLog.warn(`[TextOverlay] Error computing attachment points for ${overlay.id}:`, error);
       return null;
     }
   }
@@ -413,7 +413,7 @@ ${renderResult.markup}
    * Clean up resources when overlay is destroyed
    */
   destroy() {
-    cblcarsLog.debug(`[TextOverlay] 🗑️ Destroying text overlay: ${this.overlay.id}`);
+    lcardsLog.debug(`[TextOverlay] 🗑️ Destroying text overlay: ${this.overlay.id}`);
 
     // Clear caches
     this._cachedTextContent = null;
@@ -535,7 +535,7 @@ ${renderResult.markup}
           // Look up value in sourceData
           const dataSourceValue = sourceData[dataSourceName];
           if (dataSourceValue === undefined) {
-            cblcarsLog.debug(`[TextOverlay] Data source not found: ${dataSourceName}`);
+            lcardsLog.debug(`[TextOverlay] Data source not found: ${dataSourceName}`);
             return match; // Keep template as-is
           }
 
@@ -559,14 +559,14 @@ ${renderResult.markup}
 
           return value !== null && value !== undefined ? String(value) : match;
         } catch (e) {
-          cblcarsLog.warn(`[TextOverlay] Error processing template ${match}:`, e);
+          lcardsLog.warn(`[TextOverlay] Error processing template ${match}:`, e);
           return match;
         }
       });
 
       return processed;
     } catch (error) {
-      cblcarsLog.error(`[TextOverlay] Template processing failed for ${overlayId}:`, error);
+      lcardsLog.error(`[TextOverlay] Template processing failed for ${overlayId}:`, error);
       return content;
     }
   }
@@ -611,7 +611,7 @@ ${renderResult.markup}
         return DataSourceMixin.resolveDataSourceContent(dataSourceRef, style, 'TextOverlay');
       }
     } catch (error) {
-      cblcarsLog.debug(`[TextOverlay] Could not resolve data source ${dataSourceRef}:`, error);
+      lcardsLog.debug(`[TextOverlay] Could not resolve data source ${dataSourceRef}:`, error);
     }
     return null;
   }
@@ -625,7 +625,7 @@ ${renderResult.markup}
     let effectiveFallbackViewBox = fallbackViewBox;
     if (!this.viewBox && !fallbackViewBox) {
       try {
-        const pipeline = window.cblcars.debug.msd?.pipelineInstance;
+        const pipeline = window.lcards.debug.msd?.pipelineInstance;
         const resolvedModel = pipeline?.getResolvedModel?.();
         if (resolvedModel?.viewBox && Array.isArray(resolvedModel.viewBox)) {
           effectiveFallbackViewBox = resolvedModel.viewBox;
@@ -906,11 +906,11 @@ ${renderResult.markup}
       const cardInstance = context.cardInstance || window.__msdCardInstance;
 
       if (!cardInstance) {
-        cblcarsLog.debug(`[TextOverlay] No card instance available for actions`);
+        lcardsLog.debug(`[TextOverlay] No card instance available for actions`);
         return null;
       }
 
-      cblcarsLog.debug(`[TextOverlay] 🎯 Processing actions for ${overlay.id}`, {
+      lcardsLog.debug(`[TextOverlay] 🎯 Processing actions for ${overlay.id}`, {
         hasTapAction: !!overlay.tap_action,
         hasHoldAction: !!overlay.hold_action,
         hasDoubleTapAction: !!overlay.double_tap_action,
@@ -919,7 +919,7 @@ ${renderResult.markup}
 
       const actionConfig = ActionHelpers.buildActionConfig(overlay, cardInstance);
 
-      cblcarsLog.debug(`[TextOverlay] 🎯 Action processing result for ${overlay.id}:`, {
+      lcardsLog.debug(`[TextOverlay] 🎯 Action processing result for ${overlay.id}:`, {
         hasActionInfo: !!actionConfig,
         actionConfig,
         overlayId: overlay.id
@@ -928,7 +928,7 @@ ${renderResult.markup}
       return actionConfig;
 
     } catch (error) {
-      cblcarsLog.warn(`[TextOverlay] Error processing actions for ${overlay.id}:`, error);
+      lcardsLog.warn(`[TextOverlay] Error processing actions for ${overlay.id}:`, error);
       return null;
     }
   }
@@ -1055,7 +1055,7 @@ ${renderResult.markup}
    * @returns {boolean} True if update succeeded, false to trigger fallback
    */
   static updateIncremental(overlay, overlayElement, context) {
-    cblcarsLog.info(`[TextOverlay] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
+    lcardsLog.info(`[TextOverlay] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
 
     try {
       // Get updated style (already patched by SystemsManager)
@@ -1064,7 +1064,7 @@ ${renderResult.markup}
       // Find the text element within the overlay group
       const textElement = overlayElement.querySelector('text');
       if (!textElement) {
-        cblcarsLog.warn(`[TextOverlay] ⚠️ Text element not found for ${overlay.id}`);
+        lcardsLog.warn(`[TextOverlay] ⚠️ Text element not found for ${overlay.id}`);
         return false;
       }
 
@@ -1075,7 +1075,7 @@ ${renderResult.markup}
       // Check for geometry changes that require full re-render
       const geometryChanged = this._detectGeometryChanges(oldStyle, newStyle, overlay);
       if (geometryChanged) {
-        cblcarsLog.debug(`[TextOverlay] ⚠️ Geometry changes detected - returning false to trigger selective re-render: ${overlay.id}`);
+        lcardsLog.debug(`[TextOverlay] ⚠️ Geometry changes detected - returning false to trigger selective re-render: ${overlay.id}`);
         return false;
       }
 
@@ -1083,7 +1083,7 @@ ${renderResult.markup}
       const newContent = overlay.text || overlay.content || '';
       const oldContent = textElement.textContent;
       if (newContent !== oldContent) {
-        cblcarsLog.debug(`[TextOverlay] 📝 Updating text content: "${oldContent}" → "${newContent}"`);
+        lcardsLog.debug(`[TextOverlay] 📝 Updating text content: "${oldContent}" → "${newContent}"`);
         textElement.textContent = newContent;
       }
 
@@ -1095,7 +1095,7 @@ ${renderResult.markup}
         const color = newStyle.color || 'var(--lcars-orange)';
         textElement.setAttribute('fill', color);
         updated = true;
-        cblcarsLog.debug(`[TextOverlay] 🎨 Updated color: ${color}`);
+        lcardsLog.debug(`[TextOverlay] 🎨 Updated color: ${color}`);
       }
 
       // Opacity
@@ -1103,7 +1103,7 @@ ${renderResult.markup}
         const opacity = newStyle.opacity !== undefined ? newStyle.opacity : 1;
         textElement.setAttribute('fill-opacity', opacity);
         updated = true;
-        cblcarsLog.debug(`[TextOverlay] 🎨 Updated opacity: ${opacity}`);
+        lcardsLog.debug(`[TextOverlay] 🎨 Updated opacity: ${opacity}`);
       }
 
       // Font size
@@ -1112,7 +1112,7 @@ ${renderResult.markup}
         const sizeValue = typeof fontSize === 'number' ? `${fontSize}px` : fontSize;
         textElement.setAttribute('font-size', sizeValue);
         updated = true;
-        cblcarsLog.debug(`[TextOverlay] 🎨 Updated font-size: ${sizeValue}`);
+        lcardsLog.debug(`[TextOverlay] 🎨 Updated font-size: ${sizeValue}`);
       }
 
       // Font weight
@@ -1121,7 +1121,7 @@ ${renderResult.markup}
         if (weight && weight !== 'normal') {
           textElement.setAttribute('font-weight', weight);
           updated = true;
-          cblcarsLog.debug(`[TextOverlay] 🎨 Updated font-weight: ${weight}`);
+          lcardsLog.debug(`[TextOverlay] 🎨 Updated font-weight: ${weight}`);
         }
       }
 
@@ -1131,7 +1131,7 @@ ${renderResult.markup}
         if (fontStyle && fontStyle !== 'normal') {
           textElement.setAttribute('font-style', fontStyle);
           updated = true;
-          cblcarsLog.debug(`[TextOverlay] 🎨 Updated font-style: ${fontStyle}`);
+          lcardsLog.debug(`[TextOverlay] 🎨 Updated font-style: ${fontStyle}`);
         }
       }
 
@@ -1148,7 +1148,7 @@ ${renderResult.markup}
           const strokeOpacity = newStyle.stroke_opacity || newStyle.strokeOpacity || 1;
           textElement.setAttribute('stroke-opacity', strokeOpacity);
           updated = true;
-          cblcarsLog.debug(`[TextOverlay] 🎨 Updated stroke: ${stroke} width: ${strokeWidth}`);
+          lcardsLog.debug(`[TextOverlay] 🎨 Updated stroke: ${stroke} width: ${strokeWidth}`);
         } else if (oldStyle.stroke) {
           // Remove stroke if it was present before
           textElement.removeAttribute('stroke');
@@ -1168,7 +1168,7 @@ ${renderResult.markup}
         if (statusColor !== oldStyle.status_indicator) {
           statusIndicator.setAttribute('fill', statusColor);
           updated = true;
-          cblcarsLog.debug(`[TextOverlay] 🎨 Updated status indicator color: ${statusColor}`);
+          lcardsLog.debug(`[TextOverlay] 🎨 Updated status indicator color: ${statusColor}`);
         }
       }
 
@@ -1176,15 +1176,15 @@ ${renderResult.markup}
       overlayElement.setAttribute('data-text-style', JSON.stringify(newStyle));
 
       if (updated) {
-        cblcarsLog.info(`[TextOverlay] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
+        lcardsLog.info(`[TextOverlay] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
         return true;
       } else {
-        cblcarsLog.debug(`[TextOverlay] ℹ️ No style changes for ${overlay.id}`);
+        lcardsLog.debug(`[TextOverlay] ℹ️ No style changes for ${overlay.id}`);
         return true;
       }
 
     } catch (error) {
-      cblcarsLog.error(`[TextOverlay] ❌ INCREMENTAL UPDATE ERROR for ${overlay.id}:`, error);
+      lcardsLog.error(`[TextOverlay] ❌ INCREMENTAL UPDATE ERROR for ${overlay.id}:`, error);
       return false;
     }
   }
@@ -1200,26 +1200,26 @@ ${renderResult.markup}
     const newHasIndicator = !!newStyle.status_indicator;
 
     if (oldHasIndicator !== newHasIndicator) {
-      cblcarsLog.debug(`[TextOverlay] Geometry change: status indicator ${newHasIndicator ? 'added' : 'removed'}`);
+      lcardsLog.debug(`[TextOverlay] Geometry change: status indicator ${newHasIndicator ? 'added' : 'removed'}`);
       return true;
     }
 
     if (newHasIndicator) {
       // Check indicator position change
       if (oldStyle.status_indicator_position !== newStyle.status_indicator_position) {
-        cblcarsLog.debug(`[TextOverlay] Geometry change: status indicator position changed`);
+        lcardsLog.debug(`[TextOverlay] Geometry change: status indicator position changed`);
         return true;
       }
 
       // Check indicator size change
       if (oldStyle.status_indicator_size !== newStyle.status_indicator_size) {
-        cblcarsLog.debug(`[TextOverlay] Geometry change: status indicator size changed`);
+        lcardsLog.debug(`[TextOverlay] Geometry change: status indicator size changed`);
         return true;
       }
 
       // Check indicator padding change
       if (oldStyle.status_indicator_padding !== newStyle.status_indicator_padding) {
-        cblcarsLog.debug(`[TextOverlay] Geometry change: status indicator padding changed`);
+        lcardsLog.debug(`[TextOverlay] Geometry change: status indicator padding changed`);
         return true;
       }
     }
@@ -1229,12 +1229,12 @@ ${renderResult.markup}
     const newHasBrackets = !!newStyle.bracket_style;
 
     if (oldHasBrackets !== newHasBrackets) {
-      cblcarsLog.debug(`[TextOverlay] Geometry change: brackets ${newHasBrackets ? 'added' : 'removed'}`);
+      lcardsLog.debug(`[TextOverlay] Geometry change: brackets ${newHasBrackets ? 'added' : 'removed'}`);
       return true;
     }
 
     if (newHasBrackets && oldStyle.bracket_style !== newStyle.bracket_style) {
-      cblcarsLog.debug(`[TextOverlay] Geometry change: bracket style changed`);
+      lcardsLog.debug(`[TextOverlay] Geometry change: bracket style changed`);
       return true;
     }
 
@@ -1243,7 +1243,7 @@ ${renderResult.markup}
     const newHasHighlight = !!newStyle.highlight;
 
     if (oldHasHighlight !== newHasHighlight) {
-      cblcarsLog.debug(`[TextOverlay] Geometry change: highlight ${newHasHighlight ? 'added' : 'removed'}`);
+      lcardsLog.debug(`[TextOverlay] Geometry change: highlight ${newHasHighlight ? 'added' : 'removed'}`);
       return true;
     }
 
@@ -1253,14 +1253,14 @@ ${renderResult.markup}
       const [newX, newY] = overlay.position;
 
       if (oldX !== newX || oldY !== newY) {
-        cblcarsLog.debug(`[TextOverlay] Geometry change: position changed`);
+        lcardsLog.debug(`[TextOverlay] Geometry change: position changed`);
         return true;
       }
     }
 
     // Multiline changes (affects layout)
     if (oldStyle.multiline !== newStyle.multiline) {
-      cblcarsLog.debug(`[TextOverlay] Geometry change: multiline mode changed`);
+      lcardsLog.debug(`[TextOverlay] Geometry change: multiline mode changed`);
       return true;
     }
 

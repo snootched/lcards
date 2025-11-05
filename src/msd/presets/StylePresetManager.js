@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * StylePresetManager - Handles style_presets from loaded packs
@@ -22,7 +22,7 @@ export class StylePresetManager {
    * @param {Array} packs - Array of pack objects
    */
   async initialize(packs) {
-    cblcarsLog.debug('[StylePresetManager] 🎨 Initializing with packs:', packs.map(p => p.id));
+    lcardsLog.debug('[StylePresetManager] 🎨 Initializing with packs:', packs.map(p => p.id));
 
     this.loadedPacks = packs || [];
     this.presetCache.clear();
@@ -31,7 +31,7 @@ export class StylePresetManager {
     // Build cache for faster lookups
     this._buildPresetCache();
 
-    cblcarsLog.debug('[StylePresetManager] ✅ Initialized with preset cache:', {
+    lcardsLog.debug('[StylePresetManager] ✅ Initialized with preset cache:', {
       packCount: this.loadedPacks.length,
       cacheSize: this.presetCache.size,
       availableTypes: this._getAvailableOverlayTypes()
@@ -46,7 +46,7 @@ export class StylePresetManager {
    */
   getPreset(overlayType, presetName) {
     if (!this.initialized) {
-      cblcarsLog.warn('[StylePresetManager] ⚠️ Not initialized - call initialize() first');
+      lcardsLog.warn('[StylePresetManager] ⚠️ Not initialized - call initialize() first');
       return null;
     }
 
@@ -55,7 +55,7 @@ export class StylePresetManager {
     // Check cache first
     if (this.presetCache.has(cacheKey)) {
       const cached = this.presetCache.get(cacheKey);
-      cblcarsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} (cached from pack: ${cached.packId})`);
+      lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} (cached from pack: ${cached.packId})`);
       return cached.preset;
     }
 
@@ -67,12 +67,12 @@ export class StylePresetManager {
         // Cache the result
         this.presetCache.set(cacheKey, { preset, packId: pack.id });
 
-        cblcarsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} in pack ${pack.id}`);
+        lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} in pack ${pack.id}`);
         return preset;
       }
     }
 
-    cblcarsLog.debug(`[StylePresetManager] ❌ Preset ${presetName} not found for ${overlayType}`);
+    lcardsLog.debug(`[StylePresetManager] ❌ Preset ${presetName} not found for ${overlayType}`);
     return null;
   }
 
@@ -145,7 +145,7 @@ export class StylePresetManager {
    */
   clearCache() {
     this.presetCache.clear();
-    cblcarsLog.debug('[StylePresetManager] 🧹 Preset cache cleared');
+    lcardsLog.debug('[StylePresetManager] 🧹 Preset cache cleared');
   }
 
   /**
@@ -153,7 +153,7 @@ export class StylePresetManager {
    * @param {Array} packs - New pack data
    */
   async reinitialize(packs) {
-    cblcarsLog.debug('[StylePresetManager] 🔄 Reinitializing with new pack data');
+    lcardsLog.debug('[StylePresetManager] 🔄 Reinitializing with new pack data');
     this.clearCache();
     await this.initialize(packs);
   }

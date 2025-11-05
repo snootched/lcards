@@ -1,6 +1,6 @@
 /**
- * [StatusGridRenderer] Grid of independent button cells - CB-LCARS button card recreation in grid format
- * 🔲 Each cell can have full CB-LCARS styling with inheritance from grid defaults
+ * [StatusGridRenderer] Grid of independent button cells - LCARdS button card recreation in grid format
+ * 🔲 Each cell can have full LCARdS styling with inheritance from grid defaults
  */
 
 import { BaseRenderer } from './BaseRenderer.js';
@@ -10,7 +10,7 @@ import { DataSourceMixin } from './DataSourceMixin.js';
 import { BracketRenderer } from './BracketRenderer.js';
 import { ActionHelpers } from './ActionHelpers.js';
 import { ButtonRenderer } from './core/ButtonRenderer.js'; // Add ButtonRenderer import
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 
@@ -32,20 +32,20 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   _resolveStylePresetManager() {
     // 1. Pipeline instance (preferred)
-    const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+    const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
     if (pipelineInstance?.systemsManager?.stylePresetManager) {
-      cblcarsLog.debug('[StatusGridRenderer] ✅ Connected to theme manager via pipeline systemsManager');
+      lcardsLog.debug('[StatusGridRenderer] ✅ Connected to theme manager via pipeline systemsManager');
       return pipelineInstance.systemsManager.stylePresetManager;
     }
 
     // 2. Systems manager global reference
-    const systemsManager = window.cblcars.debug.msd?.systemsManager;
+    const systemsManager = window.lcards.debug.msd?.systemsManager;
     if (systemsManager?.stylePresetManager) {
-      cblcarsLog.debug('[StatusGridRenderer] ✅ Connected to theme manager via global systemsManager');
+      lcardsLog.debug('[StatusGridRenderer] ✅ Connected to theme manager via global systemsManager');
       return systemsManager.stylePresetManager;
     }
 
-    cblcarsLog.debug('[StatusGridRenderer] ⚠️ No style preset manager found');
+    lcardsLog.debug('[StatusGridRenderer] ⚠️ No style preset manager found');
     return null;
   }
 
@@ -110,7 +110,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * // cellResolved.cell_color = 'var(--lcars-red-alert, #CC0000)'
    */
   _resolveCompleteStatusGridStyle(overlay, cellConfig = null, viewBox = null) {
-    cblcarsLog.trace('[StatusGridRenderer] 🎯 Starting unified style resolution', {
+    lcardsLog.trace('[StatusGridRenderer] 🎯 Starting unified style resolution', {
       overlayId: overlay?.id,
       cellId: cellConfig?.id,
       hasOverlayPreset: !!overlay?.style?.lcars_button_preset,
@@ -139,7 +139,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // If no cell config, return overlay-level style
     if (!cellConfig) {
       resolvedStyle._priorityTracker = priorityTracker;
-      cblcarsLog.trace('[StatusGridRenderer] ✅ Overlay-level style resolved', {
+      lcardsLog.trace('[StatusGridRenderer] ✅ Overlay-level style resolved', {
         layers: Array.from(priorityTracker.layers),
         explicitProperties: priorityTracker.explicit.size
       });
@@ -154,7 +154,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     resolvedStyle._priorityTracker = priorityTracker;
 
-    cblcarsLog.trace('[StatusGridRenderer] ✅ Complete cell style resolved', {
+    lcardsLog.trace('[StatusGridRenderer] ✅ Complete cell style resolved', {
       cellId: cellConfig?.id,
       layers: Array.from(priorityTracker.layers),
       explicitProperties: priorityTracker.explicit.size
@@ -233,7 +233,7 @@ export class StatusGridRenderer extends BaseRenderer {
       priorityTracker.computed.set(key, 'theme_defaults');
     });
 
-    cblcarsLog.trace('[StatusGridRenderer] 📦 Layer loaded', {
+    lcardsLog.trace('[StatusGridRenderer] 📦 Layer loaded', {
       propertyCount: Object.keys(defaults).length
     });
 
@@ -243,7 +243,7 @@ export class StatusGridRenderer extends BaseRenderer {
   /**
    * Layer 2: Resolve overlay preset with token resolution
    *
-   * Applies overlay-level CB-LCARS button preset (e.g., 'lozenge', 'bullet', 'picard-filled').
+   * Applies overlay-level LCARdS button preset (e.g., 'lozenge', 'bullet', 'picard-filled').
    * The preset is loaded from StylePresetManager and all values undergo token resolution
    * before being applied to the base style.
    *
@@ -270,7 +270,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const presetName = overlay?.style?.lcars_button_preset || overlay?.lcars_button_preset;
 
     if (!presetName) {
-      cblcarsLog.trace('[StatusGridRenderer] ⏭️ Layer 2: No overlay preset');
+      lcardsLog.trace('[StatusGridRenderer] ⏭️ Layer 2: No overlay preset');
       return { ...baseStyle };
     }
 
@@ -280,11 +280,11 @@ export class StatusGridRenderer extends BaseRenderer {
     const presetStyles = this._loadPresetFromStylePresetManager('status_grid', presetName);
 
     if (!presetStyles) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Overlay preset '${presetName}' not found`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Overlay preset '${presetName}' not found`);
       return { ...baseStyle };
     }
 
-    cblcarsLog.trace('[StatusGridRenderer] 🎨 Layer 2: Applying overlay preset', {
+    lcardsLog.trace('[StatusGridRenderer] 🎨 Layer 2: Applying overlay preset', {
       presetName,
       propertyCount: Object.keys(presetStyles).length
     });
@@ -302,7 +302,7 @@ export class StatusGridRenderer extends BaseRenderer {
         mergedStyle[property] = resolvedValue;
         priorityTracker.computed.set(property, 'overlay_preset');
 
-        cblcarsLog.trace(`[StatusGridRenderer] ✓ Preset set ${property}:`, {
+        lcardsLog.trace(`[StatusGridRenderer] ✓ Preset set ${property}:`, {
           raw: value,
           resolved: resolvedValue,
           wasToken: value !== resolvedValue
@@ -348,7 +348,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     const overlayStyle = overlay?.style || {};
 
-    cblcarsLog.trace('[StatusGridRenderer] 🎨 Layer 3: Applying overlay styles', {
+    lcardsLog.trace('[StatusGridRenderer] 🎨 Layer 3: Applying overlay styles', {
       propertyCount: Object.keys(overlayStyle).length,
       hasOverlayLevelPatch: overlay?._hasOverlayLevelPatch
     });
@@ -364,7 +364,7 @@ export class StatusGridRenderer extends BaseRenderer {
         mergedStyle[prop] = resolvedValue;
         priorityTracker.explicit.set(prop, 'overlay_direct');
 
-        cblcarsLog.trace(`[StatusGridRenderer] ✓ Overlay direct ${prop}:`, {
+        lcardsLog.trace(`[StatusGridRenderer] ✓ Overlay direct ${prop}:`, {
           raw: overlay[prop],
           resolved: resolvedValue
         });
@@ -404,7 +404,7 @@ export class StatusGridRenderer extends BaseRenderer {
   /**
    * Layer 4: Resolve cell preset with token resolution
    *
-   * Applies cell-specific CB-LCARS button preset. This allows individual cells to have
+   * Applies cell-specific LCARdS button preset. This allows individual cells to have
    * different visual styles than the grid default. The preset is loaded from
    * StylePresetManager and all values undergo token resolution.
    *
@@ -436,7 +436,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const presetName = cellConfig?.lcars_button_preset || cellConfig?.style?.lcars_button_preset;
 
     if (!presetName) {
-      cblcarsLog.trace('[StatusGridRenderer] ⏭️ Layer 4: No cell preset');
+      lcardsLog.trace('[StatusGridRenderer] ⏭️ Layer 4: No cell preset');
       return { ...baseStyle };
     }
 
@@ -446,11 +446,11 @@ export class StatusGridRenderer extends BaseRenderer {
     const presetStyles = this._loadPresetFromStylePresetManager('status_grid', presetName);
 
     if (!presetStyles) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Cell preset '${presetName}' not found`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Cell preset '${presetName}' not found`);
       return { ...baseStyle };
     }
 
-    cblcarsLog.trace('[StatusGridRenderer] 🎨 Layer 4: Applying cell preset', {
+    lcardsLog.trace('[StatusGridRenderer] 🎨 Layer 4: Applying cell preset', {
       cellId: cellConfig?.id,
       presetName,
       propertyCount: Object.keys(presetStyles).length
@@ -635,7 +635,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // Resolve via ThemeTokenResolver
     if (!themeTokenResolver) {
-      cblcarsLog.debug(`[StatusGridRenderer] ⚠️ No token resolver available for ${property}`);
+      lcardsLog.debug(`[StatusGridRenderer] ⚠️ No token resolver available for ${property}`);
       return value;
     }
 
@@ -674,7 +674,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * @returns {boolean} True if update succeeded
    */
   static updateIncremental(overlay, gridElement, context) {
-    cblcarsLog.debug(`[StatusGridRenderer] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
+    lcardsLog.debug(`[StatusGridRenderer] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
 
     try {
       // Use existing updateGridData method (already handles rule patches!)
@@ -685,14 +685,14 @@ export class StatusGridRenderer extends BaseRenderer {
       );
 
       if (updated) {
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id} (smooth transitions preserved)`);
+        lcardsLog.debug(`[StatusGridRenderer] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id} (smooth transitions preserved)`);
       } else {
-        cblcarsLog.trace(`[StatusGridRenderer] ℹ️ INCREMENTAL UPDATE NO-OP: ${overlay.id} (no changes detected)`);
+        lcardsLog.trace(`[StatusGridRenderer] ℹ️ INCREMENTAL UPDATE NO-OP: ${overlay.id} (no changes detected)`);
       }
 
       return updated;
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] ❌ INCREMENTAL UPDATE FAILED: ${overlay.id}`, error);
+      lcardsLog.error(`[StatusGridRenderer] ❌ INCREMENTAL UPDATE FAILED: ${overlay.id}`, error);
       return false; // Trigger fallback to full re-render
     }
   }
@@ -756,7 +756,7 @@ export class StatusGridRenderer extends BaseRenderer {
     let gridElement = null;
 
     // Method 1: Use renderer mount element (same as ButtonOverlay)
-    const renderer = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.renderer;
+    const renderer = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.renderer;
     if (renderer && renderer.mountEl) {
       const overlayGroup = renderer.mountEl.querySelector('#msd-overlay-container');
       if (overlayGroup) {
@@ -778,7 +778,7 @@ export class StatusGridRenderer extends BaseRenderer {
     }
 
     if (gridElement && actionInfo) {
-      cblcarsLog.trace(`[StatusGridRenderer] 🎯 IMMEDIATE action attachment for ${overlayId}`);
+      lcardsLog.trace(`[StatusGridRenderer] 🎯 IMMEDIATE action attachment for ${overlayId}`);
 
       // CRITICAL: Use the proven ActionHelpers pattern
       if (actionInfo.cells && Array.isArray(actionInfo.cells)) {
@@ -796,9 +796,9 @@ export class StatusGridRenderer extends BaseRenderer {
         });
       }
 
-      cblcarsLog.trace(`[StatusGridRenderer] ✅ Immediate action attachment completed for ${overlayId}`);
+      lcardsLog.trace(`[StatusGridRenderer] ✅ Immediate action attachment completed for ${overlayId}`);
     } else {
-      cblcarsLog.debug(`[StatusGridRenderer] ⚠️ Could not find grid element for immediate attachment: ${overlayId}`);
+      lcardsLog.debug(`[StatusGridRenderer] ⚠️ Could not find grid element for immediate attachment: ${overlayId}`);
       // Store for later as fallback
       StatusGridRenderer._storeActionInfo(overlayId, actionInfo);
     }
@@ -811,11 +811,11 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   static _attachSingleCellActions(cellElement, actions, cardInstance, cellId) {
     if (!cellElement || !actions || !cardInstance) {
-      cblcarsLog.warn(`[StatusGridRenderer] Missing parameters for single cell action attachment: ${cellId}`);
+      lcardsLog.warn(`[StatusGridRenderer] Missing parameters for single cell action attachment: ${cellId}`);
       return;
     }
 
-    cblcarsLog.trace(`[StatusGridRenderer] 🔗 Attaching actions to single cell element ${cellId}:`, {
+    lcardsLog.trace(`[StatusGridRenderer] 🔗 Attaching actions to single cell element ${cellId}:`, {
       elementType: cellElement.tagName,
       hasActions: !!actions,
       hasTapAction: !!actions.tap_action,
@@ -829,7 +829,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // CRITICAL: Use the same event attachment pattern as working ActionHelpers
     if (actions.tap_action) {
       const actionHandler = (event) => {
-        cblcarsLog.trace(`[StatusGridRenderer] 🎯 Cell tap action triggered for ${cellId}:`, actions.tap_action);
+        lcardsLog.trace(`[StatusGridRenderer] 🎯 Cell tap action triggered for ${cellId}:`, actions.tap_action);
 
         // Prevent event bubbling
         event.preventDefault();
@@ -867,7 +867,7 @@ export class StatusGridRenderer extends BaseRenderer {
     cellElement.setAttribute('data-actions-attached', 'true');
     cellElement.setAttribute('data-action-attachment-time', Date.now().toString());
 
-    cblcarsLog.trace(`[StatusGridRenderer] ✅ Single cell action attachment completed for ${cellId}`);
+    lcardsLog.trace(`[StatusGridRenderer] ✅ Single cell action attachment completed for ${cellId}`);
   }
 
   /**
@@ -882,10 +882,10 @@ export class StatusGridRenderer extends BaseRenderer {
       } else if (cardInstance && typeof cardInstance.handleAction === 'function') {
         cardInstance.handleAction(action);
       } else {
-        cblcarsLog.warn(`[StatusGridRenderer] No action handler available on card instance`);
+        lcardsLog.warn(`[StatusGridRenderer] No action handler available on card instance`);
       }
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] Error executing action directly:`, error);
+      lcardsLog.error(`[StatusGridRenderer] Error executing action directly:`, error);
     }
   }
 
@@ -905,7 +905,7 @@ export class StatusGridRenderer extends BaseRenderer {
           event.preventDefault();
           event.stopPropagation();
 
-          cblcarsLog.trace(`[StatusGridRenderer] ✋ Hold action triggered:`, holdAction);
+          lcardsLog.trace(`[StatusGridRenderer] ✋ Hold action triggered:`, holdAction);
 
           if (window.ActionHelpers && typeof window.ActionHelpers.executeActionViaButtonCardBridge === 'function') {
             window.ActionHelpers.executeActionViaButtonCardBridge(holdAction, cardInstance, 'hold');
@@ -949,7 +949,7 @@ export class StatusGridRenderer extends BaseRenderer {
         event.preventDefault();
         event.stopPropagation();
 
-        cblcarsLog.trace(`[StatusGridRenderer] 🖱️🖱️ Double-tap action triggered:`, doubleTapAction);
+        lcardsLog.trace(`[StatusGridRenderer] 🖱️🖱️ Double-tap action triggered:`, doubleTapAction);
 
         if (window.ActionHelpers && typeof window.ActionHelpers.executeActionViaButtonCardBridge === 'function') {
           window.ActionHelpers.executeActionViaButtonCardBridge(doubleTapAction, cardInstance, 'double_tap');
@@ -975,7 +975,7 @@ export class StatusGridRenderer extends BaseRenderer {
   renderStatusGrid(overlay, anchors, viewBox, cardInstance = null) {
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
     if (!position) {
-      cblcarsLog.warn('[StatusGridRenderer] ⚠️ Status grid overlay position could not be resolved:', overlay.id);
+      lcardsLog.warn('[StatusGridRenderer] ⚠️ Status grid overlay position could not be resolved:', overlay.id);
       return { markup: '', actionInfo: null, overlayId: overlay.id };
     }
 
@@ -991,7 +991,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
       // Get cell configurations
       const cells = this._resolveCellConfigurations(overlay, gridStyle);
-      cblcarsLog.trace(`[StatusGridRenderer] 🔲 Rendering cells for grid ${overlay.id}`);
+      lcardsLog.trace(`[StatusGridRenderer] 🔲 Rendering cells for grid ${overlay.id}`);
 
       // Render status grid
       const gridMarkup = this._renderEnhancedStatusGrid(
@@ -1010,7 +1010,7 @@ export class StatusGridRenderer extends BaseRenderer {
       };
 
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] ❌ Rendering failed for status grid ${overlay.id}:`, error);
+      lcardsLog.error(`[StatusGridRenderer] ❌ Rendering failed for status grid ${overlay.id}:`, error);
       return {
         markup: this._renderFallbackStatusGrid(overlay, x, y, width, height),
         actionInfo: null,
@@ -1025,7 +1025,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * @private
    */
   _resolveStatusGridStyles(style, overlayId, overlay = null) {
-    cblcarsLog.trace('[StatusGridRenderer] 🔄 Resolving grid styles using unified system', {
+    lcardsLog.trace('[StatusGridRenderer] 🔄 Resolving grid styles using unified system', {
       overlayId,
       hasStyle: !!style,
       hasOverlay: !!overlay
@@ -1147,7 +1147,7 @@ export class StatusGridRenderer extends BaseRenderer {
     if (gridStyle.actions) gridStyle.features.push('actions');
     if (gridStyle.lcars_button_preset) gridStyle.features.push('cb-button-preset');
 
-    cblcarsLog.trace(`[StatusGridRenderer] 📊 Final gridStyle via unified system:`, {
+    lcardsLog.trace(`[StatusGridRenderer] 📊 Final gridStyle via unified system:`, {
       rows: gridStyle.rows,
       columns: gridStyle.columns,
       lcars_button_preset: gridStyle.lcars_button_preset,
@@ -1224,30 +1224,30 @@ export class StatusGridRenderer extends BaseRenderer {
 
 
   /**
-   * Apply CB-LCARS button preset using StylePresetManager
+   * Apply LCARdS button preset using StylePresetManager
    * @private
    * @param {Object} gridStyle - Grid style object to modify
    * @param {string} presetName - Name of the button preset
    * @param {Object} originalStyle - Original user style for checking explicit values
    */
   _applyButtonPreset(gridStyle, presetName, originalStyle = {}) {
-    cblcarsLog.trace(`[StatusGridRenderer] 🎨 Applying CB-LCARS button preset: ${presetName}`);
-    cblcarsLog.trace(`[StatusGridRenderer] �� Original style before preset:`, originalStyle);
+    lcardsLog.trace(`[StatusGridRenderer] 🎨 Applying LCARdS button preset: ${presetName}`);
+    lcardsLog.trace(`[StatusGridRenderer] �� Original style before preset:`, originalStyle);
 
     // Load preset from StylePresetManager
     const presetStyles = this._loadPresetFromStylePresetManager('status_grid', presetName);
 
     if (!presetStyles) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Button preset '${presetName}' not found in StylePresetManager`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Button preset '${presetName}' not found in StylePresetManager`);
       return;
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] 📦 Loaded preset styles for '${presetName}':`, presetStyles);
+    lcardsLog.debug(`[StatusGridRenderer] 📦 Loaded preset styles for '${presetName}':`, presetStyles);
 
     // Apply preset properties with user override protection
     this._applyPresetStyles(gridStyle, presetStyles, originalStyle);
 
-    cblcarsLog.trace(`[StatusGridRenderer] ✅ Applied preset with ${Object.keys(presetStyles).length} properties`);
+    lcardsLog.trace(`[StatusGridRenderer] ✅ Applied preset with ${Object.keys(presetStyles).length} properties`);
   }
 
   /**
@@ -1259,13 +1259,13 @@ export class StatusGridRenderer extends BaseRenderer {
       // Only set value if user didn't explicitly provide it
       if (originalStyle[property] === undefined) {
         gridStyle[property] = value;
-        cblcarsLog.trace(`[StatusGridRenderer] 📝 Preset set ${property}: ${value}`);
+        lcardsLog.trace(`[StatusGridRenderer] 📝 Preset set ${property}: ${value}`);
       } else {
-        cblcarsLog.trace(`[StatusGridRenderer] 🚫 User explicit value for ${property}, skipping preset`);
+        lcardsLog.trace(`[StatusGridRenderer] 🚫 User explicit value for ${property}, skipping preset`);
       }
     });
 
-    cblcarsLog.trace(`[StatusGridRenderer] ✅ Applied preset with user override protection`);
+    lcardsLog.trace(`[StatusGridRenderer] ✅ Applied preset with user override protection`);
   }
 
   /**
@@ -1279,7 +1279,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const stylePresetManager = this._resolveStylePresetManager();
 
     if (stylePresetManager) {
-      cblcarsLog.trace(`[StatusGridRenderer] 🔍 StylePresetManager found, checking for preset ${presetName}:`, {
+      lcardsLog.trace(`[StatusGridRenderer] 🔍 StylePresetManager found, checking for preset ${presetName}:`, {
         initialized: stylePresetManager.initialized,
         packCount: stylePresetManager.loadedPacks?.length,
         cacheSize: stylePresetManager.presetCache?.size
@@ -1287,13 +1287,13 @@ export class StatusGridRenderer extends BaseRenderer {
 
       const preset = stylePresetManager.getPreset(overlayType, presetName);
       if (preset) {
-        cblcarsLog.trace(`[StatusGridRenderer] ✅ Found preset via StylePresetManager`);
+        lcardsLog.trace(`[StatusGridRenderer] ✅ Found preset via StylePresetManager`);
         return preset;
       } else {
-        cblcarsLog.trace(`[StatusGridRenderer] ❌ StylePresetManager returned null for ${overlayType}.${presetName}`);
+        lcardsLog.trace(`[StatusGridRenderer] ❌ StylePresetManager returned null for ${overlayType}.${presetName}`);
       }
     } else {
-      cblcarsLog.trace(`[StatusGridRenderer] ❌ No StylePresetManager available`);
+      lcardsLog.trace(`[StatusGridRenderer] ❌ No StylePresetManager available`);
     }
 
     return null;
@@ -1350,7 +1350,7 @@ export class StatusGridRenderer extends BaseRenderer {
       text_padding: resolvedCellStyle.text_padding,
       text_margin: resolvedCellStyle.text_margin,
 
-      // CB-LCARS features
+      // LCARdS features
       lcars_button_preset: resolvedCellStyle.lcars_button_preset,
       lcars_text_preset: resolvedCellStyle.lcars_text_preset,
       bracket_style: resolvedCellStyle.bracket_style,
@@ -1367,7 +1367,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // Apply special cell radius resolution (respects normalization settings)
     finalCellStyle.border_radius = this._resolveCellRadius(cellConfig, gridStyle, cellWidth, cellHeight);
 
-    // Parse through RendererUtils for full CB-LCARS support on final merged style
+    // Parse through RendererUtils for full LCARdS support on final merged style
     const mergedConfigForRendererUtils = {
       ...gridStyle.rawOverlayStyle,
       ...(cellConfig.style || {}),
@@ -1440,7 +1440,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const cellPresetName = cellConfig.lcars_button_preset || cellConfig.style?.lcars_button_preset;
 
     if (cellPresetName) {
-      cblcarsLog.debug(`[StatusGridRenderer] 🎨 Applying cell preset "${cellPresetName}" to cell ${cellConfig.id || 'unknown'}`);
+      lcardsLog.debug(`[StatusGridRenderer] 🎨 Applying cell preset "${cellPresetName}" to cell ${cellConfig.id || 'unknown'}`);
 
       const presetStyles = this._loadPresetFromStylePresetManager('status_grid', cellPresetName);
 
@@ -1469,7 +1469,7 @@ export class StatusGridRenderer extends BaseRenderer {
           }
         });
 
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ Applied cell preset ${cellPresetName} with ${Object.keys(presetStyles).length} properties`);
+        lcardsLog.debug(`[StatusGridRenderer] ✅ Applied cell preset ${cellPresetName} with ${Object.keys(presetStyles).length} properties`);
       }
     }
 
@@ -1658,7 +1658,7 @@ export class StatusGridRenderer extends BaseRenderer {
       'top': { x: '50%', y: padding + 'px', anchor: 'middle', baseline: 'hanging' },
       'bottom': { x: '50%', y: (cellHeight - padding) + 'px', anchor: 'middle', baseline: 'baseline' },
 
-      // CB-LCARS specific positions for button card compatibility
+      // LCARdS specific positions for button card compatibility
       'south-east': { x: (cellWidth - padding) + 'px', y: (cellHeight - padding) + 'px', anchor: 'end', baseline: 'baseline' },
       'north-west': { x: padding + 'px', y: padding + 'px', anchor: 'start', baseline: 'hanging' },
       'south-west': { x: padding + 'px', y: (cellHeight - padding) + 'px', anchor: 'start', baseline: 'baseline' },
@@ -1927,7 +1927,7 @@ export class StatusGridRenderer extends BaseRenderer {
                 style="pointer-events: ${gridPointerEvents}; cursor: ${gridCursor};"
                 transform="translate(${x}, ${y})">`;
 
-    cblcarsLog.trace(`[StatusGridRenderer] 🏗️ Building grid SVG with ${gridStyle.rows}x${gridStyle.columns} layout using ButtonRenderer`, {
+    lcardsLog.trace(`[StatusGridRenderer] 🏗️ Building grid SVG with ${gridStyle.rows}x${gridStyle.columns} layout using ButtonRenderer`, {
       hasCellActions,
       gridPointerEvents,
       gridCursor
@@ -1955,7 +1955,7 @@ export class StatusGridRenderer extends BaseRenderer {
       // Debug: Check if this cell has specific actions
       const cellHasActions = !!(cell.actions && (cell.actions.tap_action || cell.actions.hold_action || cell.actions.double_tap_action));
 
-      cblcarsLog.trace(`[StatusGridRenderer] 🔲 Rendering cell ${cell.id} using ButtonRenderer:`, {
+      lcardsLog.trace(`[StatusGridRenderer] 🔲 Rendering cell ${cell.id} using ButtonRenderer:`, {
         cellHasActions: cellHasActions,
         cellActions: cell.actions,
         position: [cellX, cellY],
@@ -1988,7 +1988,7 @@ export class StatusGridRenderer extends BaseRenderer {
   _renderGridCellWithButtonRenderer(cell, cellX, cellY, cellWidth, cellHeight, cellStyle, gridStyle, hasActions, cellHasActions) {
     // DEBUG: Log what we're actually passing to ButtonRenderer
     if (cell.id === 'bed_light_cell') {
-      cblcarsLog.trace(`[StatusGridRenderer] 🔍 DEBUG style cascade:`, {
+      lcardsLog.trace(`[StatusGridRenderer] 🔍 DEBUG style cascade:`, {
         cellConfig: cell.config,
         resolvedCellStyle: cellStyle,
         hasIndividualBorders: !!(cellStyle.border_top || cellStyle.border_right || cellStyle.border_bottom || cellStyle.border_left),
@@ -2028,7 +2028,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // CRITICAL: Log action configuration for debugging
     if (cellHasActions) {
-      cblcarsLog.trace(`[StatusGridRenderer] 🎯 Cell has actions:`, {
+      lcardsLog.trace(`[StatusGridRenderer] 🎯 Cell has actions:`, {
         tap_action: buttonConfig.tap_action,
         hold_action: buttonConfig.hold_action,
         double_tap_action: buttonConfig.double_tap_action,
@@ -2061,8 +2061,8 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   _resolveCardInstance() {
     // Try various methods to get the card instance
-    if (window.cblcars.debug.msd?.pipelineInstance?.cardInstance) {
-      return window.cblcars.debug.msd.pipelineInstance.cardInstance;
+    if (window.lcards.debug.msd?.pipelineInstance?.cardInstance) {
+      return window.lcards.debug.msd.pipelineInstance.cardInstance;
     }
 
     if (window._msdCardInstance) {
@@ -2085,8 +2085,8 @@ export class StatusGridRenderer extends BaseRenderer {
     // Try various methods to get the card instance
 
     // Method 1: From MSD pipeline if available
-    if (window.cblcars.debug.msd?.pipelineInstance?.cardInstance) {
-      return window.cblcars.debug.msd.pipelineInstance.cardInstance;
+    if (window.lcards.debug.msd?.pipelineInstance?.cardInstance) {
+      return window.lcards.debug.msd.pipelineInstance.cardInstance;
     }
 
     // Method 2: From global MSD context
@@ -2094,12 +2094,12 @@ export class StatusGridRenderer extends BaseRenderer {
       return window._msdCardInstance;
     }
 
-    // Method 3: From CB-LCARS global context
+    // Method 3: From LCARdS global context
     if (window.cb_lcars_card_instance) {
       return window.cb_lcars_card_instance;
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] Could not resolve card instance from global context`);
+    lcardsLog.debug(`[StatusGridRenderer] Could not resolve card instance from global context`);
     return null;
   }
 
@@ -2110,7 +2110,7 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   static setCardInstance(cardInstance) {
     window._msdCardInstance = cardInstance;
-    cblcarsLog.debug(`[StatusGridRenderer] Card instance set for action handling`);
+    lcardsLog.debug(`[StatusGridRenderer] Card instance set for action handling`);
   }
 
   // Cell configuration resolution with DataSource integration
@@ -2120,7 +2120,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // Check multiple sources for cells configuration
     const cellsConfig = overlay.cells || overlay._raw?.cells || overlay.raw?.cells;
 
-    cblcarsLog.trace(`[StatusGridRenderer] 🔍 Resolving cells for ${gridStyle.rows}x${gridStyle.columns} grid:`, {
+    lcardsLog.trace(`[StatusGridRenderer] 🔍 Resolving cells for ${gridStyle.rows}x${gridStyle.columns} grid:`, {
       gridDimensions: `${gridStyle.rows}x${gridStyle.columns}`,
       totalExpectedCells: gridStyle.rows * gridStyle.columns,
       explicitCellsProvided: cellsConfig ? cellsConfig.length : 0,
@@ -2129,7 +2129,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // Use explicit cell definitions if provided
     if (cellsConfig && Array.isArray(cellsConfig)) {
-      cblcarsLog.trace(`[StatusGridRenderer] 🔍 Processing explicit cells for ${gridStyle.rows}x${gridStyle.columns} grid`);
+      lcardsLog.trace(`[StatusGridRenderer] 🔍 Processing explicit cells for ${gridStyle.rows}x${gridStyle.columns} grid`);
 
       cellsConfig.forEach((cellConfig, index) => {
         // Calculate position based on grid dimensions, not array index
@@ -2159,12 +2159,12 @@ export class StatusGridRenderer extends BaseRenderer {
             col = index % gridStyle.columns;
           } else {
             // Cell index exceeds grid capacity - skip or wrap
-            cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Cell ${index} exceeds ${gridStyle.rows}x${gridStyle.columns} grid capacity, skipping`);
+            lcardsLog.warn(`[StatusGridRenderer] ⚠️ Cell ${index} exceeds ${gridStyle.rows}x${gridStyle.columns} grid capacity, skipping`);
             return; // Skip this cell
           }
         }
 
-        cblcarsLog.trace(`[StatusGridRenderer] 🔍 Parsing cell ${cellConfig.id || `cell-${index}`}:`, {
+        lcardsLog.trace(`[StatusGridRenderer] 🔍 Parsing cell ${cellConfig.id || `cell-${index}`}:`, {
           index,
           calculatedPosition: [row, col],
           explicitPosition: cellConfig.position,
@@ -2203,7 +2203,7 @@ export class StatusGridRenderer extends BaseRenderer {
         cells.push(cell);
       });
     } else {
-      cblcarsLog.debug(`[StatusGridRenderer] No explicit cells found, generating ${gridStyle.rows}x${gridStyle.columns} grid`);
+      lcardsLog.debug(`[StatusGridRenderer] No explicit cells found, generating ${gridStyle.rows}x${gridStyle.columns} grid`);
 
       // Generate grid cells based on rows/columns
       const totalCells = gridStyle.rows * gridStyle.columns;
@@ -2276,20 +2276,20 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // MSD-style inline conditional support stays (only for { ... ? ... : ... } style)
     if (cellContent.includes('?') && cellContent.includes(':') && hasMSD) {
-      cblcarsLog.debug(`[StatusGridRenderer] Using conditional path for: ${cellContent}`);
+      lcardsLog.debug(`[StatusGridRenderer] Using conditional path for: ${cellContent}`);
       return this._processConditionalWithDataSourceMixin(cellContent, updateDataSourceData);
     }
 
     // CRITICAL FIX: If updateDataSourceData is a DataSourceManager, use its hass states
     // This ensures we resolve templates with the SAME state that RulesEngine just used
     if (updateDataSourceData && typeof updateDataSourceData.getEntity === 'function') {
-      cblcarsLog.debug(`[StatusGridRenderer] 🎯 Using DataSourceManager path for: ${cellContent}`);
+      lcardsLog.debug(`[StatusGridRenderer] 🎯 Using DataSourceManager path for: ${cellContent}`);
       // We have a DataSourceManager - use it to resolve HA templates with current state
       return this._resolveWithDataSourceManager(cellContent, updateDataSourceData);
     }
 
     // Fallback: Unified processing (handles both HA {{}} and MSD {})
-    cblcarsLog.trace(`[StatusGridRenderer] ⚠️ Using fallback DataSourceMixin path for: ${cellContent}`);
+    lcardsLog.trace(`[StatusGridRenderer] ⚠️ Using fallback DataSourceMixin path for: ${cellContent}`);
     return DataSourceMixin.processUnifiedTemplateStrings(cellContent, 'StatusGridRenderer');
   }
 
@@ -2319,7 +2319,7 @@ export class StatusGridRenderer extends BaseRenderer {
         const templatePattern = `{{\\s*states\\(['"]${entityId}['"]\\)\\s*}}`;
         resolved = resolved.replace(new RegExp(templatePattern, 'g'), hassState.state);
 
-        cblcarsLog.trace(`[StatusGridRenderer] 🔄 Resolved template:`, {
+        lcardsLog.trace(`[StatusGridRenderer] 🔄 Resolved template:`, {
           entityId,
           state: hassState.state,
           pattern: templatePattern
@@ -2348,7 +2348,7 @@ export class StatusGridRenderer extends BaseRenderer {
       // Parse the conditional: "path operator value ? trueValue : falseValue"
       const conditionMatch = expression.match(/^(.+?)\s*([><=!]+)\s*(.+?)\s*\?\s*'(.+?)'\s*:\s*'(.+?)'$/);
       if (!conditionMatch) {
-        cblcarsLog.warn(`[StatusGridRenderer] Could not parse conditional: ${expression}`);
+        lcardsLog.warn(`[StatusGridRenderer] Could not parse conditional: ${expression}`);
         return conditionalTemplate;
       }
 
@@ -2379,7 +2379,7 @@ export class StatusGridRenderer extends BaseRenderer {
       const rightVal = parseFloat(rightValue.trim());
 
       if (isNaN(leftVal) || isNaN(rightVal)) {
-        cblcarsLog.warn(`[StatusGridRenderer] Could not parse numeric values: left="${resolvedValue}" (${leftVal}), right="${rightValue.trim()}" (${rightVal})`);
+        lcardsLog.warn(`[StatusGridRenderer] Could not parse numeric values: left="${resolvedValue}" (${leftVal}), right="${rightValue.trim()}" (${rightVal})`);
         return conditionalTemplate;
       }
 
@@ -2393,16 +2393,16 @@ export class StatusGridRenderer extends BaseRenderer {
         case '==': result = leftVal == rightVal; break;
         case '!=': result = leftVal != rightVal; break;
         default:
-          cblcarsLog.warn(`[StatusGridRenderer] Unknown operator: ${operator}`);
+          lcardsLog.warn(`[StatusGridRenderer] Unknown operator: ${operator}`);
           return conditionalTemplate;
       }
 
       const finalValue = result ? trueValue : falseValue;
-      cblcarsLog.trace(`[StatusGridRenderer] Conditional result: ${leftVal} ${operator} ${rightVal} = ${result} → "${finalValue}"`);
+      lcardsLog.trace(`[StatusGridRenderer] Conditional result: ${leftVal} ${operator} ${rightVal} = ${result} → "${finalValue}"`);
       return finalValue;
 
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] Error processing conditional with DataSourceMixin:`, error);
+      lcardsLog.error(`[StatusGridRenderer] Error processing conditional with DataSourceMixin:`, error);
       return conditionalTemplate;
     }
   }
@@ -2432,7 +2432,7 @@ export class StatusGridRenderer extends BaseRenderer {
       if (value && typeof value === 'object' && part in value) {
         value = value[part];
       } else {
-        cblcarsLog.debug(`[StatusGridRenderer] Path "${part}" not found in update data, falling back to DataSourceMixin`);
+        lcardsLog.debug(`[StatusGridRenderer] Path "${part}" not found in update data, falling back to DataSourceMixin`);
         return null;
       }
     }
@@ -2444,7 +2444,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const style = overlay.finalStyle || overlay.style || {};
     const color = style.cell_color || style.color || 'var(--lcars-gray)';
 
-    cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Using fallback rendering for status grid ${overlay.id}`);
+    lcardsLog.warn(`[StatusGridRenderer] ⚠️ Using fallback rendering for status grid ${overlay.id}`);
 
     return `<g id="${overlay.id}" data-overlay-id="${overlay.id}" data-overlay-type="status_grid" data-fallback="true">
               <g transform="translate(${x}, ${y})">
@@ -2471,7 +2471,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const attachmentPoints = OverlayUtils.computeAttachmentPoints(overlay, anchors);
 
     if (!attachmentPoints) {
-      cblcarsLog.debug(`[StatusGridRenderer] Cannot compute attachment points for ${overlay.id}: missing position or size`);
+      lcardsLog.debug(`[StatusGridRenderer] Cannot compute attachment points for ${overlay.id}: missing position or size`);
       return null;
     }
 
@@ -2487,11 +2487,11 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   static processAllPendingActions() {
     if (!window._msdStatusGridActions) {
-      cblcarsLog.debug(`[StatusGridRenderer] No pending actions to process`);
+      lcardsLog.debug(`[StatusGridRenderer] No pending actions to process`);
       return;
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] Processing pending actions for status grids:`, Array.from(window._msdStatusGridActions.keys()));
+    lcardsLog.debug(`[StatusGridRenderer] Processing pending actions for status grids:`, Array.from(window._msdStatusGridActions.keys()));
 
     // Iterate over all pending actions
     window._msdStatusGridActions.forEach((actionInfo, overlayId) => {
@@ -2509,16 +2509,16 @@ export class StatusGridRenderer extends BaseRenderer {
       }
 
       if (gridElement) {
-        cblcarsLog.trace(`[StatusGridRenderer] 🎯 Processing pending actions for ${overlayId}`);
+        lcardsLog.trace(`[StatusGridRenderer] 🎯 Processing pending actions for ${overlayId}`);
         StatusGridRenderer.attachStatusGridActions(gridElement, actionInfo);
       } else {
-        cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Could not find status grid element for pending action processing: ${overlayId}`);
+        lcardsLog.warn(`[StatusGridRenderer] ⚠️ Could not find status grid element for pending action processing: ${overlayId}`);
       }
     });
 
     // Clear the action map after processing
     window._msdStatusGridActions.clear();
-    cblcarsLog.debug(`[StatusGridRenderer] Cleared pending actions map`);
+    lcardsLog.debug(`[StatusGridRenderer] Cleared pending actions map`);
   }
 
   /**
@@ -2529,11 +2529,11 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   static attachStatusGridActions(gridElement, actionInfo) {
     if (!gridElement || !actionInfo) {
-      cblcarsLog.warn(`[StatusGridRenderer] Invalid arguments for attachStatusGridActions`);
+      lcardsLog.warn(`[StatusGridRenderer] Invalid arguments for attachStatusGridActions`);
       return;
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] 🎯 Attaching actions to grid ${gridElement.getAttribute('data-overlay-id')}:`, {
+    lcardsLog.debug(`[StatusGridRenderer] 🎯 Attaching actions to grid ${gridElement.getAttribute('data-overlay-id')}:`, {
       hasActionInfo: !!actionInfo,
       hasCells: !!(actionInfo.cells),
       cellCount: actionInfo.cells?.length || 0,
@@ -2542,19 +2542,19 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // Use proven ActionHelpers pattern
     if (actionInfo.cells && Array.isArray(actionInfo.cells)) {
-      cblcarsLog.debug(`[StatusGridRenderer] Using ActionHelpers.attachCellActionsFromConfigs for ${actionInfo.cells.length} cells`);
+      lcardsLog.debug(`[StatusGridRenderer] Using ActionHelpers.attachCellActionsFromConfigs for ${actionInfo.cells.length} cells`);
 
       // Use the proven ActionHelpers method that works for other overlays
       window.ActionHelpers.attachCellActionsFromConfigs(gridElement, actionInfo.cells, actionInfo.cardInstance);
 
-      cblcarsLog.debug(`[StatusGridRenderer] ✅ Completed ActionHelpers cell action attachment`);
+      lcardsLog.debug(`[StatusGridRenderer] ✅ Completed ActionHelpers cell action attachment`);
     } else {
-      cblcarsLog.warn(`[StatusGridRenderer] No cells array found in actionInfo for grid action attachment`);
+      lcardsLog.warn(`[StatusGridRenderer] No cells array found in actionInfo for grid action attachment`);
     }
 
     // Handle overlay-level actions if present
     if (actionInfo.hasOverlayActions && actionInfo.overlay) {
-      cblcarsLog.debug(`[StatusGridRenderer] Processing overlay-level actions`);
+      lcardsLog.debug(`[StatusGridRenderer] Processing overlay-level actions`);
 
       const overlayActionConfig = window.ActionHelpers.processOverlayActions(
         actionInfo.overlay,
@@ -2569,11 +2569,11 @@ export class StatusGridRenderer extends BaseRenderer {
           overlayActionConfig.config,
           actionInfo.cardInstance
         );
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ Attached overlay-level actions`);
+        lcardsLog.debug(`[StatusGridRenderer] ✅ Attached overlay-level actions`);
       }
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] ✅ Completed action attachment for grid ${gridElement.getAttribute('data-overlay-id')}`);
+    lcardsLog.debug(`[StatusGridRenderer] ✅ Completed action attachment for grid ${gridElement.getAttribute('data-overlay-id')}`);
   }
 
   /**
@@ -2584,16 +2584,16 @@ export class StatusGridRenderer extends BaseRenderer {
   static _storeActionInfo(overlayId, actionInfo) {
     if (!window._msdStatusGridActions) {
       window._msdStatusGridActions = new Map();
-      cblcarsLog.debug(`[StatusGridRenderer] 📦 Initialized action storage map`);
+      lcardsLog.debug(`[StatusGridRenderer] 📦 Initialized action storage map`);
     }
 
     if (!actionInfo) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Attempted to store null action info for ${overlayId}`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Attempted to store null action info for ${overlayId}`);
       return;
     }
 
     window._msdStatusGridActions.set(overlayId, actionInfo);
-    cblcarsLog.debug(`[StatusGridRenderer] 📦 STORED action info for overlay ${overlayId}:`, {
+    lcardsLog.debug(`[StatusGridRenderer] 📦 STORED action info for overlay ${overlayId}:`, {
       hasCells: !!(actionInfo?.cells),
       cellCount: actionInfo?.cells?.length || 0,
       hasCardInstance: !!actionInfo?.cardInstance,
@@ -2610,7 +2610,7 @@ export class StatusGridRenderer extends BaseRenderer {
    */
   static _tryManualActionProcessing(overlayId) {
     if (!window._msdStatusGridActions?.has(overlayId)) {
-      cblcarsLog.debug(`[StatusGridRenderer] No stored actions for ${overlayId}`);
+      lcardsLog.debug(`[StatusGridRenderer] No stored actions for ${overlayId}`);
       return;
     }
 
@@ -2620,13 +2620,13 @@ export class StatusGridRenderer extends BaseRenderer {
     let gridElement = null;
 
     // Method 1: Use the known renderer mount element
-    const renderer = window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.renderer;
+    const renderer = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.renderer;
     if (renderer && renderer.mountEl) {
       const overlayGroup = renderer.mountEl.querySelector('#msd-overlay-container');
       if (overlayGroup) {
         gridElement = overlayGroup.querySelector(`[data-overlay-id="${overlayId}"]`);
         if (gridElement) {
-          cblcarsLog.debug(`[StatusGridRenderer] 🎯 Found grid element via renderer mount for ${overlayId}`);
+          lcardsLog.debug(`[StatusGridRenderer] 🎯 Found grid element via renderer mount for ${overlayId}`);
         }
       }
     }
@@ -2637,7 +2637,7 @@ export class StatusGridRenderer extends BaseRenderer {
       if (card && card.shadowRoot) {
         gridElement = card.shadowRoot.querySelector(`[data-overlay-id="${overlayId}"]`);
         if (gridElement) {
-          cblcarsLog.debug(`[StatusGridRenderer] 🎯 Found grid element in card shadow DOM for ${overlayId}`);
+          lcardsLog.debug(`[StatusGridRenderer] 🎯 Found grid element in card shadow DOM for ${overlayId}`);
         }
       }
     }
@@ -2646,12 +2646,12 @@ export class StatusGridRenderer extends BaseRenderer {
     if (!gridElement) {
       gridElement = document.querySelector(`[data-overlay-id="${overlayId}"]`);
       if (gridElement) {
-        cblcarsLog.debug(`[StatusGridRenderer] 🎯 Found grid element in document for ${overlayId}`);
+        lcardsLog.debug(`[StatusGridRenderer] 🎯 Found grid element in document for ${overlayId}`);
       }
     }
 
     if (gridElement) {
-      cblcarsLog.debug(`[StatusGridRenderer] 🎯 Found grid element for ${overlayId}, attaching actions`);
+      lcardsLog.debug(`[StatusGridRenderer] 🎯 Found grid element for ${overlayId}, attaching actions`);
 
       // ENHANCED: Add debugging to track the attachment process
       const beforeAttachment = gridElement.querySelectorAll('[data-has-cell-actions="true"]').length;
@@ -2660,7 +2660,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
       const afterAttachment = gridElement.querySelectorAll('[data-actions-attached="true"]').length;
 
-      cblcarsLog.debug(`[StatusGridRenderer] Action attachment summary for ${overlayId}:`, {
+      lcardsLog.debug(`[StatusGridRenderer] Action attachment summary for ${overlayId}:`, {
         cellsWithActionsMarkup: beforeAttachment,
         cellsWithActionsAttached: afterAttachment,
         success: afterAttachment > 0
@@ -2669,7 +2669,7 @@ export class StatusGridRenderer extends BaseRenderer {
       // Remove from pending actions after successful attachment
       window._msdStatusGridActions.delete(overlayId);
     } else {
-      cblcarsLog.debug(`[StatusGridRenderer] ⚠️ Grid element not found for ${overlayId}, will retry later`);
+      lcardsLog.debug(`[StatusGridRenderer] ⚠️ Grid element not found for ${overlayId}, will retry later`);
     }
   }
 
@@ -2679,7 +2679,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * @static
    */
   static _attachBasicCellActions(cellElement, actions, cardInstance) {
-    cblcarsLog.warn(`[StatusGridRenderer] Using fallback action attachment - ActionHelpers should be available`);
+    lcardsLog.warn(`[StatusGridRenderer] Using fallback action attachment - ActionHelpers should be available`);
 
     // FIXED: Use ActionHelpers if available, otherwise fallback
     if (window.ActionHelpers && typeof window.ActionHelpers.attachCellActions === 'function') {
@@ -2694,12 +2694,12 @@ export class StatusGridRenderer extends BaseRenderer {
     if (actions.tap_action) {
       cellElement.addEventListener('click', (event) => {
         event.stopPropagation();
-        cblcarsLog.debug(`[StatusGridRenderer] 🖱️ Cell tap action triggered:`, actions.tap_action);
+        lcardsLog.debug(`[StatusGridRenderer] 🖱️ Cell tap action triggered:`, actions.tap_action);
 
         if (cardInstance && typeof cardInstance._handleAction === 'function') {
           cardInstance._handleAction(actions.tap_action);
         } else {
-          cblcarsLog.warn(`[StatusGridRenderer] No card instance available for action handling`);
+          lcardsLog.warn(`[StatusGridRenderer] No card instance available for action handling`);
         }
       });
     }
@@ -2711,7 +2711,7 @@ export class StatusGridRenderer extends BaseRenderer {
       cellElement.addEventListener('mousedown', (event) => {
         holdTimer = setTimeout(() => {
           event.stopPropagation();
-          cblcarsLog.debug(`[StatusGridRenderer] ✋ Cell hold action triggered:`, actions.hold_action);
+          lcardsLog.debug(`[StatusGridRenderer] ✋ Cell hold action triggered:`, actions.hold_action);
 
           if (cardInstance && typeof cardInstance._handleAction === 'function') {
             cardInstance._handleAction(actions.hold_action);
@@ -2738,7 +2738,7 @@ export class StatusGridRenderer extends BaseRenderer {
     if (actions.double_tap_action) {
       cellElement.addEventListener('dblclick', (event) => {
         event.stopPropagation();
-        cblcarsLog.debug(`[StatusGridRenderer] 🖱️🖱️ Cell double-tap action triggered:`, actions.double_tap_action);
+        lcardsLog.debug(`[StatusGridRenderer] 🖱️🖱️ Cell double-tap action triggered:`, actions.double_tap_action);
 
         if (cardInstance && typeof cardInstance._handleAction === 'function') {
           cardInstance._handleAction(actions.double_tap_action);
@@ -2746,7 +2746,7 @@ export class StatusGridRenderer extends BaseRenderer {
       });
     }
 
-    cblcarsLog.debug(`[StatusGridRenderer] ✅ Attached basic fallback actions to cell`);
+    lcardsLog.debug(`[StatusGridRenderer] ✅ Attached basic fallback actions to cell`);
   }
 
   /**
@@ -2796,7 +2796,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const columns = gridStyle.columns;
     const gap = gridStyle.cell_gap;
 
-    cblcarsLog.trace(`[StatusGridRenderer] 📐 Grid dimensions: ${rows}x${columns}, total: ${totalWidth}x${totalHeight}, gap: ${gap}`);
+    lcardsLog.trace(`[StatusGridRenderer] 📐 Grid dimensions: ${rows}x${columns}, total: ${totalWidth}x${totalHeight}, gap: ${gap}`);
 
     // Calculate available space after gaps (ensure non-negative)
     const gapWidth = gap * Math.max(0, columns - 1);
@@ -2805,7 +2805,7 @@ export class StatusGridRenderer extends BaseRenderer {
     const availableHeight = Math.max(0, totalHeight - gapHeight);
 
     // Debug space calculations
-    cblcarsLog.trace(`[StatusGridRenderer] Space calculation:`, {
+    lcardsLog.trace(`[StatusGridRenderer] Space calculation:`, {
       totalWidth,
       totalHeight,
       gap,
@@ -2829,20 +2829,20 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // Debug logging for proportional sizing
     if (columnSizing) {
-      cblcarsLog.debug(`[StatusGridRenderer] Using column sizing:`, columnSizing, '→ widths:', cellWidths);
+      lcardsLog.debug(`[StatusGridRenderer] Using column sizing:`, columnSizing, '→ widths:', cellWidths);
     }
     if (rowSizing) {
-      cblcarsLog.debug(`[StatusGridRenderer] Using row sizing:`, rowSizing, '→ heights:', cellHeights);
+      lcardsLog.debug(`[StatusGridRenderer] Using row sizing:`, rowSizing, '→ heights:', cellHeights);
     }
 
-    cblcarsLog.trace(`[StatusGridRenderer] ✅ Final cell dimensions: widths=${cellWidths}, heights=${cellHeights}`);
+    lcardsLog.trace(`[StatusGridRenderer] ✅ Final cell dimensions: widths=${cellWidths}, heights=${cellHeights}`);
 
     // Validate calculated dimensions
     const hasNegativeWidths = cellWidths.some(w => w <= 0);
     const hasNegativeHeights = cellHeights.some(h => h <= 0);
 
     if (hasNegativeWidths || hasNegativeHeights) {
-      cblcarsLog.error(`[StatusGridRenderer] ❌ Calculated negative dimensions:`, {
+      lcardsLog.error(`[StatusGridRenderer] ❌ Calculated negative dimensions:`, {
         cellWidths,
         cellHeights,
         availableWidth,
@@ -2870,12 +2870,12 @@ export class StatusGridRenderer extends BaseRenderer {
    * @private
    */
   _calculateDimensions(totalSpace, count, sizing) {
-    cblcarsLog.trace(`[StatusGridRenderer] 📐 Calculating dimensions: totalSpace=${totalSpace}, count=${count}, sizing=`, sizing);
+    lcardsLog.trace(`[StatusGridRenderer] 📐 Calculating dimensions: totalSpace=${totalSpace}, count=${count}, sizing=`, sizing);
 
     if (!sizing || !Array.isArray(sizing)) {
       // Equal sizing - divide space equally
       const size = totalSpace / count;
-      cblcarsLog.trace(`[StatusGridRenderer] ✅ Using equal sizing: ${size} per cell`);
+      lcardsLog.trace(`[StatusGridRenderer] ✅ Using equal sizing: ${size} per cell`);
       return Array(count).fill(size);
     }
 
@@ -2884,7 +2884,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // enforce length constraints (which depend on runtime grid dimensions).
     // Fall back to equal sizing rather than failing the render.
     if (sizing.length !== count) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Sizing array length (${sizing.length}) doesn't match expected count (${count}). Using equal sizing.`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Sizing array length (${sizing.length}) doesn't match expected count (${count}). Using equal sizing.`);
       const size = totalSpace / count;
       return Array(count).fill(size);
     }
@@ -2909,7 +2909,7 @@ export class StatusGridRenderer extends BaseRenderer {
       }, 0);
 
       if (totalPercentage > 100) {
-        cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Total percentages (${totalPercentage}%) exceed 100%. Normalizing.`);
+        lcardsLog.warn(`[StatusGridRenderer] ⚠️ Total percentages (${totalPercentage}%) exceed 100%. Normalizing.`);
         return result.map(val => (val / totalPercentage) * totalSpace);
       }
 
@@ -2923,14 +2923,14 @@ export class StatusGridRenderer extends BaseRenderer {
     // Check if we should treat as pixels or ratios
     // If values sum to significantly more than available space, treat as pixels and scale down
     if (totalValue > totalSpace * 1.2) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Total pixel values (${totalValue}px) exceed available space (${totalSpace}px). Scaling down.`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Total pixel values (${totalValue}px) exceed available space (${totalSpace}px). Scaling down.`);
       const scale = totalSpace / totalValue;
       return numericValues.map(val => val * scale);
     }
 
     // Otherwise treat as proportional ratios (most common case for [2, 1] etc.)
     if (totalValue === 0) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ All ratio values are zero or invalid. Using equal sizing.`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ All ratio values are zero or invalid. Using equal sizing.`);
       const size = totalSpace / count;
       return Array(count).fill(size);
     }
@@ -2941,7 +2941,7 @@ export class StatusGridRenderer extends BaseRenderer {
       return totalSpace * normalizedRatio;
     });
 
-    cblcarsLog.debug(`[StatusGridRenderer] Calculated proportional dimensions:`, {
+    lcardsLog.debug(`[StatusGridRenderer] Calculated proportional dimensions:`, {
       input: sizing,
       numericValues,
       totalValue,
@@ -3054,7 +3054,7 @@ export class StatusGridRenderer extends BaseRenderer {
         if (value && value.includes('px')) {
           const radius = parseFloat(value.replace('px', ''));
           if (!isNaN(radius) && radius > 0) {
-            //cblcarsLog.debug(`[StatusGridRenderer] Using HA card radius: ${radius}px from ${variable}`);
+            //lcardsLog.debug(`[StatusGridRenderer] Using HA card radius: ${radius}px from ${variable}`);
             return radius;
           }
         }
@@ -3063,7 +3063,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // Fallback to typical HA default
     const fallbackRadius = 12;
-    cblcarsLog.debug(`[StatusGridRenderer] Using fallback card radius: ${fallbackRadius}px`);
+    lcardsLog.debug(`[StatusGridRenderer] Using fallback card radius: ${fallbackRadius}px`);
     return fallbackRadius;
   }
 
@@ -3117,7 +3117,7 @@ export class StatusGridRenderer extends BaseRenderer {
       const sourceData = isContext ? contextOrPatch.patch : contextOrPatch;
       const dataSourceManager = isContext ? contextOrPatch.dataSourceManager : null;
 
-      cblcarsLog.debug(`[StatusGridRenderer] 📦 Context extraction:`, {
+      lcardsLog.debug(`[StatusGridRenderer] 📦 Context extraction:`, {
         hasContext: !!contextOrPatch,
         isContext,
         hasDataSourceManager: !!dataSourceManager,
@@ -3127,7 +3127,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
       // Log the actual sourceData structure to understand what we're getting
       const sourceDataKeys = sourceData ? Object.keys(sourceData) : [];
-      cblcarsLog.debug(`[StatusGridRenderer] 📦 PATCH STRUCTURE ANALYSIS:`, {
+      lcardsLog.debug(`[StatusGridRenderer] 📦 PATCH STRUCTURE ANALYSIS:`, {
         hasSourceData: !!sourceData,
         allKeys: sourceDataKeys,
         // Try all possible key names
@@ -3178,7 +3178,7 @@ export class StatusGridRenderer extends BaseRenderer {
         };
       }
 
-      cblcarsLog.debug(`[StatusGridRenderer] 📥 updateGridData() called for ${overlay.id}`, {
+      lcardsLog.debug(`[StatusGridRenderer] 📥 updateGridData() called for ${overlay.id}`, {
         hasRulePatches: isRulePatch,
         cellsWithPatches: isRulePatch && targetCellId ? 1 : 0,
         patchedCellId: targetCellId || undefined
@@ -3241,13 +3241,13 @@ export class StatusGridRenderer extends BaseRenderer {
         // Update grid timestamp
         const timestamp = new Date().toISOString();
         gridElement.setAttribute('data-last-update', timestamp);
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ Updated ${allCells.length} cells in grid ${overlay.id}:`, {
+        lcardsLog.debug(`[StatusGridRenderer] ✅ Updated ${allCells.length} cells in grid ${overlay.id}:`, {
           contentUpdates,
           styleUpdates,
           totalCells: allCells.length
         });
       } else {
-        cblcarsLog.debug(`[StatusGridRenderer] ℹ️ No updates needed for ${overlay.id}:`, {
+        lcardsLog.debug(`[StatusGridRenderer] ℹ️ No updates needed for ${overlay.id}:`, {
           totalCells: allCells.length,
           cellsChecked: allCells.length,
           hasRulePatches: isRulePatch,
@@ -3258,7 +3258,7 @@ export class StatusGridRenderer extends BaseRenderer {
       return hasUpdates;
 
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] Error updating grid data for ${overlay.id}:`, error);
+      lcardsLog.error(`[StatusGridRenderer] Error updating grid data for ${overlay.id}:`, error);
       return false;
     }
   }
@@ -3298,7 +3298,7 @@ export class StatusGridRenderer extends BaseRenderer {
 
       return updated;
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] Error updating cell style for ${cell.id}:`, error);
+      lcardsLog.error(`[StatusGridRenderer] Error updating cell style for ${cell.id}:`, error);
       return false;
     }
   }
@@ -3312,7 +3312,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * @returns {Array} Updated cell configurations with new data
    */
   updateCellsWithData(overlay, style, newDataSourceData) {
-    cblcarsLog.trace(`[StatusGridRenderer] Updating cells with new DataSource data for ${overlay.id}`, {
+    lcardsLog.trace(`[StatusGridRenderer] Updating cells with new DataSource data for ${overlay.id}`, {
       hasDataSourceData: !!newDataSourceData,
       isDataSourceManager: newDataSourceData && typeof newDataSourceData.getHassState === 'function',
       dataType: newDataSourceData ? newDataSourceData.constructor.name : 'none'
@@ -3333,7 +3333,7 @@ export class StatusGridRenderer extends BaseRenderer {
         // Ensure we don't return [object Object]
         const safeContent = (typeof processedContent === 'object') ? JSON.stringify(processedContent) : String(processedContent);
 
-        cblcarsLog.debug(`[StatusGridRenderer] 📝 Cell content resolution for ${cell.id}:`, {
+        lcardsLog.debug(`[StatusGridRenderer] 📝 Cell content resolution for ${cell.id}:`, {
           rawCellContent,
           processedContent,
           safeContent,
@@ -3421,7 +3421,7 @@ export class StatusGridRenderer extends BaseRenderer {
       );
 
       if (hasActions) {
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ Cell ${cell.id} has actions:`, {
+        lcardsLog.debug(`[StatusGridRenderer] ✅ Cell ${cell.id} has actions:`, {
           tap: !!cell.actions.tap_action,
           hold: !!cell.actions.hold_action,
           double_tap: !!cell.actions.double_tap_action,
@@ -3435,7 +3435,7 @@ export class StatusGridRenderer extends BaseRenderer {
     // Check for overlay-level actions
     const hasOverlayActions = !!(overlay.tap_action || overlay.hold_action || overlay.double_tap_action);
 
-    cblcarsLog.debug(`[StatusGridRenderer] 🔍 Processing status grid actions for ${overlay.id}:`, {
+    lcardsLog.debug(`[StatusGridRenderer] 🔍 Processing status grid actions for ${overlay.id}:`, {
       totalCells: cells.length,
       cellsWithActions: cellsWithActions.length,
       hasOverlayActions,
@@ -3449,12 +3449,12 @@ export class StatusGridRenderer extends BaseRenderer {
 
     // If no actions at all, return null
     if (cellsWithActions.length === 0 && !hasOverlayActions) {
-      cblcarsLog.debug(`[StatusGridRenderer] No actions found for ${overlay.id}`);
+      lcardsLog.debug(`[StatusGridRenderer] No actions found for ${overlay.id}`);
       return null;
     }
 
     if (!cardInstance) {
-      cblcarsLog.warn(`[StatusGridRenderer] ⚠️ Status grid ${overlay.id} has actions but no cardInstance available`);
+      lcardsLog.warn(`[StatusGridRenderer] ⚠️ Status grid ${overlay.id} has actions but no cardInstance available`);
       return null;
     }
 
@@ -3481,7 +3481,7 @@ export class StatusGridRenderer extends BaseRenderer {
       cells: cellsWithActions
     };
 
-    cblcarsLog.debug(`[StatusGridRenderer] 🎯 Created enhanced action info for ${overlay.id}:`, {
+    lcardsLog.debug(`[StatusGridRenderer] 🎯 Created enhanced action info for ${overlay.id}:`, {
       cellActionCount: cellsWithActions.length,
       hasDefaultActions: hasOverlayActions,
       configCells: actionInfo.config.enhanced.cells.length,
@@ -3559,7 +3559,7 @@ export class StatusGridRenderer extends BaseRenderer {
    * @returns {boolean} True if update succeeded, false to trigger full re-render
    */
   static updateIncremental(overlay, overlayElement, context) {
-    cblcarsLog.debug(`[StatusGridRenderer] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
+    lcardsLog.debug(`[StatusGridRenderer] 🎨 INCREMENTAL UPDATE: ${overlay.id}`);
 
     try {
       // Call static updateGridData method which handles DOM updates
@@ -3567,14 +3567,14 @@ export class StatusGridRenderer extends BaseRenderer {
       const success = StatusGridRenderer.updateGridData(overlayElement, overlay, context);
 
       if (success) {
-        cblcarsLog.debug(`[StatusGridRenderer] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
+        lcardsLog.debug(`[StatusGridRenderer] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.id}`);
       } else {
-        cblcarsLog.trace(`[StatusGridRenderer] ℹ️ INCREMENTAL UPDATE NO-OP: ${overlay.id} (no changes detected)`);
+        lcardsLog.trace(`[StatusGridRenderer] ℹ️ INCREMENTAL UPDATE NO-OP: ${overlay.id} (no changes detected)`);
       }
 
       return success;
     } catch (error) {
-      cblcarsLog.error(`[StatusGridRenderer] ❌ INCREMENTAL UPDATE ERROR: ${overlay.id}`, error);
+      lcardsLog.error(`[StatusGridRenderer] ❌ INCREMENTAL UPDATE ERROR: ${overlay.id}`, error);
       return false;
     }
   }

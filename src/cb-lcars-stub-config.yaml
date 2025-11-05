@@ -1,6 +1,6 @@
-cb-lcars-label-card:
+lcards-label-card:
   enable_resize_observer: true
-  cblcars_card_type: cb-lcars-label-picard-square
+  lcards_card_type: lcards-label-picard-square
   show_label: true
   variables:
     label: "LCARS Label"
@@ -10,8 +10,8 @@ cb-lcars-label-card:
     action: none
   hold_action:
     action: none
-cb-lcars-button-card:
-  cblcars_card_type: cb-lcars-button-picard
+lcards-button-card:
+  lcards_card_type: lcards-button-picard
   show_label: true
   variables:
     label: "LCARS Button"
@@ -21,8 +21,8 @@ cb-lcars-button-card:
     action: none
   hold_action:
     action: more-info
-cb-lcars-elbow-card:
-  cblcars_card_type: cb-lcars-header
+lcards-elbow-card:
+  lcards_card_type: lcards-header
   enable_resize_observer: true
   tap_action:
     action: none
@@ -30,11 +30,11 @@ cb-lcars-elbow-card:
     action: none
   hold_action:
     action: none
-cb-lcars-dpad-card:
+lcards-dpad-card:
   enable_resize_observer: true
-cb-lcars-multimeter-card:
+lcards-multimeter-card:
   template:
-    - cb-lcars-animation-geo-array
+    - lcards-animation-geo-array
   enable_resize_observer: true
   variables:
     entity_match_header: false
@@ -67,7 +67,7 @@ cb-lcars-multimeter-card:
   hold_action:
     action: none
   show_label: false
-cb-lcars-msd-card:
+lcards-msd-card:
   enable_resize_observer: true
   variables:
     card:

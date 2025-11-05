@@ -12,7 +12,7 @@
  * @module msd/validation/ValueValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Value Validator
@@ -40,7 +40,7 @@ export class ValueValidator {
    */
   setThemeManager(themeManager) {
     this.themeManager = themeManager;
-    cblcarsLog.debug('[ValueValidator] ThemeManager connected for token resolution');
+    lcardsLog.debug('[ValueValidator] ThemeManager connected for token resolution');
   }
 
   /**
@@ -763,7 +763,7 @@ export class ValueValidator {
    */
   registerFormat(formatName, validator) {
     this.formatValidators.set(formatName, validator);
-    cblcarsLog.debug(`[ValueValidator] Registered custom format: ${formatName}`);
+    lcardsLog.debug(`[ValueValidator] Registered custom format: ${formatName}`);
   }
 }
 

@@ -19,7 +19,7 @@
 
 import { RendererUtils } from '../RendererUtils.js';
 import { BracketRenderer } from '../BracketRenderer.js';
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 export class TextRenderer {
   /**
@@ -41,7 +41,7 @@ export class TextRenderer {
     const { viewBox, container, overlayId = 'text', defaults = {} } = context;
 
     if (!content || !position) {
-      cblcarsLog.warn('[TextRenderer] Missing content or position');
+      lcardsLog.warn('[TextRenderer] Missing content or position');
       return { markup: '', metadata: null };
     }
 
@@ -61,7 +61,7 @@ export class TextRenderer {
       return { markup, metadata };
 
     } catch (error) {
-      cblcarsLog.error(`[TextRenderer] Rendering failed:`, error);
+      lcardsLog.error(`[TextRenderer] Rendering failed:`, error);
       return this._renderFallback(content, x, y, style);
     }
   }
@@ -357,8 +357,8 @@ export class TextRenderer {
     let bbox = this._getTextBBox(content, x, y, style, container);
 
     // DEBUG: Log status_indicator info and original bbox
-    cblcarsLog.trace(`[TextRenderer._buildMetadata] status_indicator=${style.status_indicator}, position=${style.status_indicator_position}, size=${style.status_indicator_size}, padding=${style.status_indicator_padding}`);
-    cblcarsLog.trace(`[TextRenderer._buildMetadata] ORIGINAL bbox: left=${bbox.left}, right=${bbox.right}, width=${bbox.width}`);
+    lcardsLog.trace(`[TextRenderer._buildMetadata] status_indicator=${style.status_indicator}, position=${style.status_indicator_position}, size=${style.status_indicator_size}, padding=${style.status_indicator_padding}`);
+    lcardsLog.trace(`[TextRenderer._buildMetadata] ORIGINAL bbox: left=${bbox.left}, right=${bbox.right}, width=${bbox.width}`);
 
     // Default attachment points based on text bbox
     const attachmentPoints = {
@@ -520,7 +520,7 @@ export class TextRenderer {
       }
 
       // DEBUG: Log bbox after expansion
-      cblcarsLog.trace(`[TextRenderer._buildMetadata] EXPANDED bbox: left=${bbox.left}, right=${bbox.right}, width=${bbox.width}, totalIndicatorSpace=${padding + indicatorSize * 2}`);
+      lcardsLog.trace(`[TextRenderer._buildMetadata] EXPANDED bbox: left=${bbox.left}, right=${bbox.right}, width=${bbox.width}, totalIndicatorSpace=${padding + indicatorSize * 2}`);
     }
 
     return {

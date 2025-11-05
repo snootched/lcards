@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [PacksPanel] Packs panel for MSD HUD
  * 📦 Shows pack collections and provenance information
@@ -11,9 +11,9 @@ export class PacksPanel {
     const summary = {};
 
     try {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance) {
-        cblcarsLog.debug('[PacksPanel] 📋 Capturing pack collections and provenance data');
+        lcardsLog.debug('[PacksPanel] 📋 Capturing pack collections and provenance data');
         const resolvedModel = pipelineInstance.getResolvedModel?.();
         if (resolvedModel) {
           // Capture collections
@@ -44,10 +44,10 @@ export class PacksPanel {
           }
         }
       } else {
-        cblcarsLog.warn('[PacksPanel] ⚠️ Pipeline instance not available for pack data capture');
+        lcardsLog.warn('[PacksPanel] ⚠️ Pipeline instance not available for pack data capture');
       }
     } catch (e) {
-      cblcarsLog.warn('[PacksPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[PacksPanel] ⚠️ Data capture failed:', e);
     }
 
     return { collections, provenance, summary };
@@ -58,7 +58,7 @@ export class PacksPanel {
    */
   destroy() {
     // No specific resources to clean up for this panel
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(packsData) {

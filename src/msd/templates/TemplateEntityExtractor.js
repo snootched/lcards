@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Utility for extracting entity references from MSD and Home Assistant templates
@@ -31,9 +31,9 @@ export class TemplateEntityExtractor {
       // Extract from HA templates: {{states('entity_id')}}
       this._extractEntitiesFromHATemplate(content).forEach(entity => entities.add(entity));
 
-      cblcarsLog.trace('[TemplateEntityExtractor] Extracted entities from content:', Array.from(entities));
+      lcardsLog.trace('[TemplateEntityExtractor] Extracted entities from content:', Array.from(entities));
     } catch (error) {
-      cblcarsLog.error('[TemplateEntityExtractor] Error extracting entities:', error);
+      lcardsLog.error('[TemplateEntityExtractor] Error extracting entities:', error);
     }
 
     return entities;
@@ -71,9 +71,9 @@ export class TemplateEntityExtractor {
         });
       }
 
-      cblcarsLog.trace(`[TemplateEntityExtractor] Extracted entities from overlay ${overlay.id}:`, Array.from(entities));
+      lcardsLog.trace(`[TemplateEntityExtractor] Extracted entities from overlay ${overlay.id}:`, Array.from(entities));
     } catch (error) {
-      cblcarsLog.error(`[TemplateEntityExtractor] Error extracting entities from overlay ${overlay.id}:`, error);
+      lcardsLog.error(`[TemplateEntityExtractor] Error extracting entities from overlay ${overlay.id}:`, error);
     }
 
     return entities;
@@ -107,7 +107,7 @@ export class TemplateEntityExtractor {
         });
       }
     } catch (error) {
-      cblcarsLog.error('[TemplateEntityExtractor] Error in _extractEntitiesFromExpression:', error);
+      lcardsLog.error('[TemplateEntityExtractor] Error in _extractEntitiesFromExpression:', error);
     }
 
     return entities;
@@ -142,7 +142,7 @@ export class TemplateEntityExtractor {
         }
       });
     } catch (error) {
-      cblcarsLog.error('[TemplateEntityExtractor] Error in _extractEntitiesFromHATemplate:', error);
+      lcardsLog.error('[TemplateEntityExtractor] Error in _extractEntitiesFromHATemplate:', error);
     }
 
     return entities;

@@ -1,11 +1,11 @@
-import * as CBLCARS from '../cb-lcars-vars.js'
-import { cblcarsLog } from '../utils/cb-lcars-logging.js';
+import * as LCARdS from '../lcards-vars.js'
+import { lcardsLog } from '../utils/lcards-logging.js';
 
 import { html, css, unsafeCSS } from 'lit';
 
 import EditorForm from 'ha-editor-formbuilder-yaml';
 
-export class CBLCARSCardEditor extends EditorForm {
+export class LCARdSCardEditor extends EditorForm {
 
     _formControls;
     _cardType;
@@ -17,7 +17,7 @@ export class CBLCARSCardEditor extends EditorForm {
         this._cardType = "";
         this._cardType = cardType;
 
-        //cblcarsLog.debug(`Setting up editor for ${cardType}`);
+        //lcardsLog.debug(`Setting up editor for ${cardType}`);
 
         this._initializationPromise = this._initialize();
     }
@@ -25,10 +25,10 @@ export class CBLCARSCardEditor extends EditorForm {
     async _initialize() {
         try {
             // Fetch only the relevant JSON file for this card type
-            const response = await fetch(`${CBLCARS.card_editor_uri}/${this._cardType}.json`);
+            const response = await fetch(`${LCARdS.card_editor_uri}/${this._cardType}.json`);
             if (!response.ok) throw new Error(`Form definition not found for card type: ${this._cardType}`);
             const formControls = await response.json();
-            cblcarsLog.debug('Loaded formControls:', formControls);
+            lcardsLog.debug('Loaded formControls:', formControls);
             this._formControls = formControls;
 
             // Handle user styles if present
@@ -37,7 +37,7 @@ export class CBLCARSCardEditor extends EditorForm {
 
             this.requestUpdate();
         } catch(error) {
-            cblcarsLog.error('Error fetching editor form definition: ', error);
+            lcardsLog.error('Error fetching editor form definition: ', error);
         }
     }
 
@@ -68,7 +68,7 @@ export class CBLCARSCardEditor extends EditorForm {
             const returnForm = this.generateForm(formContent);
             return returnForm;
         } catch (error) {
-            cblcarsLog.error('Error rendering configuration form:', error);
+            lcardsLog.error('Error rendering configuration form:', error);
             return html`<ha-alert alert-type="error" title="Error">Error rendering form: ${error.message}</ha-alert>`;
         }
     }

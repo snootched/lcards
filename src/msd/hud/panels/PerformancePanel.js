@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [PerformancePanel] Enhanced performance monitoring panel for MSD HUD
  * ⏱️ Timer and counter data with threshold alerts and reset functionality
@@ -15,31 +15,31 @@ export class PerformancePanel {
     const t = parseFloat(avgMs);
     if (isNaN(t)) {
       this.thresholds.delete(timerId);
-      cblcarsLog.debug(`[PerformancePanel] 🚫 Removed threshold for timer: ${timerId}`);
+      lcardsLog.debug(`[PerformancePanel] 🚫 Removed threshold for timer: ${timerId}`);
     } else {
       this.thresholds.set(timerId, { avgMs: t });
-      cblcarsLog.info(`[PerformancePanel] ⏱️ Set threshold for ${timerId}: ${t}ms`);
+      lcardsLog.info(`[PerformancePanel] ⏱️ Set threshold for ${timerId}: ${t}ms`);
     }
   }
   resetTimer(timerId) {
     try {
-      window.cblcars.debug.msd?.getPerf?.()?.resetTimer?.(timerId);
-      cblcarsLog.info(`[PerformancePanel] 🔄 Reset timer: ${timerId}`);
+      window.lcards.debug.msd?.getPerf?.()?.resetTimer?.(timerId);
+      lcardsLog.info(`[PerformancePanel] 🔄 Reset timer: ${timerId}`);
     } catch (e) {
-      cblcarsLog.warn(`[PerformancePanel] ⚠️ Failed to reset timer ${timerId}:`, e);
+      lcardsLog.warn(`[PerformancePanel] ⚠️ Failed to reset timer ${timerId}:`, e);
     }
   }
   clearAllTimers() {
     try {
-      window.cblcars.debug.msd?.getPerf?.()?.clear?.();
+      window.lcards.debug.msd?.getPerf?.()?.clear?.();
       this.thresholds.clear();
-      cblcarsLog.info('[PerformancePanel] 🧹 Cleared all timers and thresholds');
+      lcardsLog.info('[PerformancePanel] 🧹 Cleared all timers and thresholds');
     } catch (e) {
-      cblcarsLog.warn('[PerformancePanel] ⚠️ Failed to clear timers:', e);
+      lcardsLog.warn('[PerformancePanel] ⚠️ Failed to clear timers:', e);
     }
   }
   exportData() {
-    const perfData = window.cblcars.debug.msd?.getPerf?.() || {};
+    const perfData = window.lcards.debug.msd?.getPerf?.() || {};
     const data = {
       timestamp: Date.now(),
       timers: perfData.timers || {},
@@ -48,7 +48,7 @@ export class PerformancePanel {
     };
 
     console.table(data.timers);
-    cblcarsLog.info('[PerformancePanel] 📤 Exporting performance data:', data);
+    lcardsLog.info('[PerformancePanel] 📤 Exporting performance data:', data);
 
     // Create downloadable export
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -70,10 +70,10 @@ export class PerformancePanel {
 
     try {
       // FIXED: Use centralized debug status access for performance state
-      const debugStatus = window.cblcars.debug.msd?.getDebugStatusSilent?.() || {};
+      const debugStatus = window.lcards.debug.msd?.getDebugStatusSilent?.() || {};
 
       // Get performance data using consistent approach
-      const perfData = window.cblcars.debug.msd?.getPerf?.() || {};
+      const perfData = window.lcards.debug.msd?.getPerf?.() || {};
 
       // Process timers
       if (perfData.timers) {
@@ -100,7 +100,7 @@ export class PerformancePanel {
               threshold: threshold.avgMs,
               severity: severity
             });
-            cblcarsLog.warn(`[PerformancePanel] 📈 Threshold alert for ${key}: ${timerData.avg.toFixed(2)}ms > ${threshold.avgMs}ms (${severity})`);
+            lcardsLog.warn(`[PerformancePanel] 📈 Threshold alert for ${key}: ${timerData.avg.toFixed(2)}ms > ${threshold.avgMs}ms (${severity})`);
           }
 
           // Check for regressions
@@ -114,7 +114,7 @@ export class PerformancePanel {
                 currentAvg: timerData.avg,
                 regression: regression
               });
-              cblcarsLog.warn(`[PerformancePanel] 📉 Performance regression detected for ${key}: +${regression.toFixed(1)}% (${previous.avg.toFixed(2)}ms → ${timerData.avg.toFixed(2)}ms)`);
+              lcardsLog.warn(`[PerformancePanel] 📉 Performance regression detected for ${key}: +${regression.toFixed(1)}% (${previous.avg.toFixed(2)}ms → ${timerData.avg.toFixed(2)}ms)`);
             }
           }
         });
@@ -131,7 +131,7 @@ export class PerformancePanel {
       this.previousSnapshot = { ...timers };
 
     } catch (e) {
-      cblcarsLog.warn('[PerformancePanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[PerformancePanel] ⚠️ Data capture failed:', e);
     }
 
     return { timers, counters, alerts, regressions };
@@ -150,7 +150,7 @@ export class PerformancePanel {
     // Clear previous snapshot data
     this.previousSnapshot = null;
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(performance) {

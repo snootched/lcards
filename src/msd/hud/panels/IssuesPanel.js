@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [IssuesPanel] Enhanced issues panel for MSD HUD
  * 🚨 Unified issue aggregation with smart routing to editors/actions
@@ -16,50 +16,50 @@ export class IssuesPanel {
   }
 
   handleIssueClick(action, id, overlay) {
-    cblcarsLog.info('[IssuesPanel] 🔍 Issue clicked:', { action, id, overlay });
+    lcardsLog.info('[IssuesPanel] 🔍 Issue clicked:', { action, id, overlay });
 
     switch (action) {
       case 'overlay':
-        // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-        if (overlay && window.cblcars?.debug?.msd?.debug) {
+        // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+        if (overlay && window.lcards?.debug?.msd?.debug) {
           // Try to highlight the overlay
-          cblcarsLog.debug(`[IssuesPanel] 🎯 Highlighting overlay: ${overlay}`);
+          lcardsLog.debug(`[IssuesPanel] 🎯 Highlighting overlay: ${overlay}`);
           // Could integrate with overlay editor here
         }
         break;
 
       case 'routing':
-        cblcarsLog.info('[IssuesPanel] 🔀 Opening routing diagnostics');
+        lcardsLog.info('[IssuesPanel] 🔀 Opening routing diagnostics');
         // Could emit routing focus event
-        // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-        if (window.cblcars?.debug?.msd?.hud?.refresh) {
-          window.cblcars.debug.msd.hud.refresh();
+        // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+        if (window.lcards?.debug?.msd?.hud?.refresh) {
+          window.lcards.debug.msd.hud.refresh();
         }
         break;
 
       case 'performance':
-        cblcarsLog.info(`[IssuesPanel] ⏱️ Performance issue: ${id}`);
+        lcardsLog.info(`[IssuesPanel] ⏱️ Performance issue: ${id}`);
         // Could open performance panel or set thresholds
         break;
 
       case 'debug':
-        cblcarsLog.info('[IssuesPanel] 🔧 Debug issue clicked - attempting to initialize debug interface');
+        lcardsLog.info('[IssuesPanel] 🔧 Debug issue clicked - attempting to initialize debug interface');
         // Try to initialize debug interface
-        // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-        if (window.cblcars?.debug?.msd?.debug?.refresh) {
-          window.cblcars.debug.msd.debug.refresh();
+        // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+        if (window.lcards?.debug?.msd?.debug?.refresh) {
+          window.lcards.debug.msd.debug.refresh();
         }
         break;
 
       // ADDED: New action for enabling debug features
       case 'enable-features':
-        cblcarsLog.info('[IssuesPanel] 🛠️ Enabling basic debug features');
-        // ✅ PHASE 3: Updated to use window.cblcars.debug.msd
-        if (window.cblcars?.debug?.msd?.debug) {
+        lcardsLog.info('[IssuesPanel] 🛠️ Enabling basic debug features');
+        // ✅ PHASE 3: Updated to use window.lcards.debug.msd
+        if (window.lcards?.debug?.msd?.debug) {
           // Enable a basic set of debug features
-          window.cblcars.debug.msd.debug.enable('anchors');
-          window.cblcars.debug.msd.debug.enable('bounding_boxes');
-          cblcarsLog.debug('[IssuesPanel] ✅ Enabled anchors and bounding_boxes debug features');
+          window.lcards.debug.msd.debug.enable('anchors');
+          window.lcards.debug.msd.debug.enable('bounding_boxes');
+          lcardsLog.debug('[IssuesPanel] ✅ Enabled anchors and bounding_boxes debug features');
 
           // Show user feedback
           const feedback = document.createElement('div');
@@ -81,7 +81,7 @@ export class IssuesPanel {
 
           setTimeout(() => feedback.remove(), 3000);
         } else {
-          cblcarsLog.warn('[IssuesPanel] ⚠️ Debug interface not available for enabling features');
+          lcardsLog.warn('[IssuesPanel] ⚠️ Debug interface not available for enabling features');
         }
         break;
     }
@@ -108,7 +108,7 @@ export class IssuesPanel {
 
     try {
       // Validation issues
-      const validationData = window.cblcars.debug.msd?.validation?.issues?.() || {};
+      const validationData = window.lcards.debug.msd?.validation?.issues?.() || {};
       if (validationData.errors) {
         validationData.errors.forEach(error => {
           issues.validation.push({
@@ -140,10 +140,10 @@ export class IssuesPanel {
 
       // Routing issues from debug features
       // FIXED: Use centralized silent debug status access
-      const debugStatus = window.cblcars.debug.msd?.getDebugStatusSilent?.() || {};
+      const debugStatus = window.lcards.debug.msd?.getDebugStatusSilent?.() || {};
       if (debugStatus.enabled) {
         // Check for routing problems (this would need actual routing diagnostics)
-        const routing = window.cblcars.debug.msd?.routing;
+        const routing = window.lcards.debug.msd?.routing;
         if (routing?.stats) {
           const stats = routing.stats();
           if (stats.errors && stats.errors > 0) {
@@ -163,7 +163,7 @@ export class IssuesPanel {
       if (debugStatus.performance) {
         // Could check for performance thresholds here
         // This is a placeholder for actual performance monitoring
-        const perfData = window.cblcars.debug.msd?.getPerf?.() || {};
+        const perfData = window.lcards.debug.msd?.getPerf?.() || {};
         if (perfData.timers) {
           Object.entries(perfData.timers).forEach(([key, timer]) => {
             if (timer.avg > 50) { // Example threshold
@@ -206,7 +206,7 @@ export class IssuesPanel {
       }
 
     } catch (e) {
-      cblcarsLog.warn('[IssuesPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[IssuesPanel] ⚠️ Data capture failed:', e);
       issues.debug.push({
         id: 'capture-error',
         type: 'debug',
@@ -230,7 +230,7 @@ export class IssuesPanel {
     // Clear bus reference if it exists
     this.bus = null;
 
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(issuesData) {

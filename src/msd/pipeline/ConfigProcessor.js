@@ -1,6 +1,6 @@
 import { mergePacks } from '../packs/mergePacks.js';
 import { validateMerged } from '../validation/validateMerged.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { mergePacks, validateMerged };
 
@@ -10,10 +10,10 @@ export async function processAndValidateConfig(userMsdConfig) {
 
   // Store original user config in debug namespace
   if (typeof window !== 'undefined') {
-    window.cblcars = window.cblcars || {};
-    window.cblcars.debug = window.cblcars.debug || {};
-    window.cblcars.debug.msd = window.cblcars.debug.msd || {};
-    window.cblcars.debug.msd._originalUserConfig = userMsdConfig;
+    window.lcards = window.lcards || {};
+    window.lcards.debug = window.lcards.debug || {};
+    window.lcards.debug.msd = window.lcards.debug.msd || {};
+    window.lcards.debug.msd._originalUserConfig = userMsdConfig;
   }
 
   // Validation pass
@@ -21,7 +21,7 @@ export async function processAndValidateConfig(userMsdConfig) {
   const issues = validateMerged(mergedConfig);
   mergedConfig.__issues = issues;
   const t1 = performance.now();
-  try { window.cblcars.debug.msd && (window.cblcars.debug.msd._validationMs = (t1 - t0)); } catch {}
+  try { window.lcards.debug.msd && (window.lcards.debug.msd._validationMs = (t1 - t0)); } catch {}
 
   // Anchor validation - UPDATED to accept overlay IDs as virtual anchors
   try {
@@ -70,11 +70,11 @@ export async function processMsdConfig(userMsdConfig) {
     };
 
     if (issues.errors.length > 0) {
-      cblcarsLog.error('MSD validation errors:', issues.errors);
+      lcardsLog.error('MSD validation errors:', issues.errors);
     }
 
     if (issues.warnings.length > 0) {
-      cblcarsLog.warn('MSD validation warnings:', issues.warnings);
+      lcardsLog.warn('MSD validation warnings:', issues.warnings);
     }
 
     return {
@@ -83,7 +83,7 @@ export async function processMsdConfig(userMsdConfig) {
     };
 
   } catch (error) {
-    cblcarsLog.error('MSD processing failed:', error);
+    lcardsLog.error('MSD processing failed:', error);
     throw error;
   }
 }

@@ -1,8 +1,8 @@
-cb-lcars-meter:
+lcards-meter:
   template:
-    - cb-lcars-functions
-    - cb-lcars-card-base
-    - cb-lcars-button-grid
+    - lcards-functions
+    - lcards-card-base
+    - lcards-button-grid
   variables:
     card:
       height: null
@@ -15,7 +15,7 @@ cb-lcars-meter:
           width: 100px
       show_label: false
       template:
-        - cb-lcars-button-lozenge
+        - lcards-button-lozenge
     gradient_start_color: var(--error-color)
     gradient_start_rgb: |
       [[[ 
@@ -64,9 +64,9 @@ cb-lcars-meter:
           
           return buttons;
         ]]]
-cb-lcars-meter-horizontal:
+lcards-meter-horizontal:
   template:
-    - cb-lcars-meter
+    - lcards-meter
   variables:
     button:
       variables:
@@ -74,7 +74,7 @@ cb-lcars-meter-horizontal:
           width: 10px
           height: 20px
       template:
-        - cb-lcars-button-picard-filled
+        - lcards-button-picard-filled
     _gradient:
       gap: 5px
       'Y': 1

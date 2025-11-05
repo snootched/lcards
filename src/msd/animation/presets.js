@@ -1,7 +1,7 @@
 /**
  * Animation Presets - Modernized MSD System
  *
- * Ported from legacy cb-lcars-anim-presets.js with modernizations:
+ * Ported from legacy lcards-anim-presets.js with modernizations:
  * - No direct DOM manipulation (handled by AnimationManager target resolution)
  * - Clean separation of anime.js params and element styles
  * - Support for multi-target animations via AnimationManager
@@ -14,7 +14,7 @@
  * }
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { deepMerge } from '../util/deepMerge.js';
 
 const _presets = new Map();
@@ -26,7 +26,7 @@ const _presets = new Map();
  */
 export function registerAnimationPreset(name, builder) {
   _presets.set(name, builder);
-  cblcarsLog.debug(`[AnimationPresets] Registered preset: ${name}`);
+  lcardsLog.debug(`[AnimationPresets] Registered preset: ${name}`);
 }
 
 /**
@@ -406,7 +406,7 @@ registerAnimationPreset('cascade', (def) => {
       [property]: [from, to],
       duration,
       easing,
-      delay: window.cblcars?.anim?.stagger?.(stagger) || stagger,
+      delay: window.lcards?.anim?.stagger?.(stagger) || stagger,
       loop
     },
     styles: {}
@@ -491,7 +491,7 @@ registerAnimationPreset('motionpath', (def) => {
 
   // Placeholder implementation
   // TODO: Add anime.js v4 createMotionPath() support
-  cblcarsLog.warn('[AnimationPresets] Motionpath preset is a placeholder - full implementation pending');
+  lcardsLog.warn('[AnimationPresets] Motionpath preset is a placeholder - full implementation pending');
 
   return {
     anime: {

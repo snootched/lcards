@@ -1,0 +1,22 @@
+lcards-button-bullet:
+  template: lcards-button-lozenge
+  variables:
+    card:
+      border:
+        top:
+          left_radius: 0px
+          right_radius: var(--ha-card-border-radius)
+        bottom:
+          left_radius: 0px
+          right_radius: var(--ha-card-border-radius)
+lcards-button-bullet-right:
+  template: lcards-button-lozenge-right
+  variables:
+    card:
+      border:
+        top:
+          right_radius: 0px
+          left_radius: var(--ha-card-border-radius)
+        bottom:
+          right_radius: 0px
+          left_radius: var(--ha-card-border-radius)

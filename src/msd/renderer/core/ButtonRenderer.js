@@ -13,7 +13,7 @@ import { DataSourceMixin } from '../DataSourceMixin.js';
 import { BracketRenderer } from '../BracketRenderer.js';
 import { ActionHelpers } from '../ActionHelpers.js';
 import { TextRenderer as CoreTextRenderer } from './TextRenderer.js'; // Import core TextRenderer
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 export class ButtonRenderer extends BaseRenderer {
   constructor() {
@@ -32,18 +32,18 @@ export class ButtonRenderer extends BaseRenderer {
    */
   _resolveStylePresetManager() {
     // 1. Pipeline instance (preferred)
-    const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+    const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
     if (pipelineInstance?.systemsManager?.stylePresetManager) {
       return pipelineInstance.systemsManager.stylePresetManager;
     }
 
     // 2. Systems manager global reference
-    const systemsManager = window.cblcars.debug.msd?.systemsManager;
+    const systemsManager = window.lcards.debug.msd?.systemsManager;
     if (systemsManager?.stylePresetManager) {
       return systemsManager.stylePresetManager;
     }
 
-    cblcarsLog.debug('[ButtonRenderer] ⚠️ No style preset manager found');
+    lcardsLog.debug('[ButtonRenderer] ⚠️ No style preset manager found');
     return null;
   }
 
@@ -182,7 +182,7 @@ export class ButtonRenderer extends BaseRenderer {
       };
 
     } catch (error) {
-      cblcarsLog.error(`[ButtonRenderer] ❌ Rendering failed for button ${cellId}:`, error);
+      lcardsLog.error(`[ButtonRenderer] ❌ Rendering failed for button ${cellId}:`, error);
       return {
         markup: this._renderFallbackButton(config, x, y, width, height),
         actions: null,
@@ -287,7 +287,7 @@ export class ButtonRenderer extends BaseRenderer {
         const finalDominantBaseline = textConfig.dominantBaseline || inferredDominantBaseline;
 
         // REMOVED DUPLICATE: Single consolidated debug log
-        cblcarsLog.trace(`[ButtonRenderer] ✅ Text for ${config.id}:`, {
+        lcardsLog.trace(`[ButtonRenderer] ✅ Text for ${config.id}:`, {
           position: textConfig.position,
           textType: textConfig.textType,
           calculatedPosition: textPosition,
@@ -333,7 +333,7 @@ export class ButtonRenderer extends BaseRenderer {
         textMarkups.push(wrappedMarkup);
 
       } catch (error) {
-        cblcarsLog.warn(`[ButtonRenderer] Error rendering text ${index} for button ${config.id}:`, error);
+        lcardsLog.warn(`[ButtonRenderer] Error rendering text ${index} for button ${config.id}:`, error);
       }
     });
 
@@ -510,7 +510,7 @@ export class ButtonRenderer extends BaseRenderer {
       show_labels: style.show_labels !== false,
       show_values: style.show_values || false,
 
-      // CB-LCARS presets
+      // LCARdS presets
       lcars_button_preset: style.lcars_button_preset || null,
       lcars_text_preset: style.lcars_text_preset || null,
 
@@ -536,7 +536,7 @@ export class ButtonRenderer extends BaseRenderer {
       standardStyles
     };
 
-    // Apply CB-LCARS Button Preset if specified
+    // Apply LCARdS Button Preset if specified
     if (buttonStyle.lcars_button_preset) {
       this._applyButtonPreset(buttonStyle, buttonStyle.lcars_button_preset, style);
     }
@@ -671,14 +671,14 @@ export class ButtonRenderer extends BaseRenderer {
   }
 
   /**
-   * Apply CB-LCARS button preset using StylePresetManager
+   * Apply LCARdS button preset using StylePresetManager
    * @private
    * @param {Object} buttonStyle - Button style object to modify
    * @param {string} presetName - Name of the button preset
    * @param {Object} originalStyle - Original user style for checking explicit values
    */
   _applyButtonPreset(buttonStyle, presetName, originalStyle = {}) {
-    cblcarsLog.debug(`[ButtonRenderer] 🎨 Applying CB-LCARS button preset: ${presetName}`);
+    lcardsLog.debug(`[ButtonRenderer] 🎨 Applying LCARdS button preset: ${presetName}`);
 
     // Load preset from StylePresetManager
     const presetStyles = this._loadPresetFromStylePresetManager('button', presetName);
@@ -691,14 +691,14 @@ export class ButtonRenderer extends BaseRenderer {
         return;
       }
 
-      cblcarsLog.warn(`[ButtonRenderer] ⚠️ Button preset '${presetName}' not found in StylePresetManager`);
+      lcardsLog.warn(`[ButtonRenderer] ⚠️ Button preset '${presetName}' not found in StylePresetManager`);
       return;
     }
 
     // Apply preset properties with user override protection
     this._applyPresetStyles(buttonStyle, presetStyles, originalStyle);
 
-    cblcarsLog.debug(`[ButtonRenderer] ✅ Applied preset ${presetName} with ${Object.keys(presetStyles).length} properties`);
+    lcardsLog.debug(`[ButtonRenderer] ✅ Applied preset ${presetName} with ${Object.keys(presetStyles).length} properties`);
   }
 
   /**
@@ -710,9 +710,9 @@ export class ButtonRenderer extends BaseRenderer {
       // Only set value if user didn't explicitly provide it
       if (originalStyle[property] === undefined) {
         buttonStyle[property] = value;
-        cblcarsLog.trace(`[ButtonRenderer] 📝 Preset set ${property}: ${value}`);
+        lcardsLog.trace(`[ButtonRenderer] 📝 Preset set ${property}: ${value}`);
       } else {
-        cblcarsLog.trace(`[ButtonRenderer] 🚫 User explicit value for ${property}, skipping preset`);
+        lcardsLog.trace(`[ButtonRenderer] 🚫 User explicit value for ${property}, skipping preset`);
       }
     });
   }
@@ -728,7 +728,7 @@ export class ButtonRenderer extends BaseRenderer {
     if (this.stylePresetManager) {
       const preset = this.stylePresetManager.getPreset(overlayType, presetName);
       if (preset) {
-        cblcarsLog.trace(`[ButtonRenderer] ✅ Found preset via StylePresetManager`);
+        lcardsLog.trace(`[ButtonRenderer] ✅ Found preset via StylePresetManager`);
         return preset;
       }
     }
@@ -1168,7 +1168,7 @@ export class ButtonRenderer extends BaseRenderer {
       let anyUpdated = false;
       const textGroups = buttonElement.querySelectorAll('[data-button-text-index], [data-button-text-type]');
 
-      cblcarsLog.debug(`[ButtonRenderer] � Found ${textGroups.length} text group(s) in button ${config.id}`, {
+      lcardsLog.debug(`[ButtonRenderer] � Found ${textGroups.length} text group(s) in button ${config.id}`, {
         hasLabel: !!config.label,
         hasContent: !!config.content,
         hasTextsArray: !!(config.texts && config.texts.length)
@@ -1195,7 +1195,7 @@ export class ButtonRenderer extends BaseRenderer {
           }
 
           if (!rawContent) {
-            cblcarsLog.debug(`[ButtonRenderer] ⏭️ No content for text (index: ${textIndex}, type: ${textType})`);
+            lcardsLog.debug(`[ButtonRenderer] ⏭️ No content for text (index: ${textIndex}, type: ${textType})`);
             return;
           }
 
@@ -1216,18 +1216,18 @@ export class ButtonRenderer extends BaseRenderer {
               if (textAnchor) textElement.setAttribute('text-anchor', textAnchor);
               if (dominantBaseline) textElement.setAttribute('dominant-baseline', dominantBaseline);
 
-              cblcarsLog.debug(`[ButtonRenderer] ✅ Updated text (index: ${textIndex}, type: ${textType}) for ${config.id}: "${oldContent}" → "${newContent}"`);
+              lcardsLog.debug(`[ButtonRenderer] ✅ Updated text (index: ${textIndex}, type: ${textType}) for ${config.id}: "${oldContent}" → "${newContent}"`);
               anyUpdated = true;
             }
           }
         } catch (error) {
-          cblcarsLog.warn(`[ButtonRenderer] Error updating text element:`, error);
+          lcardsLog.warn(`[ButtonRenderer] Error updating text element:`, error);
         }
       });
 
       return anyUpdated;
     } catch (error) {
-      cblcarsLog.error(`[ButtonRenderer] Error updating button ${config.id}:`, error);
+      lcardsLog.error(`[ButtonRenderer] Error updating button ${config.id}:`, error);
       return false;
     }
   }
@@ -1284,7 +1284,7 @@ export class ButtonRenderer extends BaseRenderer {
 
         // Path-based rendering means geometry changes need full re-render
         if (hasIndividualCornerRadii || hasIndividualBorderSides || hasUniformRadius) {
-          cblcarsLog.debug(`[ButtonRenderer] ⚠️ Button has path-based geometry changes - triggering full re-render`, {
+          lcardsLog.debug(`[ButtonRenderer] ⚠️ Button has path-based geometry changes - triggering full re-render`, {
             hasIndividualCornerRadii,
             hasIndividualBorderSides,
             hasUniformRadius,
@@ -1301,11 +1301,11 @@ export class ButtonRenderer extends BaseRenderer {
 
           // Handle gradient/pattern (would need re-render for these, so just use solid color)
           if (newStyle.gradient) {
-            cblcarsLog.debug(`[ButtonRenderer] Gradient change detected, using solid color fallback`);
+            lcardsLog.debug(`[ButtonRenderer] Gradient change detected, using solid color fallback`);
             fill = newStyle.color || 'var(--lcars-blue)';
           }
           if (newStyle.pattern) {
-            cblcarsLog.debug(`[ButtonRenderer] Pattern change detected, using solid color fallback`);
+            lcardsLog.debug(`[ButtonRenderer] Pattern change detected, using solid color fallback`);
             fill = newStyle.color || 'var(--lcars-blue)';
           }
 
@@ -1369,10 +1369,10 @@ export class ButtonRenderer extends BaseRenderer {
       }
 
       if (styleUpdated) {
-        cblcarsLog.debug(`[ButtonRenderer] ✅ Style updated for button ${buttonId} (${Object.keys(newStyle).length} properties checked)`);
+        lcardsLog.debug(`[ButtonRenderer] ✅ Style updated for button ${buttonId} (${Object.keys(newStyle).length} properties checked)`);
       } else {
         // Debug why no update happened
-        cblcarsLog.debug(`[ButtonRenderer] ℹ️ No style changes for button ${buttonId}`, {
+        lcardsLog.debug(`[ButtonRenderer] ℹ️ No style changes for button ${buttonId}`, {
           hasColor: newStyle.color !== undefined,
           hasOpacity: newStyle.opacity !== undefined,
           hasBorder: newStyle.border !== undefined,
@@ -1386,7 +1386,7 @@ export class ButtonRenderer extends BaseRenderer {
       return styleUpdated;
 
     } catch (error) {
-      cblcarsLog.error(`[ButtonRenderer] Error updating button style:`, error);
+      lcardsLog.error(`[ButtonRenderer] Error updating button style:`, error);
       return false;
     }
   }
@@ -1427,12 +1427,12 @@ export class ButtonRenderer extends BaseRenderer {
             if (textAnchor) textElement.setAttribute('text-anchor', textAnchor);
             if (dominantBaseline) textElement.setAttribute('dominant-baseline', dominantBaseline);
 
-            cblcarsLog.debug(`[ButtonRenderer] Updated text ${index} for button ${config.id}: "${oldContent}" → "${newContent}"`);
+            lcardsLog.debug(`[ButtonRenderer] Updated text ${index} for button ${config.id}: "${oldContent}" → "${newContent}"`);
             anyUpdated = true;
           }
         }
       } catch (error) {
-        cblcarsLog.warn(`[ButtonRenderer] Error updating text ${index} for button ${config.id}:`, error);
+        lcardsLog.warn(`[ButtonRenderer] Error updating text ${index} for button ${config.id}:`, error);
       }
     });
 
@@ -1543,7 +1543,7 @@ export class ButtonRenderer extends BaseRenderer {
   _renderFallbackButton(config, x, y, width, height) {
     const color = 'var(--lcars-gray)';
 
-    cblcarsLog.warn(`[ButtonRenderer] ⚠️ Using fallback rendering for button ${config.id}`);
+    lcardsLog.warn(`[ButtonRenderer] ⚠️ Using fallback rendering for button ${config.id}`);
 
     return `<g data-button-id="${config.id}" data-fallback="true">
               <rect x="${x}" y="${y}" width="${width}" height="${height}"

@@ -1,4 +1,4 @@
-cb-lcars-base-card:
+lcards-base-card:
   tabs:
     - label: Base Card
       content:
@@ -19,7 +19,7 @@ cb-lcars-base-card:
       .form-row.two-controls {
         grid-template-columns: 50% 50%;
       }
-cb-lcars-base-controls:
+lcards-base-controls:
   tabs:
     - label: Base Controls
       content:
@@ -303,7 +303,7 @@ cb-lcars-base-controls:
 
                         for (let i = 0; i < styles.length; i++) {
                           const name = styles[i];
-                          if (name.startsWith('--cblcars-') || name.startsWith('--picard-') || name.startsWith('--lcars-')) {
+                          if (name.startsWith('--lcards-') || name.startsWith('--picard-') || name.startsWith('--lcars-')) {
                             //const value = styles.getPropertyValue(name).trim();
                             const value = `var(${name})`;
                             options.push({ value, label: name.replace('--', '') });
@@ -2132,7 +2132,7 @@ cb-lcars-base-controls:
                   leftChevron: false
                   headerLevel: 4
                   icon: "mdi:border-style"
-                  visibilityCondition: "this._config.type != 'custom:cb-lcars-multimeter-card'"
+                  visibilityCondition: "this._config.type != 'custom:lcards-multimeter-card'"
                   rows:
                     - type: ControlRow
                       cssClass: "form-row two-controls"
@@ -2717,15 +2717,15 @@ cb-lcars-base-controls:
                       mode: list
                       multiple: true
                       options:
-                        - value: "cb-lcars-animation-alert"
+                        - value: "lcards-animation-alert"
                           label: "ALERT"
-                        - value: "cb-lcars-animation-geo-array"
+                        - value: "lcards-animation-geo-array"
                           label: "GEO Array"
-                        - value: "cb-lcars-animation-bg-grid"
+                        - value: "lcards-animation-bg-grid"
                           label: "GRID"
-                        - value: "cb-lcars-animation-cascade"
+                        - value: "lcards-animation-cascade"
                           label: "Data Cascade"
-                        - value: "cb-lcars-animation-pulsewave"
+                        - value: "lcards-animation-pulsewave"
                           label: "Pulsewave"
             - &animationAdvancedSection
               type: Section
@@ -3154,19 +3154,19 @@ cb-lcars-base-controls:
                       mode: list
                       multiple: true
                       options:
-                        - value: "cb-lcars-state-on-blink"
+                        - value: "lcards-state-on-blink"
                           label: "Blink [Active]"
-                        - value: "cb-lcars-state-off-blink"
+                        - value: "lcards-state-off-blink"
                           label: "Blink [Inactive]"
-                        - value: "cb-lcars-state-unavailable-blink"
+                        - value: "lcards-state-unavailable-blink"
                           label: "Blink [Unavailable]"
-                        - value: "cb-lcars-animate-press"
+                        - value: "lcards-animate-press"
                           label: "Rippled Press"
 
 
             - type: Section
               label:  "Blink [Active]"
-              visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-state-on-blink')"
+              visibilityCondition: "this._config.template && this._config.template.includes('lcards-state-on-blink')"
               outlined: true
               leftChevron: false
               headerLevel: 4
@@ -3202,7 +3202,7 @@ cb-lcars-base-controls:
 
             - type: Section
               label:  "Blink [Inactive]"
-              visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-state-off-blink')"
+              visibilityCondition: "this._config.template && this._config.template.includes('lcards-state-off-blink')"
               outlined: true
               leftChevron: false
               headerLevel: 4
@@ -3237,7 +3237,7 @@ cb-lcars-base-controls:
 
             - type: Section
               label:  "Blink [Unavailable]"
-              visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-state-unavailable-blink')"
+              visibilityCondition: "this._config.template && this._config.template.includes('lcards-state-unavailable-blink')"
               outlined: true
               leftChevron: false
               headerLevel: 4
@@ -3271,7 +3271,7 @@ cb-lcars-base-controls:
                           slider_ticks: true
             - type: Section
               label: Ripple
-              visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animate-press')"
+              visibilityCondition: "this._config.template && this._config.template.includes('lcards-animate-press')"
               outlined: true
               leftChevron: false
               headerLevel: 4
@@ -3305,7 +3305,7 @@ cb-lcars-base-controls:
                           slider_ticks: true
     - &dataCascadeTab
       label: "Data Cascade"
-      visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animation-cascade')"
+      visibilityCondition: "this._config.template && this._config.template.includes('lcards-animation-cascade')"
       content:
         - type: Section
           label: "Cascade"
@@ -3539,7 +3539,7 @@ cb-lcars-base-controls:
                           step: 1
     - &alertConditionTab
       label: "ALERT Condition"
-      visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animation-alert')"
+      visibilityCondition: "this._config.template && this._config.template.includes('lcards-animation-alert')"
       content:
         - type: Section
           label: "Alert Condition"
@@ -4000,7 +4000,7 @@ cb-lcars-base-controls:
 
     - &geoArrayTab
       label: "GEO Array"
-      visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animation-geo-array')"
+      visibilityCondition: "this._config.template && this._config.template.includes('lcards-animation-geo-array')"
       content:
         - type: Section
           label: "GEO Animation"
@@ -4241,7 +4241,7 @@ cb-lcars-base-controls:
 
     - &pulsewaveTab
       label: "Pulsewave"
-      visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animation-pulsewave')"
+      visibilityCondition: "this._config.template && this._config.template.includes('lcards-animation-pulsewave')"
       content:
         - type: Section
           label: "Pulsewave"
@@ -4491,7 +4491,7 @@ cb-lcars-base-controls:
 
     - &gridBgTab
       label: "GRID Background"
-      visibilityCondition: "this._config.template && this._config.template.includes('cb-lcars-animation-bg-grid')"
+      visibilityCondition: "this._config.template && this._config.template.includes('lcards-animation-bg-grid')"
       content:
         - type: Section
           label: "GRID Background"
@@ -5362,7 +5362,7 @@ cb-lcars-base-controls:
                                   mode: slider
                                   slider_ticks: true
                                   unit_of_measurement: "%"
-cb-lcars-elbow-card:
+lcards-elbow-card:
   tabs:
     - label: LCARS
       content:
@@ -5376,35 +5376,35 @@ cb-lcars-elbow-card:
           rows:
             - controls:
                 - label: "LCARS Elbow Type"
-                  configValue: cblcars_card_type
+                  configValue: lcards_card_type
                   helper: "Presets LCARS Elbow templates for common header and footer styles"
                   type: Selector
                   selector:
                     select:
                       options:
-                        - value: 'cb-lcars-header'
+                        - value: 'lcards-header'
                           label: 'Header'
-                        - value: 'cb-lcars-header-right'
+                        - value: 'lcards-header-right'
                           label: 'Header [Right]'
-                        - value: 'cb-lcars-header-open'
+                        - value: 'lcards-header-open'
                           label: 'Header [Open]'
-                        - value: 'cb-lcars-header-contained'
+                        - value: 'lcards-header-contained'
                           label: 'Header [Contained]'
-                        - value: 'cb-lcars-header-callout'
+                        - value: 'lcards-header-callout'
                           label: 'Header [Callout]'
-                        - value: 'cb-lcars-header-callout-right'
+                        - value: 'lcards-header-callout-right'
                           label: 'Header [Callout Right]'
-                        - value: 'cb-lcars-footer'
+                        - value: 'lcards-footer'
                           label: 'Footer'
-                        - value: 'cb-lcars-footer-right'
+                        - value: 'lcards-footer-right'
                           label: 'Footer [Right]'
-                        - value: 'cb-lcars-footer-open'
+                        - value: 'lcards-footer-open'
                           label: 'Footer [Open]'
-                        - value: 'cb-lcars-footer-contained'
+                        - value: 'lcards-footer-contained'
                           label: 'Footer [Contained]'
-                        - value: 'cb-lcars-footer-callout'
+                        - value: 'lcards-footer-callout'
                           label: 'Footer [Callout]'
-                        - value: 'cb-lcars-footer-callout-right'
+                        - value: 'lcards-footer-callout-right'
                           label: 'Footer [Callout Right]'
                 - type: Message
                   alertType: info
@@ -5466,7 +5466,7 @@ cb-lcars-elbow-card:
         grid-template-columns: 50% 50%;
       }
 
-cb-lcars-double-elbow-card:
+lcards-double-elbow-card:
   tabs:
     - label: LCARS
       content:
@@ -5480,20 +5480,20 @@ cb-lcars-double-elbow-card:
           rows:
             - controls:
                 - label: "LCARS Elbow Type"
-                  configValue: cblcars_card_type
+                  configValue: lcards_card_type
                   helper: "Presets LCARS Elbow templates for common header and footer styles"
                   type: Selector
                   selector:
                     select:
                       mode: dropdown
                       options:
-                        - value: 'cb-lcars-header-picard'
+                        - value: 'lcards-header-picard'
                           label: 'Header'
-                        - value: 'cb-lcars-header-picard-right'
+                        - value: 'lcards-header-picard-right'
                           label: 'Header [Right]'
-                        - value: 'cb-lcars-footer-picard'
+                        - value: 'lcards-footer-picard'
                           label: 'Footer'
-                        - value: 'cb-lcars-footer-picard-right'
+                        - value: 'lcards-footer-picard-right'
                           label: 'Footer [Right]'
                 - type: Message
                   alertType: info
@@ -5589,7 +5589,7 @@ cb-lcars-double-elbow-card:
                     - label: "Left Border Size"
                       helper: "The width of the left side of LCARS"
                       configValue: "variables.lcars.border.left.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -5604,7 +5604,7 @@ cb-lcars-double-elbow-card:
                     - label: "Top Border Size"
                       helper: "The height of the top side of LCARS"
                       configValue: "variables.lcars.border.top.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -5619,7 +5619,7 @@ cb-lcars-double-elbow-card:
                     - label: "Right Border Size"
                       helper: "The width of the right side of LCARS"
                       configValue: "variables.lcars.border.right.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -5634,7 +5634,7 @@ cb-lcars-double-elbow-card:
                     - label: "Bottom Border Size"
                       helper: "The height of the bottom side of LCARS"
                       configValue: "variables.lcars.border.bottom.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -5652,7 +5652,7 @@ cb-lcars-double-elbow-card:
                   leftChevron: false
                   headerLevel: 4
                   icon: "mdi:border-style"
-                  visibilityCondition: "this._config.type != 'custom:cb-lcars-multimeter-card'"
+                  visibilityCondition: "this._config.type != 'custom:lcards-multimeter-card'"
                   rows:
                     - type: ControlRow
                       cssClass: "form-row two-controls"
@@ -6112,7 +6112,7 @@ cb-lcars-double-elbow-card:
                     - label: "Left Border Size"
                       helper: "The width of the left side of LCARS"
                       configValue: "variables.lcars_outer.card.border.left.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6127,7 +6127,7 @@ cb-lcars-double-elbow-card:
                     - label: "Top Border Size"
                       helper: "The height of the top side of LCARS"
                       configValue: "variables.lcars_outer.card.border.top.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6142,7 +6142,7 @@ cb-lcars-double-elbow-card:
                     - label: "Right Border Size"
                       helper: "The width of the right side of LCARS"
                       configValue: "variables.lcars_outer.card.border.right.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6157,7 +6157,7 @@ cb-lcars-double-elbow-card:
                     - label: "Bottom Border Size"
                       helper: "The height of the bottom side of LCARS"
                       configValue: "variables.lcars_outer.card.border.bottom.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6175,7 +6175,7 @@ cb-lcars-double-elbow-card:
                   leftChevron: false
                   headerLevel: 4
                   icon: "mdi:border-style"
-                  visibilityCondition: "this._config.type != 'custom:cb-lcars-multimeter-card'"
+                  visibilityCondition: "this._config.type != 'custom:lcards-multimeter-card'"
                   rows:
                     - type: ControlRow
                       cssClass: "form-row two-controls"
@@ -6569,7 +6569,7 @@ cb-lcars-double-elbow-card:
                     - label: "Left Border Size"
                       helper: "The width of the left side of LCARS"
                       configValue: "variables.lcars_inner.card.border.left.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6584,7 +6584,7 @@ cb-lcars-double-elbow-card:
                     - label: "Top Border Size"
                       helper: "The height of the top side of LCARS"
                       configValue: "variables.lcars_inner.card.border.top.size"
-                      visibilityCondition: "this._config.cblcars_card_type && !this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && !this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6599,7 +6599,7 @@ cb-lcars-double-elbow-card:
                     - label: "Right Border Size"
                       helper: "The width of the right side of LCARS"
                       configValue: "variables.lcars_inner.card.border.right.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('right')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('right')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6614,7 +6614,7 @@ cb-lcars-double-elbow-card:
                     - label: "Bottom Border Size"
                       helper: "The height of the bottom side of LCARS"
                       configValue: "variables.lcars_inner.card.border.bottom.size"
-                      visibilityCondition: "this._config.cblcars_card_type && this._config.cblcars_card_type.includes('footer')"
+                      visibilityCondition: "this._config.lcards_card_type && this._config.lcards_card_type.includes('footer')"
                       disabled: false
                       required: true
                       type: Selector
@@ -6632,7 +6632,7 @@ cb-lcars-double-elbow-card:
                   leftChevron: false
                   headerLevel: 4
                   icon: "mdi:border-style"
-                  visibilityCondition: "this._config.type != 'custom:cb-lcars-multimeter-card'"
+                  visibilityCondition: "this._config.type != 'custom:lcards-multimeter-card'"
                   rows:
                     - type: ControlRow
                       cssClass: "form-row two-controls"
@@ -7020,7 +7020,7 @@ cb-lcars-double-elbow-card:
         grid-template-columns: 50% 50%;
       }
 
-cb-lcars-button-card:
+lcards-button-card:
   tabs:
     - label: LCARS
       content:
@@ -7034,24 +7034,24 @@ cb-lcars-button-card:
           rows:
             - controls:
                 - label: "LCARS Button Type"
-                  configValue: cblcars_card_type
+                  configValue: lcards_card_type
                   type: Selector
                   required: true
                   selector:
                     select:
                       mode: dropdown
                       options:
-                        - value: 'cb-lcars-button-lozenge'
+                        - value: 'lcards-button-lozenge'
                           label: '[TNG] Lozenge'
-                        - value: 'cb-lcars-button-bullet'
+                        - value: 'lcards-button-bullet'
                           label: '[TNG] Bullet'
-                        - value: 'cb-lcars-button-capped'
+                        - value: 'lcards-button-capped'
                           label: '[TNG] Capped'
-                        - value: 'cb-lcars-button-picard'
+                        - value: 'lcards-button-picard'
                           label: '[Picard] Outline'
-                        - value: 'cb-lcars-button-picard-filled'
+                        - value: 'lcards-button-picard-filled'
                           label: '[Picard] Filled'
-                        - value: 'cb-lcars-button-picard-icon'
+                        - value: 'lcards-button-picard-icon'
                           label: '[Picard] Icon'
                 - type: Message
                   alertType: info
@@ -7114,7 +7114,7 @@ cb-lcars-button-card:
         grid-template-columns: 50% 50%;
       }
 
-cb-lcars-dpad-card:
+lcards-dpad-card:
   tabs:
     - label: "DPAD Defaults"
       content:
@@ -7835,7 +7835,7 @@ cb-lcars-dpad-card:
       .form-row.two-controls {
         grid-template-columns: 50% 50%;
       }
-cb-lcars-label-card:
+lcards-label-card:
   tabs:
     - label: "LCARS"
       content:
@@ -7849,24 +7849,24 @@ cb-lcars-label-card:
           rows:
             - controls:
                 - label: "LCARS Label Preset"
-                  configValue: cblcars_card_type
+                  configValue: lcards_card_type
                   helper: "Presets for various LCARS label styles and ornamentation"
                   type: Selector
                   selector:
                     select:
                       mode: dropdown
                       options:
-                        - value: 'cb-lcars-label-picard'
+                        - value: 'lcards-label-picard'
                           label: 'Picard Label [manual border, animations]'
-                        - value: 'cb-lcars-label-picard-square'
+                        - value: 'lcards-label-picard-square'
                           label: 'Picard Label [auto border, square]'
-                        - value: 'cb-lcars-label-picard-lozenge'
+                        - value: 'lcards-label-picard-lozenge'
                           label: 'Picard Label [auto border, lozenge]'
-                        - value: 'cb-lcars-label-picard-bullet'
+                        - value: 'lcards-label-picard-bullet'
                           label: 'Picard Label [auto border, bullet]'
-                        - value: 'cb-lcars-label-picard-bullet-right'
+                        - value: 'lcards-label-picard-bullet-right'
                           label: 'Picard Label [auto border, bullet right]'
-                        - value: 'cb-lcars-label'
+                        - value: 'lcards-label'
                           label: 'Standard Label'
                 - type: Message
                   alertType: info
@@ -7929,7 +7929,7 @@ cb-lcars-label-card:
       .form-row.two-controls {
         grid-template-columns: 50% 50%;
       }
-cb-lcars-multimeter-card:
+lcards-multimeter-card:
   tabs:
     - label: "LCARS"
       content:

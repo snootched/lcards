@@ -15,7 +15,7 @@
  */
 
 import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from './ThemeTokenResolver.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Built-in filter presets for base SVG
@@ -100,7 +100,7 @@ export class ThemeManager {
    * @returns {Promise<void>}
    */
   async initialize(packs, requestedThemeId = 'lcars-classic', rootElement = null) {
-    cblcarsLog.debug('[ThemeManager] 🎨 Initializing theme system');
+    lcardsLog.debug('[ThemeManager] 🎨 Initializing theme system');
 
     // Load all themes from packs
     this.themes.clear();
@@ -111,13 +111,13 @@ export class ThemeManager {
             ...theme,
             packId: pack.id
           });
-          cblcarsLog.debug(`[ThemeManager] Loaded theme: ${themeId} from pack: ${pack.id}`);
+          lcardsLog.debug(`[ThemeManager] Loaded theme: ${themeId} from pack: ${pack.id}`);
         });
       }
     });
 
     if (this.themes.size === 0) {
-      cblcarsLog.warn('[ThemeManager] No themes found in packs - using fallback');
+      lcardsLog.warn('[ThemeManager] No themes found in packs - using fallback');
     }
 
     // Find default theme from packs
@@ -130,7 +130,7 @@ export class ThemeManager {
 
     this.initialized = true;
 
-    cblcarsLog.info('[ThemeManager] ✅ Theme system initialized:', {
+    lcardsLog.info('[ThemeManager] ✅ Theme system initialized:', {
       themeCount: this.themes.size,
       activeTheme: this.activeThemeId,
       availableThemes: Array.from(this.themes.keys())
@@ -149,12 +149,12 @@ export class ThemeManager {
     const theme = this.themes.get(themeId);
 
     if (!theme) {
-      cblcarsLog.error('[ThemeManager] Theme not found:', themeId);
+      lcardsLog.error('[ThemeManager] Theme not found:', themeId);
       throw new Error(`Theme not found: ${themeId}`);
     }
 
     if (!theme.tokens) {
-      cblcarsLog.error('[ThemeManager] Theme has no tokens:', themeId);
+      lcardsLog.error('[ThemeManager] Theme has no tokens:', themeId);
       throw new Error(`Theme has no tokens: ${themeId}`);
     }
 
@@ -175,7 +175,7 @@ export class ThemeManager {
     this.activeThemeId = themeId;
     this.activeTheme = theme;
 
-    cblcarsLog.info('[ThemeManager] ✅ Theme activated:', {
+    lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
       id: themeId,
       name: theme.name,
       description: theme.description,
@@ -206,7 +206,7 @@ export class ThemeManager {
    */
   getDefault(componentType, property, fallback = null, context = {}) {
     if (!this.resolver) {
-      cblcarsLog.warn('[ThemeManager] No resolver available - theme not initialized');
+      lcardsLog.warn('[ThemeManager] No resolver available - theme not initialized');
       return fallback;
     }
 
@@ -328,7 +328,7 @@ export class ThemeManager {
       // Check if already loaded
       const existingLink = document.querySelector(`link[data-theme-id="${themeId}"]`);
       if (existingLink) {
-        cblcarsLog.debug('[ThemeManager] Theme CSS already loaded:', themeId);
+        lcardsLog.debug('[ThemeManager] Theme CSS already loaded:', themeId);
         return;
       }
 
@@ -340,9 +340,9 @@ export class ThemeManager {
 
       document.head.appendChild(link);
 
-      cblcarsLog.debug('[ThemeManager] Loaded theme CSS:', cssFile);
+      lcardsLog.debug('[ThemeManager] Loaded theme CSS:', cssFile);
     } catch (error) {
-      cblcarsLog.warn('[ThemeManager] Failed to load theme CSS:', cssFile, error);
+      lcardsLog.warn('[ThemeManager] Failed to load theme CSS:', cssFile, error);
     }
   }
 
@@ -393,7 +393,7 @@ export class ThemeManager {
   clearCache() {
     if (this.resolver) {
       this.resolver.clearCache();
-      cblcarsLog.debug('[ThemeManager] Resolver cache cleared');
+      lcardsLog.debug('[ThemeManager] Resolver cache cleared');
     }
   }
 
@@ -449,7 +449,7 @@ export class ThemeManager {
     this.resolver = null;
     this.initialized = false;
 
-    cblcarsLog.debug('[ThemeManager] Destroyed');
+    lcardsLog.debug('[ThemeManager] Destroyed');
   }
 }
 

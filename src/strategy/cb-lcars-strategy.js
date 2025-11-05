@@ -1,10 +1,10 @@
 // Define the dashboard class
 
-import * as CBLCARS from '../cb-lcars-vars.js'
-import { cblcarsLog } from '../utils/cb-lcars-logging.js';
-import { readYamlFile } from '../utils/cb-lcars-fileutils.js';
+import * as LCARdS from '../lcards-vars.js'
+import { lcardsLog } from '../utils/lcards-logging.js';
+import { readYamlFile } from '../utils/lcards-fileutils.js';
 
-export class CBLCARSDashboardStrategy {
+export class LCARdSDashboardStrategy {
     static async generate(config, hass) {
         try {
             const [areas, devices, entities] = await Promise.all([
@@ -13,17 +13,17 @@ export class CBLCARSDashboardStrategy {
                 hass.callWS({ type: "config/entity_registry/list" }),
                 ]);
 
-            //cblcarsLog.debug('areas:',areas);
-            //cblcarsLog.debug('devices:',devices);
-            //cblcarsLog.debug('entities:',entities);
+            //lcardsLog.debug('areas:',areas);
+            //lcardsLog.debug('devices:',devices);
+            //lcardsLog.debug('entities:',entities);
 
-            cblcarsLog.info('Generating CB-LCARS dashboard strategy...');
+            lcardsLog.info('Generating LCARdS dashboard strategy...');
 
-            // Load the main CB-LCARS button card templates
-            //const buttonTemplates = await readYamlFile(CBLCARS.templates_uri);
+            // Load the main LCARdS button card templates
+            //const buttonTemplates = await readYamlFile(LCARdS.templates_uri);
 
             // Array of file paths for gallery views
-            const galleryPaths = CBLCARS.gallery_views_uris || [];
+            const galleryPaths = LCARdS.gallery_views_uris || [];
 
             // Generate gallery views from the array of file paths
             const galleryViews = await Promise.all(galleryPaths.map(async (filePath) => {
@@ -31,7 +31,7 @@ export class CBLCARSDashboardStrategy {
                 return {
                     title: `Gallery-${fileName}`,
                     strategy: {
-                        type: 'custom:cb-lcars-view',
+                        type: 'custom:lcards-view',
                         options: { path: filePath }
                     },
                     subview: true
@@ -45,12 +45,12 @@ export class CBLCARSDashboardStrategy {
                 //},
                 //...buttonTemplates,
 
-                title: 'CB-LCARS',
+                title: 'LCARdS',
                 views: [
                     {
-                        title: 'CB-LCARS Airlock',
+                        title: 'LCARdS Airlock',
                         strategy: {
-                            type: 'custom:cb-lcars-airlock',
+                            type: 'custom:lcards-airlock',
                             options: config
                         }
                     },
@@ -59,41 +59,41 @@ export class CBLCARSDashboardStrategy {
 
             };
         } catch (error) {
-            cblcarsLog.error(`Error generating CB-LCARS dashboard strategy: ${error.message}`);
+            lcardsLog.error(`Error generating LCARdS dashboard strategy: ${error.message}`);
             throw error;
         }
     }
 }
 
 //define airlock view strategy
-export class CBLCARSViewStrategyAirlock {
+export class LCARdSViewStrategyAirlock {
     static async generate(config, hass) {
         try {
-            cblcarsLog.info('Generating CB-LCARS Airlock strategy view...');
-            const jsObject = await readYamlFile(CBLCARS.airlock_uri);
+            lcardsLog.info('Generating LCARdS Airlock strategy view...');
+            const jsObject = await readYamlFile(LCARdS.airlock_uri);
 
             return {
                 ...jsObject
             };
         } catch (error) {
-            cblcarsLog.error(`Error loading CB-LCARS Airlock strategy view: ${error.message}`);
+            lcardsLog.error(`Error loading LCARdS Airlock strategy view: ${error.message}`);
             throw error;
         }
     }
 }
 
-export class CBLCARSViewStrategy {
+export class LCARdSViewStrategy {
     static async generate(config, hass) {
         try {
             const { path } = config;
-            cblcarsLog.info(`Generating CB-LCARS strategy view from path: ${path}...`);
+            lcardsLog.info(`Generating LCARdS strategy view from path: ${path}...`);
             const jsObject = await readYamlFile(path);
 
             return {
                 ...jsObject
             };
         } catch (error) {
-            cblcarsLog.error(`Error loading CB-LCARS strategy view: ${error.message}`);
+            lcardsLog.error(`Error loading LCARdS strategy view: ${error.message}`);
             throw error;
         }
     }
@@ -101,6 +101,6 @@ export class CBLCARSViewStrategy {
 
 
 // define the strategies in HA
-customElements.define('ll-strategy-view-cb-lcars-airlock', CBLCARSViewStrategyAirlock);
-customElements.define('ll-strategy-view-cb-lcars-view', CBLCARSViewStrategy);
-customElements.define('ll-strategy-dashboard-cb-lcars', CBLCARSDashboardStrategy);
+customElements.define('ll-strategy-view-lcards-airlock', LCARdSViewStrategyAirlock);
+customElements.define('ll-strategy-view-lcards-view', LCARdSViewStrategy);
+customElements.define('ll-strategy-dashboard-cb-lcars', LCARdSDashboardStrategy);

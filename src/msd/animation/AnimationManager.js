@@ -11,11 +11,11 @@
  * Architecture Integration:
  * - Initialized in SystemsManager Phase 5 (after AdvancedRenderer)
  * - Uses existing AnimationRegistry for performance caching
- * - Leverages existing anime.js v4 integration via window.cblcars.anim
- * - Works with existing preset system in cb-lcars-anim-presets.js
+ * - Leverages existing anime.js v4 integration via window.lcards.anim
+ * - Works with existing preset system in lcards-anim-presets.js
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
 import { ActionHelpers } from '../renderer/ActionHelpers.js';
@@ -46,7 +46,7 @@ export class AnimationManager {
     // State
     this.initialized = false;
 
-    cblcarsLog.debug('[AnimationManager] Created');
+    lcardsLog.debug('[AnimationManager] Created');
   }
 
   /**
@@ -59,20 +59,20 @@ export class AnimationManager {
    * @param {Object} options.timelines - Timeline configurations
    */
   async initialize(overlays = [], options = {}) {
-    cblcarsLog.info('[AnimationManager] 🎬 Initializing animation system');
+    lcardsLog.info('[AnimationManager] 🎬 Initializing animation system');
 
     try {
       // Store mount element for reliable DOM queries
       this.mountEl = this.systemsManager?.renderer?.mountEl;
       if (!this.mountEl) {
-        cblcarsLog.warn('[AnimationManager] No mountEl available - DOM queries may fail');
+        lcardsLog.warn('[AnimationManager] No mountEl available - DOM queries may fail');
       }
 
       // Store custom presets for resolution
       if (options.customPresets) {
         Object.entries(options.customPresets).forEach(([name, preset]) => {
           this.customPresets.set(name, preset);
-          cblcarsLog.debug(`[AnimationManager] Registered custom preset: ${name}`);
+          lcardsLog.debug(`[AnimationManager] Registered custom preset: ${name}`);
         });
       }
 
@@ -80,14 +80,14 @@ export class AnimationManager {
       overlays.forEach(overlay => {
         if (overlay.animations && Array.isArray(overlay.animations)) {
           this.registeredAnimations.set(overlay.id, overlay.animations);
-          cblcarsLog.debug(`[AnimationManager] Registered ${overlay.animations.length} animations for overlay: ${overlay.id}`);
+          lcardsLog.debug(`[AnimationManager] Registered ${overlay.animations.length} animations for overlay: ${overlay.id}`);
         }
       });
 
       // Store timeline configs (will be initialized when overlays are ready)
       if (options.timelines) {
         Object.entries(options.timelines).forEach(([timelineId, timelineConfig]) => {
-          cblcarsLog.debug(`[AnimationManager] Stored timeline config: ${timelineId}`);
+          lcardsLog.debug(`[AnimationManager] Stored timeline config: ${timelineId}`);
         });
         this.timelineConfigs = options.timelines;
       }
@@ -96,18 +96,18 @@ export class AnimationManager {
 
       // Expose to global namespace for Runtime/Debug API
       if (typeof window !== 'undefined') {
-        window.cblcars = window.cblcars || {};
-        window.cblcars.animationManager = this;
+        window.lcards = window.lcards || {};
+        window.lcards.animationManager = this;
       }
 
-      cblcarsLog.info('[AnimationManager] ✅ Animation system initialized', {
+      lcardsLog.info('[AnimationManager] ✅ Animation system initialized', {
         overlaysWithAnimations: this.registeredAnimations.size,
         customPresets: this.customPresets.size,
         timelines: Object.keys(options.timelines || {}).length
       });
 
     } catch (error) {
-      cblcarsLog.error('[AnimationManager] ❌ Initialization failed:', error);
+      lcardsLog.error('[AnimationManager] ❌ Initialization failed:', error);
       throw error;
     }
   }
@@ -122,11 +122,11 @@ export class AnimationManager {
    */
   async onOverlayRendered(overlayId, element, overlayConfig = {}) {
     if (!element) {
-      cblcarsLog.warn(`[AnimationManager] Cannot initialize animations for ${overlayId} - no element provided`);
+      lcardsLog.warn(`[AnimationManager] Cannot initialize animations for ${overlayId} - no element provided`);
       return;
     }
 
-    cblcarsLog.debug(`[AnimationManager] 🎨 Overlay rendered: ${overlayId}`);
+    lcardsLog.debug(`[AnimationManager] 🎨 Overlay rendered: ${overlayId}`);
 
     try {
       // Create anime.js scope for this overlay
@@ -153,7 +153,7 @@ export class AnimationManager {
                         [];
 
       if (animations.length === 0) {
-        cblcarsLog.debug(`[AnimationManager] No animations registered for overlay: ${overlayId}`);
+        lcardsLog.debug(`[AnimationManager] No animations registered for overlay: ${overlayId}`);
         return;
       }
 
@@ -162,7 +162,7 @@ export class AnimationManager {
         await this.registerAnimation(overlayId, animDef);
       }
 
-      cblcarsLog.debug(`[AnimationManager] ✅ Initialized ${animations.length} animations for overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ✅ Initialized ${animations.length} animations for overlay: ${overlayId}`);
 
       // Check if this overlay needs ActionHelpers integration for interactive triggers
       const needsActionHelpers = this.overlayNeedsActionHelpers(animations, overlayConfig);
@@ -178,12 +178,12 @@ export class AnimationManager {
           // Store overlayId and config, NOT the element (element reference may become stale)
           const actionConfig = this.buildActionConfigForOverlay(overlayConfig);
           this.pendingActionHelpers.set(overlayId, { overlayId, overlayConfig, actionConfig });
-          cblcarsLog.debug(`[AnimationManager] 📌 Deferred ActionHelpers attachment for ${overlayId} (waiting for cardInstance)`);
+          lcardsLog.debug(`[AnimationManager] 📌 Deferred ActionHelpers attachment for ${overlayId} (waiting for cardInstance)`);
         }
       }
 
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to initialize animations for ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to initialize animations for ${overlayId}:`, error);
     }
   }
 
@@ -198,11 +198,11 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
-      cblcarsLog.warn(`[AnimationManager] Cannot register animation - scope not found for overlay: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot register animation - scope not found for overlay: ${overlayId}`);
       return;
     }
 
-    cblcarsLog.debug(`[AnimationManager] Registering animation for ${overlayId} with trigger: ${trigger}`);
+    lcardsLog.debug(`[AnimationManager] Registering animation for ${overlayId} with trigger: ${trigger}`);
 
     // Resolve preset_ref to actual definition
     const resolvedAnimDef = this.resolveAnimationDefinition(animDef);
@@ -232,12 +232,12 @@ export class AnimationManager {
     const dataSourceManager = this.systemsManager?.dataSourceManager;
 
     if (!dataSourceManager) {
-      cblcarsLog.warn('[AnimationManager] DataSourceManager not available for datasource triggers');
+      lcardsLog.warn('[AnimationManager] DataSourceManager not available for datasource triggers');
       return;
     }
 
     if (!animDef.datasource) {
-      cblcarsLog.warn(`[AnimationManager] on_datasource_change animation missing 'datasource' property for overlay: ${overlayId}`, animDef);
+      lcardsLog.warn(`[AnimationManager] on_datasource_change animation missing 'datasource' property for overlay: ${overlayId}`, animDef);
       return;
     }
 
@@ -248,7 +248,7 @@ export class AnimationManager {
     const source = dataSourceManager.getSource(sourceName);
 
     if (!source) {
-      cblcarsLog.warn(`[AnimationManager] Datasource not found: ${sourceName} (overlay: ${overlayId})`);
+      lcardsLog.warn(`[AnimationManager] Datasource not found: ${sourceName} (overlay: ${overlayId})`);
       return;
     }
 
@@ -257,13 +257,13 @@ export class AnimationManager {
 
     // Check if we already have a subscription for this overlay+datasource combo
     if (this.datasourceSubscriptions.has(subscriptionKey)) {
-      cblcarsLog.debug(`[AnimationManager] Subscription already exists for ${subscriptionKey}`);
+      lcardsLog.debug(`[AnimationManager] Subscription already exists for ${subscriptionKey}`);
       return;
     }
 
     // Subscribe to datasource updates
     const unsubscribe = source.subscribe((data) => {
-      cblcarsLog.debug(`[AnimationManager] 📊 Datasource change: ${datasourceName} (overlay: ${overlayId})`, data);
+      lcardsLog.debug(`[AnimationManager] 📊 Datasource change: ${datasourceName} (overlay: ${overlayId})`, data);
 
       // Extract value based on path if needed
       let value = data.v;
@@ -272,13 +272,13 @@ export class AnimationManager {
       }
 
       // Trigger the animation (no filtering - always plays on change)
-      cblcarsLog.debug(`[AnimationManager] 🎬 Triggering animation for ${overlayId} on datasource change`);
+      lcardsLog.debug(`[AnimationManager] 🎬 Triggering animation for ${overlayId} on datasource change`);
       this.playAnimation(overlayId, animDef);
     });
 
     // Store unsubscribe function
     this.datasourceSubscriptions.set(subscriptionKey, unsubscribe);
-    cblcarsLog.debug(`[AnimationManager] ✅ Setup datasource listener: ${subscriptionKey}`);
+    lcardsLog.debug(`[AnimationManager] ✅ Setup datasource listener: ${subscriptionKey}`);
   }
 
   /**
@@ -295,7 +295,7 @@ export class AnimationManager {
       if (value && typeof value === 'object' && part in value) {
         value = value[part];
       } else {
-        cblcarsLog.warn(`[AnimationManager] Path not found in datasource: ${pathParts.join('.')}`);
+        lcardsLog.warn(`[AnimationManager] Path not found in datasource: ${pathParts.join('.')}`);
         return undefined;
       }
     }
@@ -314,32 +314,32 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
-      cblcarsLog.warn(`[AnimationManager] Cannot trigger animations - overlay not found: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot trigger animations - overlay not found: ${overlayId}`);
       return;
     }
 
     // Get animations registered for this trigger from TriggerManager
     const triggerManager = scopeData.triggerManager;
     if (!triggerManager || !triggerManager.registrations.has(trigger)) {
-      cblcarsLog.debug(`[AnimationManager] No animations registered for ${overlayId} on trigger: ${trigger}`);
+      lcardsLog.debug(`[AnimationManager] No animations registered for ${overlayId} on trigger: ${trigger}`);
       return;
     }
 
     const animations = triggerManager.registrations.get(trigger) || [];
 
     if (animations.length === 0) {
-      cblcarsLog.debug(`[AnimationManager] No animations to trigger for ${overlayId} on ${trigger}`);
+      lcardsLog.debug(`[AnimationManager] No animations to trigger for ${overlayId} on ${trigger}`);
       return;
     }
 
-    cblcarsLog.debug(`[AnimationManager] 🎬 Triggering ${animations.length} animation(s) for ${overlayId} on ${trigger}`);
+    lcardsLog.debug(`[AnimationManager] 🎬 Triggering ${animations.length} animation(s) for ${overlayId} on ${trigger}`);
 
     // Execute each animation
     for (const animDef of animations) {
       try {
         await this.playAnimation(overlayId, animDef);
       } catch (error) {
-        cblcarsLog.error(`[AnimationManager] Failed to play animation for ${overlayId}:`, error);
+        lcardsLog.error(`[AnimationManager] Failed to play animation for ${overlayId}:`, error);
       }
     }
   }
@@ -355,18 +355,18 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData || !scopeData.scope) {
-      cblcarsLog.debug(`[AnimationManager] No scope found for ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] No scope found for ${overlayId}`);
       return;
     }
 
-    cblcarsLog.debug(`[AnimationManager] stopAnimations called for ${overlayId}, trigger=${trigger}`);
+    lcardsLog.debug(`[AnimationManager] stopAnimations called for ${overlayId}, trigger=${trigger}`);
 
     if (trigger) {
       // Get anime instances tracked for this trigger
       const instances = scopeData.runningInstances.get(trigger) || [];
 
       if (instances.length === 0) {
-        cblcarsLog.debug(`[AnimationManager] No tracked instances for trigger ${trigger} on ${overlayId}`);
+        lcardsLog.debug(`[AnimationManager] No tracked instances for trigger ${trigger} on ${overlayId}`);
         // Fallback: try scope.children
         this._stopAnimationsFromScopeChildren(scopeData, trigger);
         return;
@@ -384,21 +384,21 @@ export class AnimationManager {
               stopped++;
             } else {
               // Fallback: pause if revert not available
-              cblcarsLog.warn(`[AnimationManager] Instance has no revert() method, using pause()`);
+              lcardsLog.warn(`[AnimationManager] Instance has no revert() method, using pause()`);
               instance.complete = true;
               instance.pause();
               stopped++;
             }
           }
         } catch (error) {
-          cblcarsLog.warn(`[AnimationManager] Error stopping instance:`, error);
+          lcardsLog.warn(`[AnimationManager] Error stopping instance:`, error);
         }
       });
 
       // Clear tracked instances for this trigger
       scopeData.runningInstances.delete(trigger);
 
-      cblcarsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) for trigger ${trigger} on ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) for trigger ${trigger} on ${overlayId}`);
 
     } else {
       // Stop all animations
@@ -418,13 +418,13 @@ export class AnimationManager {
               }
             }
           } catch (error) {
-            cblcarsLog.warn(`[AnimationManager] Error stopping instance:`, error);
+            lcardsLog.warn(`[AnimationManager] Error stopping instance:`, error);
           }
         });
       });
 
       scopeData.runningInstances.clear();
-      cblcarsLog.debug(`[AnimationManager] ⏹️ Stopped ${stopped} animation(s) on ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ⏹️ Stopped ${stopped} animation(s) on ${overlayId}`);
     }
   }
 
@@ -460,7 +460,7 @@ export class AnimationManager {
     });
 
     if (stopped > 0) {
-      cblcarsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) via scope.children (fallback)`);
+      lcardsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) via scope.children (fallback)`);
     }
   }  /**
    * Check if overlay needs ActionHelpers integration for interactive triggers
@@ -512,20 +512,20 @@ export class AnimationManager {
     const cardInstance = this.systemsManager?.cardInstance;
 
     if (!cardInstance) {
-      cblcarsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - no cardInstance`);
+      lcardsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - no cardInstance`);
       return;
     }
 
     // Check if actions are already attached (by AdvancedRenderer)
     if (element.hasAttribute('data-actions-attached')) {
-      cblcarsLog.debug(`[AnimationManager] ⏭️ ActionHelpers already attached for ${overlayId} (skipping duplicate)`);
+      lcardsLog.debug(`[AnimationManager] ⏭️ ActionHelpers already attached for ${overlayId} (skipping duplicate)`);
       return;
     }
 
     const actionConfig = this.buildActionConfigForOverlay(overlayConfig);
 
     if (actionConfig) {
-      cblcarsLog.debug(`[AnimationManager] 🔗 Attaching ActionHelpers for animated overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] 🔗 Attaching ActionHelpers for animated overlay: ${overlayId}`);
 
       // Attach actions with animationManager passed through options
       ActionHelpers.attachActions(
@@ -536,7 +536,7 @@ export class AnimationManager {
         { animationManager: this }
       );
 
-      cblcarsLog.debug(`[AnimationManager] ✅ ActionHelpers attached for ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ✅ ActionHelpers attached for ${overlayId}`);
     }
   }
 
@@ -552,11 +552,11 @@ export class AnimationManager {
     const cardInstance = this.systemsManager?.cardInstance;
 
     if (!cardInstance) {
-      cblcarsLog.warn(`[AnimationManager] Cannot attach pending ActionHelpers - no cardInstance available`);
+      lcardsLog.warn(`[AnimationManager] Cannot attach pending ActionHelpers - no cardInstance available`);
       return;
     }
 
-    cblcarsLog.debug(`[AnimationManager] 🔄 Attaching ${this.pendingActionHelpers.size} pending ActionHelpers...`);
+    lcardsLog.debug(`[AnimationManager] 🔄 Attaching ${this.pendingActionHelpers.size} pending ActionHelpers...`);
 
     let attachedCount = 0;
     this.pendingActionHelpers.forEach(({ overlayId, overlayConfig, actionConfig }) => {
@@ -564,7 +564,7 @@ export class AnimationManager {
         // Look up the element fresh from the DOM (element reference may have become stale)
         const scopeData = this.scopes.get(overlayId);
         if (!scopeData) {
-          cblcarsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - scope not found`);
+          lcardsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - scope not found`);
           return;
         }
 
@@ -584,7 +584,7 @@ export class AnimationManager {
         }
 
         if (!element) {
-          cblcarsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - element not found in DOM`);
+          lcardsLog.warn(`[AnimationManager] Cannot attach ActionHelpers for ${overlayId} - element not found in DOM`);
           return;
         }        ActionHelpers.attachActions(
           element,
@@ -596,14 +596,14 @@ export class AnimationManager {
 
         attachedCount++;
       } catch (error) {
-        cblcarsLog.error(`[AnimationManager] Failed to attach ActionHelpers for ${overlayId}:`, error);
+        lcardsLog.error(`[AnimationManager] Failed to attach ActionHelpers for ${overlayId}:`, error);
       }
     });
 
     // Clear pending queue
     this.pendingActionHelpers.clear();
 
-    cblcarsLog.debug(`[AnimationManager] ✅ Attached ${attachedCount} pending ActionHelpers`);
+    lcardsLog.debug(`[AnimationManager] ✅ Attached ${attachedCount} pending ActionHelpers`);
   }
 
   /**
@@ -633,7 +633,7 @@ export class AnimationManager {
         delete resolved._basePreset;
         delete resolved.type;
 
-        cblcarsLog.debug(`[AnimationManager] Resolved custom preset: ${animDef.preset} -> ${basePresetName}`);
+        lcardsLog.debug(`[AnimationManager] Resolved custom preset: ${animDef.preset} -> ${basePresetName}`);
       }
     }
 
@@ -650,17 +650,17 @@ export class AnimationManager {
         delete resolved.preset_ref;
         delete resolved._basePreset;
         delete resolved.type;
-        cblcarsLog.debug(`[AnimationManager] Resolved preset_ref: ${animDef.preset_ref} -> ${basePresetName}`);
+        lcardsLog.debug(`[AnimationManager] Resolved preset_ref: ${animDef.preset_ref} -> ${basePresetName}`);
       } else {
-        cblcarsLog.warn(`[AnimationManager] preset_ref not found: ${animDef.preset_ref}`);
+        lcardsLog.warn(`[AnimationManager] preset_ref not found: ${animDef.preset_ref}`);
       }
     }
 
     // Verify preset exists if specified
     if (resolved.preset) {
-      const presetFn = window.cblcars?.anim?.presets?.[resolved.preset];
+      const presetFn = window.lcards?.anim?.presets?.[resolved.preset];
       if (!presetFn) {
-        cblcarsLog.warn(`[AnimationManager] Unknown preset: ${resolved.preset}`);
+        lcardsLog.warn(`[AnimationManager] Unknown preset: ${resolved.preset}`);
       }
     }
 
@@ -678,7 +678,7 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
-      cblcarsLog.warn(`[AnimationManager] Cannot play animation - overlay not found: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot play animation - overlay not found: ${overlayId}`);
       return null;
     }
 
@@ -691,7 +691,7 @@ export class AnimationManager {
       // SystemsManager stores AdvancedRenderer as this.renderer
       const overlayInstance = this.systemsManager.renderer?.overlayRenderers?.get(overlayId);
 
-      cblcarsLog.debug(`[AnimationManager] Target resolution for ${overlayId}:`, {
+      lcardsLog.debug(`[AnimationManager] Target resolution for ${overlayId}:`, {
         hasRenderer: !!this.systemsManager.renderer,
         hasOverlayRenderers: !!this.systemsManager.renderer?.overlayRenderers,
         hasOverlayInstance: !!overlayInstance,
@@ -726,7 +726,7 @@ export class AnimationManager {
           if (el) {
             targetElements.push(el);
           } else {
-            cblcarsLog.warn(`[AnimationManager] Target not found: "${spec}" for overlay ${overlayId}`);
+            lcardsLog.warn(`[AnimationManager] Target not found: "${spec}" for overlay ${overlayId}`);
           }
         }
       } else if (finalAnimDef.target) {
@@ -748,7 +748,7 @@ export class AnimationManager {
         if (el) {
           targetElements.push(el);
         } else {
-          cblcarsLog.warn(`[AnimationManager] Target not found: "${finalAnimDef.target}" for overlay ${overlayId}`);
+          lcardsLog.warn(`[AnimationManager] Target not found: "${finalAnimDef.target}" for overlay ${overlayId}`);
         }
       } else {
         // No target specified - use overlay's smart default
@@ -772,21 +772,21 @@ export class AnimationManager {
 
       // If we resolved nothing, fall back to overlay element
       if (targetElements.length === 0) {
-        cblcarsLog.warn(`[AnimationManager] No targets resolved, using overlay element for ${overlayId}`);
+        lcardsLog.warn(`[AnimationManager] No targets resolved, using overlay element for ${overlayId}`);
         targetElements.push(overlayElement);
       }
 
-      cblcarsLog.debug(`[AnimationManager] Resolved ${targetElements.length} target(s) for overlay ${overlayId}:`, {
+      lcardsLog.debug(`[AnimationManager] Resolved ${targetElements.length} target(s) for overlay ${overlayId}:`, {
         hasTarget: !!finalAnimDef.target,
         hasTargets: !!finalAnimDef.targets,
         targetCount: targetElements.length
       });
 
       // Use existing animateElement helper for consistency
-      const { animateElement } = window.cblcars.anim;
+      const { animateElement } = window.lcards.anim;
 
       if (!animateElement) {
-        cblcarsLog.error('[AnimationManager] animateElement helper not found');
+        lcardsLog.error('[AnimationManager] animateElement helper not found');
         return null;
       }
 
@@ -818,7 +818,7 @@ export class AnimationManager {
       const onInstanceCreated = (instance) => {
         if (instance) {
           instancesArray.push(instance);
-          cblcarsLog.debug(`[AnimationManager] 📌 Tracked anime instance for trigger: ${animDef.trigger}`);
+          lcardsLog.debug(`[AnimationManager] 📌 Tracked anime instance for trigger: ${animDef.trigger}`);
         }
       };
 
@@ -826,7 +826,7 @@ export class AnimationManager {
       // Pass scopeData (which has .scope property) not just the raw scope
       await animateElement(scopeData, animOptions, hass, onInstanceCreated);
 
-      cblcarsLog.debug(`[AnimationManager] ▶️ Playing animation on ${overlayId}:`, {
+      lcardsLog.debug(`[AnimationManager] ▶️ Playing animation on ${overlayId}:`, {
         preset: finalAnimDef.preset,
         trigger: animDef.trigger,
         duration: finalAnimDef.duration
@@ -838,7 +838,7 @@ export class AnimationManager {
       return finalAnimDef; // Return for API access
 
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to play animation on ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to play animation on ${overlayId}:`, error);
       return null;
     }
   }
@@ -915,25 +915,25 @@ export class AnimationManager {
   createScopeForOverlay(overlayId, element) {
     try {
       // Use global anime.js to create scope
-      const anime = window.cblcars?.anim?.animejs;
+      const anime = window.lcards?.anim?.animejs;
       if (!anime || !anime.createScope) {
-        cblcarsLog.error('[AnimationManager] Anime.js createScope not available');
+        lcardsLog.error('[AnimationManager] Anime.js createScope not available');
         return null;
       }
 
       const scope = anime.createScope();
 
       // Store in global scopes map for compatibility
-      if (window.cblcars?.anim?.scopes) {
-        window.cblcars.anim.scopes.set(overlayId, scope);
+      if (window.lcards?.anim?.scopes) {
+        window.lcards.anim.scopes.set(overlayId, scope);
       }
 
-      cblcarsLog.debug(`[AnimationManager] Created scope for overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] Created scope for overlay: ${overlayId}`);
 
       return scope;
 
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to create scope for ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to create scope for ${overlayId}:`, error);
       return null;
     }
   }
@@ -947,7 +947,7 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
-      cblcarsLog.warn(`[AnimationManager] Cannot stop animations - overlay not found: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot stop animations - overlay not found: ${overlayId}`);
       return;
     }
 
@@ -960,10 +960,10 @@ export class AnimationManager {
       // Clear active animations tracking
       scopeData.activeAnimations.clear();
 
-      cblcarsLog.debug(`[AnimationManager] ⏹️ Stopped animations on overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ⏹️ Stopped animations on overlay: ${overlayId}`);
 
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to stop animations on ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to stop animations on ${overlayId}:`, error);
     }
   }
 
@@ -976,17 +976,17 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData || !scopeData.scope) {
-      cblcarsLog.warn(`[AnimationManager] Cannot pause - overlay not found: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot pause - overlay not found: ${overlayId}`);
       return;
     }
 
     try {
       if (scopeData.scope.pause) {
         scopeData.scope.pause();
-        cblcarsLog.debug(`[AnimationManager] ⏸️ Paused animations on overlay: ${overlayId}`);
+        lcardsLog.debug(`[AnimationManager] ⏸️ Paused animations on overlay: ${overlayId}`);
       }
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to pause animations on ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to pause animations on ${overlayId}:`, error);
     }
   }
 
@@ -999,17 +999,17 @@ export class AnimationManager {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData || !scopeData.scope) {
-      cblcarsLog.warn(`[AnimationManager] Cannot resume - overlay not found: ${overlayId}`);
+      lcardsLog.warn(`[AnimationManager] Cannot resume - overlay not found: ${overlayId}`);
       return;
     }
 
     try {
       if (scopeData.scope.play) {
         scopeData.scope.play();
-        cblcarsLog.debug(`[AnimationManager] ▶️ Resumed animations on overlay: ${overlayId}`);
+        lcardsLog.debug(`[AnimationManager] ▶️ Resumed animations on overlay: ${overlayId}`);
       }
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to resume animations on ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to resume animations on ${overlayId}:`, error);
     }
   }
 
@@ -1034,9 +1034,9 @@ export class AnimationManager {
           if (typeof cleanup === 'function') {
             try {
               cleanup();
-              cblcarsLog.debug(`[AnimationManager] Unsubscribed datasource listener: ${key}`);
+              lcardsLog.debug(`[AnimationManager] Unsubscribed datasource listener: ${key}`);
             } catch (error) {
-              cblcarsLog.warn(`[AnimationManager] Error unsubscribing datasource ${key}:`, error);
+              lcardsLog.warn(`[AnimationManager] Error unsubscribing datasource ${key}:`, error);
             }
           }
           keysToRemove.push(key);
@@ -1059,14 +1059,14 @@ export class AnimationManager {
       this.activeAnimations.delete(overlayId);
 
       // Cleanup global scope reference
-      if (window.cblcars?.anim?.scopes) {
-        window.cblcars.anim.scopes.delete(overlayId);
+      if (window.lcards?.anim?.scopes) {
+        window.lcards.anim.scopes.delete(overlayId);
       }
 
-      cblcarsLog.debug(`[AnimationManager] 🗑️ Destroyed scope for overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] 🗑️ Destroyed scope for overlay: ${overlayId}`);
 
     } catch (error) {
-      cblcarsLog.error(`[AnimationManager] Failed to destroy scope for ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to destroy scope for ${overlayId}:`, error);
     }
   }
 
@@ -1137,17 +1137,17 @@ export class AnimationManager {
    * Cleanup all resources
    */
   dispose() {
-    cblcarsLog.info('[AnimationManager] 🧹 Disposing animation system');
+    lcardsLog.info('[AnimationManager] 🧹 Disposing animation system');
 
     // ✨ NEW: Cleanup all datasource subscriptions
-    cblcarsLog.debug(`[AnimationManager] Cleaning up ${this.datasourceSubscriptions.size} datasource subscriptions`);
+    lcardsLog.debug(`[AnimationManager] Cleaning up ${this.datasourceSubscriptions.size} datasource subscriptions`);
     this.datasourceSubscriptions.forEach((cleanup, key) => {
       if (typeof cleanup === 'function') {
         try {
           cleanup();
-          cblcarsLog.debug(`[AnimationManager] Unsubscribed datasource listener: ${key}`);
+          lcardsLog.debug(`[AnimationManager] Unsubscribed datasource listener: ${key}`);
         } catch (error) {
-          cblcarsLog.warn(`[AnimationManager] Error unsubscribing from datasource ${key}:`, error);
+          lcardsLog.warn(`[AnimationManager] Error unsubscribing from datasource ${key}:`, error);
         }
       }
     });
@@ -1167,6 +1167,6 @@ export class AnimationManager {
 
     this.initialized = false;
 
-    cblcarsLog.info('[AnimationManager] ✅ Animation system disposed');
+    lcardsLog.info('[AnimationManager] ✅ Animation system disposed');
   }
 }

@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [RollingBuffer] Circular buffer for time-series data - efficient storage with automatic overflow handling
@@ -46,18 +46,18 @@ export class RollingBuffer {
 
     // Check for reasonable timestamp range
     if (timestamp < oneYearAgo || timestamp > oneHourFromNow) {
-      cblcarsLog.debug(`[RollingBuffer] ⚠️ Suspicious timestamp: ${timestamp} (${new Date(timestamp).toISOString()})`);
+      lcardsLog.debug(`[RollingBuffer] ⚠️ Suspicious timestamp: ${timestamp} (${new Date(timestamp).toISOString()})`);
       // Don't reject, but log for debugging
     }
 
     // Validate inputs
     if (!Number.isFinite(timestamp) || timestamp < 0) {
-      cblcarsLog.debug('[RollingBuffer] ⚠️ Invalid timestamp:', timestamp);
+      lcardsLog.debug('[RollingBuffer] ⚠️ Invalid timestamp:', timestamp);
       return;
     }
 
     if (typeof value !== 'number' || !isFinite(value)) {
-      cblcarsLog.debug(`[RollingBuffer] ⚠️ Invalid value: ${value} for timestamp ${timestamp}`);
+      lcardsLog.debug(`[RollingBuffer] ⚠️ Invalid value: ${value} for timestamp ${timestamp}`);
       return;
     }
 
@@ -100,7 +100,7 @@ export class RollingBuffer {
 
     // Only log occasionally to avoid console spam
     //if (this._stats.pushes % 100 === 0 || this._size <= 5) {
-    //  cblcarsLog.debug(`[RollingBuffer] Added point: ${value} at ${new Date(timestamp).toISOString()} (buffer size: ${this._size}, total pushes: ${this._stats.pushes})`);
+    //  lcardsLog.debug(`[RollingBuffer] Added point: ${value} at ${new Date(timestamp).toISOString()} (buffer size: ${this._size}, total pushes: ${this._stats.pushes})`);
     //}
   }
 
@@ -309,7 +309,7 @@ export class RollingBuffer {
     }
 
     if (issues.length > 0) {
-      cblcarsLog.warn('[RollingBuffer] ⚠️ Consistency issues:', issues);
+      lcardsLog.warn('[RollingBuffer] ⚠️ Consistency issues:', issues);
       return false;
     }
 

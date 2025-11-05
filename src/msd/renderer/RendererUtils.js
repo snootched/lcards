@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [RendererUtils] Shared renderer utilities - common functionality for all renderers
@@ -19,15 +19,15 @@ export class RendererUtils {
    * @returns {CanvasRenderingContext2D}
    */
   static _getTextMeasureContext() {
-    if (!window.cblcars) window.cblcars = {};
+    if (!window.lcards) window.lcards = {};
 
-    if (!window.cblcars._textMeasureCanvas) {
-      window.cblcars._textMeasureCanvas = document.createElement("canvas");
-      window.cblcars._textMeasureContext = window.cblcars._textMeasureCanvas.getContext("2d");
-      window.cblcars._textMeasureCache = new Map();
+    if (!window.lcards._textMeasureCanvas) {
+      window.lcards._textMeasureCanvas = document.createElement("canvas");
+      window.lcards._textMeasureContext = window.lcards._textMeasureCanvas.getContext("2d");
+      window.lcards._textMeasureCache = new Map();
     }
 
-    return window.cblcars._textMeasureContext;
+    return window.lcards._textMeasureContext;
   }
 
   /**
@@ -58,7 +58,7 @@ export class RendererUtils {
         pixelToViewBox: (pixelSize) => pixelSize * Math.max(scaleX, scaleY)
       };
     } catch (error) {
-      cblcarsLog.warn('[RendererUtils] ⚠️ Failed to get SVG transform info:', error);
+      lcardsLog.warn('[RendererUtils] ⚠️ Failed to get SVG transform info:', error);
       return null;
     }
   }
@@ -75,7 +75,7 @@ export class RendererUtils {
     if (!text) return { width: 0, height: 0, ascent: 0, descent: 0 };
 
     const cacheKey = `${text}::${font}`;
-    const cache = window.cblcars?._textMeasureCache;
+    const cache = window.lcards?._textMeasureCache;
 
     if (useCache && cache && cache.has(cacheKey)) {
       const cached = cache.get(cacheKey);
@@ -129,7 +129,7 @@ export class RendererUtils {
     const transformInfo = this._getSvgTransformInfo(containerElement);
     if (!transformInfo) {
       // Fallback to pixel metrics is acceptable - not all contexts have transform info
-      cblcarsLog.debug('[RendererUtils] No transform info available, using pixel metrics');
+      lcardsLog.debug('[RendererUtils] No transform info available, using pixel metrics');
       return metrics;
     }
 
@@ -334,7 +334,7 @@ export class RendererUtils {
       const computed = window.getComputedStyle(target).fontFamily;
       if (computed && computed !== 'inherit') return computed;
     } catch (e) {
-      cblcarsLog.warn('[RendererUtils] ⚠️ resolveFontFamily failed:', e);
+      lcardsLog.warn('[RendererUtils] ⚠️ resolveFontFamily failed:', e);
     }
     return 'Arial, sans-serif';
   }
@@ -366,8 +366,8 @@ export class RendererUtils {
    * Clear text measurement cache
    */
   static clearTextMeasureCache() {
-    if (window.cblcars?._textMeasureCache) {
-      window.cblcars._textMeasureCache.clear();
+    if (window.lcards?._textMeasureCache) {
+      window.lcards._textMeasureCache.clear();
     }
   }
 
@@ -375,7 +375,7 @@ export class RendererUtils {
    * Get text measurement cache statistics
    */
   static getTextMeasureCacheStats() {
-    const cache = window.cblcars?._textMeasureCache;
+    const cache = window.lcards?._textMeasureCache;
     return {
       size: cache?.size || 0,
       keys: cache ? Array.from(cache.keys()) : []

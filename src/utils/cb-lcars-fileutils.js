@@ -1,5 +1,5 @@
-//import * as CBLCARS from '../cb-lcars-vars.js';
-import { cblcarsLog } from './cb-lcars-logging.js';
+//import * as LCARdS from '../lcards-vars.js';
+import { lcardsLog } from './lcards-logging.js';
 import jsyaml from 'js-yaml';
 
 // Ensure global fallback for legacy callers expecting window.jsyaml
@@ -19,14 +19,14 @@ export async function fetchYAML(url) {
         const response = await fetch(url);
         if (response.ok) {
             const yamlContent = await response.text();
-            //cblcarsLog.debug(`Fetched yaml file ${url}`);
+            //lcardsLog.debug(`Fetched yaml file ${url}`);
 
             return yamlContent;
         } //else {
           //  throw new Error(`Error fetching YAML: ${response.status} ${response.statusText}`);
         //}
     } catch (error) {
-        cblcarsLog.error('[fetchYAML] Error fetching YAML file ',error);
+        lcardsLog.error('[fetchYAML] Error fetching YAML file ',error);
         throw error;
     }
 }
@@ -36,25 +36,25 @@ export async function readYamlFile(url) {
     try {
         const response = await fetchYAML(url);
         const jsObject = jsyaml.load(response);
-        //await cblcarsLog.info(`Processed YAML file: ${url}`);
-        //await cblcarsLog.debug(jsObject);
+        //await lcardsLog.info(`Processed YAML file: ${url}`);
+        //await lcardsLog.debug(jsObject);
         return jsObject;
     } catch (error) {
-        cblcarsLog.error('[readYamlFile] Failed to parse YAML file',error.message);
+        lcardsLog.error('[readYamlFile] Failed to parse YAML file',error.message);
         throw error; // Re-throw the error after logging it
     }
 }
 
 /**
  * Ensure the SVG cache exists on the window object.
- * Stores built-in SVG templates under window.cblcars.assets to avoid
+ * Stores built-in SVG templates under window.lcards.assets to avoid
  * namespace collision with MSD runtime initialization.
  */
 function ensureSVGCache() {
-    window.cblcars = window.cblcars || {};
-    window.cblcars.assets = window.cblcars.assets || {};
-    window.cblcars.assets.svg_templates = window.cblcars.assets.svg_templates || {};
-    return window.cblcars.assets.svg_templates;
+    window.lcards = window.lcards || {};
+    window.lcards.assets = window.lcards.assets || {};
+    window.lcards.assets.svg_templates = window.lcards.assets.svg_templates || {};
+    return window.lcards.assets.svg_templates;
 }
 
 /**
@@ -70,7 +70,7 @@ export async function loadSVGToCache(key, url) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            cblcarsLog.error(`[loadSVGToCache] Failed to fetch SVG [${url}] for key [${key}]: ${response.status} ${response.statusText}`);
+            lcardsLog.error(`[loadSVGToCache] Failed to fetch SVG [${url}] for key [${key}]: ${response.status} ${response.statusText}`);
             return undefined;
         }
         let svgText = await response.text();
@@ -87,7 +87,7 @@ export async function loadSVGToCache(key, url) {
         // Individual load messages removed - see preloadSVGs() for summary
         return svgText;
     } catch (error) {
-        cblcarsLog.error(`[loadSVGToCache] Error loading SVG [${key}] from [${url}]`, error);
+        lcardsLog.error(`[loadSVGToCache] Error loading SVG [${key}] from [${url}]`, error);
         return undefined;
     }
 }
@@ -112,5 +112,5 @@ export async function preloadSVGs(svgList, basePath) {
         return loadSVGToCache(key, url);
     });
     await Promise.all(promises);
-    cblcarsLog.info(`[preloadSVGs] Preloaded SVGs: ${svgList.join(', ')} from ${basePath}`);
+    lcardsLog.info(`[preloadSVGs] Preloaded SVGs: ${svgList.join(', ')} from ${basePath}`);
 }

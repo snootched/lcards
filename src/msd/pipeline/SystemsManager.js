@@ -4,7 +4,7 @@ import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { MsdHudManager } from '../hud/MsdHudManager.js';
 import { DataSourceManager } from '../data/DataSourceManager.js';
 import { RouterCore } from '../routing/RouterCore.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnimationRegistry } from '../animation/AnimationRegistry.js';
 import { ThemeManager } from '../themes/ThemeManager.js';
 import { RulesEngine } from '../rules/RulesEngine.js';
@@ -71,16 +71,16 @@ export class SystemsManager {
 
         // CRITICAL FIX: Execute queued render when render completes (true → false)
         if (oldValue === true && value === false && this._queuedReRender) {
-          cblcarsLog.debug('[SystemsManager] 🔄 Executing queued re-render (render completed)');
+          lcardsLog.debug('[SystemsManager] 🔄 Executing queued re-render (render completed)');
           this._queuedReRender = false;
 
           setTimeout(() => {
             if (!this._internalRenderInProgress && this._reRenderCallback) {
-              cblcarsLog.debug('[SystemsManager] 🚀 Executing queued re-render callback');
+              lcardsLog.debug('[SystemsManager] 🚀 Executing queued re-render callback');
               try {
                 this._reRenderCallback();
               } catch (error) {
-                cblcarsLog.error('[SystemsManager] ❌ Queued re-render failed:', error);
+                lcardsLog.error('[SystemsManager] ❌ Queued re-render failed:', error);
               }
             }
           }, 50);
@@ -108,14 +108,14 @@ export class SystemsManager {
    * This ensures defaults are available before any overlay processing
    */
   async initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass) {
-    cblcarsLog.debug('[SystemsManager] 🚀 Enhanced initialization: packs and defaults first');
+    lcardsLog.debug('[SystemsManager] 🚀 Enhanced initialization: packs and defaults first');
 
     // Store config and HASS context immediately
     this.mergedConfig = mergedConfig;
     this._hass = hass; // PHASE 1: Use single source
 
     // PHASE 1: Initialize theme system FIRST (provides all component defaults)
-    cblcarsLog.debug('[SystemsManager] 🎨 Phase 1: Initializing theme system');
+    lcardsLog.debug('[SystemsManager] 🎨 Phase 1: Initializing theme system');
 
 
     let packs;
@@ -124,7 +124,7 @@ export class SystemsManager {
     if (mergedConfig && mergedConfig.__provenance && mergedConfig.__provenance.merge_order) {
       const packLayers = mergedConfig.__provenance.merge_order.filter(layer => layer.type === 'builtin');
       if (packLayers.length > 0) {
-        cblcarsLog.debug('[SystemsManager] 📦 Loading packs from merged config provenance');
+        lcardsLog.debug('[SystemsManager] 📦 Loading packs from merged config provenance');
 
         const { loadBuiltinPacks } = await import('../packs/loadBuiltinPacks.js');
         const packNames = packLayers.map(layer => layer.pack);
@@ -148,19 +148,19 @@ export class SystemsManager {
             throw new Error('Invalid pack loading result');
           }
         } catch (error) {
-          cblcarsLog.error('[SystemsManager] ❌ Pack loading failed:', error);
+          lcardsLog.error('[SystemsManager] ❌ Pack loading failed:', error);
           throw new Error(`Pack loading failed: ${error.message}`);
         }
       }
     } else {
       // Fallback: Load core and builtin_themes packs
-      cblcarsLog.debug('[SystemsManager] 📦 No pack provenance, loading core + builtin_themes');
+      lcardsLog.debug('[SystemsManager] 📦 No pack provenance, loading core + builtin_themes');
       try {
         const { loadBuiltinPacks } = await import('../packs/loadBuiltinPacks.js');
         packs = loadBuiltinPacks(['core', 'builtin_themes']);
-        cblcarsLog.debug('[SystemsManager] ✅ Loaded fallback packs');
+        lcardsLog.debug('[SystemsManager] ✅ Loaded fallback packs');
       } catch (error) {
-        cblcarsLog.error('[SystemsManager] ❌ Fallback pack loading failed:', error);
+        lcardsLog.error('[SystemsManager] ❌ Fallback pack loading failed:', error);
         throw new Error(`Pack loading failed: ${error.message}`);
       }
     }
@@ -171,7 +171,7 @@ export class SystemsManager {
     const activeTheme = this.themeManager.getActiveTheme();
 
     // ✅ ENHANCED: Log theme provenance
-    cblcarsLog.info('[SystemsManager] 🎨 Theme system initialized:', {
+    lcardsLog.info('[SystemsManager] 🎨 Theme system initialized:', {
       requested: requestedTheme,
       active: activeTheme?.name,
       activeId: activeTheme?.id,
@@ -181,41 +181,41 @@ export class SystemsManager {
 
     // Store in global namespace for access by overlays
     if (typeof window !== 'undefined') {
-      window.cblcars = window.cblcars || {};
-      window.cblcars.theme = this.themeManager;
-      window.cblcars.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
-      cblcarsLog.debug('[SystemsManager] 🔧 ThemeManager globally accessible via window.cblcars.theme');
+      window.lcards = window.lcards || {};
+      window.lcards.theme = this.themeManager;
+      window.lcards.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
+      lcardsLog.debug('[SystemsManager] 🔧 ThemeManager globally accessible via window.lcards.theme');
     }
 
     // Acquire StyleResolverService reference
-    if (typeof window !== 'undefined' && window.cblcars?.styleResolver) {
-      this.styleResolver = window.cblcars.styleResolver;
-      cblcarsLog.debug('[SystemsManager] ✅ StyleResolverService reference acquired');
+    if (typeof window !== 'undefined' && window.lcards?.styleResolver) {
+      this.styleResolver = window.lcards.styleResolver;
+      lcardsLog.debug('[SystemsManager] ✅ StyleResolverService reference acquired');
     } else {
-      cblcarsLog.warn('[SystemsManager] ⚠️ StyleResolverService not found - renderers will use fallback');
+      lcardsLog.warn('[SystemsManager] ⚠️ StyleResolverService not found - renderers will use fallback');
     }
 
     // PHASE 2: Initialize other critical systems that overlays might need
-    cblcarsLog.debug('[SystemsManager] ⚙️ Phase 2: Initializing critical systems');
+    lcardsLog.debug('[SystemsManager] ⚙️ Phase 2: Initializing critical systems');
 
     // Initialize debug manager early with config
     const debugConfig = mergedConfig.debug || {};
     this.debugManager.init(debugConfig);
-    cblcarsLog.debug('[SystemsManager] DebugManager initialized with config:', debugConfig);
+    lcardsLog.debug('[SystemsManager] DebugManager initialized with config:', debugConfig);
 
     // Initialize data source manager FIRST (overlays may reference it)
     await this._initializeDataSources(hass, mergedConfig);
 
     // CRITICAL FIX: Initialize StylePresetManager with loaded packs
-    cblcarsLog.debug('[SystemsManager] 🎨 CRITICAL: Initializing StylePresetManager');
-    cblcarsLog.debug('[SystemsManager] Available packs:', packs.map(p => ({ id: p.id, hasStylePresets: !!p.style_presets })));
+    lcardsLog.debug('[SystemsManager] 🎨 CRITICAL: Initializing StylePresetManager');
+    lcardsLog.debug('[SystemsManager] Available packs:', packs.map(p => ({ id: p.id, hasStylePresets: !!p.style_presets })));
 
     if (this.stylePresetManager && !this.stylePresetManager.initialized) {
       await this.stylePresetManager.initialize(packs);
-      cblcarsLog.debug('[SystemsManager] ✅ StylePresetManager initialized');
+      lcardsLog.debug('[SystemsManager] ✅ StylePresetManager initialized');
     }
 
-    cblcarsLog.debug('[SystemsManager] ✅ Critical systems ready for overlay processing');
+    lcardsLog.debug('[SystemsManager] ✅ Critical systems ready for overlay processing');
   }
 
   /**
@@ -223,7 +223,7 @@ export class SystemsManager {
    * This is the second phase that happens after overlays can safely be processed
    */
   async completeSystems(mergedConfig, cardModel, mountEl, hass) {
-    cblcarsLog.debug('[SystemsManager] 🔧 Completing systems initialization');
+    lcardsLog.debug('[SystemsManager] 🔧 Completing systems initialization');
 
     // Initialize rules engine AFTER DataSourceManager with proper connection
     this.rulesEngine = new RulesEngine(mergedConfig.rules, this.dataSourceManager);
@@ -241,43 +241,43 @@ export class SystemsManager {
       // Connect re-evaluation to render pipeline
       // When rules are marked dirty (entity changes), evaluate and apply patches
       this.rulesEngine.setReEvaluationCallback(() => {
-        cblcarsLog.debug('[SystemsManager] 🔄 RulesEngine re-evaluation callback triggered');
+        lcardsLog.debug('[SystemsManager] 🔄 RulesEngine re-evaluation callback triggered');
 
         if (!this._hass) {
-          cblcarsLog.warn('[SystemsManager] Cannot evaluate rules - no HASS available');
+          lcardsLog.warn('[SystemsManager] Cannot evaluate rules - no HASS available');
           return;
         }
 
         // Evaluate dirty rules
         const ruleResults = this.rulesEngine.evaluateDirty(this._hass);
 
-        cblcarsLog.debug(`[SystemsManager] 🔍 DIRTY RULES RESULT:`, {
+        lcardsLog.debug(`[SystemsManager] 🔍 DIRTY RULES RESULT:`, {
           hasBaseSvgUpdate: !!ruleResults.baseSvgUpdate,
           baseSvgUpdate: ruleResults.baseSvgUpdate,
           patchCount: ruleResults.overlayPatches?.length || 0
         });
 
         if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-          cblcarsLog.debug(`[SystemsManager] 🎨 Rules produced patch(es)`);
+          lcardsLog.debug(`[SystemsManager] 🎨 Rules produced patch(es)`);
 
           // Apply incremental updates
           const updateResults = this._applyIncrementalUpdates(ruleResults.overlayPatches);
 
           // Selective re-render for overlays that failed incremental update
           if (updateResults.failedOverlays.length > 0) {
-            cblcarsLog.debug(`[SystemsManager] 🔄 Triggering SELECTIVE RE-RENDER for ${updateResults.failedOverlays.length} overlay(s)`);
+            lcardsLog.debug(`[SystemsManager] 🔄 Triggering SELECTIVE RE-RENDER for ${updateResults.failedOverlays.length} overlay(s)`);
             this._scheduleSelectiveReRender(updateResults.failedOverlays);
           }
         }
 
         // ✅ NEW: Apply base_svg filter updates from rules
         if (ruleResults.baseSvgUpdate) {
-          cblcarsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
+          lcardsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
           this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
         }
       });
 
-      cblcarsLog.debug('[SystemsManager] Rules Engine HASS monitoring configured');
+      lcardsLog.debug('[SystemsManager] Rules Engine HASS monitoring configured');
     }
 
     // Initialize rendering systems
@@ -288,7 +288,7 @@ export class SystemsManager {
 
     // ADDED: Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {
-      cblcarsLog.debug('[SystemsManager] Setting initial HASS context on controls renderer');
+      lcardsLog.debug('[SystemsManager] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
 
@@ -304,17 +304,17 @@ export class SystemsManager {
 
     // Mark router as ready for debug system
     this.debugManager.markRouterReady();
-    cblcarsLog.debug('[SystemsManager] RouterCore marked ready for debug system');
+    lcardsLog.debug('[SystemsManager] RouterCore marked ready for debug system');
 
     // Initialize animation registry
     this.animRegistry = new AnimationRegistry();
 
     // ADDED: Initialize unified overlay update system
     this.overlayUpdater = new BaseOverlayUpdater(this);
-    cblcarsLog.debug('[SystemsManager] BaseOverlayUpdater initialized for unified overlay updates');
+    lcardsLog.debug('[SystemsManager] BaseOverlayUpdater initialized for unified overlay updates');
 
     // ✨ NEW: Phase 5 - Initialize AnimationManager
-    cblcarsLog.debug('[SystemsManager] 🎬 Phase 5: Initializing AnimationManager');
+    lcardsLog.debug('[SystemsManager] 🎬 Phase 5: Initializing AnimationManager');
     this.animationManager = new AnimationManager(this);
 
     // Process animation configuration from merged config
@@ -326,9 +326,9 @@ export class SystemsManager {
       timelines: animationConfig.timelines
     });
 
-    cblcarsLog.debug('[SystemsManager] ✅ AnimationManager initialized');
+    lcardsLog.debug('[SystemsManager] ✅ AnimationManager initialized');
 
-    cblcarsLog.debug('[SystemsManager] ✅ All systems initialization complete', {
+    lcardsLog.debug('[SystemsManager] ✅ All systems initialization complete', {
       hasThemeManager: !!this.themeManager,
       hasStyleResolver: !!this.styleResolver,  // ✅ NEW: Phase 6
       hasDataSourceManager: !!this.dataSourceManager,
@@ -345,7 +345,7 @@ export class SystemsManager {
 
   // Keep the original initializeSystems method for backward compatibility but mark it deprecated
   async initializeSystems(mergedConfig, cardModel, mountEl, hass) {
-    cblcarsLog.warn('[SystemsManager] ⚠️ initializeSystems is deprecated, use initializeSystemsWithPacksFirst + completeSystems');
+    lcardsLog.warn('[SystemsManager] ⚠️ initializeSystems is deprecated, use initializeSystemsWithPacksFirst + completeSystems');
 
     // Use the new sequenced approach
     await this.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
@@ -443,7 +443,7 @@ export class SystemsManager {
         this.rulesEngine.__perfWrapped = true;
       }
     } catch(e){
-      cblcarsLog.warn('[SystemsManager][rules instrumentation] failed', e);
+      lcardsLog.warn('[SystemsManager][rules instrumentation] failed', e);
     }
   }
 
@@ -452,7 +452,7 @@ export class SystemsManager {
 
     // ENHANCED: Better logging and error handling
     if (!hass) {
-      cblcarsLog.warn('[SystemsManager] No HASS provided - DataSourceManager will not be initialized');
+      lcardsLog.warn('[SystemsManager] No HASS provided - DataSourceManager will not be initialized');
       return;
     }
 
@@ -464,18 +464,18 @@ export class SystemsManager {
     const configuredDataSources = mergedConfig.data_sources || {};
     const dataSourcesWithTemplates = await this._createTemplateDataSources(mergedConfig, configuredDataSources);
 
-    cblcarsLog.debug('[SystemsManager] 🔍 Using explicit + auto-template data sources mode');
-    cblcarsLog.debug('[SystemsManager] 🔍 Configured data sources:', Object.keys(configuredDataSources));
-    cblcarsLog.debug('[SystemsManager] 🔍 Total data sources (including auto-template):', Object.keys(dataSourcesWithTemplates));
+    lcardsLog.debug('[SystemsManager] 🔍 Using explicit + auto-template data sources mode');
+    lcardsLog.debug('[SystemsManager] 🔍 Configured data sources:', Object.keys(configuredDataSources));
+    lcardsLog.debug('[SystemsManager] 🔍 Total data sources (including auto-template):', Object.keys(dataSourcesWithTemplates));
 
     // Controls use direct HASS - no data sources needed
     const controlEntities = this._extractControlEntities(mergedConfig);
-    cblcarsLog.debug('[SystemsManager] 🔍 Control entities (using direct HASS):', controlEntities);
+    lcardsLog.debug('[SystemsManager] 🔍 Control entities (using direct HASS):', controlEntities);
 
     // Use configured + auto-created data sources
     const allDataSources = { ...dataSourcesWithTemplates };
 
-    cblcarsLog.debug('[SystemsManager] 📊 Data source summary:', {
+    lcardsLog.debug('[SystemsManager] 📊 Data source summary:', {
       configured: Object.keys(configuredDataSources).length,
       autoCreated: Object.keys(dataSourcesWithTemplates).length - Object.keys(configuredDataSources).length,
       total: Object.keys(allDataSources).length,
@@ -483,12 +483,12 @@ export class SystemsManager {
     });
 
     if (Object.keys(allDataSources).length === 0) {
-      cblcarsLog.debug('[SystemsManager] No data sources configured or auto-created - DataSourceManager will not be initialized');
-      cblcarsLog.debug('[SystemsManager] Note: Control overlays will use direct HASS (no data sources needed)');
+      lcardsLog.debug('[SystemsManager] No data sources configured or auto-created - DataSourceManager will not be initialized');
+      lcardsLog.debug('[SystemsManager] Note: Control overlays will use direct HASS (no data sources needed)');
       return;
     }
 
-    cblcarsLog.debug('[SystemsManager] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
+    lcardsLog.debug('[SystemsManager] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
 
     try {
       this.dataSourceManager = new DataSourceManager(hass);
@@ -516,7 +516,7 @@ export class SystemsManager {
               for (const [sourceId, source] of this.dataSourceManager.sources) {
                 if (source.cfg && source.cfg.entity === entityId) {
                   entitiesToMarkDirty.add(sourceId);
-                  cblcarsLog.debug(`[SystemsManager] Mapped entity "${entityId}" to DataSource "${sourceId}"`);
+                  lcardsLog.debug(`[SystemsManager] Mapped entity "${entityId}" to DataSource "${sourceId}"`);
                 }
               }
             }
@@ -528,7 +528,7 @@ export class SystemsManager {
           // Evaluate rules to check if patches need to be applied
           const ruleResults = this.rulesEngine.evaluateDirty(this._hass);
 
-          cblcarsLog.debug('[SystemsManager] 🔍 RULE EVALUATION RESULT:', {
+          lcardsLog.debug('[SystemsManager] 🔍 RULE EVALUATION RESULT:', {
             patchCount: ruleResults.overlayPatches?.length || 0,
             patches: ruleResults.overlayPatches?.map(p => ({
               overlayId: p.id,
@@ -538,43 +538,43 @@ export class SystemsManager {
           });
 
           if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-            cblcarsLog.debug(`[SystemsManager] 🎨 Rules produced patch(es)`);
+            lcardsLog.debug(`[SystemsManager] 🎨 Rules produced patch(es)`);
 
             // TRY: Incremental updates first (Phase 1: StatusGrid, Phase 2: ApexCharts, etc.)
             const updateResults = this._applyIncrementalUpdates(ruleResults.overlayPatches);
 
             // SELECTIVE RE-RENDER: Only re-render overlays that failed incremental update
             if (updateResults.failedOverlays.length > 0) {
-              cblcarsLog.debug(`[SystemsManager] 🔄 Triggering SELECTIVE RE-RENDER for ${updateResults.failedOverlays.length} overlay(s)`);
+              lcardsLog.debug(`[SystemsManager] 🔄 Triggering SELECTIVE RE-RENDER for ${updateResults.failedOverlays.length} overlay(s)`);
               this._scheduleSelectiveReRender(updateResults.failedOverlays);
             } else {
-              cblcarsLog.info('[SystemsManager] ✅ All updates completed INCREMENTALLY - NO full re-render needed');
+              lcardsLog.info('[SystemsManager] ✅ All updates completed INCREMENTALLY - NO full re-render needed');
             }
           } else {
-            cblcarsLog.debug('[SystemsManager] ℹ️ No rule patches needed');
+            lcardsLog.debug('[SystemsManager] ℹ️ No rule patches needed');
           }
 
           // ✅ NEW: Apply base_svg filter updates from rules
           if (ruleResults.baseSvgUpdate) {
-            cblcarsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
+            lcardsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
             this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
           }
         }
       });
 
-      cblcarsLog.debug('[SystemsManager] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
+      lcardsLog.debug('[SystemsManager] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
       this._entityChangeListenerRegistered = true;
 
       const sourceCount = await this.dataSourceManager.initializeFromConfig(allDataSources);
-      cblcarsLog.debug('[SystemsManager] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
+      lcardsLog.debug('[SystemsManager] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
 
       // ADDED: Verify entities are available
       const entityIds = this.dataSourceManager.listIds();
-      cblcarsLog.debug('[SystemsManager] ✅ DataSourceManager entities available:', entityIds);
+      lcardsLog.debug('[SystemsManager] ✅ DataSourceManager entities available:', entityIds);
 
     } catch (error) {
-      cblcarsLog.error('[SystemsManager] ❌ DataSourceManager initialization failed:', error);
-      cblcarsLog.error('[SystemsManager] Error details:', error.stack);
+      lcardsLog.error('[SystemsManager] ❌ DataSourceManager initialization failed:', error);
+      lcardsLog.error('[SystemsManager] Error details:', error.stack);
       this.dataSourceManager = null;
     }
   }
@@ -596,7 +596,7 @@ export class SystemsManager {
           const entities = TemplateEntityExtractor.extractFromOverlay(overlay);
           entities.forEach(entity => templateEntities.add(entity));
         } catch (error) {
-          cblcarsLog.error('[SystemsManager] Error extracting entities from overlay:', overlay.id, error);
+          lcardsLog.error('[SystemsManager] Error extracting entities from overlay:', overlay.id, error);
         }
       });
     }
@@ -630,7 +630,7 @@ export class SystemsManager {
     });
 
     if (autoCreatedCount > 0) {
-      cblcarsLog.debug(`[SystemsManager] 📄 Auto-created DataSources for template entities:`,
+      lcardsLog.debug(`[SystemsManager] 📄 Auto-created DataSources for template entities:`,
         Array.from(templateEntities).join(', '));
     }
 
@@ -673,7 +673,7 @@ export class SystemsManager {
     // ADDED: Cleanup ApexCharts instances before destroying other systems
     if (ApexChartsOverlayRenderer) {
       ApexChartsOverlayRenderer.cleanupAll();
-      cblcarsLog.debug('[SystemsManager] ApexCharts instances cleaned up');
+      lcardsLog.debug('[SystemsManager] ApexCharts instances cleaned up');
     }
 
     // Clean up rules engine first
@@ -692,9 +692,9 @@ export class SystemsManager {
     if (this.styleResolver) {
       try {
         this.styleResolver.invalidateCache('overlay');
-        cblcarsLog.debug('[SystemsManager] StyleResolver overlay cache invalidated');
+        lcardsLog.debug('[SystemsManager] StyleResolver overlay cache invalidated');
       } catch (error) {
-        cblcarsLog.error('[SystemsManager] StyleResolver cleanup error:', error);
+        lcardsLog.error('[SystemsManager] StyleResolver cleanup error:', error);
       }
     }
 
@@ -710,9 +710,9 @@ export class SystemsManager {
     //*** clean up other systems */
 
     // Remove global references
-    if (typeof window !== 'undefined' && window.cblcars.debug.msd) {
-      delete window.cblcars.debug.msd.pipelineInstance;
-      delete window.cblcars.debug.msd.systemsManager;
+    if (typeof window !== 'undefined' && window.lcards.debug.msd) {
+      delete window.lcards.debug.msd.pipelineInstance;
+      delete window.lcards.debug.msd.systemsManager;
     }
   }
 
@@ -724,7 +724,7 @@ export class SystemsManager {
   async renderDebugAndControls(resolvedModel, mountEl = null) {
     // ADDED: Early exit if already rendering
     if (this._debugControlsRendering) {
-      cblcarsLog.debug('[SystemsManager] renderDebugAndControls already in progress, skipping');
+      lcardsLog.debug('[SystemsManager] renderDebugAndControls already in progress, skipping');
       return;
     }
 
@@ -733,7 +733,7 @@ export class SystemsManager {
     try {
       const debugState = this.debugManager.getSnapshot();
 
-      cblcarsLog.debug('[SystemsManager] renderDebugAndControls called:', {
+      lcardsLog.debug('[SystemsManager] renderDebugAndControls called:', {
         anyEnabled: this.debugManager.isAnyEnabled(),
         controlOverlays: resolvedModel.overlays.filter(o => o.type === 'control').length,
         hasHass: !!this._hass,
@@ -743,7 +743,7 @@ export class SystemsManager {
 
       // ADDED: Validate resolved model
       if (!resolvedModel || !resolvedModel.overlays) {
-        cblcarsLog.warn('[SystemsManager] Invalid resolved model for renderDebugAndControls');
+        lcardsLog.warn('[SystemsManager] Invalid resolved model for renderDebugAndControls');
         return;
       }
 
@@ -762,9 +762,9 @@ export class SystemsManager {
           };
 
           this.debugRenderer.render(mountEl || this.renderer?.mountEl, resolvedModel.viewBox, debugOptions);
-          cblcarsLog.debug('[SystemsManager] ✅ Debug renderer completed');
+          lcardsLog.debug('[SystemsManager] ✅ Debug renderer completed');
         } catch (error) {
-          cblcarsLog.error('[SystemsManager] ❌ Debug renderer failed:', error);
+          lcardsLog.error('[SystemsManager] ❌ Debug renderer failed:', error);
           // Continue execution - don't fail the entire render
         }
       }
@@ -772,21 +772,21 @@ export class SystemsManager {
       // FIXED: Render control overlays with comprehensive error handling
       const controlOverlays = resolvedModel.overlays.filter(o => o.type === 'control');
       if (controlOverlays.length > 0) {
-        cblcarsLog.debug('[SystemsManager] Rendering control overlays:', controlOverlays.map(c => c.id));
+        lcardsLog.debug('[SystemsManager] Rendering control overlays:', controlOverlays.map(c => c.id));
 
         try {
           // ADDED: Validate controls renderer exists
           if (!this.controlsRenderer) {
-            cblcarsLog.error('[SystemsManager] No controls renderer available');
+            lcardsLog.error('[SystemsManager] No controls renderer available');
             return;
           }
 
           // Ensure controls renderer has current HASS context
           if (this._hass && this.controlsRenderer) {
             this.controlsRenderer.setHass(this._hass);
-            cblcarsLog.debug('[SystemsManager] HASS context applied to controls renderer');
+            lcardsLog.debug('[SystemsManager] HASS context applied to controls renderer');
           } else {
-            cblcarsLog.warn('[SystemsManager] No HASS context available for controls');
+            lcardsLog.warn('[SystemsManager] No HASS context available for controls');
           }
 
           // REMOVED: Defensive container creation - not needed with SVG foreignObject approach
@@ -799,17 +799,17 @@ export class SystemsManager {
           );
 
           await Promise.race([renderPromise, timeoutPromise]);
-          cblcarsLog.debug('[SystemsManager] ✅ Controls rendered successfully');
+          lcardsLog.debug('[SystemsManager] ✅ Controls rendered successfully');
 
         } catch (error) {
-          cblcarsLog.error('[SystemsManager] ❌ Controls rendering failed:', error);
-          cblcarsLog.error('[SystemsManager] Error stack:', error.stack);
+          lcardsLog.error('[SystemsManager] ❌ Controls rendering failed:', error);
+          lcardsLog.error('[SystemsManager] Error stack:', error.stack);
         }
       }
 
     } catch (error) {
-      cblcarsLog.error('[SystemsManager] renderDebugAndControls failed completely:', error);
-      cblcarsLog.error('[SystemsManager] Error stack:', error.stack);
+      lcardsLog.error('[SystemsManager] renderDebugAndControls failed completely:', error);
+      lcardsLog.error('[SystemsManager] Error stack:', error.stack);
     } finally {
       this._debugControlsRendering = false;
     }
@@ -834,7 +834,7 @@ export class SystemsManager {
    * @returns {Object} Debug flags
    */
   _getDebugFlags() {
-    return window.cblcars?._debugFlags || {};
+    return window.lcards?._debugFlags || {};
   }
 
   /**
@@ -848,7 +848,7 @@ export class SystemsManager {
 
   // Public API methods - now exclusively using DataSourceManager
   ingestHass(hass) {
-    cblcarsLog.debug('[SystemsManager] ingestHass called with:', {
+    lcardsLog.debug('[SystemsManager] ingestHass called with:', {
       hasHass: !!hass,
       hasStates: !!hass?.states,
       entityCount: hass?.states ? Object.keys(hass.states).length : 0,
@@ -858,33 +858,33 @@ export class SystemsManager {
     });
 
     if (!hass || !hass.states) {
-      cblcarsLog.warn('[SystemsManager] ingestHass called without valid hass.states');
+      lcardsLog.warn('[SystemsManager] ingestHass called without valid hass.states');
       return;
     }
 
     // PHASE 1: Update single source of truth
     this._hass = hass;
 
-    cblcarsLog.debug('[SystemsManager] Updated _hass with fresh data');
+    lcardsLog.debug('[SystemsManager] Updated _hass with fresh data');
 
     // ENHANCED: Pass HASS to controls renderer EVERY time to ensure cards get updates
     if (this.controlsRenderer) {
-      cblcarsLog.debug('[SystemsManager] Updating HASS context in controls renderer immediately');
+      lcardsLog.debug('[SystemsManager] Updating HASS context in controls renderer immediately');
       this.controlsRenderer.setHass(hass);
     } else {
-      cblcarsLog.warn('[SystemsManager] No controls renderer available for HASS update');
+      lcardsLog.warn('[SystemsManager] No controls renderer available for HASS update');
     }
 
     // DataSources handle HASS updates automatically via their subscriptions
     // No manual ingestion needed - handled by individual data sources
-    cblcarsLog.debug('[SystemsManager] HASS ingestion handled by individual data sources');
+    lcardsLog.debug('[SystemsManager] HASS ingestion handled by individual data sources');
   }
 
   updateEntities(map) {
     if (!map || typeof map !== 'object') return;
 
-    cblcarsLog.debug('[SystemsManager] Manual entity updates not supported in DataSources system');
-    cblcarsLog.warn('[SystemsManager] Use direct HASS state updates instead of manual entity updates');
+    lcardsLog.debug('[SystemsManager] Manual entity updates not supported in DataSources system');
+    lcardsLog.warn('[SystemsManager] Use direct HASS state updates instead of manual entity updates');
   }
 
   // Entity API methods using DataSourceManager
@@ -920,7 +920,7 @@ export class SystemsManager {
    * @private
    */
   _setupGlobalHudInterface() {
-    cblcarsLog.debug('[SystemsManager] Global HUD interface setup completed');
+    lcardsLog.debug('[SystemsManager] Global HUD interface setup completed');
     // This method is called during initialization
     // Future HUD interface setup will go here
   }
@@ -945,13 +945,13 @@ export class SystemsManager {
     });
 
     if (affectedDataSources.length > 0) {
-      cblcarsLog.debug('[SystemsManager] 🎯 DataSource entities affected by changes:', affectedDataSources);
+      lcardsLog.debug('[SystemsManager] 🎯 DataSource entities affected by changes:', affectedDataSources);
 
       // ADVANCED: Check if the specific rule thresholds might be crossed
       // This is where we could add more sophisticated logic to detect actual rule changes
       const mightCrossThresholds = this._checkThresholdCrossing(changedIds);
 
-      cblcarsLog.debug('[SystemsManager] 🌡️ Threshold crossing check:', mightCrossThresholds);
+      lcardsLog.debug('[SystemsManager] 🌡️ Threshold crossing check:', mightCrossThresholds);
       return mightCrossThresholds;
     }
 
@@ -983,7 +983,7 @@ export class SystemsManager {
           });
 
           if (isDataSourceAffected) {
-            cblcarsLog.debug('[SystemsManager] 🎯 Rule condition potentially affected:', {
+            lcardsLog.debug('[SystemsManager] 🎯 Rule condition potentially affected:', {
               rule: rule.id,
               entity: entityInRule,
               threshold: condition.above || condition.below,
@@ -1001,7 +1001,7 @@ export class SystemsManager {
               // Check if current value satisfies the condition
               const currentlyMatches = condition.above ? isAboveThreshold : isBelowThreshold;
 
-              cblcarsLog.debug('[SystemsManager] 🌡️ Detailed threshold analysis:', {
+              lcardsLog.debug('[SystemsManager] 🌡️ Detailed threshold analysis:', {
                 currentValue,
                 threshold,
                 operator: condition.above ? 'above' : 'below',
@@ -1019,7 +1019,7 @@ export class SystemsManager {
               const ruleKey = `${rule.id}_${condition.entity}`;
               const previouslyMatched = this._previousRuleStates.get(ruleKey);
 
-              cblcarsLog.debug('[SystemsManager] 📊 Rule state comparison:', {
+              lcardsLog.debug('[SystemsManager] 📊 Rule state comparison:', {
                 ruleKey,
                 previouslyMatched,
                 currentlyMatches,
@@ -1031,14 +1031,14 @@ export class SystemsManager {
 
               // Only trigger re-render if the rule state actually changed
               if (previouslyMatched !== undefined && previouslyMatched !== currentlyMatches) {
-                cblcarsLog.debug('[SystemsManager] 🔄 Rule state CHANGED - threshold crossing detected!');
+                lcardsLog.debug('[SystemsManager] 🔄 Rule state CHANGED - threshold crossing detected!');
                 return true;
               } else if (previouslyMatched === undefined) {
-                cblcarsLog.debug('[SystemsManager] 🆕 First rule evaluation - storing state');
+                lcardsLog.debug('[SystemsManager] 🆕 First rule evaluation - storing state');
                 // First time seeing this rule, don't trigger re-render
                 return false;
               } else {
-                cblcarsLog.debug('[SystemsManager] 📌 Rule state UNCHANGED - no threshold crossing');
+                lcardsLog.debug('[SystemsManager] 📌 Rule state UNCHANGED - no threshold crossing');
                 return false;
               }
             }
@@ -1047,7 +1047,7 @@ export class SystemsManager {
       }
     }
 
-    cblcarsLog.debug('[SystemsManager] 📊 No threshold crossings detected');
+    lcardsLog.debug('[SystemsManager] 📊 No threshold crossings detected');
     return false;
   }
 
@@ -1094,7 +1094,7 @@ export class SystemsManager {
       if (overlayGroup) {
         element = overlayGroup.querySelector(`[data-overlay-id="${overlay.id}"]`);
         if (element) {
-          cblcarsLog.debug(`[SystemsManager] ✅ Found overlay element in #msd-overlay-container: ${overlay.id}`);
+          lcardsLog.debug(`[SystemsManager] ✅ Found overlay element in #msd-overlay-container: ${overlay.id}`);
           return element;
         }
       }
@@ -1102,7 +1102,7 @@ export class SystemsManager {
       // Fallback: Direct search in mountEl
       element = this.renderer.mountEl.querySelector(`[data-overlay-id="${overlay.id}"]`);
       if (element) {
-        cblcarsLog.debug(`[SystemsManager] ✅ Found overlay element in mountEl: ${overlay.id}`);
+        lcardsLog.debug(`[SystemsManager] ✅ Found overlay element in mountEl: ${overlay.id}`);
         return element;
       }
     }
@@ -1112,7 +1112,7 @@ export class SystemsManager {
     if (!element && card?.shadowRoot) {
       element = card.shadowRoot.querySelector(`[data-overlay-id="${overlay.id}"]`);
       if (element) {
-        cblcarsLog.debug(`[SystemsManager] ✅ Found overlay element in card shadowRoot: ${overlay.id}`);
+        lcardsLog.debug(`[SystemsManager] ✅ Found overlay element in card shadowRoot: ${overlay.id}`);
         return element;
       }
     }
@@ -1121,12 +1121,12 @@ export class SystemsManager {
     if (!element && typeof document !== 'undefined') {
       element = document.querySelector(`[data-overlay-id="${overlay.id}"]`);
       if (element) {
-        cblcarsLog.debug(`[SystemsManager] ✅ Found overlay element in document: ${overlay.id}`);
+        lcardsLog.debug(`[SystemsManager] ✅ Found overlay element in document: ${overlay.id}`);
         return element;
       }
     }
 
-    cblcarsLog.warn(`[SystemsManager] ❌ Could not find overlay element: ${overlay.id}`, {
+    lcardsLog.warn(`[SystemsManager] ❌ Could not find overlay element: ${overlay.id}`, {
       hasMountEl: !!this.renderer?.mountEl,
       hasOverlayContainer: !!this.renderer?.mountEl?.querySelector('#msd-overlay-container'),
       hasCardShadowRoot: !!(typeof window !== 'undefined' && window.cb_lcars_card_instance?.shadowRoot)
@@ -1143,7 +1143,7 @@ export class SystemsManager {
    * @returns {Object} Results with successfulOverlays and failedOverlays arrays
    */
   _applyIncrementalUpdates(overlayPatches) {
-    cblcarsLog.debug(`[SystemsManager] 🎨 ATTEMPTING INCREMENTAL UPDATES for ${overlayPatches.length} overlay(s)`);
+    lcardsLog.debug(`[SystemsManager] 🎨 ATTEMPTING INCREMENTAL UPDATES for ${overlayPatches.length} overlay(s)`);
 
     const failedOverlays = [];
     const successfulOverlays = [];
@@ -1152,7 +1152,7 @@ export class SystemsManager {
       // Find overlay config
       const overlay = this._findOverlayById(patch.id);
       if (!overlay) {
-        cblcarsLog.warn(`[SystemsManager] ⚠️ Overlay not found: ${patch.id}`);
+        lcardsLog.warn(`[SystemsManager] ⚠️ Overlay not found: ${patch.id}`);
         failedOverlays.push({ id: patch.id, reason: 'Overlay config not found', patch });
         return;
       }
@@ -1161,7 +1161,7 @@ export class SystemsManager {
       // The overlay from resolvedModel has the OLD finalStyle from initial page load
       // We need to apply the NEW patch to get the current style
       if (patch.style && Object.keys(patch.style).length > 0) {
-        cblcarsLog.debug(`[SystemsManager] 🎨 Merging patch style into finalStyle for ${patch.id}:`, {
+        lcardsLog.debug(`[SystemsManager] 🎨 Merging patch style into finalStyle for ${patch.id}:`, {
           oldColor: overlay.finalStyle?.color,
           patchColor: patch.style.color,
           patchKeys: Object.keys(patch.style)
@@ -1173,7 +1173,7 @@ export class SystemsManager {
           ...patch.style
         };
 
-        cblcarsLog.debug(`[SystemsManager] ✅ Merged finalStyle for ${patch.id}:`, {
+        lcardsLog.debug(`[SystemsManager] ✅ Merged finalStyle for ${patch.id}:`, {
           newColor: overlay.finalStyle.color,
           finalStyleKeys: Object.keys(overlay.finalStyle)
         });
@@ -1181,14 +1181,14 @@ export class SystemsManager {
 
       // ✨ NEW: Process animations from rule patches (Phase 2)
       if (patch.animations && Array.isArray(patch.animations) && patch.animations.length > 0) {
-        cblcarsLog.debug(`[SystemsManager] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id} from rule`);
+        lcardsLog.debug(`[SystemsManager] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id} from rule`);
 
         if (this.animationManager) {
           patch.animations.forEach(animDef => {
             this.animationManager.playAnimation(patch.id, animDef);
           });
         } else {
-          cblcarsLog.warn(`[SystemsManager] AnimationManager not available - cannot trigger animations for ${patch.id}`);
+          lcardsLog.warn(`[SystemsManager] AnimationManager not available - cannot trigger animations for ${patch.id}`);
         }
       }
 
@@ -1198,9 +1198,9 @@ export class SystemsManager {
         // Control overlays (embedded HA cards) don't have renderers - this is expected
         const isControl = overlay.type === 'control';
         if (isControl) {
-          cblcarsLog.debug(`[SystemsManager] Control overlay "${overlay.id}" has no renderer - will use SELECTIVE RE-RENDER`);
+          lcardsLog.debug(`[SystemsManager] Control overlay "${overlay.id}" has no renderer - will use SELECTIVE RE-RENDER`);
         } else {
-          cblcarsLog.debug(`[SystemsManager] No renderer registered for type "${overlay.type}" - will use SELECTIVE RE-RENDER: ${overlay.id}`);
+          lcardsLog.debug(`[SystemsManager] No renderer registered for type "${overlay.type}" - will use SELECTIVE RE-RENDER: ${overlay.id}`);
         }
         failedOverlays.push({ id: overlay.id, type: overlay.type, reason: 'No renderer registered', overlay, patch });
         return;
@@ -1209,7 +1209,7 @@ export class SystemsManager {
       // Check if renderer supports incremental updates
       if (!RendererClass.supportsIncrementalUpdate || !RendererClass.supportsIncrementalUpdate()) {
         // Normal behavior - many renderers don't support incremental updates yet
-        cblcarsLog.debug(`[SystemsManager] Renderer for "${overlay.type}" does not support incremental updates - will use SELECTIVE RE-RENDER: ${overlay.id}`);
+        lcardsLog.debug(`[SystemsManager] Renderer for "${overlay.type}" does not support incremental updates - will use SELECTIVE RE-RENDER: ${overlay.id}`);
         failedOverlays.push({ id: overlay.id, type: overlay.type, reason: 'Incremental not supported by renderer', overlay, patch });
         return;
       }
@@ -1218,7 +1218,7 @@ export class SystemsManager {
       const overlayElement = this._findOverlayElement(overlay);
       if (!overlayElement) {
         // Could happen during initialization or if overlay was removed
-        cblcarsLog.debug(`[SystemsManager] Overlay element not found in DOM - will use SELECTIVE RE-RENDER: ${overlay.id}`);
+        lcardsLog.debug(`[SystemsManager] Overlay element not found in DOM - will use SELECTIVE RE-RENDER: ${overlay.id}`);
         failedOverlays.push({ id: overlay.id, type: overlay.type, reason: 'DOM element not found', overlay, patch });
         return;
       }
@@ -1236,14 +1236,14 @@ export class SystemsManager {
 
         if (!succeeded) {
           // Incremental update declined - will fall back to full re-render (expected for some changes)
-          cblcarsLog.debug(`[SystemsManager] Incremental update returned false - will use SELECTIVE RE-RENDER: ${overlay.id}`);
+          lcardsLog.debug(`[SystemsManager] Incremental update returned false - will use SELECTIVE RE-RENDER: ${overlay.id}`);
           failedOverlays.push({ id: overlay.id, type: overlay.type, reason: 'Update method returned false', overlay, patch });
         } else {
-          cblcarsLog.debug(`[SystemsManager] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.type} "${overlay.id}"`);
+          lcardsLog.debug(`[SystemsManager] ✅ INCREMENTAL UPDATE SUCCESS: ${overlay.type} "${overlay.id}"`);
           successfulOverlays.push({ id: overlay.id, type: overlay.type });
         }
       } catch (error) {
-        cblcarsLog.error(`[SystemsManager] ❌ Incremental update ERROR: ${overlay.id}`, error);
+        lcardsLog.error(`[SystemsManager] ❌ Incremental update ERROR: ${overlay.id}`, error);
         failedOverlays.push({ id: overlay.id, type: overlay.type, reason: `Exception: ${error.message}`, overlay, patch });
       }
     });
@@ -1252,27 +1252,27 @@ export class SystemsManager {
     const allSucceeded = failedOverlays.length === 0;
 
     if (allSucceeded) {
-      cblcarsLog.info(`[SystemsManager] ✅ ALL ${overlayPatches.length} overlay(s) updated INCREMENTALLY - NO re-render needed`);
+      lcardsLog.info(`[SystemsManager] ✅ ALL ${overlayPatches.length} overlay(s) updated INCREMENTALLY - NO re-render needed`);
       successfulOverlays.forEach(o => {
-        cblcarsLog.debug(`  ✅ ${o.type}: ${o.id}`);
+        lcardsLog.debug(`  ✅ ${o.type}: ${o.id}`);
       });
     } else {
       const successCount = successfulOverlays.length;
       const failCount = failedOverlays.length;
 
       // Selective re-render is normal behavior, not a warning
-      cblcarsLog.debug(`[SystemsManager] ${failCount}/${overlayPatches.length} overlay(s) need SELECTIVE RE-RENDER`);
+      lcardsLog.debug(`[SystemsManager] ${failCount}/${overlayPatches.length} overlay(s) need SELECTIVE RE-RENDER`);
 
       if (successCount > 0) {
-        cblcarsLog.debug(`[SystemsManager] ✅ Successfully updated incrementally (${successCount}):`);
+        lcardsLog.debug(`[SystemsManager] ✅ Successfully updated incrementally (${successCount}):`);
         successfulOverlays.forEach(o => {
-          cblcarsLog.debug(`  ✅ ${o.type}: ${o.id}`);
+          lcardsLog.debug(`  ✅ ${o.type}: ${o.id}`);
         });
       }
 
-      cblcarsLog.debug(`[SystemsManager] Will selectively re-render (${failCount}):`);
+      lcardsLog.debug(`[SystemsManager] Will selectively re-render (${failCount}):`);
       failedOverlays.forEach(f => {
-        cblcarsLog.debug(`  ❌ ${f.type || 'unknown'}: ${f.id} - ${f.reason}`);
+        lcardsLog.debug(`  ❌ ${f.type || 'unknown'}: ${f.id} - ${f.reason}`);
       });
     }
 
@@ -1291,7 +1291,7 @@ export class SystemsManager {
       // Find the base SVG content group (not the root SVG element)
       const mountEl = this.renderer?.mountEl;
 
-      cblcarsLog.debug('[SystemsManager] 🔍 Searching for base content group:', {
+      lcardsLog.debug('[SystemsManager] 🔍 Searching for base content group:', {
         hasMountEl: !!mountEl,
         mountElTag: mountEl?.tagName,
         svgExists: !!mountEl?.querySelector('svg'),
@@ -1301,8 +1301,8 @@ export class SystemsManager {
       const baseSvgElement = mountEl?.querySelector('#__msd-base-content');
 
       if (!baseSvgElement) {
-        cblcarsLog.warn('[SystemsManager] Cannot update base SVG filters - base content group not found');
-        cblcarsLog.debug('[SystemsManager] Available groups in SVG:',
+        lcardsLog.warn('[SystemsManager] Cannot update base SVG filters - base content group not found');
+        lcardsLog.debug('[SystemsManager] Available groups in SVG:',
           Array.from(mountEl?.querySelectorAll('svg g') || []).map(g => ({
             id: g.id,
             tagName: g.tagName
@@ -1311,7 +1311,7 @@ export class SystemsManager {
         return;
       }
 
-      cblcarsLog.debug('[SystemsManager] ✅ Found base content group:', {
+      lcardsLog.debug('[SystemsManager] ✅ Found base content group:', {
         id: baseSvgElement.id,
         tagName: baseSvgElement.tagName
       });
@@ -1323,9 +1323,9 @@ export class SystemsManager {
         const preset = this.themeManager?.getFilterPreset(baseSvgConfig.filter_preset);
         if (preset) {
           filters = { ...preset };
-          cblcarsLog.debug(`[SystemsManager] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
+          lcardsLog.debug(`[SystemsManager] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
         } else {
-          cblcarsLog.warn(`[SystemsManager] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
+          lcardsLog.warn(`[SystemsManager] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
           return;
         }
       }
@@ -1345,7 +1345,7 @@ export class SystemsManager {
         // Clear filters (remove all filtering)
         const { clearBaseSvgFilters } = await import('../utils/BaseSvgFilters.js');
         clearBaseSvgFilters(baseSvgElement, transition);
-        cblcarsLog.debug(`[SystemsManager] ✅ Cleared base SVG filters`);
+        lcardsLog.debug(`[SystemsManager] ✅ Cleared base SVG filters`);
         return;
       }
 
@@ -1353,9 +1353,9 @@ export class SystemsManager {
       const { transitionBaseSvgFilters } = await import('../utils/BaseSvgFilters.js');
       await transitionBaseSvgFilters(baseSvgElement, filters, transition);
 
-      cblcarsLog.debug(`[SystemsManager] ✅ Applied base SVG filters:`, filters);
+      lcardsLog.debug(`[SystemsManager] ✅ Applied base SVG filters:`, filters);
     } catch (error) {
-      cblcarsLog.error('[SystemsManager] Failed to apply base SVG filter update:', error);
+      lcardsLog.error('[SystemsManager] Failed to apply base SVG filter update:', error);
     }
   }
 
@@ -1364,10 +1364,10 @@ export class SystemsManager {
    * @private
    */
   _scheduleFullReRender() {
-    cblcarsLog.info('[SystemsManager] 📅 SCHEDULED full re-render (100ms delay)');
+    lcardsLog.info('[SystemsManager] 📅 SCHEDULED full re-render (100ms delay)');
 
     if (this._renderTimeout) {
-      cblcarsLog.debug('[SystemsManager] ⏰ Clearing existing render timeout');
+      lcardsLog.debug('[SystemsManager] ⏰ Clearing existing render timeout');
       clearTimeout(this._renderTimeout);
     }
 
@@ -1376,15 +1376,15 @@ export class SystemsManager {
       if (this._reRenderCallback && !this._renderInProgress) {
         try {
           this._renderInProgress = true;
-          cblcarsLog.info('[SystemsManager] 🚀 EXECUTING full re-render from rule change timeout');
+          lcardsLog.info('[SystemsManager] 🚀 EXECUTING full re-render from rule change timeout');
           this._reRenderCallback();
         } catch (error) {
-          cblcarsLog.error('[SystemsManager] ❌ Re-render FAILED in entity change handler:', error);
+          lcardsLog.error('[SystemsManager] ❌ Re-render FAILED in entity change handler:', error);
         } finally {
           this._renderInProgress = false;
         }
       } else {
-        cblcarsLog.warn('[SystemsManager] ⚠️ Re-render NOT triggered:', {
+        lcardsLog.warn('[SystemsManager] ⚠️ Re-render NOT triggered:', {
           hasCallback: !!this._reRenderCallback,
           renderInProgress: this._renderInProgress
         });
@@ -1399,10 +1399,10 @@ export class SystemsManager {
    * @param {Array} failedOverlays - Array of overlay info objects with {id, type, overlay, patch}
    */
   _scheduleSelectiveReRender(failedOverlays) {
-    cblcarsLog.debug(`[SystemsManager] 📅 SCHEDULED selective re-render for ${failedOverlays.length} overlay(s) (100ms delay)`);
+    lcardsLog.debug(`[SystemsManager] 📅 SCHEDULED selective re-render for ${failedOverlays.length} overlay(s) (100ms delay)`);
 
     if (this._selectiveRenderTimeout) {
-      cblcarsLog.debug('[SystemsManager] ⏰ Clearing existing selective render timeout');
+      lcardsLog.debug('[SystemsManager] ⏰ Clearing existing selective render timeout');
       clearTimeout(this._selectiveRenderTimeout);
     }
 
@@ -1410,7 +1410,7 @@ export class SystemsManager {
     this._overlaysToReRender = failedOverlays;
 
     this._selectiveRenderTimeout = setTimeout(() => {
-      cblcarsLog.debug(`[SystemsManager] 🚀 EXECUTING selective re-render for ${failedOverlays.length} overlay(s)`);
+      lcardsLog.debug(`[SystemsManager] 🚀 EXECUTING selective re-render for ${failedOverlays.length} overlay(s)`);
 
       failedOverlays.forEach(failedInfo => {
         try {
@@ -1419,7 +1419,7 @@ export class SystemsManager {
           // Apply the patch to the overlay config (since it failed incremental update)
           // This ensures the overlay has the correct styles when re-rendered
           if (patch && overlay) {
-            cblcarsLog.debug(`[SystemsManager] 🎨 Applying patch to overlay before selective re-render: ${overlay.id}`);
+            lcardsLog.debug(`[SystemsManager] 🎨 Applying patch to overlay before selective re-render: ${overlay.id}`);
 
             // The patch has already been applied by ModelBuilder during rule evaluation
             // We just need to trigger a re-render of this specific overlay
@@ -1428,23 +1428,23 @@ export class SystemsManager {
 
             // TODO: Implement per-overlay re-render capability in AdvancedRenderer
             // For now, log and continue - the full re-render will handle it
-            cblcarsLog.debug(`[SystemsManager] ℹ️ Overlay ${overlay.id} will be re-rendered in next full render`);
+            lcardsLog.debug(`[SystemsManager] ℹ️ Overlay ${overlay.id} will be re-rendered in next full render`);
           }
         } catch (error) {
-          cblcarsLog.error(`[SystemsManager] ❌ Error in selective re-render for ${failedInfo.id}:`, error);
+          lcardsLog.error(`[SystemsManager] ❌ Error in selective re-render for ${failedInfo.id}:`, error);
         }
       });
 
       // For now, trigger a full re-render if ANY overlay failed
       // TODO: Implement true selective re-rendering at the renderer level
-      cblcarsLog.debug('[SystemsManager] 🔄 Using AdvancedRenderer.reRenderOverlays() for selective re-rendering');
+      lcardsLog.debug('[SystemsManager] 🔄 Using AdvancedRenderer.reRenderOverlays() for selective re-rendering');
 
       // Get the complete resolved model (needed for anchors, viewBox, etc.)
       const resolvedModel = this.modelBuilder?.getResolvedModel();
 
       if (!resolvedModel || !this.renderer) {
-        cblcarsLog.warn('[SystemsManager] ⚠️ Cannot selective re-render - missing model or renderer');
-        cblcarsLog.info('[SystemsManager] 🔄 Falling back to FULL re-render');
+        lcardsLog.warn('[SystemsManager] ⚠️ Cannot selective re-render - missing model or renderer');
+        lcardsLog.info('[SystemsManager] 🔄 Falling back to FULL re-render');
         this._scheduleFullReRender();
       } else {
         // ✅ CRITICAL FIX: Get fresh overlays from resolvedModel (which has patches applied)
@@ -1453,22 +1453,22 @@ export class SystemsManager {
         const overlaysToReRender = resolvedModel.overlays.filter(o => overlayIdsToReRender.includes(o.id));
 
         if (overlaysToReRender.length === 0) {
-          cblcarsLog.warn('[SystemsManager] ⚠️ No valid overlays to re-render');
+          lcardsLog.warn('[SystemsManager] ⚠️ No valid overlays to re-render');
           return;
         }
 
         const success = this.renderer.reRenderOverlays(overlaysToReRender, resolvedModel);
 
         if (success) {
-          cblcarsLog.info('[SystemsManager] ✅ SELECTIVE RE-RENDER COMPLETE');
+          lcardsLog.info('[SystemsManager] ✅ SELECTIVE RE-RENDER COMPLETE');
 
           // ✅ NEW: Re-render debug visualizations after selective re-render
           if (this.debugManager.isAnyEnabled()) {
-            cblcarsLog.debug('[SystemsManager] 🔍 Updating debug visualizations after selective re-render');
+            lcardsLog.debug('[SystemsManager] 🔍 Updating debug visualizations after selective re-render');
             this.renderDebugAndControls(resolvedModel);
           }
         } else {
-          cblcarsLog.warn('[SystemsManager] ⚠️ Selective re-render failed - falling back to FULL re-render');
+          lcardsLog.warn('[SystemsManager] ⚠️ Selective re-render failed - falling back to FULL re-render');
           this._scheduleFullReRender();
         }
       }
@@ -1503,11 +1503,11 @@ export class SystemsManager {
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      cblcarsLog.warn('[SystemsManager] ingestHass: Invalid HASS provided');
+      lcardsLog.warn('[SystemsManager] ingestHass: Invalid HASS provided');
       return;
     }
 
-    cblcarsLog.debug('[SystemsManager] 📥 ingestHass: Ingesting fresh HASS:', {
+    lcardsLog.debug('[SystemsManager] 📥 ingestHass: Ingesting fresh HASS:', {
       entityCount: Object.keys(hass.states).length,
       timestamp: new Date().toISOString()
     });
@@ -1526,26 +1526,26 @@ export class SystemsManager {
    * @private
    */
   _propagateHassToSystems(hass) {
-    cblcarsLog.debug('[SystemsManager] 🔄 _propagateHassToSystems: Starting ordered propagation');
+    lcardsLog.debug('[SystemsManager] 🔄 _propagateHassToSystems: Starting ordered propagation');
 
     // 1. DataSourceManager first (provides entity values)
     if (this.dataSourceManager && typeof this.dataSourceManager.ingestHass === 'function') {
-      cblcarsLog.debug('[SystemsManager] 📊 Propagating to DataSourceManager');
+      lcardsLog.debug('[SystemsManager] 📊 Propagating to DataSourceManager');
       this.dataSourceManager.ingestHass(hass);
     } else {
-      cblcarsLog.debug('[SystemsManager] ⏭️ DataSourceManager not ready or no ingestHass method');
+      lcardsLog.debug('[SystemsManager] ⏭️ DataSourceManager not ready or no ingestHass method');
     }
 
     // 2. RulesEngine second (evaluates conditions with fresh data)
     if (this.rulesEngine && typeof this.rulesEngine.ingestHass === 'function') {
-      cblcarsLog.debug('[SystemsManager] 📏 Propagating to RulesEngine', {
+      lcardsLog.debug('[SystemsManager] 📏 Propagating to RulesEngine', {
         hasRulesEngine: !!this.rulesEngine,
         hasMethod: typeof this.rulesEngine.ingestHass === 'function'
       });
       this.rulesEngine.ingestHass(hass);
-      cblcarsLog.info('[SystemsManager] ✅ RulesEngine.ingestHass() completed');
+      lcardsLog.info('[SystemsManager] ✅ RulesEngine.ingestHass() completed');
     } else {
-      cblcarsLog.warn('[SystemsManager] ⚠️ RulesEngine not ready or no ingestHass method', {
+      lcardsLog.warn('[SystemsManager] ⚠️ RulesEngine not ready or no ingestHass method', {
         hasRulesEngine: !!this.rulesEngine,
         hasMethod: this.rulesEngine ? typeof this.rulesEngine.ingestHass : 'no rulesEngine'
       });
@@ -1553,14 +1553,14 @@ export class SystemsManager {
 
     // 3. Controls third (direct HASS access)
     if (this.controlsRenderer) {
-      cblcarsLog.debug('[SystemsManager] 🎮 Propagating to Controls');
+      lcardsLog.debug('[SystemsManager] 🎮 Propagating to Controls');
       this.controlsRenderer.setHass(hass);
     } else {
-      cblcarsLog.debug('[SystemsManager] ⏭️ Controls not ready');
+      lcardsLog.debug('[SystemsManager] ⏭️ Controls not ready');
     }
 
     // 4. Overlays update automatically via DataSource subscriptions
-    cblcarsLog.debug('[SystemsManager] ✅ _propagateHassToSystems: Propagation complete');
+    lcardsLog.debug('[SystemsManager] ✅ _propagateHassToSystems: Propagation complete');
   }
 
   /**

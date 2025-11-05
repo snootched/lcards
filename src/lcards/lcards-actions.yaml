@@ -1,0 +1,52 @@
+lcards-actions-hue-tap:
+  tap_action:
+    action: navigate
+    navigation_path: |
+      [[[
+        return "\#hue_card:" + variables.action.hue_api + "_openHueScreen"
+      ]]]
+  double_tap_action:
+    action: more-info
+  hold_action:
+    action: toggle
+lcards-actions-hue-hold:
+  tap_action:
+    action: toggle
+  double_tap_action:
+    action: more-info
+  hold_action:
+    action: navigate
+    navigation_path: |
+      [[[
+        return "\#hue_card:" + variables.action.hue_api + "_openHueScreen"
+      ]]]
+lcards-actions-toggle:
+  tap_action:
+    action: toggle
+    haptic: success
+  double_tap_action:
+    action: more-info
+    haptic: success
+  hold_action:
+    action: more-info
+    haptic: success
+lcards-actions-more-info:
+  tap_action:
+    action: more-info
+    haptic: success
+  double_tap_action:
+    action: more-info
+    haptic: success
+  hold_action:
+    action: more-info
+    haptic: success
+lcards-actions-disable:
+  tap_action:
+    action: none
+    haptic: failure
+  double_tap_action:
+    action: none
+    haptic: failure
+  hold_action:
+    action: none
+    haptic: failure

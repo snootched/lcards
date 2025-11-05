@@ -1,0 +1,130 @@
+lcards-button-base:
+  template:
+    - lcards-base
+    - lcards-actions-toggle
+  show_icon: false
+  show_name: false
+  show_label: true
+  variables:
+    label: |
+      [[[
+        return (((Math.floor(Math.random() * 256).toString(16).padStart(2, '0')) + "-" + (Math.floor(Math.random() * 4096).toString(16).padStart(3, '0'))))
+      ]]]
+    card:
+      min_height: 45px
+      color:
+        default: var(--lcars-card-button, var(--picard-medium-light-gray))
+        active: "var(--lcars-card-button, var(--picard-medium-light-gray))"
+        inactive: "var(--lcars-card-button-off, var(--picard-dark-gray))"
+        zero: "var(--lcars-card-button, var(--picard-medium-light-gray))"
+        non_zero: "var(--lcars-card-button-off, var(--picard-dark-gray))"
+        unavailable: "var(--lcars-card-button-unavailable, var(--picard-darkest-gray))"
+        background:
+          default: null
+          active: "var(--lcars-card-button, var(--picard-medium-light-gray))"
+          inactive: "var(--lcars-card-button-off, var(--picard-dark-gray))"
+          zero: "var(--lcars-card-button, var(--picard-medium-light-gray))"
+          non_zero: "var(--lcars-card-button-off, var(--picard-dark-gray))"
+          unavailable: "var(--lcars-card-button-unavailable, var(--picard-darkest-gray))"
+    text:
+      label:
+        padding:
+          top: 5px
+          bottom: 5px
+          right: 24px
+          left: 24px
+        transform: uppercase
+        font_size: null
+        justify: right
+        align_items: end
+        color:
+          default: black
+          active: black
+          inactive: black
+          zero: black
+          non_zero: black
+          hvac_heat: black
+          hvac_cool: black
+          unavailable: black
+      state:
+        padding:
+          top: 5px
+          bottom: 5px
+          right: 24px
+          left: 24px
+        transform: uppercase
+        font_size: null
+        justify: right
+        align_items: end
+        color:
+          default: black
+          active: black
+          inactive: black
+          zero: black
+          non_zero: black
+          hvac_heat: black
+          hvac_cool: black
+          unavailable: black
+      name:
+        padding:
+          top: 5px
+          bottom: 5px
+          right: 24px
+          left: 24px
+        transform: uppercase
+        font_size: null
+        justify: right
+        align_items: end
+        color:
+          default: black
+          active: black
+          inactive: black
+          zero: black
+          non_zero: black
+          hvac_heat: black
+          hvac_cool: black
+          unavailable: black
+    icon:
+      size: 24px
+      color:
+        default: black
+      justify: left
+      border:
+        top:
+          size: 0px
+          color: transparent
+        bottom:
+          size: 0px
+          color: transparent
+        right:
+          size: 6px
+          color: black
+          padding: 1.0%
+          margin: 0
+        left:
+          size: 6px
+          color: transparent
+          padding: 1.0%
+          margin: null
+  size: 1.75em
+  styles:
+    grid:
+      - grid-template-areas: '"i n" "i s" "i l"'
+    icon:
+      - color: '[[[ return variables.icon.color.default ]]]'
+      - display: flex
+      - align-items: center
+      - justify-content: left
+      - border-left: >-
+          [[[ return variables.icon.border.left.color + " solid " +
+          variables.icon.border.left.size ]]]
+      - border-right: >-
+          [[[ return variables.icon.border.right.color + " solid " +
+          variables.icon.border.right.size ]]]
+      - '--mdc-icon-size': '[[[ return variables.icon.size; ]]]'
+      - margin-left: '[[[ return variables.__get_num_with_unit(variables.icon.border.left.margin) ]]]'
+      - margin-right: '[[[ return variables.__get_num_with_unit(variables.icon.border.right.margin) ]]]'
+      - padding-left: '[[[ return variables.__get_num_with_unit(variables.icon.border.left.padding) ]]]'
+      - padding-right: '[[[ return variables.__get_num_with_unit(variables.icon.border.right.padding) ]]]'
+      - height: "[[[ return variables.__get_num_with_unit(variables.card.height); ]]]"
+      - width: "[[[ return variables.__get_num_with_unit(variables.icon.size); ]]]"

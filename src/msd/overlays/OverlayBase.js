@@ -21,7 +21,7 @@
 
 import { BaseRenderer } from '../renderer/BaseRenderer.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';
 
 /**
@@ -64,7 +64,7 @@ export class OverlayBase extends BaseRenderer {
       lastUpdate: null
     };
 
-    cblcarsLog.debug(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
+    lcardsLog.debug(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
   }
 
   /**
@@ -81,20 +81,20 @@ export class OverlayBase extends BaseRenderer {
    */
   async initialize(mountEl) {
     if (this._initialized) {
-      cblcarsLog.warn(`[${this.rendererName}] Already initialized:`, this.overlay.id);
+      lcardsLog.warn(`[${this.rendererName}] Already initialized:`, this.overlay.id);
       return;
     }
 
     this.mountEl = mountEl;
 
-    cblcarsLog.debug(`[${this.rendererName}] Initializing overlay:`, this.overlay.id);
+    lcardsLog.debug(`[${this.rendererName}] Initializing overlay:`, this.overlay.id);
 
     try {
       // Get explicit update triggers from overlay config
       const updateTriggers = this._getUpdateTriggers();
 
       if (updateTriggers.length > 0) {
-        cblcarsLog.debug(`[${this.rendererName}] Subscribing to update triggers:`, updateTriggers);
+        lcardsLog.debug(`[${this.rendererName}] Subscribing to update triggers:`, updateTriggers);
 
         // Subscribe to each trigger (HA entity or MSD datasource)
         for (const triggerRef of updateTriggers) {
@@ -105,7 +105,7 @@ export class OverlayBase extends BaseRenderer {
           }
         }
       } else {
-        cblcarsLog.debug(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
+        lcardsLog.debug(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
       }
 
       // Create animation scope if overlay has animations
@@ -114,10 +114,10 @@ export class OverlayBase extends BaseRenderer {
       }
 
       this._initialized = true;
-      cblcarsLog.debug(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
+      lcardsLog.debug(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
 
     } catch (error) {
-      cblcarsLog.error(`[${this.rendererName}] Initialization failed:`, error);
+      lcardsLog.error(`[${this.rendererName}] Initialization failed:`, error);
       throw error;
     }
   }
@@ -184,11 +184,11 @@ export class OverlayBase extends BaseRenderer {
    */
   destroy() {
     if (this._destroyed) {
-      cblcarsLog.warn(`[${this.rendererName}] Already destroyed:`, this.overlay.id);
+      lcardsLog.warn(`[${this.rendererName}] Already destroyed:`, this.overlay.id);
       return;
     }
 
-    cblcarsLog.debug(`[${this.rendererName}] Destroying overlay:`, this.overlay.id);
+    lcardsLog.debug(`[${this.rendererName}] Destroying overlay:`, this.overlay.id);
 
     // Cleanup subscriptions
     this._cleanupSubscriptions();
@@ -205,7 +205,7 @@ export class OverlayBase extends BaseRenderer {
 
     this._destroyed = true;
 
-    cblcarsLog.debug(`[${this.rendererName}] Destruction complete:`, this.overlay.id);
+    lcardsLog.debug(`[${this.rendererName}] Destruction complete:`, this.overlay.id);
   }
 
   // ============================================================
@@ -221,7 +221,7 @@ export class OverlayBase extends BaseRenderer {
       return;
     }
 
-    cblcarsLog.debug(`[${this.rendererName}] DataSource update:`, sourceId, data);
+    lcardsLog.debug(`[${this.rendererName}] DataSource update:`, sourceId, data);
 
     // Find DOM element if not cached
     if (!this.element && this.mountEl) {
@@ -238,7 +238,7 @@ export class OverlayBase extends BaseRenderer {
         }
 
       } catch (error) {
-        cblcarsLog.error(`[${this.rendererName}] Update failed:`, error);
+        lcardsLog.error(`[${this.rendererName}] Update failed:`, error);
       }
     }
   }
@@ -264,8 +264,8 @@ export class OverlayBase extends BaseRenderer {
   _subscribeToEntity(entityId) {
     // TODO: Implement HA entity subscription
     // This would integrate with MsdTemplateEngine or Home Assistant connection
-    cblcarsLog.debug(`[${this.rendererName}] HA entity subscription requested:`, entityId);
-    cblcarsLog.warn(`[${this.rendererName}] HA entity subscriptions not yet implemented - ${entityId} will not auto-update`);
+    lcardsLog.debug(`[${this.rendererName}] HA entity subscription requested:`, entityId);
+    lcardsLog.warn(`[${this.rendererName}] HA entity subscriptions not yet implemented - ${entityId} will not auto-update`);
 
     // Note: For now, HA entity updates are handled by MsdTemplateEngine separately
     // Full integration would require connecting to HA's WebSocket API
@@ -277,7 +277,7 @@ export class OverlayBase extends BaseRenderer {
    */
   _subscribeToDataSource(sourceId) {
     if (!this.systems || !this.systems.dataSourceManager) {
-      cblcarsLog.warn(`[${this.rendererName}] DataSourceManager not available, cannot subscribe`);
+      lcardsLog.warn(`[${this.rendererName}] DataSourceManager not available, cannot subscribe`);
       return;
     }
 
@@ -289,11 +289,11 @@ export class OverlayBase extends BaseRenderer {
 
       if (unsubscribe) {
         this._registerSubscription(unsubscribe);
-        cblcarsLog.debug(`[${this.rendererName}] Subscribed to DataSource:`, sourceId);
+        lcardsLog.debug(`[${this.rendererName}] Subscribed to DataSource:`, sourceId);
       }
 
     } catch (error) {
-      cblcarsLog.warn(`[${this.rendererName}] Failed to subscribe to ${sourceId}:`, error);
+      lcardsLog.warn(`[${this.rendererName}] Failed to subscribe to ${sourceId}:`, error);
     }
   }
 
@@ -321,12 +321,12 @@ export class OverlayBase extends BaseRenderer {
    */
   _createAnimationScope() {
     // Check if anime.js is available
-    if (typeof window !== 'undefined' && window.cblcars && window.cblcars.anim) {
+    if (typeof window !== 'undefined' && window.lcards && window.lcards.anim) {
       try {
-        this._animationScope = window.cblcars.anim.createScope();
-        cblcarsLog.debug(`[${this.rendererName}] Animation scope created`);
+        this._animationScope = window.lcards.anim.createScope();
+        lcardsLog.debug(`[${this.rendererName}] Animation scope created`);
       } catch (error) {
-        cblcarsLog.warn(`[${this.rendererName}] Failed to create animation scope:`, error);
+        lcardsLog.warn(`[${this.rendererName}] Failed to create animation scope:`, error);
       }
     }
   }
@@ -337,13 +337,13 @@ export class OverlayBase extends BaseRenderer {
    */
   _cleanupSubscriptions() {
     if (this._subscriptions.length > 0) {
-      cblcarsLog.debug(`[${this.rendererName}] Cleaning up ${this._subscriptions.length} subscriptions`);
+      lcardsLog.debug(`[${this.rendererName}] Cleaning up ${this._subscriptions.length} subscriptions`);
 
       this._subscriptions.forEach(unsub => {
         try {
           unsub();
         } catch (error) {
-          cblcarsLog.warn(`[${this.rendererName}] Subscription cleanup error:`, error);
+          lcardsLog.warn(`[${this.rendererName}] Subscription cleanup error:`, error);
         }
       });
 
@@ -361,9 +361,9 @@ export class OverlayBase extends BaseRenderer {
         if (typeof this._animationScope.destroy === 'function') {
           this._animationScope.destroy();
         }
-        cblcarsLog.debug(`[${this.rendererName}] Animation scope destroyed`);
+        lcardsLog.debug(`[${this.rendererName}] Animation scope destroyed`);
       } catch (error) {
-        cblcarsLog.warn(`[${this.rendererName}] Animation cleanup error:`, error);
+        lcardsLog.warn(`[${this.rendererName}] Animation cleanup error:`, error);
       }
 
       this._animationScope = null;
@@ -376,14 +376,14 @@ export class OverlayBase extends BaseRenderer {
    */
   _cleanupTimers() {
     if (this._timers.length > 0) {
-      cblcarsLog.debug(`[${this.rendererName}] Cleaning up ${this._timers.length} timers`);
+      lcardsLog.debug(`[${this.rendererName}] Cleaning up ${this._timers.length} timers`);
 
       this._timers.forEach(timerId => {
         try {
           clearTimeout(timerId);
           clearInterval(timerId);
         } catch (error) {
-          cblcarsLog.warn(`[${this.rendererName}] Timer cleanup error:`, error);
+          lcardsLog.warn(`[${this.rendererName}] Timer cleanup error:`, error);
         }
       });
 
@@ -445,7 +445,7 @@ export class OverlayBase extends BaseRenderer {
       try {
         return this.element.querySelector(targetSpec);
       } catch (error) {
-        cblcarsLog.warn(
+        lcardsLog.warn(
           `[${this.rendererName}] Invalid target selector "${targetSpec}":`,
           error
         );

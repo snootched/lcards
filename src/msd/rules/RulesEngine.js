@@ -5,7 +5,7 @@
 
 import { perfTime, perfCount } from '../util/performance.js';
 import { globalTraceBuffer } from './RuleTraceBuffer.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ApexChartsOverlayRenderer } from '../renderer/ApexChartsOverlayRenderer.js';
 
 export class RulesEngine {
@@ -73,7 +73,7 @@ export class RulesEngine {
         .filter(entityId => !entityId.includes('.'));
       this._hassEntities = new Set(ruleEntities);
 
-      cblcarsLog.debug(`[RulesEngine] Updated monitored entities: ${ruleEntities.length} entities`);
+      lcardsLog.debug(`[RulesEngine] Updated monitored entities: ${ruleEntities.length} entities`);
     }
 
     // Debug exposure
@@ -111,7 +111,7 @@ export class RulesEngine {
 
           // Check if this is actually a DataSource by consulting the DataSourceManager
           if (this.dataSourceManager && this.dataSourceManager.getSource(sourceName)) {
-            cblcarsLog.debug(`[RulesEngine] Skipping DataSource reference in rule monitoring: ${condition.entity}`);
+            lcardsLog.debug(`[RulesEngine] Skipping DataSource reference in rule monitoring: ${condition.entity}`);
             // Don't add DataSource references to HASS entity monitoring
             // The DataSourceManager already handles these entities via its own subscriptions
             return;
@@ -121,13 +121,13 @@ export class RulesEngine {
             const entityId = condition.entity.split('.')[0] + '.' + condition.entity.split('.')[1];
             if (entityId.includes('.') && entityId.split('.').length === 2) {
               entities.add(entityId);
-              cblcarsLog.debug(`[RulesEngine] Added entity with attribute to monitoring: ${entityId} (from ${condition.entity})`);
+              lcardsLog.debug(`[RulesEngine] Added entity with attribute to monitoring: ${entityId} (from ${condition.entity})`);
             }
           }
         } else {
           // Regular Home Assistant entity (no dots)
           entities.add(condition.entity);
-          cblcarsLog.debug(`[RulesEngine] Added regular entity to monitoring: ${condition.entity}`);
+          lcardsLog.debug(`[RulesEngine] Added regular entity to monitoring: ${condition.entity}`);
         }
       }
 
@@ -213,12 +213,12 @@ export class RulesEngine {
         const originalGetEntity = getEntity;
 
         getEntity = (entityId) => {
-          cblcarsLog.trace(`[RulesEngine] getEntity called for: ${entityId}`);
+          lcardsLog.trace(`[RulesEngine] getEntity called for: ${entityId}`);
 
           // PRIORITY 0: Check fresh state cache from events (most recent data)
           if (this._freshStateCache.has(entityId)) {
             const freshState = this._freshStateCache.get(entityId);
-            cblcarsLog.trace(`[RulesEngine] Using FRESH cached state for ${entityId}: ${freshState.state}`);
+            lcardsLog.trace(`[RulesEngine] Using FRESH cached state for ${entityId}: ${freshState.state}`);
             return freshState;
           }
 
@@ -227,7 +227,7 @@ export class RulesEngine {
             const hass = this.systemsManager.getHass();
             if (hass && hass.states && hass.states[entityId]) {
               const state = hass.states[entityId].state;
-              cblcarsLog.trace(`[RulesEngine] Found HASS state for ${entityId}: ${state}`);
+              lcardsLog.trace(`[RulesEngine] Found HASS state for ${entityId}: ${state}`);
 
               return {
                 entity_id: entityId,
@@ -243,7 +243,7 @@ export class RulesEngine {
           if (entityId.includes('.') && this.dataSourceManager) {
             const value = this.resolveDataSourceValue(entityId);
             if (value !== null) {
-              cblcarsLog.trace(`[RulesEngine] Found DataSource reference value for ${entityId}: ${value}`);
+              lcardsLog.trace(`[RulesEngine] Found DataSource reference value for ${entityId}: ${value}`);
               return {
                 entity_id: entityId,
                 state: String(value),
@@ -260,7 +260,7 @@ export class RulesEngine {
               const currentData = templateDataSource.getCurrentData();
               if (currentData && currentData.entity && currentData.entity.state !== undefined) {
                 const originalState = currentData.entity.state;
-                cblcarsLog.trace(`[RulesEngine] Found auto-DataSource original state for ${entityId}: ${originalState}`);
+                lcardsLog.trace(`[RulesEngine] Found auto-DataSource original state for ${entityId}: ${originalState}`);
 
                 return {
                   entity_id: entityId,
@@ -277,7 +277,7 @@ export class RulesEngine {
           if (originalGetEntity) {
             const entity = originalGetEntity(entityId);
             if (entity) {
-              cblcarsLog.debug(`[RulesEngine] Using fallback getEntity for ${entityId} - state may be converted: ${entity.state}`);
+              lcardsLog.debug(`[RulesEngine] Using fallback getEntity for ${entityId} - state may be converted: ${entity.state}`);
               return entity;
             }
           }
@@ -286,18 +286,18 @@ export class RulesEngine {
           if (this.dataSourceManager && this.dataSourceManager.getEntity) {
             const entity = this.dataSourceManager.getEntity(entityId);
             if (entity) {
-              cblcarsLog.debug(`[RulesEngine] Using DataSourceManager getEntity for ${entityId} - state may be converted: ${entity.state}`);
+              lcardsLog.debug(`[RulesEngine] Using DataSourceManager getEntity for ${entityId} - state may be converted: ${entity.state}`);
               return entity;
             }
           }
 
-          cblcarsLog.warn(`[RulesEngine] No entity data found for ${entityId}`);
+          lcardsLog.warn(`[RulesEngine] No entity data found for ${entityId}`);
           return null;
         };
       }
 
       if (!getEntity || typeof getEntity !== 'function') {
-        cblcarsLog.warn('[RulesEngine] ⚠️ evaluateDirty called without getEntity function and no DataSourceManager available');
+        lcardsLog.warn('[RulesEngine] ⚠️ evaluateDirty called without getEntity function and no DataSourceManager available');
         return this.createEmptyResult();
       }
 
@@ -353,7 +353,7 @@ export class RulesEngine {
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      cblcarsLog.warn('[RulesEngine] ingestHass: Invalid HASS provided');
+      lcardsLog.warn('[RulesEngine] ingestHass: Invalid HASS provided');
       return;
     }
 
@@ -365,7 +365,7 @@ export class RulesEngine {
       try {
         this._reEvaluationCallback();
       } catch (error) {
-        cblcarsLog.error('[RulesEngine] Error in re-evaluation callback:', error);
+        lcardsLog.error('[RulesEngine] Error in re-evaluation callback:', error);
       }
     }
   }
@@ -410,7 +410,7 @@ export class RulesEngine {
         result.stopAfter = rule.stop === true;
 
         // DEBUG: Log what we found
-        cblcarsLog.debug(`[RulesEngine] 🎨 Rule ${rule.id} matched - apply block:`, {
+        lcardsLog.debug(`[RulesEngine] 🎨 Rule ${rule.id} matched - apply block:`, {
           hasBaseSvg: !!rule.apply.base_svg,
           baseSvgValue: rule.apply.base_svg,
           hasOverlays: !!rule.apply.overlays,
@@ -432,7 +432,7 @@ export class RulesEngine {
         { error: error.message }
       );
 
-      cblcarsLog.warn(`[RulesEngine] ⚠️ Error evaluating rule ${rule.id}:`, error);
+      lcardsLog.warn(`[RulesEngine] ⚠️ Error evaluating rule ${rule.id}:`, error);
       return {
         ruleId: rule.id,
         matched: false,
@@ -466,7 +466,7 @@ export class RulesEngine {
     const allOverlays = this.systemsManager?.getResolvedModel?.()?.overlays || [];
 
     if (allOverlays.length === 0) {
-      cblcarsLog.debug('[RulesEngine] No overlays available for selector resolution');
+      lcardsLog.debug('[RulesEngine] No overlays available for selector resolution');
       return [];
     }
 
@@ -521,7 +521,7 @@ export class RulesEngine {
           );
           perfCount('rules.selector.pattern', 1);
         } catch (e) {
-          cblcarsLog.warn(`[RulesEngine] Invalid regex pattern: ${pattern}`, e);
+          lcardsLog.warn(`[RulesEngine] Invalid regex pattern: ${pattern}`, e);
           continue;
         }
       }
@@ -557,8 +557,8 @@ export class RulesEngine {
       });
 
       // Debug logging (if enabled)
-      if (window.cblcars?.debug?.rules) {
-        cblcarsLog.debug(`[RulesEngine] Selector '${selector}' matched ${matchedOverlays.length} overlay(s)`);
+      if (window.lcards?.debug?.rules) {
+        lcardsLog.debug(`[RulesEngine] Selector '${selector}' matched ${matchedOverlays.length} overlay(s)`);
       }
     }
 
@@ -568,7 +568,7 @@ export class RulesEngine {
     perfCount('rules.selector.resolutions', 1);
     perfCount('rules.selector.patches', patches.length);
 
-    cblcarsLog.debug('[RulesEngine] Selector resolution complete:', {
+    lcardsLog.debug('[RulesEngine] Selector resolution complete:', {
       selectors: Object.keys(ruleApply.overlays).filter(k => k !== 'exclude').length,
       excluded: excludeIds.size,
       patchesGenerated: patches.length,
@@ -616,7 +616,7 @@ export class RulesEngine {
         if (entity) {
           entityData = entity;
           entityValue = entity.state;
-          cblcarsLog.trace(`[RulesEngine] Found direct entity data for ${condition.entity}:`, entityValue);
+          lcardsLog.trace(`[RulesEngine] Found direct entity data for ${condition.entity}:`, entityValue);
         } else {
           // If not found as direct entity, check if there's an auto-created DataSource
           const templateDataSourceName = `template_${condition.entity.replace(/\./g, '_')}`;
@@ -632,17 +632,17 @@ export class RulesEngine {
                 const originalState = currentData.entity.state;
                 entityValue = originalState;
 
-                cblcarsLog.trace(`[RulesEngine] Found auto-created DataSource ${templateDataSourceName} for ${condition.entity}:`, {
+                lcardsLog.trace(`[RulesEngine] Found auto-created DataSource ${templateDataSourceName} for ${condition.entity}:`, {
                   dataSourceConvertedValue: currentData.v,
                   originalEntityState: originalState,
                   usingForRules: originalState,
                   entityData: currentData.entity
                 });
               } else {
-                cblcarsLog.debug(`[RulesEngine] Auto-created DataSource ${templateDataSourceName} exists but has no current data`);
+                lcardsLog.debug(`[RulesEngine] Auto-created DataSource ${templateDataSourceName} exists but has no current data`);
               }
             } else {
-              cblcarsLog.debug(`[RulesEngine] No auto-created DataSource found: ${templateDataSourceName}`);
+              lcardsLog.debug(`[RulesEngine] No auto-created DataSource found: ${templateDataSourceName}`);
             }
           }
         }
@@ -657,14 +657,14 @@ export class RulesEngine {
               state: String(dataSourceValue),
               attributes: {}
             };
-            cblcarsLog.trace(`[RulesEngine] Found DataSource reference value for ${condition.entity}:`, entityValue);
+            lcardsLog.trace(`[RulesEngine] Found DataSource reference value for ${condition.entity}:`, entityValue);
           }
         }
 
         // If we still have no data, return error
         if (!entityData && entityValue === null) {
           result.error = `Entity ${condition.entity} not found in HASS or DataSources`;
-          cblcarsLog.trace(`[RulesEngine] Entity.*not found anywhere`);
+          lcardsLog.trace(`[RulesEngine] Entity.*not found anywhere`);
           return result;
         }
 
@@ -677,7 +677,7 @@ export class RulesEngine {
           const actualState = String(entityValue);
           result.matched = actualState === conditionState;
 
-          cblcarsLog.trace(`[RulesEngine] State comparison for ${condition.entity}:`, {
+          lcardsLog.trace(`[RulesEngine] State comparison for ${condition.entity}:`, {
             actualState: actualState,
             conditionState: conditionState,
             matched: result.matched,
@@ -687,20 +687,20 @@ export class RulesEngine {
           // Numeric comparison - above
           const numValue = parseFloat(entityValue);
           result.matched = !isNaN(numValue) && numValue > condition.above;
-          cblcarsLog.trace(`[RulesEngine] Above comparison for ${condition.entity}: ${numValue} > ${condition.above} = ${result.matched}`);
+          lcardsLog.trace(`[RulesEngine] Above comparison for ${condition.entity}: ${numValue} > ${condition.above} = ${result.matched}`);
         } else if (condition.below !== undefined) {
           // Numeric comparison - below
           const numValue = parseFloat(entityValue);
           result.matched = !isNaN(numValue) && numValue < condition.below;
-          cblcarsLog.trace(`[RulesEngine] Below comparison for ${condition.entity}: ${numValue} < ${condition.below} = ${result.matched}`);
+          lcardsLog.trace(`[RulesEngine] Below comparison for ${condition.entity}: ${numValue} < ${condition.below} = ${result.matched}`);
         } else if (condition.equals !== undefined) {
           // Equals comparison
           result.matched = entityValue == condition.equals;
-          cblcarsLog.trace(`[RulesEngine] Equals comparison for ${condition.entity}: ${entityValue} == ${condition.equals} = ${result.matched}`);
+          lcardsLog.trace(`[RulesEngine] Equals comparison for ${condition.entity}: ${entityValue} == ${condition.equals} = ${result.matched}`);
         } else {
           // Default: entity exists and has a value
           result.matched = true;
-          cblcarsLog.trace(`[RulesEngine] Default existence check for ${condition.entity}: ${result.matched}`);
+          lcardsLog.trace(`[RulesEngine] Default existence check for ${condition.entity}: ${result.matched}`);
         }
       }
 
@@ -723,7 +723,7 @@ export class RulesEngine {
 
     } catch (error) {
       result.error = error.message;
-      cblcarsLog.error(`[RulesEngine] Error evaluating condition for ${condition.entity}:`, error);
+      lcardsLog.error(`[RulesEngine] Error evaluating condition for ${condition.entity}:`, error);
     }
 
     return result;
@@ -765,7 +765,7 @@ export class RulesEngine {
       const [afterHour, afterMin] = timeCondition.after.split(':').map(Number);
       const afterMinutes = afterHour * 60 + afterMin;
       matchAfter = currentTime >= afterMinutes;
-      cblcarsLog.trace(`[RulesEngine] Time after check: ${currentTime} >= ${afterMinutes} (${timeCondition.after}) = ${matchAfter}`);
+      lcardsLog.trace(`[RulesEngine] Time after check: ${currentTime} >= ${afterMinutes} (${timeCondition.after}) = ${matchAfter}`);
     }
 
     // Check "before" condition
@@ -773,11 +773,11 @@ export class RulesEngine {
       const [beforeHour, beforeMin] = timeCondition.before.split(':').map(Number);
       const beforeMinutes = beforeHour * 60 + beforeMin;
       matchBefore = currentTime < beforeMinutes;
-      cblcarsLog.trace(`[RulesEngine] Time before check: ${currentTime} < ${beforeMinutes} (${timeCondition.before}) = ${matchBefore}`);
+      lcardsLog.trace(`[RulesEngine] Time before check: ${currentTime} < ${beforeMinutes} (${timeCondition.before}) = ${matchBefore}`);
     }
 
     const finalMatch = matchAfter && matchBefore;
-    cblcarsLog.debug(`[RulesEngine] Time condition evaluated: after=${matchAfter}, before=${matchBefore}, final=${finalMatch}`);
+    lcardsLog.debug(`[RulesEngine] Time condition evaluated: after=${matchAfter}, before=${matchBefore}, final=${finalMatch}`);
     return finalMatch;
   }
 
@@ -866,7 +866,7 @@ export class RulesEngine {
 
       return null;
     } catch (error) {
-      cblcarsLog.warn(`[RulesEngine] ⚠️ Error resolving DataSource reference '${dataSourceRef}':`, error);
+      lcardsLog.warn(`[RulesEngine] ⚠️ Error resolving DataSource reference '${dataSourceRef}':`, error);
       return null;
     }
   }
@@ -1024,13 +1024,13 @@ export class RulesEngine {
    */
   async setupHassMonitoring(hass) {
     if (!hass?.connection?.subscribeEvents || this.hassUnsubscribe) {
-      cblcarsLog.debug('[RulesEngine] HASS monitoring already set up or unavailable');
+      lcardsLog.debug('[RulesEngine] HASS monitoring already set up or unavailable');
       return;
     }
 
     // Extract all HASS entities referenced in rules (exclude DataSource references)
     const allEntityReferences = Array.from(this.dependencyIndex?.entityToRules.keys() || []);
-    cblcarsLog.debug('[RulesEngine] 🔍 All entity references from dependency index:', allEntityReferences);
+    lcardsLog.debug('[RulesEngine] 🔍 All entity references from dependency index:', allEntityReferences);
 
     // Filter out DataSource references
     const ruleEntities = allEntityReferences.filter(entityId => {
@@ -1038,15 +1038,15 @@ export class RulesEngine {
       if (entityId.includes('.')) {
         const sourceName = entityId.split('.')[0];
         if (this.dataSourceManager?.getSource(sourceName)) {
-          cblcarsLog.debug(`[RulesEngine] 🚫 Filtered out DataSource reference: ${entityId}`);
+          lcardsLog.debug(`[RulesEngine] 🚫 Filtered out DataSource reference: ${entityId}`);
           return false;
         }
       }
-      cblcarsLog.debug(`[RulesEngine] ✅ Including HASS entity: ${entityId}`);
+      lcardsLog.debug(`[RulesEngine] ✅ Including HASS entity: ${entityId}`);
       return true;
     });
 
-    cblcarsLog.debug(`[RulesEngine] 📊 HASS entity monitoring summary:`, {
+    lcardsLog.debug(`[RulesEngine] 📊 HASS entity monitoring summary:`, {
       totalReferences: allEntityReferences.length,
       dataSourceReferences: allEntityReferences.length - ruleEntities.length,
       hassEntities: ruleEntities.length,
@@ -1054,14 +1054,14 @@ export class RulesEngine {
     });
 
     if (ruleEntities.length === 0) {
-      cblcarsLog.debug('[RulesEngine] No HASS entities found in rules for monitoring (all references are DataSources)');
+      lcardsLog.debug('[RulesEngine] No HASS entities found in rules for monitoring (all references are DataSources)');
       return;
     }
 
     // Cache entity list for performance
     this._hassEntities = new Set(ruleEntities);
 
-    cblcarsLog.debug(`[RulesEngine] Setting up monitoring for ${ruleEntities.length} rule entities:`, ruleEntities);
+    lcardsLog.debug(`[RulesEngine] Setting up monitoring for ${ruleEntities.length} rule entities:`, ruleEntities);
 
     // Direct subscription - following DataSource pattern
     try {
@@ -1076,9 +1076,9 @@ export class RulesEngine {
         }
       }, 'state_changed');
 
-      cblcarsLog.debug('[RulesEngine] ✅ HASS state monitoring enabled');
+      lcardsLog.debug('[RulesEngine] ✅ HASS state monitoring enabled');
     } catch (error) {
-      cblcarsLog.error('[RulesEngine] ❌ Failed to set up HASS monitoring:', error);
+      lcardsLog.error('[RulesEngine] ❌ Failed to set up HASS monitoring:', error);
       throw error;
     }
   }
@@ -1090,7 +1090,7 @@ export class RulesEngine {
    * @param {Object} eventData - State change event data
    */
   _handleRuleEntityChange(entityId, eventData) {
-    cblcarsLog.debug(`[RulesEngine] Processing entity change: ${entityId} -> ${eventData.new_state?.state}`);
+    lcardsLog.debug(`[RulesEngine] Processing entity change: ${entityId} -> ${eventData.new_state?.state}`);
 
     // Cache the fresh state from the event for immediate use
     if (eventData.new_state) {
@@ -1101,21 +1101,21 @@ export class RulesEngine {
         last_changed: eventData.new_state.last_changed,
         last_updated: eventData.new_state.last_updated
       });
-      cblcarsLog.trace(`[RulesEngine] Cached fresh state for ${entityId}: ${eventData.new_state.state}`);
+      lcardsLog.trace(`[RulesEngine] Cached fresh state for ${entityId}: ${eventData.new_state.state}`);
     }
 
     // Mark affected rules as dirty using existing infrastructure
     const affectedRules = this.markEntitiesDirty([entityId]);
 
     if (affectedRules > 0) {
-      cblcarsLog.debug(`[RulesEngine] Entity ${entityId} changed, marked ${affectedRules} rules dirty`);
+      lcardsLog.debug(`[RulesEngine] Entity ${entityId} changed, marked ${affectedRules} rules dirty`);
 
       // Trigger re-evaluation if callback is set
       if (this._reEvaluationCallback) {
         try {
           this._reEvaluationCallback();
         } catch (error) {
-          cblcarsLog.error('[RulesEngine] Re-evaluation callback failed:', error);
+          lcardsLog.error('[RulesEngine] Re-evaluation callback failed:', error);
         }
       }
     }
@@ -1124,7 +1124,7 @@ export class RulesEngine {
     // Do this async so the callback completes first
     setTimeout(() => {
       this._freshStateCache.delete(entityId);
-      cblcarsLog.trace(`[RulesEngine] Cleared cached state for ${entityId}`);
+      lcardsLog.trace(`[RulesEngine] Cleared cached state for ${entityId}`);
     }, 100);
   }
 
@@ -1134,12 +1134,12 @@ export class RulesEngine {
    */
   setReEvaluationCallback(callback) {
     if (typeof callback !== 'function') {
-      cblcarsLog.warn('[RulesEngine] Re-evaluation callback must be a function');
+      lcardsLog.warn('[RulesEngine] Re-evaluation callback must be a function');
       return;
     }
 
     this._reEvaluationCallback = callback;
-    cblcarsLog.debug('[RulesEngine] Re-evaluation callback set');
+    lcardsLog.debug('[RulesEngine] Re-evaluation callback set');
   }
 
   /**
@@ -1152,9 +1152,9 @@ export class RulesEngine {
         this.hassUnsubscribe();
         this.hassUnsubscribe = null;
         this._hassEntities.clear();
-        cblcarsLog.debug('[RulesEngine] HASS subscription cleaned up');
+        lcardsLog.debug('[RulesEngine] HASS subscription cleaned up');
       } catch (error) {
-        cblcarsLog.warn('[RulesEngine] Error cleaning up HASS subscription:', error);
+        lcardsLog.warn('[RulesEngine] Error cleaning up HASS subscription:', error);
       }
     }
 
@@ -1166,7 +1166,7 @@ export class RulesEngine {
    * @param {Object} dataSourceManager - DataSourceManager instance
    */
   setDataSourceManager(dataSourceManager) {
-    cblcarsLog.debug(`[RulesEngine] Setting DataSourceManager with ${Object.keys(dataSourceManager?.sources || {}).length} sources`);
+    lcardsLog.debug(`[RulesEngine] Setting DataSourceManager with ${Object.keys(dataSourceManager?.sources || {}).length} sources`);
     this.dataSourceManager = dataSourceManager;
 
     // Rebuild dependency index to include DataSource references
@@ -1175,7 +1175,7 @@ export class RulesEngine {
     // Mark all rules dirty since DataSource conditions might now be evaluable
     this.markAllDirty();
 
-    cblcarsLog.debug(`[RulesEngine] DataSourceManager set, rebuilt dependencies and marked ${this.dirtyRules.size} rules dirty`);
+    lcardsLog.debug(`[RulesEngine] DataSourceManager set, rebuilt dependencies and marked ${this.dirtyRules.size} rules dirty`);
   }
 
   getRuleDependencies(ruleId) {
@@ -1237,7 +1237,7 @@ export function applyOverlayPatches(overlays, patches) {
     return overlays;
   }
 
-  cblcarsLog.debug('[RulesEngine] 🎨 Applying overlay patches:', {
+  lcardsLog.debug('[RulesEngine] 🎨 Applying overlay patches:', {
     overlayCount: overlays.length,
     patchCount: patches.length,
     patches: patches.map(p => ({
@@ -1259,7 +1259,7 @@ export function applyOverlayPatches(overlays, patches) {
       return overlay;
     }
 
-    cblcarsLog.debug('[RulesEngine] 🎯 Applying patch to overlay:', {
+    lcardsLog.debug('[RulesEngine] 🎯 Applying patch to overlay:', {
       id: overlay.id,
       type: overlay.type,
       cellTarget: patch.cell_target || patch.cellTarget,
@@ -1296,7 +1296,7 @@ export function applyOverlayPatches(overlays, patches) {
       _hasOverlayLevelPatch: !patch.cell_target && !patch.cellTarget
     };
 
-    cblcarsLog.debug('[RulesEngine] ✅ Patched overlay result:', {
+    lcardsLog.debug('[RulesEngine] ✅ Patched overlay result:', {
       id: patchedOverlay.id,
       type: patchedOverlay.type,
       newStyle: patchedOverlay.style,
@@ -1315,7 +1315,7 @@ export function applyOverlayPatches(overlays, patches) {
 function applyStatusGridCellPatch(overlay, patch) {
   const cellTarget = patch.cell_target || patch.cellTarget;
 
-  cblcarsLog.info('[RulesEngine] 🔲 APPLYING status_grid cell patch:', {
+  lcardsLog.info('[RulesEngine] 🔲 APPLYING status_grid cell patch:', {
     overlayId: overlay.id,
     cellTarget,
     cellPatch: patch.style,
@@ -1343,7 +1343,7 @@ function applyStatusGridCellPatch(overlay, patch) {
 
       if (isTargetCell) {
         patchedCellCount++;
-        cblcarsLog.info('[RulesEngine] 🎯 PATCHING CELL:', {
+        lcardsLog.info('[RulesEngine] 🎯 PATCHING CELL:', {
           cellId: cell.id,
           position: [cell.row, cell.col],
           originalColor: cell.color || cell.cell_color,
@@ -1391,7 +1391,7 @@ function applyStatusGridCellPatch(overlay, patch) {
           }
         };
 
-        cblcarsLog.info('[RulesEngine] ✅ CELL PATCHED RESULT:', {
+        lcardsLog.info('[RulesEngine] ✅ CELL PATCHED RESULT:', {
           cellId: patchedCell.id,
           newColor: patchedCell.color,
           newCellColor: patchedCell.cell_color,
@@ -1406,7 +1406,7 @@ function applyStatusGridCellPatch(overlay, patch) {
     });
   }
 
-  cblcarsLog.info('[RulesEngine] 🔲 CELL PATCH COMPLETE:', {
+  lcardsLog.info('[RulesEngine] 🔲 CELL PATCH COMPLETE:', {
     overlayId: overlay.id,
     totalCells: patchedOverlay.cells.length,
     cellsPatched: patchedCellCount

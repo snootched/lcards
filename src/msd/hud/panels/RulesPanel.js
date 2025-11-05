@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 /**
  * [RulesPanel] Rules panel for MSD HUD
  * 📏 Shows rules engine evaluation trace and rule activity
@@ -11,29 +11,29 @@ export class RulesPanel {
     const stats = {};
 
     try {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       const rulesEngine = pipelineInstance?.systemsManager?.rulesEngine ||
                          pipelineInstance?.rulesEngine;
 
       if (rulesEngine) {
-        cblcarsLog.debug('[RulesPanel] 📋 Capturing rules engine data');
+        lcardsLog.debug('[RulesPanel] 📋 Capturing rules engine data');
         // Get trace information - FIXED: Handle non-array trace
         const engineTrace = rulesEngine.getTrace?.() || [];
         if (Array.isArray(engineTrace)) {
           trace.push(...engineTrace);
-          cblcarsLog.debug(`[RulesPanel] 🔍 Captured ${engineTrace.length} trace entries`);
+          lcardsLog.debug(`[RulesPanel] 🔍 Captured ${engineTrace.length} trace entries`);
         } else if (engineTrace) {
           // Handle case where trace might be a single object or other format
           trace.push(engineTrace);
-          cblcarsLog.debug('[RulesPanel] 🔍 Captured single trace entry (non-array format)');
+          lcardsLog.debug('[RulesPanel] 🔍 Captured single trace entry (non-array format)');
         } else {
-          cblcarsLog.debug('[RulesPanel] 🚫 No trace data available from rules engine');
+          lcardsLog.debug('[RulesPanel] 🚫 No trace data available from rules engine');
         }
 
         // Get rules list - FIXED: Handle non-array rules
         const rulesList = rulesEngine.rules || rulesEngine._rules || [];
         if (Array.isArray(rulesList)) {
-          cblcarsLog.debug(`[RulesPanel] 📜 Processing ${rulesList.length} rules from engine`);
+          lcardsLog.debug(`[RulesPanel] 📜 Processing ${rulesList.length} rules from engine`);
           rulesList.forEach(rule => {
             const traceInfo = trace.find(t => t && t.id === rule.id);
             rules.push({
@@ -46,7 +46,7 @@ export class RulesPanel {
             });
           });
         } else {
-          cblcarsLog.warn('[RulesPanel] ⚠️ Rules list is not an array or is empty');
+          lcardsLog.warn('[RulesPanel] ⚠️ Rules list is not an array or is empty');
         }
 
         // Calculate stats
@@ -56,12 +56,12 @@ export class RulesPanel {
         stats.avgPriority = rules.length > 0 ?
           rules.reduce((sum, r) => sum + r.priority, 0) / rules.length : 0;
 
-        cblcarsLog.debug(`[RulesPanel] 📊 Captured ${stats.totalRules} rules, ${stats.matchedRules} currently matched, ${stats.totalMatches} total matches`);
+        lcardsLog.debug(`[RulesPanel] 📊 Captured ${stats.totalRules} rules, ${stats.matchedRules} currently matched, ${stats.totalMatches} total matches`);
       } else {
-        cblcarsLog.warn('[RulesPanel] ⚠️ Rules engine not available for data capture');
+        lcardsLog.warn('[RulesPanel] ⚠️ Rules engine not available for data capture');
       }
     } catch (e) {
-      cblcarsLog.warn('[RulesPanel] ⚠️ Data capture failed:', e);
+      lcardsLog.warn('[RulesPanel] ⚠️ Data capture failed:', e);
       // ADDED: Provide fallback data structure to prevent rendering errors
       return {
         rules: [],
@@ -83,7 +83,7 @@ export class RulesPanel {
    */
   destroy() {
     // No specific resources to clean up for this panel
-    cblcarsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
+    lcardsLog.debug(`[MSD:${this.constructor.name}] Panel cleanup completed`);
   }
 
   renderHtml(rulesData) {

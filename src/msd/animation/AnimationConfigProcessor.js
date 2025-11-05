@@ -11,7 +11,7 @@
  * Called during pipeline configuration processing
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Process animation configuration from merged config
@@ -20,9 +20,9 @@ import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
  * @returns {Object} Processed animation configuration
  */
 export function processAnimationConfig(mergedConfig) {
-  cblcarsLog.debug('[AnimationConfigProcessor] Processing animation configuration');
-  cblcarsLog.debug('[AnimationConfigProcessor] mergedConfig keys:', Object.keys(mergedConfig));
-  cblcarsLog.debug('[AnimationConfigProcessor] animation_presets:', mergedConfig.animation_presets);
+  lcardsLog.debug('[AnimationConfigProcessor] Processing animation configuration');
+  lcardsLog.debug('[AnimationConfigProcessor] mergedConfig keys:', Object.keys(mergedConfig));
+  lcardsLog.debug('[AnimationConfigProcessor] animation_presets:', mergedConfig.animation_presets);
 
   const processed = {
     customPresets: {},
@@ -35,9 +35,9 @@ export function processAnimationConfig(mergedConfig) {
     // 1. Process custom animation_presets
     if (mergedConfig.animation_presets) {
       processed.customPresets = processCustomPresets(mergedConfig.animation_presets, processed.issues);
-      cblcarsLog.debug(`[AnimationConfigProcessor] Processed ${Object.keys(processed.customPresets).length} custom presets`);
+      lcardsLog.debug(`[AnimationConfigProcessor] Processed ${Object.keys(processed.customPresets).length} custom presets`);
     } else {
-      cblcarsLog.warn('[AnimationConfigProcessor] No animation_presets found in mergedConfig');
+      lcardsLog.warn('[AnimationConfigProcessor] No animation_presets found in mergedConfig');
     }
 
     // 2. Process overlay animations
@@ -57,7 +57,7 @@ export function processAnimationConfig(mergedConfig) {
         }
       });
 
-      cblcarsLog.debug(`[AnimationConfigProcessor] Processed animations for ${processed.overlayAnimations.size} overlays`);
+      lcardsLog.debug(`[AnimationConfigProcessor] Processed animations for ${processed.overlayAnimations.size} overlays`);
     }
 
     // 3. Process timeline configurations
@@ -68,15 +68,15 @@ export function processAnimationConfig(mergedConfig) {
         processed.issues
       );
 
-      cblcarsLog.debug(`[AnimationConfigProcessor] Processed ${Object.keys(processed.timelines).length} timelines`);
+      lcardsLog.debug(`[AnimationConfigProcessor] Processed ${Object.keys(processed.timelines).length} timelines`);
     }
 
     // 4. Log any validation issues
     if (processed.issues.length > 0) {
-      cblcarsLog.warn('[AnimationConfigProcessor] ⚠️ Validation issues found:', processed.issues);
+      lcardsLog.warn('[AnimationConfigProcessor] ⚠️ Validation issues found:', processed.issues);
     }
 
-    cblcarsLog.info('[AnimationConfigProcessor] ✅ Animation configuration processed', {
+    lcardsLog.info('[AnimationConfigProcessor] ✅ Animation configuration processed', {
       customPresets: Object.keys(processed.customPresets).length,
       overlaysWithAnimations: processed.overlayAnimations.size,
       timelines: Object.keys(processed.timelines).length,
@@ -84,7 +84,7 @@ export function processAnimationConfig(mergedConfig) {
     });
 
   } catch (error) {
-    cblcarsLog.error('[AnimationConfigProcessor] Failed to process animation config:', error);
+    lcardsLog.error('[AnimationConfigProcessor] Failed to process animation config:', error);
     processed.issues.push({
       severity: 'error',
       message: `Failed to process animation configuration: ${error.message}`
@@ -129,7 +129,7 @@ function processCustomPresets(presetsConfig, issues = []) {
     // Support both 'type' and 'preset' for backwards compatibility
     const basePresetName = presetDef.preset || presetDef.type;
     if (basePresetName) {
-      const builtinPresets = window.cblcars?.anim?.presets || {};
+      const builtinPresets = window.lcards?.anim?.presets || {};
       if (!builtinPresets[basePresetName]) {
         issues.push({
           severity: 'warning',
@@ -142,7 +142,7 @@ function processCustomPresets(presetsConfig, issues = []) {
           ...presetDef,
           _basePreset: basePresetName
         };
-        cblcarsLog.debug(`[AnimationConfigProcessor] Custom preset "${presetName}" extends "${basePresetName}"`);
+        lcardsLog.debug(`[AnimationConfigProcessor] Custom preset "${presetName}" extends "${basePresetName}"`);
         return;
       }
     }
@@ -200,7 +200,7 @@ function processOverlayAnimations(overlayId, animations, customPresets, issues =
 
     // Validate preset if used
     if (animDef.preset) {
-      const builtinPresets = window.cblcars?.anim?.presets || {};
+      const builtinPresets = window.lcards?.anim?.presets || {};
       if (!builtinPresets[animDef.preset] && !customPresets[animDef.preset]) {
         issues.push({
           severity: 'warning',
@@ -408,7 +408,7 @@ export function validateAnimationParams(animDef) {
  * @returns {Object} { builtin: [...], custom: [...] }
  */
 export function getAvailablePresets(customPresets = {}) {
-  const builtinPresets = Object.keys(window.cblcars?.anim?.presets || {});
+  const builtinPresets = Object.keys(window.lcards?.anim?.presets || {});
   const customPresetNames = Object.keys(customPresets);
 
   return {

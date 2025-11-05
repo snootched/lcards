@@ -22,13 +22,13 @@
  * @module ApexChartsOverlayRenderer
  * @requires ApexChartsAdapter
  * @requires OverlayUtils
- * @requires cblcars-logging
+ * @requires lcards-logging
  * @requires ApexCharts
  */
 
 import { OverlayUtils } from './OverlayUtils.js';
 import { ApexChartsAdapter } from '../charts/ApexChartsAdapter.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import ApexCharts from 'apexcharts';
 import { chartTemplateRegistry } from '../templates/ChartTemplateRegistry.js';
 
@@ -55,12 +55,12 @@ export class ApexChartsOverlayRenderer {
 
     // ✅ NEW: Phase 6 - Log StyleResolver availability
     if (this.styleResolver) {
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] ✅ StyleResolverService available');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] ✅ StyleResolverService available');
     } else {
-      cblcarsLog.warn('[ApexChartsOverlayRenderer] ⚠️ StyleResolverService not available - using fallback resolution');
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] Checked:', {
-        hasGlobal: !!(typeof window !== 'undefined' && window.cblcars?.styleResolver),
-        hasPipeline: !!(typeof window !== 'undefined' && window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.styleResolver)
+      lcardsLog.warn('[ApexChartsOverlayRenderer] ⚠️ StyleResolverService not available - using fallback resolution');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] Checked:', {
+        hasGlobal: !!(typeof window !== 'undefined' && window.lcards?.styleResolver),
+        hasPipeline: !!(typeof window !== 'undefined' && window.lcards.debug.msd?.pipelineInstance?.systemsManager?.styleResolver)
       });
     }
   }
@@ -72,14 +72,14 @@ export class ApexChartsOverlayRenderer {
    * @returns {Object|null} ThemeManager instance or null if not found
    */
   _resolveThemeManager() {
-    // 1. Global CB-LCARS namespace (preferred)
-    if (typeof window !== 'undefined' && window.cblcars?.theme) {
-      return window.cblcars.theme;
+    // 1. Global LCARdS namespace (preferred)
+    if (typeof window !== 'undefined' && window.lcards?.theme) {
+      return window.lcards.theme;
     }
 
     // 2. Pipeline instance via systemsManager
     if (typeof window !== 'undefined') {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.themeManager) {
         return pipelineInstance.systemsManager.themeManager;
       }
@@ -90,7 +90,7 @@ export class ApexChartsOverlayRenderer {
       }
 
       // 4. Systems manager global reference
-      const systemsManager = window.cblcars.debug.msd?.systemsManager;
+      const systemsManager = window.lcards.debug.msd?.systemsManager;
       if (systemsManager?.themeManager) {
         return systemsManager.themeManager;
       }
@@ -107,14 +107,14 @@ export class ApexChartsOverlayRenderer {
    * @returns {Object|null} StyleResolverService instance or null
    */
   _resolveStyleResolver() {
-    // Priority 1: Global CB-LCARS namespace
-    if (typeof window !== 'undefined' && window.cblcars?.styleResolver) {
-      return window.cblcars.styleResolver;
+    // Priority 1: Global LCARdS namespace
+    if (typeof window !== 'undefined' && window.lcards?.styleResolver) {
+      return window.lcards.styleResolver;
     }
 
     // Priority 2: Pipeline instance
     if (typeof window !== 'undefined') {
-      const pipelineInstance = window.cblcars.debug.msd?.pipelineInstance;
+      const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.styleResolver) {
         return pipelineInstance.systemsManager.styleResolver;
       }
@@ -131,12 +131,12 @@ export class ApexChartsOverlayRenderer {
    */
   async initialize(elements) {
     if (this.isInitialized) {
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] Already initialized');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] Already initialized');
       return;
     }
 
     if (this.initPromise) {
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] Initialization in progress, waiting...');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] Initialization in progress, waiting...');
       return this.initPromise;
     }
 
@@ -153,13 +153,13 @@ export class ApexChartsOverlayRenderer {
         this.elements = elements;
         this.isInitialized = true;
 
-        cblcarsLog.info('[ApexChartsOverlayRenderer] ✅ Initialized successfully', {
+        lcardsLog.info('[ApexChartsOverlayRenderer] ✅ Initialized successfully', {
           hasSvg: !!elements.svg,
           hasOverlayGroup: !!elements.overlayGroup,
           hasContainer: !!elements.container
         });
       } catch (error) {
-        cblcarsLog.error('[ApexChartsOverlayRenderer] ❌ Initialization failed:', error);
+        lcardsLog.error('[ApexChartsOverlayRenderer] ❌ Initialization failed:', error);
         throw error;
       }
     })();
@@ -206,7 +206,7 @@ export class ApexChartsOverlayRenderer {
       const overlayWithTemplate = chartTemplateRegistry.applyTemplate(overlay);
 
       if (overlayWithTemplate !== overlay) {
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] Applied template '${overlay.template}' to overlay ${overlay.id}`);
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] Applied template '${overlay.template}' to overlay ${overlay.id}`);
         overlay = overlayWithTemplate;
 
         // ✅ Track template usage
@@ -235,7 +235,7 @@ export class ApexChartsOverlayRenderer {
     if (!instance.elements) {
       const svg = svgContainer?.tagName === 'svg' ? svgContainer : svgContainer?.querySelector('svg');
       if (!svg) {
-        cblcarsLog.error('[ApexChartsOverlayRenderer] Cannot initialize: SVG not found');
+        lcardsLog.error('[ApexChartsOverlayRenderer] Cannot initialize: SVG not found');
         return {
           markup: '',
           provenance: {
@@ -250,7 +250,7 @@ export class ApexChartsOverlayRenderer {
 
       // CRITICAL: Get shadowRoot and mountElement from pipeline
       const pipelineInstance = cardInstance?._config?.__msdDebug?.pipelineInstance ||
-                               window.cblcars.debug.msd?.pipelineInstance;
+                               window.lcards.debug.msd?.pipelineInstance;
 
       const shadowRoot = pipelineInstance?.shadowRoot ||
                         cardInstance?.shadowRoot ||
@@ -269,7 +269,7 @@ export class ApexChartsOverlayRenderer {
       instance.mountElement = mountElement;
       instance.isInitialized = true;
 
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] ✅ Elements initialized on first render', {
+      lcardsLog.debug('[ApexChartsOverlayRenderer] ✅ Elements initialized on first render', {
         hasShadowRoot: !!shadowRoot,
         hasMountElement: !!mountElement
       });
@@ -280,10 +280,10 @@ export class ApexChartsOverlayRenderer {
     const existingDiv = instance.overlayDivs.get(overlay.id);
 
     if (existingChart && existingDiv) {
-      cblcarsLog.debug(`[ApexChartsOverlayRenderer] 🔄 Chart ${overlay.id} already exists - updating instead of creating`);
+      lcardsLog.debug(`[ApexChartsOverlayRenderer] 🔄 Chart ${overlay.id} already exists - updating instead of creating`);
 
       const dataSourceManager = cardInstance?._config?.__msdDebug?.pipelineInstance?.systemsManager?.dataSourceManager ||
-                                window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+                                window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
 
       if (dataSourceManager) {
         ApexChartsOverlayRenderer.updateChartStyle(overlay.id, overlay, dataSourceManager);
@@ -324,7 +324,7 @@ export class ApexChartsOverlayRenderer {
     }
 
     // NEW CHART: Schedule creation
-    cblcarsLog.debug(`[ApexChartsOverlayRenderer] 📊 Creating NEW chart for ${overlay.id}`);
+    lcardsLog.debug(`[ApexChartsOverlayRenderer] 📊 Creating NEW chart for ${overlay.id}`);
     instance._scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance);
 
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
@@ -398,7 +398,7 @@ export class ApexChartsOverlayRenderer {
     // ✅ NEW: Phase 6 - Use StyleResolverService if available
     if (this.styleResolver) {
       try {
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] 🎨 Resolving '${property}' via StyleResolver for overlay ${this._currentOverlayId || 'unknown'}`);
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] 🎨 Resolving '${property}' via StyleResolver for overlay ${this._currentOverlayId || 'unknown'}`);
 
         const result = this.styleResolver.resolveProperty({
           property,
@@ -419,16 +419,16 @@ export class ApexChartsOverlayRenderer {
           themeDefault,
           adapterDefault
         });
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] ✅ Resolved '${property}' = ${result.value} (source: ${result.source})`);
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] ✅ Resolved '${property}' = ${result.value} (source: ${result.source})`);
 
         return result.value;
 
       } catch (error) {
-        cblcarsLog.warn('[ApexChartsOverlayRenderer] StyleResolver error, using fallback:', error);
+        lcardsLog.warn('[ApexChartsOverlayRenderer] StyleResolver error, using fallback:', error);
         // Fall through to manual resolution
       }
     } else {
-      cblcarsLog.debug(`[ApexChartsOverlayRenderer] ⚠️ Using fallback resolution for '${property}' (no StyleResolver)`);
+      lcardsLog.debug(`[ApexChartsOverlayRenderer] ⚠️ Using fallback resolution for '${property}' (no StyleResolver)`);
     }
 
     // ✅ FALLBACK: Original manual resolution logic
@@ -473,7 +473,7 @@ export class ApexChartsOverlayRenderer {
    */
   _getChartStyleDefaults() {
     if (!this.themeManager || !this.themeManager.initialized) {
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] ThemeManager not initialized');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] ThemeManager not initialized');
       return this._getFallbackChartDefaults();
     }
 
@@ -481,13 +481,13 @@ export class ApexChartsOverlayRenderer {
       const theme = this.themeManager.getActiveTheme();
 
       if (!theme) {
-        cblcarsLog.debug('[ApexChartsOverlayRenderer] No active theme');
+        lcardsLog.debug('[ApexChartsOverlayRenderer] No active theme');
         return this._getFallbackChartDefaults();
       }
 
       // ✅ TIER 1: Try theme.components.chart (when you add it to tokens)
       if (theme.components && theme.components.chart) {
-        cblcarsLog.debug('[ApexChartsOverlayRenderer] ✅ Using theme.components.chart');
+        lcardsLog.debug('[ApexChartsOverlayRenderer] ✅ Using theme.components.chart');
         return {
           strokeColor: theme.components.chart.strokeColor,
           gridColor: theme.components.chart.gridColor,
@@ -501,7 +501,7 @@ export class ApexChartsOverlayRenderer {
 
       // ✅ TIER 2: Use theme.colors.chart (works now)
       if (theme.colors && theme.colors.chart) {
-        cblcarsLog.debug('[ApexChartsOverlayRenderer] ✅ Using theme.colors.chart (fallback)');
+        lcardsLog.debug('[ApexChartsOverlayRenderer] ✅ Using theme.colors.chart (fallback)');
         return {
           strokeColor: theme.colors.chart.axis,
           gridColor: theme.colors.chart.gridMuted || theme.colors.chart.grid,
@@ -513,11 +513,11 @@ export class ApexChartsOverlayRenderer {
       }
 
       // ✅ TIER 3: Explicit fallbacks
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] ⚠️ Using fallback defaults');
+      lcardsLog.debug('[ApexChartsOverlayRenderer] ⚠️ Using fallback defaults');
       return this._getFallbackChartDefaults();
 
     } catch (error) {
-      cblcarsLog.warn('[ApexChartsOverlayRenderer] Error getting theme defaults:', error);
+      lcardsLog.warn('[ApexChartsOverlayRenderer] Error getting theme defaults:', error);
       return this._getFallbackChartDefaults();
     }
   }
@@ -630,7 +630,7 @@ export class ApexChartsOverlayRenderer {
       offsetY = (svgRect.height - renderHeight) / 2;
     }
 
-    cblcarsLog.debug('[ApexChartsOverlayRenderer] SVG render area calculated:', {
+    lcardsLog.debug('[ApexChartsOverlayRenderer] SVG render area calculated:', {
       viewBox: { width: viewBox.width, height: viewBox.height, aspect: viewBoxAspect },
       container: { width: svgRect.width, height: svgRect.height, aspect: containerAspect },
       letterboxed: Math.abs(viewBoxAspect - containerAspect) >= 0.01,
@@ -670,7 +670,7 @@ export class ApexChartsOverlayRenderer {
     const screenWidth = vbWidth * scaleX;
     const screenHeight = vbHeight * scaleY;
 
-    cblcarsLog.debug('[ApexChartsOverlayRenderer] ViewBox to screen conversion:', {
+    lcardsLog.debug('[ApexChartsOverlayRenderer] ViewBox to screen conversion:', {
       input: {
         viewBox: { x: vbX, y: vbY, w: vbWidth, h: vbHeight },
         viewBoxOrigin: { x: viewBoxX, y: viewBoxY, w: viewBoxWidth, h: viewBoxHeight }
@@ -723,34 +723,34 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
   const attemptCreation = () => {
     // Basic validation
     if (!this.isInitialized || !this.elements) {
-      cblcarsLog.error(`[ApexChartsOverlayRenderer] Not initialized`);
+      lcardsLog.error(`[ApexChartsOverlayRenderer] Not initialized`);
       return;
     }
 
     if (this.charts.has(overlay.id)) {
-      cblcarsLog.warn(`[ApexChartsOverlayRenderer] ⚠️ Chart ${overlay.id} already exists`);
+      lcardsLog.warn(`[ApexChartsOverlayRenderer] ⚠️ Chart ${overlay.id} already exists`);
       return;
     }
 
     const svg = this.elements.svg;
     if (!svg) {
-      cblcarsLog.error(`[ApexChartsOverlayRenderer] SVG not found`);
+      lcardsLog.error(`[ApexChartsOverlayRenderer] SVG not found`);
       return;
     }
 
     // Get DataSourceManager
     const dataSourceManager = cardInstance?._config?.__msdDebug?.pipelineInstance?.systemsManager?.dataSourceManager ||
-                              window.cblcars.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+                              window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
 
     if (!dataSourceManager) {
-      cblcarsLog.error(`[ApexChartsOverlayRenderer] DataSourceManager not available`);
+      lcardsLog.error(`[ApexChartsOverlayRenderer] DataSourceManager not available`);
       return;
     }
 
     // Resolve position
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
     if (!position) {
-      cblcarsLog.warn(`[ApexChartsOverlayRenderer] Position could not be resolved: ${overlay.id}`);
+      lcardsLog.warn(`[ApexChartsOverlayRenderer] Position could not be resolved: ${overlay.id}`);
       return;
     }
 
@@ -828,7 +828,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
 
       // Validate series (validation happens in adapter now, but double-check)
       if (!series || series.length === 0) {
-        cblcarsLog.warn(`[ApexChartsOverlayRenderer] No valid series data for ${overlay.id}`);
+        lcardsLog.warn(`[ApexChartsOverlayRenderer] No valid series data for ${overlay.id}`);
         // Create empty chart placeholder
         series = [{ name: 'No Data', data: [] }];
       }
@@ -839,7 +839,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       // Create overlay div
       const overlayDiv = this._createOverlayDiv(overlay.id, screenCoords, svg);
       if (!overlayDiv) {
-        cblcarsLog.error(`[ApexChartsOverlayRenderer] Failed to create overlay div for ${overlay.id}`);
+        lcardsLog.error(`[ApexChartsOverlayRenderer] Failed to create overlay div for ${overlay.id}`);
         return;
       }
 
@@ -874,7 +874,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       // Render chart
       chart.render()
         .then(() => {
-          cblcarsLog.debug(`[ApexChartsOverlayRenderer] ✅ Chart rendered: ${overlay.id}`);
+          lcardsLog.debug(`[ApexChartsOverlayRenderer] ✅ Chart rendered: ${overlay.id}`);
 
           // Store references
           this.charts.set(overlay.id, chart);
@@ -895,7 +895,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
           this._subscribeToDataSource(sourceRef, dataSourceManager, chart, overlay);
         })
         .catch(renderError => {
-          cblcarsLog.error(`[ApexChartsOverlayRenderer] ❌ Chart render failed for ${overlay.id}:`, renderError);
+          lcardsLog.error(`[ApexChartsOverlayRenderer] ❌ Chart render failed for ${overlay.id}:`, renderError);
 
           if (overlayDiv) {
             overlayDiv.innerHTML = `
@@ -912,7 +912,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         });
 
     } catch (error) {
-      cblcarsLog.error(`[ApexChartsOverlayRenderer] ❌ Chart creation failed: ${overlay.id}`, error);
+      lcardsLog.error(`[ApexChartsOverlayRenderer] ❌ Chart creation failed: ${overlay.id}`, error);
     }
   };
 
@@ -962,7 +962,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       // Check data points
       if (s.data.length === 0) {
         // Empty data is OK, just warn
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] Series[${index}] has empty data array for ${overlayId}`);
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] Series[${index}] has empty data array for ${overlayId}`);
         return;
       }
 
@@ -993,7 +993,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     const valid = errors.length === 0;
 
     if (!valid) {
-      cblcarsLog.warn(`[ApexChartsOverlayRenderer] ⚠️ Series validation failed for ${overlayId}:`, {
+      lcardsLog.warn(`[ApexChartsOverlayRenderer] ⚠️ Series validation failed for ${overlayId}:`, {
         seriesCount: series.length,
         errors: errors,
         sampleData: series.slice(0, 2).map(s => ({
@@ -1057,7 +1057,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
 
       parentElement.appendChild(overlayContainer);
 
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] Created overlay container', {
+      lcardsLog.debug('[ApexChartsOverlayRenderer] Created overlay container', {
         svgOffset: { left: svgOffsetLeft, top: svgOffsetTop },
         svgSize: { width: svgRect.width, height: svgRect.height },
         svgRect: {
@@ -1111,7 +1111,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       const containerRect = overlayContainer.getBoundingClientRect();
       const svgRect = svg.getBoundingClientRect();
 
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] Chart div position verification', {
+      lcardsLog.debug('[ApexChartsOverlayRenderer] Chart div position verification', {
         overlayId,
         chartDiv: {
           computedStyle: {
@@ -1274,7 +1274,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     const rectAspect = svgRect.width / svgRect.height;
     const aspectMatch = Math.abs(viewBoxAspect - rectAspect) < 0.01;
 
-    cblcarsLog.debug('[ApexChartsOverlayRenderer] Updated overlay container', {
+    lcardsLog.debug('[ApexChartsOverlayRenderer] Updated overlay container', {
       positionChanged,
       sizeChanged,
       svgOffset: { left: svgOffsetLeft, top: svgOffsetTop },
@@ -1308,7 +1308,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
   _updateOverlayPosition(overlayId) {
     const config = this.overlayConfigs.get(overlayId);
     if (!config) {
-      cblcarsLog.warn(`[ApexChartsOverlayRenderer] No config found for overlay: ${overlayId}`);
+      lcardsLog.warn(`[ApexChartsOverlayRenderer] No config found for overlay: ${overlayId}`);
       return;
     }
 
@@ -1319,13 +1319,13 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
                 root.querySelector(`#apex-chart-overlay-${overlayId}`);
 
     if (!div) {
-      cblcarsLog.warn(`[ApexChartsOverlayRenderer] No div found for overlay: ${overlayId}`);
+      lcardsLog.warn(`[ApexChartsOverlayRenderer] No div found for overlay: ${overlayId}`);
       return;
     }
 
     // VALIDATION: Ensure elements initialized
     if (!this.isInitialized || !this.elements || !this.elements.svg) {
-      cblcarsLog.error('[ApexChartsOverlayRenderer] Cannot update position: not initialized');
+      lcardsLog.error('[ApexChartsOverlayRenderer] Cannot update position: not initialized');
       return;
     }
 
@@ -1374,19 +1374,19 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
             }
           }, false, false); // Don't redraw, don't animate
 
-          cblcarsLog.debug('[ApexChartsOverlayRenderer] Updated chart dimensions:', {
+          lcardsLog.debug('[ApexChartsOverlayRenderer] Updated chart dimensions:', {
             overlayId,
             oldDimensions: { width: currentWidth, height: currentHeight },
             newDimensions: { width: coords.width, height: coords.height },
             diff: { width: widthDiff, height: heightDiff }
           });
         } catch (error) {
-          cblcarsLog.error(`[ApexChartsOverlayRenderer] Failed to update chart dimensions for ${overlayId}:`, error);
+          lcardsLog.error(`[ApexChartsOverlayRenderer] Failed to update chart dimensions for ${overlayId}:`, error);
         }
       }
     }
 
-    cblcarsLog.debug('[ApexChartsOverlayRenderer] Updated chart position:', {
+    lcardsLog.debug('[ApexChartsOverlayRenderer] Updated chart position:', {
       overlayId,
       coords,
       dimensionsChanged,
@@ -1418,7 +1418,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       const { dataSource } = ApexChartsAdapter._resolveDataSourcePath(source, dataSourceManager);
 
       if (!dataSource) {
-        cblcarsLog.warn(`[ApexChartsOverlayRenderer] DataSource not found: ${source}`);
+        lcardsLog.warn(`[ApexChartsOverlayRenderer] DataSource not found: ${source}`);
         return;
       }
 
@@ -1441,10 +1441,10 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
           if (newSeries && newSeries.length > 0) {
             // Validation already happened in convertToSeries
             chart.updateSeries(newSeries, true);
-            cblcarsLog.debug(`[ApexChartsOverlayRenderer] 🔄 Updated chart ${overlay.id}`);
+            lcardsLog.debug(`[ApexChartsOverlayRenderer] 🔄 Updated chart ${overlay.id}`);
           }
         } catch (error) {
-          cblcarsLog.error(`[ApexChartsOverlayRenderer] ❌ Update failed for ${overlay.id}:`, error);
+          lcardsLog.error(`[ApexChartsOverlayRenderer] ❌ Update failed for ${overlay.id}:`, error);
         }
       });
 
@@ -1467,23 +1467,23 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
   _registerChartForDebugging(overlayId, chart, div, svg) {
     if (typeof window === 'undefined') return;
 
-    window.cblcars = window.cblcars || {};
-    window.cblcars.debug = window.cblcars.debug || {};
-    window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+    window.lcards = window.lcards || {};
+    window.lcards.debug = window.lcards.debug || {};
+    window.lcards.debug.msd = window.lcards.debug.msd || {};
 
     // ✅ PHASE 4: Move to _internal namespace
-    if (!window.cblcars.debug.msd.pipelineInstance) {
-      window.cblcars.debug.msd.pipelineInstance = {};
+    if (!window.lcards.debug.msd.pipelineInstance) {
+      window.lcards.debug.msd.pipelineInstance = {};
     }
-    if (!window.cblcars.debug.msd.pipelineInstance._internal) {
-      window.cblcars.debug.msd.pipelineInstance._internal = {};
+    if (!window.lcards.debug.msd.pipelineInstance._internal) {
+      window.lcards.debug.msd.pipelineInstance._internal = {};
     }
-    if (!window.cblcars.debug.msd.pipelineInstance._internal.apexCharts) {
-      window.cblcars.debug.msd.pipelineInstance._internal.apexCharts = {};
+    if (!window.lcards.debug.msd.pipelineInstance._internal.apexCharts) {
+      window.lcards.debug.msd.pipelineInstance._internal.apexCharts = {};
     }
 
     // ✅ PHASE 4: Deprecated - use pipelineInstance._internal.apexCharts
-    window.cblcars.debug.msd.apexCharts = window.cblcars.debug.msd.apexCharts || {};
+    window.lcards.debug.msd.apexCharts = window.lcards.debug.msd.apexCharts || {};
 
     const instance = this;
 
@@ -1519,8 +1519,8 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     };
 
     // ✅ PHASE 4: Assign to both old (deprecated) and new (_internal) locations
-    window.cblcars.debug.msd.pipelineInstance._internal.apexCharts[overlayId] = chartDebugInfo;
-    window.cblcars.debug.msd.apexCharts[overlayId] = chartDebugInfo;
+    window.lcards.debug.msd.pipelineInstance._internal.apexCharts[overlayId] = chartDebugInfo;
+    window.lcards.debug.msd.apexCharts[overlayId] = chartDebugInfo;
   }
 
   /**
@@ -1584,7 +1584,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         chart.destroy();
         ApexChartsOverlayRenderer._getInstance().charts.delete(overlayId);
       } catch (error) {
-        cblcarsLog.error(`[ApexChartsOverlayRenderer] Error destroying chart ${overlayId}:`, error);
+        lcardsLog.error(`[ApexChartsOverlayRenderer] Error destroying chart ${overlayId}:`, error);
       }
     }
 
@@ -1595,7 +1595,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         overlayInfo.div.remove();
         ApexChartsOverlayRenderer._getInstance().overlayDivs.delete(overlayId);
       } catch (error) {
-        cblcarsLog.error(`[ApexChartsOverlayRenderer] Error removing overlay div ${overlayId}:`, error);
+        lcardsLog.error(`[ApexChartsOverlayRenderer] Error removing overlay div ${overlayId}:`, error);
       }
     }
 
@@ -1606,7 +1606,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         unsubscribe();
         ApexChartsOverlayRenderer._getInstance().subscriptions.delete(overlayId);
       } catch (error) {
-        cblcarsLog.error(`[ApexChartsOverlayRenderer] Error unsubscribing ${overlayId}:`, error);
+        lcardsLog.error(`[ApexChartsOverlayRenderer] Error unsubscribing ${overlayId}:`, error);
       }
     }
 
@@ -1621,11 +1621,11 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     ApexChartsOverlayRenderer._getInstance().overlayConfigs.delete(overlayId);
 
     // Cleanup debug registry (both old and new locations)
-    if (window.cblcars.debug.msd?.pipelineInstance?._internal?.apexCharts?.[overlayId]) {
-      delete window.cblcars.debug.msd.pipelineInstance._internal.apexCharts[overlayId];
+    if (window.lcards.debug.msd?.pipelineInstance?._internal?.apexCharts?.[overlayId]) {
+      delete window.lcards.debug.msd.pipelineInstance._internal.apexCharts[overlayId];
     }
-    if (window.cblcars.debug.msd?.apexCharts?.[overlayId]) {
-      delete window.cblcars.debug.msd.apexCharts[overlayId];
+    if (window.lcards.debug.msd?.apexCharts?.[overlayId]) {
+      delete window.lcards.debug.msd.apexCharts[overlayId];
     }
   }
 
@@ -1672,13 +1672,13 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     const chart = instance.charts.get(overlayId);
 
     if (!chart) {
-        cblcarsLog.warn(`[ApexChartsOverlayRenderer] Chart instance not found for update: ${overlayId}`);
+        lcardsLog.warn(`[ApexChartsOverlayRenderer] Chart instance not found for update: ${overlayId}`);
         return;
     }
 
     try {
         // DEBUG: Log the entire overlay object to see what we're receiving
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] 📦 Full overlay object for ${overlayId}:`, {
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] 📦 Full overlay object for ${overlayId}:`, {
           hasFinalStyle: !!overlay.finalStyle,
           hasStyle: !!overlay.style,
           finalStyleKeys: overlay.finalStyle ? Object.keys(overlay.finalStyle) : [],
@@ -1690,7 +1690,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         const sourceRef = overlay.source || overlay.data_source || overlay.sources;
 
         // DEBUG: Log the incoming style patch to see what colors are being applied
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] 🎨 Style being used for ${overlayId}:`, {
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] 🎨 Style being used for ${overlayId}:`, {
           color: style.color,
           stroke_colors: style.stroke_colors,
           fill_colors: style.fill_colors,
@@ -1708,7 +1708,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
           ? [Math.round(overlayInfo.vbCoords.width), Math.round(overlayInfo.vbCoords.height)]
           : (overlay.size || [300, 150]);
 
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] Updating chart ${overlayId} with style:`, {
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] Updating chart ${overlayId} with style:`, {
           size,
           styleKeys: Object.keys(style),
           hasColor: !!style.color,
@@ -1754,7 +1754,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         // 4. updateSyncedCharts - true to update synced charts (we don't use this)
         //
         // KEY: ApexCharts internally merges the options, so we only pass what changed
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] 📤 Calling updateOptions with:`, {
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] 📤 Calling updateOptions with:`, {
           optionKeys: Object.keys(optionsOnly),
           hasColors: !!optionsOnly.colors,
           hasStroke: !!optionsOnly.stroke,
@@ -1770,13 +1770,13 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         // animate=false to make the change instant (no animation delay)
         chart.updateOptions(optionsOnly, true, false);
 
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] ✅ updateOptions completed`);
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] ✅ updateOptions completed`);
 
         // Step 2: Update the series separately (only if series data changed)
         // For style-only updates, we can skip this step
         // chart.updateSeries(series, true); // Animate the series update
 
-        cblcarsLog.debug(`[ApexChartsOverlayRenderer] ✅ Chart style updated: ${overlayId}`, {
+        lcardsLog.debug(`[ApexChartsOverlayRenderer] ✅ Chart style updated: ${overlayId}`, {
           optionsUpdated: Object.keys(optionsOnly).length,
           seriesCount: series.length,
           seriesDataPoints: series[0]?.data?.length,
@@ -1784,7 +1784,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
         });
 
     } catch (error) {
-        cblcarsLog.error(`[ApexChartsOverlayRenderer] Failed to update chart style for ${overlayId}:`, error);
+        lcardsLog.error(`[ApexChartsOverlayRenderer] Failed to update chart style for ${overlayId}:`, error);
     }
   }
 
@@ -1848,7 +1848,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
   static updateIncremental(overlay, overlayElement, context) {
     const { dataSourceManager, patch } = context;
 
-    cblcarsLog.debug('[ApexChartsOverlayRenderer] 🔄 Incremental update requested:', {
+    lcardsLog.debug('[ApexChartsOverlayRenderer] 🔄 Incremental update requested:', {
       overlayId: overlay.id,
       hasPatch: !!patch,
       patchStyleKeys: patch?.style ? Object.keys(patch.style) : [],
@@ -1856,7 +1856,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     });
 
     if (!dataSourceManager) {
-      cblcarsLog.warn('[ApexChartsOverlayRenderer] ⚠️ No dataSourceManager in context - cannot update');
+      lcardsLog.warn('[ApexChartsOverlayRenderer] ⚠️ No dataSourceManager in context - cannot update');
       return false;
     }
 
@@ -1864,11 +1864,11 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
       // Use the existing updateChartStyle method
       ApexChartsOverlayRenderer.updateChartStyle(overlay.id, overlay, dataSourceManager);
 
-      cblcarsLog.debug('[ApexChartsOverlayRenderer] ✅ Incremental update succeeded:', overlay.id);
+      lcardsLog.debug('[ApexChartsOverlayRenderer] ✅ Incremental update succeeded:', overlay.id);
       return true;
 
     } catch (error) {
-      cblcarsLog.error('[ApexChartsOverlayRenderer] ❌ Incremental update failed:', overlay.id, error);
+      lcardsLog.error('[ApexChartsOverlayRenderer] ❌ Incremental update failed:', overlay.id, error);
       return false;
     }
   }
@@ -1894,7 +1894,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     window.msdCharts = window.msdCharts || {};
 
     window.msdCharts.dimensions = (overlayId) => {
-      const chartDebug = window.cblcars.debug.msd?.apexCharts?.[overlayId];
+      const chartDebug = window.lcards.debug.msd?.apexCharts?.[overlayId];
       if (!chartDebug) {
         console.error(`❌ Chart not found: ${overlayId}`);
         return null;
@@ -1906,7 +1906,7 @@ _scheduleChartCreation(overlay, anchors, viewBox, svgContainer, cardInstance) {
     };
 
     window.msdCharts.list = () => {
-      const charts = window.cblcars.debug.msd?.apexCharts || {};
+      const charts = window.lcards.debug.msd?.apexCharts || {};
       const chartIds = Object.keys(charts);
       console.log('📊 Available ApexCharts overlays:', chartIds);
       return chartIds;

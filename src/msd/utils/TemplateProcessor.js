@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [TemplateProcessor] Unified template processing system
@@ -346,7 +346,7 @@ export class TemplateProcessor {
       templatesProcessed: 0,
       lastReset: Date.now()
     };
-    cblcarsLog.debug('[TemplateProcessor] Cache cleared');
+    lcardsLog.debug('[TemplateProcessor] Cache cleared');
   }
 
   /**
@@ -357,7 +357,7 @@ export class TemplateProcessor {
   static setDebugMode(enabled) {
     this._debugMode = enabled;
     if (enabled) {
-      cblcarsLog.info('[TemplateProcessor] Debug mode enabled');
+      lcardsLog.info('[TemplateProcessor] Debug mode enabled');
     }
   }
 }

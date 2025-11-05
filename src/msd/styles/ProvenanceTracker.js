@@ -7,7 +7,7 @@
  * @module msd/styles/ProvenanceTracker
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Provenance Tracker for style resolution tracking

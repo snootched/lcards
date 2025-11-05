@@ -7,7 +7,7 @@
  * STANDARDIZATION: ApexCharts uses camelCase (library convention exception)
  * - ApexCharts properties mirror the ApexCharts.js library API
  * - Uses camelCase for chart-specific options (chartType, strokeWidth, etc.)
- * - Common CB-LCARS properties still use snake_case where applicable
+ * - Common LCARdS properties still use snake_case where applicable
  *
  * @module msd/validation/schemas/apexChartOverlay
  */

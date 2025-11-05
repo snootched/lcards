@@ -3,7 +3,7 @@ import { stableStringify } from '../util/stableStringify.js';
 
 /**
  * Router adapter:
- * - Attempts legacy advanced routing via window.cblcars.connectors / helpers if available.
+ * - Attempts legacy advanced routing via window.lcards.connectors / helpers if available.
  * - Falls back to straight line path.
  * - Caches per overlay id + endpoints + mode signature.
  */
@@ -51,7 +51,7 @@ export class Router {
     let d = `M${a1[0]},${a1[1]} L${a2[0]},${a2[1]}`;
     let meta = { strategy: 'fallback-line' };
     try {
-      const legacy = typeof window !== 'undefined' ? (window.cblcars?.connectors) : null;
+      const legacy = typeof window !== 'undefined' ? (window.lcards?.connectors) : null;
       // Heuristic: prefer a legacy API if present (adjust names if actual differ)
       const api = legacy && (legacy.computeOverlayRoute || legacy.computeRoute || legacy.route);
       if (api) {

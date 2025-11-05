@@ -1,4 +1,4 @@
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * [MsdDebugRenderer] Debug visualization renderer - shows anchor markers, overlay bounding boxes, routing guidelines
@@ -46,7 +46,7 @@ export class MsdDebugRenderer {
    */
   setScale(scale = 1.0) {
     this.scale = Math.max(0.3, Math.min(3.0, scale)); // Clamp between reasonable bounds
-    cblcarsLog.debug(`[MsdDebugRenderer] 🔍 Scale factor set to: ${this.scale}`);
+    lcardsLog.debug(`[MsdDebugRenderer] 🔍 Scale factor set to: ${this.scale}`);
   }
 
   /**
@@ -70,13 +70,13 @@ export class MsdDebugRenderer {
     }
 
     if (!root || typeof root.querySelector !== 'function') {
-      cblcarsLog.warn('[MsdDebugRenderer] Invalid root element');
+      lcardsLog.warn('[MsdDebugRenderer] Invalid root element');
       return;
     }
 
     const svgElement = root.querySelector('svg');
     if (!svgElement) {
-      cblcarsLog.warn('[MsdDebugRenderer] No SVG element found in root');
+      lcardsLog.warn('[MsdDebugRenderer] No SVG element found in root');
       return;
     }
 
@@ -100,7 +100,7 @@ export class MsdDebugRenderer {
     }
 
     // REDUCED: Only log when actually rendering features
-    cblcarsLog.debug('[MsdDebugRenderer] 🔍 Rendering debug features', debugState);
+    lcardsLog.debug('[MsdDebugRenderer] 🔍 Rendering debug features', debugState);
 
     // Render enabled features using DebugManager state
     if (debugState.anchors && opts.anchors) {
@@ -150,11 +150,11 @@ export class MsdDebugRenderer {
     this.routingOverlays.forEach(o => o.remove());
     this.routingOverlays.clear();
 
-    // Get routing system from window.cblcars.debug.msd (set by pipeline)
-    const routing = opts.router || window.cblcars.debug.msd?.routing;
+    // Get routing system from window.lcards.debug.msd (set by pipeline)
+    const routing = opts.router || window.lcards.debug.msd?.routing;
 
     if (!routing || typeof routing.inspect !== 'function') {
-      cblcarsLog.debug('[MsdDebugRenderer] Routing system not available for debug rendering');
+      lcardsLog.debug('[MsdDebugRenderer] Routing system not available for debug rendering');
       return;
     }
 
@@ -162,7 +162,7 @@ export class MsdDebugRenderer {
     const lineOverlays = overlays.filter(o => o.type === 'line');
 
     if (lineOverlays.length === 0) {
-      cblcarsLog.debug('[MsdDebugRenderer] No line overlays found for routing visualization');
+      lcardsLog.debug('[MsdDebugRenderer] No line overlays found for routing visualization');
       return;
     }
 
@@ -177,15 +177,15 @@ export class MsdDebugRenderer {
           routeCount++;
         } else {
           // Fine-grained debug, not necessarily an error
-          cblcarsLog.debug(`[MsdDebugRenderer] No route info for overlay ${overlay.id}`);
+          lcardsLog.debug(`[MsdDebugRenderer] No route info for overlay ${overlay.id}`);
         }
       } catch (error) {
-        cblcarsLog.warn(`[MsdDebugRenderer] ⚠️ Failed to render routing guide for ${overlay.id}:`, error);
+        lcardsLog.warn(`[MsdDebugRenderer] ⚠️ Failed to render routing guide for ${overlay.id}:`, error);
       }
     });
 
     if (routeCount > 0) {
-      cblcarsLog.debug(`[MsdDebugRenderer] Rendered ${routeCount} routing guides`);
+      lcardsLog.debug(`[MsdDebugRenderer] Rendered ${routeCount} routing guides`);
     }
   }
 
@@ -266,7 +266,7 @@ export class MsdDebugRenderer {
       }
     }
 
-    cblcarsLog.debug(`[MsdDebugRenderer] Rendered ${markerCount} anchor markers`);
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered ${markerCount} anchor markers`);
   }
 
   /**
@@ -332,7 +332,7 @@ export class MsdDebugRenderer {
       }
     });
 
-    cblcarsLog.debug(`[MsdDebugRenderer] Rendered ${bboxCount} bounding boxes`);
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered ${bboxCount} bounding boxes`);
   }
 
   /**
@@ -381,7 +381,7 @@ export class MsdDebugRenderer {
     this.performanceOverlays.forEach(o => o.remove());
     this.performanceOverlays.clear();
 
-    const perf = window.cblcars.debug.msd?.getPerf?.() || {};
+    const perf = window.lcards.debug.msd?.getPerf?.() || {};
     const perfEntries = [];
 
     if (perf.timers) {
@@ -417,7 +417,7 @@ export class MsdDebugRenderer {
     }
 
     if (perfEntries.length === 0) {
-      cblcarsLog.debug('[MsdDebugRenderer] No performance data available');
+      lcardsLog.debug('[MsdDebugRenderer] No performance data available');
       return;
     }
 
@@ -465,7 +465,7 @@ export class MsdDebugRenderer {
     this.debugLayer.appendChild(perfGroup);
     this.performanceOverlays.set('perf-info', perfGroup);
 
-    cblcarsLog.debug(`[MsdDebugRenderer] Rendered performance overlay with ${perfEntries.length} metrics at scale ${this.scale}`);
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered performance overlay with ${perfEntries.length} metrics at scale ${this.scale}`);
   }
 
   /**
@@ -487,13 +487,13 @@ export class MsdDebugRenderer {
    */
   ensureDebugLayer(svgElement) {
     if (!svgElement) {
-      cblcarsLog.warn('[MsdDebugRenderer] ensureDebugLayer: no SVG element provided');
+      lcardsLog.warn('[MsdDebugRenderer] ensureDebugLayer: no SVG element provided');
       return;
     }
 
     let debugLayer = svgElement.querySelector('#msd-debug-layer');
     if (!debugLayer) {
-      cblcarsLog.debug('[MsdDebugRenderer] Creating new debug layer');
+      lcardsLog.debug('[MsdDebugRenderer] Creating new debug layer');
       const doc = svgElement.ownerDocument;
       debugLayer = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
       debugLayer.id = 'msd-debug-layer';
@@ -501,7 +501,7 @@ export class MsdDebugRenderer {
       debugLayer.style.zIndex = '1000';
       svgElement.appendChild(debugLayer);
     } else {
-      cblcarsLog.debug('[MsdDebugRenderer] Using existing debug layer');
+      lcardsLog.debug('[MsdDebugRenderer] Using existing debug layer');
     }
 
     this.debugLayer = debugLayer;
@@ -517,7 +517,7 @@ export class MsdDebugRenderer {
     if (this.debugLayer) {
       this.debugLayer.style.display = enabled ? 'block' : 'none';
     }
-    cblcarsLog.debug(`[MsdDebugRenderer] Debug visualization ${enabled ? 'enabled' : 'disabled'}`);
+    lcardsLog.debug(`[MsdDebugRenderer] Debug visualization ${enabled ? 'enabled' : 'disabled'}`);
     return enabled;
   }
 
@@ -529,7 +529,7 @@ export class MsdDebugRenderer {
   toggleFeature(feature, enabled) {
     if (this.features.hasOwnProperty(feature)) {
       this.features[feature] = enabled;
-      cblcarsLog.debug(`[MsdDebugRenderer] Feature '${feature}' ${enabled ? 'enabled' : 'disabled'}`);
+      lcardsLog.debug(`[MsdDebugRenderer] Feature '${feature}' ${enabled ? 'enabled' : 'disabled'}`);
 
       // Optionally re-render (future HUD integration may call up-stream)
       setTimeout(() => {
@@ -662,15 +662,15 @@ export class MsdDebugRenderer {
       const container = svgElement?.parentElement || this.debugLayer;
 
       // Try to use TextOverlayRenderer's attachment point calculation
-      if (window.cblcars?.TextOverlayRenderer?.computeAttachmentPoints) {
-        const attachmentData = window.cblcars.TextOverlayRenderer.computeAttachmentPoints(
+      if (window.lcards?.TextOverlayRenderer?.computeAttachmentPoints) {
+        const attachmentData = window.lcards.TextOverlayRenderer.computeAttachmentPoints(
           overlay,
           this.anchors || {},
           container
         );
 
         if (attachmentData && attachmentData.bbox) {
-          cblcarsLog.debug(`[MsdDebugRenderer] Using TextOverlayRenderer bbox for ${overlay.id}`);
+          lcardsLog.debug(`[MsdDebugRenderer] Using TextOverlayRenderer bbox for ${overlay.id}`);
           return {
             x: attachmentData.bbox.left,
             y: attachmentData.bbox.top,
@@ -687,7 +687,7 @@ export class MsdDebugRenderer {
           try {
             const bbox = renderedElement.getBBox();
             if (bbox.width > 0 && bbox.height > 0) {
-              cblcarsLog.debug(`[MsdDebugRenderer] Using getBBox for ${overlay.id}: ${bbox.width}x${bbox.height}`);
+              lcardsLog.debug(`[MsdDebugRenderer] Using getBBox for ${overlay.id}: ${bbox.width}x${bbox.height}`);
               return {
                 x: bbox.x,
                 y: bbox.y,
@@ -696,7 +696,7 @@ export class MsdDebugRenderer {
               };
             }
           } catch (bboxError) {
-            cblcarsLog.warn(`[MsdDebugRenderer] getBBox failed for ${overlay.id}:`, bboxError);
+            lcardsLog.warn(`[MsdDebugRenderer] getBBox failed for ${overlay.id}:`, bboxError);
           }
         }
       }
@@ -760,7 +760,7 @@ export class MsdDebugRenderer {
         height
       };
     } catch (error) {
-      cblcarsLog.warn(`[MsdDebugRenderer] ⚠️ Failed to calculate text dimensions for ${overlay.id}:`, error);
+      lcardsLog.warn(`[MsdDebugRenderer] ⚠️ Failed to calculate text dimensions for ${overlay.id}:`, error);
       return { x, y, width: 100, height: 20 };
     }
   }
@@ -836,6 +836,6 @@ export class MsdDebugRenderer {
 
 // Keep browser fallback for direct script loading
 if (typeof window !== 'undefined') {
-  window.cblcars = window.cblcars || {};
-  window.cblcars.MsdDebugRenderer = MsdDebugRenderer;
+  window.lcards = window.lcards || {};
+  window.lcards.MsdDebugRenderer = MsdDebugRenderer;
 }

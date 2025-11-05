@@ -10,7 +10,7 @@
  * Into a single, consistent API with clear semantics.
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * AttachmentPointManager
@@ -53,7 +53,7 @@ export class AttachmentPointManager {
      */
     this._anchors = new Map();
 
-    cblcarsLog.debug('[AttachmentPointManager] Initialized');
+    lcardsLog.debug('[AttachmentPointManager] Initialized');
   }
 
   /**
@@ -63,7 +63,7 @@ export class AttachmentPointManager {
    */
   setAttachmentPoints(overlayId, attachmentData) {
     if (!overlayId || !attachmentData) {
-      cblcarsLog.warn('[AttachmentPointManager] Invalid setAttachmentPoints call', { overlayId, attachmentData });
+      lcardsLog.warn('[AttachmentPointManager] Invalid setAttachmentPoints call', { overlayId, attachmentData });
       return;
     }
 
@@ -77,10 +77,10 @@ export class AttachmentPointManager {
 
         // Only set if not already explicitly set (preserves gap-adjusted anchors)
         if (!this._anchors.has(virtualAnchorId)) {
-          cblcarsLog.trace(`[AttachmentPointManager] 📝 Setting base anchor ${virtualAnchorId}: [${point}]`);
+          lcardsLog.trace(`[AttachmentPointManager] 📝 Setting base anchor ${virtualAnchorId}: [${point}]`);
           this._anchors.set(virtualAnchorId, point);
         } else {
-          cblcarsLog.trace(`[AttachmentPointManager] ⏭️  Skipping ${virtualAnchorId} (already exists with gap)`);
+          lcardsLog.trace(`[AttachmentPointManager] ⏭️  Skipping ${virtualAnchorId} (already exists with gap)`);
         }
       });
 
@@ -88,7 +88,7 @@ export class AttachmentPointManager {
       this._anchors.set(overlayId, attachmentData.center);
     }
 
-    cblcarsLog.debug(`[AttachmentPointManager] Set attachment points for ${overlayId}`, {
+    lcardsLog.debug(`[AttachmentPointManager] Set attachment points for ${overlayId}`, {
       hasBbox: !!attachmentData.bbox,
       hasPoints: !!attachmentData.points,
       center: attachmentData.center
@@ -132,16 +132,16 @@ export class AttachmentPointManager {
    */
   setAnchor(anchorId, coordinate) {
     if (!anchorId || !Array.isArray(coordinate) || coordinate.length !== 2) {
-      cblcarsLog.warn('[AttachmentPointManager] Invalid setAnchor call', { anchorId, coordinate });
+      lcardsLog.warn('[AttachmentPointManager] Invalid setAnchor call', { anchorId, coordinate });
       return;
     }
 
     const existing = this._anchors.get(anchorId);
     if (existing && anchorId.includes('title_overlay.right')) {
       // Log stack trace for title_overlay.right overwrites
-      cblcarsLog.trace(`[AttachmentPointManager] ⚠️  Overwriting anchor ${anchorId}: [${existing}] → [${coordinate}]`);
+      lcardsLog.trace(`[AttachmentPointManager] ⚠️  Overwriting anchor ${anchorId}: [${existing}] → [${coordinate}]`);
     } else if (existing) {
-      cblcarsLog.trace(`[AttachmentPointManager] ⚠️  Overwriting anchor ${anchorId}: [${existing}] → [${coordinate}]`);
+      lcardsLog.trace(`[AttachmentPointManager] ⚠️  Overwriting anchor ${anchorId}: [${existing}] → [${coordinate}]`);
     }
 
     this._anchors.set(anchorId, coordinate);
@@ -183,7 +183,7 @@ export class AttachmentPointManager {
    */
   setAnchorsFromObject(anchorsObject) {
     if (!anchorsObject || typeof anchorsObject !== 'object') {
-      cblcarsLog.warn('[AttachmentPointManager] Invalid setAnchorsFromObject call', anchorsObject);
+      lcardsLog.warn('[AttachmentPointManager] Invalid setAnchorsFromObject call', anchorsObject);
       return;
     }
 
@@ -210,7 +210,7 @@ export class AttachmentPointManager {
     });
     toRemove.forEach(key => this._anchors.delete(key));
 
-    cblcarsLog.trace(`[AttachmentPointManager] Removed attachment points for ${overlayId}`);
+    lcardsLog.trace(`[AttachmentPointManager] Removed attachment points for ${overlayId}`);
   }
 
   /**
@@ -219,7 +219,7 @@ export class AttachmentPointManager {
   clear() {
     this._attachmentPoints.clear();
     this._anchors.clear();
-    cblcarsLog.debug('[AttachmentPointManager] Cleared all attachment points and anchors');
+    lcardsLog.debug('[AttachmentPointManager] Cleared all attachment points and anchors');
   }
 
   /**

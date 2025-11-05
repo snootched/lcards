@@ -1,7 +1,7 @@
-cb-lcars-button-grid-icons:
-  type: custom:cblcars-button-card
+lcards-button-grid-icons:
+  type: custom:lcards-button-card
   template:
-    - cb-lcars-button-grid
+    - lcards-button-grid
   variables:
     grid:
       X: 5
@@ -12,6 +12,6 @@ cb-lcars-button-grid-icons:
           width: 40px
           height: 40px
       template:
-        - cb-lcars-button-picard-icon
+        - lcards-button-picard-icon
       show_icon: true
       show_label: false

@@ -14,7 +14,7 @@
  * @module msd/validation/ChartDataValidator
  */
 
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Chart Data Validator

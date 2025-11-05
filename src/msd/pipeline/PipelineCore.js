@@ -3,13 +3,13 @@ import { SystemsManager } from './SystemsManager.js';
 import { ModelBuilder } from './ModelBuilder.js';
 import { setupDebugInterface } from '../debug/DebugInterface.js';
 import { buildCardModel } from '../model/CardModel.js';
-import { CBLCARSUnifiedAPI } from '../../api/CBLCARSUnifiedAPI.js';
+import { LCARdSUnifiedAPI } from '../../api/LCARdSUnifiedAPI.js';
 import { StatusGridRenderer } from '../renderer/StatusGridRenderer.js';
 import { exportCollapsed, exportCollapsedJson } from '../export/exportCollapsed.js';
 import { exportFullSnapshot, exportFullSnapshotJson } from '../export/exportFullSnapshot.js';
 import { diffItem } from '../export/diffItem.js';
 import { perfGetAll } from '../perf/PerfCounters.js';
-import { cblcarsLog } from '../../utils/cb-lcars-logging.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { StyleResolverService } from '../styles/StyleResolverService.js';
 import { ValidationService } from '../validation/ValidationService.js';
 import { registerAllSchemas } from '../validation/schemas/index.js';
@@ -27,25 +27,25 @@ import { applyBaseSvgFilters } from '../utils/BaseSvgFilters.js';
  * @returns {Promise<Object>} Pipeline API
  */
 export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
-  cblcarsLog.debug('[PipelineCore] 🚀 Starting MSD pipeline initialization with enhanced sequencing');
+  lcardsLog.debug('[PipelineCore] 🚀 Starting MSD pipeline initialization with enhanced sequencing');
 
   // PHASE 1: Configuration processing and pack merging
-  cblcarsLog.debug('[PipelineCore] 📋 Phase 1: Processing and validating configuration');
+  lcardsLog.debug('[PipelineCore] 📋 Phase 1: Processing and validating configuration');
   const { mergedConfig, issues, provenance } = await processAndValidateConfig(userMsdConfig);
 
   // Handle validation errors early
   if (issues.errors.length) {
-    cblcarsLog.error('[PipelineCore] Validation errors – pipeline disabled', issues.errors);
+    lcardsLog.error('[PipelineCore] Validation errors – pipeline disabled', issues.errors);
     return createDisabledPipeline(mergedConfig, issues, provenance);
   }
 
   // PHASE 2: Initialize SystemsManager with theme loading BEFORE any overlay processing
-  cblcarsLog.trace('[PipelineCore] 🔧 Phase 2: Initializing SystemsManager and loading pack defaults');
+  lcardsLog.trace('[PipelineCore] 🔧 Phase 2: Initializing SystemsManager and loading pack defaults');
   const systemsManager = new SystemsManager();
 
   // ✅ MOVED: Phase 2.5 - Initialize StyleResolverService BEFORE SystemsManager initialization
   // This ensures StyleResolver is available when SystemsManager checks for it
-  cblcarsLog.trace('[PipelineCore] 🎨 Phase 2.5: Initializing StyleResolverService (before SystemsManager)');
+  lcardsLog.trace('[PipelineCore] 🎨 Phase 2.5: Initializing StyleResolverService (before SystemsManager)');
 
   let styleResolver = null;
   try {
@@ -62,17 +62,17 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
 
     // Store in global namespace for access by renderers
     if (typeof window !== 'undefined') {
-      if (!window.cblcars) window.cblcars = {};
-      window.cblcars.styleResolver = styleResolver;
+      if (!window.lcards) window.lcards = {};
+      window.lcards.styleResolver = styleResolver;
     }
 
     // Store in SystemsManager
     systemsManager.styleResolver = styleResolver;
 
-    cblcarsLog.debug('[PipelineCore] ✅ StyleResolverService initialized (before SystemsManager)');
+    lcardsLog.debug('[PipelineCore] ✅ StyleResolverService initialized (before SystemsManager)');
   } catch (error) {
-    cblcarsLog.warn('[PipelineCore] ⚠️ StyleResolverService initialization failed:', error);
-    cblcarsLog.warn('[PipelineCore] ⚠️ Continuing without StyleResolverService - renderers will use fallback resolution');
+    lcardsLog.warn('[PipelineCore] ⚠️ StyleResolverService initialization failed:', error);
+    lcardsLog.warn('[PipelineCore] ⚠️ Continuing without StyleResolverService - renderers will use fallback resolution');
     // Don't fail the pipeline - renderers will gracefully fall back to manual resolution
   }
 
@@ -82,17 +82,17 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
 
     // ✅ NEW: Update StyleResolver with ThemeManager after SystemsManager initializes it
     if (styleResolver && systemsManager.themeManager) {
-      cblcarsLog.debug('[PipelineCore] 🔗 Connecting StyleResolver to ThemeManager');
+      lcardsLog.debug('[PipelineCore] 🔗 Connecting StyleResolver to ThemeManager');
       styleResolver.themeManager = systemsManager.themeManager;
 
       // Re-initialize token resolver with actual theme manager
       styleResolver.tokenResolver.themeManager = systemsManager.themeManager;
 
-      cblcarsLog.debug('[PipelineCore] ✅ StyleResolver connected to ThemeManager');
+      lcardsLog.debug('[PipelineCore] ✅ StyleResolver connected to ThemeManager');
     }
 
     // ✅ NEW: Phase 7 - Phase 2.2: Initialize ValidationService
-    cblcarsLog.debug('[PipelineCore] ✅ Phase 2.2: Initializing ValidationService');
+    lcardsLog.debug('[PipelineCore] ✅ Phase 2.2: Initializing ValidationService');
     let validationService = null;
 
     try {
@@ -106,7 +106,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
 
       // Register all overlay schemas
       registerAllSchemas(validationService.schemaRegistry);
-      cblcarsLog.debug('[PipelineCore] 📋 Registered validation schemas:', {
+      lcardsLog.debug('[PipelineCore] 📋 Registered validation schemas:', {
         schemaCount: validationService.schemaRegistry.getSchemaCount(),
         types: validationService.schemaRegistry.getRegisteredTypes()
       });
@@ -114,34 +114,34 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
       // Connect ValidationService to ThemeManager and DataSourceManager
       if (systemsManager.themeManager) {
         validationService.setThemeManager(systemsManager.themeManager);
-        cblcarsLog.debug('[PipelineCore] 🔗 ValidationService connected to ThemeManager');
+        lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to ThemeManager');
       }
 
       if (systemsManager.dataSourceManager) {
         validationService.setDataSourceManager(systemsManager.dataSourceManager);
-        cblcarsLog.debug('[PipelineCore] 🔗 ValidationService connected to DataSourceManager');
+        lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to DataSourceManager');
       }
 
       // Make ValidationService globally accessible
       if (typeof window !== 'undefined') {
-        if (!window.cblcars) window.cblcars = {};
-        window.cblcars.validationService = validationService;
-        cblcarsLog.debug('[PipelineCore] ✅ ValidationService available at window.cblcars.validationService');
+        if (!window.lcards) window.lcards = {};
+        window.lcards.validationService = validationService;
+        lcardsLog.debug('[PipelineCore] ✅ ValidationService available at window.lcards.validationService');
       }
 
       // Store in SystemsManager
       systemsManager.validationService = validationService;
 
-      cblcarsLog.debug('[PipelineCore] ✅ ValidationService initialized and connected');
+      lcardsLog.debug('[PipelineCore] ✅ ValidationService initialized and connected');
 
     } catch (validationInitError) {
-      cblcarsLog.warn('[PipelineCore] ⚠️ ValidationService initialization failed:', validationInitError);
-      cblcarsLog.warn('[PipelineCore] ⚠️ Continuing without ValidationService - overlays will not be pre-validated');
+      lcardsLog.warn('[PipelineCore] ⚠️ ValidationService initialization failed:', validationInitError);
+      lcardsLog.warn('[PipelineCore] ⚠️ Continuing without ValidationService - overlays will not be pre-validated');
       // Don't fail the pipeline - validation is helpful but not critical
     }
 
   } catch (error) {
-    cblcarsLog.error('[PipelineCore] ❌ SystemsManager initialization failed:', error);
+    lcardsLog.error('[PipelineCore] ❌ SystemsManager initialization failed:', error);
     throw new Error(`SystemsManager initialization failed: ${error.message}`);
   }
 
@@ -153,7 +153,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   // Validate theme is loaded
   const activeTheme = systemsManager.themeManager.getActiveTheme();
 
-  cblcarsLog.debug('[PipelineCore] 🔍 Theme validation:', {
+  lcardsLog.debug('[PipelineCore] 🔍 Theme validation:', {
     activeTheme: activeTheme?.name || 'none',
     themeId: activeTheme?.id || 'none',
     availableThemes: systemsManager.themeManager.listThemes(),
@@ -161,16 +161,16 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   });
 
   if (!activeTheme) {
-    cblcarsLog.warn('[PipelineCore] ⚠️ No theme active - some features may not work properly');
+    lcardsLog.warn('[PipelineCore] ⚠️ No theme active - some features may not work properly');
   } else {
-    cblcarsLog.debug('[PipelineCore] ✅ Theme validated:', {
+    lcardsLog.debug('[PipelineCore] ✅ Theme validated:', {
       name: activeTheme.name,
       id: activeTheme.id,
       packId: activeTheme.packId
     });
   }
 
-  cblcarsLog.debug('[PipelineCore] ✅ Theme system loaded and ready:', {
+  lcardsLog.debug('[PipelineCore] ✅ Theme system loaded and ready:', {
     hasThemeManager: !!systemsManager.themeManager,
     activeTheme: activeTheme?.name,
     themeCount: systemsManager.themeManager.listThemes().length
@@ -178,7 +178,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
 
   // ✅ NEW: Phase 7 - Phase 2.3: Pre-render validation of overlays
   if (systemsManager.validationService && mergedConfig.overlays && mergedConfig.overlays.length > 0) {
-    cblcarsLog.debug('[PipelineCore] 🔍 Phase 2.3: Validating overlays before rendering');
+    lcardsLog.debug('[PipelineCore] 🔍 Phase 2.3: Validating overlays before rendering');
 
     const validation = systemsManager.validationService.validateAll(mergedConfig.overlays, {
       viewBox: mergedConfig.view_box || [0, 0, 800, 600],
@@ -187,7 +187,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     });
 
     if (!validation.valid) {
-      cblcarsLog.warn('[PipelineCore] ⚠️ Overlay validation found issues:', {
+      lcardsLog.warn('[PipelineCore] ⚠️ Overlay validation found issues:', {
         total: validation.summary.total,
         invalid: validation.summary.invalid,
         errors: validation.summary.errors,
@@ -197,7 +197,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
       // Log detailed validation errors in debug mode
       if (mergedConfig?.debug?.validation) {
         const formattedErrors = systemsManager.validationService.formatErrors(validation);
-        cblcarsLog.debug('[PipelineCore] Validation details:\n' + formattedErrors);
+        lcardsLog.debug('[PipelineCore] Validation details:\n' + formattedErrors);
       }
 
       // In strict mode, filter out invalid overlays
@@ -211,13 +211,13 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
           validOverlayIds.includes(o.id)
         );
 
-        cblcarsLog.info('[PipelineCore] 🚮 Filtered out invalid overlays in strict mode:', {
+        lcardsLog.info('[PipelineCore] 🚮 Filtered out invalid overlays in strict mode:', {
           removed: originalCount - mergedConfig.overlays.length,
           remaining: mergedConfig.overlays.length
         });
       }
     } else {
-      cblcarsLog.debug('[PipelineCore] ✅ All overlays passed validation');
+      lcardsLog.debug('[PipelineCore] ✅ All overlays passed validation');
     }
 
     // Store validation results in config for debugging
@@ -227,11 +227,11 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
       results: validation.results
     };
   } else if (!systemsManager.validationService) {
-    cblcarsLog.debug('[PipelineCore] ⏭️ Skipping overlay validation (ValidationService not available)');
+    lcardsLog.debug('[PipelineCore] ⏭️ Skipping overlay validation (ValidationService not available)');
   }
 
   // PHASE 3: Build card model (now safe to process overlays)
-  cblcarsLog.debug('[PipelineCore] 🏗️ Phase 3: Building card model');
+  lcardsLog.debug('[PipelineCore] 🏗️ Phase 3: Building card model');
   const cardModel = await buildCardModel(mergedConfig);
 
   // Ensure anchors are available
@@ -239,38 +239,38 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   if (!Object.keys(cardModel.anchors).length) {
     if (mergedConfig.anchors && Object.keys(mergedConfig.anchors).length) {
       cardModel.anchors = { ...mergedConfig.anchors };
-      cblcarsLog.debug('[PipelineCore] Adopted user anchors');
+      lcardsLog.debug('[PipelineCore] Adopted user anchors');
     }
   }
 
   // PHASE 4: Complete systems initialization with card model
-  cblcarsLog.debug('[PipelineCore] ⚙️ Phase 4: Completing systems initialization');
+  lcardsLog.debug('[PipelineCore] ⚙️ Phase 4: Completing systems initialization');
   try {
     await systemsManager.completeSystems(mergedConfig, cardModel, mountEl, hass);
   } catch (error) {
-    cblcarsLog.error('[PipelineCore] ❌ Systems completion failed:', error);
+    lcardsLog.error('[PipelineCore] ❌ Systems completion failed:', error);
     throw new Error(`Systems completion failed: ${error.message}`);
   }
 
   // Initialize HASS state
   if (hass) {
-    cblcarsLog.debug('[PipelineCore] 📥 Initializing HASS via ingestHass');
+    lcardsLog.debug('[PipelineCore] 📥 Initializing HASS via ingestHass');
     systemsManager.ingestHass(hass);
   }
 
   // PHASE 5: Early debug and routing setup
-  cblcarsLog.debug('[PipelineCore] 🔍 Phase 5: Setting up debug infrastructure');
+  lcardsLog.debug('[PipelineCore] 🔍 Phase 5: Setting up debug infrastructure');
   if (typeof window !== 'undefined') {
-    window.cblcars = window.cblcars || {};
-    window.cblcars.debug = window.cblcars.debug || {};
-    window.cblcars.debug.msd = window.cblcars.debug.msd || {};
+    window.lcards = window.lcards || {};
+    window.lcards.debug = window.lcards.debug || {};
+    window.lcards.debug.msd = window.lcards.debug.msd || {};
 
     // ✅ PHASE 4: Deprecated - use pipelineInstance._internal.debugManager
-    window.cblcars.debug.msd.debugManager = systemsManager.debugManager;
-    window.cblcars.debug.msd.routing = systemsManager.router;
+    window.lcards.debug.msd.debugManager = systemsManager.debugManager;
+    window.lcards.debug.msd.routing = systemsManager.router;
 
     // Make core systems available BEFORE any overlay rendering
-    window.cblcars.debug.msd.pipelineInstance = {
+    window.lcards.debug.msd.pipelineInstance = {
       systemsManager: systemsManager,
       dataSourceManager: systemsManager.dataSourceManager,
       config: mergedConfig,
@@ -285,7 +285,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
       }
     };
 
-    cblcarsLog.debug('[PipelineCore] Essential subsystems ready for overlay rendering:', {
+    lcardsLog.debug('[PipelineCore] Essential subsystems ready for overlay rendering:', {
       hasSystemsManager: !!systemsManager,
       hasDataSourceManager: !!systemsManager.dataSourceManager,
       hasThemeManager: !!systemsManager.themeManager,
@@ -304,7 +304,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   }
 
   // PHASE 6: Initialize model builder (now everything is ready)
-  cblcarsLog.debug('[PipelineCore] 🏭 Phase 6: Initializing model builder');
+  lcardsLog.debug('[PipelineCore] 🏭 Phase 6: Initializing model builder');
   const modelBuilder = new ModelBuilder(mergedConfig, cardModel, systemsManager);
 
   // Store ModelBuilder reference in SystemsManager for accessibility
@@ -316,20 +316,20 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
    * @returns {Object|undefined} Renderer result object
    */
   async function reRender() {
-    cblcarsLog.info('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
+    lcardsLog.info('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
       timestamp: new Date().toISOString(),
       renderInProgress: systemsManager._renderInProgress,
       rulePatches: systemsManager.rulesEngine?.getLastEvaluationResult?.()?.overlayPatches?.length || 'N/A'
     });
 
     if (!systemsManager.themeManager) {
-      cblcarsLog.error('[PipelineCore] ❌ ThemeManager not available during re-render - aborting');
+      lcardsLog.error('[PipelineCore] ❌ ThemeManager not available during re-render - aborting');
       return { success: false, error: 'ThemeManager not available' };
     }
 
     // IMPROVED: Queue renders instead of blocking them
     if (systemsManager._renderInProgress) {
-      cblcarsLog.debug('[PipelineCore] 🕐 Render in progress, queueing re-render');
+      lcardsLog.debug('[PipelineCore] 🕐 Render in progress, queueing re-render');
       systemsManager._queuedReRender = true;
       return { success: false, reason: 'render_in_progress', queued: true };
     }
@@ -338,33 +338,33 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     systemsManager._queuedReRender = false;
 
     try {
-      cblcarsLog.debug('[PipelineCore] 📊 Computing resolved model...');
+      lcardsLog.debug('[PipelineCore] 📊 Computing resolved model...');
       const startTime = performance.now();
       const resolvedModel = modelBuilder.computeResolvedModel();
 
-      cblcarsLog.debug('[PipelineCore] ✅ Resolved model computed:', {
+      lcardsLog.debug('[PipelineCore] ✅ Resolved model computed:', {
         overlayCount: resolvedModel.overlays.length,
         controlOverlays: resolvedModel.overlays.filter(o => o.type === 'control').length,
         hasAnchors: !!resolvedModel.anchors,
         hasViewBox: !!resolvedModel.viewBox
       });
 
-      cblcarsLog.debug(`[PipelineCore] 🎨 Starting AdvancedRenderer.render() - overlays: ${resolvedModel.overlays.length}`);
+      lcardsLog.debug(`[PipelineCore] 🎨 Starting AdvancedRenderer.render() - overlays: ${resolvedModel.overlays.length}`);
 
       // ADDED: Defensive rendering with error boundary
       let renderResult;
       try {
         renderResult = systemsManager.renderer.render(resolvedModel);
-        cblcarsLog.debug('[PipelineCore] ✅ AdvancedRenderer.render() completed successfully:', renderResult);
+        lcardsLog.debug('[PipelineCore] ✅ AdvancedRenderer.render() completed successfully:', renderResult);
       } catch (renderError) {
-        cblcarsLog.error('[PipelineCore] ❌ AdvancedRenderer.render() FAILED:', renderError);
-        cblcarsLog.error('[PipelineCore] ❌ Render error stack:', renderError.stack);
+        lcardsLog.error('[PipelineCore] ❌ AdvancedRenderer.render() FAILED:', renderError);
+        lcardsLog.error('[PipelineCore] ❌ Render error stack:', renderError.stack);
         return { success: false, error: renderError.message, phase: 'advanced_renderer' };
       }
 
       // ANIMATION INTEGRATION: Notify AnimationManager about rendered overlays
       if (systemsManager.animationManager) {
-        cblcarsLog.debug('[PipelineCore] 🎬 Notifying AnimationManager about rendered overlays...');
+        lcardsLog.debug('[PipelineCore] 🎬 Notifying AnimationManager about rendered overlays...');
 
         // Track text overlays for re-initialization after font stabilization
         const textOverlays = [];
@@ -378,17 +378,17 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
             if (element) {
               try {
                 await systemsManager.animationManager.onOverlayRendered(overlay.id, element, overlay);
-                cblcarsLog.debug(`[PipelineCore] ✅ Initialized animations for overlay: ${overlay.id}`);
+                lcardsLog.debug(`[PipelineCore] ✅ Initialized animations for overlay: ${overlay.id}`);
 
                 // Track text overlays for re-initialization after font stabilization
                 if (overlay.type === 'text') {
                   textOverlays.push({ id: overlay.id, overlay });
                 }
               } catch (animError) {
-                cblcarsLog.error(`[PipelineCore] ❌ Failed to initialize animations for ${overlay.id}:`, animError);
+                lcardsLog.error(`[PipelineCore] ❌ Failed to initialize animations for ${overlay.id}:`, animError);
               }
             } else {
-              cblcarsLog.warn(`[PipelineCore] ⚠️ Could not find element for animated overlay: ${overlay.id}`);
+              lcardsLog.warn(`[PipelineCore] ⚠️ Could not find element for animated overlay: ${overlay.id}`);
             }
           }
         }
@@ -397,7 +397,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
         // Font stabilization happens async and re-renders text elements
         if (textOverlays.length > 0) {
           setTimeout(async () => {
-            cblcarsLog.debug('[PipelineCore] 🔄 Re-initializing animations after font stabilization...', {
+            lcardsLog.debug('[PipelineCore] 🔄 Re-initializing animations after font stabilization...', {
               overlays: textOverlays.map(t => t.id)
             });
 
@@ -406,46 +406,46 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
               if (element) {
                 try {
                   await systemsManager.animationManager.onOverlayRendered(id, element, overlay);
-                  cblcarsLog.debug(`[PipelineCore] ✅ Re-initialized animations for text overlay: ${id}`);
+                  lcardsLog.debug(`[PipelineCore] ✅ Re-initialized animations for text overlay: ${id}`);
                 } catch (animError) {
-                  cblcarsLog.error(`[PipelineCore] ❌ Failed to re-initialize animations for ${id}:`, animError);
+                  lcardsLog.error(`[PipelineCore] ❌ Failed to re-initialize animations for ${id}:`, animError);
                 }
               }
             }
           }, 1000); // Wait for font stabilization to complete (typically 3-10 passes)
         }
 
-        cblcarsLog.debug('[PipelineCore] ✅ AnimationManager notified about all rendered overlays');
+        lcardsLog.debug('[PipelineCore] ✅ AnimationManager notified about all rendered overlays');
       }
 
-      cblcarsLog.debug('[PipelineCore] 🎮 Starting renderDebugAndControls()...');
+      lcardsLog.debug('[PipelineCore] 🎮 Starting renderDebugAndControls()...');
       // CHANGED: Make debug and controls rendering more defensive
       try {
         await systemsManager.renderDebugAndControls(resolvedModel, mountEl);
-        cblcarsLog.debug('[PipelineCore] ✅ renderDebugAndControls() completed successfully');
+        lcardsLog.debug('[PipelineCore] ✅ renderDebugAndControls() completed successfully');
       } catch (debugControlsError) {
-        cblcarsLog.error('[PipelineCore] ❌ renderDebugAndControls() FAILED:', debugControlsError);
-        cblcarsLog.error('[PipelineCore] ❌ Debug/Controls error stack:', debugControlsError.stack);
+        lcardsLog.error('[PipelineCore] ❌ renderDebugAndControls() FAILED:', debugControlsError);
+        lcardsLog.error('[PipelineCore] ❌ Debug/Controls error stack:', debugControlsError.stack);
         // Don't fail the entire render - just log the error
-        cblcarsLog.warn('[PipelineCore] ⚠️ Continuing without debug/controls rendering due to error');
+        lcardsLog.warn('[PipelineCore] ⚠️ Continuing without debug/controls rendering due to error');
       }
 
       const renderTime = performance.now() - startTime;
-      cblcarsLog.debug(`[PipelineCore] ✅ reRender() COMPLETED in ${renderTime.toFixed(2)}ms`);
+      lcardsLog.debug(`[PipelineCore] ✅ reRender() COMPLETED in ${renderTime.toFixed(2)}ms`);
 
       return renderResult || { success: true };
 
     } catch (error) {
-      cblcarsLog.error('[PipelineCore] ❌ reRender() COMPLETELY FAILED:', error);
-      cblcarsLog.error('[PipelineCore] ❌ Complete failure stack:', error.stack);
+      lcardsLog.error('[PipelineCore] ❌ reRender() COMPLETELY FAILED:', error);
+      lcardsLog.error('[PipelineCore] ❌ Complete failure stack:', error.stack);
       return { success: false, error: error.message };
     } finally {
       systemsManager._renderInProgress = false;
-      cblcarsLog.debug('[PipelineCore] 🏁 reRender() FINALLY block - _renderInProgress reset to false');
+      lcardsLog.debug('[PipelineCore] 🏁 reRender() FINALLY block - _renderInProgress reset to false');
 
       // IMPROVED: Execute queued re-render if one was requested
       if (systemsManager._queuedReRender) {
-        cblcarsLog.debug('[PipelineCore] 🔄 Executing queued re-render');
+        lcardsLog.debug('[PipelineCore] 🔄 Executing queued re-render');
         systemsManager._queuedReRender = false;
         // Use setTimeout to avoid immediate recursion and allow stack to clear
         setTimeout(() => reRender(), 50);
@@ -457,27 +457,27 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   systemsManager.setReRenderCallback(reRender);
 
   // PHASE 7: Initial render - now everything is properly sequenced
-  cblcarsLog.debug('[PipelineCore] 🎬 Phase 7: Performing initial render');
-  cblcarsLog.debug('[PipelineCore] DataSourceManager status:', {
+  lcardsLog.debug('[PipelineCore] 🎬 Phase 7: Performing initial render');
+  lcardsLog.debug('[PipelineCore] DataSourceManager status:', {
     sourcesCount: systemsManager.dataSourceManager?.getAllSources?.()?.length || 0,
     entityCount: systemsManager.dataSourceManager?.listIds?.()?.length || 0
   });
 
   const initialRenderResult = await reRender();
 
-  cblcarsLog.debug('[PipelineCore] Initial render completed:', {
+  lcardsLog.debug('[PipelineCore] Initial render completed:', {
     overlayCount: initialRenderResult?.overlayCount || 0,
     errors: initialRenderResult?.errors || 0
   });
 
   // ✅ NEW: Apply base SVG filters after initial render
   if (cardModel.baseSvg?.filters) {
-    cblcarsLog.debug('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
+    lcardsLog.debug('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
     try {
       // Target the base content group (__ prefix = internal/reserved ID, not an anchor)
       const baseContentGroup = mountEl?.querySelector('#__msd-base-content');
 
-      cblcarsLog.debug('[PipelineCore] 🔍 Filter application details:', {
+      lcardsLog.debug('[PipelineCore] 🔍 Filter application details:', {
         hasMountEl: !!mountEl,
         mountElTag: mountEl?.tagName,
         baseContentGroup: !!baseContentGroup,
@@ -490,21 +490,21 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
         applyBaseSvgFilters(baseContentGroup, cardModel.baseSvg.filters);
 
         // Verify filters were applied
-        cblcarsLog.debug('[PipelineCore] ✅ Base SVG filters applied to #__msd-base-content:', {
+        lcardsLog.debug('[PipelineCore] ✅ Base SVG filters applied to #__msd-base-content:', {
           appliedFilter: baseContentGroup.style.filter,
           elementId: baseContentGroup.id,
           elementTag: baseContentGroup.tagName
         });
       } else {
-        cblcarsLog.warn('[PipelineCore] ⚠️ #__msd-base-content group not found, cannot apply filters (overlays will not be affected)');
+        lcardsLog.warn('[PipelineCore] ⚠️ #__msd-base-content group not found, cannot apply filters (overlays will not be affected)');
       }
     } catch (filterError) {
-      cblcarsLog.error('[PipelineCore] ❌ Failed to apply base SVG filters:', filterError);
+      lcardsLog.error('[PipelineCore] ❌ Failed to apply base SVG filters:', filterError);
     }
   }
 
   // PHASE 8: Create pipeline API and finalize
-  cblcarsLog.debug('[PipelineCore] 🔌 Phase 8: Creating pipeline API');
+  lcardsLog.debug('[PipelineCore] 🔌 Phase 8: Creating pipeline API');
   const pipelineApi = createPipelineApi(
     mergedConfig, cardModel, systemsManager, modelBuilder, reRender
   );
@@ -513,34 +513,34 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   setupDebugInterface(pipelineApi, mergedConfig, provenance, systemsManager, modelBuilder);
 
   // Initialize HUD service with mount element
-  if (typeof window !== 'undefined' && window.cblcars.debug.msd?.hud?.setMountElement) {
-    window.cblcars.debug.msd.hud.setMountElement(mountEl);
+  if (typeof window !== 'undefined' && window.lcards.debug.msd?.hud?.setMountElement) {
+    window.lcards.debug.msd.hud.setMountElement(mountEl);
   }
 
   // ✅ PHASE 4: Attach unified API AFTER DebugInterface setup
   // This ensures modern namespaces overwrite legacy properties
-  cblcarsLog.debug('[PipelineCore] Attaching unified API after DebugInterface setup');
-  CBLCARSUnifiedAPI.attach();
+  lcardsLog.debug('[PipelineCore] Attaching unified API after DebugInterface setup');
+  LCARdSUnifiedAPI.attach();
 
   // Augment debug tracking (now that pipelineApi exists)
   if (typeof window !== 'undefined') {
-    window.cblcars = window.cblcars || {};
-    window.cblcars.debug = window.cblcars.debug || {};
-    window.cblcars.debug.msd = window.cblcars.debug.msd || {};
-    window.cblcars.debug.msd.validation = { issues: () => mergedConfig.__issues };
-    window.cblcars.debug.msd.pipelineInstance = pipelineApi;
-    window.cblcars.debug.msd._provenance = provenance;
+    window.lcards = window.lcards || {};
+    window.lcards.debug = window.lcards.debug || {};
+    window.lcards.debug.msd = window.lcards.debug.msd || {};
+    window.lcards.debug.msd.validation = { issues: () => mergedConfig.__issues };
+    window.lcards.debug.msd.pipelineInstance = pipelineApi;
+    window.lcards.debug.msd._provenance = provenance;
 
     // Ensure routing reference is consistent (in case late changes happened)
-    if (!window.cblcars.debug.msd.routing) {
-      window.cblcars.debug.msd.routing = systemsManager.router;
+    if (!window.lcards.debug.msd.routing) {
+      window.lcards.debug.msd.routing = systemsManager.router;
       try {
         window.dispatchEvent(new CustomEvent('msd-routing-ready'));
       } catch(_) {}
     }
   }
 
-  cblcarsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with enhanced sequencing');
+  lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with enhanced sequencing');
   return pipelineApi;
 }
 
@@ -570,12 +570,12 @@ function createDisabledPipeline(mergedConfig, issues, provenance) {
   };
 
   if (typeof window !== 'undefined') {
-    window.cblcars = window.cblcars || {};
-    window.cblcars.debug = window.cblcars.debug || {};
-    window.cblcars.debug.msd = window.cblcars.debug.msd || {};
-    window.cblcars.debug.msd.validation = { issues: () => mergedConfig.__issues };
-    window.cblcars.debug.msd.pipelineInstance = disabledPipeline;
-    window.cblcars.debug.msd._provenance = provenance;
+    window.lcards = window.lcards || {};
+    window.lcards.debug = window.lcards.debug || {};
+    window.lcards.debug.msd = window.lcards.debug.msd || {};
+    window.lcards.debug.msd.validation = { issues: () => mergedConfig.__issues };
+    window.lcards.debug.msd.pipelineInstance = disabledPipeline;
+    window.lcards.debug.msd._provenance = provenance;
   }
   return disabledPipeline;
 }
@@ -812,10 +812,10 @@ function createPipelineApi(mergedConfig, cardModel, systemsManager, modelBuilder
      */
     reRender: () => {
       try {
-        cblcarsLog.debug('[PipelineCore] Manual re-render triggered');
+        lcardsLog.debug('[PipelineCore] Manual re-render triggered');
         return reRender();
       } catch (error) {
-        cblcarsLog.error('[PipelineCore] Manual re-render failed:', error);
+        lcardsLog.error('[PipelineCore] Manual re-render failed:', error);
         return { success: false, error: error.message };
       }
     },
@@ -876,7 +876,7 @@ function createPipelineApi(mergedConfig, cardModel, systemsManager, modelBuilder
 
     // Action system methods
     setCardInstance: (cardInstance) => {
-      cblcarsLog.debug('[PipelineCore] Setting card instance:', {
+      lcardsLog.debug('[PipelineCore] Setting card instance:', {
         hasCardInstance: !!cardInstance,
         cardType: cardInstance?.tagName,
         hasHandleAction: typeof cardInstance?._handleAction,
@@ -885,7 +885,7 @@ function createPipelineApi(mergedConfig, cardModel, systemsManager, modelBuilder
       StatusGridRenderer.setCardInstance(cardInstance);
       // Store in SystemsManager too for broader access
       systemsManager.cardInstance = cardInstance;
-      cblcarsLog.debug('[PipelineCore] Card instance set via API for action system');
+      lcardsLog.debug('[PipelineCore] Card instance set via API for action system');
 
       // Attach any pending ActionHelpers for animated overlays
       if (systemsManager.animationManager) {
