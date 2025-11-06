@@ -1,4 +1,5 @@
 import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogBanner} from './utils/lcards-logging.js';
+import * as LCARdS from './lcards-vars.js'
 
 // Check URL for log level override and set it immediately
 const urlLogLevel = new URLSearchParams(window.location.search).get('lcards_log_level');
@@ -6,12 +7,13 @@ if (urlLogLevel) {
     lcardsSetGlobalLogLevel(urlLogLevel);
 }
 
+// Display banner after log level is set
+lcardsLogBanner();
+
 // Now import everything else (including MSD system which will use correct log level)
 import * as anime from 'animejs';
-import * as LCARdS from './lcards-vars.js'
 import { readYamlFile } from './utils/lcards-fileutils.js';
 import { preloadSVGs, loadSVGToCache, getSVGFromCache } from './utils/lcards-fileutils.js';
-//import { LCARdSDashboardStrategy, LCARdSViewStrategy, LCARdSViewStrategyAirlock } from './strategy/lcards-strategy.js';
 import { LCARdSCardEditor } from './editor/lcards-editor.js';
 import { loadFont, loadCoreFonts, loadAllFontsFromConfig } from './utils/lcards-theme.js';
 import { getLovelace, checkLovelaceTemplates } from './utils/cb-helpers.js';
@@ -32,8 +34,6 @@ import { LCARdSMSDCard } from './cards/lcards-msd.js';
 // Unified API system import
 import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
 
-// Display banner after log level is set
-lcardsLogBanner();
 
 // Ensure global namespace
 window.lcards = window.lcards || {};
@@ -137,7 +137,7 @@ initializeCustomCard()
         defineCustomElement('lcards-double-elbow-card', LCARdSDoubleElbowCard, 'lcards-double-elbow-card-editor', LCARdSCardEditor);
         defineCustomElement('lcards-multimeter-card', LCARdSMultimeterCard, 'lcards-multimeter-card-editor', LCARdSCardEditor);
         defineCustomElement('lcards-dpad-card', LCARdSDPADCard, 'lcards-dpad-card-editor', LCARdSCardEditor);
-        defineCustomElement('lcards-button-card', LCARdSButtonCard, 'lcards-button-card-editor', LCARdSCardEditor);
+        //defineCustomElement('lcards-button-card', LCARdSButtonCard, 'lcards-button-card-editor', LCARdSCardEditor);
         // defineCustomElement('lcards-msd-card', LCARdSMSDCard, 'lcards-msd-card-editor', LCARdSCardEditor);
         // ↳ MSD Card now self-registers as native element (no button-card dependency)
     })

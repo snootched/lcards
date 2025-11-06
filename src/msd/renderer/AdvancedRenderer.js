@@ -2281,6 +2281,13 @@ export class AdvancedRenderer {
       // CRITICAL: Check if old element had actions attached
       const hadActions = oldGroup.hasAttribute('data-actions-attached');
 
+      // Get SVG element for proper container reference
+      const svg = this.mountEl?.querySelector('svg');
+      if (!svg) {
+        lcardsLog.warn('[AdvancedRenderer] ❌ SVG element not found for text overlay render');
+        return null;
+      }
+
       // Get card instance for action support (same as initial render)
       const textCardInstance = this._resolveCardInstance();
 
@@ -2292,7 +2299,7 @@ export class AdvancedRenderer {
       }
 
       // Re-render the text overlay using instance
-      const result = textOverlay.render(overlay, anchorsRef, viewBox, this.mountEl, textCardInstance);
+      const result = textOverlay.render(overlay, anchorsRef, viewBox, svg, textCardInstance);
 
       // Handle both string (old format) and object (new format) returns
       let markup, actionInfo;

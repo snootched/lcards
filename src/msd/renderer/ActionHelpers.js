@@ -447,7 +447,7 @@ export class ActionHelpers {
     try {
       // Get HASS object from card instance
       const hass = cardInstance.___hass || cardInstance._hass || cardInstance.hass || cardInstance.__hass;
-      
+
       if (!hass) {
         lcardsLog.warn(`[ActionHelpers] No HASS object available for action execution`);
         return false;
@@ -455,7 +455,7 @@ export class ActionHelpers {
 
       // Normalize action configuration
       const normalizedAction = ActionHelpers._actionHandler.normalizeActionConfig(action);
-      
+
       lcardsLog.debug(`[ActionHelpers] Executing ${actionType} action:`, normalizedAction);
 
       // Execute action using native handler

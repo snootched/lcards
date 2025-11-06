@@ -1,6 +1,6 @@
 /**
  * LCARdS Base Components
- * 
+ *
  * Barrel export for all base architecture components
  */
 

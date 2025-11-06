@@ -311,7 +311,7 @@ MSD Error: Cannot find configuration under 'cb-lcars-msd'
 Failed to import module script: The server responded with a non-JavaScript MIME type
 ```
 
-**Solution**: 
+**Solution**:
 1. Verify LCARdS is installed via HACS
 2. Update resource URL from `/hacsfiles/cb-lcars/cb-lcars.js` to `/hacsfiles/lcards/lcards.js`
 3. Clear browser cache

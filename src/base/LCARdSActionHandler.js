@@ -1,6 +1,6 @@
 /**
  * LCARdS Action Handler
- * 
+ *
  * Native action handler that wraps custom-card-helpers for seamless integration
  * with Home Assistant's action system. Replaces the button-card action bridge
  * with direct integration.
@@ -11,7 +11,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
  * Action handler for LCARdS cards
- * 
+ *
  * Provides unified action handling across all card types:
  * - tap_action
  * - hold_action
@@ -19,7 +19,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
  * - Custom actions for MSD overlays
  */
 export class LCARdSActionHandler {
-    
+
     constructor() {
         this._registeredElements = new WeakMap();
         this._activeHandlers = new Set();
@@ -230,20 +230,20 @@ export class LCARdSActionHandler {
         switch (actionConfig.action) {
             case 'call-service':
                 return !!actionConfig.service;
-            
+
             case 'navigate':
                 return !!actionConfig.navigation_path;
-            
+
             case 'url':
                 return !!actionConfig.url_path;
-            
+
             case 'toggle':
             case 'more-info':
                 return !!actionConfig.entity;
-            
+
             case 'none':
                 return true;
-            
+
             default:
                 // Allow other action types (fire-dom-event, etc.)
                 return true;
@@ -340,7 +340,7 @@ export class LCARdSActionHandler {
 
         const handleTap = (event) => {
             tapCount++;
-            
+
             if (tapCount === 1) {
                 tapTimer = setTimeout(() => {
                     tapCount = 0;

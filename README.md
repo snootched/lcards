@@ -156,7 +156,7 @@ msd:
         tap_action:
           action: navigate
           navigation_path: /lovelace/bridge
-    
+
     - id: warp_core
       type: button
       position: [300, 250]

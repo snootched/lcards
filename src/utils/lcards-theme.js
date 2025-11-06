@@ -53,7 +53,7 @@ export function loadFont(fontInput) {
     // Else assume local LCARdS font
     if (!fontName.startsWith('cb-lcars_')) return;
 
-    const href = `/hacsfiles/cb-lcars/fonts/${fontName}.css`;
+    const href = `/hacsfiles/lcards/fonts/${fontName}.css`;
     const fontKey = fontName;
 
     if (window.lcards._loadedFonts.has(fontKey)) return;

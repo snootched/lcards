@@ -1,6 +1,6 @@
 /**
  * LCARdS Native Card Base Class
- * 
+ *
  * Native LitElement-based card implementation that replaces the custom-button-card dependency.
  * Provides all the infrastructure needed for LCARdS cards while maintaining compatibility
  * with existing template patterns and MSD initialization flows.
@@ -13,7 +13,7 @@ import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 
 /**
  * Base class for all LCARdS native cards
- * 
+ *
  * Features:
  * - Native LitElement architecture (no button-card dependency)
  * - Home Assistant card interface compliance
@@ -24,7 +24,7 @@ import { LCARdSActionHandler } from './LCARdSActionHandler.js';
  * - Font loading and resource management
  */
 export class LCARdSNativeCard extends LitElement {
-    
+
     static get properties() {
         return {
             hass: { type: Object },
@@ -42,14 +42,14 @@ export class LCARdSNativeCard extends LitElement {
                 display: block;
                 position: relative;
             }
-            
+
             .lcards-card {
                 width: 100%;
                 height: 100%;
                 position: relative;
                 font-family: 'Antonio', 'Roboto', sans-serif;
             }
-            
+
             .lcards-error {
                 background: #ff4444;
                 color: white;
@@ -58,7 +58,7 @@ export class LCARdSNativeCard extends LitElement {
                 font-family: monospace;
                 white-space: pre-wrap;
             }
-            
+
             .lcards-loading {
                 display: flex;
                 align-items: center;
@@ -66,14 +66,14 @@ export class LCARdSNativeCard extends LitElement {
                 min-height: 64px;
                 color: var(--primary-text-color);
             }
-            
+
             /* LCARS font loading */
             @font-face {
                 font-family: 'lcards_jeffries';
                 src: url('/hacsfiles/lcards/fonts/jeffries.woff2') format('woff2'),
                      url('/hacsfiles/lcards/fonts/jeffries.woff') format('woff');
             }
-            
+
             @font-face {
                 font-family: 'lcards_microgramma';
                 src: url('/hacsfiles/lcards/fonts/microgramma.woff2') format('woff2'),
@@ -91,7 +91,7 @@ export class LCARdSNativeCard extends LitElement {
         this._cardGuid = this._generateGuid();
         this._errorState = null;
         this._actionHandler = new LCARdSActionHandler();
-        
+
         lcardsLog.debug(`[LCARdSNativeCard] Created card with GUID: ${this._cardGuid}`);
     }
 
@@ -111,18 +111,18 @@ export class LCARdSNativeCard extends LitElement {
         try {
             this.config = { ...config };
             this._errorState = null;
-            
+
             // Detect preview mode
             this._isPreviewMode = this._detectPreviewMode();
-            
+
             // Validate configuration
             this._validateConfig(config);
-            
+
             lcardsLog.debug(`[LCARdSNativeCard] Config set for ${this._cardGuid}`, config);
-            
+
             // Notify subclasses
             this._onConfigSet(config);
-            
+
         } catch (error) {
             this._errorState = {
                 message: `Configuration Error: ${error.message}`,
@@ -139,7 +139,7 @@ export class LCARdSNativeCard extends LitElement {
     set hass(hass) {
         const oldHass = this._hass;
         this._hass = hass;
-        
+
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSNativeCard] HASS updated for ${this._cardGuid}`);
             this._onHassChanged(hass, oldHass);
@@ -173,46 +173,46 @@ export class LCARdSNativeCard extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-        
+
         lcardsLog.debug(`[LCARdSNativeCard] Connected: ${this._cardGuid}`);
-        
+
         // Load fonts if needed
         this._loadFonts();
-        
+
         // Resolve mount element
         this._resolveMountElement();
-        
+
         // Notify subclasses
         this._onConnected();
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        
+
         lcardsLog.debug(`[LCARdSNativeCard] Disconnected: ${this._cardGuid}`);
-        
+
         // Cleanup
         this._cleanup();
-        
+
         // Notify subclasses
         this._onDisconnected();
     }
 
     firstUpdated(changedProperties) {
         super.firstUpdated(changedProperties);
-        
+
         lcardsLog.debug(`[LCARdSNativeCard] First updated: ${this._cardGuid}`);
-        
+
         // Mark mount as resolved
         this._mountResolved = true;
-        
+
         // Notify subclasses
         this._onFirstUpdated(changedProperties);
     }
 
     updated(changedProperties) {
         super.updated(changedProperties);
-        
+
         if (changedProperties.has('config') || changedProperties.has('hass')) {
             this._onUpdated(changedProperties);
         }
@@ -340,7 +340,7 @@ export class LCARdSNativeCard extends LitElement {
      */
     _handleAction(event) {
         event.stopPropagation();
-        
+
         const actionConfig = this._getActionConfig(event);
         if (actionConfig) {
             this._actionHandler.handleAction(this, this.hass, actionConfig, event.detail?.actionName);
@@ -417,18 +417,40 @@ export class LCARdSNativeCard extends LitElement {
     _detectPreviewMode() {
         // Heuristics for preview mode detection
         const parentElement = this.parentElement;
-        if (!parentElement) return false;
-        
+        if (!parentElement) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: no parent element`);
+            return false;
+        }
+
         // Check for dashboard edit mode
         const dashboardEl = parentElement.closest('hui-root, ha-panel-lovelace');
-        if (dashboardEl && dashboardEl.editMode) return true;
-        
+        if (dashboardEl && dashboardEl.editMode) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: dashboard edit mode detected`);
+            return true;
+        }
+
         // Check for card picker
-        if (parentElement.closest('hui-card-picker, hui-card-preview')) return true;
-        
+        const cardPickerEl = parentElement.closest('hui-card-picker, hui-card-preview');
+        if (cardPickerEl) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card picker detected`, {
+                cardPickerTag: cardPickerEl.tagName,
+                parentTag: parentElement.tagName,
+                parentClass: parentElement.className
+            });
+            return true;
+        }
+
         // Check URL for edit mode
-        if (window.location.href.includes('edit=1')) return true;
-        
+        if (window.location.href.includes('edit=1')) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: URL edit mode detected`);
+            return true;
+        }
+
+        lcardsLog.debug(`[LCARdSNativeCard] Preview detection: not in preview mode`, {
+            parentTag: parentElement.tagName,
+            parentClass: parentElement.className,
+            url: window.location.href
+        });
         return false;
     }
 

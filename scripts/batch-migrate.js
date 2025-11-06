@@ -2,9 +2,9 @@
 
 /**
  * Batch Migration Tool for CB-LCARS to LCARdS
- * 
+ *
  * This tool helps migrate multiple YAML files from CB-LCARS to LCARdS
- * 
+ *
  * Usage:
  *   node scripts/batch-migrate.js [directory]
  *   node scripts/batch-migrate.js --config /config
@@ -43,7 +43,7 @@ class BatchMigrator {
     const { dryRun = false, excludePatterns = [], includePatterns = [] } = options;
 
     console.log(`🔍 Scanning for YAML files in: ${directory}`);
-    
+
     const yamlFiles = this.findYamlFiles(directory);
     console.log(`📁 Found ${yamlFiles.length} YAML files`);
 
@@ -74,13 +74,13 @@ class BatchMigrator {
     for (const file of filteredFiles) {
       try {
         console.log(`\n📄 Processing: ${path.relative(directory, file)}`);
-        
-        const stats = dryRun ? 
-          this.migrator.dryRun(file) : 
+
+        const stats = dryRun ?
+          this.migrator.dryRun(file) :
           this.migrator.migrate(file).stats;
 
-        const changes = stats.elementsConverted + stats.cardTypesConverted + 
-                       stats.configVarsConverted + stats.resourcesConverted + 
+        const changes = stats.elementsConverted + stats.cardTypesConverted +
+                       stats.configVarsConverted + stats.resourcesConverted +
                        stats.msdCardsConverted;
 
         this.results.push({
@@ -161,7 +161,7 @@ class BatchMigrator {
 
 function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
 CB-LCARS to LCARdS Batch Migration Tool
@@ -179,16 +179,16 @@ Options:
 Examples:
   # Migrate all YAML files in current directory
   node scripts/batch-migrate.js .
-  
+
   # Migrate Home Assistant config directory
   node scripts/batch-migrate.js --config /config
-  
+
   # Dry run on specific directory
   node scripts/batch-migrate.js --dry-run /config/dashboards
-  
+
   # Exclude backup files
   node scripts/batch-migrate.js --exclude .backup --exclude .old /config
-  
+
   # Include only dashboard files
   node scripts/batch-migrate.js --include dashboard --include lovelace /config
 
@@ -223,7 +223,7 @@ For single file migration, use: scripts/migrate-from-cb-lcars.js
 
   // Determine target directory
   let targetDir = '.';
-  
+
   if (args.includes('--config')) {
     const configIndex = args.indexOf('--config');
     targetDir = args[configIndex + 1] || '/config';

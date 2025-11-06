@@ -2,12 +2,12 @@
 
 /**
  * CB-LCARS to LCARdS Migration Script
- * 
+ *
  * This script automates the migration from CB-LCARS to LCARdS by:
  * - Converting element names and card types
  * - Updating configuration paths and variables
  * - Preserving all functionality while updating to new architecture
- * 
+ *
  * Usage:
  *   node scripts/migrate-from-cb-lcars.js [input-file] [output-file]
  *   node scripts/migrate-from-cb-lcars.js ui-lovelace.yaml ui-lovelace-lcards.yaml
@@ -33,7 +33,7 @@ const CARD_TYPE_MAPPINGS = {
   'cb-lcars-button-picard': 'lcards-button-picard',
   'cb-lcars-button-bullet': 'lcards-button-bullet',
   'cb-lcars-button-rounded': 'lcards-button-rounded',
-  
+
   // Elbow types
   'cb-lcars-elbow-left': 'lcards-elbow-left',
   'cb-lcars-elbow-right': 'lcards-elbow-right',
@@ -41,13 +41,13 @@ const CARD_TYPE_MAPPINGS = {
   'cb-lcars-elbow-top-right': 'lcards-elbow-top-right',
   'cb-lcars-elbow-bottom-left': 'lcards-elbow-bottom-left',
   'cb-lcars-elbow-bottom-right': 'lcards-elbow-bottom-right',
-  
+
   // Label types
   'cb-lcars-label-text': 'lcards-label-text',
   'cb-lcars-label-header': 'lcards-label-header',
   'cb-lcars-label-subheader': 'lcards-label-subheader',
   'cb-lcars-label-title': 'lcards-label-title',
-  
+
   // Multimeter types
   'cb-lcars-multimeter-standard': 'lcards-multimeter-standard',
   'cb-lcars-multimeter-vertical': 'lcards-multimeter-vertical',
@@ -182,13 +182,13 @@ class CBLCARSMigrator {
     console.log(`   • Config variables updated: ${this.stats.configVarsConverted}`);
     console.log(`   • Resources updated: ${this.stats.resourcesConverted}`);
     console.log(`   • MSD cards converted: ${this.stats.msdCardsConverted}`);
-    
-    const totalChanges = this.stats.elementsConverted + this.stats.cardTypesConverted + 
-                        this.stats.configVarsConverted + this.stats.resourcesConverted + 
+
+    const totalChanges = this.stats.elementsConverted + this.stats.cardTypesConverted +
+                        this.stats.configVarsConverted + this.stats.resourcesConverted +
                         this.stats.msdCardsConverted;
-    
+
     console.log(`   • Total changes: ${totalChanges}`);
-    
+
     if (totalChanges === 0) {
       console.log('\n⚠️  No CB-LCARS content found. File may already be migrated or not contain CB-LCARS configurations.');
     } else {
@@ -208,10 +208,10 @@ class CBLCARSMigrator {
     }
 
     console.log(`🔍 Dry run - analyzing ${inputPath} for CB-LCARS content...`);
-    
+
     const content = fs.readFileSync(inputPath, 'utf8');
     const migratedContent = this.performMigration(content);
-    
+
     if (content === migratedContent) {
       console.log('✅ No changes needed - file appears to already use LCARdS or contains no CB-LCARS content.');
     } else {
@@ -226,7 +226,7 @@ class CBLCARSMigrator {
 // CLI interface
 function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(`
 CB-LCARS to LCARdS Migration Script
@@ -241,10 +241,10 @@ Options:
 Examples:
   # Migrate in-place (creates backup)
   node scripts/migrate-from-cb-lcars.js ui-lovelace.yaml
-  
+
   # Migrate to new file
   node scripts/migrate-from-cb-lcars.js ui-lovelace.yaml ui-lovelace-lcards.yaml
-  
+
   # Dry run to preview changes
   node scripts/migrate-from-cb-lcars.js --dry-run ui-lovelace.yaml
 
@@ -260,14 +260,14 @@ CB-LCARS → LCARdS Element Mapping:
   custom:cb-lcars-button-card → custom:lcards-button-card
   cblcars_card_type → lcards_card_type
   cb-lcars-msd → lcards-msd
-  
+
 For more information: https://github.com/snootched/lcards
 `);
     return;
   }
 
   const migrator = new CBLCARSMigrator();
-  
+
   try {
     if (args.includes('--dry-run') || args.includes('-d')) {
       const inputFile = args.find(arg => !arg.startsWith('-'));
