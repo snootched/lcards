@@ -1,12 +1,10 @@
 /**
  * LCARdS Action Handler
  *
- * Native action handler that wraps custom-card-helpers for seamless integration
- * with Home Assistant's action system. Replaces the button-card action bridge
- * with direct integration.
+ * Native action handler for direct integration with Home Assistant's action system.
+ * Handles all major Home Assistant action types without external dependencies.
  */
 
-import { handleAction, hasAction } from 'custom-card-helpers';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
@@ -47,13 +45,8 @@ export class LCARdSActionHandler {
 
             lcardsLog.debug(`[LCARdSActionHandler] Handling ${actionName} action:`, actionConfig);
 
-            // Use custom-card-helpers to handle the action
-            handleAction(
-                element,
-                hass,
-                actionConfig,
-                actionName
-            );
+            // Handle actions directly instead of using custom-card-helpers
+            this._handleActionDirectly(element, hass, actionConfig, actionName);
 
         } catch (error) {
             lcardsLog.error('[LCARdSActionHandler] Action handling error:', error);
@@ -66,8 +59,18 @@ export class LCARdSActionHandler {
      * @returns {boolean} True if actionable
      */
     hasAction(actionConfig) {
-        if (!actionConfig) return false;
-        return hasAction(actionConfig);
+        if (!actionConfig || typeof actionConfig !== 'object') return false;
+
+        const action = actionConfig.action;
+        if (!action || action === 'none') return false;
+
+        // Check if we support this action type
+        const supportedActions = [
+            'toggle', 'turn_on', 'turn_off', 'more-info',
+            'call-service', 'navigate', 'url'
+        ];
+
+        return supportedActions.includes(action);
     }
 
     /**
@@ -355,5 +358,185 @@ export class LCARdSActionHandler {
 
         element.addEventListener('click', handleTap);
         this._activeHandlers.add({ element, type: 'click', handler: handleTap });
+    }
+
+    /**
+     * Handle action directly using Home Assistant service calls
+     * @param {HTMLElement} element - Source element
+     * @param {Object} hass - Home Assistant object
+     * @param {Object} actionConfig - Action configuration
+     * @param {string} actionName - Action name (tap, hold, double_tap)
+     * @private
+     */
+    _handleActionDirectly(element, hass, actionConfig, actionName) {
+        const action = actionConfig.action;
+        const entityId = actionConfig.entity;
+
+        lcardsLog.debug(`[LCARdSActionHandler] Direct action handling: ${action} on ${entityId}`);
+
+        switch (action) {
+            case 'toggle':
+                this._handleToggle(hass, entityId);
+                break;
+
+            case 'turn_on':
+                this._handleTurnOn(hass, entityId);
+                break;
+
+            case 'turn_off':
+                this._handleTurnOff(hass, entityId);
+                break;
+
+            case 'more-info':
+                this._handleMoreInfo(hass, entityId);
+                break;
+
+            case 'call-service':
+                this._handleCallService(hass, actionConfig);
+                break;
+
+            case 'navigate':
+                this._handleNavigate(actionConfig);
+                break;
+
+            case 'url':
+                this._handleUrl(actionConfig);
+                break;
+
+            case 'none':
+                lcardsLog.debug(`[LCARdSActionHandler] No action specified`);
+                break;
+
+            default:
+                lcardsLog.warn(`[LCARdSActionHandler] Unknown action type: ${action}. Supported actions: toggle, turn_on, turn_off, more-info, call-service, navigate, url, none`);
+                break;
+        }
+    }
+
+    /**
+     * Handle toggle action
+     * @private
+     */
+    _handleToggle(hass, entityId) {
+        if (!entityId) {
+            lcardsLog.warn(`[LCARdSActionHandler] Toggle action requires entity`);
+            return;
+        }
+
+        const domain = entityId.split('.')[0];
+        const currentState = hass.states[entityId];
+        const isOn = currentState && currentState.state === 'on';
+
+        lcardsLog.debug(`[LCARdSActionHandler] Toggling ${entityId}: ${currentState?.state} -> ${isOn ? 'off' : 'on'}`);
+
+        hass.callService(domain, isOn ? 'turn_off' : 'turn_on', { entity_id: entityId });
+    }
+
+    /**
+     * Handle turn_on action
+     * @private
+     */
+    _handleTurnOn(hass, entityId) {
+        if (!entityId) {
+            lcardsLog.warn(`[LCARdSActionHandler] Turn on action requires entity`);
+            return;
+        }
+
+        const domain = entityId.split('.')[0];
+        lcardsLog.debug(`[LCARdSActionHandler] Turning on ${entityId}`);
+        hass.callService(domain, 'turn_on', { entity_id: entityId });
+    }
+
+    /**
+     * Handle turn_off action
+     * @private
+     */
+    _handleTurnOff(hass, entityId) {
+        if (!entityId) {
+            lcardsLog.warn(`[LCARdSActionHandler] Turn off action requires entity`);
+            return;
+        }
+
+        const domain = entityId.split('.')[0];
+        lcardsLog.debug(`[LCARdSActionHandler] Turning off ${entityId}`);
+        hass.callService(domain, 'turn_off', { entity_id: entityId });
+    }
+
+    /**
+     * Handle more-info action
+     * @private
+     */
+    _handleMoreInfo(hass, entityId) {
+        if (!entityId) {
+            lcardsLog.warn(`[LCARdSActionHandler] More info action requires entity`);
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSActionHandler] Opening more info for ${entityId}`);
+
+        // Dispatch Home Assistant event to open more info dialog
+        const event = new CustomEvent('hass-more-info', {
+            detail: { entityId },
+            bubbles: true,
+            composed: true
+        });
+        document.dispatchEvent(event);
+    }
+
+    /**
+     * Handle call-service action
+     * @private
+     */
+    _handleCallService(hass, actionConfig) {
+        const service = actionConfig.service;
+        if (!service) {
+            lcardsLog.warn(`[LCARdSActionHandler] Call service action requires service`);
+            return;
+        }
+
+        const [domain, serviceAction] = service.split('.');
+        const serviceData = actionConfig.service_data || {};
+
+        lcardsLog.debug(`[LCARdSActionHandler] Calling service ${service} with data:`, serviceData);
+        hass.callService(domain, serviceAction, serviceData);
+    }
+
+    /**
+     * Handle navigate action
+     * @private
+     */
+    _handleNavigate(actionConfig) {
+        const navigationPath = actionConfig.navigation_path;
+        if (!navigationPath) {
+            lcardsLog.warn(`[LCARdSActionHandler] Navigate action requires navigation_path`);
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSActionHandler] Navigating to ${navigationPath}`);
+
+        // Use Home Assistant's navigation
+        const event = new CustomEvent('location-changed', {
+            detail: { replace: false },
+            bubbles: true,
+            composed: true
+        });
+
+        window.history.pushState(null, '', navigationPath);
+        window.dispatchEvent(event);
+    }
+
+    /**
+     * Handle URL action
+     * @private
+     */
+    _handleUrl(actionConfig) {
+        const url = actionConfig.url_path;
+        if (!url) {
+            lcardsLog.warn(`[LCARdSActionHandler] URL action requires url_path`);
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSActionHandler] Opening URL ${url}`);
+        window.open(url, '_blank');
     }
 }

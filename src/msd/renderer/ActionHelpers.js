@@ -73,7 +73,7 @@ export class ActionHelpers {
             animationManager.triggerAnimations(overlayId, 'on_hold');
           }
 
-          ActionHelpers.executeAction(simpleActions.hold_action, cardInstance, 'hold');
+          ActionHelpers.executeAction(simpleActions.hold_action, cardInstance, 'hold', element);
         }, 500);
       }
     };
@@ -113,7 +113,7 @@ export class ActionHelpers {
             animationManager.triggerAnimations(overlayId, 'on_double_tap');
           }
 
-          ActionHelpers.executeAction(simpleActions.double_tap_action, cardInstance, 'double_tap');
+          ActionHelpers.executeAction(simpleActions.double_tap_action, cardInstance, 'double_tap', element);
           lastTap = 0; // Reset to prevent triple-tap and single-tap
           return; // CRITICAL: Exit early to prevent single-tap logic
         }
@@ -133,7 +133,7 @@ export class ActionHelpers {
                   animationManager.triggerAnimations(overlayId, 'on_tap');
                 }
 
-                ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap');
+                ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap', element);
               } else {
                 lcardsLog.debug(`[ActionHelpers] 🚫 Overlay single tap cancelled (double-tap occurred)`);
               }
@@ -147,7 +147,7 @@ export class ActionHelpers {
               animationManager.triggerAnimations(overlayId, 'on_tap');
             }
 
-            ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap');
+            ActionHelpers.executeAction(simpleActions.tap_action, cardInstance, 'tap', element);
           }
         }
       } else {
@@ -438,7 +438,7 @@ export class ActionHelpers {
    * @param {string} actionType - Type of action (tap, hold, double_tap)
    * @static
    */
-  static executeAction(action, cardInstance, actionType = 'tap') {
+  static executeAction(action, cardInstance, actionType = 'tap', targetElement = null) {
     if (!action || !cardInstance) {
       lcardsLog.debug(`[ActionHelpers] Missing action or card instance for execution`);
       return false;
@@ -453,17 +453,27 @@ export class ActionHelpers {
         return false;
       }
 
+      // Use the target element if provided, otherwise fall back to cardInstance
+      const elementForAction = targetElement || cardInstance;
+
       // Normalize action configuration
       const normalizedAction = ActionHelpers._actionHandler.normalizeActionConfig(action);
 
       lcardsLog.debug(`[ActionHelpers] Executing ${actionType} action:`, normalizedAction);
 
-      // Execute action using native handler
+      // DEBUG: Compare original vs normalized action
+      lcardsLog.warn(`[ActionHelpers] 🔍 ACTION NORMALIZATION DEBUG:`, {
+        original: JSON.stringify(action, null, 2),
+        normalized: JSON.stringify(normalizedAction, null, 2),
+        same: JSON.stringify(action) === JSON.stringify(normalizedAction)
+      });
+
+      // Execute action using native handler with correct element
       ActionHelpers._actionHandler.handleAction(
-        cardInstance, // element
-        hass,         // hass object
+        elementForAction, // element - now correctly uses the target element
+        hass,            // hass object
         normalizedAction, // action config
-        actionType    // action name
+        actionType       // action name
       );
 
       return true;
@@ -928,7 +938,7 @@ export class ActionHelpers {
       event.stopImmediatePropagation();
 
       if (actions.tap_action) {
-        const executed = ActionHelpers.executeAction(actions.tap_action, cardInstance, 'tap');
+        const executed = ActionHelpers.executeAction(actions.tap_action, cardInstance, 'tap', cellElement);
         if (!executed) {
           lcardsLog.warn(`[ActionHelpers] ⚠️ TAP ACTION EXECUTION RETURNED FALSE for ${cellId}`);
         }
