@@ -625,33 +625,71 @@ export class DataSourceManager {
   ingestHass(hass) {
     if (!hass || !hass.states) {
       lcardsLog.warn('[DataSourceManager] ingestHass: Invalid HASS provided');
-      return;
+      return { hasChanges: false, changedCount: 0, totalCount: 0 };
     }
+
+    const previousHass = this.hass;
+    const hassPrevious = !!previousHass?.states;
 
     lcardsLog.debug('[DataSourceManager] 📥 ingestHass: Updating tracked entities', {
       entityCount: Object.keys(hass.states).length,
-      trackedCount: this.entityIndex.size
+      trackedCount: this.entityIndex.size,
+      hasPrevious: hassPrevious
     });
 
     // Update HASS reference for lookups
     this.hass = hass;
 
-    // Update all tracked entities with fresh values
-    // NOTE: Real-time subscriptions remain the primary update mechanism
-    // This just ensures consistency after full HASS refresh
-    for (const [entityId, dataSource] of this.entityIndex.entries()) {
-      if (hass.states[entityId]) {
-        const freshState = hass.states[entityId];
-        lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing entity: ${entityId}`);
+    // If we have previous HASS, only update changed entities
+    if (hassPrevious) {
+      let changedCount = 0;
+      let processedCount = 0;
 
-        // Notify the data source of the fresh state
-        // The data source will handle notifying its subscribers
-        if (dataSource && typeof dataSource.updateFromEntityState === 'function') {
-          dataSource.updateFromEntityState(entityId, freshState);
+      for (const [entityId, dataSource] of this.entityIndex.entries()) {
+        const currentState = hass.states[entityId];
+        const previousState = previousHass.states[entityId];
+
+        if (currentState) {
+          processedCount++;
+
+          // Check if the entity state actually changed
+          const hasChanged = !previousState ||
+                           currentState.state !== previousState.state ||
+                           currentState.last_changed !== previousState.last_changed ||
+                           JSON.stringify(currentState.attributes) !== JSON.stringify(previousState.attributes);
+
+          if (hasChanged) {
+            changedCount++;
+            lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing changed entity: ${entityId}`);
+
+            // Notify the data source of the fresh state
+            if (dataSource && typeof dataSource.updateFromEntityState === 'function') {
+              dataSource.updateFromEntityState(entityId, currentState);
+            }
+          }
         }
       }
-    }
 
-    lcardsLog.debug('[DataSourceManager] ✅ ingestHass: Complete');
+      lcardsLog.debug(`[DataSourceManager] ✅ ingestHass: Complete - ${changedCount}/${processedCount} entities changed`);
+      return { hasChanges: changedCount > 0, changedCount, totalCount: processedCount };
+    } else {
+      // First run or no previous HASS - update all tracked entities
+      let totalCount = 0;
+      for (const [entityId, dataSource] of this.entityIndex.entries()) {
+        if (hass.states[entityId]) {
+          totalCount++;
+          const freshState = hass.states[entityId];
+          lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing entity: ${entityId}`);
+
+          // Notify the data source of the fresh state
+          if (dataSource && typeof dataSource.updateFromEntityState === 'function') {
+            dataSource.updateFromEntityState(entityId, freshState);
+          }
+        }
+      }
+
+      lcardsLog.debug('[DataSourceManager] ✅ ingestHass: Complete - full refresh');
+      return { hasChanges: true, changedCount: totalCount, totalCount };
+    }
   }
 }

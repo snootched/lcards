@@ -1529,25 +1529,34 @@ export class SystemsManager {
     lcardsLog.debug('[SystemsManager] 🔄 _propagateHassToSystems: Starting ordered propagation');
 
     // 1. DataSourceManager first (provides entity values)
+    let dataSourceResult = { hasChanges: true, changedCount: 0, totalCount: 0 };
     if (this.dataSourceManager && typeof this.dataSourceManager.ingestHass === 'function') {
       lcardsLog.debug('[SystemsManager] 📊 Propagating to DataSourceManager');
-      this.dataSourceManager.ingestHass(hass);
+      dataSourceResult = this.dataSourceManager.ingestHass(hass) || { hasChanges: true, changedCount: 0, totalCount: 0 };
     } else {
       lcardsLog.debug('[SystemsManager] ⏭️ DataSourceManager not ready or no ingestHass method');
     }
 
-    // 2. RulesEngine second (evaluates conditions with fresh data)
-    if (this.rulesEngine && typeof this.rulesEngine.ingestHass === 'function') {
-      lcardsLog.debug('[SystemsManager] 📏 Propagating to RulesEngine', {
-        hasRulesEngine: !!this.rulesEngine,
-        hasMethod: typeof this.rulesEngine.ingestHass === 'function'
-      });
-      this.rulesEngine.ingestHass(hass);
-      lcardsLog.info('[SystemsManager] ✅ RulesEngine.ingestHass() completed');
+    // 2. RulesEngine second (evaluates conditions with fresh data) - ONLY if data changed
+    if (dataSourceResult.hasChanges) {
+      if (this.rulesEngine && typeof this.rulesEngine.ingestHass === 'function') {
+        lcardsLog.debug('[SystemsManager] 📏 Propagating to RulesEngine - entities changed', {
+          hasRulesEngine: !!this.rulesEngine,
+          hasMethod: typeof this.rulesEngine.ingestHass === 'function',
+          changedEntities: dataSourceResult.changedCount
+        });
+        this.rulesEngine.ingestHass(hass);
+        lcardsLog.info('[SystemsManager] ✅ RulesEngine.ingestHass() completed');
+      } else {
+        lcardsLog.warn('[SystemsManager] ⚠️ RulesEngine not ready or no ingestHass method', {
+          hasRulesEngine: !!this.rulesEngine,
+          hasMethod: this.rulesEngine ? typeof this.rulesEngine.ingestHass : 'no rulesEngine'
+        });
+      }
     } else {
-      lcardsLog.warn('[SystemsManager] ⚠️ RulesEngine not ready or no ingestHass method', {
-        hasRulesEngine: !!this.rulesEngine,
-        hasMethod: this.rulesEngine ? typeof this.rulesEngine.ingestHass : 'no rulesEngine'
+      lcardsLog.debug('[SystemsManager] ⏭️ Skipping RulesEngine - no entity changes detected', {
+        totalEntities: dataSourceResult.totalCount,
+        changedEntities: dataSourceResult.changedCount
       });
     }
 
