@@ -23,6 +23,8 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { CoreSystemsManager } from './systems-manager/index.js';
 import { CoreDataSourceManager } from './data-sources/index.js';
 import { CoreRulesManager } from './rules-engine/index.js';
+import { CoreThemeManager } from './theme-manager/index.js';
+import { CoreAnimationManager } from './animation-manager/index.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -40,6 +42,8 @@ class LCARdSCore {
         this.systemsManager = null;      // Entity state tracking
         this.dataSourceManager = null;   // Data fetching/polling (Phase 1b)
         this.rulesManager = null;        // Rule evaluation (Phase 1c)
+        this.themeManager = null;        // Theme and style management (Phase 2a)
+        this.animationManager = null;    // Animation coordination (Phase 2a)
         this.styleLibrary = null;        // Style presets (Phase 1d)
 
         // ===== REGISTRIES =====
@@ -114,6 +118,16 @@ class LCARdSCore {
             this.rulesManager = new CoreRulesManager();
             await this.rulesManager.initialize();
             lcardsLog.debug('[LCARdSCore] ✅ RulesManager initialized');
+
+            // Initialize ThemeManager (Phase 2a)
+            this.themeManager = new CoreThemeManager();
+            await this.themeManager.initialize(); // Lightweight init without packs
+            lcardsLog.debug('[LCARdSCore] ✅ ThemeManager initialized');
+
+            // Initialize AnimationManager (Phase 2a)
+            this.animationManager = new CoreAnimationManager();
+            await this.animationManager.initialize();
+            lcardsLog.debug('[LCARdSCore] ✅ AnimationManager initialized');
 
             // TODO Phase 1d: Initialize StyleLibrary
 
@@ -201,6 +215,7 @@ class LCARdSCore {
             systemsManager: this.systemsManager,
             dataSourceManager: this.dataSourceManager,
             rulesManager: this.rulesManager,
+            themeManager: this.themeManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
             getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
@@ -276,7 +291,17 @@ class LCARdSCore {
             this.dataSourceManager.updateHass(hass);
         }
 
-        // TODO: Forward to RulesManager when implemented
+        if (this.rulesManager) {
+            this.rulesManager.updateHass(hass);
+        }
+
+        if (this.themeManager) {
+            this.themeManager.updateHass(hass);
+        }
+
+        if (this.animationManager) {
+            this.animationManager.updateHass(hass);
+        }
     }
 
     /**
@@ -297,6 +322,7 @@ class LCARdSCore {
         const systems = this.systemsManager ? 'CoreSystemsManager ready' : 'Not initialized';
         const dataSources = this.dataSourceManager ? 'CoreDataSourceManager ready' : 'Not initialized';
         const rules = this.rulesManager ? 'CoreRulesManager ready' : 'Not initialized';
+        const themes = this.themeManager ? 'CoreThemeManager ready' : 'Not initialized';
 
         return {
             coreInitialized: this._coreInitialized,
@@ -306,10 +332,13 @@ class LCARdSCore {
             systems,
             dataSources,
             rules,
+            themes,
 
             systemsManager: this.systemsManager ? this.systemsManager.getDebugInfo() : null,
             dataSourceManager: this.dataSourceManager ? this.dataSourceManager.getDebugInfo() : null,
             rulesManager: this.rulesManager ? this.rulesManager.getDebugInfo() : null,
+            themeManager: this.themeManager ? this.themeManager.getDebugInfo() : null,
+            animationManager: this.animationManager ? this.animationManager.getDebugInfo() : null,
 
             hasHass: !!this._currentHass
         };
@@ -396,6 +425,14 @@ class LCARdSCore {
             this.rulesManager.updateHass(hass);
         }
 
+        if (this.themeManager) {
+            this.themeManager.updateHass(hass);
+        }
+
+        if (this.animationManager) {
+            this.animationManager.updateHass(hass);
+        }
+
         // Forward to registered cards
         this._cardInstances.forEach((context) => {
             if (context.card && typeof context.card.hass !== 'undefined') {
@@ -441,6 +478,16 @@ class LCARdSCore {
         if (this.rulesManager) {
             this.rulesManager.destroy();
             this.rulesManager = null;
+        }
+
+        if (this.themeManager) {
+            this.themeManager.destroy();
+            this.themeManager = null;
+        }
+
+        if (this.animationManager) {
+            this.animationManager.destroy();
+            this.animationManager = null;
         }
 
         // Reset state
