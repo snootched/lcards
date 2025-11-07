@@ -289,14 +289,21 @@ export class CoreThemeManager {
   }
 
   /**
-   * Get default value for a component property
-   * @param {string} componentType - Component type (e.g., 'text', 'button')
-   * @param {string} property - Property name (e.g., 'defaultSize', 'defaultColor')
-   * @param {*} fallback - Fallback value if token not found
-   * @param {Object} context - Resolution context
-   * @returns {*} Resolved value
+   * Get default theme (overloaded method)
+   * When called with no arguments, returns the default/active theme
+   * When called with arguments, resolves component property
    */
-  getDefault(componentType, property, fallback = null, context = {}) {
+  getDefault(componentType = null, property = null, fallback = null, context = {}) {
+    // If no arguments, return the active theme object
+    if (componentType === null && property === null) {
+      return this.activeTheme || this.themes.get('lcars-classic') || {
+        id: 'lcars-classic',
+        name: 'LCARS Classic',
+        tokens: { colors: { primary: '#ff6600' } }
+      };
+    }
+
+    // Original behavior for component property resolution
     if (!this.resolver) {
       lcardsLog.warn('[CoreThemeManager] No resolver available - theme not initialized');
       return fallback;

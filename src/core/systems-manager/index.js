@@ -322,6 +322,7 @@ export class CoreSystemsManager {
       initialized: this._initialized,
       destroyed: this._destroyed,
       registeredCards: Array.from(this._registeredCards.keys()),
+      totalCards: this._registeredCards.size, // Add totalCards for validation
       entityStateCount: this._entityStates.size,
       entitySubscriptionCount: this._entitySubscriptions.size,
       globalChangeListeners: this._entityChangeListeners.size,
