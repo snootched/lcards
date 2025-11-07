@@ -45,6 +45,149 @@ const CB_LCARS_BUTTONS_PACK = {
   overlays: [],
   // STYLE PRESETS: Named style bundles that can be applied to any overlay type
   style_presets: {
+    // Universal button presets (work for StatusGrid, ButtonOverlay, etc.)
+    button: {
+      lozenge: {
+        color: 'theme:colors.accent.primary',
+        background_color: 'theme:colors.ui.surface',
+        border_radius: 34,                 // Full rounded corners for pill shape
+        border_width: 0,                   // No border
+        font_family: 'theme:typography.fontFamily.primary',
+        font_size: 16,
+        text_color: 'theme:colors.ui.foreground',
+        text_padding: 12,
+
+        // Layout for StatusGrid
+        text_layout: 'side-by-side',
+        label_position: 'left',
+        value_position: 'right',
+        lcars_text_preset: 'standard',
+        normalize_radius: true,
+        show_labels: true,
+        show_values: true,
+
+        // Grid-specific (ignored by ButtonOverlay)
+        cell_gap: 8
+      },
+
+      bullet: {
+        color: 'theme:colors.accent.secondary',
+        background_color: 'theme:colors.ui.card',
+        border_width: 0,                   // No border
+        font_family: 'theme:typography.fontFamily.primary',
+        font_size: 16,
+        text_color: 'theme:colors.ui.foreground',
+        text_padding: 8,
+
+        // Individual corner radius for bullet shape (rounded left, squared right)
+        border_radius_top_left: 34,
+        border_radius_bottom_left: 34,
+        border_radius_top_right: 0,
+        border_radius_bottom_right: 0,
+
+        // Layout for StatusGrid
+        text_layout: 'side-by-side',
+        label_position: 'left',
+        value_position: 'right',
+        lcars_text_preset: 'bullet',
+        normalize_radius: true,
+        show_labels: true,
+        show_values: true
+      },
+
+      'bullet-right': {
+        color: 'theme:colors.accent.secondary',
+        background_color: 'theme:colors.ui.card',
+        border_width: 0,                   // No border
+        font_family: 'theme:typography.fontFamily.primary',
+        font_size: 16,
+        text_color: 'theme:colors.ui.foreground',
+        text_padding: 8,
+
+        // Individual corner radius for bullet-right shape (squared left, rounded right)
+        border_radius_top_left: 0,
+        border_radius_bottom_left: 0,
+        border_radius_top_right: 34,
+        border_radius_bottom_right: 34,
+
+        // Layout for StatusGrid
+        text_layout: 'side-by-side',
+        label_position: 'left',
+        value_position: 'right',
+        lcars_text_preset: 'bullet',
+        normalize_radius: true,
+        show_labels: true,
+        show_values: true
+      },
+
+      'picard-filled': {
+        color: 'theme:colors.accent.tertiary',
+        background_color: 'theme:colors.ui.accent',
+        border_radius: 0,                  // Sharp corners for Picard style
+        border_width: 2,
+        border_color: 'theme:colors.accent.primary',
+        font_family: 'theme:typography.fontFamily.primary',
+        font_weight: 'bold',
+        font_size: 16,
+        text_color: 'theme:colors.ui.foregroundOnAccent',
+        text_padding: 12,
+
+        // Layout for StatusGrid
+        text_layout: 'stacked',
+        label_position: 'south-east',
+        value_position: 'south-east',
+        lcars_text_preset: 'corner',
+        normalize_radius: false,
+        show_labels: true,
+        show_values: true
+      },
+
+      'picard-outline': {
+        color: 'transparent',
+        background_color: 'transparent',
+        border_radius: 0,                  // Sharp corners for Picard style
+        border_width: 2,
+        border_color: 'theme:colors.accent.primary',
+        font_family: 'theme:typography.fontFamily.primary',
+        font_weight: 'bold',
+        font_size: 16,
+        text_color: 'theme:colors.accent.primary',
+        text_padding: 12,
+
+        // Layout for StatusGrid
+        text_layout: 'stacked',
+        label_position: 'center',
+        value_position: 'center',
+        lcars_text_preset: 'corner',
+        normalize_radius: false,
+        show_labels: true,
+        show_values: true
+      },
+
+      badge: {
+        color: 'theme:colors.accent.secondary',
+        background_color: 'theme:colors.ui.surface',
+        border_radius: 16,                 // Medium rounded corners
+        border_width: 1,
+        border_color: 'theme:colors.ui.border',
+        font_family: 'theme:typography.fontFamily.primary',
+        font_size: 14,
+        text_color: 'theme:colors.ui.foreground',
+        text_padding: 8,
+
+        // Layout for StatusGrid
+        text_layout: 'stacked',
+        label_position: 'center-top',
+        value_position: 'center',
+        lcars_text_preset: 'badge',
+        normalize_radius: true,
+        show_labels: true,
+        show_values: true
+      }
+    },
+
+    // Legacy StatusGrid-specific presets (for backwards compatibility)
+    /*
     status_grid: {
       lozenge: {
         // Layout & Positioning (lcars_text_preset takes precedence)
@@ -127,6 +270,7 @@ const CB_LCARS_BUTTONS_PACK = {
         show_values: true
       }
     }
+    */
   },
 
   anchors: {},

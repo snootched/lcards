@@ -148,6 +148,12 @@ export class ModelBuilder {
    * Resolve theme token references in overlay style
    * @private
    */
+    /**
+   * Resolve theme tokens in style objects
+   * @param {Object} style - Style object that may contain theme tokens
+   * @param {string} overlayType - Type of overlay for component-scoped resolution
+   * @returns {Object} Style object with resolved theme tokens
+   */
   _resolveThemeTokensInStyle(style, overlayType) {
     if (!style || typeof style !== 'object') {
       return style;
@@ -156,19 +162,19 @@ export class ModelBuilder {
     const resolved = {};
     const themeManager = this.systems.themeManager;
 
-    if (!themeManager || !themeManager.initialized) {
+    if (!themeManager || !themeManager.initialized || !themeManager.resolver) {
       // No theme system available, return style as-is
       return { ...style };
     }
 
-    // Get component-scoped resolver
-    const resolveToken = themeManager.forComponent(overlayType);
+    // Get component-scoped resolver - use the resolver from ThemeManager
+    const resolveToken = themeManager.resolver.forComponent(overlayType);
 
     // Recursively resolve token references in style values
     for (const [key, value] of Object.entries(style)) {
-      if (typeof value === 'string' && value.startsWith('theme.')) {
-        // This is a theme token reference: "theme.defaultSize"
-        const tokenPath = value.substring(6); // Remove "theme." prefix
+      if (typeof value === 'string' && value.startsWith('theme:')) {
+        // This is a theme token reference: "theme:colors.accent.primary"
+        const tokenPath = value.substring(6); // Remove "theme:" prefix
         resolved[key] = resolveToken(tokenPath, value);
       } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
         // Recursively resolve nested objects

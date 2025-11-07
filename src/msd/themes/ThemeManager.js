@@ -219,24 +219,46 @@ export class ThemeManager {
    *
    * Returns a function that automatically prefixes token paths with component name.
    *
-   * @param {string} componentType - Component type (e.g., 'text', 'statusGrid')
-   * @returns {Function} Scoped resolver function (property, fallback, context) => value
+   * @param {string} componentType - Component type (e.g., 'statusGrid', 'overlayRenderer')
+   * @returns {Function} Scoped resolver function
    * @throws {Error} If ThemeManager not initialized
    *
    * @example
-   * const resolveToken = themeManager.forComponent('text');
-   * const fontSize = resolveToken('defaultSize');
-   * const color = resolveToken('defaultColor', '#FFFFFF');
+   * const statusGridResolver = themeManager.getComponentResolver('statusGrid');
+   * const cellColor = statusGridResolver('defaultCellColor', '#FF9900');
+   * // Resolves: components.statusGrid.defaultCellColor
    */
-  forComponent(componentType) {
+  getComponentResolver(componentType) {
     if (!this.resolver) {
       throw new Error('ThemeManager not initialized - call initialize() first');
     }
 
-    return this.resolver.forComponent(componentType);
+    return (property, fallback = null, context = {}) => {
+      const tokenPath = `components.${componentType}.${property}`;
+      return this.resolver.resolve(tokenPath, fallback, context);
+    };
   }
 
   /**
+   * Get a theme token by path (for StylePresetManager integration)
+   *
+   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
+   * @param {*} fallback - Fallback value if token not found
+   * @param {Object} context - Additional context for resolution
+   * @returns {*} Resolved token value or fallback
+   *
+   * @example
+   * const primaryColor = themeManager.getToken('colors.accent.primary');
+   * const textSize = themeManager.getToken('typography.fontSize.base', '16px');
+   */
+  getToken(tokenPath, fallback = undefined, context = {}) {
+    if (!this.resolver) {
+      lcardsLog.warn('[ThemeManager] No resolver available - theme not initialized');
+      return fallback;
+    }
+
+    return this.resolver.resolve(tokenPath, fallback, context);
+  }  /**
    * Get token resolver for direct token path resolution
    *
    * For advanced usage where you need direct access to the token resolver.

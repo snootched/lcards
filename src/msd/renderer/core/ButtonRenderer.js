@@ -539,6 +539,21 @@ export class ButtonRenderer extends BaseRenderer {
     // Apply LCARdS Button Preset if specified
     if (buttonStyle.lcars_button_preset) {
       this._applyButtonPreset(buttonStyle, buttonStyle.lcars_button_preset, style);
+
+      // ✅ FIX: Update border properties after preset application
+      // The preset may have set border properties, so we need to update the border object
+      if (buttonStyle.border_radius !== undefined) {
+        buttonStyle.border.radius = Number(buttonStyle.border_radius) || 0;
+        lcardsLog.trace(`[ButtonRenderer] 🔧 Updated border.radius from preset: ${buttonStyle.border.radius}`);
+      }
+      if (buttonStyle.border_width !== undefined) {
+        buttonStyle.border.width = Number(buttonStyle.border_width) || 0;
+        lcardsLog.trace(`[ButtonRenderer] 🔧 Updated border.width from preset: ${buttonStyle.border.width}`);
+      }
+      if (buttonStyle.border_color !== undefined) {
+        buttonStyle.border.color = buttonStyle.border_color;
+        lcardsLog.trace(`[ButtonRenderer] 🔧 Updated border.color from preset: ${buttonStyle.border.color}`);
+      }
     }
 
     return buttonStyle;

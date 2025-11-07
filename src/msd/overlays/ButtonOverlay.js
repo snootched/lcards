@@ -413,13 +413,23 @@ export class ButtonOverlay extends OverlayBase {
    * @returns {Object} Resolved button styles
    */
   _resolveButtonOverlayStyles(style, overlayId, overlay = null) {
+    // Apply button preset if specified
+    let resolvedStyle = { ...style };
+    if (style.lcars_button_preset) {
+      const presetStyles = this._loadPresetFromStylePresetManager('button', style.lcars_button_preset);
+      if (presetStyles) {
+        // Merge preset styles first, then overlay with user styles
+        resolvedStyle = { ...presetStyles, ...style };
+      }
+    }
+
     // Create component-scoped token resolver
     const resolveToken = (themeTokenResolver && typeof themeTokenResolver.forComponent === 'function')
       ? themeTokenResolver.forComponent('button')
       : null;
 
-    // Parse all standard styles using unified system
-    const standardStyles = RendererUtils.parseAllStandardStyles(style);
+    // Parse all standard styles using unified system (now with preset properties included)
+    const standardStyles = RendererUtils.parseAllStandardStyles(resolvedStyle);
 
     // Get viewBox for context
     const viewBox = this.systemsManager?.rendererSystem?.viewBox || [0, 0, 800, 600];
@@ -427,7 +437,7 @@ export class ButtonOverlay extends OverlayBase {
     const buttonStyle = {
       // Basic appearance via tokens
       color: this._resolveStyleProperty(
-        overlay?.color || style?.color || standardStyles.colors.primaryColor,
+        overlay?.color || resolvedStyle?.color || standardStyles.colors.primaryColor,
         'defaultColor',
         resolveToken,
         this._getDefault('button.color', 'var(--lcars-blue)'),
@@ -435,7 +445,7 @@ export class ButtonOverlay extends OverlayBase {
       ),
 
       opacity: this._resolveStyleProperty(
-        style.opacity || standardStyles.layout.opacity,
+        resolvedStyle.opacity || standardStyles.layout.opacity,
         'effects.opacity.base',
         resolveToken,
         this._getDefault('button.opacity', 1.0),
@@ -462,7 +472,7 @@ export class ButtonOverlay extends OverlayBase {
         ),
 
         radius: this._resolveStyleProperty(
-          standardStyles.border.radius,
+          standardStyles.border.radius || resolvedStyle.border_radius,
           'borders.radius.lg',
           resolveToken,
           this._getDefault('button.border_radius', 8),
@@ -471,17 +481,24 @@ export class ButtonOverlay extends OverlayBase {
 
         style: standardStyles.border.style,
 
-        // Individual sides (if specified)
-        top: standardStyles.border.top,
-        right: standardStyles.border.right,
-        bottom: standardStyles.border.bottom,
-        left: standardStyles.border.left,
+        // Individual sides (only if they have actual values)
+        // This prevents ButtonRenderer from choosing complex rendering path unnecessarily
+        ...(standardStyles.border.top && { top: standardStyles.border.top }),
+        ...(standardStyles.border.right && { right: standardStyles.border.right }),
+        ...(standardStyles.border.bottom && { bottom: standardStyles.border.bottom }),
+        ...(standardStyles.border.left && { left: standardStyles.border.left }),
 
-        // Individual corners (if specified)
-        radiusTopLeft: standardStyles.border.radiusTopLeft,
-        radiusTopRight: standardStyles.border.radiusTopRight,
-        radiusBottomRight: standardStyles.border.radiusBottomRight,
-        radiusBottomLeft: standardStyles.border.radiusBottomLeft
+        // Individual corners (only if they have actual values, including 0)
+        ...(typeof standardStyles.border.radiusTopLeft === 'number' && { radiusTopLeft: standardStyles.border.radiusTopLeft }),
+        ...(typeof standardStyles.border.radiusTopRight === 'number' && { radiusTopRight: standardStyles.border.radiusTopRight }),
+        ...(typeof standardStyles.border.radiusBottomRight === 'number' && { radiusBottomRight: standardStyles.border.radiusBottomRight }),
+        ...(typeof standardStyles.border.radiusBottomLeft === 'number' && { radiusBottomLeft: standardStyles.border.radiusBottomLeft }),
+
+        // Also check flat style properties directly (for preset support)
+        ...(typeof resolvedStyle.border_radius_top_left === 'number' && { radiusTopLeft: resolvedStyle.border_radius_top_left }),
+        ...(typeof resolvedStyle.border_radius_top_right === 'number' && { radiusTopRight: resolvedStyle.border_radius_top_right }),
+        ...(typeof resolvedStyle.border_radius_bottom_right === 'number' && { radiusBottomRight: resolvedStyle.border_radius_bottom_right }),
+        ...(typeof resolvedStyle.border_radius_bottom_left === 'number' && { radiusBottomLeft: resolvedStyle.border_radius_bottom_left })
       },
 
       // Text styling via tokens
@@ -617,6 +634,11 @@ export class ButtonOverlay extends OverlayBase {
    */
   _isTokenReference(value) {
     if (typeof value !== 'string') return false;
+
+    // Check for theme token references (theme:colors.accent.primary)
+    if (value.startsWith('theme:')) return true;
+
+    // Check for direct token references (colors.accent.primary)
     const tokenCategories = ['colors', 'typography', 'spacing', 'borders', 'effects', 'animations', 'components'];
     return tokenCategories.some(category => value.startsWith(`${category}.`));
   }
@@ -909,6 +931,45 @@ export class ButtonOverlay extends OverlayBase {
       lcardsLog.error(`[ButtonOverlay] ❌ INCREMENTAL UPDATE ERROR for ${overlay.id}:`, error);
       return false;
     }
+  }
+  /**
+   * Resolve StylePresetManager instance
+   * @private
+   */
+  _resolveStylePresetManager() {
+    // Try pipeline instance first
+    const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
+    if (pipelineInstance?.systemsManager?.stylePresetManager) {
+      return pipelineInstance.systemsManager.stylePresetManager;
+    }
+
+    // Fall back to direct systems manager
+    const systemsManager = window.lcards.debug.msd?.systemsManager;
+    if (systemsManager?.stylePresetManager) {
+      return systemsManager.stylePresetManager;
+    }
+
+    return null;
+  }
+
+  /**
+   * Load preset from StylePresetManager
+   * @private
+   * @param {string} overlayType - Type of overlay (e.g., 'button')
+   * @param {string} presetName - Name of the preset
+   * @returns {Object|null} Preset configuration or null if not found
+   */
+  _loadPresetFromStylePresetManager(overlayType, presetName) {
+    const stylePresetManager = this._resolveStylePresetManager();
+
+    if (stylePresetManager) {
+      const preset = stylePresetManager.getPreset(overlayType, presetName);
+      if (preset) {
+        return preset;
+      }
+    }
+
+    return null;
   }
 }
 

@@ -39,54 +39,71 @@ export class StylePresetManager {
   }
 
   /**
-   * Get a style preset for a specific overlay type
-   * @param {string} overlayType - Type of overlay (e.g., 'status_grid', 'sparkline')
+   * Get a style preset for a specific overlay type with hierarchical lookup
+   * @param {string} overlayType - Type of overlay (e.g., 'status_grid', 'button')
    * @param {string} presetName - Name of the preset (e.g., 'lozenge', 'bullet')
+   * @param {Object} themeManager - Optional theme manager for token resolution
    * @returns {Object|null} Preset configuration or null if not found
    */
-  getPreset(overlayType, presetName) {
+  getPreset(overlayType, presetName, themeManager = null) {
     if (!this.initialized) {
       lcardsLog.warn('[StylePresetManager] ⚠️ Not initialized - call initialize() first');
       return null;
     }
 
-    const cacheKey = `${overlayType}.${presetName}`;
+    // Try multiple lookup strategies in priority order
+    const lookupStrategies = [
+      // 1. Exact match: overlayType.presetName
+      `${overlayType}.${presetName}`,
 
-    // Check cache first
-    if (this.presetCache.has(cacheKey)) {
-      const cached = this.presetCache.get(cacheKey);
-      lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} (cached from pack: ${cached.packId})`);
-      return cached.preset;
-    }
+      // 2. Universal button preset: button.presetName (for button-like overlays)
+      ...(this._isButtonLikeOverlay(overlayType) ? [`button.${presetName}`] : []),
 
-    // Not in cache - search through packs
-    for (const pack of this.loadedPacks) {
-      if (pack.style_presets && pack.style_presets[overlayType] && pack.style_presets[overlayType][presetName]) {
-        const preset = pack.style_presets[overlayType][presetName];
+      // 3. Universal presets: any universal category that might apply
+      ...this._getUniversalPresetCandidates(overlayType, presetName)
+    ];
 
-        // Cache the result
-        this.presetCache.set(cacheKey, { preset, packId: pack.id });
+    for (const cacheKey of lookupStrategies) {
+      // Check cache first
+      if (this.presetCache.has(cacheKey)) {
+        const cached = this.presetCache.get(cacheKey);
+        lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} (${cacheKey}, cached from pack: ${cached.packId})`);
+        return this._resolvePreset(cached.preset, themeManager);
+      }
 
-        lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} in pack ${pack.id}`);
-        return preset;
+      // Search through packs
+      const preset = this._findPresetInPacks(cacheKey);
+      if (preset) {
+        lcardsLog.debug(`[StylePresetManager] ✅ Found preset ${presetName} for ${overlayType} (${cacheKey}) in pack ${preset.packId}`);
+        return this._resolvePreset(preset.preset, themeManager);
       }
     }
 
-    lcardsLog.debug(`[StylePresetManager] ❌ Preset ${presetName} not found for ${overlayType}`);
+    lcardsLog.debug(`[StylePresetManager] ❌ Preset ${presetName} not found for ${overlayType} (tried: ${lookupStrategies.join(', ')})`);
     return null;
   }
 
   /**
-   * Get all available presets for an overlay type
+   * Get all available presets for an overlay type (includes universal presets)
    * @param {string} overlayType - Type of overlay
    * @returns {Array} Array of preset names
    */
   getAvailablePresets(overlayType) {
     const presets = new Set();
 
+    // Add direct presets for this overlay type
     for (const pack of this.loadedPacks) {
       if (pack.style_presets && pack.style_presets[overlayType]) {
         Object.keys(pack.style_presets[overlayType]).forEach(name => presets.add(name));
+      }
+    }
+
+    // Add universal button presets if this is a button-like overlay
+    if (this._isButtonLikeOverlay(overlayType)) {
+      for (const pack of this.loadedPacks) {
+        if (pack.style_presets && pack.style_presets.button) {
+          Object.keys(pack.style_presets.button).forEach(name => presets.add(name));
+        }
       }
     }
 
@@ -121,7 +138,10 @@ export class StylePresetManager {
       packCount: this.loadedPacks.length,
       cacheSize: this.presetCache.size,
       packDetails: [],
-      presetsByType: {}
+      presetsByType: {},
+      universalPresets: {
+        button: this._getUniversalButtonPresets()
+      }
     };
 
     // Pack details
@@ -129,12 +149,12 @@ export class StylePresetManager {
       id: pack.id,
       version: pack.version,
       hasStylePresets: !!pack.style_presets,
-      overlayTypes: pack.style_presets ? Object.keys(pack.style_presets) : []
+      categories: pack.style_presets ? Object.keys(pack.style_presets) : []
     }));
 
-    // Presets by type
-    for (const overlayType of this._getAvailableOverlayTypes()) {
-      info.presetsByType[overlayType] = this.getAvailablePresets(overlayType);
+    // Presets by type/category
+    for (const category of this._getAvailableOverlayTypes()) {
+      info.presetsByType[category] = this.getAvailablePresets(category);
     }
 
     return info;
@@ -161,6 +181,158 @@ export class StylePresetManager {
   // Private methods
 
   /**
+   * Resolve preset with theme tokens and inheritance
+   * @private
+   * @param {Object} preset - Raw preset object
+   * @param {Object} themeManager - Theme manager for token resolution
+   * @returns {Object} Resolved preset
+   */
+  _resolvePreset(preset, themeManager = null) {
+    if (!preset) return null;
+
+    // Handle 'extends' property for inheritance
+    if (preset.extends) {
+      const basePreset = this._resolveExtends(preset.extends, themeManager);
+      if (basePreset) {
+        // Merge base preset with current preset (current takes precedence)
+        const { extends: _, ...presetWithoutExtends } = preset; // Remove extends property
+        preset = { ...basePreset, ...presetWithoutExtends };
+      }
+    }
+
+    // Resolve theme tokens if theme manager is available
+    if (themeManager) {
+      preset = this._resolveThemeTokens(preset, themeManager);
+    }
+
+    return preset;
+  }
+
+  /**
+   * Resolve extends property to get base preset
+   * @private
+   * @param {string} extendsPath - Path like 'button.lozenge'
+   * @param {Object} themeManager - Theme manager for token resolution
+   * @returns {Object|null} Base preset or null
+   */
+  _resolveExtends(extendsPath, themeManager) {
+    const [category, presetName] = extendsPath.split('.');
+    if (!category || !presetName) {
+      lcardsLog.warn(`[StylePresetManager] ⚠️ Invalid extends path: ${extendsPath}`);
+      return null;
+    }
+
+    // Recursive preset lookup (but prevent infinite loops)
+    if (this._extendStack && this._extendStack.includes(extendsPath)) {
+      lcardsLog.warn(`[StylePresetManager] ⚠️ Circular extends detected: ${extendsPath}`);
+      return null;
+    }
+
+    this._extendStack = this._extendStack || [];
+    this._extendStack.push(extendsPath);
+
+    const basePreset = this._findPresetInPacks(`${category}.${presetName}`);
+    const resolved = basePreset ? this._resolvePreset(basePreset.preset, themeManager) : null;
+
+    this._extendStack.pop();
+    if (this._extendStack.length === 0) {
+      delete this._extendStack;
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Resolve theme tokens in preset values
+   * @private
+   * @param {Object} preset - Preset object
+   * @param {Object} themeManager - Theme manager instance
+   * @returns {Object} Preset with resolved theme tokens
+   */
+  _resolveThemeTokens(preset, themeManager) {
+    const resolved = {};
+
+    for (const [key, value] of Object.entries(preset)) {
+      if (typeof value === 'string' && value.startsWith('theme:')) {
+        // Extract token path: 'theme:colors.accent.primary' -> 'colors.accent.primary'
+        const tokenPath = value.substring(6);
+        const resolvedValue = themeManager.getToken(tokenPath);
+
+        if (resolvedValue !== undefined) {
+          resolved[key] = resolvedValue;
+          lcardsLog.trace(`[StylePresetManager] 🎨 Resolved theme token: ${value} -> ${resolvedValue}`);
+        } else {
+          lcardsLog.warn(`[StylePresetManager] ⚠️ Theme token not found: ${tokenPath}`);
+          resolved[key] = value; // Keep original if token not found
+        }
+      } else {
+        resolved[key] = value;
+      }
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Find preset in loaded packs by cache key
+   * @private
+   * @param {string} cacheKey - Cache key like 'button.lozenge'
+   * @returns {Object|null} Pack and preset info or null
+   */
+  _findPresetInPacks(cacheKey) {
+    const [category, presetName] = cacheKey.split('.');
+
+    for (const pack of this.loadedPacks) {
+      if (pack.style_presets &&
+          pack.style_presets[category] &&
+          pack.style_presets[category][presetName]) {
+
+        const preset = pack.style_presets[category][presetName];
+
+        // Cache the result for future lookups
+        this.presetCache.set(cacheKey, { preset, packId: pack.id });
+
+        return { preset, packId: pack.id };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if overlay type is button-like (should look for universal button presets)
+   * @private
+   * @param {string} overlayType - Overlay type
+   * @returns {boolean} True if button-like
+   */
+  _isButtonLikeOverlay(overlayType) {
+    const buttonLikeTypes = [
+      'button',
+      'status_grid',  // Status grid uses button-like cells
+      'control_panel', // If we add this later
+      'action_bar'     // If we add this later
+    ];
+
+    return buttonLikeTypes.includes(overlayType);
+  }
+
+  /**
+   * Get universal preset candidates for fallback lookup
+   * @private
+   * @param {string} overlayType - Overlay type
+   * @param {string} presetName - Preset name
+   * @returns {Array} Array of candidate cache keys
+   */
+  _getUniversalPresetCandidates(overlayType, presetName) {
+    const candidates = [];
+
+    // Future: Add more universal categories as we create them
+    // e.g., 'text.presetName', 'chart.presetName', etc.
+
+    return candidates;
+  }
+
+  /**
    * Build preset cache for faster lookups
    * @private
    */
@@ -168,20 +340,56 @@ export class StylePresetManager {
     for (const pack of this.loadedPacks) {
       if (!pack.style_presets) continue;
 
-      for (const [overlayType, presets] of Object.entries(pack.style_presets)) {
+      for (const [category, presets] of Object.entries(pack.style_presets)) {
         for (const [presetName, preset] of Object.entries(presets)) {
-          const cacheKey = `${overlayType}.${presetName}`;
+          const cacheKey = `${category}.${presetName}`;
 
           // Store with pack info for debugging
           this.presetCache.set(cacheKey, {
             preset,
             packId: pack.id,
-            overlayType,
+            category,
             presetName
           });
         }
       }
     }
+
+    lcardsLog.debug('[StylePresetManager] 🎨 Built preset cache:', {
+      totalPresets: this.presetCache.size,
+      universalButtons: this._getUniversalButtonPresets().length,
+      overlaySpecific: this._getOverlaySpecificPresets()
+    });
+  }
+
+  /**
+   * Get list of universal button presets for debugging
+   * @private
+   * @returns {Array} Array of button preset names
+   */
+  _getUniversalButtonPresets() {
+    const buttonPresets = [];
+    for (const [key, value] of this.presetCache.entries()) {
+      if (key.startsWith('button.')) {
+        buttonPresets.push(value.presetName);
+      }
+    }
+    return buttonPresets;
+  }
+
+  /**
+   * Get overlay-specific preset counts for debugging
+   * @private
+   * @returns {Object} Object with overlay type counts
+   */
+  _getOverlaySpecificPresets() {
+    const counts = {};
+    for (const [key, value] of this.presetCache.entries()) {
+      if (!key.startsWith('button.')) {
+        counts[value.category] = (counts[value.category] || 0) + 1;
+      }
+    }
+    return counts;
   }
 
   /**
