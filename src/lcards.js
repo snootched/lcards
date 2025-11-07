@@ -33,12 +33,18 @@ import './msd/index.js';
 // Native card imports
 import { LCARdSMSDCard } from './cards/lcards-msd.js';
 
+// Standalone overlay cards import
+import * as standaloneCards from './cards/standalone/index.js';
+
 // Unified API system import
 import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
 
 
 // Ensure global namespace
 window.lcards = window.lcards || {};
+
+// Export standalone cards system to global namespace
+window.lcards.standalone = standaloneCards;
 
 // Promises for loading the templates and stub configuration
 let templatesPromise;
