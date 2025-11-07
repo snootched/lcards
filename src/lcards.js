@@ -1,5 +1,6 @@
 import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogBanner} from './utils/lcards-logging.js';
 import * as LCARdS from './lcards-vars.js'
+import { lcardsCore } from './core/lcards-core.js';
 
 // Check URL for log level override and set it immediately
 const urlLogLevel = new URLSearchParams(window.location.search).get('lcards_log_level');
@@ -18,6 +19,7 @@ import { LCARdSCardEditor } from './editor/lcards-editor.js';
 import { loadFont, loadCoreFonts, loadAllFontsFromConfig } from './utils/lcards-theme.js';
 import { getLovelace, checkLovelaceTemplates } from './utils/cb-helpers.js';
 import { ButtonCard } from "./lcards-button-card.js"
+import { createTimelines } from './utils/lcards-anim-helpers.js';
 import { html } from 'lit';
 
 import * as animHelpers from './utils/lcards-anim-helpers.js';
@@ -94,6 +96,15 @@ async function initializeCustomCard() {
         return await loadSVGToCache(key, url);
     };
     window.lcards.getSVGFromCache = getSVGFromCache;
+
+    // === CORE INFRASTRUCTURE (NEW) ===
+    // Attach the LCARdSCore singleton (imported statically)
+    window.lcards.core = lcardsCore;
+
+    // Add core to debug API
+    window.lcards.debug.core = () => lcardsCore.getDebugInfo();
+
+    lcardsLog.info('[lcards.js] ✅ LCARdSCore singleton attached to window.lcards.core');
 
     ///load yaml configs
     // Await YAML configs
@@ -796,7 +807,7 @@ class LCARdSBaseCard extends ButtonCard {
                     this.hass || null,
                     presets || {}
                 )
-                : (await import('./utils/lcards-anim-helpers.js')).createTimelines(
+                : createTimelines(
                     timelinesCfg,
                     this._animationScopeId,
                     this.shadowRoot,

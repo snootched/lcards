@@ -14,6 +14,7 @@ import { StyleResolverService } from '../styles/StyleResolverService.js';
 import { ValidationService } from '../validation/ValidationService.js';
 import { registerAllSchemas } from '../validation/schemas/index.js';
 import { applyBaseSvgFilters } from '../utils/BaseSvgFilters.js';
+import { lcardsCore } from '../../core/lcards-core.js';
 
 /**
  * Initialize the MSD processing/rendering pipeline.
@@ -74,6 +75,16 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     lcardsLog.warn('[PipelineCore] ⚠️ StyleResolverService initialization failed:', error);
     lcardsLog.warn('[PipelineCore] ⚠️ Continuing without StyleResolverService - renderers will use fallback resolution');
     // Don't fail the pipeline - renderers will gracefully fall back to manual resolution
+  }
+
+  // ✅ NEW: Phase 1.5 - Initialize LCARdS Core Infrastructure
+  lcardsLog.debug('[PipelineCore] 🚀 Phase 1.5: Initializing LCARdS Core Infrastructure');
+  try {
+    await lcardsCore.initialize(hass);
+    lcardsLog.debug('[PipelineCore] ✅ LCARdS Core Infrastructure initialized');
+  } catch (error) {
+    lcardsLog.warn('[PipelineCore] ⚠️ Core Infrastructure initialization failed:', error);
+    lcardsLog.warn('[PipelineCore] ⚠️ Continuing with legacy systems only');
   }
 
   // CRITICAL: Initialize systems with pack defaults loading before overlay processing
@@ -551,6 +562,23 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
         window.dispatchEvent(new CustomEvent('msd-routing-ready'));
       } catch(_) {}
     }
+  }
+
+  // ✅ NEW: Register the MSD card with LCARdS Core Infrastructure
+  try {
+    // Generate unique card ID based on config or element
+    const cardId = `msd_${mergedConfig.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    lcardsLog.debug('[PipelineCore] 🏷️ Registering MSD card with core:', cardId);
+
+    await lcardsCore.registerCard(cardId, {
+      type: 'msd',
+      mountEl,
+      pipelineApi
+    }, mergedConfig);
+
+    lcardsLog.debug('[PipelineCore] ✅ MSD card registered with LCARdS Core Infrastructure');
+  } catch (error) {
+    lcardsLog.warn('[PipelineCore] ⚠️ Failed to register MSD card with core:', error);
   }
 
   lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with enhanced sequencing');
