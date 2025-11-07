@@ -25,6 +25,7 @@ import { CoreDataSourceManager } from './data-sources/index.js';
 import { CoreRulesManager } from './rules-engine/index.js';
 import { CoreThemeManager } from './theme-manager/index.js';
 import { CoreAnimationManager } from './animation-manager/index.js';
+import { CoreValidationService } from './validation-service/index.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -44,6 +45,7 @@ class LCARdSCore {
         this.rulesManager = null;        // Rule evaluation (Phase 1c)
         this.themeManager = null;        // Theme and style management (Phase 2a)
         this.animationManager = null;    // Animation coordination (Phase 2a)
+        this.validationService = null;   // Config validation and error reporting (Phase 2a)
         this.styleLibrary = null;        // Style presets (Phase 1d)
 
         // ===== REGISTRIES =====
@@ -128,6 +130,15 @@ class LCARdSCore {
             this.animationManager = new CoreAnimationManager();
             await this.animationManager.initialize();
             lcardsLog.debug('[LCARdSCore] ✅ AnimationManager initialized');
+
+            // Initialize ValidationService (Phase 2a)
+            this.validationService = new CoreValidationService({
+                validateEntities: true,
+                cacheResults: true,
+                debug: false
+            });
+            await this.validationService.initialize(hass);
+            lcardsLog.debug('[LCARdSCore] ✅ ValidationService initialized');
 
             // TODO Phase 1d: Initialize StyleLibrary
 
@@ -216,6 +227,8 @@ class LCARdSCore {
             dataSourceManager: this.dataSourceManager,
             rulesManager: this.rulesManager,
             themeManager: this.themeManager,
+            animationManager: this.animationManager,
+            validationService: this.validationService,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
             getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
@@ -302,6 +315,10 @@ class LCARdSCore {
         if (this.animationManager) {
             this.animationManager.updateHass(hass);
         }
+
+        if (this.validationService) {
+            this.validationService.updateHass(hass);
+        }
     }
 
     /**
@@ -339,6 +356,7 @@ class LCARdSCore {
             rulesManager: this.rulesManager ? this.rulesManager.getDebugInfo() : null,
             themeManager: this.themeManager ? this.themeManager.getDebugInfo() : null,
             animationManager: this.animationManager ? this.animationManager.getDebugInfo() : null,
+            validationService: this.validationService ? this.validationService.getDebugInfo() : null,
 
             hasHass: !!this._currentHass
         };
@@ -433,6 +451,10 @@ class LCARdSCore {
             this.animationManager.updateHass(hass);
         }
 
+        if (this.validationService) {
+            this.validationService.updateHass(hass);
+        }
+
         // Forward to registered cards
         this._cardInstances.forEach((context) => {
             if (context.card && typeof context.card.hass !== 'undefined') {
@@ -488,6 +510,11 @@ class LCARdSCore {
         if (this.animationManager) {
             this.animationManager.destroy();
             this.animationManager = null;
+        }
+
+        if (this.validationService) {
+            this.validationService.destroy();
+            this.validationService = null;
         }
 
         // Reset state
