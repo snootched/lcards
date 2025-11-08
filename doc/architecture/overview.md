@@ -24,15 +24,21 @@ graph TB
         LC[lcardsCore]
 
         subgraph "BaseService Architecture"
-            BS[⭐ BaseService<br/>updateHass() + ingestHass()]
+            BS["⭐ BaseService
+            updateHass() and ingestHass()"]
         end
 
         subgraph "Shared Intelligence Systems"
-            RE[🧠 RulesEngine<br/>extends BaseService]
-            DSM[📊 DataSourceManager<br/>extends BaseService]
-            TM[🎨 ThemeManager<br/>extends BaseService]
-            AM[🎬 AnimationManager<br/>extends BaseService]
-            SPM[🎭 StylePresetManager<br/>extends BaseService]
+            RE["🧠 RulesEngine
+            extends BaseService"]
+            DSM["📊 DataSourceManager
+            extends BaseService"]
+            TM["🎨 ThemeManager
+            extends BaseService"]
+            AM["🎬 AnimationManager
+            extends BaseService"]
+            SPM["🎭 StylePresetManager
+            extends BaseService"]
             AR[🗂️ AnimationRegistry]
             VS[✅ ValidationService<br/>extends BaseService]
             SL[📚 StyleLibrary]

@@ -289,7 +289,7 @@ graph TD
 
     Warn --> Resolved
     Resolved --> Provenance[Track Provenance]
-    Provenance --> Output[{mergedConfig, issues, provenance}]
+    Provenance --> Output["mergedConfig, issues, provenance"]
 
     style Raw fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
     style Throw fill:#d91604,stroke:#ef1d10,color:#f3f4f7
@@ -743,12 +743,14 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    Template[Template String<br/>\{datasource.value\}] --> Processor[TemplateProcessor]
+    Template["Template String
+    datasource.value in curly braces"] --> Processor[TemplateProcessor]
 
     Processor --> Parse[Parse Template]
     Parse --> Tokens[Extract Tokens]
 
-    Tokens --> Type{Token<br/>Type?}
+    Tokens --> Type{"Token
+    Type?"}
 
     Type -->|datasource| DS[DataSourceManager]
     Type -->|function| Func[Built-in Function]
