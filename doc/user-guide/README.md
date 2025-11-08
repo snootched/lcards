@@ -34,11 +34,11 @@ graph TD
     Advanced --> Validation[Validation]
     Advanced --> Actions[Actions & Controls]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Getting fill:#00cc66,stroke:#009944,color:#fff
-    style Config fill:#ff9933,stroke:#cc6600,color:#fff
-    style Examples fill:#ffcc00,stroke:#cc9900
-    style Advanced fill:#cc66ff,stroke:#9933cc,color:#fff
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Getting fill:#266239,stroke:#083717,color:#f3f4f7
+    style Config fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Examples fill:#b8e0c1,stroke:#266239,color:#0c2a15
+    style Advanced fill:#458359,stroke:#095320,color:#f3f4f7
 ```
 
 ---
@@ -196,11 +196,11 @@ graph LR
     Adv --> Valid[Validation]
     Adv --> Actions[Actions]
 
-    style UG fill:#4d94ff,stroke:#0066cc,color:#fff
-    style GS fill:#00cc66,stroke:#009944,color:#fff
-    style Config fill:#ff9933,stroke:#cc6600,color:#fff
-    style Ex fill:#ffcc00,stroke:#cc9900
-    style Adv fill:#cc66ff,stroke:#9933cc,color:#fff
+    style UG fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style GS fill:#266239,stroke:#083717,color:#f3f4f7
+    style Config fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Ex fill:#b8e0c1,stroke:#266239,color:#0c2a15
+    style Adv fill:#458359,stroke:#095320,color:#f3f4f7
 ```
 
 ### All Guides by Directory
@@ -294,10 +294,10 @@ graph LR
     Found -->|Yes| Solved[✅ Solved!]
     Found -->|No| GitHub
 
-    style Problem fill:#ff9933,stroke:#cc6600,color:#fff
-    style Solved fill:#00cc66,stroke:#009944,color:#fff
-    style GitHub fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Community fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Problem fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Solved fill:#266239,stroke:#083717,color:#f3f4f7
+    style GitHub fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Community fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
 ```
 
 **Resources:**
@@ -319,8 +319,8 @@ graph LR
     Data --> Advanced[Advanced<br/>Features]
     Advanced --> Master[🌟 LCARS<br/>Master!]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Master fill:#ffcc00,stroke:#cc9900
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Master fill:#b8e0c1,stroke:#266239,color:#0c2a15
 ```
 
 **Recommended Path:**

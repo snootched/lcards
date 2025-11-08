@@ -237,9 +237,9 @@ graph TB
     APM -.points.-> RC
     RC -.routes.-> AR
 
-    style SM fill:#ff9900,stroke:#cc7700,stroke-width:3px
-    style DSM fill:#99ccff,stroke:#6699cc
-    style AR fill:#99ccff,stroke:#6699cc
+    style SM fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
+    style DSM fill:#b8e0c1,stroke:#266239,color:#0c2a15
+    style AR fill:#b8e0c1,stroke:#266239,color:#0c2a15
 ```
 
 ---

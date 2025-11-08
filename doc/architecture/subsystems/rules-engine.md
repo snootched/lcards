@@ -121,8 +121,8 @@ graph TB
     SMB --> ARB --> OvB
     CardC --> CardC
 
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef card fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:3px,color:#0c2a15
+    classDef card fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 
     class DSM,RE,CP,EV,DT,Cache,Callbacks singleton
     class CardA,CardB,CardC,SMA,SMB,ARA,ARB card

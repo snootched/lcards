@@ -97,7 +97,7 @@ graph TB
     RC -.routes.-> LR
     RC -.routes.-> AR
 
-    style RC fill:#ff9900,stroke:#cc7700,stroke-width:3px
+    style RC fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
 ```
 
 ### Data Flow

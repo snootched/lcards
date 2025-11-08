@@ -155,7 +155,7 @@ graph TB
     TP -.HA templates.-> MTE
     TP -.dependencies.-> SM
 
-    style TP fill:#ff9900,stroke:#cc7700,stroke-width:3px
+    style TP fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
 ```
 
 ### Processing Flow

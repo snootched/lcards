@@ -67,11 +67,11 @@ graph TB
     TM --> SRS
     SPM --> AR
 
-    style Pack fill:#f0f0f0,stroke:#666,stroke-width:2px
-    style Themes fill:#ff9900,stroke:#cc7700,stroke-width:2px
-    style SP fill:#4d94ff,stroke:#0066cc,stroke-width:2px
-    style TM fill:#ff9900,stroke:#cc7700,stroke-width:2px
-    style SPM fill:#4d94ff,stroke:#0066cc,stroke-width:2px
+    style Pack fill:#b8e0c1,stroke:#266239,stroke-width:2px,color:#0c2a15
+    style Themes fill:#f9ef97,stroke:#ac943b,stroke-width:2px,color:#0c2a15
+    style SP fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    style TM fill:#f9ef97,stroke:#ac943b,stroke-width:2px,color:#0c2a15
+    style SPM fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 ```
 
 ### Pack Loading Flow

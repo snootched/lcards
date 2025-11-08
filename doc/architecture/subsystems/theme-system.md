@@ -84,7 +84,7 @@ graph TB
     SR -.styles.-> OI
     AR -.defaults.-> OI
 
-    style TM fill:#ff9900,stroke:#cc7700,stroke-width:3px
+    style TM fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
 ```
 
 ### Token Resolution Flow

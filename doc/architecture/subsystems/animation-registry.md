@@ -119,7 +119,7 @@ graph TB
     REG -.instances.-> RA
     REG -.instances.-> OV
 
-    style REG fill:#ff9900,stroke:#cc7700,stroke-width:3px
+    style REG fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
 ```
 
 ### Instance Lifecycle

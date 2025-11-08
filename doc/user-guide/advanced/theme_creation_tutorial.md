@@ -18,10 +18,10 @@ graph TD
     Adjust --> Test
     Works -->|Yes| Done[✅ Theme Complete!]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Create fill:#ff9933,stroke:#cc6600,color:#fff
-    style Test fill:#ffcc00,stroke:#cc9900
-    style Done fill:#00cc66,stroke:#009944,color:#fff
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Create fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Test fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Done fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Steps Overview:**
@@ -94,12 +94,12 @@ graph TD
     Grid --> Applied
     Sparkline --> Applied
 
-    style Theme fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Colors fill:#ff9933,stroke:#cc6600,color:#fff
-    style Typography fill:#ff9933,stroke:#cc6600,color:#fff
-    style Spacing fill:#ff9933,stroke:#cc6600,color:#fff
-    style Components fill:#00cc66,stroke:#009944,color:#fff
-    style Applied fill:#ffcc00,stroke:#cc9900
+    style Theme fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Colors fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Typography fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Spacing fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Components fill:#266239,stroke:#083717,color:#f3f4f7
+    style Applied fill:#b8e0c1,stroke:#266239,color:#0c2a15
 ```
 
 **Structure Explanation:**

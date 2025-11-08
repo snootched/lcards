@@ -31,13 +31,13 @@ graph TD
     A1 --> Display2[Chart Overlay<br/>Show averages]
     A3 --> Display3[Trend Indicator<br/>↑ icon]
 
-    style Raw fill:#4d94ff,stroke:#0066cc,color:#fff
-    style V1 fill:#ff9933,stroke:#cc6600,color:#fff
-    style V2 fill:#ff9933,stroke:#cc6600,color:#fff
-    style V3 fill:#00cc66,stroke:#009944,color:#fff
-    style A1 fill:#00cc66,stroke:#009944,color:#fff
-    style A2 fill:#00cc66,stroke:#009944,color:#fff
-    style A3 fill:#00cc66,stroke:#009944,color:#fff
+    style Raw fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style V1 fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style V2 fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style V3 fill:#266239,stroke:#083717,color:#f3f4f7
+    style A1 fill:#266239,stroke:#083717,color:#f3f4f7
+    style A2 fill:#266239,stroke:#083717,color:#f3f4f7
+    style A3 fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **What These Examples Show:**

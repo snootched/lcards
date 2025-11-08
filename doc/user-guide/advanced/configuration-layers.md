@@ -22,10 +22,10 @@ graph TD
 
     Token --> Final[Final Rendered Style]
 
-    style UserStyle fill:#00cc66,stroke:#009944,color:#fff
-    style Preset fill:#ff9933,stroke:#cc6600,color:#fff
-    style Theme fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Final fill:#ffcc00,stroke:#cc9900
+    style UserStyle fill:#266239,stroke:#083717,color:#f3f4f7
+    style Preset fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Theme fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Final fill:#b8e0c1,stroke:#266239,color:#0c2a15
 ```
 
 **Priority Order (Highest to Lowest):**

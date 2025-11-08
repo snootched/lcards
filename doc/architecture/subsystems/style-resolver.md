@@ -92,7 +92,7 @@ graph TB
     SR -.resolved styles.-> OI
     SR -.resolved styles.-> RE
 
-    style SR fill:#ff9900,stroke:#cc7700,stroke-width:3px
+    style SR fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
 ```
 
 ### Integration with Renderer Hierarchy
@@ -135,10 +135,10 @@ graph TB
 
     ACO --> ACA
 
-    style PC fill:#f0f0f0,stroke:#666,stroke-width:2px
-    style SRS fill:#ff9900,stroke:#cc7700,stroke-width:3px
-    style BR fill:#4d94ff,stroke:#0066cc,stroke-width:2px
-    style ACO fill:#4d94ff,stroke:#0066cc,stroke-width:2px
+    style PC fill:#b8e0c1,stroke:#266239,stroke-width:2px,color:#0c2a15
+    style SRS fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
+    style BR fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    style ACO fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 ```
 
 **Integration Points:**

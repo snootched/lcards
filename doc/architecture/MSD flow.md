@@ -37,6 +37,7 @@ graph TB
         RE[🧠 RulesEngine Singleton]
         DSM[📊 DataSourceManager Singleton]
         TM[🎨 ThemeManager Singleton]
+        AM[🎬 AnimationManager Singleton]
         VS[✅ ValidationService Singleton]
     end
 
@@ -64,6 +65,7 @@ graph TB
     LC --> RE
     LC --> DSM
     LC --> TM
+    LC --> AM
     LC --> VS
 
     %% Singleton to card distribution
@@ -73,6 +75,8 @@ graph TB
     DSM -.entity data.-> SysB
     TM -.themes.-> RenderA
     TM -.themes.-> RenderB
+    AM -.animations.-> RenderA
+    AM -.animations.-> RenderB
 
     %% Card registration with singletons
     SysA -.register rules.-> RE
@@ -87,17 +91,17 @@ graph TB
     DSM -.->|Shared Updates| RuntimeA
     DSM -.->|Shared Updates| RuntimeB
 
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef cardA fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef cardB fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:3px,color:#0c2a15
+    classDef cardA fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    classDef cardB fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
-    class LC,RE,DSM,TM,VS singleton
+    class LC,RE,DSM,TM,AM,VS singleton
     class ConfigA,ProcessA,PacksA,ModelA,SysA,RenderA,DisplayA,RuntimeA cardA
     class ConfigB,ProcessB,PacksB,ModelB,SysB,RenderB,DisplayB,RuntimeB cardB
 ```
 
 **Key Characteristics:**
-- 🌐 **Singleton Intelligence** - Shared systems across all cards (RulesEngine, DataSourceManager, ThemeManager)
+- 🌐 **Singleton Intelligence** - Shared systems across all cards (RulesEngine, DataSourceManager, ThemeManager, AnimationManager)
 - 🎯 **Multi-Card Support** - Multiple MSD cards can coexist with shared rule evaluation
 - 🔄 **Event-driven** - Responds to HA entity changes through singleton distribution
 - 📦 **Modular** - Clear separation between global intelligence and per-card rendering
@@ -119,6 +123,7 @@ sequenceDiagram
     participant DSM as DataSourceManager (Singleton)
     participant RE as RulesEngine (Singleton)
     participant TM as ThemeManager (Singleton)
+    participant AM as AnimationManager (Singleton)
     participant SysA as SystemsManager A
     participant SysB as SystemsManager B
     participant RendA as AdvancedRenderer A
@@ -132,6 +137,7 @@ sequenceDiagram
     Core->>DSM: Initialize DataSourceManager singleton
     Core->>RE: Initialize RulesEngine singleton
     Core->>TM: Initialize ThemeManager singleton
+    Core->>AM: Initialize AnimationManager singleton
 
     Core->>SysA: initializeSystems(configA)
     SysA->>DSM: Register card A datasources
@@ -232,8 +238,9 @@ graph TD
 
     LocalSystems --> Template[TemplateProcessor]
     LocalSystems --> Router[RouterCore]
-    LocalSystems --> Anim[AnimationRegistry]
     LocalSystems --> Renderer[AdvancedRenderer]
+
+    Systems --> RegisterAM[Register with AnimationManager]
 
     Renderer --> Initial[Initial Render]
     Initial --> Display[Display SVG]
@@ -241,17 +248,17 @@ graph TD
 
     Ready --> Runtime[Enter Coordinated Runtime]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Error fill:#ff3333,stroke:#cc0000,color:#fff
-    style Ready fill:#00cc66,stroke:#009944,color:#fff
-    style Runtime fill:#ffcc00,stroke:#cc9900
-    style DSM,RE,TM,VS fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Error fill:#d91604,stroke:#ef1d10,color:#f3f4f7
+    style Ready fill:#266239,stroke:#083717,color:#f3f4f7
+    style Runtime fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style DSM,RE,TM,AM,VS fill:#b8e0c1,stroke:#266239,stroke-width:3px
 ```
 
 **Singleton Initialization Steps:**
 1. **Entry Point** - `index.js` exports `initMsdPipeline`, calls `lcardsCore`
 2. **Singleton Check** - First card creates global singletons, subsequent cards reuse
-3. **Singleton Creation** - DataSourceManager, RulesEngine, ThemeManager, ValidationService
+3. **Singleton Creation** - DataSourceManager, RulesEngine, ThemeManager, AnimationManager, ValidationService
 4. **Card Registration** - Register datasources and rules with appropriate singletons
 5. **Config Processing** - Per-card validation and pack merging
 6. **Local Systems** - Initialize card-specific systems (TemplateProcessor, Renderer)
@@ -284,10 +291,10 @@ graph TD
     Resolved --> Provenance[Track Provenance]
     Provenance --> Output[{mergedConfig, issues, provenance}]
 
-    style Raw fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Throw fill:#ff3333,stroke:#cc0000,color:#fff
-    style Warn fill:#ff9933,stroke:#cc6600,color:#fff
-    style Output fill:#00cc66,stroke:#009944,color:#fff
+    style Raw fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Throw fill:#d91604,stroke:#ef1d10,color:#f3f4f7
+    style Warn fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Output fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Configuration Stages:**
@@ -334,9 +341,9 @@ graph TD
     Presets --> Components[Register Component Defaults]
     Components --> Output[Merged Configuration]
 
-    style Builtin fill:#4d94ff,stroke:#0066cc,color:#fff
-    style External fill:#ff9933,stroke:#cc6600,color:#fff
-    style Output fill:#00cc66,stroke:#009944,color:#fff
+    style Builtin fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style External fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Output fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Pack Types:**
@@ -390,8 +397,8 @@ graph TD
     Methods --> Get[getOverlayById]
     Methods --> Update[updateOverlay]
 
-    style Config fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Model fill:#00cc66,stroke:#009944,color:#fff
+    style Config fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Model fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Model Building Process:**
@@ -421,6 +428,7 @@ graph TD
         LC[lcardsCore] --> DSM[📊 DataSourceManager Singleton]
         LC --> RE[🧠 RulesEngine Singleton]
         LC --> TM[🎨 ThemeManager Singleton]
+        LC --> AM[🎬 AnimationManager Singleton]
         LC --> VS[✅ ValidationService Singleton]
 
         DSM --> Entities[Subscribe to HA Entities]
@@ -432,32 +440,35 @@ graph TD
 
         TM --> Tokens[Load Theme Tokens]
         TM --> Defaults[Component Defaults]
+
+        AM --> Registry[Initialize Animation Registry]
+        AM --> Triggers[Setup Animation Triggers]
     end
 
     subgraph "Card Layer (Per Card)"
         Manager[SystemsManager] --> RegisterDS[Register DataSources with Singleton]
         Manager --> RegisterRE[Register Rules with Singleton]
+        Manager --> RegisterAM[Register Animations with Singleton]
         Manager --> LocalInit[Initialize Local Systems]
 
         RegisterDS --> DSM
         RegisterRE --> RE
+        RegisterAM --> AM
 
         LocalInit --> Template[TemplateProcessor]
         LocalInit --> Router[RouterCore]
-        LocalInit --> Anim[AnimationRegistry]
         LocalInit --> Renderer[AdvancedRenderer]
 
         Template --> Registry[Register Built-in Functions]
         Router --> PathLib[Initialize Path Library]
-        Anim --> AnimeJS[Load Anime.js v4]
         Renderer --> SVG[Setup SVG Namespace]
         Renderer --> OverlayRenderers[Initialize Overlay Renderers]
     end
 
     Renderer --> Ready[✅ Card Systems Ready]
 
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef cardLocal fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:3px,color:#0c2a15
+    classDef cardLocal fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 
     class LC,DSM,RE,TM,VS,Entities,History,Buffer,RuleStore,Callbacks,Tokens,Defaults singleton
     class Manager,RegisterDS,RegisterRE,LocalInit,Template,Router,Anim,Renderer,Registry,PathLib,AnimeJS,SVG,OverlayRenderers cardLocal
@@ -475,13 +486,13 @@ graph TD
 1. **DataSourceManager** - Entity subscriptions shared across all cards
 2. **RulesEngine** - Rule evaluation with callback distribution to all cards
 3. **ThemeManager** - Theme tokens and defaults available to all cards
-4. **ValidationService** - Schema validation shared across all cards
+4. **AnimationManager** - Animation coordination shared across all cards
+5. **ValidationService** - Schema validation shared across all cards
 
 **Local Systems (Per Card):**
 1. **TemplateProcessor** - Card-specific template resolution
 2. **RouterCore** - Card-specific line path calculation
-3. **AnimationRegistry** - Card-specific animation management
-4. **AdvancedRenderer** - Card-specific SVG generation
+3. **AdvancedRenderer** - Card-specific SVG generation
 7. **AdvancedRenderer** - SVG rendering
 
 ---
@@ -614,8 +625,8 @@ graph TD
     Next -->|Yes| Loop
     Next -->|No| Done[Rendering Complete]
 
-    style Model fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Done fill:#00cc66,stroke:#009944,color:#fff
+    style Model fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Done fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Rendering Steps:**
@@ -762,8 +773,8 @@ graph TD
     More -->|Yes| Tokens
     More -->|No| Result[Resolved String]
 
-    style Template fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Result fill:#00cc66,stroke:#009944,color:#fff
+    style Template fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Result fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Template Features:**
@@ -820,8 +831,8 @@ graph TD
     Next -->|Yes| Loop
     Next -->|No| Complete[✅ Rules Evaluated]
 
-    style Model fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Complete fill:#00cc66,stroke:#009944,color:#fff
+    style Model fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Complete fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Rule Types:**
@@ -877,8 +888,8 @@ graph TD
     SVG --> Style[Apply Line Style]
     Style --> Complete[✅ Line Rendered]
 
-    style Line fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Complete fill:#00cc66,stroke:#009944,color:#fff
+    style Line fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Complete fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Line Routing Features:**
@@ -931,8 +942,8 @@ graph TD
     Methods --> Test[testRules]
     Methods --> Validate[validateConfig]
 
-    style Debug fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Methods fill:#00cc66,stroke:#009944,color:#fff
+    style Debug fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Methods fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Debug Features:**

@@ -71,14 +71,14 @@ graph TB
 
     OV --> VV
 
-    style VS fill:#ff9900,stroke:#cc7700,stroke-width:3px
-    style SR fill:#e6f3ff,stroke:#4d94ff
-    style OV fill:#e6f3ff,stroke:#4d94ff
-    style VV fill:#f0f0f0,stroke:#999
-    style TV fill:#e6f3ff,stroke:#4d94ff
-    style DSV fill:#e6f3ff,stroke:#4d94ff
-    style CDV fill:#ffe6e6,stroke:#ff6666
-    style EF fill:#e6f3ff,stroke:#4d94ff
+    style VS fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
+    style SR fill:#80bb93,stroke:#083717,color:#0c2a15
+    style OV fill:#80bb93,stroke:#083717,color:#0c2a15
+    style VV fill:#b8e0c1,stroke:#266239,color:#0c2a15
+    style TV fill:#80bb93,stroke:#083717,color:#0c2a15
+    style DSV fill:#80bb93,stroke:#083717,color:#0c2a15
+    style CDV fill:#d91604,stroke:#ef1d10,color:#f3f4f7
+    style EF fill:#80bb93,stroke:#083717,color:#0c2a15
 ```
 
 ### File Structure

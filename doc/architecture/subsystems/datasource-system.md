@@ -53,9 +53,9 @@ graph TB
     TemplatesA --> OverlaysA
     TemplatesB --> OverlaysB
 
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef cardA fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef cardB fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:3px,color:#0c2a15
+    classDef cardA fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    classDef cardB fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
     class DSM,Transform,Aggregate,Compute,Rules singleton
     class TemplatesA,OverlaysA cardA
@@ -313,9 +313,9 @@ graph TB
     UOM --> Format
     FName --> Display
 
-    style EntityState fill:#4d94ff,stroke:#0066cc,color:#fff
-    style MetaObj fill:#ff9933,stroke:#cc6600,color:#fff
-    style Template fill:#00cc66,stroke:#009944,color:#fff
+    style EntityState fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style MetaObj fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Template fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ### Metadata Extraction Flow

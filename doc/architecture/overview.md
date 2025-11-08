@@ -109,10 +109,10 @@ graph TB
     SMB -.registers rules.-> RE
     CardC -.registers overlays.-> RE
 
-    classDef baseservice fill:#fff9c4,stroke:#f57f17,stroke-width:3px
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef card fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef v2card fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef baseservice fill:#f9ef97,stroke:#ac943b,stroke-width:3px,color:#0c2a15
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:2px,color:#0c2a15
+    classDef card fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    classDef v2card fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
     class BS baseservice
     class RE,DSM,TM,AM,SPM,AR,VS,SL,CSM singleton

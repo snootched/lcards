@@ -22,10 +22,10 @@ graph TD
     Config --> Test[Test Installation]
     Test --> Done[🎉 Ready to use!]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style HACS fill:#00cc66,stroke:#009944,color:#fff
-    style Manual fill:#ff9933,stroke:#cc6600,color:#fff
-    style Done fill:#00cc66,stroke:#009944,color:#fff
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style HACS fill:#266239,stroke:#083717,color:#f3f4f7
+    style Manual fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Done fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ---
@@ -113,7 +113,7 @@ graph LR
     D --> E[Wait ~30-60 seconds]
     E --> F[✅ LCARdS loaded]
 
-    style F fill:#00cc66,stroke:#009944,color:#fff
+    style F fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Navigation:** Settings → System → Restart
@@ -133,8 +133,8 @@ graph TD
     Register --> Restart[Restart HA]
     Restart --> Done[✅ Complete]
 
-    style Start fill:#ff9933,stroke:#cc6600,color:#fff
-    style Done fill:#00cc66,stroke:#009944,color:#fff
+    style Start fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Done fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ### Step-by-Step: Manual Installation
@@ -166,8 +166,8 @@ graph LR
     B --> C[config/www/community/cb-lcars/]
     C --> D[cb-lcars.js<br/>+ config files]
 
-    style A fill:#4d94ff,stroke:#0066cc,color:#fff
-    style D fill:#00cc66,stroke:#009944,color:#fff
+    style A fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style D fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Target location:**
@@ -217,11 +217,11 @@ graph TD
     Font --> Colors[Setup Color Scheme]
     Colors --> Done[✅ Ready!]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Theme fill:#ff9933,stroke:#cc6600
-    style Slider fill:#ff9933,stroke:#cc6600
-    style CardMod fill:#ff9933,stroke:#cc6600
-    style Done fill:#00cc66,stroke:#009944,color:#fff
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Theme fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Slider fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style CardMod fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style Done fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ### 1. HA-LCARS Theme (Required)
@@ -279,7 +279,7 @@ graph LR
     C --> D[Activate Theme]
     D --> E[✅ Styled!]
 
-    style E fill:#00cc66,stroke:#009944,color:#fff
+    style E fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ### 1. Add Antonio Font
@@ -317,8 +317,8 @@ graph TD
 
     Active --> Display[Your Dashboard]
 
-    style Custom fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Display fill:#00cc66,stroke:#009944,color:#fff
+    style Custom fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Display fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 #### Installation Steps
@@ -369,9 +369,9 @@ graph TD
     Themes --> LCARS[lcars.yaml]
     LCARS --> Picard[LCARS Picard cb-lcars]
 
-    style Config fill:#4d94ff,stroke:#0066cc,color:#fff
-    style LCARdS fill:#00cc66,stroke:#009944
-    style Picard fill:#00cc66,stroke:#009944
+    style Config fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style LCARdS fill:#266239,stroke:#083717,color:#f3f4f7
+    style Picard fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 **Expected structure:**
@@ -414,9 +414,9 @@ graph TD
     Works -->|Yes| Success[✅ Installation complete!]
     Works -->|No| Troubleshoot[Check troubleshooting]
 
-    style Start fill:#4d94ff,stroke:#0066cc,color:#fff
-    style Success fill:#00cc66,stroke:#009944,color:#fff
-    style Troubleshoot fill:#ff3333,stroke:#cc0000,color:#fff
+    style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Success fill:#266239,stroke:#083717,color:#f3f4f7
+    style Troubleshoot fill:#d91604,stroke:#ef1d10,color:#f3f4f7
 ```
 
 ### Quick Test
@@ -460,8 +460,8 @@ graph TD
     Retry -->|Yes| Success[✅ Working!]
     Retry -->|No| Help[Get help on<br/>GitHub]
 
-    style Problem fill:#ff3333,stroke:#cc0000,color:#fff
-    style Success fill:#00cc66,stroke:#009944,color:#fff
+    style Problem fill:#d91604,stroke:#ef1d10,color:#f3f4f7
+    style Success fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 ### Issue: "Custom element doesn't exist: lcards-elbow-card"
@@ -572,7 +572,7 @@ graph LR
     C --> D[Restart HA]
     D --> E[✅ Uninstalled]
 
-    style E fill:#00cc66,stroke:#009944,color:#fff
+    style E fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
 1. HACS → Frontend → LCARdS

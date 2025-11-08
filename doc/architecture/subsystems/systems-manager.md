@@ -122,9 +122,9 @@ graph TB
     APMA -.points.-> RCA
     APMB -.points.-> RCB
 
-    classDef singleton fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef cardSystem fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef localSystem fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef singleton fill:#b8e0c1,stroke:#266239,stroke-width:3px,color:#0c2a15
+    classDef cardSystem fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    classDef localSystem fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
     class LC,RE,DSM,TM,AM singleton
     class CardA,SMA,CardB,SMB cardSystem
