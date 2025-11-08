@@ -34,7 +34,11 @@ export class LCARdSV2ButtonCard extends LCARdSV2Card {
             // Button-specific state
             _buttonState: { type: String, state: true },
             _buttonStyle: { type: Object, state: true },
-            _isPressed: { type: Boolean, state: true }
+            _isPressed: { type: Boolean, state: true },
+
+            // Template processing results
+            _processedText: { type: String, state: true },
+            _processedState: { type: String, state: true }
         };
     }
 
@@ -121,6 +125,10 @@ export class LCARdSV2ButtonCard extends LCARdSV2Card {
         this._buttonState = 'unknown';
         this._buttonStyle = {};
         this._isPressed = false;
+
+        // Template processing results
+        this._processedText = null;
+        this._processedState = null;
     }
 
     /**
@@ -280,7 +288,69 @@ export class LCARdSV2ButtonCard extends LCARdSV2Card {
             } else {
                 this._buttonState = 'unavailable';
             }
+
+            // Process templates when entity state changes
+            this._processTemplates();
         }
+
+        if (changedProperties.has('config') && this.config) {
+            // Process templates when config changes
+            this._processTemplates();
+        }
+    }
+
+    /**
+     * Process templates for dynamic content
+     * @private
+     */
+    async _processTemplates() {
+        if (!this._initialized || !this.systemsManager) {
+            return;
+        }
+
+        try {
+            // Process text template
+            if (this.config.text && typeof this.config.text === 'string') {
+                this._processedText = await this.processTemplate(this.config.text);
+            }
+
+            // Process state display template
+            if (this.config.state_display && typeof this.config.state_display === 'string') {
+                this._processedState = await this.processTemplate(this.config.state_display);
+            }
+
+            // Request re-render if templates were processed
+            this.requestUpdate();
+
+        } catch (error) {
+            lcardsLog.error(`[LCARdSV2ButtonCard] Template processing failed (${this._cardId}):`, error);
+        }
+    }
+
+    /**
+     * Get state-specific style overrides
+     * @private
+     */
+    _getStateStyleOverrides() {
+        const overrides = {};
+
+        // Apply rule-based styling from _buttonStyle
+        Object.entries(this._buttonStyle).forEach(([key, value]) => {
+            if (key === 'border') {
+                if (value.color) overrides.borderColor = value.color;
+                if (value.width) overrides.borderWidth = `${value.width}px`;
+            } else if (key === 'label_color' || key === 'color') {
+                overrides.color = value;
+            } else if (key === 'background' || key === 'background_color') {
+                overrides.backgroundColor = value;
+            } else {
+                // Convert camelCase to kebab-case
+                const cssKey = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+                overrides[cssKey] = value;
+            }
+        });
+
+        return overrides;
     }
 
     /**
@@ -302,8 +372,24 @@ export class LCARdSV2ButtonCard extends LCARdSV2Card {
         }
 
         const entity = this.hass?.states[this.config.entity];
-        const displayText = this._dynamicContent || this.config.text || entity?.attributes.friendly_name || 'Button';
-        const displayState = entity?.state || 'unknown';
+
+        // Use template processing for text display
+        let displayText;
+        let displayState;
+
+        if (this.config.text) {
+            // Process text template if it exists
+            displayText = this._processedText || this.config.text;
+        } else {
+            displayText = entity?.attributes.friendly_name || 'Button';
+        }
+
+        if (this.config.state_display) {
+            // Process state display template if it exists
+            displayState = this._processedState || (entity?.state || 'unknown');
+        } else {
+            displayState = entity?.state || 'unknown';
+        }
 
         // Compute button classes
         const buttonClasses = [
@@ -312,27 +398,34 @@ export class LCARdSV2ButtonCard extends LCARdSV2Card {
             this._isPressed ? 'pressed' : ''
         ].filter(Boolean).join(' ');
 
-        // Apply rule-based styling
-        const dynamicStyle = Object.entries(this._buttonStyle).reduce((acc, [key, value]) => {
-            // Convert rule style properties to CSS
-            if (key === 'border') {
-                if (value.color) acc.borderColor = value.color;
-                if (value.width) acc.borderWidth = `${value.width}px`;
-            } else if (key === 'label_color' || key === 'color') {
-                acc.color = value;
-            } else if (key === 'background' || key === 'background_color') {
-                acc.backgroundColor = value;
-            } else {
-                acc[key] = value;
-            }
-            return acc;
-        }, {});
+        // Resolve styles using V2 style resolver
+        const baseStyle = {};
+        const themeTokens = [
+            'components.button.backgroundColor',
+            'components.button.color',
+            'components.button.borderColor',
+            'components.button.fontSize'
+        ];
+        const stateOverrides = this._getStateStyleOverrides();
+
+        let resolvedStyle = {};
+        if (this.systemsManager) {
+            resolvedStyle = this.resolveStyle(baseStyle, themeTokens, stateOverrides);
+        } else {
+            // Fallback if systems manager not ready
+            resolvedStyle = { ...baseStyle, ...stateOverrides };
+        }
+
+        // Convert to inline CSS string
+        const styleString = Object.entries(resolvedStyle)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('; ');
 
         return html`
             <div class="v2-card-container">
                 <div
                     class="${buttonClasses}"
-                    style="${Object.entries(dynamicStyle).map(([k, v]) => `${k}: ${v}`).join('; ')}"
+                    style="${styleString}"
                     @click="${this._handleTap}"
                 >
                     ${this.config.icon ? html`

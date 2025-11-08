@@ -16,6 +16,7 @@
 import { html, css, LitElement } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { lcardsCore } from '../core/lcards-core.js';
+import { V2CardSystemsManager } from './V2CardSystemsManager.js';
 
 /**
  * Base class for V2 Cards using singleton architecture
@@ -103,7 +104,10 @@ export class LCARdSV2Card extends LitElement {
         this._initialized = false;
         this._callbackIndex = -1;
 
-        // Singleton system references
+        // V2 Systems Manager (replaces direct singleton references)
+        this.systemsManager = null;
+
+        // Legacy singleton references (for compatibility)
         this.rulesEngine = null;
         this.themeManager = null;
         this.animationManager = null;
@@ -138,13 +142,17 @@ export class LCARdSV2Card extends LitElement {
                 return;
             }
 
-            // Connect to singleton systems
-            this.rulesEngine = lcardsCore.rulesManager;
-            this.themeManager = lcardsCore.themeManager;
-            this.animationManager = lcardsCore.animationManager;
-            this.dataSourceManager = lcardsCore.dataSourceManager;
+            // Create and initialize V2 Systems Manager
+            this.systemsManager = new V2CardSystemsManager(this);
+            await this.systemsManager.initialize();
 
-            lcardsLog.debug(`[LCARdSV2Card] Singleton connections established (${this._cardId})`);
+            // Set up legacy singleton references for compatibility
+            this.rulesEngine = this.systemsManager.rulesEngine;
+            this.themeManager = this.systemsManager.themeManager;
+            this.animationManager = this.systemsManager.animationManager;
+            this.dataSourceManager = this.systemsManager.dataSourceManager;
+
+            lcardsLog.debug(`[LCARdSV2Card] V2 Systems Manager initialized (${this._cardId})`);
 
             // Register with RulesEngine for rule updates
             this._registerWithRulesEngine();
@@ -287,13 +295,20 @@ export class LCARdSV2Card extends LitElement {
     /**
      * Component lifecycle: disconnected
      */
-    disconnectedCallback() {
+    async disconnectedCallback() {
         super.disconnectedCallback();
 
         // Clean up rule callback
         if (this.rulesEngine && this._callbackIndex >= 0) {
             this.rulesEngine.removeReEvaluationCallback(this._callbackIndex);
             lcardsLog.debug(`[LCARdSV2Card] Rule callback removed (${this._cardId})`);
+        }
+
+        // Clean up systems manager
+        if (this.systemsManager) {
+            await this.systemsManager.destroy();
+            this.systemsManager = null;
+            lcardsLog.debug(`[LCARdSV2Card] Systems manager destroyed (${this._cardId})`);
         }
 
         lcardsLog.debug(`[LCARdSV2Card] Disconnected (${this._cardId})`);
@@ -312,6 +327,124 @@ export class LCARdSV2Card extends LitElement {
 
         this.requestUpdate();
     }
+
+    // ============================================================================
+    // Template Processing API
+    // ============================================================================
+
+    /**
+     * Process a template with the current card context
+     * @param {any} template - Template to process
+     * @param {Object} additionalContext - Additional context for template
+     * @returns {Promise<any>} Processed result
+     */
+    async processTemplate(template, additionalContext = {}) {
+        if (!this.systemsManager) {
+            lcardsLog.warn(`[LCARdSV2Card] Systems manager not ready, returning template as-is (${this._cardId})`);
+            return template;
+        }
+
+        // Create enriched context
+        const context = {
+            ...additionalContext,
+            entity: this.hass?.states[this.config?.entity],
+            config: this.config,
+            hass: this.hass,
+            card: this
+        };
+
+        return this.systemsManager.processTemplate(template, context);
+    }
+
+    /**
+     * Resolve styles using theme tokens and overrides
+     * @param {Object} baseStyle - Base style object
+     * @param {Array<string>} themeTokens - Array of theme token paths
+     * @param {Object} stateOverrides - State-based style overrides
+     * @returns {Object} Resolved style object
+     */
+    resolveStyle(baseStyle = {}, themeTokens = [], stateOverrides = {}) {
+        if (!this.systemsManager) {
+            return { ...baseStyle, ...stateOverrides };
+        }
+
+        // Include rule-based overrides if available
+        const ruleOverrides = this._getRuleBasedStyleOverrides();
+
+        return this.systemsManager.resolveStyle(baseStyle, themeTokens, stateOverrides, ruleOverrides);
+    }
+
+    /**
+     * Get theme token value
+     * @param {string} tokenPath - Dot-notation path to token
+     * @param {any} fallback - Fallback value if token not found
+     * @returns {any} Token value or fallback
+     */
+    getThemeToken(tokenPath, fallback = null) {
+        if (!this.systemsManager) {
+            return fallback;
+        }
+
+        return this.systemsManager.getThemeToken(tokenPath, fallback);
+    }
+
+    /**
+     * Subscribe to a data source
+     * @param {Object} dsConfig - DataSource configuration
+     * @param {Function} callback - Update callback
+     * @returns {Promise<string>} Subscription ID
+     */
+    async subscribeToDataSource(dsConfig, callback) {
+        if (!this.systemsManager) {
+            throw new Error('Systems manager not available');
+        }
+
+        return this.systemsManager.subscribeToDataSource(dsConfig, callback);
+    }
+
+    /**
+     * Unsubscribe from a data source
+     * @param {string} subscriptionId - Subscription ID to cancel
+     */
+    async unsubscribeFromDataSource(subscriptionId) {
+        if (this.systemsManager) {
+            await this.systemsManager.unsubscribeFromDataSource(subscriptionId);
+        }
+    }
+
+    /**
+     * Register overlay target for rule-based updates
+     * @param {string} overlayId - Overlay ID
+     * @param {Element} targetElement - Target DOM element
+     */
+    _registerOverlayTarget(overlayId, targetElement) {
+        this._overlayTargets[overlayId] = targetElement;
+        lcardsLog.debug(`[LCARdSV2Card] Overlay target registered (${this._cardId}): ${overlayId}`);
+    }
+
+    /**
+     * Get rule-based style overrides for current card state
+     * @private
+     */
+    _getRuleBasedStyleOverrides() {
+        // Extract style overrides from current rule results
+        // This allows rules to dynamically modify card styling
+        const overrides = {};
+
+        if (this._ruleResults?.overlayPatches) {
+            this._ruleResults.overlayPatches.forEach(patch => {
+                if (patch.selector === this._cardId || patch.selector === 'self') {
+                    Object.assign(overrides, patch.style || {});
+                }
+            });
+        }
+
+        return overrides;
+    }
+
+    // ============================================================================
+    // Lifecycle and Rendering
+    // ============================================================================
 
     /**
      * Render the card
