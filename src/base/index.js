@@ -6,3 +6,4 @@
 
 export { LCARdSNativeCard } from './LCARdSNativeCard.js';
 export { LCARdSActionHandler } from './LCARdSActionHandler.js';
+export { LCARdSSimpleCard } from './LCARdSSimpleCard.js';
