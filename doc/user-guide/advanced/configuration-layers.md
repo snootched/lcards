@@ -97,7 +97,7 @@ The MSD system uses a **unified theme-based approach** with clear priority order
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. PACK LOADING & THEME SELECTION (mergePacks.js)          │
 │    • Loads builtin_themes pack (always)                    │
-│    • Loads other packs (core, cb_lcars_buttons, etc.)      │
+│    • Loads other packs (core, lcards_buttons, etc.)      │
 │    • Loads user-selected theme or default theme            │
 │    • Registers style presets from packs                    │
 └─────────────────────────────────────────────────────────────┘
@@ -119,7 +119,7 @@ The MSD system uses a **unified theme-based approach** with clear priority order
 msd:
   theme: "lcars-classic"          # Select active theme
   use_packs:
-    builtin: ['core', 'cb_lcars_buttons']
+    builtin: ['core', 'lcards_buttons']
   overlays:
     - id: my_grid
       type: status_grid
@@ -231,7 +231,7 @@ getDefault(componentType, property, fallback) {
 Style presets provide **named style bundles** independent of themes:
 
 ```javascript
-// Pack definition (cb_lcars_buttons pack)
+// Pack definition (lcards_buttons pack)
 style_presets: {
   status_grid: {
     lozenge: {

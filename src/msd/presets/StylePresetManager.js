@@ -15,6 +15,16 @@ export class StylePresetManager {
     this.loadedPacks = [];
     this.presetCache = new Map();
     this.initialized = false;
+
+    // CSS utilities (migrated from CoreStyleLibrary)
+    this.generatedClasses = new Set();
+    this.styleElement = null;
+    this.stats = {
+      presetsUsed: 0,
+      tokensResolved: 0,
+      classesGenerated: 0,
+      cacheHits: 0
+    };
   }
 
   /**
@@ -28,13 +38,17 @@ export class StylePresetManager {
     this.presetCache.clear();
     this.initialized = true;
 
+    // Initialize CSS utilities for dynamic class generation
+    this.initializeCSSUtilities();
+
     // Build cache for faster lookups
     this._buildPresetCache();
 
     lcardsLog.debug('[StylePresetManager] ✅ Initialized with preset cache:', {
       packCount: this.loadedPacks.length,
       cacheSize: this.presetCache.size,
-      availableTypes: this._getAvailableOverlayTypes()
+      availableTypes: this._getAvailableOverlayTypes(),
+      cssUtilitiesReady: !!this.styleElement
     });
   }
 
@@ -407,6 +421,128 @@ export class StylePresetManager {
     }
 
     return Array.from(types);
+  }
+
+  // ========================================
+  // CSS Utilities (migrated from CoreStyleLibrary)
+  // ========================================
+
+  /**
+   * Initialize CSS utilities (create style element)
+   */
+  initializeCSSUtilities() {
+    if (!this.styleElement && typeof document !== 'undefined') {
+      this.styleElement = document.createElement('style');
+      this.styleElement.id = 'lcards-dynamic-styles';
+      document.head.appendChild(this.styleElement);
+      lcardsLog.debug('[StylePresetManager] CSS utilities initialized');
+    }
+  }
+
+  /**
+   * Create CSS class from style object
+   * @param {string} className - CSS class name
+   * @param {Object} styles - Style object
+   * @param {boolean} addToDOM - Whether to add to DOM immediately
+   * @returns {string} CSS class rule
+   */
+  createCSSClass(className, styles, addToDOM = true) {
+    const cssRules = [];
+
+    for (const [property, value] of Object.entries(styles)) {
+      // Convert camelCase to kebab-case
+      const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
+      cssRules.push(`  ${cssProperty}: ${value};`);
+    }
+
+    const cssRule = `.${className} {\n${cssRules.join('\n')}\n}`;
+
+    if (addToDOM && this.styleElement) {
+      this.styleElement.textContent += cssRule + '\n';
+      this.generatedClasses.add(className);
+      this.stats.classesGenerated++;
+    }
+
+    return cssRule;
+  }
+
+  /**
+   * Generate CSS class from preset
+   * @param {string} overlayType - Overlay type
+   * @param {string} presetName - Preset name
+   * @param {Object} themeManager - Theme manager for token resolution
+   * @returns {string|null} Generated CSS class name
+   */
+  generatePresetClass(overlayType, presetName, themeManager = null) {
+    const preset = this.getPreset(overlayType, presetName, themeManager);
+    if (!preset) return null;
+
+    const className = `lcards-${overlayType}-${presetName}`;
+    if (this.generatedClasses.has(className)) {
+      this.stats.cacheHits++;
+      return className;
+    }
+
+    this.createCSSClass(className, preset);
+    return className;
+  }
+
+  /**
+   * Resolve theme tokens in style object
+   * @param {Object} styles - Style object with potential theme tokens
+   * @param {Object} themeManager - Theme manager instance
+   * @returns {Object} Resolved style object
+   */
+  resolveTokensInStyles(styles, themeManager = null) {
+    if (!styles || !themeManager) return styles;
+
+    const resolved = {};
+    for (const [key, value] of Object.entries(styles)) {
+      if (typeof value === 'string' && value.startsWith('theme:')) {
+        const tokenPath = value.substring(6); // Remove 'theme:' prefix
+        resolved[key] = themeManager.getToken(tokenPath, value);
+        this.stats.tokensResolved++;
+      } else {
+        resolved[key] = value;
+      }
+    }
+    return resolved;
+  }
+
+  /**
+   * Get CSS utilities statistics
+   * @returns {Object} Statistics object
+   */
+  getCSSStats() {
+    return {
+      ...this.stats,
+      generatedClasses: this.generatedClasses.size,
+      hasStyleElement: !!this.styleElement
+    };
+  }
+
+  /**
+   * Clear generated CSS classes
+   */
+  clearGeneratedCSS() {
+    if (this.styleElement) {
+      this.styleElement.textContent = '';
+    }
+    this.generatedClasses.clear();
+    this.stats.classesGenerated = 0;
+    lcardsLog.debug('[StylePresetManager] Generated CSS cleared');
+  }
+
+  /**
+   * Destroy CSS utilities and clean up
+   */
+  destroyCSSUtilities() {
+    if (this.styleElement) {
+      this.styleElement.remove();
+      this.styleElement = null;
+    }
+    this.generatedClasses.clear();
+    lcardsLog.debug('[StylePresetManager] CSS utilities destroyed');
   }
 }
 

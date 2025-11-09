@@ -323,7 +323,7 @@ graph TD
 
     Builtin --> Themes[builtin_themes]
     Builtin --> Core[core pack]
-    Builtin --> Buttons[cb_lcars_buttons]
+    Builtin --> Buttons[lcards_buttons]
 
     Start --> External[Load External Packs]
     External --> User[User-defined packs]
@@ -349,7 +349,7 @@ graph TD
 **Pack Types:**
 - **builtin_themes** - Theme definitions (always loaded)
 - **core** - Core overlays and defaults
-- **cb_lcars_buttons** - LCARS button presets
+- **lcards_buttons** - LCARS button presets
 - **external** - User-provided packs from URLs
 
 **Merge Priority:**

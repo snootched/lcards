@@ -241,21 +241,7 @@ overlays: [
 ]
 ```
 
-### 4. Palettes (Color Schemes) - Legacy
-**Purpose**: Provide named color collections
-**Usage**: Referenced in styles via palette system
-**Note**: Prefer using theme tokens instead for new implementations
-
-```javascript
-palettes: {
-  cb_lcars_buttons: {
-    primary: 'var(--lcars-blue, #0088ff)',
-    secondary: 'var(--lcars-orange, #ff9900)',
-    success: 'var(--lcars-green, #00ff00)',
-    'picard-gold': '#d4af37'
-  }
-}
-```
+### 4. Palettes (Color Schemes) - Legacy REMOVED
 
 ### 5. Chart Templates (builtin_themes pack only)
 **Purpose**: Provide reusable ApexCharts configurations
@@ -406,7 +392,7 @@ themes: {
   }
 }
 
-// cb_lcars_buttons pack provides preset
+// lcards_buttons pack provides preset
 style_presets: {
   status_grid: {
     lozenge: {
@@ -422,7 +408,7 @@ style_presets: {
 msd:
   theme: "lcars-classic"                # Select theme
   use_packs:
-    builtin: ['cb_lcars_buttons']      # Load presets
+    builtin: ['lcards_buttons']      # Load presets
 
   overlays:
     - id: my_grid
@@ -454,7 +440,7 @@ msd:
 - Contains default theme (`lcars-classic`)
 - Includes chart templates and animation presets
 
-### 2. Style Pack (cb_lcars_buttons)
+### 2. Style Pack (lcards_buttons)
 **Loaded on demand**
 - Provides style presets (lozenge, bullet, etc.)
 - No themes (uses active theme for defaults)

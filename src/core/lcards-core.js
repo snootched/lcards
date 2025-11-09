@@ -26,7 +26,7 @@ import { RulesEngine } from '../msd/rules/RulesEngine.js';  // ✅ Real MSD Rule
 import { ThemeManager } from '../msd/themes/ThemeManager.js';  // ✅ Real MSD ThemeManager
 import { AnimationManager } from '../msd/animation/AnimationManager.js';
 import { CoreValidationService } from './validation-service/index.js';
-import { CoreStyleLibrary } from './style-library/index.js';
+
 import { StylePresetManager } from '../msd/presets/StylePresetManager.js';  // ✅ Real MSD StylePresetManager
 import { AnimationRegistry } from '../msd/animation/AnimationRegistry.js';  // ✅ Real MSD AnimationRegistry
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
@@ -50,8 +50,7 @@ class LCARdSCore {
         this.themeManager = null;        // Theme and style management (Phase 2a)
         this.animationManager = null;    // Animation coordination (Phase 2a)
         this.validationService = null;   // Config validation and error reporting (Phase 2a)
-        this.styleLibrary = null;        // Style presets and CSS utilities (Phase 2a)
-        this.stylePresetManager = null;  // Style presets from packs (Phase 2b)
+        this.stylePresetManager = null;  // Unified style system: presets + CSS utilities (Phase 2b)
         this.animationRegistry = null;   // Animation instance caching (Phase 2b)
         this.actionHandler = null;       // Unified action handling system
 
@@ -146,19 +145,15 @@ class LCARdSCore {
             await this.validationService.initialize(hass);
             lcardsLog.debug('[LCARdSCore] ✅ ValidationService initialized');
 
-            // Initialize StyleLibrary (Phase 2a)
-            this.styleLibrary = new CoreStyleLibrary(this.themeManager);
-            await this.styleLibrary.initialize();
-            lcardsLog.debug('[LCARdSCore] ✅ StyleLibrary initialized');
-
-            // Initialize StylePresetManager (Phase 2b) - ✅ Real MSD StylePresetManager as singleton
+            // Initialize StylePresetManager (Phase 2b) - ✅ Unified style system (replaces CoreStyleLibrary)
+            // This now includes both preset management AND CSS utilities
             this.stylePresetManager = new StylePresetManager();
 
             // ✅ CRITICAL: Load builtin packs at singleton startup for V2-only pages
             // This ensures themes and presets are available even without MSD cards
             try {
                 const { loadBuiltinPacks } = await import('../msd/packs/loadBuiltinPacks.js');
-                const builtinPacks = loadBuiltinPacks(['core', 'cb_lcars_buttons', 'builtin_themes']);
+                const builtinPacks = loadBuiltinPacks(['core', 'lcards_buttons', 'builtin_themes']);
                 await this.stylePresetManager.initialize(builtinPacks);
                 lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager initialized with builtin packs:', builtinPacks.map(p => p.id));
 
@@ -269,7 +264,7 @@ class LCARdSCore {
             themeManager: this.themeManager,
             animationManager: this.animationManager,
             validationService: this.validationService,
-            styleLibrary: this.styleLibrary,
+            stylePresetManager: this.stylePresetManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
             getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
@@ -361,9 +356,7 @@ class LCARdSCore {
             this.validationService.updateHass(hass);
         }
 
-        if (this.styleLibrary) {
-            this.styleLibrary.updateHass(hass);
-        }
+        // StylePresetManager doesn't need HASS updates (it's theme/pack based)
     }
 
     /**
@@ -404,7 +397,7 @@ class LCARdSCore {
             themeManager: this.themeManager ? this.themeManager.getDebugInfo() : null,
             animationManager: this.animationManager ? this._getAnimationManagerDebugInfo() : null,
             validationService: this.validationService ? this.validationService.getDebugInfo() : null,
-            styleLibrary: this.styleLibrary ? this.styleLibrary.getDebugInfo() : null,
+
             stylePresetManager: this.stylePresetManager ? this._getStylePresetManagerDebugInfo() : null,
             animationRegistry: this.animationRegistry ? this._getAnimationRegistryDebugInfo() : null,
             actionHandler: this.actionHandler ? this._getActionHandlerDebugInfo() : null,
@@ -633,9 +626,7 @@ class LCARdSCore {
             this.validationService.updateHass(hass);
         }
 
-        if (this.styleLibrary) {
-            this.styleLibrary.updateHass(hass);
-        }
+        // StylePresetManager doesn't need HASS updates (it's theme/pack based)
 
         // Forward to registered cards
         this._cardInstances.forEach((context) => {
@@ -699,9 +690,9 @@ class LCARdSCore {
             this.validationService = null;
         }
 
-        if (this.styleLibrary) {
-            this.styleLibrary.destroy();
-            this.styleLibrary = null;
+        if (this.stylePresetManager) {
+            this.stylePresetManager.destroyCSSUtilities();
+            this.stylePresetManager = null;
         }
 
         // Reset state

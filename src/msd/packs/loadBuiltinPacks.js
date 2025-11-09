@@ -34,8 +34,8 @@ const LCARS_FX_PACK = {
 };
 
 // LCARdS Button Styles Pack (Phase 2) - Complete button presets for status grids
-const CB_LCARS_BUTTONS_PACK = {
-  id: 'cb_lcars_buttons',
+const LCARDS_BUTTONS_PACK = {
+  id: 'lcards_buttons',
   version: '1.0.0',
   description: 'LCARdS button styles for status grids - recreates custom-button-card appearances',
   animations: [],
@@ -1174,14 +1174,14 @@ const BUILTIN_THEMES_PACK = {
 const BUILTIN_REGISTRY = {
   core: CORE_PACK,
   lcars_fx: LCARS_FX_PACK,
-  cb_lcars_buttons: CB_LCARS_BUTTONS_PACK,
+  lcards_buttons: LCARDS_BUTTONS_PACK,
   builtin_themes: BUILTIN_THEMES_PACK  // ✅ ADD: Register the themes pack
 };
 
 // Remove getBuiltinPack() function entirely - it's not needed anymore
 // All packs are now in BUILTIN_REGISTRY
 
-export function loadBuiltinPacks(requested = ['core', 'cb_lcars_buttons']) {
+export function loadBuiltinPacks(requested = ['core', 'lcards_buttons']) {
   // ✅ CRITICAL FIX: Always load builtin_themes pack for theme system
   const packsToLoad = [...new Set([...requested, 'builtin_themes'])];
 

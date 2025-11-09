@@ -31,7 +31,7 @@ export class LCARdSActionHandler {
      * @param {string} actionName - Action name (tap, hold, double_tap)
      */
     handleAction(element, hass, actionConfig, actionName = 'tap') {
-        console.log(`🎯 [LCARdSActionHandler] handleAction called:`, {
+        lcardsLog.debug(`[LCARdSActionHandler] handleAction called:`, {
             element: element?.tagName,
             hass: !!hass,
             actionConfig,
@@ -39,28 +39,24 @@ export class LCARdSActionHandler {
         });
 
         if (!element || !hass || !actionConfig) {
-            lcardsLog.warn('[LCARdSActionHandler] Missing parameters for action handling');
-            console.log(`❌ Missing params: element=${!!element}, hass=${!!hass}, actionConfig=${!!actionConfig}`);
+            lcardsLog.warn(`[LCARdSActionHandler] Missing params: element=${!!element}, hass=${!!hass}, actionConfig=${!!actionConfig}`);
             return;
         }
 
         try {
             // Validate action config
             if (!this._validateActionConfig(actionConfig)) {
-                lcardsLog.warn('[LCARdSActionHandler] Invalid action config:', actionConfig);
-                console.log(`❌ Invalid action config:`, actionConfig);
+                lcardsLog.warn(`[LCARdSActionHandler] Invalid action config:`, actionConfig);
                 return;
             }
 
             lcardsLog.debug(`[LCARdSActionHandler] Handling ${actionName} action:`, actionConfig);
-            console.log(`✅ [LCARdSActionHandler] Proceeding to handle action`);
 
             // Handle actions directly instead of using custom-card-helpers
             this._handleActionDirectly(element, hass, actionConfig, actionName);
 
         } catch (error) {
             lcardsLog.error('[LCARdSActionHandler] Action handling error:', error);
-            console.log(`💥 [LCARdSActionHandler] Action error:`, error);
         }
     }
 

@@ -223,7 +223,7 @@ Add your theme pack to your MSD configuration:
 msd:
   theme: "enterprise-d-blue"  # Select your custom theme
   use_packs:
-    builtin: ['core', 'cb_lcars_buttons']
+    builtin: ['core', 'lcards_buttons']
     external:
       - url: "/local/enterprise-d-blue-theme.json"  # Load your theme pack
 
