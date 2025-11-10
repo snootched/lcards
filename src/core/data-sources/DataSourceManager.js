@@ -5,7 +5,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * 📊 Provides multi-source lifecycle management, overlay subscription system, and EntityRuntime API compatibility
  */
 
-import { MsdDataSource } from './MsdDataSource.js';
+import { DataSource } from './DataSource.js';
 import { BaseService } from '../../core/BaseService.js';
 
 export class DataSourceManager extends BaseService {
@@ -75,7 +75,7 @@ export class DataSourceManager extends BaseService {
       return this.sources.get(name);
     }
 
-    const source = new MsdDataSource(config, this.hass);
+    const source = new DataSource(config, this.hass);
     this.sources.set(name, source);
 
     // NEW: Index by entity for global lookups
@@ -490,7 +490,7 @@ export class DataSourceManager extends BaseService {
   /**
    * Get a specific data source by ID
    * @param {string} id - Data source ID
-   * @returns {MsdDataSource|null} The data source or null if not found
+   * @returns {DataSource|null} The data source or null if not found
    */
   getDataSource(id) {
     return this._dataSources.get(id) || null;

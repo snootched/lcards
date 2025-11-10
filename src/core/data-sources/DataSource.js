@@ -1,7 +1,7 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
- * [MsdDataSource] Data source implementation - provides real-time Home Assistant entity subscriptions
+ * [DataSource] Data source implementation - provides real-time Home Assistant entity subscriptions
  * 📈 Features coalescing/throttling, history preload, rolling buffer management, and transformation processing
  */
 
@@ -18,14 +18,14 @@ const cancelAnimationFrame = isNode
   ? (id) => clearTimeout(id)
   : window.cancelAnimationFrame;
 
-export class MsdDataSource {
+export class DataSource {
   constructor(cfg, hass) {
     this.cfg = { ...cfg };
     this.hass = hass;
 
     // Validate essential config
     if (!this.cfg.entity) {
-      lcardsLog.debug('[MsdDataSource] ⚠️ No entity specified in config');
+      lcardsLog.debug('[DataSource] ⚠️ No entity specified in config');
       this.cfg.entity = '';
     }
 
@@ -159,9 +159,9 @@ export class MsdDataSource {
           const capacity = Math.max(60, Math.floor(wsSec * 10));
           this.transformedBuffers.set(key, new RollingBuffer(capacity));
 
-          lcardsLog.trace(`[MsdDataSource] ✓ Initialized transformation: ${key} (${expandedConfig.type})`);
+          lcardsLog.trace(`[DataSource] ✓ Initialized transformation: ${key} (${expandedConfig.type})`);
         } catch (error) {
-          lcardsLog.error(`[MsdDataSource] ❌ Failed to initialize transformation ${transformConfig.type}:`, error);
+          lcardsLog.error(`[DataSource] ❌ Failed to initialize transformation ${transformConfig.type}:`, error);
         }
       });
     }
@@ -170,7 +170,7 @@ export class MsdDataSource {
       // Validate aggregations is an array
       if (!Array.isArray(cfg.aggregations)) {
         lcardsLog.error(
-          `[MsdDataSource] ❌ Aggregations must be an array for ${this.cfg.entity}.\n` +
+          `[DataSource] ❌ Aggregations must be an array for ${this.cfg.entity}.\n` +
           `  Found: ${typeof cfg.aggregations}\n` +
           `  Use: aggregations: [{ type: "min_max", key: "daily_stats" }]`
         );
@@ -182,14 +182,14 @@ export class MsdDataSource {
           // Validate required fields
           if (!config.type) {
             lcardsLog.error(
-              `[MsdDataSource] ❌ Aggregation at index ${index} missing required "type" property`
+              `[DataSource] ❌ Aggregation at index ${index} missing required "type" property`
             );
             return;
           }
 
           if (!config.key) {
             lcardsLog.error(
-              `[MsdDataSource] ❌ Aggregation at index ${index} missing required "key" property`
+              `[DataSource] ❌ Aggregation at index ${index} missing required "key" property`
             );
             return;
           }
@@ -199,11 +199,11 @@ export class MsdDataSource {
           this.aggregations.set(config.key, processor);
 
           lcardsLog.debug(
-            `[MsdDataSource] ✓ Initialized aggregation: ${config.key} (${config.type})`
+            `[DataSource] ✓ Initialized aggregation: ${config.key} (${config.type})`
           );
         } catch (error) {
           lcardsLog.error(
-            `[MsdDataSource] ❌ Failed to initialize aggregation ${config.type}:`,
+            `[DataSource] ❌ Failed to initialize aggregation ${config.type}:`,
             error
           );
         }
@@ -214,7 +214,7 @@ export class MsdDataSource {
     this._validateTransformationChains();
 
     lcardsLog.trace(
-      `[MsdDataSource] Processor initialization complete: ` +
+      `[DataSource] Processor initialization complete: ` +
       `${this.transformations.size} transformations, ${this.aggregations.size} aggregations`
     );
   }
@@ -319,7 +319,7 @@ export class MsdDataSource {
 
     if (errors.length > 0) {
       const errorMsg = `Transform chain validation failed:\n  ${errors.join('\n  ')}`;
-      lcardsLog.error(`[MsdDataSource] ❌ ${errorMsg}`);
+      lcardsLog.error(`[DataSource] ❌ ${errorMsg}`);
       throw new Error(errorMsg);
     }
   }
@@ -411,7 +411,7 @@ export class MsdDataSource {
       }).join(', ');
 
       lcardsLog.error(
-        `[MsdDataSource] ❌ Circular dependency detected in transformations: ${involved}\n` +
+        `[DataSource] ❌ Circular dependency detected in transformations: ${involved}\n` +
         `  Falling back to config order (chaining will not work correctly)`
       );
 
@@ -425,7 +425,7 @@ export class MsdDataSource {
     this._transformationOrder = result;
     this._transformationOrderValid = true;
 
-    lcardsLog.trace(`[MsdDataSource] Transformation execution order: ${result.join(' → ')}`);
+    lcardsLog.trace(`[DataSource] Transformation execution order: ${result.join(' → ')}`);
 
     return result;
   }
@@ -445,25 +445,25 @@ export class MsdDataSource {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - hours * 3600000);
 
-    lcardsLog.debug(`[MsdDataSource] 📊 Preloading ${hours}h history for ${this.cfg.entity}`);
+    lcardsLog.debug(`[DataSource] 📊 Preloading ${hours}h history for ${this.cfg.entity}`);
 
     try {
       // Strategy 1: Try Home Assistant's history service (most reliable)
       await this._preloadWithHistoryService(startTime, endTime);
     } catch (error) {
-      lcardsLog.warn(`[MsdDataSource] History service failed for ${this.cfg.entity}, trying statistics:`, error.message);
+      lcardsLog.warn(`[DataSource] History service failed for ${this.cfg.entity}, trying statistics:`, error.message);
 
       try {
         // Strategy 2: Fall back to enhanced statistics
         await this._preloadWithStatistics(startTime, endTime);
       } catch (statError) {
-        lcardsLog.warn(`[MsdDataSource] Statistics failed, trying state history:`, statError.message);
+        lcardsLog.warn(`[DataSource] Statistics failed, trying state history:`, statError.message);
         // Strategy 3: Final fallback (existing _preloadStateHistory method)
         await this._preloadStateHistory(startTime, endTime);
       }
     }
 
-    lcardsLog.debug(`[MsdDataSource] History preload complete: ${this._stats.historyLoaded} points loaded`);
+    lcardsLog.debug(`[DataSource] History preload complete: ${this._stats.historyLoaded} points loaded`);
   }
 
   /**
@@ -481,7 +481,7 @@ export class MsdDataSource {
 
     if (response && response[0]) {
       const states = response[0];
-      lcardsLog.trace(`[MsdDataSource] History service returned states for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] History service returned states for ${this.cfg.entity}`);
 
       for (const state of states) {
         const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -524,7 +524,7 @@ export class MsdDataSource {
 
     if (response && response[0]?.statistics) {
       const statistics = response[0].statistics;
-      lcardsLog.trace(`[MsdDataSource] Statistics returned points for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] Statistics returned points for ${this.cfg.entity}`);
 
       for (const stat of statistics) {
         const timestamp = new Date(stat.start).getTime();
@@ -547,7 +547,7 @@ export class MsdDataSource {
     if (this._started || this._destroyed) return;
 
     try {
-      lcardsLog.trace(`[MsdDataSource] 🚀 Starting initialization for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] 🚀 Starting initialization for ${this.cfg.entity}`);
 
       // STEP 1: Preload historical data FIRST
       if (this.hass?.callService) {
@@ -561,12 +561,12 @@ export class MsdDataSource {
         // ✅ NEW: Extract metadata from initial state
         this._extractMetadata(currentState);
 
-        lcardsLog.trace(`[MsdDataSource] 🔄 Loading initial state for ${this.cfg.entity}:`, currentState.state);
+        lcardsLog.trace(`[DataSource] 🔄 Loading initial state for ${this.cfg.entity}:`, currentState.state);
 
                 // ENHANCED: Capture unit_of_measurement from initial state
         if (currentState.attributes?.unit_of_measurement) {
           this.cfg.unit_of_measurement = currentState.attributes.unit_of_measurement;
-          lcardsLog.trace(`[MsdDataSource] 📊 Captured initial unit_of_measurement for ${this.cfg.entity}: "${this.cfg.unit_of_measurement}"`);
+          lcardsLog.trace(`[DataSource] 📊 Captured initial unit_of_measurement for ${this.cfg.entity}: "${this.cfg.unit_of_measurement}"`);
         }
 
         // FIXED: Use current timestamp for initial state
@@ -575,7 +575,7 @@ export class MsdDataSource {
         const value = this._toNumber(rawValue);
 
         if (value !== null) {
-          lcardsLog.trace(`[MsdDataSource] Adding current state: ${value} at ${currentTimestamp}`);
+          lcardsLog.trace(`[DataSource] Adding current state: ${value} at ${currentTimestamp}`);
           this.buffer.push(currentTimestamp, value);
           this._stats.currentValue = value;
         }
@@ -585,13 +585,13 @@ export class MsdDataSource {
       this.haUnsubscribe = await this.hass.connection.subscribeEvents((event) => {
         if (event.event_type === 'state_changed' &&
             event.data?.entity_id === this.cfg.entity) {
-          lcardsLog.trace(`[MsdDataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
+          lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
           this._handleStateChange(event.data);
         }
       }, 'state_changed');
 
       this._started = true;
-      lcardsLog.trace(`[MsdDataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
+      lcardsLog.trace(`[DataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
 
       // STEP 4: Process historical data through transformations
       this._processHistoricalTransformations();
@@ -603,7 +603,7 @@ export class MsdDataSource {
       this._startPeriodicUpdates();
 
     } catch (error) {
-      lcardsLog.error(`[MsdDataSource] ❌ Failed to initialize ${this.cfg.entity}:`, error);
+      lcardsLog.error(`[DataSource] ❌ Failed to initialize ${this.cfg.entity}:`, error);
       throw error;
     }
   }
@@ -628,7 +628,7 @@ export class MsdDataSource {
     const updateInterval = this.cfg.periodic_update_interval || 1000;
 
     lcardsLog.debug(
-      `[MsdDataSource] 🕐 Starting periodic updates for ${this.cfg.entity} ` +
+      `[DataSource] 🕐 Starting periodic updates for ${this.cfg.entity} ` +
       `(interval: ${updateInterval}ms)`
     );
 
@@ -652,7 +652,7 @@ export class MsdDataSource {
               // Force recalculation without adding a new value
               processor._calculate();
             } catch (error) {
-              lcardsLog.warn(`[MsdDataSource] Periodic aggregation update failed for ${key}:`, error);
+              lcardsLog.warn(`[DataSource] Periodic aggregation update failed for ${key}:`, error);
             }
           }
         });
@@ -675,7 +675,7 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Periodic update callback failed:`, error);
+            lcardsLog.error(`[DataSource] Periodic update callback failed:`, error);
           }
         });
       }
@@ -691,7 +691,7 @@ export class MsdDataSource {
       clearInterval(this._periodicUpdateInterval);
       this._periodicUpdateInterval = null;
       this._periodicUpdateEnabled = false;
-      lcardsLog.debug(`[MsdDataSource] 🕐 Stopped periodic updates for ${this.cfg.entity}`);
+      lcardsLog.debug(`[DataSource] 🕐 Stopped periodic updates for ${this.cfg.entity}`);
     }
   }
 
@@ -703,7 +703,7 @@ export class MsdDataSource {
     if (this.subscribers.size > 0) {
       const lastPoint = this.buffer.last();
       if (lastPoint) {
-        lcardsLog.trace(`[MsdDataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
+        lcardsLog.trace(`[DataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
         const emitData = {
           t: lastPoint.t,
           v: lastPoint.v,
@@ -721,12 +721,12 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Initial callback error for ${this.cfg.entity}:`, error);
+            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
           }
         });
       } else {
         // Even if no buffer data, emit initial structure for consistency
-        lcardsLog.trace(`[MsdDataSource] 📤 Emitting initial empty data structure for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
+        lcardsLog.trace(`[DataSource] 📤 Emitting initial empty data structure for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
         const emitData = {
           t: null,
           v: null,
@@ -744,7 +744,7 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Initial callback error for ${this.cfg.entity}:`, error);
+            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
           }
         });
       }
@@ -753,7 +753,7 @@ export class MsdDataSource {
 
   async _preloadHistory() {
     if (!this.hass?.connection || !this.cfg.entity) {
-      lcardsLog.warn('[MsdDataSource] ⚠️ No HASS connection or entity for history preload');
+      lcardsLog.warn('[DataSource] ⚠️ No HASS connection or entity for history preload');
       return;
     }
 
@@ -761,7 +761,7 @@ export class MsdDataSource {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - hours * 3600000);
 
-    lcardsLog.trace(`[MsdDataSource] 🔄 Preloading history for ${this.cfg.entity}`);
+    lcardsLog.trace(`[DataSource] 🔄 Preloading history for ${this.cfg.entity}`);
 
     try {
       // Use modern WebSocket call for statistics (preferred)
@@ -775,7 +775,7 @@ export class MsdDataSource {
 
       if (statisticsData && statisticsData[this.cfg.entity]) {
         const statistics = statisticsData[this.cfg.entity];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got statistics points`,statistics);
+        lcardsLog.trace(`[DataSource] 📊 Got statistics points`,statistics);
 
         for (const stat of statistics) {
           const timestamp = new Date(stat.start).getTime();
@@ -788,11 +788,11 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded statistics points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded statistics points`);
         return; // Success with statistics
       }
     } catch (error) {
-      lcardsLog.warn('[MsdDataSource] ⚠️ Statistics failed, trying state history:', error.message);
+      lcardsLog.warn('[DataSource] ⚠️ Statistics failed, trying state history:', error.message);
     }
 
     // Fallback: try state history via WebSocket
@@ -801,7 +801,7 @@ export class MsdDataSource {
 
   async _preloadStateHistoryWS(startTime, endTime) {
     try {
-      lcardsLog.trace(`[MsdDataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
 
       // Use modern WebSocket call for history
       const historyData = await this.hass.connection.sendMessagePromise({
@@ -815,7 +815,7 @@ export class MsdDataSource {
 
       if (historyData && historyData[0]) {
         const states = historyData[0];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got history states`);
+        lcardsLog.trace(`[DataSource] 📊 Got history states`);
 
         for (const state of states) {
           const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -839,13 +839,13 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded history points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       } else {
         // Debug only: Entity may not have history yet (new entity, HA just started, or history not enabled)
-        lcardsLog.trace('[MsdDataSource] No history data returned from WebSocket call (may be unavailable)');
+        lcardsLog.trace('[DataSource] No history data returned from WebSocket call (may be unavailable)');
       }
     } catch (error) {
-      lcardsLog.error('[MsdDataSource] ❌ WebSocket state history also failed:', error);
+      lcardsLog.error('[DataSource] ❌ WebSocket state history also failed:', error);
 
       // Final fallback: try direct REST API if available
       await this._preloadHistoryREST(startTime, endTime);
@@ -854,7 +854,7 @@ export class MsdDataSource {
 
   async _preloadHistoryREST(startTime, endTime) {
     try {
-      lcardsLog.debug(`[MsdDataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
+      lcardsLog.debug(`[DataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
 
       const startParam = startTime.toISOString();
       const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}&minimal_response&no_attributes`;
@@ -874,7 +874,7 @@ export class MsdDataSource {
 
       if (historyData && historyData[0]) {
         const states = historyData[0];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got history states`);
+        lcardsLog.trace(`[DataSource] 📊 Got history states`);
 
         for (const state of states) {
           const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -898,10 +898,10 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded history points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       }
     } catch (error) {
-      lcardsLog.error('[MsdDataSource] ❌ REST history fallback also failed:', error);
+      lcardsLog.error('[DataSource] ❌ REST history fallback also failed:', error);
     }
   }
 
@@ -933,7 +933,7 @@ export class MsdDataSource {
         this._metadataOverrides[prop] = true; // Mark as user-overridden
 
         if (this.cfg.debug) {
-          lcardsLog.trace(`[MsdDataSource] 🔧 Config override for ${this.cfg.entity || 'computed'}.metadata.${prop}: "${metadataConfig[prop]}"`);
+          lcardsLog.trace(`[DataSource] 🔧 Config override for ${this.cfg.entity || 'computed'}.metadata.${prop}: "${metadataConfig[prop]}"`);
         }
       }
     });
@@ -983,7 +983,7 @@ export class MsdDataSource {
 
     // Log captured metadata
     if (this.cfg.debug) {
-      lcardsLog.debug(`[MsdDataSource] 📊 Captured metadata for ${this.cfg.entity}:`, {
+      lcardsLog.debug(`[DataSource] 📊 Captured metadata for ${this.cfg.entity}:`, {
         unit: this.metadata.unit_of_measurement,
         device_class: this.metadata.device_class,
         friendly_name: this.metadata.friendly_name,
@@ -1035,7 +1035,7 @@ export class MsdDataSource {
 
     if (errors.length > 0) {
       const errorMsg = `Transform chain validation failed:\n  ${errors.join('\n  ')}`;
-      lcardsLog.error(`[MsdDataSource] ❌ ${errorMsg}`);
+      lcardsLog.error(`[DataSource] ❌ ${errorMsg}`);
       throw new Error(errorMsg);
     }
   }
@@ -1127,7 +1127,7 @@ export class MsdDataSource {
       }).join(', ');
 
       lcardsLog.error(
-        `[MsdDataSource] ❌ Circular dependency detected in transformations: ${involved}\n` +
+        `[DataSource] ❌ Circular dependency detected in transformations: ${involved}\n` +
         `  Falling back to config order (chaining will not work correctly)`
       );
 
@@ -1141,7 +1141,7 @@ export class MsdDataSource {
     this._transformationOrder = result;
     this._transformationOrderValid = true;
 
-    lcardsLog.trace(`[MsdDataSource] Transformation execution order: ${result.join(' → ')}`);
+    lcardsLog.trace(`[DataSource] Transformation execution order: ${result.join(' → ')}`);
 
     return result;
   }
@@ -1161,25 +1161,25 @@ export class MsdDataSource {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - hours * 3600000);
 
-    lcardsLog.debug(`[MsdDataSource] 📊 Preloading ${hours}h history for ${this.cfg.entity}`);
+    lcardsLog.debug(`[DataSource] 📊 Preloading ${hours}h history for ${this.cfg.entity}`);
 
     try {
       // Strategy 1: Try Home Assistant's history service (most reliable)
       await this._preloadWithHistoryService(startTime, endTime);
     } catch (error) {
-      lcardsLog.warn(`[MsdDataSource] History service failed for ${this.cfg.entity}, trying statistics:`, error.message);
+      lcardsLog.warn(`[DataSource] History service failed for ${this.cfg.entity}, trying statistics:`, error.message);
 
       try {
         // Strategy 2: Fall back to enhanced statistics
         await this._preloadWithStatistics(startTime, endTime);
       } catch (statError) {
-        lcardsLog.warn(`[MsdDataSource] Statistics failed, trying state history:`, statError.message);
+        lcardsLog.warn(`[DataSource] Statistics failed, trying state history:`, statError.message);
         // Strategy 3: Final fallback (existing _preloadStateHistory method)
         await this._preloadStateHistory(startTime, endTime);
       }
     }
 
-    lcardsLog.debug(`[MsdDataSource] History preload complete: ${this._stats.historyLoaded} points loaded`);
+    lcardsLog.debug(`[DataSource] History preload complete: ${this._stats.historyLoaded} points loaded`);
   }
 
   /**
@@ -1197,7 +1197,7 @@ export class MsdDataSource {
 
     if (response && response[0]) {
       const states = response[0];
-      lcardsLog.trace(`[MsdDataSource] History service returned states for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] History service returned states for ${this.cfg.entity}`);
 
       for (const state of states) {
         const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -1240,7 +1240,7 @@ export class MsdDataSource {
 
     if (response && response[0]?.statistics) {
       const statistics = response[0].statistics;
-      lcardsLog.trace(`[MsdDataSource] Statistics returned points for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] Statistics returned points for ${this.cfg.entity}`);
 
       for (const stat of statistics) {
         const timestamp = new Date(stat.start).getTime();
@@ -1263,7 +1263,7 @@ export class MsdDataSource {
     if (this._started || this._destroyed) return;
 
     try {
-      lcardsLog.trace(`[MsdDataSource] 🚀 Starting initialization for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] 🚀 Starting initialization for ${this.cfg.entity}`);
 
       // STEP 1: Preload historical data FIRST
       if (this.hass?.callService) {
@@ -1277,12 +1277,12 @@ export class MsdDataSource {
         // ✅ NEW: Extract metadata from initial state
         this._extractMetadata(currentState);
 
-        lcardsLog.trace(`[MsdDataSource] 🔄 Loading initial state for ${this.cfg.entity}:`, currentState.state);
+        lcardsLog.trace(`[DataSource] 🔄 Loading initial state for ${this.cfg.entity}:`, currentState.state);
 
       // ENHANCED: Capture unit_of_measurement from initial state
       if (currentState.attributes?.unit_of_measurement) {
         this.cfg.unit_of_measurement = currentState.attributes.unit_of_measurement;
-        lcardsLog.trace(`[MsdDataSource] 📊 Captured initial unit_of_measurement for ${this.cfg.entity}: "${this.cfg.unit_of_measurement}"`);
+        lcardsLog.trace(`[DataSource] 📊 Captured initial unit_of_measurement for ${this.cfg.entity}: "${this.cfg.unit_of_measurement}"`);
       }
 
       // FIXED: Use current timestamp for initial state
@@ -1291,7 +1291,7 @@ export class MsdDataSource {
       const value = this._toNumber(rawValue);
 
       if (value !== null) {
-        lcardsLog.trace(`[MsdDataSource] Adding current state: ${value} at ${currentTimestamp}`);
+        lcardsLog.trace(`[DataSource] Adding current state: ${value} at ${currentTimestamp}`);
         this.buffer.push(currentTimestamp, value);
         this._stats.currentValue = value;
       }
@@ -1301,13 +1301,13 @@ export class MsdDataSource {
       this.haUnsubscribe = await this.hass.connection.subscribeEvents((event) => {
         if (event.event_type === 'state_changed' &&
             event.data?.entity_id === this.cfg.entity) {
-          lcardsLog.trace(`[MsdDataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
+          lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
           this._handleStateChange(event.data);
         }
       }, 'state_changed');
 
       this._started = true;
-      lcardsLog.trace(`[MsdDataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
+      lcardsLog.trace(`[DataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
 
       // STEP 4: Process historical data through transformations
       this._processHistoricalTransformations();
@@ -1319,7 +1319,7 @@ export class MsdDataSource {
       this._startPeriodicUpdates();
 
     } catch (error) {
-      lcardsLog.error(`[MsdDataSource] ❌ Failed to initialize ${this.cfg.entity}:`, error);
+      lcardsLog.error(`[DataSource] ❌ Failed to initialize ${this.cfg.entity}:`, error);
       throw error;
     }
   }
@@ -1344,7 +1344,7 @@ export class MsdDataSource {
     const updateInterval = this.cfg.periodic_update_interval || 1000;
 
     lcardsLog.debug(
-      `[MsdDataSource] 🕐 Starting periodic updates for ${this.cfg.entity} ` +
+      `[DataSource] 🕐 Starting periodic updates for ${this.cfg.entity} ` +
       `(interval: ${updateInterval}ms)`
     );
 
@@ -1368,7 +1368,7 @@ export class MsdDataSource {
               // Force recalculation without adding a new value
               processor._calculate();
             } catch (error) {
-              lcardsLog.warn(`[MsdDataSource] Periodic aggregation update failed for ${key}:`, error);
+              lcardsLog.warn(`[DataSource] Periodic aggregation update failed for ${key}:`, error);
             }
           }
         });
@@ -1391,7 +1391,7 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Periodic update callback failed:`, error);
+            lcardsLog.error(`[DataSource] Periodic update callback failed:`, error);
           }
         });
       }
@@ -1407,7 +1407,7 @@ export class MsdDataSource {
       clearInterval(this._periodicUpdateInterval);
       this._periodicUpdateInterval = null;
       this._periodicUpdateEnabled = false;
-      lcardsLog.debug(`[MsdDataSource] 🕐 Stopped periodic updates for ${this.cfg.entity}`);
+      lcardsLog.debug(`[DataSource] 🕐 Stopped periodic updates for ${this.cfg.entity}`);
     }
   }
 
@@ -1419,7 +1419,7 @@ export class MsdDataSource {
     if (this.subscribers.size > 0) {
       const lastPoint = this.buffer.last();
       if (lastPoint) {
-        lcardsLog.trace(`[MsdDataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
+        lcardsLog.trace(`[DataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
         const emitData = {
           t: lastPoint.t,
           v: lastPoint.v,
@@ -1437,12 +1437,12 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Initial callback error for ${this.cfg.entity}:`, error);
+            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
           }
         });
       } else {
         // Even if no buffer data, emit initial structure for consistency
-        lcardsLog.trace(`[MsdDataSource] 📤 Emitting initial empty data structure for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
+        lcardsLog.trace(`[DataSource] 📤 Emitting initial empty data structure for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
         const emitData = {
           t: null,
           v: null,
@@ -1460,7 +1460,7 @@ export class MsdDataSource {
           try {
             callback(emitData);
           } catch (error) {
-            lcardsLog.error(`[MsdDataSource] Initial callback error for ${this.cfg.entity}:`, error);
+            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
           }
         });
       }
@@ -1469,7 +1469,7 @@ export class MsdDataSource {
 
   async _preloadHistory() {
     if (!this.hass?.connection || !this.cfg.entity) {
-      lcardsLog.warn('[MsdDataSource] ⚠️ No HASS connection or entity for history preload');
+      lcardsLog.warn('[DataSource] ⚠️ No HASS connection or entity for history preload');
       return;
     }
 
@@ -1477,7 +1477,7 @@ export class MsdDataSource {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - hours * 3600000);
 
-    lcardsLog.trace(`[MsdDataSource] 🔄 Preloading history for ${this.cfg.entity}`);
+    lcardsLog.trace(`[DataSource] 🔄 Preloading history for ${this.cfg.entity}`);
 
     try {
       // Use modern WebSocket call for statistics (preferred)
@@ -1491,7 +1491,7 @@ export class MsdDataSource {
 
       if (statisticsData && statisticsData[this.cfg.entity]) {
         const statistics = statisticsData[this.cfg.entity];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got statistics points`,statistics);
+        lcardsLog.trace(`[DataSource] 📊 Got statistics points`,statistics);
 
         for (const stat of statistics) {
           const timestamp = new Date(stat.start).getTime();
@@ -1504,11 +1504,11 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded statistics points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded statistics points`);
         return; // Success with statistics
       }
     } catch (error) {
-      lcardsLog.warn('[MsdDataSource] ⚠️ Statistics failed, trying state history:', error.message);
+      lcardsLog.warn('[DataSource] ⚠️ Statistics failed, trying state history:', error.message);
     }
 
     // Fallback: try state history via WebSocket
@@ -1517,7 +1517,7 @@ export class MsdDataSource {
 
   async _preloadStateHistoryWS(startTime, endTime) {
     try {
-      lcardsLog.trace(`[MsdDataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
+      lcardsLog.trace(`[DataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
 
       // Use modern WebSocket call for history
       const historyData = await this.hass.connection.sendMessagePromise({
@@ -1531,7 +1531,7 @@ export class MsdDataSource {
 
       if (historyData && historyData[0]) {
         const states = historyData[0];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got history states`);
+        lcardsLog.trace(`[DataSource] 📊 Got history states`);
 
         for (const state of states) {
           const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -1555,13 +1555,13 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded history points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       } else {
         // Debug only: Entity may not have history yet (new entity, HA just started, or history not enabled)
-        lcardsLog.trace('[MsdDataSource] No history data returned from WebSocket call (may be unavailable)');
+        lcardsLog.trace('[DataSource] No history data returned from WebSocket call (may be unavailable)');
       }
     } catch (error) {
-      lcardsLog.error('[MsdDataSource] ❌ WebSocket state history also failed:', error);
+      lcardsLog.error('[DataSource] ❌ WebSocket state history also failed:', error);
 
       // Final fallback: try direct REST API if available
       await this._preloadHistoryREST(startTime, endTime);
@@ -1570,7 +1570,7 @@ export class MsdDataSource {
 
   async _preloadHistoryREST(startTime, endTime) {
     try {
-      lcardsLog.debug(`[MsdDataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
+      lcardsLog.debug(`[DataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
 
       const startParam = startTime.toISOString();
       const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}&minimal_response&no_attributes`;
@@ -1590,7 +1590,7 @@ export class MsdDataSource {
 
       if (historyData && historyData[0]) {
         const states = historyData[0];
-        lcardsLog.trace(`[MsdDataSource] 📊 Got history states`);
+        lcardsLog.trace(`[DataSource] 📊 Got history states`);
 
         for (const state of states) {
           const timestamp = new Date(state.last_changed || state.last_updated).getTime();
@@ -1614,10 +1614,10 @@ export class MsdDataSource {
           }
         }
 
-        lcardsLog.trace(`[MsdDataSource] ✅ Loaded history points`);
+        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       }
     } catch (error) {
-      lcardsLog.error('[MsdDataSource] ❌ REST history fallback also failed:', error);
+      lcardsLog.error('[DataSource] ❌ REST history fallback also failed:', error);
     }
   }
 
@@ -1635,7 +1635,7 @@ export class MsdDataSource {
 
     // Safety check: ensure buffer exists and has required methods
     if (!this.buffer || typeof this.buffer.push !== 'function') {
-      lcardsLog.error('[MsdDataSource] ❌ Buffer not properly initialized for', this.cfg.entity);
+      lcardsLog.error('[DataSource] ❌ Buffer not properly initialized for', this.cfg.entity);
       return;
     }
 
@@ -1664,7 +1664,7 @@ export class MsdDataSource {
 
       if (rawValue === null && this.cfg.debug) {
         lcardsLog.debug(
-          `[MsdDataSource] ${this.cfg.entity}: Nested attribute path "${this.cfg.attribute_path}" returned null`
+          `[DataSource] ${this.cfg.entity}: Nested attribute path "${this.cfg.attribute_path}" returned null`
         );
       }
     } else if (this.cfg.attribute) {
@@ -1692,7 +1692,7 @@ export class MsdDataSource {
     this._stats.lastUpdate = timestamp;
 
       // Emit to subscribers
-      lcardsLog.trace(`[MsdDataSource] 📤 Emitting to subscribers:`, value);
+      lcardsLog.trace(`[DataSource] 📤 Emitting to subscribers:`, value);
 
       const emitData = {
         t: timestamp,
@@ -1710,11 +1710,11 @@ export class MsdDataSource {
         try {
           callback(emitData);
         } catch (error) {
-          lcardsLog.error(`[MsdDataSource] ❌ Subscriber ${index} callback FAILED for ${this.cfg.entity}:`, error);
+          lcardsLog.error(`[DataSource] ❌ Subscriber ${index} callback FAILED for ${this.cfg.entity}:`, error);
         }
       });
     } else {
-      lcardsLog.debug(`[MsdDataSource] ⚠️ Skipping state change - invalid value:`, { rawValue, entity: this.cfg.entity });
+      lcardsLog.debug(`[DataSource] ⚠️ Skipping state change - invalid value:`, { rawValue, entity: this.cfg.entity });
     }
   }
 
@@ -1730,7 +1730,7 @@ export class MsdDataSource {
       try {
         processor.update(timestamp, value, transformedData);
       } catch (error) {
-        lcardsLog.warn(`[MsdDataSource] Aggregation ${key} failed:`, error);
+        lcardsLog.warn(`[DataSource] Aggregation ${key} failed:`, error);
       }
     });
   }
@@ -1746,7 +1746,7 @@ export class MsdDataSource {
       try {
         results[key] = processor.getValue();
       } catch (error) {
-        lcardsLog.warn(`[MsdDataSource] Failed to get aggregation value for ${key}:`, error);
+        lcardsLog.warn(`[DataSource] Failed to get aggregation value for ${key}:`, error);
         results[key] = null;
       }
     });
@@ -1805,11 +1805,11 @@ export class MsdDataSource {
             }
           });
         } else {
-          lcardsLog.debug(`[MsdDataSource] Invalid data for transformation ${key}:`, { value, timestamp });
+          lcardsLog.debug(`[DataSource] Invalid data for transformation ${key}:`, { value, timestamp });
           results[key] = null;
         }
       } catch (error) {
-        lcardsLog.warn(`[MsdDataSource] Failed to get current transformation ${key}:`, error);
+        lcardsLog.warn(`[DataSource] Failed to get current transformation ${key}:`, error);
         results[key] = null;
       }
     });
@@ -1873,14 +1873,14 @@ export class MsdDataSource {
     this._lastEmittedValue = data.v;
     this._stats.emits++;
 
-    lcardsLog.trace(`[MsdDataSource] 📤 Emitting to subscribers:`, data.v);
+    lcardsLog.trace(`[DataSource] 📤 Emitting to subscribers:`, data.v);
 
     // Call all subscribers
     this.subscribers.forEach(callback => {
       try {
         callback(data);
       } catch (error) {
-        lcardsLog.warn(`[MsdDataSource] ⚠️ Subscriber callback error:`, error);
+        lcardsLog.warn(`[DataSource] ⚠️ Subscriber callback error:`, error);
       }
     });
   }
@@ -1903,7 +1903,7 @@ export class MsdDataSource {
       }, 'state_changed');
 
     } catch (error) {
-      lcardsLog.warn('[MsdDataSource] ⚠️ Failed to subscribe to HA events:', error.message);
+      lcardsLog.warn('[DataSource] ⚠️ Failed to subscribe to HA events:', error.message);
     }
   }
 
@@ -2015,7 +2015,7 @@ export class MsdDataSource {
   /* OLD
   subscribe(callback) {
     if (typeof callback !== 'function') {
-      lcardsLog.warn('[MsdDataSource] Subscribe requires a function callback');
+      lcardsLog.warn('[DataSource] Subscribe requires a function callback');
       return () => {};
     }
 
@@ -2032,7 +2032,7 @@ export class MsdDataSource {
           stats: this._stats
         });
       } catch (error) {
-        lcardsLog.warn('[MsdDataSource] Initial callback error:', error);
+        lcardsLog.warn('[DataSource] Initial callback error:', error);
       }
     }
 
@@ -2046,7 +2046,7 @@ export class MsdDataSource {
 
   subscribe(callback) {
     if (typeof callback !== 'function') {
-      lcardsLog.warn('[MsdDataSource] Subscribe requires a function callback');
+      lcardsLog.warn('[DataSource] Subscribe requires a function callback');
       return () => {};
     }
 
@@ -2067,7 +2067,7 @@ export class MsdDataSource {
           historyReady: this._stats.historyLoaded > 0
         };
 
-        lcardsLog.debug(`[MsdDataSource] Providing immediate hydration for new subscriber:`, {
+        lcardsLog.debug(`[DataSource] Providing immediate hydration for new subscriber:`, {
           entity: this.cfg.entity,
           value: lastPoint.v,
           bufferSize: this.buffer.size(),
@@ -2080,10 +2080,10 @@ export class MsdDataSource {
         }, 0);
 
       } catch (error) {
-        lcardsLog.warn('[MsdDataSource] Initial callback error:', error);
+        lcardsLog.warn('[DataSource] Initial callback error:', error);
       }
     } else {
-      lcardsLog.trace(`[MsdDataSource] No data available for immediate hydration:`, {
+      lcardsLog.trace(`[DataSource] No data available for immediate hydration:`, {
         entity: this.cfg.entity,
         bufferSize: this.buffer.size(),
         started: this._started
@@ -2099,7 +2099,7 @@ export class MsdDataSource {
   // ENHANCED: Subscribe with metadata support
   subscribeWithMetadata(callback, metadata = {}) {
     if (typeof callback !== 'function') {
-      lcardsLog.warn('[MsdDataSource] Subscribe requires a function callback');
+      lcardsLog.warn('[DataSource] Subscribe requires a function callback');
       return () => {};
     }
 
@@ -2143,7 +2143,7 @@ export class MsdDataSource {
       // ✅ ENHANCED DEBUG: Log what we're checking
       if (this.cfg.debug || this.cfg.enum_mapping_debug) {
         lcardsLog.debug(
-          `[MsdDataSource] ${this.cfg.entity}: _toNumber called with string: "${raw}"\n` +
+          `[DataSource] ${this.cfg.entity}: _toNumber called with string: "${raw}"\n` +
           `  Has enum_mapping: ${!!this.cfg.enum_mapping}\n` +
           `  Enum mapping keys: ${this.cfg.enum_mapping ? Object.keys(this.cfg.enum_mapping).join(', ') : 'none'}`
         );
@@ -2154,7 +2154,7 @@ export class MsdDataSource {
         // ✅ ENHANCED DEBUG: Show the lookup attempt
         if (this.cfg.debug || this.cfg.enum_mapping_debug) {
           lcardsLog.debug(
-            `[MsdDataSource] ${this.cfg.entity}: Looking up "${raw}" in enum_mapping\n` +
+            `[DataSource] ${this.cfg.entity}: Looking up "${raw}" in enum_mapping\n` +
             `  Found: ${this.cfg.enum_mapping[raw] !== undefined}\n` +
             `  Value: ${this.cfg.enum_mapping[raw]}`
           );
@@ -2167,12 +2167,12 @@ export class MsdDataSource {
 
           if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
             lcardsLog.debug(
-              `[MsdDataSource] ${this.cfg.entity}: ✅ Enum mapping "${raw}" → ${mappedValue}`
+              `[DataSource] ${this.cfg.entity}: ✅ Enum mapping "${raw}" → ${mappedValue}`
             );
             return mappedValue;
           } else {
             lcardsLog.warn(
-              `[MsdDataSource] ${this.cfg.entity}: ❌ Invalid enum mapping value for "${raw}": ${mappedValue} (must be a number)`
+              `[DataSource] ${this.cfg.entity}: ❌ Invalid enum mapping value for "${raw}": ${mappedValue} (must be a number)`
             );
           }
         }
@@ -2188,14 +2188,14 @@ export class MsdDataSource {
       const lowerRaw = raw.toLowerCase().trim();
       if (lowerRaw === 'on' || lowerRaw === 'true' || lowerRaw === 'active' || lowerRaw === 'open') {
         if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[MsdDataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 1`);
+          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 1`);
         }
         return 1;
       }
 
       if (lowerRaw === 'off' || lowerRaw === 'false' || lowerRaw === 'inactive' || lowerRaw === 'closed') {
         if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[MsdDataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 0`);
+          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 0`);
         }
         return 0;
       }
@@ -2208,7 +2208,7 @@ export class MsdDataSource {
       // Log unhandled strings
       if (this.cfg.debug || this.cfg.enum_mapping_debug) {
         lcardsLog.warn(
-          `[MsdDataSource] ${this.cfg.entity}: ⚠️ Unhandled string value: "${raw}" ` +
+          `[DataSource] ${this.cfg.entity}: ⚠️ Unhandled string value: "${raw}" ` +
           `(consider adding to enum_mapping)`
         );
       }
@@ -2383,7 +2383,7 @@ export class MsdDataSource {
       try {
         this.haUnsubscribe();
       } catch (error) {
-        lcardsLog.warn('[MsdDataSource] ⚠️ HA unsubscribe error:', error);
+        lcardsLog.warn('[DataSource] ⚠️ HA unsubscribe error:', error);
       }
       this.haUnsubscribe = null;
     }
@@ -2448,7 +2448,7 @@ export class MsdDataSource {
         if (current === null || current === undefined) {
           if (this.cfg.debug) {
             lcardsLog.debug(
-              `[MsdDataSource] ${this.cfg.entity}: Nested path traversal stopped at null/undefined for segment: ${segment}`
+              `[DataSource] ${this.cfg.entity}: Nested path traversal stopped at null/undefined for segment: ${segment}`
             );
           }
           return null;
@@ -2461,7 +2461,7 @@ export class MsdDataSource {
           if (!Array.isArray(current)) {
             if (this.cfg.debug) {
               lcardsLog.debug(
-                `[MsdDataSource] ${this.cfg.entity}: Expected array at segment ${segment}, got ${typeof current}`
+                `[DataSource] ${this.cfg.entity}: Expected array at segment ${segment}, got ${typeof current}`
               );
             }
             return null;
@@ -2470,7 +2470,7 @@ export class MsdDataSource {
           if (arrayIndex < 0 || arrayIndex >= current.length) {
             if (this.cfg.debug) {
               lcardsLog.debug(
-                `[MsdDataSource] ${this.cfg.entity}: Array index ${arrayIndex} out of bounds (length: ${current.length})`
+                `[DataSource] ${this.cfg.entity}: Array index ${arrayIndex} out of bounds (length: ${current.length})`
               );
             }
             return null;
@@ -2482,7 +2482,7 @@ export class MsdDataSource {
           if (typeof current !== 'object') {
             if (this.cfg.debug) {
               lcardsLog.debug(
-                `[MsdDataSource] ${this.cfg.entity}: Expected object at segment ${segment}, got ${typeof current}`
+                `[DataSource] ${this.cfg.entity}: Expected object at segment ${segment}, got ${typeof current}`
               );
             }
             return null;
@@ -2491,7 +2491,7 @@ export class MsdDataSource {
           if (!(segment in current)) {
             if (this.cfg.debug) {
               lcardsLog.debug(
-                `[MsdDataSource] ${this.cfg.entity}: Property "${segment}" not found in object. Available: ${Object.keys(current).join(', ')}`
+                `[DataSource] ${this.cfg.entity}: Property "${segment}" not found in object. Available: ${Object.keys(current).join(', ')}`
               );
             }
             return null;
@@ -2503,7 +2503,7 @@ export class MsdDataSource {
 
       if (this.cfg.debug) {
         lcardsLog.debug(
-          `[MsdDataSource] ${this.cfg.entity}: Successfully extracted nested attribute "${path}": ${current}`
+          `[DataSource] ${this.cfg.entity}: Successfully extracted nested attribute "${path}": ${current}`
         );
       }
 
@@ -2511,7 +2511,7 @@ export class MsdDataSource {
 
     } catch (error) {
       lcardsLog.warn(
-        `[MsdDataSource] ${this.cfg.entity}: Error extracting nested attribute "${path}":`,
+        `[DataSource] ${this.cfg.entity}: Error extracting nested attribute "${path}":`,
         error.message
       );
       return null;
@@ -2528,7 +2528,7 @@ export class MsdDataSource {
     try {
       return this.buffer.getRecent(count) || [];
     } catch (error) {
-      lcardsLog.warn('[MsdDataSource] getRecent error:', error);
+      lcardsLog.warn('[DataSource] getRecent error:', error);
       return [];
     }
   }
@@ -2564,7 +2564,7 @@ export class MsdDataSource {
         return points;
       }
     } catch (error) {
-      lcardsLog.error(`[MsdDataSource] Error getting transformed history for ${transformKey}:`, error);
+      lcardsLog.error(`[DataSource] Error getting transformed history for ${transformKey}:`, error);
       return [];
     }
   }
@@ -2636,7 +2636,7 @@ export class MsdDataSource {
             .join(', ');
 
           lcardsLog.warn(
-            `[MsdDataSource] ⚠️ Transform '${key}' references '${inputSource}' which is not available yet.\n` +
+            `[DataSource] ⚠️ Transform '${key}' references '${inputSource}' which is not available yet.\n` +
             `  Available: [${available}]\n` +
             `  Not yet processed: [${notYetProcessed}]\n` +
             `  Hint: Check if '${inputSource}' has a valid key and appears before '${key}'.`
@@ -2649,7 +2649,7 @@ export class MsdDataSource {
         if (!Number.isFinite(inputValue)) {
           if (inputSource) {
             lcardsLog.debug(
-              `[MsdDataSource] Transform '${key}' skipped - ` +
+              `[DataSource] Transform '${key}' skipped - ` +
               `input from '${inputSource}' is non-numeric: ${inputValue}`
             );
           }
@@ -2669,7 +2669,7 @@ export class MsdDataSource {
         // Debug logging if enabled
         if (processor.config.debug) {
           lcardsLog.debug(
-            `[MsdDataSource] 🔍 Transform '${key}': ` +
+            `[DataSource] 🔍 Transform '${key}': ` +
             `${inputValue.toFixed(2)} → ${transformedValue !== null ? transformedValue.toFixed(2) : 'null'}`
           );
         }
@@ -2683,7 +2683,7 @@ export class MsdDataSource {
         }
 
       } catch (error) {
-        lcardsLog.warn(`[MsdDataSource] ⚠️ Transformation '${key}' failed:`, error.message);
+        lcardsLog.warn(`[DataSource] ⚠️ Transformation '${key}' failed:`, error.message);
         results[key] = null;
       }
     });
@@ -2702,14 +2702,14 @@ export class MsdDataSource {
     }
 
     lcardsLog.debug(
-      `[MsdDataSource] 🔄 Processing historical data through ${this.transformations.size} transformations...`
+      `[DataSource] 🔄 Processing historical data through ${this.transformations.size} transformations...`
     );
 
     try {
       const historicalPoints = this.buffer.getRecent(this.buffer.size());
 
       if (historicalPoints.length === 0) {
-        lcardsLog.debug(`[MsdDataSource] No historical data to process for transformations`);
+        lcardsLog.debug(`[DataSource] No historical data to process for transformations`);
         return;
       }
 
@@ -2767,7 +2767,7 @@ export class MsdDataSource {
             }
           } catch (error) {
             lcardsLog.warn(
-              `[MsdDataSource] Failed to process historical point through transformation ${key}:`,
+              `[DataSource] Failed to process historical point through transformation ${key}:`,
               error.message
             );
             transformResults[key] = null;
@@ -2780,7 +2780,7 @@ export class MsdDataSource {
       // Performance warning for slow processing
       if (duration > 100) {
         lcardsLog.warn(
-          `[MsdDataSource] ⚠️ Historical chain processing took ${duration.toFixed(1)}ms ` +
+          `[DataSource] ⚠️ Historical chain processing took ${duration.toFixed(1)}ms ` +
           `(${historicalPoints.length} points × ${this.transformations.size} transforms)`
         );
       }
@@ -2788,12 +2788,12 @@ export class MsdDataSource {
       // Log results
       this.transformedBuffers.forEach((buffer, key) => {
         lcardsLog.debug(
-          `[MsdDataSource] ✅ Populated '${key}' buffer with ${buffer.size()} historical points`
+          `[DataSource] ✅ Populated '${key}' buffer with ${buffer.size()} historical points`
         );
       });
 
     } catch (error) {
-      lcardsLog.error(`[MsdDataSource] Error processing historical transformations:`, error);
+      lcardsLog.error(`[DataSource] Error processing historical transformations:`, error);
     }
   }
 }

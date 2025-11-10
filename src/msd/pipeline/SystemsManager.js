@@ -2,7 +2,7 @@ import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
 import { MsdDebugRenderer } from '../debug/MsdDebugRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { MsdHudManager } from '../hud/MsdHudManager.js';
-import { DataSourceManager } from '../data/DataSourceManager.js';
+import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js';
 import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { lcardsCore } from '../../core/lcards-core.js';
