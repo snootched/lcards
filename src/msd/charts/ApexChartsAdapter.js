@@ -18,7 +18,7 @@
  * @requires lcards-logging
  */
 
-import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
+import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export class ApexChartsAdapter {

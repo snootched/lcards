@@ -27,7 +27,7 @@ import { DataSourceMixin } from '../renderer/DataSourceMixin.js';
 import { ActionHelpers } from '../renderer/ActionHelpers.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
+import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 
 /**
  * ButtonOverlay - Instance-based button overlay

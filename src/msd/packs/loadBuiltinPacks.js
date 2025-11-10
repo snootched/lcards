@@ -1,7 +1,7 @@
-import { lcarsClassicTokens } from '../themes/tokens/lcarsClassicTokens.js';
-import { lcarsDs9Tokens } from '../themes/tokens/lcarsDs9Tokens.js';
-import { lcarsVoyagerTokens } from '../themes/tokens/lcarsVoyagerTokens.js';
-import { lcarsHighContrastTokens } from '../themes/tokens/lcarsHighContrastTokens.js';
+import { lcarsClassicTokens } from '../../core/themes/tokens/lcarsClassicTokens.js';
+import { lcarsDs9Tokens } from '../../core/themes/tokens/lcarsDs9Tokens.js';
+import { lcarsVoyagerTokens } from '../../core/themes/tokens/lcarsVoyagerTokens.js';
+import { lcarsHighContrastTokens } from '../../core/themes/tokens/lcarsHighContrastTokens.js';
 
 // Core builtin pack - Contains all system defaults
 const CORE_PACK = {

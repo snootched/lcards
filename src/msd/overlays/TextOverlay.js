@@ -18,7 +18,7 @@ import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { RendererUtils } from '../renderer/RendererUtils.js';
 import { ActionHelpers } from '../renderer/ActionHelpers.js';
 import { TextRenderer } from '../renderer/core/TextRenderer.js';
-import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
+import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 import { DataSourceMixin } from '../renderer/DataSourceMixin.js';

@@ -7,7 +7,7 @@ import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { lcardsCore } from '../../core/lcards-core.js';
 import { AnimationRegistry } from '../animation/AnimationRegistry.js';
-import { ThemeManager } from '../themes/ThemeManager.js';
+import { ThemeManager } from '../../core/themes/ThemeManager.js';
 import { RulesEngine } from '../rules/RulesEngine.js';
 import { DebugManager } from '../debug/DebugManager.js';
 import { BaseOverlayUpdater } from '../renderer/BaseOverlayUpdater.js';
@@ -17,7 +17,7 @@ import { StylePresetManager } from '../presets/StylePresetManager.js';
 import { ApexChartsOverlayRenderer } from '../renderer/ApexChartsOverlayRenderer.js';
 
 // ✅ ADDED: Import theme system initialization
-import { initializeThemeSystem } from '../themes/initializeThemeSystem.js';
+import { initializeThemeSystem } from '../../core/themes/initializeThemeSystem.js';
 
 // ✅ ADDED: Import overlay renderers for incremental update capabilities
 import { StatusGridRenderer } from '../renderer/StatusGridRenderer.js';

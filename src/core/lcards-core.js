@@ -23,7 +23,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { CoreSystemsManager } from './systems-manager/index.js';
 import { DataSourceManager } from '../msd/data/DataSourceManager.js';  // ✅ Real MSD DataSourceManager
 import { RulesEngine } from '../msd/rules/RulesEngine.js';  // ✅ Real MSD RulesEngine
-import { ThemeManager } from '../msd/themes/ThemeManager.js';  // ✅ Real MSD ThemeManager
+import { ThemeManager } from './themes/ThemeManager.js';  // ✅ Moved to Core
 import { AnimationManager } from '../msd/animation/AnimationManager.js';
 import { CoreValidationService } from './validation-service/index.js';
 

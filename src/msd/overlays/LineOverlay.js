@@ -21,7 +21,7 @@
 
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
-import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
+import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**

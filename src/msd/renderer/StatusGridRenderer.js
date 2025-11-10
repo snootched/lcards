@@ -11,7 +11,7 @@ import { BracketRenderer } from './BracketRenderer.js';
 import { ActionHelpers } from './ActionHelpers.js';
 import { ButtonRenderer } from './core/ButtonRenderer.js'; // Add ButtonRenderer import
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { themeTokenResolver } from '../themes/ThemeTokenResolver.js';
+import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 
 
