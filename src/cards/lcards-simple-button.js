@@ -31,7 +31,6 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 import { SimpleButtonRenderer } from './renderers/SimpleButtonRenderer.js';
-import { ActionHelpers } from '../msd/renderer/ActionHelpers.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
@@ -198,116 +197,46 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * Setup action handlers on the rendered button using MSD ActionHelpers
      * @private
      */
+    /**
+     * Setup action handlers on the rendered button
+     * Uses base class shadow-DOM-aware action system
+     * @private
+     */
     _setupButtonActions() {
-        // Use same pattern as MSD - delay and retry element lookup
-        const findAndAttachActions = (retryCount = 0) => {
-            const buttonGroup = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
+        // Clean up previous actions
+        if (this._actionCleanup) {
+            this._actionCleanup();
+            this._actionCleanup = null;
+        }
 
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Looking for button element (attempt ${retryCount + 1}):`, {
-                found: !!buttonGroup,
-                shadowRoot: !!this.shadowRoot,
-                querySelector: '[data-overlay-id="simple-button"]',
-                alreadyAttached: buttonGroup?.hasAttribute('data-actions-attached')
-            });
+        // Find button group in shadow DOM
+        const buttonGroup = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
 
-            if (!buttonGroup) {
-                if (retryCount < 3) {
-                    // Retry with increasing delays like MSD does
-                    setTimeout(() => findAndAttachActions(retryCount + 1), 50 * (retryCount + 1));
-                    return;
-                } else {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found after ${retryCount + 1} attempts`);
-                    return;
-                }
-            }
+        if (!buttonGroup) {
+            lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found for action setup`);
+            return;
+        }
 
-            // Check if already attached (like MSD pattern)
-            if (buttonGroup.hasAttribute('data-actions-attached')) {
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Actions already attached to button`);
-                return;
-            }
-
-            // Create overlay-like configuration for ActionHelpers
-            const overlayConfig = {
-                id: 'simple-button',
-                type: 'button',
-                tap_action: this.config.tap_action || { action: 'toggle' },
-                hold_action: this.config.hold_action,
-                double_tap_action: this.config.double_tap_action
-            };
-
-            // Debug: Log the button element and configuration
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Setting up actions:`, {
-                buttonElement: buttonGroup,
-                elementId: buttonGroup.getAttribute('data-button-id'),
-                overlayConfig,
-                hasEntity: !!this.config.entity
-            });
-
-            // Process actions using ActionHelpers (same as MSD ButtonOverlay)
-            const actionInfo = ActionHelpers.processOverlayActions(
-                overlayConfig,
-                this._buttonStyle || {},
-                this
-            );
-
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] ActionHelpers processOverlayActions result:`, actionInfo);
-
-            if (actionInfo) {
-                // Get AnimationManager from singletons for proper integration
-                const animationManager = this._singletons?.animationManager || window.lcards?.core?.animationManager;
-
-                // Attach actions using ActionHelpers system with animation support
-                ActionHelpers.attachActions(
-                    buttonGroup,
-                    overlayConfig,
-                    actionInfo,
-                    this,
-                    { animationManager }
-                );
-
-                // Pointer-events now set directly in SVG HTML (like MSD pattern)
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Button group pointer-events set via HTML:`, {
-                    element: buttonGroup,
-                    computed: getComputedStyle(buttonGroup).pointerEvents,
-                    hasDataOverlayType: buttonGroup.hasAttribute('data-overlay-type'),
-                    cssText: buttonGroup.style.cssText
-                });                // Add debug handlers to track ActionHelpers events
-                buttonGroup.addEventListener('mousedown', (e) => {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mousedown detected (ActionHelpers should handle this):`, {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        entity: this.config.entity
-                    });
-                }, { capture: false });
-
-                buttonGroup.addEventListener('mouseup', (e) => {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mouseup detected (ActionHelpers should handle this):`, {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        entity: this.config.entity
-                    });
-                }, { capture: false });
-
-                // Add debug click handler to test if DOM events are working
-                buttonGroup.addEventListener('click', (e) => {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw click detected on button group:`, {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        pointerEvents: buttonGroup.style.pointerEvents,
-                        entity: this.config.entity
-                    });
-                }, { capture: true });
-
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ ActionHelpers attached for ${this._cardGuid} (animationManager: ${!!animationManager}), pointer-events: ${buttonGroup.style.pointerEvents}`);
-
-                // Mark as attached (MSD pattern)
-                buttonGroup.setAttribute('data-actions-attached', 'true');
-            }
+        // Build action configuration
+        const actions = {
+            tap_action: this.config.tap_action || { action: 'toggle' },
+            hold_action: this.config.hold_action,
+            double_tap_action: this.config.double_tap_action
         };
 
-        // Start the find and attach process
-        findAndAttachActions();
+        // Get AnimationManager from singletons
+        const animationManager = this._singletons?.animationManager;
+
+        // Use base class method (shadow DOM aware + animation support)
+        this._actionCleanup = this.setupActions(buttonGroup, actions, {
+            animationManager,
+            elementId: 'simple-button'
+        });
+
+        lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ Actions attached via base class method`, {
+            hasAnimationManager: !!animationManager,
+            actionTypes: Object.keys(actions).filter(k => actions[k])
+        });
     }
 
     /**
