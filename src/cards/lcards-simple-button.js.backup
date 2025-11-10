@@ -31,6 +31,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 import { SimpleButtonRenderer } from './renderers/SimpleButtonRenderer.js';
+import { ActionHelpers } from '../msd/renderer/ActionHelpers.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
@@ -197,165 +198,117 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * Setup action handlers on the rendered button using MSD ActionHelpers
      * @private
      */
-    /**
-     * Setup action handlers on the rendered button
-     * Uses base class shadow-DOM-aware action system
-     * @private
-     */
     _setupButtonActions() {
-        // Clean up previous actions
-        if (this._actionCleanup) {
-            this._actionCleanup();
-            this._actionCleanup = null;
-        }
+        // Use same pattern as MSD - delay and retry element lookup
+        const findAndAttachActions = (retryCount = 0) => {
+            const buttonGroup = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
 
-        // Find button group in shadow DOM
-        const buttonGroup = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
-
-        if (!buttonGroup) {
-            lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found for action setup`);
-            return;
-        }
-
-        // Register animations with AnimationManager if available
-        this._registerAnimations();
-
-        // Build action configuration
-        const actions = {
-            tap_action: this.config.tap_action || { action: 'toggle' },
-            hold_action: this.config.hold_action,
-            double_tap_action: this.config.double_tap_action
-        };
-
-        // Get AnimationManager from singletons
-        const animationManager = this._singletons?.animationManager;
-
-        // Use base class method (shadow DOM aware + animation support)
-        // Use unique overlay ID that matches animation registration
-        this._actionCleanup = this.setupActions(buttonGroup, actions, {
-            animationManager,
-            elementId: `simple-button-${this._cardGuid}`
-        });
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ Actions attached via base class method`, {
-            hasAnimationManager: !!animationManager,
-            actionTypes: Object.keys(actions).filter(k => actions[k])
-        });
-    }
-
-    /**
-     * Register animation configurations and overlay scope with AnimationManager
-     * @private
-     */
-    _registerAnimations() {
-        const animations = this.config.animations;
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Animation registration check for ${this._cardGuid}:`, {
-            hasAnimations: !!animations,
-            animationCount: animations ? animations.length : 0,
-            animationTypes: animations ? animations.map(a => a.trigger) : []
-        });
-
-        if (!animations || !Array.isArray(animations)) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] No animations configured`);
-            return;
-        }
-
-        // Store animations for trigger-based execution
-        this._animationConfigs = new Map();
-
-        animations.forEach(animConfig => {
-            const trigger = animConfig.trigger || 'on_tap';
-            if (!this._animationConfigs.has(trigger)) {
-                this._animationConfigs.set(trigger, []);
-            }
-            this._animationConfigs.get(trigger).push(animConfig);
-        });
-
-        // Register overlay scope with AnimationManager when it becomes available
-        this._pendingOverlayRegistration = {
-            overlayId: `simple-button-${this._cardGuid}`,
-            animations: animations
-        };
-
-        lcardsLog.info(`[LCARdSSimpleButtonCard] ✅ Stored ${animations.length} animation configs for direct triggering`, {
-            cardGuid: this._cardGuid,
-            animationTriggers: animations.map(a => a.trigger),
-            triggerCount: this._animationConfigs.size
-        });
-    }    /**
-     * Trigger animations for a specific trigger type
-     * @param {string} trigger - Trigger type (on_tap, on_hover, etc.)
-     * @param {Element} element - Target element
-     * @private
-     */
-    _triggerAnimations(trigger, element) {
-        // LATE-BINDING: Check AnimationManager when needed, not cached at init
-        const core = window.lcards?.core;
-        const animationManager = core?.getAnimationManager?.();
-        const configs = this._animationConfigs?.get(trigger);
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎬 Animation trigger attempt (late-binding):`, {
-            trigger,
-            hasCore: !!core,
-            hasGetMethod: typeof core?.getAnimationManager === 'function',
-            hasAnimationManager: !!animationManager,
-            animationManagerType: animationManager?.constructor?.name,
-            hasConfigs: !!configs,
-            configCount: configs ? configs.length : 0,
-            hasElement: !!element,
-            elementTag: element?.tagName
-        });
-
-        if (!animationManager || !configs || configs.length === 0) {
-            lcardsLog.warn(`[LCARdSSimpleButtonCard] ❌ Animation trigger failed (late-binding):`, {
-                trigger,
-                missingCore: !core,
-                missingGetMethod: !core?.getAnimationManager,
-                missingAnimationManager: !animationManager,
-                missingConfigs: !configs,
-                emptyConfigs: configs && configs.length === 0
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Looking for button element (attempt ${retryCount + 1}):`, {
+                found: !!buttonGroup,
+                shadowRoot: !!this.shadowRoot,
+                querySelector: '[data-overlay-id="simple-button"]',
+                alreadyAttached: buttonGroup?.hasAttribute('data-actions-attached')
             });
-            return;
-        }
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎬 Triggering ${configs.length} animations for trigger: ${trigger}`);
-
-        // Register overlay scope with AnimationManager if not done yet
-        const overlayId = `simple-button-${this._cardGuid}`;
-
-        if (this._pendingOverlayRegistration && animationManager.onOverlayRendered) {
-            const buttonElement = this.shadowRoot?.querySelector('[data-overlay-id="simple-button"]');
-
-            if (buttonElement) {
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎨 Registering overlay scope: ${overlayId}`);
-
-                // Register the button element as an overlay scope
-                animationManager.onOverlayRendered(overlayId, buttonElement, {
-                    animations: this._pendingOverlayRegistration.animations
-                });
-
-                this._pendingOverlayRegistration = null; // Mark as registered
-            }
-        }
-
-        // Trigger each animation for this trigger
-        configs.forEach((config, index) => {
-            try {
-                // Use the registered overlay ID and play animation
-                if (animationManager.playAnimation) {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎯 Playing animation on overlay: ${overlayId}`, config);
-                    animationManager.playAnimation(overlayId, config);
+            if (!buttonGroup) {
+                if (retryCount < 3) {
+                    // Retry with increasing delays like MSD does
+                    setTimeout(() => findAndAttachActions(retryCount + 1), 50 * (retryCount + 1));
+                    return;
                 } else {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] AnimationManager.playAnimation not available`);
+                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found after ${retryCount + 1} attempts`);
+                    return;
                 }
-            } catch (error) {
-                lcardsLog.error(`[LCARdSSimpleButtonCard] Failed to trigger animation:`, error);
             }
-        });
+
+            // Check if already attached (like MSD pattern)
+            if (buttonGroup.hasAttribute('data-actions-attached')) {
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Actions already attached to button`);
+                return;
+            }
+
+            // Create overlay-like configuration for ActionHelpers
+            const overlayConfig = {
+                id: 'simple-button',
+                type: 'button',
+                tap_action: this.config.tap_action || { action: 'toggle' },
+                hold_action: this.config.hold_action,
+                double_tap_action: this.config.double_tap_action
+            };
+
+            // Debug: Log the button element and configuration
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Setting up actions:`, {
+                buttonElement: buttonGroup,
+                elementId: buttonGroup.getAttribute('data-button-id'),
+                overlayConfig,
+                hasEntity: !!this.config.entity
+            });
+
+            // Process actions using ActionHelpers (same as MSD ButtonOverlay)
+            const actionInfo = ActionHelpers.processOverlayActions(
+                overlayConfig,
+                this._buttonStyle || {},
+                this
+            );
+
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] ActionHelpers processOverlayActions result:`, actionInfo);
+
+            if (actionInfo) {
+                // Get AnimationManager from singletons for proper integration
+                const animationManager = this._singletons?.animationManager || window.lcards?.core?.animationManager;
+
+                // Attach actions using ActionHelpers system with animation support
+                ActionHelpers.attachActions(
+                    buttonGroup,
+                    overlayConfig,
+                    actionInfo,
+                    this,
+                    { animationManager }
+                );
+
+                // Pointer-events now set directly in SVG HTML (like MSD pattern)
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Button group pointer-events set via HTML:`, {
+                    element: buttonGroup,
+                    computed: getComputedStyle(buttonGroup).pointerEvents,
+                    hasDataOverlayType: buttonGroup.hasAttribute('data-overlay-type'),
+                    cssText: buttonGroup.style.cssText
+                });                // Add debug handlers to track ActionHelpers events
+                buttonGroup.addEventListener('mousedown', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mousedown detected (ActionHelpers should handle this):`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        entity: this.config.entity
+                    });
+                }, { capture: false });
+
+                buttonGroup.addEventListener('mouseup', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mouseup detected (ActionHelpers should handle this):`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        entity: this.config.entity
+                    });
+                }, { capture: false });
+
+                // Add debug click handler to test if DOM events are working
+                buttonGroup.addEventListener('click', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw click detected on button group:`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        pointerEvents: buttonGroup.style.pointerEvents,
+                        entity: this.config.entity
+                    });
+                }, { capture: true });
+
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ ActionHelpers attached for ${this._cardGuid} (animationManager: ${!!animationManager}), pointer-events: ${buttonGroup.style.pointerEvents}`);
+
+                // Mark as attached (MSD pattern)
+                buttonGroup.setAttribute('data-actions-attached', 'true');
+            }
+        };
+
+        // Start the find and attach process
+        findAndAttachActions();
     }
-
-
 
     /**
      * Render the button card
@@ -485,18 +438,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * Cleanup on disconnect
      */
     disconnectedCallback() {
-        // Clean up action listeners
         if (this._actionCleanup) {
             this._actionCleanup();
             this._actionCleanup = null;
         }
-
-        // Clean up animation configs
-        if (this._animationConfigs) {
-            this._animationConfigs.clear();
-            this._animationConfigs = null;
-        }
-
         super.disconnectedCallback();
     }
 

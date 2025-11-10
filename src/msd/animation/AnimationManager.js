@@ -692,11 +692,11 @@ export class AnimationManager extends BaseService {
 
       // Get overlay instance from AdvancedRenderer for target resolution
       // SystemsManager stores AdvancedRenderer as this.renderer
-      const overlayInstance = this.systemsManager.renderer?.overlayRenderers?.get(overlayId);
+      const overlayInstance = this.systemsManager?.renderer?.overlayRenderers?.get(overlayId);
 
       lcardsLog.debug(`[AnimationManager] Target resolution for ${overlayId}:`, {
-        hasRenderer: !!this.systemsManager.renderer,
-        hasOverlayRenderers: !!this.systemsManager.renderer?.overlayRenderers,
+        hasRenderer: !!this.systemsManager?.renderer,
+        hasOverlayRenderers: !!this.systemsManager?.renderer?.overlayRenderers,
         hasOverlayInstance: !!overlayInstance,
         overlayInstanceType: overlayInstance?.constructor?.name,
         hasGetAnimationTarget: typeof overlayInstance?.getAnimationTarget === 'function',
@@ -794,7 +794,7 @@ export class AnimationManager extends BaseService {
       }
 
       // Get HASS context from SystemsManager
-      const hass = this.systemsManager.getHass?.() || this.systemsManager._hass;
+      const hass = this.systemsManager?.getHass?.() || this.systemsManager?._hass;
 
       // Build animation options for animateElement
       // Pass resolved targets (single element or array)
@@ -854,7 +854,7 @@ export class AnimationManager extends BaseService {
    */
   async resolveDatasourceParams(animDef) {
     const resolved = {};
-    const dataSourceManager = this.systemsManager.dataSourceManager;
+    const dataSourceManager = this.systemsManager?.dataSourceManager;
 
     if (!dataSourceManager) {
       return resolved;
@@ -879,7 +879,7 @@ export class AnimationManager extends BaseService {
             value: datasourceValue
           },
           states: (entityId) => {
-            const hass = this.systemsManager.getHass?.() || this.systemsManager._hass;
+            const hass = this.systemsManager?.getHass?.() || this.systemsManager?._hass;
             return hass?.states?.[entityId]?.state;
           }
         };

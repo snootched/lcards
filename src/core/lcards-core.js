@@ -592,6 +592,14 @@ class LCARdSCore {
     }
 
     /**
+     * Get AnimationManager instance
+     * @returns {AnimationManager|null} Animation manager or null if not initialized
+     */
+    getAnimationManager() {
+        return this.animationManager || null;
+    }
+
+    /**
      * Manually update HASS state (for testing)
      * @param {Object} hass - HASS object
      */

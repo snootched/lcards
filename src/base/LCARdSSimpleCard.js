@@ -192,10 +192,19 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 return;
             }
 
+            const animationManager = core.getAnimationManager();
+            lcardsLog.debug(`[LCARdSSimpleCard] AnimationManager singleton check for ${this._cardGuid}`, {
+                hasGetMethod: typeof core.getAnimationManager === 'function',
+                managerResult: !!animationManager,
+                managerType: animationManager?.constructor?.name,
+                coreAnimMgr: !!core.animationManager,
+                directAccess: !!core.animationManager
+            });
+
             this._singletons = {
                 themeManager: core.getThemeManager(),
                 rulesEngine: core.rulesManager,
-                animationManager: core.animationManager,
+                animationManager: animationManager,
                 dataSourceManager: core.dataSourceManager,
                 validationService: core.validationService,
                 actionHandler: core.actionHandler,
@@ -584,7 +593,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                                 lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Single tap action triggered`);
 
                                 // Trigger animation BEFORE action
-                                if (animationManager && elementId) {
+                                if (typeof this._triggerAnimations === 'function') {
+                                    this._triggerAnimations('on_tap', element);
+                                } else if (animationManager && animationManager.triggerAnimations && elementId) {
                                     animationManager.triggerAnimations(elementId, 'on_tap');
                                 }
 
@@ -602,7 +613,20 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Tap action triggered (immediate)`);
 
                     // Trigger animation BEFORE action
-                    if (animationManager && elementId) {
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Animation check before tap action:`, {
+                        hasTriggerMethod: typeof this._triggerAnimations === 'function',
+                        hasAnimationManager: !!animationManager,
+                        hasManagerTrigger: !!(animationManager && animationManager.triggerAnimations),
+                        elementId
+                    });
+
+                    if (typeof this._triggerAnimations === 'function') {
+                        // Use card's own animation triggering (SimpleCard pattern)
+                        lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Calling card _triggerAnimations for on_tap`);
+                        this._triggerAnimations('on_tap', element);
+                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
+                        // Fallback: MSD overlay pattern
+                        lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Using MSD AnimationManager.triggerAnimations`);
                         animationManager.triggerAnimations(elementId, 'on_tap');
                     }
 
@@ -627,8 +651,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Hold action triggered`);
 
                     // Trigger animation BEFORE action
-                    if (animationManager && elementId) {
+                    if (typeof this._triggerAnimations === 'function') {
+                        this._triggerAnimations('on_hold', element);
+                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
                         animationManager.triggerAnimations(elementId, 'on_hold');
+                    } else if (typeof this._triggerAnimations === 'function') {
+                        // Fallback: use card's own animation triggering
+                        this._triggerAnimations('on_hold', element);
                     }
 
                     this._executeAction(actions.hold_action);
@@ -667,8 +696,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Double-tap action triggered`);
 
                     // Trigger animation BEFORE action
-                    if (animationManager && elementId) {
+                    if (typeof this._triggerAnimations === 'function') {
+                        this._triggerAnimations('on_double_tap', element);
+                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
                         animationManager.triggerAnimations(elementId, 'on_double_tap');
+                    } else if (typeof this._triggerAnimations === 'function') {
+                        // Fallback: use card's own animation triggering
+                        this._triggerAnimations('on_double_tap', element);
                     }
 
                     this._executeAction(actions.double_tap_action);
@@ -683,23 +717,47 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         }
 
         // Hover animation support (desktop only, like ActionHelpers)
-        if (animationManager && elementId) {
+        // Always set up hover events - AnimationManager will be checked when triggered (late-binding)
+        if (elementId) {
             const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+            lcardsLog.debug(`[LCARdSSimpleCard] Hover setup check:`, {
+                elementId,
+                isDesktop,
+                hasAnimationManagerAtSetup: !!animationManager
+            });
 
             if (isDesktop) {
                 const hoverHandler = () => {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Hover animation triggered on ${elementId}`);
-                    animationManager.triggerAnimations(elementId, 'on_hover');
+                    if (typeof this._triggerAnimations === 'function') {
+                        this._triggerAnimations('on_hover', element);
+                    } else {
+                        // Late-binding AnimationManager check
+                        const core = window.lcards?.core;
+                        const lateAnimationManager = core?.getAnimationManager?.();
+                        if (lateAnimationManager && lateAnimationManager.triggerAnimations) {
+                            lateAnimationManager.triggerAnimations(elementId, 'on_hover');
+                        }
+                    }
                 };
 
                 const leaveHandler = () => {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Leave animation triggered on ${elementId}`);
 
-                    // Stop looping hover animations
-                    animationManager.stopAnimations(elementId, 'on_hover');
-
-                    // Trigger leave animations
-                    animationManager.triggerAnimations(elementId, 'on_leave');
+                    if (typeof this._triggerAnimations === 'function') {
+                        this._triggerAnimations('on_leave', element);
+                    } else {
+                        // Late-binding AnimationManager check
+                        const core = window.lcards?.core;
+                        const lateAnimationManager = core?.getAnimationManager?.();
+                        if (lateAnimationManager && lateAnimationManager.stopAnimations && lateAnimationManager.triggerAnimations) {
+                            // Stop looping hover animations
+                            lateAnimationManager.stopAnimations(elementId, 'on_hover');
+                            // Trigger leave animations
+                            lateAnimationManager.triggerAnimations(elementId, 'on_leave');
+                        }
+                    }
                 };
 
                 element.addEventListener('mouseenter', hoverHandler);
