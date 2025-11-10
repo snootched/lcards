@@ -13,7 +13,7 @@ import { DebugManager } from '../debug/DebugManager.js';
 import { BaseOverlayUpdater } from '../renderer/BaseOverlayUpdater.js';
 import { TemplateEntityExtractor } from '../templates/TemplateEntityExtractor.js';
 
-import { StylePresetManager } from '../presets/StylePresetManager.js';
+import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
 import { ApexChartsOverlayRenderer } from '../renderer/ApexChartsOverlayRenderer.js';
 
 // ✅ ADDED: Import theme system initialization
