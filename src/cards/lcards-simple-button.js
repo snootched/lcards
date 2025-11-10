@@ -244,120 +244,16 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
-     * Register animation configurations and overlay scope with AnimationManager
-     * @private
+     * Button-specific animation setup configuration
+     * @returns {Object} Animation setup for buttons
+     * @protected
      */
-    _registerAnimations() {
-        const animations = this.config.animations;
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Animation registration check for ${this._cardGuid}:`, {
-            hasAnimations: !!animations,
-            animationCount: animations ? animations.length : 0,
-            animationTypes: animations ? animations.map(a => a.trigger) : []
-        });
-
-        if (!animations || !Array.isArray(animations)) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] No animations configured`);
-            return;
-        }
-
-        // Store animations for trigger-based execution
-        this._animationConfigs = new Map();
-
-        animations.forEach(animConfig => {
-            const trigger = animConfig.trigger || 'on_tap';
-            if (!this._animationConfigs.has(trigger)) {
-                this._animationConfigs.set(trigger, []);
-            }
-            this._animationConfigs.get(trigger).push(animConfig);
-        });
-
-        // Register overlay scope with AnimationManager when it becomes available
-        this._pendingOverlayRegistration = {
+    _getAnimationSetup() {
+        return {
             overlayId: `simple-button-${this._cardGuid}`,
-            animations: animations
+            elementSelector: '[data-overlay-id="simple-button"]'
         };
-
-        lcardsLog.info(`[LCARdSSimpleButtonCard] ✅ Stored ${animations.length} animation configs for direct triggering`, {
-            cardGuid: this._cardGuid,
-            animationTriggers: animations.map(a => a.trigger),
-            triggerCount: this._animationConfigs.size
-        });
     }    /**
-     * Trigger animations for a specific trigger type
-     * @param {string} trigger - Trigger type (on_tap, on_hover, etc.)
-     * @param {Element} element - Target element
-     * @private
-     */
-    _triggerAnimations(trigger, element) {
-        // LATE-BINDING: Check AnimationManager when needed, not cached at init
-        const core = window.lcards?.core;
-        const animationManager = core?.getAnimationManager?.();
-        const configs = this._animationConfigs?.get(trigger);
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎬 Animation trigger attempt (late-binding):`, {
-            trigger,
-            hasCore: !!core,
-            hasGetMethod: typeof core?.getAnimationManager === 'function',
-            hasAnimationManager: !!animationManager,
-            animationManagerType: animationManager?.constructor?.name,
-            hasConfigs: !!configs,
-            configCount: configs ? configs.length : 0,
-            hasElement: !!element,
-            elementTag: element?.tagName
-        });
-
-        if (!animationManager || !configs || configs.length === 0) {
-            lcardsLog.warn(`[LCARdSSimpleButtonCard] ❌ Animation trigger failed (late-binding):`, {
-                trigger,
-                missingCore: !core,
-                missingGetMethod: !core?.getAnimationManager,
-                missingAnimationManager: !animationManager,
-                missingConfigs: !configs,
-                emptyConfigs: configs && configs.length === 0
-            });
-            return;
-        }
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎬 Triggering ${configs.length} animations for trigger: ${trigger}`);
-
-        // Register overlay scope with AnimationManager if not done yet
-        const overlayId = `simple-button-${this._cardGuid}`;
-
-        if (this._pendingOverlayRegistration && animationManager.onOverlayRendered) {
-            const buttonElement = this.shadowRoot?.querySelector('[data-overlay-id="simple-button"]');
-
-            if (buttonElement) {
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎨 Registering overlay scope: ${overlayId}`);
-
-                // Register the button element as an overlay scope
-                animationManager.onOverlayRendered(overlayId, buttonElement, {
-                    animations: this._pendingOverlayRegistration.animations
-                });
-
-                this._pendingOverlayRegistration = null; // Mark as registered
-            }
-        }
-
-        // Trigger each animation for this trigger
-        configs.forEach((config, index) => {
-            try {
-                // Use the registered overlay ID and play animation
-                if (animationManager.playAnimation) {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🎯 Playing animation on overlay: ${overlayId}`, config);
-                    animationManager.playAnimation(overlayId, config);
-                } else {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] AnimationManager.playAnimation not available`);
-                }
-            } catch (error) {
-                lcardsLog.error(`[LCARdSSimpleButtonCard] Failed to trigger animation:`, error);
-            }
-        });
-    }
-
-
-
-    /**
      * Render the button card
      * @protected
      */
@@ -489,12 +385,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         if (this._actionCleanup) {
             this._actionCleanup();
             this._actionCleanup = null;
-        }
-
-        // Clean up animation configs
-        if (this._animationConfigs) {
-            this._animationConfigs.clear();
-            this._animationConfigs = null;
         }
 
         super.disconnectedCallback();

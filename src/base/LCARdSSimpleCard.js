@@ -521,6 +521,149 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         }
     }
 
+    // ============================================================================
+    // ANIMATION SYSTEM - Generic animation support for all SimpleCards
+    // ============================================================================
+
+    /**
+     * Register animations from YAML config
+     * This method should be called by subclasses during initialization
+     * @protected
+     */
+    _registerAnimations() {
+        const animations = this.config.animations;
+
+        lcardsLog.debug(`[LCARdSSimpleCard] Animation registration check for ${this._cardGuid}:`, {
+            hasAnimations: !!animations,
+            animationCount: animations ? animations.length : 0,
+            animationTypes: animations ? animations.map(a => a.trigger) : []
+        });
+
+        if (!animations || !Array.isArray(animations)) {
+            lcardsLog.debug(`[LCARdSSimpleCard] No animations configured`);
+            return;
+        }
+
+        // Store animations for trigger-based execution
+        this._animationConfigs = new Map();
+
+        animations.forEach(animConfig => {
+            const trigger = animConfig.trigger || 'on_tap';
+            if (!this._animationConfigs.has(trigger)) {
+                this._animationConfigs.set(trigger, []);
+            }
+            this._animationConfigs.get(trigger).push(animConfig);
+        });
+
+        // Get card-specific animation setup from subclass
+        const animationSetup = this._getAnimationSetup?.() || {};
+
+        // Register overlay scope with AnimationManager when it becomes available
+        this._pendingOverlayRegistration = {
+            overlayId: animationSetup.overlayId || `simple-card-${this._cardGuid}`,
+            animations: animations,
+            elementSelector: animationSetup.elementSelector || '[data-overlay-id]'
+        };
+
+        lcardsLog.info(`[LCARdSSimpleCard] ✅ Stored ${animations.length} animation configs for direct triggering`, {
+            cardGuid: this._cardGuid,
+            animationTriggers: animations.map(a => a.trigger),
+            triggerCount: this._animationConfigs.size
+        });
+    }
+
+    /**
+     * Trigger animations for a specific trigger type
+     * @param {string} trigger - Trigger type (on_tap, on_hover, etc.)
+     * @param {Element} element - Target element
+     * @protected
+     */
+    _triggerAnimations(trigger, element) {
+        // LATE-BINDING: Check AnimationManager when needed, not cached at init
+        const core = window.lcards?.core;
+        const animationManager = core?.getAnimationManager?.();
+        const configs = this._animationConfigs?.get(trigger);
+
+        lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Animation trigger attempt (late-binding):`, {
+            trigger,
+            hasCore: !!core,
+            hasGetMethod: typeof core?.getAnimationManager === 'function',
+            hasAnimationManager: !!animationManager,
+            animationManagerType: animationManager?.constructor?.name,
+            hasConfigs: !!configs,
+            configCount: configs ? configs.length : 0,
+            hasElement: !!element,
+            elementTag: element?.tagName
+        });
+
+        if (!animationManager || !configs || configs.length === 0) {
+            lcardsLog.warn(`[LCARdSSimpleCard] ❌ Animation trigger failed (late-binding):`, {
+                trigger,
+                missingCore: !core,
+                missingGetMethod: !core?.getAnimationManager,
+                missingAnimationManager: !animationManager,
+                missingConfigs: !configs,
+                emptyConfigs: configs && configs.length === 0
+            });
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Triggering ${configs.length} animations for trigger: ${trigger}`);
+
+        // Register overlay scope with AnimationManager if not done yet
+        if (this._pendingOverlayRegistration && animationManager.onOverlayRendered) {
+            const targetElement = this.shadowRoot?.querySelector(this._pendingOverlayRegistration.elementSelector);
+
+            if (targetElement) {
+                lcardsLog.debug(`[LCARdSSimpleCard] 🎨 Registering overlay scope: ${this._pendingOverlayRegistration.overlayId}`);
+
+                // Register the element as an overlay scope
+                animationManager.onOverlayRendered(
+                    this._pendingOverlayRegistration.overlayId,
+                    targetElement,
+                    {
+                        animations: this._pendingOverlayRegistration.animations
+                    }
+                );
+
+                this._pendingOverlayRegistration = null; // Mark as registered
+            }
+        }
+
+        // Trigger each animation for this trigger
+        configs.forEach((config, index) => {
+            try {
+                // Use the registered overlay ID and play animation
+                if (animationManager.playAnimation) {
+                    const overlayId = this._getAnimationSetup?.()?.overlayId || `simple-card-${this._cardGuid}`;
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Playing animation on overlay: ${overlayId}`, config);
+                    animationManager.playAnimation(overlayId, config);
+                } else {
+                    lcardsLog.warn(`[LCARdSSimpleCard] AnimationManager.playAnimation not available`);
+                }
+            } catch (error) {
+                lcardsLog.error(`[LCARdSSimpleCard] Failed to trigger animation:`, error);
+            }
+        });
+    }
+
+    /**
+     * Hook for subclasses to provide animation-specific setup
+     * @returns {Object} Animation setup configuration
+     * @protected
+     */
+    _getAnimationSetup() {
+        // Default implementation - subclasses should override
+        return {
+            overlayId: `simple-card-${this._cardGuid}`,
+            elementSelector: '[data-overlay-id]'
+        };
+    }
+
+    // ============================================================================
+    // ACTION SYSTEM - Shadow-DOM-aware action handling
+    // ============================================================================
+
     /**
      * Setup action handlers on element with full animation support
      *
@@ -909,5 +1052,26 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 </div>
             </div>
         `;
+    }
+
+    // ============================================================================
+    // LIFECYCLE HOOKS
+    // ============================================================================
+
+    /**
+     * Called when disconnected from DOM
+     * @protected
+     */
+    _onDisconnected() {
+        // Clean up animation configs
+        if (this._animationConfigs) {
+            this._animationConfigs.clear();
+            this._animationConfigs = null;
+        }
+
+        // Clear pending overlay registration
+        this._pendingOverlayRegistration = null;
+
+        super._onDisconnected();
     }
 }

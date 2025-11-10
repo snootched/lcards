@@ -830,7 +830,7 @@ export class AnimationManager extends BaseService {
       await animateElement(scopeData, animOptions, hass, onInstanceCreated);
 
       lcardsLog.debug(`[AnimationManager] ▶️ Playing animation on ${overlayId}:`, {
-        preset: finalAnimDef.preset,
+        type: finalAnimDef.type,
         trigger: animDef.trigger,
         duration: finalAnimDef.duration
       });
