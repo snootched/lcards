@@ -95,6 +95,14 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         this._singletons = null;
         this._initialized = false;
 
+        // Template processing state
+        this._templateUpdateScheduled = false;
+        this._processedTexts = {
+            label: '',
+            content: '',
+            texts: []
+        };
+
         lcardsLog.debug(`[LCARdSSimpleCard] Constructor called for ${this._cardGuid}`);
     }
 
@@ -287,6 +295,98 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
+     * Schedule template processing to avoid Lit update cycles
+     * @protected
+     */
+    _scheduleTemplateUpdate() {
+        if (this._templateUpdateScheduled) return;
+
+        this._templateUpdateScheduled = true;
+        requestAnimationFrame(() => {
+            this._templateUpdateScheduled = false;
+
+            // Process templates synchronously
+            this._processTemplatesSync();
+
+            // Re-render only if we're not in an update cycle
+            if (!this.hasUpdated || this.updateComplete === Promise.resolve()) {
+                this.requestUpdate();
+            } else {
+                // Wait for current update to complete
+                this.updateComplete.then(() => {
+                    this.requestUpdate();
+                });
+            }
+        });
+    }
+
+    /**
+     * Process templates synchronously to avoid update cycles
+     * Subclasses should override to define their text processing
+     * @protected
+     */
+    _processTemplatesSync() {
+        // Default implementation processes standard text fields
+        this._processStandardTexts();
+
+        // Call subclass-specific template processing hook
+        if (typeof this._processCustomTemplates === 'function') {
+            this._processCustomTemplates();
+        }
+    }
+
+    /**
+     * Process standard text fields (label, content, texts array)
+     * @protected
+     */
+    _processStandardTexts() {
+        // Process label template (with aliases)
+        const rawLabel = this.config.label || this.config.text || '';
+        const newLabel = this.processTemplate(rawLabel);
+
+        // Process content template (with aliases)
+        const rawContent = this.config.content || this.config.value || '';
+        const newContent = this.processTemplate(rawContent);
+
+        // Process texts array
+        const newTexts = [];
+        if (this.config.texts && Array.isArray(this.config.texts)) {
+            this.config.texts.forEach((textConfig, index) => {
+                if (textConfig && typeof textConfig === 'object') {
+                    const processedText = {
+                        ...textConfig,
+                        text: this.processTemplate(textConfig.text || textConfig.content || '')
+                    };
+                    newTexts.push(processedText);
+                }
+            });
+        }
+
+        // Only update if values actually changed to avoid unnecessary re-renders
+        const labelChanged = this._processedTexts.label !== newLabel;
+        const contentChanged = this._processedTexts.content !== newContent;
+        const textsChanged = JSON.stringify(this._processedTexts.texts) !== JSON.stringify(newTexts);
+
+        if (labelChanged || contentChanged || textsChanged) {
+            this._processedTexts.label = newLabel;
+            this._processedTexts.content = newContent;
+            this._processedTexts.texts = newTexts;
+
+            lcardsLog.debug(`[LCARdSSimpleCard] Templates processed for ${this._cardGuid}:`, {
+                label: this._processedTexts.label,
+                content: this._processedTexts.content,
+                textsCount: this._processedTexts.texts.length,
+                changed: { labelChanged, contentChanged, textsChanged }
+            });
+
+            // Call subclass hook for style resolution after template changes
+            if (typeof this._onTemplatesChanged === 'function') {
+                this._onTemplatesChanged();
+            }
+        }
+    }
+
+    /**
      * Resolve dot-notation token path
      * @private
      */
@@ -425,10 +525,43 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         }
 
         const cleanupFunctions = [];
+        const hasActions = actions.tap_action || actions.hold_action || actions.double_tap_action;
+
+        // Set cursor styling for actionable elements (like MSD ActionHelpers)
+        if (hasActions) {
+            element.style.cursor = 'pointer';
+            cleanupFunctions.push(() => {
+                element.style.cursor = '';
+            });
+
+            // Add hover effects for desktop devices (like MSD ActionHelpers)
+            const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+            if (isDesktop) {
+                const hoverHandler = () => {
+                    element.style.opacity = '0.8';
+                    lcardsLog.debug(`[LCARdSSimpleCard] Hover effect applied to actionable element`);
+                };
+                const hoverEndHandler = () => {
+                    element.style.opacity = '';
+                };
+
+                element.addEventListener('mouseenter', hoverHandler);
+                element.addEventListener('mouseleave', hoverEndHandler);
+
+                cleanupFunctions.push(() => {
+                    element.removeEventListener('mouseenter', hoverHandler);
+                    element.removeEventListener('mouseleave', hoverEndHandler);
+                    element.style.opacity = '';
+                });
+
+                lcardsLog.debug(`[LCARdSSimpleCard] Enhanced actions with cursor and hover for ${this._cardGuid}`);
+            }
+        }
 
         // Tap action
         if (actions.tap_action) {
-            const tapHandler = () => {
+            const tapHandler = (event) => {
+                lcardsLog.debug(`[LCARdSSimpleCard] 🎯 TAP ACTION TRIGGERED for ${this._cardGuid}`);
                 this._executeAction(actions.tap_action);
             };
             element.addEventListener('click', tapHandler);
@@ -439,12 +572,15 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         if (actions.hold_action) {
             let holdTimer;
             const holdStart = () => {
+                lcardsLog.debug(`[LCARdSSimpleCard] 🔲 Hold timer started for ${this._cardGuid}`);
                 holdTimer = setTimeout(() => {
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🎯 HOLD ACTION TRIGGERED for ${this._cardGuid}`);
                     this._executeAction(actions.hold_action);
                 }, 500);
             };
             const holdEnd = () => {
                 if (holdTimer) {
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🔲 Hold timer cleared for ${this._cardGuid}`);
                     clearTimeout(holdTimer);
                     holdTimer = null;
                 }
@@ -469,12 +605,14 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             const handleTap = () => {
                 tapCount++;
                 if (tapCount === 1) {
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🔲 Double-tap timer started for ${this._cardGuid}`);
                     tapTimer = setTimeout(() => {
                         tapCount = 0;
                     }, 300);
                 } else if (tapCount === 2) {
                     clearTimeout(tapTimer);
                     tapCount = 0;
+                    lcardsLog.debug(`[LCARdSSimpleCard] 🎯 DOUBLE-TAP ACTION TRIGGERED for ${this._cardGuid}`);
                     this._executeAction(actions.double_tap_action);
                 }
             };

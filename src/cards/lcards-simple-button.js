@@ -13,7 +13,12 @@
  *
  * Configuration:
  * ```yaml
- * type: custom:lcards-simple-button
+ * type: custom:lcar                <g data-button-id="simple-button"
+                   data-overlay-id="simple-button"
+                   data-overlay-type="button"
+                   class="button-group"
+                   style="pointer-events: all; cursor: pointer;">
+                    <rectimple-button
  * entity: light.bedroom
  * label: "Bedroom Light"
  * preset: lozenge  # Optional: button style preset
@@ -26,6 +31,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 import { SimpleButtonRenderer } from './renderers/SimpleButtonRenderer.js';
+import { ActionHelpers } from '../msd/renderer/ActionHelpers.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
@@ -33,8 +39,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     static get properties() {
         return {
             ...super.properties,
-            _processedLabel: { type: String, state: true },
-            _processedContent: { type: String, state: true },
             _buttonStyle: { type: Object, state: true }
         };
     }
@@ -55,8 +59,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: rgba(255, 0, 0, 0.1); /* Debug: red tint */
-                    border: 1px dashed #ccc; /* Debug: border */
+                    background: transparent;
                 }
 
                 .button-svg {
@@ -64,7 +67,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     width: 200px;
                     height: 60px;
                     cursor: pointer;
-                    border: 1px solid #00ff00; /* Debug: green border */
                 }
 
                 .button-svg:hover {
@@ -86,10 +88,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
     constructor() {
         super();
-        this._processedLabel = '';
-        this._processedContent = '';
         this._buttonStyle = null;
-        this._actionCleanup = null;
     }
 
     /**
@@ -124,61 +123,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
-     * Schedule template processing to avoid Lit update cycles
-     * @private
+     * Hook called after templates are processed (from base class)
+     * @protected
      */
-    _scheduleTemplateUpdate() {
-        if (this._templateUpdateScheduled) return;
-
-        this._templateUpdateScheduled = true;
-        requestAnimationFrame(() => {
-            this._templateUpdateScheduled = false;
-
-            // Process templates synchronously
-            this._processTemplatesSync();
-
-            // Re-render only if we're not in an update cycle
-            if (!this.hasUpdated || this.updateComplete === Promise.resolve()) {
-                this.requestUpdate();
-            } else {
-                // Wait for current update to complete
-                this.updateComplete.then(() => {
-                    this.requestUpdate();
-                });
-            }
-        });
-    }
-
-    /**
-     * Process templates synchronously to avoid update cycles
-     * @private
-     */
-    _processTemplatesSync() {
-        // Process label template
-        const rawLabel = this.config.label || this.config.text || '';
-        const newLabel = this.processTemplate(rawLabel);
-
-        // Process content template
-        const rawContent = this.config.content || this.config.value || '';
-        const newContent = this.processTemplate(rawContent);
-
-        // Only update if values actually changed to avoid unnecessary re-renders
-        const labelsChanged = this._processedLabel !== newLabel;
-        const contentChanged = this._processedContent !== newContent;
-
-        if (labelsChanged || contentChanged) {
-            this._processedLabel = newLabel;
-            this._processedContent = newContent;
-
-            // Resolve button style after templates change
-            this._resolveButtonStyleSync();
-
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Templates processed:`, {
-                label: this._processedLabel,
-                content: this._processedContent,
-                changed: { labelsChanged, contentChanged }
-            });
-        }
+    _onTemplatesChanged() {
+        // Resolve button style after templates change
+        this._resolveButtonStyleSync();
     }
 
     /**
@@ -245,34 +195,119 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
-     * Setup action handlers on the rendered button
+     * Setup action handlers on the rendered button using MSD ActionHelpers
      * @private
      */
     _setupButtonActions() {
-        // Clean up previous actions
-        if (this._actionCleanup) {
-            this._actionCleanup();
-            this._actionCleanup = null;
-        }
+        // Use same pattern as MSD - delay and retry element lookup
+        const findAndAttachActions = (retryCount = 0) => {
+            const buttonGroup = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
 
-        // Find button element
-        const buttonGroup = this.shadowRoot.querySelector('[data-button-id]');
-        if (!buttonGroup) {
-            lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found for action setup`);
-            return;
-        }
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Looking for button element (attempt ${retryCount + 1}):`, {
+                found: !!buttonGroup,
+                shadowRoot: !!this.shadowRoot,
+                querySelector: '[data-overlay-id="simple-button"]',
+                alreadyAttached: buttonGroup?.hasAttribute('data-actions-attached')
+            });
 
-        // Get action configurations
-        const actions = {
-            tap_action: this.config.tap_action || { action: 'toggle' },
-            hold_action: this.config.hold_action,
-            double_tap_action: this.config.double_tap_action
+            if (!buttonGroup) {
+                if (retryCount < 3) {
+                    // Retry with increasing delays like MSD does
+                    setTimeout(() => findAndAttachActions(retryCount + 1), 50 * (retryCount + 1));
+                    return;
+                } else {
+                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Button element not found after ${retryCount + 1} attempts`);
+                    return;
+                }
+            }
+
+            // Check if already attached (like MSD pattern)
+            if (buttonGroup.hasAttribute('data-actions-attached')) {
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Actions already attached to button`);
+                return;
+            }
+
+            // Create overlay-like configuration for ActionHelpers
+            const overlayConfig = {
+                id: 'simple-button',
+                type: 'button',
+                tap_action: this.config.tap_action || { action: 'toggle' },
+                hold_action: this.config.hold_action,
+                double_tap_action: this.config.double_tap_action
+            };
+
+            // Debug: Log the button element and configuration
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Setting up actions:`, {
+                buttonElement: buttonGroup,
+                elementId: buttonGroup.getAttribute('data-button-id'),
+                overlayConfig,
+                hasEntity: !!this.config.entity
+            });
+
+            // Process actions using ActionHelpers (same as MSD ButtonOverlay)
+            const actionInfo = ActionHelpers.processOverlayActions(
+                overlayConfig,
+                this._buttonStyle || {},
+                this
+            );
+
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] ActionHelpers processOverlayActions result:`, actionInfo);
+
+            if (actionInfo) {
+                // Get AnimationManager from singletons for proper integration
+                const animationManager = this._singletons?.animationManager || window.lcards?.core?.animationManager;
+
+                // Attach actions using ActionHelpers system with animation support
+                ActionHelpers.attachActions(
+                    buttonGroup,
+                    overlayConfig,
+                    actionInfo,
+                    this,
+                    { animationManager }
+                );
+
+                // Pointer-events now set directly in SVG HTML (like MSD pattern)
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Button group pointer-events set via HTML:`, {
+                    element: buttonGroup,
+                    computed: getComputedStyle(buttonGroup).pointerEvents,
+                    hasDataOverlayType: buttonGroup.hasAttribute('data-overlay-type'),
+                    cssText: buttonGroup.style.cssText
+                });                // Add debug handlers to track ActionHelpers events
+                buttonGroup.addEventListener('mousedown', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mousedown detected (ActionHelpers should handle this):`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        entity: this.config.entity
+                    });
+                }, { capture: false });
+
+                buttonGroup.addEventListener('mouseup', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw mouseup detected (ActionHelpers should handle this):`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        entity: this.config.entity
+                    });
+                }, { capture: false });
+
+                // Add debug click handler to test if DOM events are working
+                buttonGroup.addEventListener('click', (e) => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] 🖱️ Raw click detected on button group:`, {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        pointerEvents: buttonGroup.style.pointerEvents,
+                        entity: this.config.entity
+                    });
+                }, { capture: true });
+
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ ActionHelpers attached for ${this._cardGuid} (animationManager: ${!!animationManager}), pointer-events: ${buttonGroup.style.pointerEvents}`);
+
+                // Mark as attached (MSD pattern)
+                buttonGroup.setAttribute('data-actions-attached', 'true');
+            }
         };
 
-        // Setup actions using helper
-        this._actionCleanup = this.setupActions(buttonGroup, actions);
-
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Actions setup complete`);
+        // Start the find and attach process
+        findAndAttachActions();
     }
 
     /**
@@ -298,13 +333,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Build button configuration for ButtonRenderer
         const buttonConfig = {
-            id: this._cardGuid,
-            label: this._processedLabel,
-            content: this._processedContent,
-            preset: this.config.preset, // ✅ FIX: Pass preset to renderer
-            tap_action: this.config.tap_action,
-            hold_action: this.config.hold_action,
-            double_tap_action: this.config.double_tap_action
+            id: 'simple-button',
+            label: this._processedTexts.label,
+            content: this._processedTexts.content,
+            texts: this._processedTexts.texts,
+            preset: this.config.preset, // Pass preset for corner radius calculation
+            style: this._buttonStyle,
+            size: [width, height]
         };
 
         // Render synchronously with fallback SVG
@@ -362,7 +397,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     </style>
                 </defs>
 
-                <g data-button-id="simple-button" class="button-group">
+                <g data-button-id="simple-button"
+                   data-overlay-id="simple-button"
+                   class="button-group">
                     <rect
                         class="button-bg button-clickable"
                         x="${strokeWidth/2}"

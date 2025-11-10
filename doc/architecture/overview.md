@@ -734,52 +734,53 @@ rules:
 
 **Result:** All cards with `emergency_button` overlay or `emergency` tag get styled.
 
-### V2 Card Architecture
+### Simple Card Architecture
 
-#### Lightweight Cards Using Singletons
+#### Lightweight Cards Using Singleton Foundation
 
-The singleton architecture enables a new category of **V2 Cards** - lightweight, purpose-built cards that leverage shared systems:
+The singleton architecture enables **Simple Cards** - lightweight, single-purpose cards that leverage shared systems without MSD complexity:
 
-**V2 Card Characteristics:**
-- ✅ **Singleton-aware**: Direct access to shared RulesEngine, ThemeManager, etc.
-- ✅ **Lightweight**: No routing, no local systems, minimal complexity
-- ✅ **Rules-responsive**: Register overlays that respond to global rules
-- ✅ **Theme-consistent**: Automatic theme inheritance from shared ThemeManager
-- ✅ **Animation-ready**: Access to shared AnimationManager
+**Simple Card Characteristics:**
+- ✅ **Singleton Integration**: Direct access to shared RulesEngine, ThemeManager, etc.
+- ✅ **Minimal Foundation**: Only essential helpers, card owns rendering logic
+- ✅ **Template Processing**: Built-in support for [[[JavaScript]]] and {{token}} templates
+- ✅ **Action Handling**: Integrated HA action support (toggle, more-info, etc.)
+- ✅ **HASS Distribution**: Feeds HASS updates to singleton system for cross-card coordination
+- ✅ **Explicit Control**: No auto-subscriptions or magic behavior
 
-**Comparison:**
+**Architecture Comparison:**
 
-| Feature | MSD Card | V2 Card |
-|---------|----------|---------|
-| Complexity | High - Full pipeline | Low - Simple renderer |
-| Systems | Local + Shared | Shared only |
-| Configuration | Full MSD schema | Minimal schema |
+| Feature | MSD Card | Simple Card |
+|---------|----------|-------------|
+| Complexity | High - Full pipeline | Low - Helper methods only |
+| Systems | Local + Shared | Shared singletons only |
+| Configuration | Full MSD schema | Minimal card-specific schema |
 | Routing | Yes | No |
-| Use Case | Complex displays | Single-purpose components |
+| Use Case | Multi-overlay displays | Single-purpose components |
+| Inheritance | LCARdSNativeCard → LCARdSMSDCard | LCARdSNativeCard → LCARdSSimpleCard |
 
-#### V2 Card Foundation Class
+#### Simple Card Foundation Class
 
 ```javascript
-class LCARdSV2Card extends LitElement {
-  constructor() {
-    super();
-    // Direct singleton access
-    this.rulesEngine = lcardsCore.rulesManager;
-    this.themeManager = lcardsCore.themeManager;
+import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 
-    // Register for rule updates
-    this.rulesEngine.setReEvaluationCallback(() => {
-      this.handleRuleUpdate();
-    });
+class MySimpleCard extends LCARdSSimpleCard {
+  _handleHassUpdate(newHass, oldHass) {
+    // Process templates when entity changes
+    this._displayText = this.processTemplate(this.config.text);
   }
 
-  handleRuleUpdate() {
-    // Lightweight rule processing
-    const results = this.rulesEngine.evaluateDirty(this.hass);
-    this.applyRuleResults(results);
+  _renderCard() {
+    return html`
+      <div class="my-card">
+        ${this._displayText}
+      </div>
+    `;
   }
 }
 ```
+
+**See:** [Simple Card Foundation Documentation](simple-card-foundation.md)
 
 ---
 
