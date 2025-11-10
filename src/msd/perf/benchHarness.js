@@ -6,8 +6,10 @@ import { mergePacks } from '../../core/packs/mergePacks.js';
 import { buildCardModel } from '../model/CardModel.js';
 import { RulesEngine } from '../../core/rules/RulesEngine.js';
 import { resolveValueMaps } from '../valueMap/resolveValueMaps.js';
-import { AnimationRegistry } from '../animation/AnimationRegistry.js';
-import { resolveDesiredAnimations } from '../animation/resolveAnimations.js';
+import { SystemsManager } from '../pipeline/SystemsManager.js';
+import { AnimationRegistry } from '../../core/animation/AnimationRegistry.js';
+import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
+import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { perfGetAll, perfTime } from './PerfCounters.js';
 
 function makeConfig({ overlays = 200, rules = 50, animations = 10 }) {

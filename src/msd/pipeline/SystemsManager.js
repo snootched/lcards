@@ -6,7 +6,7 @@ import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js'
 import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { lcardsCore } from '../../core/lcards-core.js';
-import { AnimationRegistry } from '../animation/AnimationRegistry.js';
+import { AnimationRegistry } from '../../core/animation/AnimationRegistry.js';
 import { ThemeManager } from '../../core/themes/ThemeManager.js';
 import { RulesEngine } from '../../core/rules/RulesEngine.js';
 import { DebugManager } from '../debug/DebugManager.js';
@@ -26,7 +26,7 @@ import { TextOverlay } from '../overlays/TextOverlay.js';
 
 // ✨ ADDED: Import animation system components
 // AnimationManager now imported as shared singleton from lcardsCore
-import { processAnimationConfig } from '../animation/AnimationConfigProcessor.js';
+import { processAnimationConfig } from '../../core/animation/AnimationConfigProcessor.js';
 
 import { BaseService } from '../../core/BaseService.js';
 

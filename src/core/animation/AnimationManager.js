@@ -18,8 +18,8 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
-import { ActionHelpers } from '../renderer/ActionHelpers.js';
-import { BaseService } from '../../core/BaseService.js';
+import { ActionHelpers } from '../../msd/renderer/ActionHelpers.js';
+import { BaseService } from '../BaseService.js';
 
 export class AnimationManager extends BaseService {
   constructor(systemsManager) {

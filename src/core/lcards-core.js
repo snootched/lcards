@@ -24,12 +24,12 @@ import { CoreSystemsManager } from './systems-manager/index.js';
 import { DataSourceManager } from './data-sources/DataSourceManager.js';  // ✅ Moved to Core
 import { RulesEngine } from './rules/RulesEngine.js';  // ✅ Moved to Core
 import { ThemeManager } from './themes/ThemeManager.js';  // ✅ Moved to Core
-import { AnimationManager } from '../msd/animation/AnimationManager.js';
+import { AnimationManager } from './animation/AnimationManager.js';
 import { CoreValidationService } from './validation-service/index.js';
 
 import { StylePresetManager } from './presets/StylePresetManager.js';  // ✅ Moved to Core
 import { loadBuiltinPacks } from './packs/loadBuiltinPacks.js';  // ✅ Moved to Core
-import { AnimationRegistry } from '../msd/animation/AnimationRegistry.js';  // ✅ Real MSD AnimationRegistry
+import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Moved to Core
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
 
 /**

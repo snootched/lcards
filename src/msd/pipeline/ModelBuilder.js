@@ -1,7 +1,7 @@
 import { applyOverlayPatches } from '../../core/rules/RulesEngine.js';
 import { resolveValueMaps } from '../valueMap/resolveValueMaps.js';
-import { resolveDesiredAnimations } from '../animation/resolveAnimations.js';
-import { resolveDesiredTimelines } from '../animation/resolveTimelines.js';
+import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
+import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { perfTime } from '../perf/PerfCounters.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';

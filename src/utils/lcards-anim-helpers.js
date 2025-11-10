@@ -1,6 +1,6 @@
 import { lcardsLog } from './lcards-logging.js';
 import { animPresets } from './lcards-anim-presets.js';
-import { getAnimationPreset } from '../msd/animation/presets.js';
+import { getAnimationPreset } from '../core/animation/presets.js';
 
 /**
  * Waits for an element to be present in the DOM.
