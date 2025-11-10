@@ -4,7 +4,7 @@
 */
 import { mergePacks } from '../../core/packs/mergePacks.js';
 import { buildCardModel } from '../model/CardModel.js';
-import { RulesEngine } from '../rules/RulesEngine.js';
+import { RulesEngine } from '../../core/rules/RulesEngine.js';
 import { resolveValueMaps } from '../valueMap/resolveValueMaps.js';
 import { AnimationRegistry } from '../animation/AnimationRegistry.js';
 import { resolveDesiredAnimations } from '../animation/resolveAnimations.js';

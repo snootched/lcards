@@ -1,4 +1,4 @@
-import { applyOverlayPatches } from '../rules/RulesEngine.js';
+import { applyOverlayPatches } from '../../core/rules/RulesEngine.js';
 import { resolveValueMaps } from '../valueMap/resolveValueMaps.js';
 import { resolveDesiredAnimations } from '../animation/resolveAnimations.js';
 import { resolveDesiredTimelines } from '../animation/resolveTimelines.js';
