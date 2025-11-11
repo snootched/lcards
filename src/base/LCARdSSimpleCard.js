@@ -204,6 +204,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             });
 
             this._singletons = {
+                systemsManager: core.systemsManager,
                 themeManager: core.getThemeManager(),
                 rulesEngine: core.rulesManager,
                 animationManager: animationManager,
@@ -213,7 +214,18 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 stylePresetManager: core.getStylePresetManager()
             };
 
+            // Register this card with CoreSystemsManager for entity tracking
+            if (this._singletons.systemsManager && this._cardGuid) {
+                this._cardContext = this._singletons.systemsManager.registerCard(
+                    this._cardGuid,
+                    this,
+                    this.config
+                );
+                lcardsLog.debug(`[LCARdSSimpleCard] Registered with CoreSystemsManager: ${this._cardGuid}`);
+            }
+
             lcardsLog.debug(`[LCARdSSimpleCard] Singletons initialized for ${this._cardGuid}`, {
+                hasSystemsManager: !!this._singletons.systemsManager,
                 hasTheme: !!this._singletons.themeManager,
                 hasRules: !!this._singletons.rulesEngine,
                 hasAnimations: !!this._singletons.animationManager,
@@ -448,16 +460,83 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     /**
      * Get entity state
      *
+     * Uses CoreSystemsManager for cached entity access when available,
+     * falls back to direct HASS access for backwards compatibility.
+     *
      * @param {string} entityId - Entity ID (optional, defaults to card's entity)
      * @returns {Object|null} Entity state or null
      */
     getEntityState(entityId = null) {
         const id = entityId || this.config.entity;
-        if (!id || !this.hass) {
+        if (!id) {
             return null;
         }
 
-        return this.hass.states[id] || null;
+        // Use CoreSystemsManager for cached access (preferred)
+        if (this._singletons?.systemsManager) {
+            return this._singletons.systemsManager.getEntityState(id);
+        }
+
+        // Fallback to direct HASS access (backwards compatibility)
+        if (this.hass) {
+            return this.hass.states[id] || null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Subscribe to entity state changes
+     *
+     * Uses CoreSystemsManager's subscription system for efficient change notifications.
+     * Automatically tracks subscriptions for cleanup on card destroy.
+     *
+     * @param {string} entityId - Entity to monitor
+     * @param {Function} callback - Called on change: callback(entityId, newState, oldState)
+     * @returns {Function} Unsubscribe function
+     *
+     * @example
+     * // Subscribe to temperature sensor
+     * const unsubscribe = this.subscribeToEntity('sensor.temperature', (id, newState, oldState) => {
+     *   console.log('Temperature changed from', oldState.state, 'to', newState.state);
+     *   this.requestUpdate();
+     * });
+     *
+     * // Later, unsubscribe
+     * unsubscribe();
+     */
+    subscribeToEntity(entityId, callback) {
+        if (!entityId || typeof callback !== 'function') {
+            lcardsLog.warn('[LCARdSSimpleCard] Invalid entityId or callback for subscription');
+            return () => {}; // No-op unsubscribe
+        }
+
+        if (!this._singletons?.systemsManager) {
+            lcardsLog.warn('[LCARdSSimpleCard] CoreSystemsManager not available for subscription');
+            return () => {}; // No-op unsubscribe
+        }
+
+        // Initialize subscription tracking if needed
+        if (!this._entitySubscriptions) {
+            this._entitySubscriptions = new Set();
+        }
+
+        // Subscribe via CoreSystemsManager
+        const unsubscribe = this._singletons.systemsManager.subscribeToEntity(
+            entityId,
+            callback
+        );
+
+        // Track subscription for automatic cleanup
+        this._entitySubscriptions.add(unsubscribe);
+
+        lcardsLog.debug(`[LCARdSSimpleCard] Subscribed to entity: ${entityId} (card: ${this._cardGuid})`);
+
+        // Return unsubscribe function
+        return () => {
+            this._entitySubscriptions.delete(unsubscribe);
+            unsubscribe();
+        };
     }
 
     /**
@@ -1005,7 +1084,34 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * Called when disconnected from DOM
      * @protected
      */
+        /**
+     * Lifecycle hook - card disconnected from DOM
+     * @protected
+     */
     _onDisconnected() {
+        // Cleanup entity subscriptions
+        if (this._entitySubscriptions) {
+            this._entitySubscriptions.forEach(unsubscribe => {
+                try {
+                    unsubscribe();
+                } catch (error) {
+                    lcardsLog.error('[LCARdSSimpleCard] Error unsubscribing from entity:', error);
+                }
+            });
+            this._entitySubscriptions.clear();
+            lcardsLog.debug(`[LCARdSSimpleCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
+        }
+
+        // Unregister from CoreSystemsManager
+        if (this._singletons?.systemsManager && this._cardGuid) {
+            try {
+                this._singletons.systemsManager.unregisterCard(this._cardGuid);
+                lcardsLog.debug(`[LCARdSSimpleCard] Unregistered from CoreSystemsManager: ${this._cardGuid}`);
+            } catch (error) {
+                lcardsLog.error('[LCARdSSimpleCard] Error unregistering from CoreSystemsManager:', error);
+            }
+        }
+
         // TriggerManager cleanup is handled in setupActions cleanup function
         // Clear any pending animation setup
         this._pendingAnimationSetup = null;
