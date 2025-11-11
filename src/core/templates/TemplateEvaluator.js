@@ -207,10 +207,7 @@ export class TemplateEvaluator {
    * @param {Object} metadata - Additional metadata
    */
   _logEvaluation(content, result, metadata = {}) {
-    if (!lcardsLog.isDebugEnabled()) {
-      return;
-    }
-
+    // Only log if debug level is enabled (lcardsLog.debug will check internally)
     lcardsLog.debug(`[${this.constructor.name}] Evaluation:`, {
       original: content?.substring(0, 100),
       result: result?.substring(0, 100),
