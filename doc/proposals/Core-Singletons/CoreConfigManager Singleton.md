@@ -1,10 +1,11 @@
 # CoreConfigManager - Final Architecture & Implementation Proposal
 
-**Document Version**: 3.0 - FINAL  
+**Document Version**: 4.0 - FINAL (REVISED)  
 **Date**: 2025-11-11  
 **Author**: LCARdS Architecture Team  
 **Status**: Ready for Implementation  
-**Implementation Target**: Core Singleton System
+**Implementation Target**: Core Singleton System  
+**Revision Notes**: Clarified separation of concerns - Card Defaults are BEHAVIORAL only, not style defaults. Style defaults come from Presets + Theme tokens.
 
 ---
 
@@ -12,14 +13,16 @@
 
 1. [Executive Summary](#executive-summary)
 2. [Current State Analysis](#current-state-analysis)
-3. [Architectural Decisions](#architectural-decisions)
-4. [CoreConfigManager Design](#coreconfigmanager-design)
-5. [Implementation Plan](#implementation-plan)
-6. [Schema Registration Pattern](#schema-registration-pattern)
-7. [Usage Examples](#usage-examples)
-8. [MSD Migration Path](#msd-migration-path)
-9. [Testing Strategy](#testing-strategy)
-10. [Success Criteria](#success-criteria)
+3. [Critical Architecture Clarification](#critical-architecture-clarification)
+4. [Configuration Layer Hierarchy](#configuration-layer-hierarchy)
+5. [Architectural Decisions](#architectural-decisions)
+6. [CoreConfigManager Design](#coreconfigmanager-design)
+7. [Implementation Plan](#implementation-plan)
+8. [Schema Registration Pattern](#schema-registration-pattern)
+9. [Usage Examples](#usage-examples)
+10. [MSD Migration Path](#msd-migration-path)
+11. [Testing Strategy](#testing-strategy)
+12. [Success Criteria](#success-criteria)
 
 ---
 
@@ -32,7 +35,9 @@ This proposal finalizes the architecture for **CoreConfigManager** - the last MS
 A **lightweight facade** that coordinates existing proven systems:
 - **Existing**: `mergePacks` (src/core/packs/mergePacks.js) - Deep config merging with provenance
 - **Existing**: `CoreValidationService` (src/core/validation-service/) - Schema validation with error formatting
-- **NEW**: `CoreConfigManager` - Card-type-agnostic API that wraps these systems
+- **Existing**: `StylePresetManager` (src/core/presets/) - Named style configurations with theme token support
+- **Existing**: `ThemeManager` (src/core/themes/) - Theme token resolution and component defaults
+- **NEW**: `CoreConfigManager` - Card-type-agnostic API that orchestrates these systems
 
 ### Key Requirements
 
@@ -41,6 +46,7 @@ A **lightweight facade** that coordinates existing proven systems:
 3. ✅ **Cards self-register schemas** - Schemas ship with card implementations
 4. ✅ **Consistent API** - Same config processing for SimpleCard, MSD, future cards
 5. ✅ **Backward compatible** - Existing MSD configs continue to work
+6. ✅ **Clear separation of concerns** - Card defaults are BEHAVIORAL, not style
 
 ---
 
@@ -69,152 +75,268 @@ All major MSD systems have been extracted to core singletons:
 
 #### 2. Config Merging System (`src/core/packs/mergePacks.js`)
 
-**Already implements comprehensive config merging**:
+**Already implements comprehensive config merging** with full provenance tracking (~700 lines of proven code).
+
+#### 3. Validation System (`src/core/validation-service/index.js`)
+
+**Already implements schema validation** with user-friendly error formatting (~600 lines).
+
+#### 4. Style Preset System (`src/core/presets/StylePresetManager.js`)
+
+**Already implements named style configurations** that can reference theme tokens:
 
 ```javascript
-const merged = await mergePacks(userConfig);
-
-// Returns complete merged config with provenance
-{
-  version: 1,
-  anchors: {},
-  overlays: [],
-  rules: [],
-  animations: [],
-  timelines: [],
-  theme: 'lcars-classic',
-  base_svg: 'builtin:enterprise-d',
-  
-  __provenance: {
-    // Track where every anchor came from
-    anchors: {
-      'bridge_anchor': {
-        origin_pack: 'core',
-        origin_type: 'svg',
-        coordinates: [200, 150],
-        overridden: true,
-        override_source: 'user_config',
-        override_history: [...]
-      }
-    },
-    
-    // Track overlay sources
-    overlays: {
-      'title_overlay': {
-        origin_pack: 'builtin_themes',
-        overridden: true,
-        override_layer: 'user_config'
-      }
-    },
-    
-    // Track theme selection
-    theme: {
-      active_theme: 'lcars-classic',
-      source_pack: 'builtin_themes',
-      requested_theme: 'lcars-classic',
-      default_theme: 'lcars-classic',
-      fallback_used: false,
-      themes_available: ['lcars-classic', 'picard', 'discovery'],
-      theme_pack_loaded: true
-    },
-    
-    // Track pack loading
-    packs: {
-      builtin: ['core', 'builtin_themes', 'lcards_buttons'],
-      external: [],
-      failed: []
-    },
-    
-    // Merge order for debugging
-    merge_order: [
-      { type: 'builtin', pack: 'core', priority: 100 },
-      { type: 'builtin', pack: 'builtin_themes', priority: 101 },
-      { type: 'user', pack: 'user_config', priority: 1000 }
-    ]
+// Example: Button presets
+button: {
+  lozenge: {
+    borderRadius: 25,
+    fontSize: 20,
+    color: 'theme:colors.accent.primary',  // ← Theme token reference
+    height: 'theme:components.button.defaultHeight'
+  },
+  bullet: {
+    borderRadius: 40,
+    fontSize: 18,
+    color: 'theme:colors.accent.secondary'
   }
 }
 ```
 
-**Features**:
-- ✅ Multi-layer merging (builtin → external → user)
-- ✅ ID-based merging (overlays, rules, animations)
-- ✅ Comprehensive provenance tracking
-- ✅ Pack loading with timeout/retry
-- ✅ Removal support (`remove: true`)
-- ✅ ~700 lines of proven, tested code
+#### 5. Theme System (`src/core/themes/ThemeManager.js`)
 
-#### 3. Validation System (`src/core/validation-service/index.js`)
-
-**Already implements schema validation**:
+**Already implements theme token resolution** and component-level defaults:
 
 ```javascript
-const result = validationService.validate(config, schema);
-
-// Returns formatted validation result
+// Example: Theme structure
 {
-  valid: true/false,
-  errors: [
-    {
-      type: 'invalid_enum',
-      field: 'preset',
-      message: 'Invalid enum value',
-      formattedMessage: 'Field "preset" must be one of: lozenge, bullet, picard',
-      suggestion: 'Use one of these values for "preset": lozenge, bullet, picard',
-      severity: 'error',
-      context: { field: 'preset', validValues: 'lozenge, bullet, picard' }
+  colors: {
+    accent: {
+      primary: '#ff9966',
+      secondary: '#99ccff'
     }
-  ],
-  warnings: [
-    {
-      type: 'missing_entity',
-      field: 'entity',
-      message: 'Entity not found in Home Assistant',
-      formattedMessage: 'Entity "light.missing" not found in Home Assistant',
-      suggestion: 'Verify the entity exists in Home Assistant',
-      severity: 'warning'
+  },
+  components: {
+    button: {
+      defaultHeight: 45,
+      defaultColor: 'theme:colors.accent.primary'
+    },
+    text: {
+      defaultFontSize: 16
     }
-  ]
+  }
 }
 ```
 
-**Features**:
-- ✅ Schema registry with common schemas
-- ✅ Type/format/enum validation
-- ✅ Entity existence checking (against HASS)
-- ✅ User-friendly error formatting
-- ✅ Suggestion generation
-- ✅ Result caching
+---
 
-#### 4. MSD Already Uses Core Systems
+## Critical Architecture Clarification
 
-```javascript
-// src/msd/pipeline/PipelineCore.js (lines 80-91)
-lcardsLog.debug('[PipelineCore] 🚀 Phase 1.5: Connecting to LCARdS Core Infrastructure');
-if (hass && lcardsCore._coreInitialized) {
-  lcardsCore.updateHass(hass);
-}
+### The Confusion: What Are "Card Defaults"?
 
-// src/msd/pipeline/ConfigProcessor.js
-export async function processAndValidateConfig(userMsdConfig) {
-  const mergedConfig = await mergePacks(userMsdConfig);  // ✅ Uses core merging
-  const issues = validateMerged(mergedConfig);            // ✅ Uses validation
-  return { mergedConfig, issues, provenance: mergedConfig.__provenance };
-}
+**Problem Identified**: The original proposal suggested shipping style defaults (height, fontSize, etc.) in CoreConfigManager. This creates overlap with:
+- Theme component defaults
+- Style presets
+- Theme tokens
+
+**Resolution**: Card defaults in CoreConfigManager are **BEHAVIORAL ONLY**, not style defaults.
+
+### Clear Separation of Concerns
+
+| System | Purpose | Example Values | Contains Styles? |
+|--------|---------|----------------|------------------|
+| **Card Defaults** (CoreConfigManager) | Behavioral flags & feature toggles | `show_label: true`, `show_icon: false`, `enable_hold_action: true` | ❌ NO |
+| **Theme Component Defaults** (ThemeManager) | Component-level style base | `defaultHeight: 45`, `defaultColor: 'theme:colors.accent.primary'` | ✅ YES |
+| **Style Presets** (StylePresetManager) | Named style configurations | `lozenge: { borderRadius: 25, fontSize: 20 }` | ✅ YES |
+| **User Config** | User overrides | `preset: 'lozenge'`, `style: { color: 'red' }` | ✅ YES |
+
+**Key Principle**: 
+- ✅ **Card Defaults** = Behavior (show/hide, enable/disable features)
+- ✅ **Theme + Presets** = Style (colors, sizes, fonts)
+- ✅ **User Config** = Overrides for both
+
+---
+
+## Configuration Layer Hierarchy
+
+### Static Configuration Layers (Build Time)
+
+These layers are merged by CoreConfigManager during `processConfig()`:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 1: CARD DEFAULTS (Lowest Priority - Behavioral Base)    │
+│  Source: CoreConfigManager.registerCardDefaults()              │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │  {                                                         │ │
+│  │    show_label: true,        ← Behavioral                  │ │
+│  │    show_icon: false,        ← Behavioral                  │ │
+│  │    enable_hold_action: true ← Behavioral                  │ │
+│  │  }                                                         │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 2: THEME DEFAULTS (Low Priority - Component Style Base) │
+│  Source: ThemeManager.getDefault('button', 'base')             │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │  {                                                         │ │
+│  │    style: {                                                │ │
+│  │      height: 45,                     ← Static value       │ │
+│  │      color: 'theme:colors.accent.primary' ← Token         │ │
+│  │    }                                                       │ │
+│  │  }                                                         │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 3: PRESET (Medium Priority - Named Style Config)        │
+│  Source: StylePresetManager.getPreset('button', 'lozenge')    │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │  {                                                         │ │
+│  │    style: {                                                │ │
+│  │      borderRadius: 25,               ← Static value       │ │
+│  │      fontSize: 20,                   ← Static value       │ │
+│  │      color: 'theme:colors.accent.primary' ← Token         │ │
+│  │    }                                                       │ │
+│  │  }                                                         │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 4: USER CONFIG (Highest Static Priority - User Override)│
+│  Source: User's YAML configuration                             │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │  {                                                         │ │
+│  │    type: 'custom:lcards-simple-button',                   │ │
+│  │    preset: 'lozenge',                                      │ │
+│  │    label: 'My Button',                                     │ │
+│  │    show_icon: true,                  ← Override behavior  │ │
+│  │    style: {                                                │ │
+│  │      color: 'red'                    ← Override style     │ │
+│  │    }                                                       │ │
+│  │  }                                                         │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            ▼
+                    ┌───────────────┐
+                    │  Theme Token  │
+                    │  Resolution   │
+                    └───────────────┘
+                            ▼
+                ┌──────────────────────┐
+                │  MERGED CONFIG       │
+                │  (Static Complete)   │
+                └──────────────────────┘
 ```
 
-### What's Missing: CoreConfigManager 🔨
+### Runtime Dynamic Layer (Highest Priority)
 
-A **unified, card-type-agnostic API** that wraps these systems:
+**After static merge, Rules Engine applies live patches**:
 
-**Problem**: Currently each card type accesses systems differently:
-- MSD: `mergePacks()` → `validateMerged()` → manual processing
-- SimpleCard: Direct config assignment → no validation → no provenance
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 5: RULES ENGINE PATCHES (Runtime - Highest Priority)    │
+│  Source: RulesEngine.evaluateDirty() → overlayPatches          │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │  Rules trigger based on entity state changes:             │ │
+│  │                                                            │ │
+│  │  IF entity.state === 'on':                                │ │
+│  │    PATCH overlay 'my_button':                             │ │
+│  │      style.color = 'green'                                │ │
+│  │      style.status_indicator = 'active'                    │ │
+│  │                                                            │ │
+│  │  IF entity.state === 'off':                               │ │
+│  │    PATCH overlay 'my_button':                             │ │
+│  │      style.color = 'gray'                                 │ │
+│  │      style.status_indicator = 'inactive'                  │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Applied by: ModelBuilder._applyOverlayPatches()               │
+│  Timing: Every render cycle (after entity state changes)       │
+│  Priority: OVERRIDES ALL STATIC CONFIG                         │
+└─────────────────────────────────────────────────────────────────┘
+                            ▼
+                ┌──────────────────────┐
+                │  FINAL RUNTIME       │
+                │  CONFIG WITH PATCHES │
+                └──────────────────────┘
+```
 
-**Solution**: Single entry point for all cards:
+### Complete Merge Flow Diagram
 
-```javascript
-const result = await configManager.processConfig(config, cardType, context);
-// Works for SimpleCard, MSD, future cards
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     CONFIG PROCESSING FLOW                      │
+└─────────────────────────────────────────────────────────────────┘
+
+  User writes YAML
+       │
+       ▼
+┌─────────────────┐
+│  User Config    │  ← preset: 'lozenge', style: { color: 'red' }
+└─────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               CoreConfigManager.processConfig()                 │
+│                                                                 │
+│  Step 1: Load Card Defaults (Behavioral)                       │
+│         ↓                                                       │
+│  Step 2: Load Theme Defaults (Component Style Base)            │
+│         ↓                                                       │
+│  Step 3: Load Preset (Named Style Config)                      │
+│         ↓                                                       │
+│  Step 4: Deep Merge (Card → Theme → Preset → User)            │
+│         ↓                                                       │
+│  Step 5: Resolve Theme Tokens ('theme:colors.accent.primary') │
+│         ↓                                                       │
+│  Step 6: Validate Against Schema                               │
+│         ↓                                                       │
+│  Step 7: Return { mergedConfig, provenance, errors }           │
+└─────────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────┐
+│  Merged Config  │  ← All static layers merged, tokens resolved
+└─────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Card Initialization                          │
+│  this._config = result.mergedConfig                            │
+│  this._provenance = result.provenance                          │
+└─────────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    RUNTIME (Every Render)                       │
+│                                                                 │
+│  1. Entity state changes                                        │
+│         ↓                                                       │
+│  2. RulesEngine.evaluateDirty()                                │
+│         ↓                                                       │
+│  3. Generate overlay patches                                    │
+│         ↓                                                       │
+│  4. ModelBuilder._applyOverlayPatches()                        │
+│         ↓                                                       │
+│  5. Patches OVERRIDE static config                             │
+│         ↓                                                       │
+│  6. Renderer uses patched config                               │
+└─────────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────┐
+│  Rendered Card  │  ← Final visual state with live patches
+└─────────────────┘
+
+
+PRIORITY HIERARCHY (Low → High):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Card Defaults (Behavioral)     ← show_label: true
+2. Theme Defaults (Style Base)    ← height: 45
+3. Preset (Named Style)           ← borderRadius: 25
+4. User Config (Static Override)  ← color: 'red'
+5. Rules Patches (Runtime)        ← color: 'green' (when on) ← HIGHEST
 ```
 
 ---
@@ -224,8 +346,8 @@ const result = await configManager.processConfig(config, cardType, context);
 ### Decision 1: CoreConfigManager is a Facade ✅
 
 **Rationale**:
-- `mergePacks` and `CoreValidationService` already do the heavy lifting (~700 lines + ~600 lines)
-- CoreConfigManager provides a unified API (~300 lines)
+- `mergePacks`, `CoreValidationService`, `StylePresetManager`, `ThemeManager` already do the heavy lifting
+- CoreConfigManager orchestrates these systems with a unified API (~400 lines)
 - Avoids duplicating complex, proven logic
 - Enables consistent config processing across all cards
 
@@ -236,7 +358,42 @@ const result = await configManager.processConfig(config, cardType, context);
 
 ---
 
-### Decision 2: MSD MUST Use Core Singletons ✅
+### Decision 2: Card Defaults Are BEHAVIORAL Only ✅
+
+**Rationale**:
+- Style defaults belong in **Presets** (can reference theme tokens, resolved by theme system)
+- Behavioral defaults belong in **CoreConfigManager** (show/hide, enable/disable)
+- Prevents confusion and overlap
+- Clear separation of concerns
+
+**Examples**:
+
+```javascript
+// ✅ CORRECT: Card defaults are behavioral
+registerCardDefaults('simple-button', {
+  show_label: true,
+  show_icon: false,
+  enable_hold_action: true,
+  enable_double_tap: false
+});
+
+// ❌ WRONG: Don't put styles in card defaults
+registerCardDefaults('simple-button', {
+  style: {
+    height: 45,        // ← Should be in theme or preset
+    fontSize: 20       // ← Should be in theme or preset
+  }
+});
+```
+
+**Where Styles Come From**:
+- **Theme Component Defaults**: `ThemeManager.getDefault('button', 'base')`
+- **Presets**: `StylePresetManager.getPreset('button', 'lozenge')`
+- **User Config**: User's YAML `style: { color: 'red' }`
+
+---
+
+### Decision 3: MSD MUST Use Core Singletons ✅
 
 **Rationale**:
 - Eliminates parallel systems
@@ -248,20 +405,9 @@ const result = await configManager.processConfig(config, cardType, context);
 
 **Target State**: MSD uses `CoreConfigManager.processConfig()`
 
-**Migration Path**:
-```javascript
-// BEFORE (current)
-const { mergedConfig, issues } = await processAndValidateConfig(userMsdConfig);
-
-// AFTER (target)
-const result = await configManager.processConfig(userMsdConfig, 'msd', {});
-const mergedConfig = result.mergedConfig;
-const issues = { errors: result.errors, warnings: result.warnings };
-```
-
 ---
 
-### Decision 3: Cards Self-Register Schemas ✅
+### Decision 4: Cards Self-Register Schemas ✅
 
 **Rationale**:
 - Schema lives with card implementation (single source of truth)
@@ -269,130 +415,66 @@ const issues = { errors: result.errors, warnings: result.warnings };
 - Follows "open for extension" principle
 - Schema versioning per card
 
-**Pattern**:
+---
+
+### Decision 5: Rules Engine Has Highest Runtime Priority ✅
+
+**Rationale**:
+- Rules must be able to override ANY static config for live state reflection
+- Entity state changes → Rules evaluate → Patches apply → Visual update
+- This is existing behavior, just documenting it explicitly
+
+**Example**:
 ```javascript
-// src/cards/lcards-simple-button.js
+// Static config says button is red
+mergedConfig.style.color = 'red';
 
-// Define schema inline with card
-const SIMPLE_BUTTON_SCHEMA = {
-  $id: 'simple-button-v1',
-  type: 'object',
-  required: ['type'],
-  properties: {
-    type: { type: 'string', enum: ['custom:lcards-simple-button'] },
-    entity: { type: 'string', pattern: '^[a-z_]+\\.[a-z0-9_]+$' },
-    preset: { 
-      type: 'string', 
-      enum: ['lozenge', 'bullet', 'picard', 'square', 'pill']
-    },
-    label: { type: 'string' },
-    icon: { type: 'string' },
-    style: { type: 'object' },
-    show_label: { type: 'boolean' },
-    show_icon: { type: 'boolean' },
-    tap_action: { type: 'object' },
-    hold_action: { type: 'object' }
-  }
-};
-
-// Self-register when module loads
-if (window.lcardsCore?.configManager) {
-  window.lcardsCore.configManager.registerCardSchema('simple-button', SIMPLE_BUTTON_SCHEMA);
-  window.lcardsCore.configManager.registerCardDefaults('simple-button', {
-    style: {
-      height: 45,
-      fontSize: 20,
-      textAlign: 'right'
-    },
-    show_label: true,
-    show_icon: false
-  });
+// But at runtime, entity turns on → Rule fires
+rule: {
+  conditions: [{ entity: 'light.living_room', state: 'on' }],
+  actions: [{ 
+    overlay: 'my_button',
+    changes: { style: { color: 'green' } }  // ← OVERRIDES static 'red'
+  }]
 }
 
-export class LCARdSSimpleButton extends LCARdSSimpleCard {
-  async setConfig(config) {
-    // Use CoreConfigManager
-    const result = await window.lcardsCore.configManager.processConfig(
-      config,
-      'simple-button',
-      { hass: this.hass, entity: this._entity }
-    );
-    
-    if (!result.valid) {
-      throw new Error(`Config errors: ${result.errors.map(e => e.formattedMessage).join(', ')}`);
-    }
-    
-    this._config = result.mergedConfig;
-    this._provenance = result.provenance;
-  }
-}
+// Final rendered color: green (when light is on)
 ```
 
-**Registration Timing**:
-1. Core initializes → `CoreConfigManager` created
-2. Card module loads → Schema self-registers
-3. Card instance created → Schema available for validation
+**Priority Order**:
+1. Card Defaults (lowest)
+2. Theme Defaults
+3. Preset
+4. User Config
+5. **Rules Patches** ← HIGHEST (runtime only)
 
 ---
 
-### Decision 4: All Provenance Preserved ✅
+### Decision 6: All Provenance Preserved ✅
 
 **Guarantee**: CoreConfigManager wraps `mergePacks`, so all provenance tracking is preserved
-
-```javascript
-// CoreConfigManager.processConfig() implementation
-if (this._usePackMerging(cardType)) {
-  // MSD-style: Full pack merging
-  mergedConfig = await mergePacks(userConfig);
-  provenance = mergedConfig.__provenance;  // ✅ PRESERVED
-} else {
-  // SimpleCards: Simple merge with provenance
-  mergedConfig = this._simpleDeepMerge(defaults, userConfig);
-  provenance = this._createSimpleProvenance(defaults, userConfig);  // ✅ CREATED
-}
-```
 
 **Provenance Structure**:
 ```javascript
 {
-  merge_order: ['defaults', 'theme_defaults', 'preset_lozenge', 'user_config'],
+  merge_order: [
+    'card_defaults',      // show_label: true, show_icon: false
+    'theme_defaults',     // defaultHeight: 45, defaultColor: token
+    'preset_lozenge',     // borderRadius: 25, fontSize: 20
+    'user_config'         // color: red, label: 'My Button'
+  ],
   field_sources: {
-    'style.color': 'user_config',
+    'show_label': 'card_defaults',
+    'show_icon': 'card_defaults',
+    'style.height': 'theme_defaults',
+    'style.borderRadius': 'preset_lozenge',
     'style.fontSize': 'preset_lozenge',
-    'style.height': 'defaults',
-    'style.textAlign': 'theme_defaults'
+    'style.color': 'user_config',
+    'label': 'user_config'
   },
   theme: { /* theme selection provenance */ },
-  packs: { /* pack loading info */ },
-  anchors: { /* anchor provenance per ID */ },
-  overlays: { /* overlay provenance per ID */ }
+  packs: { /* pack loading info */ }
 }
-```
-
-**Use Cases**:
-- User asks "Why is my button orange?" → Check `field_sources['style.color']` → "user_config"
-- Debug theme issues → Check `theme.fallback_used` → "true, requested 'custom' not found"
-- Track anchor overrides → Check `anchors.bridge_anchor.override_history`
-
----
-
-### Decision 5: SimpleCard is Primary Use Case ✅
-
-**Focus**: CoreConfigManager primarily serves SimpleCard foundation
-
-**Rationale**:
-- SimpleCards need validation (currently have none)
-- SimpleCards need default merging (currently shallow)
-- SimpleCards need theme token resolution
-- MSD already works (migration is for consistency)
-
-**SimpleCard Hierarchy**:
-```
-src/base/LCARdSSimpleCard.js          # Base class (uses CoreConfigManager)
-  ├─ src/cards/lcards-simple-button.js    # ✅ IMPLEMENTED
-  ├─ src/cards/lcards-simple-label.js     # Future
-  ├─ src/cards/lcards-simple-slider.js    # Future
-  └─ src/cards/lcards-simple-gauge.js     # Future
 ```
 
 ---
@@ -407,25 +489,22 @@ src/base/LCARdSSimpleCard.js          # Base class (uses CoreConfigManager)
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │      CoreConfigManager (NEW - ~300 lines)              │  │
+│  │      CoreConfigManager (NEW - ~400 lines)              │  │
 │  │                                                         │  │
+│  │  Orchestrates:                                         │  │
 │  │  ┌─ processConfig(config, cardType, context)          │  │
 │  │  ├─ registerCardSchema(type, schema)                  │  │
 │  │  ├─ registerCardDefaults(type, defaults)              │  │
 │  │  └─ getDebugInfo()                                     │  │
 │  │                                                         │  │
-│  │         │                          │                    │  │
-│  │         ▼                          ▼                    │  │
-│  │  ┌─────────────┐          ┌─────────────────────────┐ │  │
-│  │  │  mergePacks │          │ CoreValidationService   │ │  │
-│  │  │  (existing) │          │     (existing)          │ │  │
-│  │  │  ~700 lines │          │     ~600 lines          │ │  │
-│  │  └─────────────┘          └─────────────────────────┘ │  │
+│  │         │           │            │            │         │  │
+│  │         ▼           ▼            ▼            ▼         │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │  │
+│  │  │mergePacks│ │Validation│ │  Preset  │ │  Theme   │ │  │
+│  │  │ (exists) │ │ (exists) │ │  Manager │ │ Manager  │ │  │
+│  │  │~700 lines│ │~600 lines│ │ (exists) │ │ (exists) │ │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ │  │
 │  └────────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ThemeManager (existing) ✅                                   │
-│  StylePresetManager (existing) ✅                             │
-│  AnimationManager (existing) ✅                               │
 └──────────────────────────────────────────────────────────────┘
                            ▲
                            │ All cards use unified API
@@ -433,8 +512,7 @@ src/base/LCARdSSimpleCard.js          # Base class (uses CoreConfigManager)
         │                  │                  │
 ┌───────▼──────┐  ┌────────▼────────┐  ┌─────▼──────┐
 │ SimpleButton │  │   MSD Card      │  │  Future    │
-│ (V2)         │  │                 │  │  Cards     │
-│              │  │                 │  │            │
+│              │  │                 │  │  Cards     │
 │ Self-        │  │ Uses            │  │ Self-      │
 │ registers    │  │ CoreConfigMgr   │  │ register   │
 │ schema       │  │ (migrated)      │  │ schema     │
@@ -446,7 +524,7 @@ src/base/LCARdSSimpleCard.js          # Base class (uses CoreConfigManager)
 ```
 src/core/config-manager/
 ├── index.js                    # CoreConfigManager class (main implementation)
-├── schema-templates.js         # Common schema patterns/templates
+├── merge-helpers.js            # Layer merging utilities
 └── README.md                   # Usage documentation
 ```
 
@@ -456,79 +534,47 @@ src/core/config-manager/
 /**
  * CoreConfigManager - Unified configuration processing facade
  * 
- * Coordinates existing systems (mergePacks, CoreValidationService, ThemeManager)
- * to provide card-type-agnostic config processing with validation, merging,
- * and provenance tracking.
+ * Orchestrates existing systems (mergePacks, CoreValidationService, 
+ * StylePresetManager, ThemeManager) to provide card-type-agnostic 
+ * config processing with validation, merging, and provenance tracking.
  * 
- * @example
- * // In card implementation
- * const result = await configManager.processConfig(
- *   userConfig,
- *   'simple-button',
- *   { hass, entity }
- * );
- * 
- * if (!result.valid) {
- *   throw new Error(result.errors.map(e => e.formattedMessage).join(', '));
- * }
- * 
- * this._config = result.mergedConfig;
- * this._provenance = result.provenance;
+ * KEY PRINCIPLE: Card defaults are BEHAVIORAL only (show/hide, enable/disable).
+ *                Style defaults come from Theme + Presets.
  */
 export class CoreConfigManager {
   /**
    * Process card configuration
    * 
+   * Merge order:
+   * 1. Card defaults (behavioral: show_label, etc.)
+   * 2. Theme defaults (style base: defaultHeight, tokens)
+   * 3. Preset (named style: borderRadius, fontSize)
+   * 4. User config (overrides)
+   * 5. Resolve theme tokens
+   * 6. Validate
+   * 
    * @param {Object} userConfig - Raw config from YAML/UI
    * @param {string} cardType - Card type identifier ('simple-button', 'msd', etc.)
    * @param {Object} context - Additional context { hass, entity, ... }
    * @returns {Promise<ConfigResult>} Result with merged config, validation, provenance
-   * 
-   * @typedef {Object} ConfigResult
-   * @property {boolean} valid - Whether config is valid
-   * @property {Object} mergedConfig - Fully merged configuration
-   * @property {Array<Error>} errors - Validation errors (formatted)
-   * @property {Array<Warning>} warnings - Validation warnings (formatted)
-   * @property {Object} provenance - Merge provenance tracking
    */
   async processConfig(userConfig, cardType, context = {});
 
   /**
-   * Register card type schema
-   * 
-   * @param {string} cardType - Card type identifier
-   * @param {Object} schema - JSON schema definition
-   * @param {Object} options - Registration options
-   * @param {boolean} options.override - Override existing schema
-   * 
-   * @example
-   * configManager.registerCardSchema('simple-button', {
-   *   $id: 'simple-button-v1',
-   *   type: 'object',
-   *   required: ['type'],
-   *   properties: { ... }
-   * });
+   * Register card type schema (for validation)
    */
   registerCardSchema(cardType, schema, options = {});
 
   /**
-   * Register card type defaults
+   * Register card type BEHAVIORAL defaults
    * 
-   * @param {string} cardType - Card type identifier
-   * @param {Object} defaults - Default configuration
-   * 
-   * @example
-   * configManager.registerCardDefaults('simple-button', {
-   *   style: { height: 45, fontSize: 20 },
-   *   show_label: true
-   * });
+   * ⚠️ BEHAVIORAL ONLY: show_label, show_icon, enable_hold_action, etc.
+   * ❌ NOT FOR STYLES: Use Theme + Presets for style defaults
    */
   registerCardDefaults(cardType, defaults);
 
   /**
    * Get debug information
-   * 
-   * @returns {Object} Debug info
    */
   getDebugInfo();
 }
@@ -544,156 +590,123 @@ export class CoreConfigManager {
 
 **File**: `src/core/config-manager/index.js`
 
-**Implementation** (full file):
+**Key Implementation Points**:
+
+1. **BEHAVIORAL defaults only** (no style defaults)
+2. **Four-layer merge**: Card Defaults → Theme Defaults → Preset → User Config
+3. **Preset lookup** via StylePresetManager
+4. **Theme token resolution** via ThemeManager
+5. **Validation** via CoreValidationService
+6. **Provenance tracking** for all layers
+
+**Implementation Skeleton**:
 
 ```javascript
 /**
  * @fileoverview CoreConfigManager - Unified configuration processing facade
- * 
- * Coordinates existing systems (mergePacks, CoreValidationService, ThemeManager)
- * to provide card-type-agnostic config processing.
- * 
- * @module core/config-manager
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { mergePacks } from '../packs/mergePacks.js';
 
-/**
- * CoreConfigManager - High-level configuration coordinator
- * 
- * Wraps existing proven systems with a unified, card-type-agnostic API.
- * Primary use case: SimpleCard foundation (simple-button, simple-label, etc.)
- * 
- * @class CoreConfigManager
- */
 export class CoreConfigManager {
   constructor() {
-    // References to other core systems (set during initialization)
     this.validationService = null;
     this.themeManager = null;
     this.stylePresetManager = null;
     
-    // Card-specific configuration
+    // Card-specific configuration (BEHAVIORAL ONLY)
     this._cardSchemas = new Map();
-    this._cardDefaults = new Map();
-    
-    // Statistics
-    this._stats = {
-      processedConfigs: 0,
-      validationErrors: 0,
-      validationWarnings: 0,
-      schemaRegistrations: 0,
-      defaultRegistrations: 0
-    };
+    this._cardDefaults = new Map();  // ← BEHAVIORAL: show_label, etc.
     
     this.initialized = false;
-    
-    lcardsLog.debug('[CoreConfigManager] Instance created (not initialized)');
   }
 
-  /**
-   * Initialize with singleton references
-   * 
-   * @param {Object} singletons - References to other core systems
-   * @param {CoreValidationService} singletons.validationService - Validation service
-   * @param {ThemeManager} singletons.themeManager - Theme manager
-   * @param {StylePresetManager} singletons.stylePresetManager - Style preset manager
-   * @returns {Promise<void>}
-   */
   async initialize(singletons) {
-    lcardsLog.debug('[CoreConfigManager] 🚀 Initializing...');
-    
     this.validationService = singletons.validationService;
     this.themeManager = singletons.themeManager;
     this.stylePresetManager = singletons.stylePresetManager;
     
-    // Register builtin card types
     this._registerBuiltinCardTypes();
-    
     this.initialized = true;
     
-    lcardsLog.info('[CoreConfigManager] ✅ Initialized', {
-      hasValidationService: !!this.validationService,
-      hasThemeManager: !!this.themeManager,
-      hasStylePresetManager: !!this.stylePresetManager,
-      registeredSchemas: this._cardSchemas.size,
-      registeredDefaults: this._cardDefaults.size
-    });
+    lcardsLog.info('[CoreConfigManager] ✅ Initialized');
   }
 
   /**
    * Process card configuration (main entry point)
    * 
-   * Steps:
-   * 1. Get card defaults
-   * 2. Merge config (pack-based for MSD, simple for others)
-   * 3. Validate against schema
-   * 4. Resolve theme tokens
-   * 5. Return result with provenance
+   * Four-layer merge:
+   * 1. Card defaults (behavioral)
+   * 2. Theme defaults (component style base)
+   * 3. Preset (named style config)
+   * 4. User config (overrides)
    * 
-   * @param {Object} userConfig - Raw config from YAML/UI
-   * @param {string} cardType - Card type ('simple-button', 'msd', etc.)
-   * @param {Object} context - Additional context (hass, entity, etc.)
-   * @returns {Promise<Object>} { valid, mergedConfig, errors, warnings, provenance }
-   * 
-   * @example
-   * const result = await configManager.processConfig(
-   *   { type: 'custom:lcards-simple-button', preset: 'lozenge', label: 'Test' },
-   *   'simple-button',
-   *   { hass, entity }
-   * );
-   * 
-   * if (!result.valid) {
-   *   console.error('Config errors:', result.errors);
-   * }
-   * 
-   * const finalConfig = result.mergedConfig;
-   * const fieldSources = result.provenance.field_sources;
+   * Then: Resolve theme tokens → Validate
    */
   async processConfig(userConfig, cardType, context = {}) {
-    lcardsLog.debug(`[CoreConfigManager] Processing config for ${cardType}`, {
-      hasConfig: !!userConfig,
-      configKeys: Object.keys(userConfig || {})
-    });
-
-    this._stats.processedConfigs++;
+    lcardsLog.debug(`[CoreConfigManager] Processing config for ${cardType}`);
 
     try {
-      // Step 1: Get card defaults
-      const defaults = this._getCardDefaults(cardType);
+      // STEP 1: Get behavioral defaults
+      const behavioralDefaults = this._getCardDefaults(cardType);
 
-      // Step 2: Merge with pack system (for MSD-style cards) or simple merge
+      // STEP 2: Get theme component defaults (style base)
+      let themeDefaults = {};
+      if (this.themeManager && this.themeManager.initialized) {
+        const componentType = this._mapCardTypeToComponent(cardType);
+        const themeDef = this.themeManager.getDefault(componentType, 'base');
+        if (themeDef) {
+          themeDefaults = { style: themeDef };  // Nest under 'style'
+        }
+      }
+
+      // STEP 3: Get preset (if specified in user config)
+      let presetConfig = {};
+      if (userConfig.preset && this.stylePresetManager) {
+        const overlayType = this._mapCardTypeToOverlay(cardType);
+        const preset = this.stylePresetManager.getPreset(overlayType, userConfig.preset);
+        if (preset) {
+          // Presets can have nested 'style' or be flat
+          presetConfig = preset.style ? preset : { style: preset };
+        }
+      }
+
+      // STEP 4: Check if MSD-style pack merging needed
       let mergedConfig;
-      let provenance = null;
+      let provenance;
       
       if (this._usePackMerging(cardType, userConfig)) {
-        // MSD-style: Use full pack merging (preserves all provenance)
-        lcardsLog.debug(`[CoreConfigManager] Using pack merging for ${cardType}`);
+        // MSD: Full pack merging (preserves all provenance)
         mergedConfig = await mergePacks(userConfig);
         provenance = mergedConfig.__provenance;
       } else {
-        // Simple cards: Deep merge defaults + user
-        lcardsLog.debug(`[CoreConfigManager] Using simple merge for ${cardType}`);
-        mergedConfig = this._simpleDeepMerge(defaults, userConfig);
-        provenance = this._createSimpleProvenance(defaults, userConfig, cardType);
+        // SimpleCard: Four-layer merge
+        mergedConfig = this._fourLayerMerge(
+          behavioralDefaults,
+          themeDefaults,
+          presetConfig,
+          userConfig
+        );
+        provenance = this._createProvenance(
+          behavioralDefaults,
+          themeDefaults,
+          presetConfig,
+          userConfig,
+          cardType
+        );
       }
 
-      // Step 3: Validate against schema
-      const validation = this._validateConfig(mergedConfig, cardType, context);
-      
-      if (!validation.valid) {
-        this._stats.validationErrors += validation.errors.length;
-      }
-      this._stats.validationWarnings += validation.warnings.length;
-
-      // Step 4: Resolve theme tokens (if themeManager available)
+      // STEP 5: Resolve theme tokens in final merged config
       if (this.themeManager && this.themeManager.initialized) {
         this._resolveThemeTokens(mergedConfig, cardType);
       }
 
-      // Step 5: Return complete result
-      const result = {
+      // STEP 6: Validate against schema
+      const validation = this._validateConfig(mergedConfig, cardType, context);
+
+      // STEP 7: Return complete result
+      return {
         valid: validation.valid,
         mergedConfig,
         errors: validation.errors,
@@ -701,27 +714,15 @@ export class CoreConfigManager {
         provenance
       };
 
-      lcardsLog.debug(`[CoreConfigManager] Config processed for ${cardType}:`, {
-        valid: result.valid,
-        errorCount: result.errors.length,
-        warningCount: result.warnings.length,
-        hasProvenance: !!result.provenance
-      });
-
-      return result;
-
     } catch (error) {
-      lcardsLog.error(`[CoreConfigManager] Config processing failed for ${cardType}:`, error);
-      
+      lcardsLog.error(`[CoreConfigManager] Processing failed:`, error);
       return {
         valid: false,
         mergedConfig: userConfig,
-        errors: [{
-          type: 'processing_error',
-          message: `Configuration processing failed: ${error.message}`,
-          formattedMessage: `Configuration processing failed: ${error.message}`,
-          suggestion: 'Check your configuration syntax and try again',
-          severity: 'error'
+        errors: [{ 
+          type: 'processing_error', 
+          message: error.message,
+          formattedMessage: `Config processing failed: ${error.message}`
         }],
         warnings: [],
         provenance: null
@@ -730,144 +731,29 @@ export class CoreConfigManager {
   }
 
   /**
-   * Register card type schema
-   * 
-   * @param {string} cardType - Card type identifier
-   * @param {Object} schema - JSON schema definition
-   * @param {Object} options - Registration options
-   * @param {boolean} options.override - Override existing schema
-   * 
-   * @example
-   * configManager.registerCardSchema('simple-button', {
-   *   $id: 'simple-button-v1',
-   *   type: 'object',
-   *   required: ['type'],
-   *   properties: {
-   *     type: { type: 'string', enum: ['custom:lcards-simple-button'] },
-   *     preset: { type: 'string', enum: ['lozenge', 'bullet'] }
-   *   }
-   * });
-   */
-  registerCardSchema(cardType, schema, options = {}) {
-    if (!cardType || !schema) {
-      lcardsLog.warn('[CoreConfigManager] Cannot register schema: missing cardType or schema');
-      return;
-    }
-
-    const exists = this._cardSchemas.has(cardType);
-    
-    if (exists && !options.override) {
-      lcardsLog.warn(`[CoreConfigManager] Schema for ${cardType} already registered (use override: true to replace)`);
-      return;
-    }
-
-    this._cardSchemas.set(cardType, schema);
-    
-    // Also register with CoreValidationService if available
-    if (this.validationService) {
-      this.validationService.schemaRegistry.registerSchema(cardType, schema);
-    }
-    
-    this._stats.schemaRegistrations++;
-    
-    lcardsLog.debug(`[CoreConfigManager] ${exists ? 'Updated' : 'Registered'} schema for ${cardType}`, {
-      schemaId: schema.$id,
-      hasRequired: !!schema.required,
-      propertyCount: Object.keys(schema.properties || {}).length
-    });
-  }
-
-  /**
-   * Register card type defaults
-   * 
-   * @param {string} cardType - Card type identifier
-   * @param {Object} defaults - Default configuration
-   * 
-   * @example
-   * configManager.registerCardDefaults('simple-button', {
-   *   style: {
-   *     height: 45,
-   *     fontSize: 20,
-   *     textAlign: 'right'
-   *   },
-   *   show_label: true,
-   *   show_icon: false
-   * });
-   */
-  registerCardDefaults(cardType, defaults) {
-    if (!cardType || !defaults) {
-      lcardsLog.warn('[CoreConfigManager] Cannot register defaults: missing cardType or defaults');
-      return;
-    }
-
-    const exists = this._cardDefaults.has(cardType);
-    this._cardDefaults.set(cardType, defaults);
-    this._stats.defaultRegistrations++;
-    
-    lcardsLog.debug(`[CoreConfigManager] ${exists ? 'Updated' : 'Registered'} defaults for ${cardType}`, {
-      defaultKeys: Object.keys(defaults)
-    });
-  }
-
-  /**
-   * Validate config against registered schema
+   * Four-layer deep merge: behavioral → theme → preset → user
    * @private
    */
-  _validateConfig(config, cardType, context) {
-    const schema = this._cardSchemas.get(cardType);
-    
-    if (!schema) {
-      lcardsLog.debug(`[CoreConfigManager] No schema registered for ${cardType}, skipping validation`);
-      return { valid: true, errors: [], warnings: [] };
-    }
-
-    if (!this.validationService) {
-      lcardsLog.warn('[CoreConfigManager] ValidationService not available, skipping validation');
-      return { valid: true, errors: [], warnings: [] };
-    }
-
-    return this.validationService.validate(config, schema, context);
+  _fourLayerMerge(behavioral, theme, preset, user) {
+    // Deep merge each layer in order
+    let result = this._deepMerge({}, behavioral);
+    result = this._deepMerge(result, theme);
+    result = this._deepMerge(result, preset);
+    result = this._deepMerge(result, user);
+    return result;
   }
 
   /**
-   * Get card defaults
+   * Deep merge helper (recursive)
    * @private
    */
-  _getCardDefaults(cardType) {
-    const defaults = this._cardDefaults.get(cardType);
-    return defaults ? structuredClone(defaults) : {};
-  }
-
-  /**
-   * Determine if card type should use pack merging
-   * @private
-   */
-  _usePackMerging(cardType, userConfig) {
-    // MSD always uses pack merging
-    if (cardType === 'msd') {
-      return true;
-    }
-    
-    // Simple cards use pack merging if they specify use_packs
-    if (userConfig && userConfig.use_packs) {
-      return true;
-    }
-    
-    // Otherwise use simple merge
-    return false;
-  }
-
-  /**
-   * Simple deep merge for non-MSD cards
-   * @private
-   */
-  _simpleDeepMerge(target, source) {
-    const result = structuredClone(target);
+  _deepMerge(target, source) {
+    const result = { ...target };
     
     for (const [key, value] of Object.entries(source)) {
       if (value && typeof value === 'object' && !Array.isArray(value)) {
         // Nested object - recurse
-        result[key] = this._simpleDeepMerge(result[key] || {}, value);
+        result[key] = this._deepMerge(result[key] || {}, value);
       } else {
         // Primitive or array - overwrite
         result[key] = value;
@@ -878,10 +764,10 @@ export class CoreConfigManager {
   }
 
   /**
-   * Create simple provenance tracking for non-MSD cards
+   * Create provenance tracking for four-layer merge
    * @private
    */
-  _createSimpleProvenance(defaults, userConfig, cardType) {
+  _createProvenance(behavioral, theme, preset, user, cardType) {
     const provenance = {
       card_type: cardType,
       merge_order: [],
@@ -889,68 +775,28 @@ export class CoreConfigManager {
       timestamp: Date.now()
     };
 
-    // Track merge layers
-    if (Object.keys(defaults).length > 0) {
-      provenance.merge_order.push('defaults');
+    // Track layers
+    if (Object.keys(behavioral).length > 0) {
+      provenance.merge_order.push('card_defaults');
     }
-    
-    // Check for theme defaults
-    if (this.themeManager && this.themeManager.initialized) {
-      const componentType = this._mapCardTypeToComponent(cardType);
-      const themeDefaults = this.themeManager.getDefault(componentType, 'base');
-      if (themeDefaults && Object.keys(themeDefaults).length > 0) {
-        provenance.merge_order.push('theme_defaults');
-      }
+    if (Object.keys(theme).length > 0) {
+      provenance.merge_order.push('theme_defaults');
     }
-    
-    // Check for preset
-    if (userConfig.preset) {
-      provenance.merge_order.push(`preset_${userConfig.preset}`);
+    if (user.preset && Object.keys(preset).length > 0) {
+      provenance.merge_order.push(`preset_${user.preset}`);
     }
-    
     provenance.merge_order.push('user_config');
 
-    // Track field sources
-    this._trackFieldSources(provenance.field_sources, defaults, userConfig, '');
+    // Track field sources (simplified - full implementation would be more detailed)
+    this._trackFieldSources(provenance.field_sources, {
+      behavioral, theme, preset, user
+    }, '');
 
     return provenance;
   }
 
   /**
-   * Track field sources for provenance
-   * @private
-   */
-  _trackFieldSources(sources, defaults, userConfig, path) {
-    // Track where each field came from
-    const allKeys = new Set([
-      ...Object.keys(defaults || {}),
-      ...Object.keys(userConfig || {})
-    ]);
-    
-    for (const key of allKeys) {
-      const fieldPath = path ? `${path}.${key}` : key;
-      
-      const userValue = userConfig?.[key];
-      const defaultValue = defaults?.[key];
-      
-      // Recurse into nested objects
-      if (userValue && typeof userValue === 'object' && !Array.isArray(userValue)) {
-        this._trackFieldSources(sources, defaultValue || {}, userValue, fieldPath);
-      } else {
-        // Track source
-        if (key in userConfig) {
-          sources[fieldPath] = 'user_config';
-        } else if (key in defaults) {
-          sources[fieldPath] = 'defaults';
-        }
-      }
-    }
-    
-    return sources;
-  }
-
-  /**
-   * Resolve theme token references in config
+   * Resolve theme tokens in merged config
    * @private
    */
   _resolveThemeTokens(config, cardType) {
@@ -958,265 +804,105 @@ export class CoreConfigManager {
       return;
     }
 
-    lcardsLog.debug(`[CoreConfigManager] Resolving theme tokens for ${cardType}`);
-    
-    // Get component-scoped resolver
     const componentType = this._mapCardTypeToComponent(cardType);
     const resolveToken = this.themeManager.resolver.forComponent(componentType);
     
-    // Walk object tree and resolve tokens
-    this._walkAndResolveTokens(config, resolveToken, '');
+    this._walkAndResolveTokens(config, resolveToken);
   }
 
   /**
-   * Walk object tree and resolve theme tokens
+   * Walk object tree and resolve 'theme:' tokens
    * @private
    */
-  _walkAndResolveTokens(obj, resolveToken, path) {
+  _walkAndResolveTokens(obj, resolveToken) {
     if (!obj || typeof obj !== 'object') return;
     
     for (const [key, value] of Object.entries(obj)) {
-      const fieldPath = path ? `${path}.${key}` : key;
-      
       if (typeof value === 'string' && value.startsWith('theme:')) {
-        // Resolve theme token
-        const tokenPath = value.substring(6); // Remove 'theme:' prefix
-        const resolved = resolveToken(tokenPath, value);
-        
-        if (resolved !== value) {
-          obj[key] = resolved;
-          lcardsLog.debug(`[CoreConfigManager] Resolved token at ${fieldPath}: ${value} → ${resolved}`);
-        }
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        // Recurse into nested objects
-        this._walkAndResolveTokens(value, resolveToken, fieldPath);
+        const tokenPath = value.substring(6);
+        obj[key] = resolveToken(tokenPath, value);
+      } else if (typeof value === 'object' && value !== null) {
+        this._walkAndResolveTokens(value, resolveToken);
       }
     }
   }
 
   /**
-   * Map card type to component type (for ThemeManager)
-   * @private
-   */
-  _mapCardTypeToComponent(cardType) {
-    const mapping = {
-      'simple-button': 'button',
-      'simple-label': 'text',
-      'simple-slider': 'slider',
-      'simple-gauge': 'gauge',
-      'msd': 'msd'
-    };
-    return mapping[cardType] || cardType;
-  }
-
-  /**
-   * Register builtin card types
+   * Register builtin card types (BEHAVIORAL defaults only)
    * @private
    */
   _registerBuiltinCardTypes() {
-    // Register simple-button defaults
+    // Simple Button: BEHAVIORAL defaults only
     this.registerCardDefaults('simple-button', {
-      style: {
-        width: null,
-        height: 45,
-        fontSize: 20,
-        textAlign: 'right'
-      },
-      show_label: true,
-      show_icon: false
+      show_label: true,           // ✅ Behavioral
+      show_icon: false,           // ✅ Behavioral
+      enable_hold_action: true,   // ✅ Behavioral
+      enable_double_tap: false    // ✅ Behavioral
+      // ❌ NO STYLE DEFAULTS - those come from Theme + Presets
     });
 
-    lcardsLog.debug('[CoreConfigManager] Builtin card types registered');
+    // Simple Label
+    this.registerCardDefaults('simple-label', {
+      show_label: true,
+      show_name: true
+    });
   }
 
-  /**
-   * Get statistics
-   * @returns {Object} Statistics
-   */
-  getStats() {
-    return { ...this._stats };
-  }
-
-  /**
-   * Get debug information
-   * @returns {Object} Debug info
-   */
-  getDebugInfo() {
-    return {
-      initialized: this.initialized,
-      hasValidationService: !!this.validationService,
-      hasThemeManager: !!this.themeManager,
-      hasStylePresetManager: !!this.stylePresetManager,
-      registeredCardTypes: {
-        schemas: Array.from(this._cardSchemas.keys()),
-        defaults: Array.from(this._cardDefaults.keys())
-      },
-      stats: this.getStats()
-    };
-  }
-
-  /**
-   * Destroy and clean up
-   */
-  destroy() {
-    this._cardSchemas.clear();
-    this._cardDefaults.clear();
-    this.validationService = null;
-    this.themeManager = null;
-    this.stylePresetManager = null;
-    this.initialized = false;
-    
-    lcardsLog.debug('[CoreConfigManager] Destroyed');
-  }
+  // ... other methods (registerCardSchema, _validateConfig, etc.)
 }
 ```
+
+**See full implementation in original proposal sections for complete code.**
 
 #### Task 1.2: Integrate with lcardsCore
 
 **File**: `src/core/lcards-core.js`
 
-**Changes**:
-
-```javascript
-// CHANGE 1: Add import (line 28, after other imports)
-import { CoreValidationService } from './validation-service/index.js';
-import { CoreConfigManager } from './config-manager/index.js';  // ✅ ADD THIS
-
-// CHANGE 2: Add to constructor (line 55, after validationService)
-this.validationService = null;   // Config validation and error reporting (Phase 2a)
-this.configManager = null;       // ✅ ADD THIS - Config processing coordinator (Phase 2a)
-
-// CHANGE 3: Initialize in _performInitialization (line 154, after ValidationService init)
-// Initialize ValidationService (Phase 2a)
-this.validationService = new CoreValidationService({
-  validateEntities: true,
-  cacheResults: true,
-  debug: false
-});
-await this.validationService.initialize(hass);
-lcardsLog.debug('[LCARdSCore] ✅ ValidationService initialized');
-
-// ✅ ADD THIS BLOCK
-// Initialize ConfigManager (Phase 2a)
-this.configManager = new CoreConfigManager();
-await this.configManager.initialize({
-  validationService: this.validationService,
-  themeManager: this.themeManager,
-  stylePresetManager: this.stylePresetManager
-});
-lcardsLog.debug('[LCARdSCore] ✅ ConfigManager initialized');
-
-// CHANGE 4: Add to cardContext (line 264, after validationService)
-validationService: this.validationService,
-configManager: this.configManager,  // ✅ ADD THIS
-
-// CHANGE 5: Add to getDebugInfo (line 396, after validationService)
-validationService: this.validationService ? this.validationService.getDebugInfo() : null,
-configManager: this.configManager ? this.configManager.getDebugInfo() : null,  // ✅ ADD THIS
-
-// CHANGE 6: Add to destroy (line 695, after validationService)
-if (this.validationService) {
-  this.validationService.destroy();
-  this.validationService = null;
-}
-
-// ✅ ADD THIS BLOCK
-if (this.configManager) {
-  this.configManager.destroy();
-  this.configManager = null;
-}
-```
+**Changes** (same as original proposal):
+- Add import
+- Add to constructor
+- Initialize after ValidationService
+- Add to cardContext
+- Add to debug info
+- Add to destroy
 
 #### Task 1.3: Create Documentation
 
 **File**: `src/core/config-manager/README.md`
 
+Include clarification about behavioral vs. style defaults:
+
 ```markdown
 # CoreConfigManager
 
-Unified configuration processing coordinator for all LCARdS card types.
+## Key Principle: Behavioral vs. Style Defaults
 
-## Purpose
+### ✅ Card Defaults = BEHAVIORAL ONLY
+- `show_label: true` - Whether to display label
+- `show_icon: false` - Whether to display icon
+- `enable_hold_action: true` - Whether hold action is enabled
 
-Provides a single, consistent API for config validation, merging, and provenance tracking across SimpleCard, MSD, and future card types.
+### ❌ Card Defaults ≠ STYLE
+Style defaults come from:
+- **Theme Component Defaults**: `ThemeManager.getDefault('button', 'base')`
+- **Presets**: `StylePresetManager.getPreset('button', 'lozenge')`
 
-## Features
+## Four-Layer Merge
 
-- ✅ Card-type-agnostic config processing
-- ✅ Schema validation with user-friendly errors
-- ✅ Deep config merging with provenance tracking
-- ✅ Theme token resolution
-- ✅ Pack-based merging (for MSD)
-- ✅ Self-registration pattern for card schemas
+1. **Card Defaults** (Behavioral base)
+2. **Theme Defaults** (Component style base with tokens)
+3. **Preset** (Named style configuration)
+4. **User Config** (Overrides)
 
-## Usage
+Then: Resolve theme tokens → Validate → Return
 
-### In Card Implementation
+## Runtime: Rules Engine
 
-```javascript
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
-
-// Define schema
-const CARD_SCHEMA = {
-  $id: 'my-card-v1',
-  type: 'object',
-  required: ['type'],
-  properties: {
-    type: { type: 'string' },
-    label: { type: 'string' }
-  }
-};
-
-// Self-register
-if (window.lcardsCore?.configManager) {
-  window.lcardsCore.configManager.registerCardSchema('my-card', CARD_SCHEMA);
-  window.lcardsCore.configManager.registerCardDefaults('my-card', {
-    label: 'Default Label'
-  });
-}
-
-export class MyCard extends LCARdSSimpleCard {
-  async setConfig(config) {
-    const result = await window.lcardsCore.configManager.processConfig(
-      config,
-      'my-card',
-      { hass: this.hass }
-    );
-    
-    if (!result.valid) {
-      throw new Error(result.errors.map(e => e.formattedMessage).join(', '));
-    }
-    
-    this._config = result.mergedConfig;
-    this._provenance = result.provenance;
-  }
-}
-```
-
-## Architecture
-
-CoreConfigManager is a **facade** that coordinates:
-- `mergePacks` (src/core/packs/mergePacks.js) - Deep merging with provenance
-- `CoreValidationService` (src/core/validation-service/) - Schema validation
-
-## Provenance Tracking
-
-All config processing includes provenance tracking:
-
-```javascript
-{
-  merge_order: ['defaults', 'theme_defaults', 'preset_lozenge', 'user_config'],
-  field_sources: {
-    'style.color': 'user_config',
-    'style.fontSize': 'preset_lozenge',
-    'style.height': 'defaults'
-  }
-}
-```
-
-## API Reference
-
-See JSDoc in `index.js` for complete API documentation.
+After static merge, RulesEngine applies live patches with HIGHEST priority:
+- Entity state changes
+- Rules evaluate
+- Patches override ALL static config
+- Visual updates reflect live state
 ```
 
 ---
@@ -1227,561 +913,357 @@ See JSDoc in `index.js` for complete API documentation.
 
 **File**: `src/base/LCARdSSimpleCard.js`
 
-**Find the `setConfig` method and replace**:
+Update `setConfig` to use CoreConfigManager (same as original proposal).
 
-```javascript
-// BEFORE (current implementation - lines ~50-60)
-setConfig(config) {
-  if (!config) {
-    throw new Error('Invalid configuration');
-  }
-  this._config = config;
-  // ... rest of implementation
-}
-
-// AFTER (using CoreConfigManager)
-async setConfig(config) {
-  if (!config) {
-    throw new Error('Invalid configuration');
-  }
-
-  // Get card type from config or class name
-  const cardType = this._getCardType();
-  
-  // Use CoreConfigManager for unified processing
-  const configManager = this._singletons?.configManager || window.lcardsCore?.configManager;
-  
-  if (configManager) {
-    lcardsLog.debug(`[${this.constructor.name}] Processing config via CoreConfigManager`);
-    
-    try {
-      const result = await configManager.processConfig(
-        config,
-        cardType,
-        {
-          hass: this.hass,
-          entity: this._entity
-        }
-      );
-
-      if (!result.valid) {
-        // Format errors for user display
-        const errorMessages = result.errors.map(e => e.formattedMessage).join('\n');
-        throw new Error(`Configuration errors:\n${errorMessages}`);
-      }
-
-      this._config = result.mergedConfig;
-      this._provenance = result.provenance;
-      
-      lcardsLog.debug(`[${this.constructor.name}] Config processed successfully:`, {
-        valid: result.valid,
-        warnings: result.warnings.length,
-        hasProvenance: !!result.provenance
-      });
-      
-    } catch (error) {
-      lcardsLog.error(`[${this.constructor.name}] Config processing failed:`, error);
-      throw error;
-    }
-  } else {
-    // Fallback: Direct config assignment (for backward compatibility)
-    lcardsLog.warn(`[${this.constructor.name}] CoreConfigManager not available, using fallback`);
-    this._config = config;
-    this._provenance = null;
-  }
-
-  // Continue with existing initialization
-  this._extractEntity();
-  // ... rest of method
-}
-
-// ADD NEW HELPER METHOD
-/**
- * Get card type identifier for config processing
- * @returns {string} Card type (e.g., 'simple-button')
- * @private
- */
-_getCardType() {
-  // Extract from config type if available
-  if (this._config?.type) {
-    const match = this._config.type.match(/custom:lcards-(.*)/);
-    if (match) {
-      return match[1]; // e.g., 'simple-button'
-    }
-  }
-  
-  // Extract from class name
-  const className = this.constructor.name; // e.g., 'LCARdSSimpleButton'
-  const match = className.match(/LCARdSSimple(.+)/);
-  if (match) {
-    const type = match[1].toLowerCase(); // e.g., 'button'
-    return `simple-${type}`;
-  }
-  
-  return 'simple-card';
-}
-```
-
-#### Task 2.2: Update Simple Button Card with Schema Registration
+#### Task 2.2: Update Simple Button with Schema Registration
 
 **File**: `src/cards/lcards-simple-button.js`
 
-**Add at top of file (after imports, before class definition)**:
+**Key Change**: Remove style defaults from card defaults
 
 ```javascript
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
-import { lcardsLog } from '../utils/lcards-logging.js';
-
-// ✅ ADD THIS BLOCK
-/**
- * Simple Button Card Schema
- * Defines valid configuration structure for simple-button cards
- */
-const SIMPLE_BUTTON_SCHEMA = {
-  $id: 'simple-button-v1',
-  type: 'object',
-  required: ['type'],
-  properties: {
-    type: { 
-      type: 'string', 
-      enum: ['custom:lcards-simple-button']
-    },
-    entity: { 
-      type: 'string', 
-      pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-      errorMessage: 'Entity ID must follow format: domain.entity_id'
-    },
-    preset: { 
-      type: 'string', 
-      enum: ['lozenge', 'bullet', 'picard', 'square', 'pill'],
-      errorMessage: 'Preset must be one of: lozenge, bullet, picard, square, pill'
-    },
-    label: { type: 'string' },
-    icon: { type: 'string' },
-    show_label: { type: 'boolean' },
-    show_icon: { type: 'boolean' },
-    style: { 
-      type: 'object',
-      properties: {
-        width: { type: ['number', 'null'] },
-        height: { type: 'number', minimum: 10, maximum: 1000 },
-        fontSize: { type: 'number', minimum: 8, maximum: 100 },
-        textAlign: { type: 'string', enum: ['left', 'center', 'right'] },
-        color: { type: 'string' },
-        backgroundColor: { type: 'string' },
-        borderRadius: { type: 'number', minimum: 0 }
-      }
-    },
-    tap_action: { type: 'object' },
-    hold_action: { type: 'object' },
-    double_tap_action: { type: 'object' }
-  }
-};
-
-/**
- * Simple Button Card Defaults
- * Default values applied when not specified in config
- */
+// ✅ CORRECT: Behavioral defaults only
 const SIMPLE_BUTTON_DEFAULTS = {
-  style: {
-    width: null,
-    height: 45,
-    fontSize: 20,
-    textAlign: 'right'
-  },
   show_label: true,
-  show_icon: false
+  show_icon: false,
+  enable_hold_action: true,
+  enable_double_tap: false
+  // ❌ NO STYLES HERE - they come from Theme + Presets
 };
 
-// Self-register schema and defaults when module loads
+// Self-register
 if (window.lcardsCore?.configManager) {
-  lcardsLog.debug('[SimpleButton] Registering schema and defaults with CoreConfigManager');
-  
-  window.lcardsCore.configManager.registerCardSchema(
-    'simple-button', 
-    SIMPLE_BUTTON_SCHEMA,
-    { override: true }
-  );
-  
   window.lcardsCore.configManager.registerCardDefaults(
     'simple-button',
     SIMPLE_BUTTON_DEFAULTS
   );
-  
-  lcardsLog.info('[SimpleButton] ✅ Schema and defaults registered');
-} else {
-  lcardsLog.warn('[SimpleButton] CoreConfigManager not available, schema not registered');
-}
-
-// Existing class definition follows...
-export class LCARdSSimpleButton extends LCARdSSimpleCard {
-  // ... existing implementation
 }
 ```
 
-#### Task 2.3: Add Tests
-
-**File**: `test/unit/core/config-manager.test.js` (new file)
-
+**Style defaults should be in**:
+1. **Theme** (`src/core/themes/packs/builtin_themes.js`):
 ```javascript
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { CoreConfigManager } from '../../../src/core/config-manager/index.js';
+components: {
+  button: {
+    defaultHeight: 45,
+    defaultColor: 'theme:colors.accent.primary'
+  }
+}
+```
 
-describe('CoreConfigManager', () => {
-  let configManager;
-  let mockValidationService;
-  let mockThemeManager;
-
-  beforeEach(() => {
-    configManager = new CoreConfigManager();
-    
-    mockValidationService = {
-      validate: (config, schema) => ({ valid: true, errors: [], warnings: [] }),
-      schemaRegistry: {
-        registerSchema: () => {}
-      }
-    };
-    
-    mockThemeManager = {
-      initialized: true,
-      resolver: {
-        forComponent: () => (token) => token
-      },
-      getDefault: () => ({})
-    };
-    
-    configManager.initialize({
-      validationService: mockValidationService,
-      themeManager: mockThemeManager,
-      stylePresetManager: null
-    });
-  });
-
-  it('should merge base defaults with user config', async () => {
-    configManager.registerCardDefaults('test-card', {
-      style: { height: 45, fontSize: 20 }
-    });
-
-    const result = await configManager.processConfig(
-      { style: { color: 'red' } },
-      'test-card',
-      {}
-    );
-
-    expect(result.valid).toBe(true);
-    expect(result.mergedConfig.style.height).toBe(45);
-    expect(result.mergedConfig.style.fontSize).toBe(20);
-    expect(result.mergedConfig.style.color).toBe('red');
-  });
-
-  it('should track provenance for all fields', async () => {
-    configManager.registerCardDefaults('test-card', {
-      style: { height: 45 }
-    });
-
-    const result = await configManager.processConfig(
-      { style: { color: 'red' } },
-      'test-card',
-      {}
-    );
-
-    expect(result.provenance.field_sources['style.height']).toBe('defaults');
-    expect(result.provenance.field_sources['style.color']).toBe('user_config');
-  });
-
-  it('should validate against registered schema', async () => {
-    const schema = {
-      type: 'object',
-      required: ['type'],
-      properties: {
-        type: { type: 'string', enum: ['test'] }
-      }
-    };
-
-    mockValidationService.validate = (config, schema) => ({
-      valid: false,
-      errors: [{ type: 'invalid_enum', field: 'type' }],
-      warnings: []
-    });
-
-    configManager.registerCardSchema('test-card', schema);
-
-    const result = await configManager.processConfig(
-      { type: 'invalid' },
-      'test-card',
-      {}
-    );
-
-    expect(result.valid).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-  });
-});
+2. **Presets** (`src/core/presets/packs/lcards_buttons.js`):
+```javascript
+button: {
+  lozenge: {
+    borderRadius: 25,
+    fontSize: 20,
+    color: 'theme:colors.accent.primary'
+  }
+}
 ```
 
 ---
 
 ### Phase 3: MSD Migration (2-3 days)
 
-#### Task 3.1: Update MSD ConfigProcessor
-
-**File**: `src/msd/pipeline/ConfigProcessor.js`
-
-**Replace the entire `processAndValidateConfig` function**:
-
-```javascript
-// BEFORE (lines 7-59)
-export async function processAndValidateConfig(userMsdConfig) {
-  const mergedConfig = await mergePacks(userMsdConfig);
-  const provenance = mergedConfig.__provenance;
-  
-  // ... existing validation logic
-  
-  return { mergedConfig, issues, provenance };
-}
-
-// AFTER (using CoreConfigManager)
-export async function processAndValidateConfig(userMsdConfig) {
-  lcardsLog.debug('[ConfigProcessor] Processing MSD config via CoreConfigManager');
-  
-  // Use CoreConfigManager for unified processing
-  const configManager = window.lcardsCore?.configManager;
-  
-  if (configManager && configManager.initialized) {
-    // NEW PATH: Use CoreConfigManager
-    const result = await configManager.processConfig(
-      userMsdConfig,
-      'msd',
-      {}
-    );
-    
-    // Convert to MSD expected format
-    const issues = {
-      errors: result.errors.map(err => ({
-        code: err.type,
-        severity: 'error',
-        message: err.formattedMessage || err.message,
-        msg: err.message
-      })),
-      warnings: result.warnings.map(warn => ({
-        code: warn.type,
-        severity: 'warning',
-        message: warn.formattedMessage || warn.message,
-        msg: warn.message
-      }))
-    };
-    
-    const mergedConfig = result.mergedConfig;
-    const provenance = result.provenance;
-    
-    lcardsLog.debug('[ConfigProcessor] MSD config processed via CoreConfigManager:', {
-      valid: result.valid,
-      errorCount: issues.errors.length,
-      warningCount: issues.warnings.length
-    });
-    
-    // Continue with MSD-specific anchor validation (existing logic)
-    try {
-      const existingCodes = new Set(issues.errors.map(e => e.code));
-      const anchorSet = new Set(Object.keys(mergedConfig.anchors || {}));
-
-      const overlayIds = new Set();
-      (mergedConfig.overlays || []).forEach(overlay => {
-        if (overlay && overlay.id) {
-          overlayIds.add(overlay.id);
-          anchorSet.add(overlay.id);
-        }
-      });
-
-      (mergedConfig.overlays || []).forEach(o => {
-        if (!o || !o.id) return;
-        const aRefs = [];
-        if (typeof o.anchor === 'string') aRefs.push(o.anchor);
-        if (typeof o.attach_to === 'string') aRefs.push(o.attach_to);
-        if (typeof o.attachTo === 'string') aRefs.push(o.attachTo);
-        aRefs.forEach(ref => {
-          if (ref && !anchorSet.has(ref)) {
-            const code = 'anchor.missing';
-            if (!existingCodes.has(`${code}:${ref}:${o.id}`)) {
-              issues.errors.push({
-                code,
-                severity: 'error',
-                overlay: o.id,
-                anchor: ref,
-                msg: `Overlay ${o.id} references missing anchor '${ref}'`
-              });
-              existingCodes.add(`${code}:${ref}:${o.id}`);
-            }
-          }
-        });
-      });
-    } catch (anchorError) {
-      lcardsLog.warn('[ConfigProcessor] Anchor validation failed:', anchorError);
-    }
-
-    return { mergedConfig, issues, provenance };
-    
-  } else {
-    // FALLBACK PATH: Use legacy direct mergePacks (for backward compatibility)
-    lcardsLog.warn('[ConfigProcessor] CoreConfigManager not available, using legacy path');
-    
-    const mergedConfig = await mergePacks(userMsdConfig);
-    const provenance = mergedConfig.__provenance;
-
-    // Store original user config in debug namespace
-    if (typeof window !== 'undefined') {
-      window.lcards = window.lcards || {};
-      window.lcards.debug = window.lcards.debug || {};
-      window.lcards.debug.msd = window.lcards.debug.msd || {};
-      window.lcards.debug.msd._originalUserConfig = userMsdConfig;
-    }
-
-    // Validation pass (existing logic)
-    const t0 = performance.now();
-    const issues = validateMerged(mergedConfig);
-    mergedConfig.__issues = issues;
-    const t1 = performance.now();
-    try {
-      window.lcards.debug.msd && (window.lcards.debug.msd._validationMs = (t1 - t0));
-    } catch {}
-
-    // Anchor validation (existing logic - same as above)
-    try {
-      const existingCodes = new Set(issues.errors.map(e => e.code));
-      const anchorSet = new Set(Object.keys(mergedConfig.anchors || {}));
-      // ... same anchor validation logic
-    } catch {}
-
-    return { mergedConfig, issues, provenance };
-  }
-}
-```
-
-#### Task 3.2: Register MSD Schema
-
-**File**: `src/msd/schemas/msd-schema-registration.js` (new file)
-
-```javascript
-/**
- * MSD Card Schema Registration
- * 
- * Registers the MSD card configuration schema with CoreConfigManager.
- * This enables validation of MSD configs through the unified config system.
- */
-
-import { lcardsLog } from '../../utils/lcards-logging.js';
-
-/**
- * MSD Card Configuration Schema
- * Defines the valid structure for MSD (Master Systems Display) cards
- */
-export const MSD_SCHEMA = {
-  $id: 'msd-v1',
-  type: 'object',
-  required: ['type'],
-  properties: {
-    type: { 
-      type: 'string', 
-      enum: ['custom:cb-lcars-card']
-    },
-    version: { type: 'number' },
-    use_packs: {
-      type: 'object',
-      properties: {
-        builtin: { type: 'array', items: { type: 'string' } },
-        external: { type: 'array', items: { type: 'string' } }
-      }
-    },
-    theme: { type: 'string' },
-    base_svg: { 
-      oneOf: [
-        { type: 'string' },
-        { 
-          type: 'object',
-          properties: {
-            source: { type: 'string' },
-            filters: { type: 'object' },
-            filter_preset: { type: 'string' }
-          }
-        }
-      ]
-    },
-    view_box: { 
-      type: 'array',
-      minItems: 4,
-      maxItems: 4,
-      items: { type: 'number' }
-    },
-    anchors: { type: 'object' },
-    overlays: { 
-      type: 'array',
-      items: { type: 'object' }
-    },
-    rules: {
-      type: 'array',
-      items: { type: 'object' }
-    },
-    animations: {
-      type: 'array',
-      items: { type: 'object' }
-    },
-    timelines: {
-      type: 'array',
-      items: { type: 'object' }
-    },
-    data_sources: { type: 'object' },
-    routing: { type: 'object' },
-    debug: { type: 'object' },
-    remove: { type: 'object' }
-  }
-};
-
-/**
- * Register MSD schema with CoreConfigManager
- * Called during MSD initialization
- */
-export function registerMSDSchema() {
-  if (window.lcardsCore?.configManager) {
-    lcardsLog.debug('[MSD] Registering schema with CoreConfigManager');
-    
-    window.lcardsCore.configManager.registerCardSchema(
-      'msd',
-      MSD_SCHEMA,
-      { override: true }
-    );
-    
-    lcardsLog.info('[MSD] ✅ Schema registered with CoreConfigManager');
-  } else {
-    lcardsLog.warn('[MSD] CoreConfigManager not available, schema not registered');
-  }
-}
-
-// Auto-register when module loads
-registerMSDSchema();
-```
-
-**Import in MSD index**:
-
-```javascript
-// src/msd/index.js
-import './schemas/msd-schema-registration.js';  // ✅ ADD THIS
-```
+Same as original proposal - update ConfigProcessor to use CoreConfigManager.
 
 ---
 
 ## Schema Registration Pattern
 
-### Self-Registration Flow
+Same as original proposal - cards self-register schemas when module loads.
 
+---
+
+## Usage Examples
+
+### Example 1: Simple Button with Full Layer Resolution
+
+```javascript
+// 1. CARD DEFAULTS (Behavioral)
+registerCardDefaults('simple-button', {
+  show_label: true,
+  show_icon: false
+});
+
+// 2. THEME DEFAULTS (Component Style Base)
+// From ThemeManager (builtin_themes pack)
+theme.components.button = {
+  defaultHeight: 45,
+  defaultColor: 'theme:colors.accent.primary'  // Token: '#ff9966'
+};
+
+// 3. PRESET (Named Style Config)
+// From StylePresetManager (lcards_buttons pack)
+presets.button.lozenge = {
+  borderRadius: 25,
+  fontSize: 20,
+  color: 'theme:colors.accent.primary'
+};
+
+// 4. USER CONFIG
+const userConfig = {
+  type: 'custom:lcards-simple-button',
+  preset: 'lozenge',
+  entity: 'light.living_room',
+  label: 'Living Room',
+  show_icon: true,  // Override behavioral default
+  style: {
+    color: 'red'    // Override preset color
+  }
+};
+
+// RESULT AFTER CoreConfigManager.processConfig():
+{
+  type: 'custom:lcards-simple-button',
+  entity: 'light.living_room',
+  label: 'Living Room',
+  preset: 'lozenge',
+  show_label: true,        // From card defaults
+  show_icon: true,         // From user config (overrides default false)
+  style: {
+    height: 45,            // From theme defaults
+    borderRadius: 25,      // From preset
+    fontSize: 20,          // From preset
+    color: 'red'           // From user config (overrides preset)
+  }
+}
+
+// PROVENANCE:
+{
+  merge_order: ['card_defaults', 'theme_defaults', 'preset_lozenge', 'user_config'],
+  field_sources: {
+    'show_label': 'card_defaults',
+    'show_icon': 'user_config',
+    'style.height': 'theme_defaults',
+    'style.borderRadius': 'preset_lozenge',
+    'style.fontSize': 'preset_lozenge',
+    'style.color': 'user_config'
+  }
+}
 ```
-1. Core Init
-   └─> LCARdSCore initialized
-       └─> CoreConfigManager initialized
-           └─> window.lcardsCore.configManager available
 
-2. Card Module Load
-   └─> Card file executed
-       └─> Schema defined inline
-       └─> Self-registration block executes
-           if (window.lcardsCore?.configManager) {
-             configManager.registerCardSchema(...)
-             configManager.
+### Example 2: Runtime Rules Override
+
+```javascript
+// After static merge, button color is 'red' (from user config)
+mergedConfig.style.color = 'red';
+
+// Entity is light.living_room, currently OFF
+entity.state = 'off';
+
+// But Rules Engine has a rule:
+rules: [{
+  conditions: [{ entity: 'light.living_room', state: 'on' }],
+  actions: [{ 
+    overlay: 'living_room_button',
+    changes: { 
+      style: { 
+        color: 'green',              // ← OVERRIDE static red
+        status_indicator: 'active'
+      }
+    }
+  }]
+}];
+
+// At runtime, when light turns ON:
+// 1. Entity state changes: entity.state = 'on'
+// 2. RulesEngine evaluates: Rule matches!
+// 3. Patch generated: { style: { color: 'green', status_indicator: 'active' } }
+// 4. ModelBuilder applies patch: finalStyle.color = 'green' (OVERRIDES red)
+// 5. Renderer displays button in green
+
+// PRIORITY ORDER AT RUNTIME:
+// User config: color = 'red' (priority 4)
+// Rules patch: color = 'green' (priority 5) ← WINS!
+// Final render: GREEN button
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+**File**: `test/unit/core/config-manager.test.js`
+
+```javascript
+describe('CoreConfigManager - Layer Merging', () => {
+  it('should apply four-layer merge correctly', async () => {
+    // Setup: Card defaults, theme defaults, preset, user config
+    configManager.registerCardDefaults('test-card', {
+      show_label: true    // Behavioral
+    });
+    
+    mockThemeManager.getDefault = () => ({
+      defaultHeight: 45   // Style from theme
+    });
+    
+    mockStylePresetManager.getPreset = () => ({
+      style: {
+        borderRadius: 25,  // Style from preset
+        fontSize: 20
+      }
+    });
+    
+    const userConfig = {
+      preset: 'test-preset',
+      style: { color: 'red' }  // User override
+    };
+    
+    const result = await configManager.processConfig(userConfig, 'test-card', {});
+    
+    // Verify merge
+    expect(result.mergedConfig.show_label).toBe(true);        // From card defaults
+    expect(result.mergedConfig.style.height).toBe(45);        // From theme
+    expect(result.mergedConfig.style.borderRadius).toBe(25);  // From preset
+    expect(result.mergedConfig.style.fontSize).toBe(20);      // From preset
+    expect(result.mergedConfig.style.color).toBe('red');      // From user
+    
+    // Verify provenance
+    expect(result.provenance.field_sources['show_label']).toBe('card_defaults');
+    expect(result.provenance.field_sources['style.color']).toBe('user_config');
+  });
+
+  it('should NOT include styles in card defaults', () => {
+    // Anti-pattern test
+    configManager.registerCardDefaults('test-card', {
+      show_label: true,
+      style: { height: 45 }  // ← This should NOT be done
+    });
+    
+    // Card defaults should be behavioral only
+    const defaults = configManager._getCardDefaults('test-card');
+    expect(defaults.show_label).toBe(true);  // ✅ OK
+    expect(defaults.style).toBeUndefined();  // ✅ Should not have styles
+  });
+});
+
+describe('CoreConfigManager - Theme Token Resolution', () => {
+  it('should resolve theme tokens after merge', async () => {
+    mockStylePresetManager.getPreset = () => ({
+      style: {
+        color: 'theme:colors.accent.primary'  // Token
+      }
+    });
+    
+    mockThemeManager.resolver.forComponent = () => (token) => {
+      if (token === 'colors.accent.primary') return '#ff9966';
+      return token;
+    };
+    
+    const result = await configManager.processConfig(
+      { preset: 'test' }, 
+      'test-card', 
+      {}
+    );
+    
+    // Token should be resolved
+    expect(result.mergedConfig.style.color).toBe('#ff9966');
+  });
+});
+```
+
+### Integration Tests
+
+Test complete flow with real cards:
+
+```javascript
+describe('SimpleButton - Full Config Flow', () => {
+  it('should merge all layers and resolve tokens', async () => {
+    // Setup real systems
+    const card = await fixture(html`
+      <lcards-simple-button
+        .config=${{
+          preset: 'lozenge',
+          label: 'Test',
+          style: { color: 'red' }
+        }}
+      ></lcards-simple-button>
+    `);
+
+    // Verify merged config
+    expect(card._config.show_label).toBe(true);        // Card default
+    expect(card._config.style.height).toBe(45);        // Theme default
+    expect(card._config.style.borderRadius).toBe(25);  // Preset
+    expect(card._config.style.color).toBe('red');      // User override
+    
+    // Verify provenance
+    expect(card._provenance.field_sources['show_label']).toBe('card_defaults');
+  });
+});
+```
+
+---
+
+## Success Criteria
+
+### Phase 1: CoreConfigManager Created ✅
+- [ ] `src/core/config-manager/index.js` implemented
+- [ ] Integrated with `lcardsCore` singleton
+- [ ] Four-layer merge working (behavioral → theme → preset → user)
+- [ ] Theme token resolution working
+- [ ] Unit tests passing
+- [ ] Documentation complete
+
+### Phase 2: SimpleCard Integration ✅
+- [ ] `LCARdSSimpleCard.setConfig()` uses CoreConfigManager
+- [ ] `lcards-simple-button` registers schema and behavioral defaults
+- [ ] No style defaults in card defaults (only behavioral)
+- [ ] Preset lookup working
+- [ ] Theme token resolution working in real cards
+- [ ] Integration tests passing
+
+### Phase 3: MSD Migration ✅
+- [ ] `ConfigProcessor.processAndValidateConfig()` uses CoreConfigManager
+- [ ] MSD schema registered
+- [ ] Provenance tracking preserved
+- [ ] All MSD tests passing
+- [ ] Backward compatibility verified
+
+### Overall Success ✅
+- [ ] All cards use single config processing API
+- [ ] Clear separation: Behavioral defaults vs. Style defaults
+- [ ] Rules Engine can override any static config at runtime
+- [ ] Provenance tracking complete
+- [ ] Zero regressions in existing functionality
+
+---
+
+## Appendix: Complete Priority Hierarchy
+
+### Static Configuration (Build Time)
+
+| Priority | Layer | Source | Example Values | Type |
+|----------|-------|--------|----------------|------|
+| 1 (Lowest) | Card Defaults | CoreConfigManager | `show_label: true` | Behavioral |
+| 2 | Theme Defaults | ThemeManager | `defaultHeight: 45` | Style |
+| 3 | Preset | StylePresetManager | `borderRadius: 25` | Style |
+| 4 | User Config | YAML | `color: 'red'` | Both |
+
+### Runtime Configuration (Every Render)
+
+| Priority | Layer | Source | Example Values | Type |
+|----------|-------|--------|----------------|------|
+| 5 (Highest) | Rules Patches | RulesEngine | `color: 'green'` (when on) | Style |
+
+**Key Insight**: Rules patches have FINAL SAY at runtime, overriding all static config.
+
+---
+
+## Document Change Log
+
+- **v1.0** (2025-11-11): Initial proposal
+- **v2.0** (2025-11-11): Added MSD migration path
+- **v3.0** (2025-11-11): Clarified schema registration pattern
+- **v4.0** (2025-11-11): **MAJOR REVISION**
+  - Clarified Card Defaults are BEHAVIORAL only (no styles)
+  - Added four-layer merge flow diagram
+  - Documented Rules Engine as highest runtime priority
+  - Updated all examples to reflect behavioral vs. style separation
+  - Added complete priority hierarchy table
+
+---
+
+**Document End**
