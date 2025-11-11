@@ -25,6 +25,7 @@
 import { html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { LCARdSNativeCard } from './LCARdSNativeCard.js';
+import { TriggerManager } from '../core/animation/TriggerManager.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -525,126 +526,73 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     // ANIMATION SYSTEM - Generic animation support for all SimpleCards
     // ============================================================================
 
+    // ============================================================================
+    // ANIMATION SYSTEM - Integrated with TriggerManager
+    // ============================================================================
+
     /**
-     * Register animations from YAML config
-     * This method should be called by subclasses during initialization
-     * @protected
+     * Register pending animations with AnimationManager (late-binding helper)
+     * Called when animations are triggered but AnimationManager wasn't ready during setup
+     * @private
      */
-    _registerAnimations() {
-        const animations = this.config.animations;
-
-        lcardsLog.debug(`[LCARdSSimpleCard] Animation registration check for ${this._cardGuid}:`, {
-            hasAnimations: !!animations,
-            animationCount: animations ? animations.length : 0,
-            animationTypes: animations ? animations.map(a => a.trigger) : []
-        });
-
-        if (!animations || !Array.isArray(animations)) {
-            lcardsLog.debug(`[LCARdSSimpleCard] No animations configured`);
-            return;
+    async _ensureAnimationsRegistered() {
+        // Check if we have pending animations and AnimationManager is now available
+        if (!this._pendingAnimationSetup) {
+            return; // Already registered or no animations
         }
 
-        // Store animations for trigger-based execution
-        this._animationConfigs = new Map();
-
-        animations.forEach(animConfig => {
-            const trigger = animConfig.trigger || 'on_tap';
-            if (!this._animationConfigs.has(trigger)) {
-                this._animationConfigs.set(trigger, []);
-            }
-            this._animationConfigs.get(trigger).push(animConfig);
-        });
-
-        // Get card-specific animation setup from subclass
-        const animationSetup = this._getAnimationSetup?.() || {};
-
-        // Register overlay scope with AnimationManager when it becomes available
-        this._pendingOverlayRegistration = {
-            overlayId: animationSetup.overlayId || `simple-card-${this._cardGuid}`,
-            animations: animations,
-            elementSelector: animationSetup.elementSelector || '[data-overlay-id]'
-        };
-
-        lcardsLog.info(`[LCARdSSimpleCard] ✅ Stored ${animations.length} animation configs for direct triggering`, {
-            cardGuid: this._cardGuid,
-            animationTriggers: animations.map(a => a.trigger),
-            triggerCount: this._animationConfigs.size
-        });
-    }
-
-    /**
-     * Trigger animations for a specific trigger type
-     * @param {string} trigger - Trigger type (on_tap, on_hover, etc.)
-     * @param {Element} element - Target element
-     * @protected
-     */
-    _triggerAnimations(trigger, element) {
-        // LATE-BINDING: Check AnimationManager when needed, not cached at init
+        // Try to get AnimationManager via late binding
         const core = window.lcards?.core;
         const animationManager = core?.getAnimationManager?.();
-        const configs = this._animationConfigs?.get(trigger);
 
-        lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Animation trigger attempt (late-binding):`, {
-            trigger,
-            hasCore: !!core,
-            hasGetMethod: typeof core?.getAnimationManager === 'function',
-            hasAnimationManager: !!animationManager,
-            animationManagerType: animationManager?.constructor?.name,
-            hasConfigs: !!configs,
-            configCount: configs ? configs.length : 0,
-            hasElement: !!element,
-            elementTag: element?.tagName
+        if (!animationManager) {
+            lcardsLog.warn(`[LCARdSSimpleCard] AnimationManager still not available for late binding`);
+            return; // Still not ready
+        }
+
+        const { overlayId, animations, elementSelector, element } = this._pendingAnimationSetup;
+
+        lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Late-binding animation registration for ${overlayId}:`, {
+            animationCount: animations.length,
+            triggers: animations.map(a => a.trigger || 'on_tap')
         });
 
-        if (!animationManager || !configs || configs.length === 0) {
-            lcardsLog.warn(`[LCARdSSimpleCard] ❌ Animation trigger failed (late-binding):`, {
-                trigger,
-                missingCore: !core,
-                missingGetMethod: !core?.getAnimationManager,
-                missingAnimationManager: !animationManager,
-                missingConfigs: !configs,
-                emptyConfigs: configs && configs.length === 0
-            });
+        // Find the target element
+        const targetElement = this.shadowRoot?.querySelector(elementSelector) || element;
+
+        if (!targetElement) {
+            lcardsLog.warn(`[LCARdSSimpleCard] Target element not found for late binding: ${elementSelector}`);
             return;
         }
 
-        lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Triggering ${configs.length} animations for trigger: ${trigger}`);
+        // Create anime.js scope for this overlay (like AnimationManager.createScopeForOverlay)
+        const scope = animationManager.createScopeForOverlay(overlayId, targetElement);
 
-        // Register overlay scope with AnimationManager if not done yet
-        if (this._pendingOverlayRegistration && animationManager.onOverlayRendered) {
-            const targetElement = this.shadowRoot?.querySelector(this._pendingOverlayRegistration.elementSelector);
+        // Create TriggerManager
+        this._triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
 
-            if (targetElement) {
-                lcardsLog.debug(`[LCARdSSimpleCard] 🎨 Registering overlay scope: ${this._pendingOverlayRegistration.overlayId}`);
+        // Store scope data in AnimationManager (like onOverlayRendered does)
+        animationManager.scopes.set(overlayId, {
+            scope: scope,
+            overlay: { animations },
+            element: targetElement,
+            activeAnimations: new Set(),
+            triggerManager: this._triggerManager,
+            runningInstances: new Map()
+        });
 
-                // Register the element as an overlay scope
-                animationManager.onOverlayRendered(
-                    this._pendingOverlayRegistration.overlayId,
-                    targetElement,
-                    {
-                        animations: this._pendingOverlayRegistration.animations
-                    }
-                );
+        lcardsLog.debug(`[LCARdSSimpleCard] Created scope for overlay: ${overlayId}`);
 
-                this._pendingOverlayRegistration = null; // Mark as registered
-            }
+        // Register each animation using AnimationManager.registerAnimation()
+        // This handles TriggerManager registration AND on_load execution
+        for (const animConfig of animations) {
+            await animationManager.registerAnimation(overlayId, animConfig);
         }
 
-        // Trigger each animation for this trigger
-        configs.forEach((config, index) => {
-            try {
-                // Use the registered overlay ID and play animation
-                if (animationManager.playAnimation) {
-                    const overlayId = this._getAnimationSetup?.()?.overlayId || `simple-card-${this._cardGuid}`;
-                    lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Playing animation on overlay: ${overlayId}`, config);
-                    animationManager.playAnimation(overlayId, config);
-                } else {
-                    lcardsLog.warn(`[LCARdSSimpleCard] AnimationManager.playAnimation not available`);
-                }
-            } catch (error) {
-                lcardsLog.error(`[LCARdSSimpleCard] Failed to trigger animation:`, error);
-            }
-        });
+        lcardsLog.info(`[LCARdSSimpleCard] ✅ TriggerManager created (late-binding) with ${animations.length} animations`);
+
+        // Clear pending setup
+        this._pendingAnimationSetup = null;
     }
 
     /**
@@ -677,8 +625,8 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * @param {string} options.elementId - Element ID for animation targeting
      * @returns {Function} Cleanup function
      */
-    setupActions(element, actions, options = {}) {
-        if (!element || !actions) {
+    setupActions(element, actions = {}, options = {}) {
+        if (!element) {
             return () => {};
         }
 
@@ -691,8 +639,64 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             hasActions,
             hasAnimationManager: !!animationManager,
             elementId,
-            actionTypes: Object.keys(actions).filter(k => k.endsWith('_action'))
+            actionTypes: Object.keys(actions).filter(k => k.endsWith('_action') && actions[k])
         });
+
+        // 🆕 Create TriggerManager for animation handling (even if no actions)
+        // Uses late-binding pattern: if AnimationManager isn't ready, store for later
+        let triggerManager = null;
+        if (elementId && this.config.animations) {
+            const animations = this.config.animations;
+            const animationSetup = this._getAnimationSetup?.() || {};
+            const overlayId = animationSetup.overlayId || `simple-card-${this._cardGuid}`;
+
+            if (animationManager) {
+                // AnimationManager is ready - register immediately
+                lcardsLog.debug(`[LCARdSSimpleCard] Creating TriggerManager for ${overlayId}:`, {
+                    animationCount: animations.length,
+                    triggers: animations.map(a => a.trigger || 'on_tap')
+                });
+
+                // Get or query for the target element
+                const targetElement = this.shadowRoot?.querySelector(animationSetup.elementSelector || '[data-overlay-id]') || element;
+
+                // Create TriggerManager instance
+                triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
+
+                // Register overlay scope with AnimationManager first
+                if (animationManager.onOverlayRendered) {
+                    animationManager.onOverlayRendered(overlayId, targetElement, { animations });
+                    lcardsLog.debug(`[LCARdSSimpleCard] Registered overlay scope: ${overlayId}`);
+                }
+
+                // Register each animation with TriggerManager
+                animations.forEach(animConfig => {
+                    const trigger = animConfig.trigger || 'on_tap';
+                    triggerManager.register(trigger, animConfig);
+                });
+
+                lcardsLog.info(`[LCARdSSimpleCard] ✅ TriggerManager created with ${animations.length} animations`);
+
+                // Add cleanup for TriggerManager
+                cleanupFunctions.push(() => {
+                    triggerManager.destroy();
+                    lcardsLog.debug(`[LCARdSSimpleCard] TriggerManager destroyed for ${overlayId}`);
+                });
+            } else {
+                // AnimationManager not ready - store for late binding
+                lcardsLog.debug(`[LCARdSSimpleCard] AnimationManager not ready, storing for late binding:`, {
+                    overlayId,
+                    animationCount: animations.length
+                });
+
+                this._pendingAnimationSetup = {
+                    overlayId,
+                    animations,
+                    elementSelector: animationSetup.elementSelector || '[data-overlay-id]',
+                    element
+                };
+            }
+        }
 
         // Set cursor styling for actionable elements
         if (hasActions) {
@@ -710,7 +714,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         // Tap action handler with double-tap coordination
         if (actions.tap_action) {
-            const tapHandler = (event) => {
+            const tapHandler = async (event) => {
                 event.stopPropagation();
                 event.preventDefault();
 
@@ -730,16 +734,18 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     if (tapCount === 1) {
                         lastTapTime = now;
                         // Wait for potential second tap
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             if (tapCount === 1) {
                                 // Single tap confirmed
                                 lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Single tap action triggered`);
 
-                                // Trigger animation BEFORE action
-                                if (typeof this._triggerAnimations === 'function') {
-                                    this._triggerAnimations('on_tap', element);
-                                } else if (animationManager && animationManager.triggerAnimations && elementId) {
-                                    animationManager.triggerAnimations(elementId, 'on_tap');
+                                // Ensure animations are registered (late-binding if needed)
+                                await this._ensureAnimationsRegistered();
+
+                                // Trigger animation if registration completed
+                                const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                                if (currentAnimationManager && elementId) {
+                                    currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                                 }
 
                                 this._executeAction(actions.tap_action);
@@ -755,22 +761,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     // No double-tap action configured, execute immediately
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Tap action triggered (immediate)`);
 
-                    // Trigger animation BEFORE action
-                    lcardsLog.debug(`[LCARdSSimpleCard] 🎬 Animation check before tap action:`, {
-                        hasTriggerMethod: typeof this._triggerAnimations === 'function',
-                        hasAnimationManager: !!animationManager,
-                        hasManagerTrigger: !!(animationManager && animationManager.triggerAnimations),
-                        elementId
-                    });
+                    // Ensure animations are registered (late-binding if needed)
+                    await this._ensureAnimationsRegistered();
 
-                    if (typeof this._triggerAnimations === 'function') {
-                        // Use card's own animation triggering (SimpleCard pattern)
-                        lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Calling card _triggerAnimations for on_tap`);
-                        this._triggerAnimations('on_tap', element);
-                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
-                        // Fallback: MSD overlay pattern
-                        lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Using MSD AnimationManager.triggerAnimations`);
-                        animationManager.triggerAnimations(elementId, 'on_tap');
+                    // Trigger animation if registration completed
+                    const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                    if (currentAnimationManager && elementId) {
+                        currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                     }
 
                     this._executeAction(actions.tap_action);
@@ -789,18 +786,17 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
                 lcardsLog.debug(`[LCARdSSimpleCard] 🔲 Hold timer started`);
 
-                holdTimer = setTimeout(() => {
+                holdTimer = setTimeout(async () => {
                     isHolding = true;
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Hold action triggered`);
 
-                    // Trigger animation BEFORE action
-                    if (typeof this._triggerAnimations === 'function') {
-                        this._triggerAnimations('on_hold', element);
-                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
-                        animationManager.triggerAnimations(elementId, 'on_hold');
-                    } else if (typeof this._triggerAnimations === 'function') {
-                        // Fallback: use card's own animation triggering
-                        this._triggerAnimations('on_hold', element);
+                    // Ensure animations are registered (late-binding if needed)
+                    await this._ensureAnimationsRegistered();
+
+                    // Trigger animation if registration completed
+                    const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                    if (currentAnimationManager && elementId) {
+                        currentAnimationManager.triggerAnimations(elementId, 'on_hold');
                     }
 
                     this._executeAction(actions.hold_action);
@@ -831,21 +827,20 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         // Double tap action handler
         if (actions.double_tap_action) {
-            const doubleTapHandler = (event) => {
+            const doubleTapHandler = async (event) => {
                 event.stopPropagation();
                 event.preventDefault();
 
                 if (tapCount === 2) {
                     lcardsLog.debug(`[LCARdSSimpleCard] 🎯 Double-tap action triggered`);
 
-                    // Trigger animation BEFORE action
-                    if (typeof this._triggerAnimations === 'function') {
-                        this._triggerAnimations('on_double_tap', element);
-                    } else if (animationManager && animationManager.triggerAnimations && elementId) {
-                        animationManager.triggerAnimations(elementId, 'on_double_tap');
-                    } else if (typeof this._triggerAnimations === 'function') {
-                        // Fallback: use card's own animation triggering
-                        this._triggerAnimations('on_double_tap', element);
+                    // Ensure animations are registered (late-binding if needed)
+                    await this._ensureAnimationsRegistered();
+
+                    // Trigger animation if registration completed
+                    const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                    if (currentAnimationManager && elementId) {
+                        currentAnimationManager.triggerAnimations(elementId, 'on_double_tap');
                     }
 
                     this._executeAction(actions.double_tap_action);
@@ -859,47 +854,35 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             });
         }
 
-        // Hover animation support (desktop only, like ActionHelpers)
-        // Always set up hover events - AnimationManager will be checked when triggered (late-binding)
+        // Hover animation support (desktop only)
+        // Attach handlers regardless of AnimationManager state (late-binding will handle registration)
         if (elementId) {
             const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-            lcardsLog.debug(`[LCARdSSimpleCard] Hover setup check:`, {
-                elementId,
-                isDesktop,
-                hasAnimationManagerAtSetup: !!animationManager
-            });
-
             if (isDesktop) {
-                const hoverHandler = () => {
-                    lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Hover animation triggered on ${elementId}`);
-                    if (typeof this._triggerAnimations === 'function') {
-                        this._triggerAnimations('on_hover', element);
-                    } else {
-                        // Late-binding AnimationManager check
-                        const core = window.lcards?.core;
-                        const lateAnimationManager = core?.getAnimationManager?.();
-                        if (lateAnimationManager && lateAnimationManager.triggerAnimations) {
-                            lateAnimationManager.triggerAnimations(elementId, 'on_hover');
-                        }
+                const hoverHandler = async () => {
+                    // Ensure animations are registered (late-binding if needed)
+                    await this._ensureAnimationsRegistered();
+
+                    // Trigger animation via AnimationManager (get fresh reference for late-binding)
+                    const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                    if (currentAnimationManager && elementId) {
+                        lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Hover animation triggered on ${elementId}`);
+                        currentAnimationManager.triggerAnimations(elementId, 'on_hover');
                     }
                 };
 
-                const leaveHandler = () => {
-                    lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Leave animation triggered on ${elementId}`);
+                const leaveHandler = async () => {
+                    // Ensure animations are registered (late-binding if needed)
+                    await this._ensureAnimationsRegistered();
 
-                    if (typeof this._triggerAnimations === 'function') {
-                        this._triggerAnimations('on_leave', element);
-                    } else {
-                        // Late-binding AnimationManager check
-                        const core = window.lcards?.core;
-                        const lateAnimationManager = core?.getAnimationManager?.();
-                        if (lateAnimationManager && lateAnimationManager.stopAnimations && lateAnimationManager.triggerAnimations) {
-                            // Stop looping hover animations
-                            lateAnimationManager.stopAnimations(elementId, 'on_hover');
-                            // Trigger leave animations
-                            lateAnimationManager.triggerAnimations(elementId, 'on_leave');
-                        }
+                    // Trigger animation via AnimationManager (get fresh reference for late-binding)
+                    const currentAnimationManager = window.lcards?.core?.getAnimationManager?.();
+                    if (currentAnimationManager && elementId) {
+                        lcardsLog.debug(`[LCARdSSimpleCard] 🖱️ Leave animation triggered on ${elementId}`);
+                        // Stop looping hover animations and trigger leave animations
+                        currentAnimationManager.stopAnimations?.(elementId, 'on_hover');
+                        currentAnimationManager.triggerAnimations(elementId, 'on_leave');
                     }
                 };
 
@@ -1063,14 +1046,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * @protected
      */
     _onDisconnected() {
-        // Clean up animation configs
-        if (this._animationConfigs) {
-            this._animationConfigs.clear();
-            this._animationConfigs = null;
-        }
-
-        // Clear pending overlay registration
-        this._pendingOverlayRegistration = null;
+        // TriggerManager cleanup is handled in setupActions cleanup function
+        // Clear any pending animation setup
+        this._pendingAnimationSetup = null;
 
         super._onDisconnected();
     }

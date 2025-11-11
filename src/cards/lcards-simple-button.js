@@ -217,9 +217,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             return;
         }
 
-        // Register animations with AnimationManager if available
-        this._registerAnimations();
-
         // Build action configuration
         const actions = {
             tap_action: this.config.tap_action || { action: 'toggle' },
