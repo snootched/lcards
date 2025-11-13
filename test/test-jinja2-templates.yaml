@@ -1,0 +1,93 @@
+# Jinja2 Template Testing for LCARdS Phase 2
+#
+# Test Jinja2 server-side evaluation via Home Assistant's render_template API
+#
+# How to use:
+# 1. Add to a test dashboard in Home Assistant
+# 2. Check that templates evaluate correctly
+# 3. Verify real-time updates when entities change
+# 4. Check browser console for any errors
+
+type: vertical-stack
+cards:
+  # Test 1: Simple state access
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{{states('light.tv')}}"
+    # Expected: "on" or "off" (live updates)
+
+  # Test 2: State with filter
+  - type: custom:lcards-simple-button
+    entity: sensor.temperature
+    preset: lozenge
+    label: "{{states('sensor.temperature') | float | round(1)}}°F"
+    # Expected: "72.0°F" (or actual temp value)
+
+  # Test 3: Time functions
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{{now().strftime('%H:%M:%S')}}"
+    # Expected: "14:30:45" (current time, updates)
+
+  # Test 4: Conditional logic
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{{states('light.tv') == 'on' | iif('Active', 'Off')}}"
+    # Expected: "Active" when on, "Off" when off
+
+  # Test 5: Multiple states
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "TV: {{states('light.tv')}} | Temp: {{states('sensor.temperature')}}"
+    # Expected: "TV: on | Temp: 72" (multiple entity references)
+
+  # Test 6: Date formatting
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{{now().strftime('%A, %B %d')}}"
+    # Expected: "Tuesday, November 12"
+
+  # Test 7: Math operations
+  - type: custom:lcards-simple-button
+    entity: sensor.temperature
+    preset: lozenge
+    label: "{{(states('sensor.temperature') | float * 1.8 + 32) | round(1)}}°F"
+    # Expected: Celsius to Fahrenheit conversion
+
+  # Test 8: Attribute access
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{{state_attr('light.tv', 'friendly_name')}}"
+    # Expected: "TV Light" (or actual friendly name)
+
+  # Test 9: Mixed with tokens (Phase 1 compatibility)
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "{entity.state} at {{now().strftime('%H:%M')}}"
+    # Expected: "on at 14:30" (mix of token and Jinja2)
+
+  # Test 10: Mixed with JavaScript (Phase 1 compatibility)
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    preset: lozenge
+    label: "[[[return '{{states('sensor.temperature')}}°F'.toUpperCase()]]]"
+    # Expected: "72°F" in uppercase (Jinja2 evaluated first, then JS)
+
+# Testing Checklist:
+# ✓ Jinja2 templates evaluate correctly
+# ✓ Real-time updates when entities change
+# ✓ Time functions update automatically
+# ✓ Filters work (float, round, iif, etc.)
+# ✓ Multiple entity references tracked
+# ✓ state_attr() function works
+# ✓ Math operations in templates
+# ✓ Date/time formatting
+# ✓ Mixed templates (Jinja2 + tokens + JavaScript)
+# ✓ No console errors

@@ -27,6 +27,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { LCARdSNativeCard } from './LCARdSNativeCard.js';
 import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 import { SimpleCardTemplateEvaluator } from '../core/templates/SimpleCardTemplateEvaluator.js';
+import { TemplateParser } from '../core/templates/TemplateParser.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -107,6 +108,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             content: '',
             texts: []
         };
+
+        // Entity tracking for Jinja2 template updates
+        this._trackedEntities = [];
 
         // Config provenance tracking (from CoreConfigManager)
         this._provenance = null;
@@ -211,13 +215,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             hasEntity: !!this._entity
         });
 
-        // Process templates whenever config changes
+        // Process templates whenever config changes (async to support Jinja2)
         if (this._initialized) {
             // Already initialized - schedule template update
             this._scheduleTemplateUpdate();
         } else {
-            // First config set before firstUpdated - process synchronously
-            this._processTemplatesSync();
+            // First config set before firstUpdated - process templates
+            this._processTemplates();
         }
     }
 
@@ -236,6 +240,20 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // IMPORTANT: Feed HASS back to singleton system for cross-card coordination
         if (window.lcards?.core) {
             window.lcards.core.ingestHass(newHass);
+        }
+
+        // Check if any tracked entities changed (for Jinja2 template updates)
+        if (this._trackedEntities && this._trackedEntities.length > 0) {
+            const hasChanges = this._trackedEntities.some(entityId => {
+                const oldState = oldHass?.states?.[entityId];
+                const newState = newHass?.states?.[entityId];
+                return oldState !== newState;
+            });
+
+            if (hasChanges) {
+                // Re-process templates when tracked entities change
+                this._scheduleTemplateUpdate();
+            }
         }
 
         // Call card-specific HASS handler
@@ -346,7 +364,14 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * @param {string} template - Template string to process
      * @returns {string} Processed result
      */
-    processTemplate(template) {
+    /**
+     * Process template content with support for JavaScript, tokens, and Jinja2
+     *
+     * @param {string} template - Template string to process
+     * @returns {Promise<string>} Processed template
+     * @protected
+     */
+    async processTemplate(template) {
         if (!template || typeof template !== 'string') {
             return template;
         }
@@ -363,7 +388,10 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
             // Use SimpleCardTemplateEvaluator for consistent template processing
             const evaluator = new SimpleCardTemplateEvaluator(context);
-            return evaluator.evaluate(template);
+
+            // Use async evaluation to support Jinja2
+            const result = await evaluator.evaluateAsync(template);
+            return result;
 
         } catch (error) {
             lcardsLog.error(`[LCARdSSimpleCard] Template processing failed:`, error);
@@ -377,11 +405,11 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         if (this._templateUpdateScheduled) return;
 
         this._templateUpdateScheduled = true;
-        requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
             this._templateUpdateScheduled = false;
 
-            // Process templates synchronously
-            this._processTemplatesSync();
+            // Process templates (async for Jinja2 support)
+            await this._processTemplates();
 
             // Re-render only if we're not in an update cycle
             if (!this.hasUpdated || this.updateComplete === Promise.resolve()) {
@@ -396,17 +424,17 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
-     * Process templates synchronously to avoid update cycles
+     * Process templates (async to support Jinja2)
      * Subclasses should override to define their text processing
      * @protected
      */
-    _processTemplatesSync() {
+    async _processTemplates() {
         // Default implementation processes standard text fields
-        this._processStandardTexts();
+        await this._processStandardTexts();
 
         // Call subclass-specific template processing hook
         if (typeof this._processCustomTemplates === 'function') {
-            this._processCustomTemplates();
+            await this._processCustomTemplates();
         }
     }
 
@@ -414,25 +442,25 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * Process standard text fields (label, content, texts array)
      * @protected
      */
-    _processStandardTexts() {
+    async _processStandardTexts() {
         // Process label template (with aliases)
         const rawLabel = this.config.label || this.config.text || '';
-        const newLabel = this.processTemplate(rawLabel);
+        const newLabel = await this.processTemplate(rawLabel);
 
         // Process content template (with aliases)
         const rawContent = this.config.content || this.config.value || '';
-        const newContent = this.processTemplate(rawContent);        // Process texts array
+        const newContent = await this.processTemplate(rawContent);        // Process texts array
         const newTexts = [];
         if (this.config.texts && Array.isArray(this.config.texts)) {
-            this.config.texts.forEach((textConfig, index) => {
+            for (const textConfig of this.config.texts) {
                 if (textConfig && typeof textConfig === 'object') {
                     const processedText = {
                         ...textConfig,
-                        text: this.processTemplate(textConfig.text || textConfig.content || '')
+                        text: await this.processTemplate(textConfig.text || textConfig.content || '')
                     };
                     newTexts.push(processedText);
                 }
-            });
+            }
         }
 
         // Only update if values actually changed to avoid unnecessary re-renders
@@ -444,6 +472,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             this._processedTexts.label = newLabel;
             this._processedTexts.content = newContent;
             this._processedTexts.texts = newTexts;
+
+            // Extract and track entities from Jinja2 templates for auto-updates
+            this._updateTrackedEntities();
 
             lcardsLog.debug(`[LCARdSSimpleCard] Templates processed for ${this._cardGuid}:`, {
                 label: this._processedTexts.label,
@@ -457,6 +488,48 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 this._onTemplatesChanged();
             }
         }
+    }
+
+    /**
+     * Extract and track entities from Jinja2 templates
+     * @private
+     */
+    _updateTrackedEntities() {
+        const trackedEntities = new Set();
+
+        // Add primary entity
+        if (this.config.entity) {
+            trackedEntities.add(this.config.entity);
+        }
+
+        // Extract entities from templates
+        const templates = [
+            this.config.label,
+            this.config.text,
+            this.config.content,
+            this.config.value
+        ].filter(Boolean);
+
+        // Add texts array templates
+        if (this.config.texts && Array.isArray(this.config.texts)) {
+            this.config.texts.forEach(textConfig => {
+                if (textConfig) {
+                    templates.push(textConfig.text || textConfig.content);
+                }
+            });
+        }
+
+        // Parse dependencies from all templates
+        templates.forEach(template => {
+            if (template && typeof template === 'string') {
+                const deps = TemplateParser.extractDependencies(template);
+                deps.forEach(entityId => trackedEntities.add(entityId));
+            }
+        });
+
+        this._trackedEntities = Array.from(trackedEntities);
+
+        lcardsLog.trace(`[LCARdSSimpleCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
     }
 
     /**

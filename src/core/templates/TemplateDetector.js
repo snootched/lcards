@@ -134,14 +134,20 @@ export class TemplateDetector {
       return false;
     }
 
-    if (!content.includes(this.MARKERS.JINJA2_START)) {
+    // Check for Jinja2 expressions {{...}} OR control structures {%...%} OR comments {#...#}
+    const hasExpressions = content.includes(this.MARKERS.JINJA2_START);
+    const hasControlStructures = content.includes('{%');
+    const hasComments = content.includes('{#');
+
+    if (!hasExpressions && !hasControlStructures && !hasComments) {
       return false;
     }
 
     // Jinja2 indicators:
     // - Function calls: states(), state_attr(), now(), etc.
     // - Filters: | round, | float, | int, etc.
-    // - Statements: {% if %}, {% for %}, etc.
+    // - Control structures: {% if %}, {% for %}, {% set %}, etc.
+    // - Comments: {# comment #}
 
     const jinja2Patterns = [
       /\{\{\s*states\s*\(/,           // {{states('entity')}}
@@ -150,7 +156,8 @@ export class TemplateDetector {
       /\{\{\s*is_state\s*\(/,         // {{is_state('entity', 'on')}}
       /\{\{\s*has_value\s*\(/,        // {{has_value('entity')}}
       /\{\{[^}]*\|[^}]+\}\}/,         // {{value | filter}}
-      /\{%[\s\S]*?%\}/                // {% if/for/etc %}
+      /\{%[\s\S]*?%\}/,               // {% if/for/set/etc %}
+      /\{#[\s\S]*?#\}/                // {# comment #}
     ];
 
     return jinja2Patterns.some(pattern => pattern.test(content));

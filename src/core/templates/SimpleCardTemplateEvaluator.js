@@ -2,6 +2,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { TemplateDetector } from './TemplateDetector.js';
 import { TemplateParser } from './TemplateParser.js';
+import { HATemplateEvaluator } from './HATemplateEvaluator.js';
 
 /**
  * SimpleCardTemplateEvaluator - Evaluates button-card style templates
@@ -10,7 +11,8 @@ import { TemplateParser } from './TemplateParser.js';
  *
  * Supports:
  * - JavaScript templates: [[[return entity.state]]]
- * - Token templates: {{entity.state}}, {{variables.color}}
+ * - Token templates: {entity.state}, {variables.color}
+ * - Jinja2 templates: {{states('sensor.temp')}} (async via HA)
  *
  * Context requirements:
  * - entity: The Home Assistant entity object
@@ -39,10 +41,16 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
     if (!context.hass) {
       lcardsLog.warn('[SimpleCardTemplateEvaluator] Created without hass in context');
     }
+
+    // Create HATemplateEvaluator for Jinja2 support
+    this._haEvaluator = new HATemplateEvaluator(context);
   }
 
   /**
-   * Evaluate template content
+   * Evaluate template content (synchronous - JavaScript and tokens only)
+   *
+   * For Jinja2 templates, use evaluateAsync() instead.
+   * This method will return Jinja2 templates unchanged.
    *
    * @param {string} content - Template content to evaluate
    * @returns {string} Evaluated content
@@ -57,7 +65,7 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
    * evaluator.evaluate('[[[return entity.state]]]')
    * // => 'on'
    *
-   * evaluator.evaluate('{{entity.attributes.friendly_name}}')
+   * evaluator.evaluate('{entity.attributes.friendly_name}')
    * // => 'Living Room Light'
    */
   evaluate(content) {
@@ -89,6 +97,55 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
 
       return result;
     }, content, content);
+  }
+
+  /**
+   * Evaluate template content asynchronously (supports all template types)
+   *
+   * Evaluates templates in order:
+   * 1. JavaScript templates [[[code]]] - synchronous
+   * 2. Token templates {token} - synchronous
+   * 3. Jinja2 templates {{expression}} - async via Home Assistant
+   *
+   * @param {string} content - Template content to evaluate
+   * @returns {Promise<string>} Evaluated content
+   *
+   * @example
+   * const result = await evaluator.evaluateAsync('{{states("sensor.temp")}}°F');
+   * // => '72°F'
+   */
+  async evaluateAsync(content) {
+    if (!this._validateContent(content)) {
+      return content;
+    }
+
+    const types = TemplateDetector.detectTemplateTypes(content);
+
+    // Quick exit if no templates
+    if (!types.hasJavaScript && !types.hasTokens && !types.hasJinja2) {
+      return content;
+    }
+
+    let result = content;
+
+    // Process JavaScript templates first (sync)
+    if (types.hasJavaScript) {
+      result = this._evaluateJavaScript(result);
+    }
+
+    // Then process tokens (sync)
+    if (types.hasTokens) {
+      result = this._evaluateTokens(result);
+    }
+
+    // Finally process Jinja2 templates (async)
+    if (types.hasJinja2) {
+      result = await this._haEvaluator.evaluate(result);
+    }
+
+    this._logEvaluation(content, result, { types, async: true });
+
+    return result;
   }
 
   /**
@@ -129,10 +186,10 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
       'input_text', 'input_datetime', 'counter', 'timer'
     ];
 
-    // Match {token} but NOT {{jinja2}} or {msd.datasource}
+    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, or {msd.datasource}
     const domainPattern = msdDomains.join('\\.|') + '\\.';
     const tokenRegex = new RegExp(
-      `\\{(?!\\{)(?!${domainPattern})([^{}]+)\\}`,
+      `\\{(?!\\{)(?!%)(?!#)(?!${domainPattern})([^{}]+)\\}`,
       'g'
     );
 

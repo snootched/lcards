@@ -232,10 +232,10 @@ export class TemplateParser {
       'input_text', 'input_datetime', 'counter', 'timer'
     ];
 
-    // Match {token} but NOT {{jinja2}} or {msd.datasource}
+    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, or {msd.datasource}
     const domainPattern = msdDomains.join('\\.|') + '\\.';
     const tokenRegex = new RegExp(
-      `\\{(?!\\{)(?!${domainPattern})([^{}]+)\\}`,
+      `\\{(?!\\{)(?!%)(?!#)(?!${domainPattern})([^{}]+)\\}`,
       'g'
     );
 
