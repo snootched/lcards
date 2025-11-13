@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "1.9.23",
+  "version": "1.9.26",
   "description": "LCARdS - Modern LCARS card system for Home Assistant",
   "main": "index.js",
   "author": "Jason Weyermars",

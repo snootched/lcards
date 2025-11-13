@@ -20,6 +20,7 @@ export class TemplateDetector {
   static MARKERS = {
     MSD_START: '{',
     MSD_END: '}',
+    DATASOURCE_PREFIX: 'datasource:',
     TOKEN_START: '{',
     TOKEN_END: '}',
     HA_START: '{{',
@@ -34,25 +35,29 @@ export class TemplateDetector {
    * Detect what types of templates are present in content
    *
    * @param {string} content - Content to analyze
-   * @returns {{hasMSD: boolean, hasHA: boolean, hasJinja2: boolean, hasJavaScript: boolean, hasTokens: boolean}}
+   * @returns {{hasMSD: boolean, hasDatasources: boolean, hasHA: boolean, hasJinja2: boolean, hasJavaScript: boolean, hasTokens: boolean}}
    *
    * @example
    * TemplateDetector.detectTemplateTypes('{sensor.temp}')
-   * // => { hasMSD: true, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: true, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
+   *
+   * TemplateDetector.detectTemplateTypes('{datasource:sensor.temp}')
+   * // => { hasMSD: false, hasDatasources: true, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{{states("sensor.temp")}}')
-   * // => { hasMSD: false, hasHA: true, hasJinja2: true, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: false, hasDatasources: false, hasHA: true, hasJinja2: true, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('[[[return entity.state]]]')
-   * // => { hasMSD: false, hasHA: false, hasJinja2: false, hasJavaScript: true, hasTokens: false }
+   * // => { hasMSD: false, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: true, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{entity.state}')
-   * // => { hasMSD: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: true }
+   * // => { hasMSD: false, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: true }
    */
   static detectTemplateTypes(content) {
     if (!content || typeof content !== 'string') {
       return {
         hasMSD: false,
+        hasDatasources: false,
         hasHA: false,
         hasJinja2: false,
         hasJavaScript: false,
@@ -62,6 +67,7 @@ export class TemplateDetector {
 
     return {
       hasMSD: this.hasMSDTemplates(content),
+      hasDatasources: this.hasMSDDatasources(content),
       hasHA: this.hasJinja2Templates(content),
       hasJinja2: this.hasJinja2Templates(content),
       hasJavaScript: this.hasJavaScript(content),
@@ -116,6 +122,27 @@ export class TemplateDetector {
     }
 
     return false;
+  }
+
+  /**
+   * Check if content has MSD datasource templates with explicit prefix
+   *
+   * New unified syntax: {datasource:name.path:format}
+   * Examples:
+   * - {datasource:sensor.temp}
+   * - {datasource:sensor.temp:.2f}
+   * - {datasource:sensor.temp.transformations.celsius}
+   *
+   * @param {string} content - Content to check
+   * @returns {boolean} True if has datasource templates ({datasource:...})
+   */
+  static hasMSDDatasources(content) {
+    if (!content || typeof content !== 'string') {
+      return false;
+    }
+
+    // Pattern: {datasource:...}
+    return content.includes('{' + this.MARKERS.DATASOURCE_PREFIX);
   }
 
   /**
@@ -251,12 +278,16 @@ export class TemplateDetector {
    * @example
    * TemplateDetector.getTemplateTypes('{sensor.temp} {{states("sensor.humidity")}}')
    * // => ['MSD', 'HA']
+   *
+   * TemplateDetector.getTemplateTypes('{datasource:sensor.temp}')
+   * // => ['Datasource']
    */
   static getTemplateTypes(content) {
     const types = this.detectTemplateTypes(content);
     const result = [];
 
     if (types.hasMSD) result.push('MSD');
+    if (types.hasDatasources) result.push('Datasource');
     if (types.hasHA) result.push('HA');
     if (types.hasJavaScript) result.push('JavaScript');
     if (types.hasTokens && !types.hasHA) result.push('Token');

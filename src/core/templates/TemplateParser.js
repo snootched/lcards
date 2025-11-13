@@ -126,6 +126,76 @@ export class TemplateParser {
   }
 
   /**
+   * Parse datasource reference with explicit prefix
+   *
+   * New unified syntax: {datasource:name.path:format}
+   *
+   * @param {string} reference - Reference string (without braces)
+   * @returns {{source: string, path: Array<string>, format: string|null}}
+   *
+   * @example
+   * TemplateParser.parseDatasourceReference('datasource:sensor.temp')
+   * // => { source: 'sensor', path: ['temp'], format: null }
+   *
+   * TemplateParser.parseDatasourceReference('datasource:sensor.temp:.2f')
+   * // => { source: 'sensor', path: ['temp'], format: '.2f' }
+   *
+   * TemplateParser.parseDatasourceReference('datasource:temp.transformations.celsius:.1f')
+   * // => { source: 'temp', path: ['transformations', 'celsius'], format: '.1f' }
+   */
+  static parseDatasourceReference(reference) {
+    if (!reference || typeof reference !== 'string') {
+      return { source: '', path: [], format: null };
+    }
+
+    // Remove 'datasource:' prefix if present
+    let cleanRef = reference;
+    if (reference.startsWith('datasource:')) {
+      cleanRef = reference.substring('datasource:'.length);
+    }
+
+    // Use same parsing logic as MSD references
+    return this.parseMSDReference(cleanRef);
+  }
+
+  /**
+   * Extract all datasource references with explicit prefix from content
+   *
+   * @param {string} content - Content containing datasource templates
+   * @returns {Array<{match: string, source: string, path: Array<string>, format: string|null}>}
+   *
+   * @example
+   * TemplateParser.extractDatasourceReferences('Temp: {datasource:sensor.temp:.1f}, Status: {datasource:system.status}')
+   * // => [
+   * //   { match: '{datasource:sensor.temp:.1f}', source: 'sensor', path: ['temp'], format: '.1f' },
+   * //   { match: '{datasource:system.status}', source: 'system', path: ['status'], format: null }
+   * // ]
+   */
+  static extractDatasourceReferences(content) {
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
+
+    const references = [];
+    // Match {datasource:...}
+    const datasourceRegex = /\{datasource:([^}]+)\}/g;
+    let match;
+
+    while ((match = datasourceRegex.exec(content)) !== null) {
+      const fullMatch = match[0];
+      const reference = match[1];
+
+      const parsed = this.parseDatasourceReference(reference);
+      references.push({
+        match: fullMatch,
+        ...parsed
+      });
+    }
+
+    return references;
+  }
+
+  /**
    * Parse JavaScript template
    *
    * @param {string} template - Full template including [[[...]]]
@@ -204,7 +274,9 @@ export class TemplateParser {
    * Extract all token references from content
    *
    * Tokens use single braces: {entity.state}
-   * Must exclude MSD datasources: {sensor.temp}, {light.desk}, etc.
+   * Must exclude:
+   * - MSD datasources: {sensor.temp}, {light.desk}, etc. (legacy)
+   * - Explicit datasources: {datasource:name}
    *
    * @param {string} content - Content containing token templates
    * @returns {Array<{match: string, token: string, path: string, parts: Array<string>, start: number, end: number}>}
@@ -232,10 +304,10 @@ export class TemplateParser {
       'input_text', 'input_datetime', 'counter', 'timer'
     ];
 
-    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, or {msd.datasource}
+    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, {datasource:...}, or {msd.datasource}
     const domainPattern = msdDomains.join('\\.|') + '\\.';
     const tokenRegex = new RegExp(
-      `\\{(?!\\{)(?!%)(?!#)(?!${domainPattern})([^{}]+)\\}`,
+      `\\{(?!\\{)(?!%)(?!#)(?!datasource:)(?!${domainPattern})([^{}]+)\\}`,
       'g'
     );
 

@@ -2,6 +2,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { MsdTemplateEngine } from '../templates/MsdTemplateEngine.js';
 import { TemplateProcessor } from '../utils/TemplateProcessor.js';
 import { MSDTemplateEvaluator } from '../templates/MSDTemplateEvaluator.js';
+import { UnifiedTemplateEvaluator } from '../../core/templates/UnifiedTemplateEvaluator.js';
 import { TemplateDetector } from '../../core/templates/TemplateDetector.js';
 
 /**
@@ -256,8 +257,60 @@ export class MSDContentResolver {
   }
 
   /**
+   * Process template with unified evaluator (Phase 3)
+   *
+   * This is the new recommended method that supports ALL template types:
+   * - JavaScript: [[[code]]]
+   * - Tokens: {entity.state}
+   * - Datasources: {datasource:sensor.temp} or {sensor.temp} (legacy)
+   * - Jinja2: {{states('entity')}}, {% if %}, {# comment #}
+   *
+   * @param {string} content - Template string with any template syntax
+   * @param {Object} options - Options
+   * @param {Object} options.hass - Home Assistant connection (required for Jinja2)
+   * @param {Object} [options.context] - Additional context for token evaluation
+   * @param {string} [options.rendererName] - Name of the renderer for logging
+   * @returns {Promise<string>} Processed content with all templates resolved
+   */
+  static async processTemplateUnified(content, options = {}) {
+    const { hass, context = {}, rendererName = 'Renderer' } = options;
+
+    if (!content || typeof content !== 'string') {
+      return content;
+    }
+
+    try {
+      const dataSourceManager = window.lcards.debug.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+
+      // Create unified evaluator with all necessary components
+      const evaluator = new UnifiedTemplateEvaluator({
+        hass,
+        context,
+        dataSourceManager
+      });
+
+      const processed = await evaluator.evaluateAsync(content);
+
+      lcardsLog.debug(`[${rendererName}] 🔗 Unified template processing complete`, {
+        hasJavaScript: content.includes('[[['),
+        hasTokens: /\{(?!\{)(?!datasource:)(?!sensor\.|light\.|switch\.)/.test(content),
+        hasDatasources: content.includes('{datasource:') || /\{(sensor|light|switch)\./.test(content),
+        hasJinja2: content.includes('{{') || content.includes('{%')
+      });
+
+      return processed;
+    } catch (error) {
+      lcardsLog.error(`[${rendererName}] ❌ Unified template processing failed:`, error);
+      return content; // Return original on error
+    }
+  }
+
+  /**
    * Enhanced template string processing with better fallback handling
-   * PHASE 4: Now using MSDTemplateEvaluator for consistent template evaluation
+   * PHASE 3: Now using UnifiedTemplateEvaluator for consistent template evaluation
+   *
+   * Note: Uses synchronous evaluation only (JavaScript, Tokens, Datasources).
+   * For Jinja2 support, use processTemplateUnified() which is async.
    *
    * @param {string} content - Template string with {references}
    * @param {string} rendererName - Name of the renderer for logging
@@ -271,15 +324,21 @@ export class MSDContentResolver {
         return fallbackToOriginal ? content : null;
       }
 
-      // Use MSDTemplateEvaluator for consistent template processing
-      const evaluator = new MSDTemplateEvaluator(dataSourceManager);
-      const processedContent = evaluator.evaluate(content);
+      // PHASE 3: Use UnifiedTemplateEvaluator for consistent template processing
+      // Note: Using evaluateSync() for backward compatibility (no Jinja2 support)
+      const evaluator = new UnifiedTemplateEvaluator({
+        hass: null, // No hass for sync mode
+        context: {}, // Empty context for now (can be extended)
+        dataSourceManager
+      });
+
+      const processedContent = evaluator.evaluateSync(content);
 
       // Check if anything was actually resolved
       const wasProcessed = processedContent !== content;
 
       if (wasProcessed) {
-        lcardsLog.debug(`[${rendererName}] 🔗 Successfully resolved templates using MSDTemplateEvaluator`);
+        lcardsLog.debug(`[${rendererName}] 🔗 Successfully resolved templates using UnifiedTemplateEvaluator (sync mode)`);
       }
 
       return processedContent;
@@ -292,34 +351,21 @@ export class MSDContentResolver {
 
   /**
    * Process unified template strings supporting both HA and MSD syntax
+   * PHASE 3: Simplified to use UnifiedTemplateEvaluator
+   *
+   * Note: Uses synchronous evaluation (JavaScript, Tokens, Datasources only).
+   * Jinja2 templates ({{...}}) are NOT evaluated in this method.
+   * For async Jinja2 support, use processTemplateUnified() instead.
+   *
    * @param {string} content - Template string with mixed {references} and {{HA templates}}
    * @param {string} rendererName - Name of the renderer for logging
    * @returns {string} Processed content with resolved references
    */
   static processUnifiedTemplateStrings(content, rendererName = 'Renderer') {
     try {
-      const cacheKey = `${rendererName}-${content}`;
-      let processedContent = content;
-
-      // Step 1: Process HA templates first ({{...}}) using MsdTemplateEngine
-      if (processedContent.includes('{{') && processedContent.includes('}}')) {
-        processedContent = this._processHATemplates(processedContent, rendererName, cacheKey);
-      }
-
-      // Step 2: Mask any remaining HA blocks so MSD parser won't touch them
-      const { text: maskedText, map } = this._maskHATemplates(processedContent);
-
-      // Step 3: Process MSD DataSource templates ({...}) only on masked text
-      let afterMsd = maskedText;
-      if (afterMsd.includes('{') && !afterMsd.includes('{{')) {
-        afterMsd = this.processEnhancedTemplateStringsWithFallback(afterMsd, rendererName, true);
-      }
-
-      // Step 4: Restore HA blocks exactly as they were
-      processedContent = this._unmaskHATemplates(afterMsd, map);
-
-      return processedContent;
-
+      // Use the same logic as processEnhancedTemplateStringsWithFallback
+      // This evaluates: JavaScript → Tokens → Datasources (sync only)
+      return this.processEnhancedTemplateStringsWithFallback(content, rendererName, true);
     } catch (error) {
       lcardsLog.error(`[${rendererName}] ❌ Unified template processing failed:`, error);
       return content;

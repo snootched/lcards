@@ -170,7 +170,10 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
    * Evaluate token templates {token}
    *
    * Tokens now use single braces: {entity.state}
-   * Must exclude {{jinja2}} and {msd.datasource}
+   * Must exclude:
+   * - {{jinja2}} (double braces)
+   * - {datasource:...} (explicit datasource prefix)
+   * - {msd.datasource} (legacy MSD datasources)
    *
    * @private
    * @param {string} content - Content with token templates
@@ -186,10 +189,10 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
       'input_text', 'input_datetime', 'counter', 'timer'
     ];
 
-    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, or {msd.datasource}
+    // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, {datasource:...}, or {msd.datasource}
     const domainPattern = msdDomains.join('\\.|') + '\\.';
     const tokenRegex = new RegExp(
-      `\\{(?!\\{)(?!%)(?!#)(?!${domainPattern})([^{}]+)\\}`,
+      `\\{(?!\\{)(?!%)(?!#)(?!datasource:)(?!${domainPattern})([^{}]+)\\}`,
       'g'
     );
 
@@ -273,6 +276,65 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
     }
 
     return current;
+  }
+
+  /**
+   * Public method to evaluate JavaScript templates only
+   *
+   * @param {string} content - Content with JavaScript templates
+   * @returns {string} Content with templates evaluated
+   */
+  evaluateJavaScript(content) {
+    if (!this._validateContent(content)) {
+      return content;
+    }
+    return this._evaluateJavaScript(content);
+  }
+
+  /**
+   * Public method to evaluate token templates only
+   *
+   * @param {string} content - Content with token templates
+   * @returns {string} Content with tokens evaluated
+   */
+  evaluateTokens(content) {
+    if (!this._validateContent(content)) {
+      return content;
+    }
+    return this._evaluateTokens(content);
+  }
+
+  /**
+   * Public method to evaluate Jinja2 templates only
+   *
+   * @param {string} content - Content with Jinja2 templates
+   * @returns {Promise<string>} Content with Jinja2 evaluated
+   */
+  async evaluateJinja2(content) {
+    if (!this._validateContent(content)) {
+      return content;
+    }
+    return await this._haEvaluator.evaluate(content);
+  }
+
+  /**
+   * Extract Jinja2 entity dependencies for tracking
+   *
+   * @param {string} content - Content to analyze
+   * @returns {Array<string>} Array of entity IDs
+   */
+  extractDependencies(content) {
+    return this._haEvaluator.extractDependencies(content);
+  }
+
+  /**
+   * Update the Home Assistant connection
+   *
+   * @param {Object} newHass - New hass object
+   */
+  updateHass(newHass) {
+    this.context.hass = newHass;
+    this._haEvaluator.updateHass(newHass);
   }
 
   /**
