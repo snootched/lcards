@@ -1,0 +1,172 @@
+# COMPREHENSIVE TEMPLATE SYNTAX TEST
+# Tests all template formats: tokens, JavaScript, and Jinja2 (future)
+# Replace 'light.tv' with any light entity from your Home Assistant
+
+type: vertical-stack
+cards:
+  # ===== TOKEN TEMPLATES (NEW SYNTAX) =====
+
+  # Test 1: Simple entity state token
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "State: {entity.state}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "State: on" or "State: off"
+
+  # Test 2: Entity attribute token
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "{entity.attributes.friendly_name}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "TV" or whatever the friendly name is
+
+  # Test 3: Nested attribute token (brightness)
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "Brightness: {entity.attributes.brightness}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "Brightness: 255" or "Brightness: " if light doesn't support
+
+  # Test 4: Multiple tokens in one string
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "{entity.attributes.friendly_name}: {entity.state}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "TV: on"
+
+  # Test 5: Variables token
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "Color: {variables.test_color}"
+    preset: lozenge
+    variables:
+      test_color: "#FF9900"
+    tap_action:
+      action: toggle
+    # EXPECTED: "Color: #FF9900"
+
+  # Test 6: Config token
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "Entity: {config.entity}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "Entity: light.tv"
+
+  # ===== JAVASCRIPT TEMPLATES =====
+
+  # Test 7: Simple JavaScript expression
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "[[[return entity.state.toUpperCase()]]]"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "ON" or "OFF"
+
+  # Test 8: JavaScript with conditional
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "[[[return entity.state === 'on' ? '✓ ON' : '✗ OFF']]]"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "✓ ON" or "✗ OFF"
+
+  # Test 9: JavaScript with math
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "[[[return 'Brightness: ' + Math.round((entity.attributes.brightness || 0) / 255 * 100) + '%']]]"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "Brightness: 100%" or "Brightness: 0%"
+
+  # Test 10: JavaScript accessing multiple properties
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "[[[return entity.attributes.friendly_name + ' is ' + entity.state]]]"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "TV is on"
+
+  # ===== MIXED TEMPLATES =====
+
+  # Test 11: Token + JavaScript mixed
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "{entity.attributes.friendly_name} [[[return entity.state === 'on' ? '●' : '○']]]"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "TV ●" or "TV ○"
+
+  # Test 12: Multiple tokens + text
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "Device: {entity.attributes.friendly_name} | Status: {entity.state}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED: "Device: TV | Status: on"
+
+  # ===== JINJA2 TEMPLATES (NOT YET IMPLEMENTED) =====
+
+  # Test 13: Jinja2 function (will show literally for now)
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "{{states('light.tv')}}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED NOW: "{{states('light.tv')}}" (literal - not evaluated)
+    # FUTURE: "on" or "off" (evaluated server-side)
+
+  # Test 14: Jinja2 with filter (will show literally for now)
+  - type: custom:lcards-simple-button
+    entity: light.tv
+    label: "{{state_attr('light.tv', 'brightness') | round(0)}}"
+    preset: lozenge
+    tap_action:
+      action: toggle
+    # EXPECTED NOW: Shows literal template
+    # FUTURE: Shows rounded brightness value
+
+# ===== VALIDATION CHECKLIST =====
+#
+# Token Templates (Tests 1-6):
+# [ ] Test 1: Shows current state
+# [ ] Test 2: Shows friendly name
+# [ ] Test 3: Shows brightness or empty
+# [ ] Test 4: Combines name and state
+# [ ] Test 5: Shows variable value
+# [ ] Test 6: Shows entity ID
+#
+# JavaScript Templates (Tests 7-10):
+# [ ] Test 7: Shows uppercase state
+# [ ] Test 8: Shows checkmark/cross based on state
+# [ ] Test 9: Shows brightness percentage
+# [ ] Test 10: Combines friendly name and state
+#
+# Mixed Templates (Tests 11-12):
+# [ ] Test 11: Combines token + JS symbol
+# [ ] Test 12: Multiple tokens with text
+#
+# Jinja2 (Tests 13-14):
+# [ ] Test 13: Shows literal {{states(...)}} (not yet implemented)
+# [ ] Test 14: Shows literal {{...| filter}} (not yet implemented)
+#
+# Dynamic Updates:
+# [ ] Toggle the light - all relevant values update
+# [ ] No console errors
+# [ ] All templates render without breaking

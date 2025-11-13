@@ -115,9 +115,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @private
      */
     _handleFirstUpdate(changedProperties) {
-        // Process templates initially (sync to avoid update cycles)
-        this._processTemplatesSync();
-
         // Setup actions after DOM is ready
         this.updateComplete.then(() => {
             this._setupButtonActions();

@@ -1,0 +1,112 @@
+# ADVANCED TOKEN SYNTAX TEST
+# Tests edge cases and validates Jinja2 syntax is preserved
+#
+# Replace entities with your own!
+
+type: vertical-stack
+cards:
+  # Test: New token syntax (should work)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ New Syntax"
+    name: "{entity.state}"
+    entity: light.living_room
+    style:
+      label:
+        - color: "#00FF00"
+
+  # Test: Old token syntax (should NOT work - shows literally)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "❌ Old Syntax (broken)"
+    name: "{{entity.state}}"
+    entity: light.living_room
+    style:
+      label:
+        - color: "#FF0000"
+
+  # Test: Jinja2 syntax (preserved for future - shows literally for now)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "⏳ Jinja2 (not yet implemented)"
+    name: "{{states('light.living_room')}}"
+    entity: light.living_room
+    style:
+      label:
+        - color: "#FFFF00"
+
+  # Test: Mixed tokens and text
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ Mixed Content"
+    name: "Device: {entity.attributes.friendly_name} | Status: {entity.state}"
+    entity: light.living_room
+
+  # Test: Nested attribute access
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ Deep Attribute"
+    name: "Brightness: {entity.attributes.brightness}/255"
+    entity: light.living_room
+
+  # Test: Missing/undefined token (should show empty, not error)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ Missing Token"
+    name: "Nonexistent: {entity.attributes.this_does_not_exist}"
+    entity: light.living_room
+
+  # Test: Variables token
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ Variable Token"
+    name: "Color: {variables.test_color}"
+    entity: light.living_room
+    variables:
+      test_color: "#FF9900"
+
+  # Test: MSD datasource (domain.entity format - should still work)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "✅ MSD Datasource"
+    name: "Via datasource: {light.living_room}"
+    entity: light.living_room
+
+# VALIDATION:
+#
+# Card 1 (✅ New Syntax):
+#   - Should show: "on" or "off"
+#   - NOT: "{entity.state}"
+#
+# Card 2 (❌ Old Syntax):
+#   - Should show: "{{entity.state}}" literally
+#   - This confirms old syntax is deprecated
+#
+# Card 3 (⏳ Jinja2):
+#   - Should show: "{{states('light.living_room')}}" literally
+#   - This is CORRECT - Jinja2 not yet implemented
+#   - In Phase 2+, this will be evaluated server-side
+#
+# Card 4 (✅ Mixed):
+#   - Should show: "Device: Living Room Light | Status: on"
+#
+# Card 5 (✅ Deep Attribute):
+#   - Should show: "Brightness: 255/255" (or current brightness)
+#   - Or: "Brightness: /255" if light doesn't support brightness
+#
+# Card 6 (✅ Missing Token):
+#   - Should show: "Nonexistent: " (empty value)
+#   - Should NOT show console errors
+#
+# Card 7 (✅ Variable Token):
+#   - Should show: "Color: #FF9900"
+#
+# Card 8 (✅ MSD Datasource):
+#   - Should show: "Via datasource: [value]"
+#   - (MSD datasource evaluation unchanged)
+#
+# BROWSER CONSOLE CHECK:
+# Open F12 Developer Tools and look for:
+#   ✅ No errors about templates or tokens
+#   ✅ Log messages from [SimpleCardTemplateEvaluator]
+#   ❌ No "Token resolution failed" warnings (except for Card 6 - that's ok)

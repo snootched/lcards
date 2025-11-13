@@ -1,0 +1,104 @@
+# Test Configuration for Token Syntax Migration
+# Copy this into a Home Assistant dashboard to test the new {token} syntax
+#
+# REQUIREMENTS:
+# - Replace 'light.your_light' with an actual entity from your HA instance
+# - Replace 'sensor.your_sensor' with an actual sensor entity
+#
+# EXPECTED RESULTS:
+# - Button 1: Shows the entity's friendly name
+# - Button 2: Shows the entity's current state
+# - Button 3: Shows the state with custom text
+# - Button 4: Shows multiple tokens in one string
+# - Button 5: Shows attribute access
+
+type: vertical-stack
+cards:
+  # Test 1: Basic entity attribute token
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 1: Friendly Name"
+    name: "{entity.attributes.friendly_name}"
+    entity: light.your_light
+    tap_action:
+      action: toggle
+
+  # Test 2: Entity state token
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 2: State"
+    name: "State: {entity.state}"
+    entity: light.your_light
+    tap_action:
+      action: toggle
+
+  # Test 3: Multiple tokens in one string
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 3: Multiple Tokens"
+    name: "{entity.attributes.friendly_name} is {entity.state}"
+    entity: light.your_light
+    tap_action:
+      action: toggle
+
+  # Test 4: Sensor with numeric attribute
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 4: Sensor Value"
+    name: "Temperature: {entity.state}°C"
+    entity: sensor.your_sensor
+
+  # Test 5: Brightness attribute (for lights)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 5: Brightness"
+    name: "Brightness: {entity.attributes.brightness}"
+    entity: light.your_light
+    tap_action:
+      action: toggle
+
+  # Test 6: Variables token (if you have variables defined)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 6: Variables"
+    name: "Color: {variables.color}"
+    entity: light.your_light
+    variables:
+      color: "#FF9900"
+    tap_action:
+      action: toggle
+
+  # Test 7: Empty/missing token (should show empty string, not error)
+  - type: custom:lcards-simple-card
+    lcars_button_preset: button
+    label: "Test 7: Missing Token"
+    name: "Missing: {entity.attributes.nonexistent}"
+    entity: light.your_light
+
+# VALIDATION CHECKLIST:
+# [ ] All buttons render without console errors
+# [ ] Button 1 shows the friendly name from your entity
+# [ ] Button 2 shows "State: on" or "State: off" (or numeric value for sensor)
+# [ ] Button 3 combines friendly name and state correctly
+# [ ] Button 4 shows temperature value from sensor
+# [ ] Button 5 shows brightness value (or empty if light doesn't support it)
+# [ ] Button 6 shows the color value "#FF9900"
+# [ ] Button 7 shows "Missing: " with empty value (no error)
+# [ ] Toggling lights updates the displayed state immediately
+# [ ] No console errors mentioning "template" or "token"
+#
+# WHAT TO CHECK IN BROWSER CONSOLE (F12):
+# 1. No errors about "undefined token" or "template parsing failed"
+# 2. Look for log messages from SimpleCardTemplateEvaluator
+# 3. Verify tokens are being resolved (should see values, not {entity.state})
+#
+# IF TOKENS DON'T WORK (still showing {entity.state} literally):
+# - Check that lcards.js was rebuilt (check file timestamp)
+# - Hard refresh browser (Ctrl+F5 or Cmd+Shift+R)
+# - Clear Home Assistant frontend cache
+# - Check browser console for errors
+#
+# TESTING OLD SYNTAX (should NOT work anymore):
+# - Change {entity.state} to {{entity.state}}
+# - This should show literally "{{entity.state}}" (not resolved)
+# - This confirms old syntax is deprecated

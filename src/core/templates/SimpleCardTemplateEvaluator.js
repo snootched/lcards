@@ -110,14 +110,33 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
   }
 
   /**
-   * Evaluate token templates {{token}}
+   * Evaluate token templates {token}
+   *
+   * Tokens now use single braces: {entity.state}
+   * Must exclude {{jinja2}} and {msd.datasource}
    *
    * @private
    * @param {string} content - Content with token templates
    * @returns {string} Content with tokens evaluated
    */
   _evaluateTokens(content) {
-    return content.replace(/\{\{([^}]+)\}\}/g, (match, token) => {
+    // List of MSD domain prefixes to exclude
+    const msdDomains = [
+      'sensor', 'light', 'switch', 'climate', 'binary_sensor',
+      'cover', 'fan', 'lock', 'media_player', 'vacuum',
+      'camera', 'alarm_control_panel', 'device_tracker', 'person',
+      'zone', 'input_boolean', 'input_number', 'input_select',
+      'input_text', 'input_datetime', 'counter', 'timer'
+    ];
+
+    // Match {token} but NOT {{jinja2}} or {msd.datasource}
+    const domainPattern = msdDomains.join('\\.|') + '\\.';
+    const tokenRegex = new RegExp(
+      `\\{(?!\\{)(?!${domainPattern})([^{}]+)\\}`,
+      'g'
+    );
+
+    return content.replace(tokenRegex, (match, token) => {
       try {
         const value = this._resolveToken(token.trim());
         return value !== null && value !== undefined ? String(value) : '';
@@ -158,9 +177,10 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
     };
 
     // Create function with context variables as parameters
+    // Note: Code should include 'return' statement if a value is needed
     const func = new Function(
       ...Object.keys(evalContext),
-      `return ${code}`
+      code
     );
 
     // Execute with context values

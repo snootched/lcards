@@ -210,6 +210,15 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             entity: config.entity,
             hasEntity: !!this._entity
         });
+
+        // Process templates whenever config changes
+        if (this._initialized) {
+            // Already initialized - schedule template update
+            this._scheduleTemplateUpdate();
+        } else {
+            // First config set before firstUpdated - process synchronously
+            this._processTemplatesSync();
+        }
     }
 
     /**
@@ -360,9 +369,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             lcardsLog.error(`[LCARdSSimpleCard] Template processing failed:`, error);
             return template;
         }
-    }
-
-    /**
+    }    /**
      * Schedule template processing to avoid Lit update cycles
      * @protected
      */
@@ -414,9 +421,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         // Process content template (with aliases)
         const rawContent = this.config.content || this.config.value || '';
-        const newContent = this.processTemplate(rawContent);
-
-        // Process texts array
+        const newContent = this.processTemplate(rawContent);        // Process texts array
         const newTexts = [];
         if (this.config.texts && Array.isArray(this.config.texts)) {
             this.config.texts.forEach((textConfig, index) => {

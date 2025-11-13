@@ -1,0 +1,18 @@
+# MINIMAL TOKEN SYNTAX TEST
+# Replace 'light.living_room' with any entity from your Home Assistant
+#
+# QUICK TEST:
+# 1. Copy this into a dashboard
+# 2. Replace the entity with yours
+# 3. Check if you see the actual friendly name instead of "{entity.attributes.friendly_name}"
+# 4. Toggle the light - the state should update
+
+type: custom:lcards-simple-button
+entity: light.living_room
+label: "{entity.attributes.friendly_name} is {entity.state}"
+preset: lozenge
+tap_action:
+  action: toggle
+
+# EXPECTED: Button shows something like "Living Room Light is on"
+# BROKEN: Button shows literally "{entity.attributes.friendly_name} is {entity.state}"

@@ -5,9 +5,9 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  *
  * Extracts structured data from various template syntaxes:
  * - MSD references: {datasource.key:format} => { source, path, format }
- * - HA templates: {{states('entity.id')}} => { expression, entities }
+ * - HA Jinja2 templates: {{states('entity.id')}} => { expression, entities }
  * - JavaScript: [[[code]]] => { code, tokens }
- * - Tokens: {{entity.state}} => { path, parts }
+ * - Tokens: {entity.state} => { path, parts }  [CHANGED from {{entity.state}}]
  *
  * Extracted from MSD TemplateProcessor and SimpleCard inline logic.
  *
@@ -21,14 +21,15 @@ export class TemplateParser {
     // MSD DataSource templates: {data_source}, {data_source.key}, {data_source:format}
     MSD: /\{([^}]+)\}/g,
 
-    // Home Assistant templates: {{states('entity.id')}}
+    // Home Assistant Jinja2 templates: {{states('entity.id')}}
     HA: /\{\{([^}]+)\}\}/g,
+    JINJA2: /\{\{([^}]+)\}\}/g,
 
     // JavaScript templates: [[[code]]]
     JAVASCRIPT: /\[\[\[(.*?)\]\]\]/gs,
 
-    // Token templates: {{path.to.value}}
-    TOKEN: /\{\{([^}]+)\}\}/g,
+    // Token templates: {path.to.value} (single braces, not MSD datasource)
+    TOKEN: null,  // Dynamically constructed to exclude MSD domains
 
     // Format specification: {data_source:.2f} or {data_source:int}
     FORMAT_SPEC: /^(.+?):(.+)$/,
@@ -202,14 +203,17 @@ export class TemplateParser {
   /**
    * Extract all token references from content
    *
+   * Tokens use single braces: {entity.state}
+   * Must exclude MSD datasources: {sensor.temp}, {light.desk}, etc.
+   *
    * @param {string} content - Content containing token templates
-   * @returns {Array<{match: string, path: string, parts: Array<string>}>}
+   * @returns {Array<{match: string, token: string, path: string, parts: Array<string>, start: number, end: number}>}
    *
    * @example
-   * TemplateParser.extractTokens('State: {{entity.state}}, Name: {{entity.attributes.friendly_name}}')
+   * TemplateParser.extractTokens('State: {entity.state}, Name: {entity.attributes.friendly_name}')
    * // => [
-   * //   { match: '{{entity.state}}', path: 'entity.state', parts: ['entity', 'state'] },
-   * //   { match: '{{entity.attributes.friendly_name}}', path: 'entity.attributes.friendly_name', parts: [...] }
+   * //   { match: '{entity.state}', token: 'entity.state', path: 'entity.state', parts: ['entity', 'state'], start: 7, end: 21 },
+   * //   { match: '{entity.attributes.friendly_name}', token: 'entity.attributes.friendly_name', path: '...', parts: [...], start: 29, end: 63 }
    * // ]
    */
   static extractTokens(content) {
@@ -218,21 +222,129 @@ export class TemplateParser {
     }
 
     const tokens = [];
-    const regex = new RegExp(this.PATTERNS.TOKEN);
-    let match;
 
-    while ((match = regex.exec(content)) !== null) {
+    // List of MSD domain prefixes to exclude
+    const msdDomains = [
+      'sensor', 'light', 'switch', 'climate', 'binary_sensor',
+      'cover', 'fan', 'lock', 'media_player', 'vacuum',
+      'camera', 'alarm_control_panel', 'device_tracker', 'person',
+      'zone', 'input_boolean', 'input_number', 'input_select',
+      'input_text', 'input_datetime', 'counter', 'timer'
+    ];
+
+    // Match {token} but NOT {{jinja2}} or {msd.datasource}
+    const domainPattern = msdDomains.join('\\.|') + '\\.';
+    const tokenRegex = new RegExp(
+      `\\{(?!\\{)(?!${domainPattern})([^{}]+)\\}`,
+      'g'
+    );
+
+    let match;
+    while ((match = tokenRegex.exec(content)) !== null) {
       const fullMatch = match[0];
-      const token = match[1];
+      const token = match[1].trim();
 
       const parsed = this.parseToken(token);
       tokens.push({
         match: fullMatch,
-        ...parsed
+        token: token,
+        ...parsed,
+        start: match.index,
+        end: match.index + fullMatch.length
       });
     }
 
     return tokens;
+  }
+
+  /**
+   * Extract Jinja2 template expressions from content
+   *
+   * @param {string} content - Content to parse
+   * @returns {Array<Object>} Array of Jinja2 template info
+   *
+   * @example
+   * extractJinja2('Temp: {{states("sensor.temp") | round(1)}}°C')
+   * // => [{
+   * //   match: '{{states("sensor.temp") | round(1)}}',
+   * //   expression: 'states("sensor.temp") | round(1)',
+   * //   start: 6,
+   * //   end: 44,
+   * //   type: 'jinja2'
+   * // }]
+   */
+  static extractJinja2(content) {
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
+
+    const templates = [];
+    const jinja2Regex = /\{\{([^}]+)\}\}/g;
+
+    let match;
+    while ((match = jinja2Regex.exec(content)) !== null) {
+      const expression = match[1].trim();
+
+      // Only include if it has Jinja2 indicators
+      const hasFunction = /\w+\s*\(/.test(expression);
+      const hasFilter = /\|/.test(expression);
+
+      if (hasFunction || hasFilter) {
+        templates.push({
+          match: match[0],
+          expression: expression,
+          start: match.index,
+          end: match.index + match[0].length,
+          type: 'jinja2'
+        });
+      }
+    }
+
+    return templates;
+  }
+
+  /**
+   * Extract entity IDs referenced in Jinja2 templates
+   *
+   * @param {string} content - Content to parse (can be full content or just expression)
+   * @returns {Array<string>} Array of entity IDs
+   *
+   * @example
+   * extractJinja2Entities('{{states("sensor.temp")}} and {{states("sensor.humidity")}}')
+   * // => ['sensor.temp', 'sensor.humidity']
+   *
+   * extractJinja2Entities('{{state_attr("light.desk", "brightness")}}')
+   * // => ['light.desk']
+   */
+  static extractJinja2Entities(content) {
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
+
+    const entities = new Set();
+
+    // Match entity IDs in various Jinja2 functions:
+    // - states('entity.id')
+    // - state_attr('entity.id', 'attribute')
+    // - is_state('entity.id', 'state')
+    // - has_value('entity.id')
+
+    const patterns = [
+      /states\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+      /state_attr\s*\(\s*['"]([^'"]+)['"]\s*,/g,
+      /is_state\s*\(\s*['"]([^'"]+)['"]\s*,/g,
+      /has_value\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+    ];
+
+    patterns.forEach(pattern => {
+      let match;
+      const regex = new RegExp(pattern);
+      while ((match = regex.exec(content)) !== null) {
+        entities.add(match[1]);
+      }
+    });
+
+    return Array.from(entities);
   }
 
   /**
@@ -266,8 +378,11 @@ export class TemplateParser {
       }
     });
 
-    // Note: HA template entity extraction is complex and handled by MsdTemplateEngine
-    // We don't duplicate that logic here
+    // Extract Jinja2 entity references
+    const jinja2Entities = this.extractJinja2Entities(content);
+    jinja2Entities.forEach(entity => {
+      dependencies.add(entity);
+    });
 
     return Array.from(dependencies);
   }

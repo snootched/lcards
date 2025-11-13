@@ -3,7 +3,7 @@
 
 # Test 1: Text Card with Template
 - type: custom:lcards-text-card
-  text: "Temperature: {{sensor.temperature}}°C"
+  text: "Temperature: {sensor.temperature}°C"
   position:
     x: 50
     y: 25
@@ -67,7 +67,7 @@
 
 # Test 5: Text Card with Data Source (Entity State)
 - type: custom:lcards-text-card
-  text: "{{light.living_room.state}}"
+  text: "{light.living_room.state}"
   data_source: "light.living_room"
   position:
     x: 25
@@ -79,7 +79,7 @@
 
 # Test 6: Button Card with Template Label
 - type: custom:lcards-button-card
-  label: "{{light.living_room.attributes.friendly_name}}"
+  label: "{light.living_room.attributes.friendly_name}"
   entity: "light.living_room"
   position:
     x: 75

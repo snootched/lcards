@@ -5,9 +5,9 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  *
  * Detects various template syntaxes used across the codebase:
  * - MSD templates: {datasource}, {datasource.key:format}
- * - HA templates: {{states('entity')}}
+ * - HA Jinja2 templates: {{states('entity')}}
  * - SimpleCard JavaScript: [[[JavaScript code]]]
- * - SimpleCard tokens: {{token}}
+ * - SimpleCard tokens: {token}  [CHANGED from {{token}}]
  *
  * Extracted from MSD TemplateProcessor and SimpleCard inline logic.
  *
@@ -20,8 +20,12 @@ export class TemplateDetector {
   static MARKERS = {
     MSD_START: '{',
     MSD_END: '}',
+    TOKEN_START: '{',
+    TOKEN_END: '}',
     HA_START: '{{',
     HA_END: '}}',
+    JINJA2_START: '{{',
+    JINJA2_END: '}}',
     JS_START: '[[[',
     JS_END: ']]]'
   };
@@ -30,23 +34,27 @@ export class TemplateDetector {
    * Detect what types of templates are present in content
    *
    * @param {string} content - Content to analyze
-   * @returns {{hasMSD: boolean, hasHA: boolean, hasJavaScript: boolean, hasTokens: boolean}}
+   * @returns {{hasMSD: boolean, hasHA: boolean, hasJinja2: boolean, hasJavaScript: boolean, hasTokens: boolean}}
    *
    * @example
    * TemplateDetector.detectTemplateTypes('{sensor.temp}')
-   * // => { hasMSD: true, hasHA: false, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: true, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{{states("sensor.temp")}}')
-   * // => { hasMSD: false, hasHA: true, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: false, hasHA: true, hasJinja2: true, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('[[[return entity.state]]]')
-   * // => { hasMSD: false, hasHA: false, hasJavaScript: true, hasTokens: false }
+   * // => { hasMSD: false, hasHA: false, hasJinja2: false, hasJavaScript: true, hasTokens: false }
+   *
+   * TemplateDetector.detectTemplateTypes('{entity.state}')
+   * // => { hasMSD: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: true }
    */
   static detectTemplateTypes(content) {
     if (!content || typeof content !== 'string') {
       return {
         hasMSD: false,
         hasHA: false,
+        hasJinja2: false,
         hasJavaScript: false,
         hasTokens: false
       };
@@ -54,7 +62,8 @@ export class TemplateDetector {
 
     return {
       hasMSD: this.hasMSDTemplates(content),
-      hasHA: this.hasHATemplates(content),
+      hasHA: this.hasJinja2Templates(content),
+      hasJinja2: this.hasJinja2Templates(content),
       hasJavaScript: this.hasJavaScript(content),
       hasTokens: this.hasTokens(content)
     };
@@ -110,20 +119,53 @@ export class TemplateDetector {
   }
 
   /**
+   * Check if content has Home Assistant Jinja2 templates
+   *
+   * Jinja2 templates use double braces with specific indicators:
+   * - Function calls: states(), state_attr(), now(), etc.
+   * - Filters: | round, | float, | int, etc.
+   * - Statements: {% if %}, {% for %}, etc.
+   *
+   * @param {string} content - Content to check
+   * @returns {boolean} True if has Jinja2 templates ({{...}})
+   */
+  static hasJinja2Templates(content) {
+    if (!content || typeof content !== 'string') {
+      return false;
+    }
+
+    if (!content.includes(this.MARKERS.JINJA2_START)) {
+      return false;
+    }
+
+    // Jinja2 indicators:
+    // - Function calls: states(), state_attr(), now(), etc.
+    // - Filters: | round, | float, | int, etc.
+    // - Statements: {% if %}, {% for %}, etc.
+
+    const jinja2Patterns = [
+      /\{\{\s*states\s*\(/,           // {{states('entity')}}
+      /\{\{\s*state_attr\s*\(/,       // {{state_attr('entity', 'attr')}}
+      /\{\{\s*now\s*\(/,              // {{now()}}
+      /\{\{\s*is_state\s*\(/,         // {{is_state('entity', 'on')}}
+      /\{\{\s*has_value\s*\(/,        // {{has_value('entity')}}
+      /\{\{[^}]*\|[^}]+\}\}/,         // {{value | filter}}
+      /\{%[\s\S]*?%\}/                // {% if/for/etc %}
+    ];
+
+    return jinja2Patterns.some(pattern => pattern.test(content));
+  }
+
+  /**
    * Check if content has Home Assistant templates
    *
-   * HA templates use double braces: {{states('entity.id')}}
+   * Alias for hasJinja2Templates() for backward compatibility
    *
    * @param {string} content - Content to check
    * @returns {boolean} True if has HA templates ({{...}})
    */
   static hasHATemplates(content) {
-    if (!content || typeof content !== 'string') {
-      return false;
-    }
-
-    return content.includes(this.MARKERS.HA_START) &&
-           content.includes(this.MARKERS.HA_END);
+    return this.hasJinja2Templates(content);
   }
 
   /**
@@ -147,19 +189,50 @@ export class TemplateDetector {
   /**
    * Check if content has token templates
    *
-   * Token templates use double braces for simple substitution: {{entity.state}}
-   * Note: This overlaps with HA template syntax but used differently in SimpleCard.
+   * Token templates use single braces for simple substitution: {entity.state}
+   * Must distinguish from:
+   * - {{jinja2}} (double braces)
+   * - {datasource} (MSD datasource with domain prefix)
    *
    * @param {string} content - Content to check
-   * @returns {boolean} True if has token templates ({{...}})
+   * @returns {boolean} True if has token templates ({...})
    */
   static hasTokens(content) {
     if (!content || typeof content !== 'string') {
       return false;
     }
 
-    return content.includes(this.MARKERS.HA_START) &&
-           content.includes(this.MARKERS.HA_END);
+    if (!content.includes('{')) {
+      return false;
+    }
+
+    // Match {token} but exclude:
+    // - {{jinja2}} (double braces)
+    // - {sensor.*}, {light.*}, etc. (MSD datasources with domain prefixes)
+
+    // List of common HA domain prefixes used by MSD datasources
+    const msdDomains = [
+      'sensor', 'light', 'switch', 'climate', 'binary_sensor',
+      'cover', 'fan', 'lock', 'media_player', 'vacuum',
+      'camera', 'alarm_control_panel', 'device_tracker', 'person',
+      'zone', 'input_boolean', 'input_number', 'input_select',
+      'input_text', 'input_datetime', 'counter', 'timer'
+    ];
+
+    // Build pattern: {(?!{)(?!domain\.)(content)}
+    const domainPattern = msdDomains.join('\\.|') + '\\.';
+    const tokenPattern = new RegExp(
+      `\\{(?!\\{)(?!${domainPattern})([^{}]+)\\}`
+    );
+
+    // Quick check: if content has {{, we need to filter those out
+    if (content.includes('{{')) {
+      // Remove all {{...}} patterns and check if there are still tokens
+      const withoutJinja2 = content.replace(/\{\{[^}]*\}\}/g, '');
+      return tokenPattern.test(withoutJinja2);
+    }
+
+    return tokenPattern.test(content);
   }
 
   /**

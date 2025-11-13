@@ -29,7 +29,7 @@
 **Unified template processing system** for MSD and Home Assistant templates.
 
 **Key Features:**
-- Dual template support (MSD `{...}` and HA `{{...}}`)
+- Dual template support (SimpleCard tokens `{entity.state}` and Jinja2 `{{states('entity')}}`)
 - Reference extraction
 - Entity dependency tracking
 - Format specification parsing
