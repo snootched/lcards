@@ -370,7 +370,6 @@ class LCARdSCore {
         }
 
         if (this.rulesManager) {
-            lcardsLog.info(`[Core] 🔄 Calling rulesManager.updateHass()`);
             this.rulesManager.updateHass(hass);
         }
 

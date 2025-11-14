@@ -403,7 +403,7 @@ export class LCARdSActionHandler {
         element.setAttribute('data-lcards-actions-attached', 'true');
         element.setAttribute('data-lcards-handler-count', cleanupFunctions.length);
 
-        lcardsLog.info(`[LCARdSActionHandler] ✅ Actions setup complete - ${cleanupFunctions.length} handlers attached to ${element.tagName} element`, {
+        lcardsLog.trace(`[LCARdSActionHandler] ✅ Actions setup complete - ${cleanupFunctions.length} handlers attached to ${element.tagName} element`, {
             elementId,
             elementSelector: element.getAttribute('data-button-id') || element.getAttribute('data-overlay-id') || element.id,
             hasPointerEvents: window.getComputedStyle(element).pointerEvents,

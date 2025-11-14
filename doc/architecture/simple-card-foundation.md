@@ -188,6 +188,233 @@ this._actionCleanup = this.setupActions(element, {
 });
 ```
 
+### RulesEngine Integration ⭐ (v1.9.30+)
+
+SimpleCard provides first-class RulesEngine support for dynamic styling and behavior based on entity states.
+
+#### Overview
+
+The RulesEngine allows cards to react to entity state changes with style patches that have **highest priority** in the style resolution chain:
+
+```
+Style Resolution Priority:
+1. Base config style (lowest)
+2. Preset styles
+3. Theme token resolution
+4. State overrides
+5. Rule patches (highest) ⭐
+```
+
+#### Basic Setup
+
+```javascript
+export class MySimpleCard extends LCARdSSimpleCard {
+
+    constructor() {
+        super();
+        this._cardStyle = {}; // Your card's style state
+    }
+
+    // 1. Register overlay with RulesEngine
+    _handleFirstUpdate() {
+        super._handleFirstUpdate();
+
+        // Register this card as an overlay for rules
+        this._registerOverlayForRules({
+            id: `my-card-${this._cardGuid}`,
+            type: 'button', // or 'label', 'custom', etc.
+            metadata: {
+                entity: this.config.entity,
+                cardType: 'my-simple-card'
+            }
+        });
+    }
+
+    // 2. Implement the patch changed hook
+    _onRulePatchesChanged(patches) {
+        // Called when rules re-evaluate and patches change
+        // Re-resolve style to pick up new rule patches
+        this._resolveCardStyle();
+    }
+
+    // 3. Merge rule patches into style
+    _resolveCardStyle() {
+        let style = { ...(this.config.style || {}) };
+
+        // Apply preset
+        if (this.config.preset) {
+            const preset = this.getStylePreset('card', this.config.preset);
+            style = { ...preset, ...style };
+        }
+
+        // Apply theme tokens
+        style = this.resolveStyle(style, ['colors.primary']);
+
+        // ⭐ Merge with rule patches (highest priority)
+        style = this._getMergedStyleWithRules(style);
+
+        // Only update if changed (prevents unnecessary re-renders)
+        if (JSON.stringify(this._cardStyle) !== JSON.stringify(style)) {
+            this._cardStyle = style;
+            this.requestUpdate(); // ⚠️ CRITICAL: Trigger re-render
+        }
+    }
+}
+```
+
+#### YAML Configuration
+
+```yaml
+type: custom:my-simple-card
+entity: light.bedroom
+style:
+  primary: '#ff9900'
+  textColor: '#ffffff'
+rules:
+  - id: light_on_green
+    when:
+      entity: light.bedroom
+      conditions:
+        - attribute: state
+          operator: '=='
+          value: 'on'
+    apply:
+      style:
+        primary: '#00ff00'  # Green when on
+        textColor: '#000000'
+```
+
+#### Critical Implementation Details
+
+**1. Always call `requestUpdate()` after applying patches:**
+
+```javascript
+_onRulePatchesChanged(patches) {
+    this._resolveCardStyle();
+    // ✅ REQUIRED: Lit won't re-render without this
+    this.requestUpdate();
+}
+```
+
+**2. Use inline styles, not CSS classes:**
+
+```javascript
+// ❌ WRONG: CSS classes are static and cached
+return html`
+    <svg>
+        <style>
+            .button-bg { fill: ${primary}; }
+        </style>
+        <rect class="button-bg" />
+    </svg>
+`;
+
+// ✅ CORRECT: Inline styles update dynamically
+return html`
+    <svg>
+        <rect style="fill: ${primary};" />
+    </svg>
+`;
+```
+
+**3. Never use `!important` in static CSS:**
+
+```css
+/* ❌ WRONG: Blocks inline style updates */
+.button-bg {
+    fill: #ff9900 !important;
+}
+
+/* ✅ CORRECT: Let inline styles override */
+.button-bg {
+    fill: #ff9900;
+}
+```
+
+**4. Trigger initial evaluation when HASS available:**
+
+The base class handles this automatically when you register your overlay. The system will:
+- Register overlay when `_registerOverlayForRules()` is called
+- Check if HASS is already available
+- Trigger initial rule evaluation if HASS is ready
+- Set up callback for future rule changes
+
+#### Complete Flow
+
+```mermaid
+graph TD
+    A[Card Connected] --> B[_handleFirstUpdate]
+    B --> C[_registerOverlayForRules]
+    C --> D{HASS Available?}
+    D -->|Yes| E[Trigger Initial Evaluation]
+    D -->|No| F[Wait for HASS]
+    F --> G[HASS Update]
+    G --> E
+    E --> H[Rules Evaluate]
+    H --> I[Patches Generated]
+    I --> J[_onRulePatchesChanged callback]
+    J --> K[_resolveCardStyle]
+    K --> L[_getMergedStyleWithRules]
+    L --> M[requestUpdate]
+    M --> N[Render with new styles]
+
+    O[Entity State Change] --> P[HASS Update]
+    P --> H
+```
+
+#### Debugging Rules Integration
+
+Common issues and solutions:
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| Rules evaluate but no visual change | Console shows patches applied but colors don't change | Add `this.requestUpdate()` after style changes |
+| Styles computed but not displayed | Logs show correct colors but DOM shows old colors | Use inline styles, not CSS classes |
+| Inline styles ignored | DOM shows correct style attribute but wrong rendering | Remove `!important` from static CSS |
+| Rules don't evaluate on load | Button shows default style when light already ON | Base class handles this automatically (v1.9.30+) |
+
+#### Performance Notes
+
+- Rule evaluation is **cached and dirty-tracked** - only re-evaluates when entity states change
+- Style comparison uses JSON stringify - only triggers re-render if style actually changed
+- Patches are **reference-compared** - identical patches don't trigger callbacks
+- Initial evaluation happens once on registration if HASS available
+
+#### Advanced: Multiple Overlays
+
+If your card has multiple sub-components (like a button with multiple parts):
+
+```javascript
+_handleFirstUpdate() {
+    super._handleFirstUpdate();
+
+    // Register main button
+    this._registerOverlayForRules({
+        id: `button-${this._cardGuid}`,
+        type: 'button',
+        metadata: { entity: this.config.entity }
+    });
+
+    // Register sub-components
+    this._registerOverlayForRules({
+        id: `icon-${this._cardGuid}`,
+        type: 'icon',
+        metadata: { entity: this.config.entity }
+    });
+}
+
+// Apply patches to correct component
+_onRulePatchesChanged(patches) {
+    // Patches include overlayId - check which component they're for
+    if (patches.overlayId.startsWith('button-')) {
+        this._resolveButtonStyle();
+    } else if (patches.overlayId.startsWith('icon-')) {
+        this._resolveIconStyle();
+    }
+    this.requestUpdate();
+}
+```
+
 ## HASS Distribution Integration
 
 SimpleCard integrates with the singleton HASS distribution system and CoreSystemsManager:
@@ -395,6 +622,8 @@ export class MySimpleCard extends LCARdSSimpleCard {
 | `_initialized` | Boolean | Whether card is fully initialized |
 | `_entitySubscriptions` | Set | Tracked entity subscriptions for cleanup |
 | `_cardContext` | Object | CoreSystemsManager registration context |
+| `_overlayRegistered` | Boolean | Whether overlay is registered with RulesEngine |
+| `_currentRulePatches` | Object | Cached rule patches for this overlay |
 
 ### LCARdSSimpleCard Methods
 
@@ -408,6 +637,9 @@ export class MySimpleCard extends LCARdSSimpleCard {
 | `subscribeToEntity(entityId, callback)` | entityId: string, callback: Function | Function | Subscribe to entity changes (returns unsubscribe function) |
 | `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call HA service |
 | `setupActions(element, actions)` | element: HTMLElement, actions: Object | Function | Setup action handlers |
+| `_registerOverlayForRules(overlay)` | overlay: Object | void | Register overlay with RulesEngine for rule-based styling |
+| `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority) |
+| `_applyRulePatches(patches)` | patches: Object | void | Internal method to apply rule patches and trigger callback |
 
 ### Lifecycle Hooks
 
@@ -416,6 +648,7 @@ export class MySimpleCard extends LCARdSSimpleCard {
 | `_handleHassUpdate(newHass, oldHass)` | HASS updates | React to entity changes |
 | `_handleFirstUpdate(changedProps)` | First render | Initial setup |
 | `_renderCard()` | Every render | Return card content HTML |
+| `_onRulePatchesChanged(patches)` | Rule patches change | React to rule-based style changes (implement in subclass) |
 
 ## Summary
 
@@ -424,9 +657,11 @@ Simple Card provides exactly what you need:
 - ✅ 80-90% faster entity access with multiple cards
 - ✅ Reactive entity subscription API
 - ✅ Automatic lifecycle management (register, cleanup)
+- ✅ RulesEngine integration (dynamic styling based on state)
+- ✅ Overlay registration and patch system
 - ✅ Singleton access (theme, rules, animations)
 - ✅ Template processing
-- ✅ Style resolution
+- ✅ Style resolution with priority chain
 - ✅ Action handling
 - ✅ Entity management
 - ✅ HASS distribution integration
@@ -435,6 +670,6 @@ Nothing more, nothing less.
 
 ---
 
-**Last Updated:** November 10, 2025 (Post-CoreSystemsManager Integration)
-**Version:** v1.8.0
-**Status:** ✅ CoreSystemsManager fully integrated
+**Last Updated:** November 14, 2025 (Post-RulesEngine Integration)
+**Version:** v1.9.30+
+**Status:** ✅ RulesEngine fully integrated with SimpleCard

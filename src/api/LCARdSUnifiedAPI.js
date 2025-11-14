@@ -92,7 +92,7 @@ export class LCARdSUnifiedAPI {
         window.lcards.debug.singletons = window.lcards.core;
         lcardsLog.debug('[UnifiedAPI] Core singletons attached to debug tier');
       } else {
-        lcardsLog.warn('[UnifiedAPI] Core singletons not available yet - will be added when core initializes');
+        lcardsLog.debug('[UnifiedAPI] Core singletons not available yet - will be added when core initializes');
       }
 
       // ==========================================

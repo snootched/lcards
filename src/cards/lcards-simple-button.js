@@ -134,6 +134,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             tags.push('entity-based');
         }
 
+        // ⭐ Merge custom tags from config
+        if (this.config.tags && Array.isArray(this.config.tags)) {
+            tags.push(...this.config.tags);
+        }
+
         // ✅ SIMPLIFIED: Use card ID directly (no suffix)
         // If user sets id:my_button, overlay registers as "my_button" (not "my_button_button")
         const overlayId = this.config.id || this.config.entity || this._cardGuid;
@@ -144,7 +149,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             hasEntity: !!this.config.entity,
             entity: this.config.entity,
             cardGuid: this._cardGuid,
-            finalOverlayId: overlayId
+            finalOverlayId: overlayId,
+            tags: tags  // ⭐ Log tags for debugging
         });
 
         this._registerOverlayForRules(overlayId, tags);
@@ -195,7 +201,26 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
         }
     }    /**
-     * Resolve button style synchronously to avoid update cycles
+     * Resolve button style with full priority chain
+     *
+     * This method demonstrates the complete style resolution chain for SimpleCard
+     * cards with RulesEngine integration:
+     *
+     * **Style Priority (low to high):**
+     * 1. Preset styles (if specified)
+     * 2. Config styles (overrides preset)
+     * 3. Theme token resolution
+     * 4. State-based overrides (e.g., entity state)
+     * 5. Rule patches (highest priority via _getMergedStyleWithRules)
+     *
+     * **Performance:**
+     * - Uses JSON.stringify comparison to prevent unnecessary re-renders
+     * - Only triggers requestUpdate() if style actually changed
+     * - Called on: first update, HASS updates, rule patch changes
+     *
+     * **CRITICAL:** Always call `this.requestUpdate()` after style changes
+     * to trigger Lit re-render. Without this, visual updates won't happen.
+     *
      * @private
      */
     _resolveButtonStyleSync() {
@@ -397,7 +422,34 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
-     * Generate simple button SVG markup directly
+     * Generate inline SVG for button rendering
+     *
+     * **CRITICAL DESIGN DECISION:** Uses inline styles instead of CSS classes
+     *
+     * **Why Inline Styles:**
+     * 1. ✅ Evaluated fresh on every render (picks up variable changes)
+     * 2. ✅ No browser caching issues with `<style>` blocks
+     * 3. ✅ No CSS specificity problems
+     * 4. ✅ No `!important` conflicts
+     * 5. ✅ Works with Lit's re-rendering system
+     *
+     * **Why NOT CSS Classes:**
+     * - ❌ Browser caches `<style>` blocks even when SVG regenerates
+     * - ❌ CSS class definitions are static (don't change when variables change)
+     * - ❌ `!important` rules block inline style overrides
+     * - ❌ No way to dynamically update without full DOM replacement
+     *
+     * **Style Variables:**
+     * - `primary`: Background color (from resolved style with rule patches)
+     * - `textColor`: Text color (from resolved style with rule patches)
+     *
+     * Both are interpolated directly into style strings, ensuring rule-based
+     * changes are immediately reflected in the rendered SVG.
+     *
+     * @param {number} width - SVG width
+     * @param {number} height - SVG height
+     * @param {Object} config - Button configuration (preset, label)
+     * @returns {string} SVG markup string
      * @private
      */
     _generateSimpleButtonSVG(width, height, config) {

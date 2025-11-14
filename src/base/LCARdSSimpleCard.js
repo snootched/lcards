@@ -34,6 +34,65 @@ import { TemplateParser } from '../core/templates/TemplateParser.js';
  *
  * Extends LCARdSNativeCard to inherit all HA integration,
  * adds singleton access and helper methods.
+ *
+ * ## Lifecycle Hooks (Override in Subclass)
+ *
+ * ### _handleHassUpdate(newHass, oldHass)
+ * Called when HASS object updates. Use for:
+ * - Updating entity references
+ * - Recomputing derived state
+ * - Triggering style resolution
+ *
+ * ### _handleFirstUpdate(changedProps)
+ * Called once on first render. Use for:
+ * - Registering overlays with RulesEngine
+ * - Setting up subscriptions
+ * - Initial style resolution
+ *
+ * ### _renderCard()
+ * Called on every render. Return card content HTML.
+ *
+ * ### _onRulePatchesChanged(patches) ⭐ NEW
+ * Called when rule patches change. Use for:
+ * - Re-resolving styles with new patches
+ * - Triggering re-render
+ * - Updating derived state
+ *
+ * **CRITICAL:** Always call `this.requestUpdate()` after applying patches,
+ * or call a method that does (like `_resolveButtonStyle()`).
+ *
+ * @example
+ * // Minimal implementation with RulesEngine:
+ * export class MyCard extends LCARdSSimpleCard {
+ *     constructor() {
+ *         super();
+ *         this._cardStyle = {};
+ *     }
+ *
+ *     _handleFirstUpdate() {
+ *         super._handleFirstUpdate();
+ *         this._registerOverlayForRules({
+ *             id: `my-card-${this._cardGuid}`,
+ *             type: 'button'
+ *         });
+ *         this._resolveStyle();
+ *     }
+ *
+ *     _onRulePatchesChanged(patches) {
+ *         this._resolveStyle(); // Re-resolve with new patches
+ *     }
+ *
+ *     _resolveStyle() {
+ *         let style = { ...this.config.style };
+ *         style = this._getMergedStyleWithRules(style); // Apply patches
+ *         this._cardStyle = style;
+ *         this.requestUpdate(); // CRITICAL!
+ *     }
+ *
+ *     _renderCard() {
+ *         return html`<div style="color: ${this._cardStyle.primary}">Content</div>`;
+ *     }
+ * }
  */
 export class LCARdSSimpleCard extends LCARdSNativeCard {
 
@@ -175,7 +234,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         const core = window.lcardsCore || window.lcards?.core;
 
         if (!core?.configManager?.initialized) {
-            lcardsLog.warn(`[LCARdSSimpleCard] CoreConfigManager not available`);
+            lcardsLog.debug(`[LCARdSSimpleCard] CoreConfigManager not available`);
             return;
         }
 
@@ -295,7 +354,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Forward HASS to core singleton for distribution to all systems
         // Core will call rulesManager.updateHass() along with other systems
         if (window.lcards?.core) {
-            lcardsLog.info(`[LCARdSSimpleCard] 📡 Forwarding HASS to core.ingestHass() for ${this._cardGuid}`);
+            lcardsLog.trace(`[LCARdSSimpleCard] 📡 Forwarding HASS to core.ingestHass() for ${this._cardGuid}`);
             window.lcards.core.ingestHass(newHass);
         } else {
             lcardsLog.warn(`[LCARdSSimpleCard] ⚠️ No core singleton available for ${this._cardGuid}`);
@@ -505,11 +564,47 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
-     * Register this card's overlay with the RulesEngine for dynamic styling
-     * Subclasses should call this in firstUpdated() with their overlay configuration
+     * Register this card's overlay with the RulesEngine for dynamic styling based on entity states
      *
-     * @param {string} overlayId - Overlay identifier (for simple cards, use card ID directly)
-     * @param {Array<string>} tags - Tags for rule targeting (e.g., ['status', 'button'])
+     * This method integrates the card with the RulesEngine, enabling rule-based style patches
+     * to be applied dynamically when entity states change. It should be called once during
+     * card initialization (typically in _handleFirstUpdate()).
+     *
+     * **What it does:**
+     * 1. Registers overlay with CoreSystemsManager for metadata tracking
+     * 2. Sets up callback with RulesEngine for rule re-evaluation
+     * 3. Triggers initial rule evaluation if HASS is available
+     * 4. Caches rule patches for efficient style merging
+     *
+     * **Lifecycle:**
+     * - Called by subclass in _handleFirstUpdate()
+     * - Automatically triggers initial evaluation if HASS available
+     * - Sets up callback for future rule re-evaluations
+     * - Cleanup handled automatically in _onDisconnected()
+     *
+     * @param {Object} overlay - Overlay configuration object
+     * @param {string} overlay.id - Unique overlay identifier (e.g., 'simple-button-' + cardGuid)
+     * @param {string} overlay.type - Overlay type ('button', 'label', 'status', etc.)
+     * @param {Object} [overlay.metadata] - Additional metadata (entity, cardType, etc.)
+     * @param {Array<string>} [overlay.tags] - Tags for rule targeting (optional)
+     *
+     * @example
+     * // In your card's _handleFirstUpdate():
+     * _handleFirstUpdate() {
+     *     super._handleFirstUpdate();
+     *
+     *     this._registerOverlayForRules({
+     *         id: `simple-button-${this._cardGuid}`,
+     *         type: 'button',
+     *         metadata: {
+     *             entity: this.config.entity,
+     *             cardType: 'simple-button'
+     *         }
+     *     });
+     *
+     *     this._resolveButtonStyle(); // Initial style resolution
+     * }
+     *
      * @protected
      */
     _registerOverlayForRules(overlayId, tags = []) {
@@ -685,11 +780,49 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
-     * Get final merged style object combining config styles with rule patches
-     * Subclasses should call this when computing final styles for rendering
+     * Merge base config style with active rule patches
      *
-     * @param {Object} configStyle - Style from config
-     * @returns {Object} Merged style object (config + rules)
+     * Rule patches have **highest priority** in the style resolution chain and will
+     * override any matching properties from the config style. This method should be
+     * called as the final step in your style resolution logic.
+     *
+     * **Style Resolution Priority (low to high):**
+     * 1. Preset styles
+     * 2. Config styles
+     * 3. Theme token resolution
+     * 4. State overrides
+     * 5. Rule patches ⭐ (applied by this method)
+     *
+     * **Performance:**
+     * - Returns immediately if no rule patches active
+     * - Shallow merge with spread operator (fast)
+     * - No DOM interaction (pure computation)
+     *
+     * @param {Object} configStyle - Base style from config/preset/theme resolution
+     * @returns {Object} Merged style with rule patches applied (rules override config)
+     *
+     * @example
+     * // In your style resolution method:
+     * _resolveButtonStyle() {
+     *     // 1. Start with config
+     *     let style = { ...(this.config.style || {}) };
+     *
+     *     // 2. Apply preset
+     *     if (this.config.preset) {
+     *         const preset = this.getStylePreset('button', this.config.preset);
+     *         style = { ...preset, ...style };
+     *     }
+     *
+     *     // 3. Apply theme tokens
+     *     style = this.resolveStyle(style, ['colors.primary']);
+     *
+     *     // 4. Apply rule patches (highest priority)
+     *     style = this._getMergedStyleWithRules(style); // ⭐ Call this last
+     *
+     *     this._buttonStyle = style;
+     *     this.requestUpdate();
+     * }
+     *
      * @protected
      */
     _getMergedStyleWithRules(configStyle = {}) {
