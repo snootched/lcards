@@ -167,6 +167,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             content: '',
             texts: []
         };
+        this._processedIcon = null; // Processed icon configuration
 
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
@@ -1041,6 +1042,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Default implementation processes standard text fields
         await this._processStandardTexts();
 
+        // Process icon configuration
+        await this._processIcon();
+
         // Call subclass-specific template processing hook
         if (typeof this._processCustomTemplates === 'function') {
             await this._processCustomTemplates();
@@ -1139,6 +1143,125 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         this._trackedEntities = Array.from(trackedEntities);
 
         lcardsLog.trace(`[LCARdSSimpleCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
+    }
+
+    /**
+     * Process icon configuration
+     * Resolves icon source (entity icon, MDI, Simple Icons, etc.)
+     * @protected
+     */
+    async _processIcon() {
+        if (!this.config.show_icon) {
+            this._processedIcon = null;
+            return;
+        }
+
+        const iconConfig = this.config.icon;
+
+        // No icon config - try to use entity icon
+        if (!iconConfig || iconConfig === 'entity') {
+            if (this._entity && this._entity.attributes?.icon) {
+                this._processedIcon = {
+                    type: 'entity',
+                    icon: this._entity.attributes.icon,
+                    position: 'left',
+                    size: 24,
+                    color: 'inherit'
+                };
+            } else {
+                this._processedIcon = null;
+            }
+            return;
+        }
+
+        // Simple string icon (e.g., "mdi:lightbulb")
+        if (typeof iconConfig === 'string') {
+            this._processedIcon = this._parseIconString(iconConfig);
+            return;
+        }
+
+        // Full object configuration
+        if (typeof iconConfig === 'object' && iconConfig.icon) {
+            const parsed = this._parseIconString(iconConfig.icon);
+            this._processedIcon = {
+                ...parsed,
+                position: iconConfig.position || 'left',
+                size: iconConfig.size || 24,
+                color: iconConfig.color || 'inherit',
+                padding_left: iconConfig.padding_left || 0,
+                padding_right: iconConfig.padding_right || 0,
+                padding_top: iconConfig.padding_top || 0,
+                padding_bottom: iconConfig.padding_bottom || 0
+            };
+            return;
+        }
+
+        // Fallback: no valid icon
+        this._processedIcon = null;
+    }
+
+    /**
+     * Parse icon string into type and name
+     * Supports: 'mdi:icon', 'si:icon', 'entity', plain names
+     * @private
+     */
+    _parseIconString(iconString) {
+        if (!iconString) {
+            return null;
+        }
+
+        // Handle 'entity' keyword
+        if (iconString === 'entity' && this._entity?.attributes?.icon) {
+            return {
+                type: 'entity',
+                icon: this._entity.attributes.icon,
+                position: 'left',
+                size: 24,
+                color: 'inherit'
+            };
+        }
+
+        // Parse prefix:name format
+        if (iconString.includes(':')) {
+            const [prefix, name] = iconString.split(':', 2);
+
+            switch (prefix.toLowerCase()) {
+                case 'mdi':
+                    return {
+                        type: 'mdi',
+                        icon: name, // Just the name without prefix
+                        position: 'left',
+                        size: 24,
+                        color: 'inherit'
+                    };
+                case 'si':
+                    return {
+                        type: 'si',
+                        icon: name, // Just the name without prefix
+                        position: 'left',
+                        size: 24,
+                        color: 'inherit'
+                    };
+                default:
+                    // Unknown prefix, treat as MDI
+                    return {
+                        type: 'mdi',
+                        icon: name,
+                        position: 'left',
+                        size: 24,
+                        color: 'inherit'
+                    };
+            }
+        }
+
+        // Plain name - assume MDI
+        return {
+            type: 'mdi',
+            icon: iconString,
+            position: 'left',
+            size: 24,
+            color: 'inherit'
+        };
     }
 
     /**

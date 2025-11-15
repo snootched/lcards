@@ -287,7 +287,35 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
+     * Translate HA entity state to button state
+     * @private
+     * @returns {string} Button state: 'active', 'inactive', or 'unavailable'
+     */
+    _getButtonState() {
+        if (!this._entity) {
+            return 'inactive';
+        }
+
+        const state = this._entity.state;
+
+        // Unavailable is universal
+        if (state === 'unavailable' || state === 'unknown') {
+            return 'unavailable';
+        }
+
+        // Active states (ON, locked, open, etc.)
+        if (state === 'on' || state === 'locked' || state === 'open' ||
+            state === 'home' || state === 'playing' || state === 'active') {
+            return 'active';
+        }
+
+        // Inactive states (OFF, unlocked, closed, etc.)
+        return 'inactive';
+    }
+
+    /**
      * Get state-based style overrides
+     * Reads from theme tokens based on button state (active/inactive/unavailable)
      * @private
      */
     _getStateOverrides() {
@@ -295,22 +323,27 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             return {};
         }
 
-        const state = this._entity.state;
+        const buttonState = this._getButtonState();
         const overrides = {};
 
-        // Apply state-specific colors
-        switch (state) {
-            case 'on':
-                overrides.color = 'var(--accent-color, #ff9900)';
-                break;
-            case 'off':
-                overrides.color = 'var(--disabled-color, #666666)';
-                overrides.opacity = 0.6;
-                break;
-            case 'unavailable':
-                overrides.color = 'var(--error-color, #ff0000)';
-                overrides.opacity = 0.4;
-                break;
+        // Get state-specific colors from theme tokens
+        const bgToken = `components.button.base.background.${buttonState}`;
+        const textToken = `components.button.base.text.${buttonState}`;
+        const colorToken = `components.button.base.color.${buttonState}`;
+
+        const backgroundColor = this.getThemeToken(bgToken);
+        const textColor = this.getThemeToken(textToken);
+        const color = this.getThemeToken(colorToken);
+
+        if (backgroundColor) overrides.background_color = backgroundColor;
+        if (textColor) overrides.text_color = textColor;
+        if (color) overrides.color = color;
+
+        // Apply opacity for non-active states
+        if (buttonState === 'inactive') {
+            overrides.opacity = 0.7;
+        } else if (buttonState === 'unavailable') {
+            overrides.opacity = 0.5;
         }
 
         return overrides;
@@ -483,16 +516,130 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @returns {string} SVG markup string
      * @private
      */
-    _generateSimpleButtonSVG(width, height, config) {
-        const cornerRadius = config.preset === 'lozenge' ? 30 :
-                            config.preset === 'pill' ? 50 :
-                            config.preset === 'rectangle' ? 5 : 20;
+    _generateIconMarkup(iconConfig, buttonWidth, buttonHeight, position) {
+        if (!iconConfig) return { markup: '', widthUsed: 0 };
 
-        const primary = this._buttonStyle?.primary || 'var(--lcars-orange, #FF9900)';
-        const textColor = this._buttonStyle?.textColor || 'var(--lcars-color-text, #FFFFFF)';
+        const tokens = this._theme?.tokens?.components?.button?.base?.icon || {};
+        const requestedSize = iconConfig.size || tokens.size || 24;
+        const spacing = tokens.spacing || 8;
+        const borderWidth = tokens.interior?.width || 6;
+        const borderColor = tokens.interior?.color || 'black';
 
+        // Get padding values (defaults to 0)
+        const paddingLeft = iconConfig.padding_left || 0;
+        const paddingRight = iconConfig.padding_right || 0;
+        const paddingTop = iconConfig.padding_top || 0;
+        const paddingBottom = iconConfig.padding_bottom || 0;
+
+        // Account for button stroke (2px on each side)
         const strokeWidth = 2;
+        const availableHeight = buttonHeight - (strokeWidth * 2);
+        const availableWidth = buttonWidth - (strokeWidth * 2);
+
+        // Calculate icon area total width (requested size controls the AREA, not just icon)
+        // Icon area = left spacing + icon + right spacing + border
+        const iconAreaWidth = requestedSize + spacing * 2 + borderWidth;
+
+        // Constrain icon to fit within button HEIGHT (with spacing)
+        // This is the actual rendered icon size
+        const maxIconHeight = availableHeight - (spacing * 2);
+        const actualIconSize = Math.min(requestedSize, maxIconHeight);
+
+        // Calculate icon area content width (excluding the border)
+        const iconAreaContentWidth = iconAreaWidth - borderWidth;
+
+        // Center icon horizontally within its content area, then apply padding
+        const iconXOffset = (iconAreaContentWidth - actualIconSize) / 2 + paddingLeft - paddingRight;
+
+        // Position icon horizontally (from button interior edge)
+        const iconX = position === 'left'
+            ? strokeWidth + iconXOffset
+            : availableWidth + strokeWidth - iconAreaWidth + borderWidth + iconXOffset;
+
+        // Center icon vertically within button bounds, then apply padding
+        const iconY = strokeWidth + (availableHeight - actualIconSize) / 2 + paddingTop - paddingBottom;
+
+        // Interior border (divider line) - full height of button
+        const borderX = position === 'left'
+            ? strokeWidth + iconAreaContentWidth
+            : availableWidth + strokeWidth - iconAreaWidth;
+
+        // Determine icon type and rendering
+        let iconElement = '';
+        if (iconConfig.type === 'entity' || iconConfig.type === 'mdi' || iconConfig.type === 'si') {
+            const iconName = iconConfig.type === 'entity'
+                ? iconConfig.icon
+                : `${iconConfig.type}:${iconConfig.icon}`;
+
+            iconElement = `
+                <foreignObject x="${iconX}" y="${iconY}" width="${actualIconSize}" height="${actualIconSize}">
+                    <ha-icon xmlns="http://www.w3.org/1999/xhtml"
+                             icon="${iconName}"
+                             style="width: ${actualIconSize}px; height: ${actualIconSize}px; color: ${iconConfig.color || 'currentColor'}; display: flex; align-items: center; justify-content: center;"></ha-icon>
+                </foreignObject>`;
+        }
+
+        const markup = `
+            <g class="icon-group" data-position="${position}">
+                <!-- Interior border divider -->
+                <rect
+                    class="icon-border"
+                    x="${borderX}"
+                    y="0"
+                    width="${borderWidth}"
+                    height="${buttonHeight}"
+                    style="fill: ${borderColor};"
+                />
+                ${iconElement}
+            </g>
+        `.trim();
+
+        return { markup, widthUsed: iconAreaWidth };
+    }
+
+    /**
+     * Generate SVG markup for a simple button
+     * @param {number} width - SVG width
+     * @param {number} height - SVG height
+     * @param {Object} config - Button configuration (preset, label)
+     * @returns {string} SVG markup string
+     * @private
+     */
+    _generateSimpleButtonSVG(width, height, config) {
+        // Read styling from _buttonStyle (resolved from preset/tokens)
+        // Note: SVG <rect> only supports uniform border radius
+        // If preset uses per-corner radii, use the top-left value as fallback
+        let borderRadius = this._buttonStyle?.border_radius;
+        if (borderRadius === undefined && this._buttonStyle?.border_radius_top_left !== undefined) {
+            borderRadius = this._buttonStyle.border_radius_top_left;
+            // TODO: Support per-corner radii using SVG path elements
+        }
+        borderRadius = borderRadius ?? 20;
+
+        const borderWidth = this._buttonStyle?.border_width ?? 2;
+        const backgroundColor = this._buttonStyle?.background_color || this._buttonStyle?.primary || 'var(--lcars-orange, #FF9900)';
+        const textColor = this._buttonStyle?.text_color || this._buttonStyle?.textColor || 'var(--lcars-color-text, #FFFFFF)';
+        const borderColor = this._buttonStyle?.border_color || 'var(--lcars-color-secondary, #000000)';
+
+        // Font properties
+        const fontSize = this._buttonStyle?.font_size ?? '14px';
+        const fontWeight = this._buttonStyle?.font_weight ?? 'bold';
+        const fontFamily = this._buttonStyle?.font_family ?? "'LCARS', 'Antonio', sans-serif";
+
+        const strokeWidth = borderWidth;
         const text = config.label || 'Button';
+
+        // Generate icon markup if present
+        const iconPosition = this._processedIcon?.position || 'left';
+        const iconData = this._generateIconMarkup(this._processedIcon, width, height, iconPosition);
+
+        // Calculate text position accounting for icon
+        let textX = width / 2;
+        if (iconData.widthUsed > 0) {
+            const textAreaWidth = width - iconData.widthUsed;
+            const textAreaStart = iconPosition === 'left' ? iconData.widthUsed : 0;
+            textX = textAreaStart + (textAreaWidth / 2);
+        }
 
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -506,15 +653,17 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                         y="${strokeWidth/2}"
                         width="${width - strokeWidth}"
                         height="${height - strokeWidth}"
-                        rx="${cornerRadius}"
-                        ry="${cornerRadius}"
-                        style="fill: ${primary}; stroke: var(--lcars-color-secondary, #000000); stroke-width: ${strokeWidth};"
+                        rx="${borderRadius}"
+                        ry="${borderRadius}"
+                        style="fill: ${backgroundColor}; stroke: ${borderColor}; stroke-width: ${strokeWidth};"
                     />
+
+                    ${iconData.markup}
 
                     <text
                         class="button-text"
-                        style="pointer-events: none; fill: ${textColor}; font-family: 'LCARS', 'Antonio', sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; dominant-baseline: central;"
-                        x="${width/2}"
+                        style="pointer-events: none; fill: ${textColor}; font-family: ${fontFamily}; font-size: ${fontSize}; font-weight: ${fontWeight}; text-anchor: middle; dominant-baseline: central;"
+                        x="${textX}"
                         y="${height/2}">
                         ${this._escapeXML(text)}
                     </text>
@@ -655,6 +804,29 @@ if (window.lcardsCore?.configManager) {
             show_icon: {
                 type: 'boolean',
                 description: 'Whether to display an icon'
+            },
+            icon: {
+                oneOf: [
+                    { type: 'string' },
+                    {
+                        type: 'object',
+                        properties: {
+                            icon: { type: 'string', description: 'Icon name (e.g., "mdi:lightbulb", "entity")' },
+                            position: {
+                                type: 'string',
+                                enum: ['left', 'right', 'center', 'top', 'bottom'],
+                                description: 'Icon position relative to text'
+                            },
+                            size: { type: 'number', description: 'Icon size in pixels (controls area width)' },
+                            color: { type: 'string', description: 'Icon color (CSS color or "inherit")' },
+                            padding_left: { type: 'number', description: 'Left padding in pixels' },
+                            padding_right: { type: 'number', description: 'Right padding in pixels' },
+                            padding_top: { type: 'number', description: 'Top padding in pixels' },
+                            padding_bottom: { type: 'number', description: 'Bottom padding in pixels' }
+                        }
+                    }
+                ],
+                description: 'Icon configuration: string ("entity", "mdi:lightbulb") or object with options'
             },
 
             // Style Properties

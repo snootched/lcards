@@ -372,13 +372,42 @@ export const lcarsClassicTokens = {
         // Icon styling
         icon: {
           size: 24,
+          spacing: 8,  // Space between icon and text
+          position: {
+            left: 'left',
+            right: 'right',
+            center: 'center',
+            top: 'top',
+            bottom: 'bottom'
+          },
+          color: {
+            active: 'black',
+            inactive: 'black',
+            unavailable: 'black',
+            inherit: 'inherit'  // Inherit from parent
+          },
           border: {
             width: 6,
+            color: {
+              active: 'black',
+              inactive: 'black',
+              unavailable: 'black',
+              transparent: 'transparent'
+            },
             padding: {
               standard: '1.0%',
               dense: '1.5%',
-              minimal: '0.5%'
-            }
+              minimal: '0.5%',
+              none: 0
+            },
+            margin: 0
+          },
+          // Interior border for split lozenge effect
+          interior: {
+            enabled: true,
+            width: 6,
+            color: 'black',
+            side: 'auto'  // 'left', 'right', or 'auto' (opposite of icon position)
           }
         }
       }
