@@ -310,7 +310,7 @@ export class RulesEngine extends BaseService {
    */
   async evaluateDirty(context = {}) {
     return perfTime('rules.evaluate', async () => {  // ✨ CHANGED: async
-      let { getEntity, overlays } = context;  // ✨ CHANGED: Extract overlays from context
+      let { getEntity, overlays, entity } = context;  // ✨ CHANGED: Extract entity and overlays from context
 
       // ENHANCED: Always prioritize original HASS states for rule evaluation
       // regardless of the context or provided getEntity function
@@ -420,7 +420,7 @@ export class RulesEngine extends BaseService {
       for (const rule of dirtyRulesArray) {
         if (processedRules.has(rule.id)) continue;
 
-        const result = await this.evaluateRule(rule, getEntity, overlays);  // ✨ CHANGED: Pass overlays
+        const result = await this.evaluateRule(rule, getEntity, overlays, entity);  // ✨ CHANGED: Pass entity
         processedRules.add(rule.id);
 
         // Cache evaluation result
@@ -527,9 +527,10 @@ export class RulesEngine extends BaseService {
    * @param {Object} rule - Rule to evaluate
    * @param {Function} getEntity - Function to get entity state
    * @param {Array} contextOverlays - Overlays available during evaluation (for initial render)
+   * @param {string} boundEntity - Entity ID bound to the card (for JavaScript context)
    * @returns {Promise<Object>} Evaluation result
    */
-  async evaluateRule(rule, getEntity, contextOverlays = null) {  // ✨ CHANGED: Accept contextOverlays
+  async evaluateRule(rule, getEntity, contextOverlays = null, boundEntity = null) {  // ✨ CHANGED: Accept boundEntity
     const startTime = performance.now();
 
     try {
@@ -544,7 +545,7 @@ export class RulesEngine extends BaseService {
       const ctx = {
         // Entity lookup
         getEntity,
-        entity: null,  // Will be set by evalEntity if needed
+        entity: boundEntity ? getEntity(boundEntity) : null,  // ✨ CHANGED: Use passed entity if available
 
         // HASS access
         hass: this.systemsManager?.getHass?.(),

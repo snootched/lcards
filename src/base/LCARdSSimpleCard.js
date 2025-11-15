@@ -707,6 +707,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             try {
                 // Evaluate dirty rules to get patches
                 const ruleResults = await this._singletons.rulesEngine.evaluateDirty({
+                    entity: this.config?.entity,  // ✨ Pass bound entity ID for JavaScript context
                     getEntity: (entityId) => {
                         const state = this.hass?.states?.[entityId];
                         lcardsLog.trace(`[LCARdSSimpleCard] getEntity(${entityId}) => ${state?.state}`);

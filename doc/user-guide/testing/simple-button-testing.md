@@ -1,6 +1,6 @@
 # Simple Button Card - Testing Guide
 
-**Version:** 1.10.81+
+**Version:** 1.11.23+
 **Schema:** CB-LCARS Nested Schema Only
 **Last Updated:** November 15, 2025
 
@@ -16,18 +16,29 @@
 - ✅ Test 5: Theme Tokens (v1.10.78)
 - ⚠️ Test 6: Border Flexibility (v1.10.86 - Partial: uniform & per-corner work, per-side not implemented)
 - ✅ Test 7: Typography (v1.10.86)
-- ✅ Test 8: Lozenge Preset (v1.10.95)
+- ✅ Test 8: Lozenge Preset (v1.11.23)
+- ✅ Test 9: Preset Override (v1.11.23)
+- ✅ Test 10: Icon Formats (v1.11.23)
 
 **Pending Tests:**
-- ⏳ Test 9: Preset Override (next)
-- ⏳ Tests 10-20 (Icons, Rules, Actions, etc.)
+- ⏳ Test 11: Rules Engine - JavaScript (ready to test)
+- ⏳ Test 12: Rules Engine - Jinja2 (ready to test)
+- ⚠️ Test 13: Rules Engine - Token Syntax (SKIP - duplicate of Test 11)
+- ⏳ Test 14: Rules Engine - Entity State (ready to test)
+- ⏳ Test 15: Rules Engine - Priority (ready to test)
+- ⏳ Tests 16-20: Actions (Toggle, Call Service, Navigate, More Info, Complex Example)
+
+**Documentation Updates (v1.11.23+):**
+- ✅ Corrected all Rules Engine syntax (Tests 11-15)
+- ✅ Removed incorrect `type: javascript`, `type: jinja2`, `type: token`, `type: entity` syntax
+- ✅ Updated to use `when.any` + template conditions + `apply.overlays.tag:button.style`
+- ✅ Added notes about template context and `stop_after` behavior
 
 **Known Issues:**
 - Editor preview border mutation (documented in Test 5, low priority, workaround: reload page)
 - Per-side border widths and individual side styling not yet implemented (Test 6)
 
 ---
-
 ## Quick Test Setup
 
 Copy these test configs to a Lovelace dashboard for systematic verification.
@@ -387,7 +398,7 @@ style:
   card:
     color:
       background:
-        active: 'var(--lcars-ui-red)'
+        active: 'var(--lcars-red)'
 
   border:
     color:
@@ -401,10 +412,17 @@ style:
 ```
 
 **Expected:**
-- Lozenge shape maintained
+- Lozenge shape maintained (full rounded corners)
 - Red background (overriding preset)
-- Yellow border
-- White text, 18px
+- Yellow border (overriding preset)
+- White text, 18px (overriding preset)
+- Icon on left (preset default position)
+
+**Status:** ✅ **PASSED** (v1.11.23)
+- Config styles correctly override preset defaults
+- Deep merge preserves preset shape characteristics
+- All override properties apply correctly
+- Merge priority chain works: preset → theme → config
 
 ---
 
@@ -415,6 +433,7 @@ style:
 type: custom:lcards-simple-button
 label: "MDI Icon"
 icon: 'mdi:lightbulb-on'
+show_icon: true
 ```
 
 ### Simple Icons
@@ -422,20 +441,37 @@ icon: 'mdi:lightbulb-on'
 type: custom:lcards-simple-button
 label: "Simple Icon"
 icon: 'si:github'
+show_icon: true
 ```
 
-### Entity Icon
+### Entity Icon (Auto-detect)
+```yaml
+type: custom:lcards-simple-button
+entity: light.bedroom
+label: "Entity Icon"
+show_icon: true
+```
+
+### Entity Icon (Explicit)
 ```yaml
 type: custom:lcards-simple-button
 entity: light.bedroom
 label: "Entity Icon"
 icon: 'entity'
+show_icon: true
 ```
 
 **Expected:**
 - MDI: Shows lightbulb icon
 - SI: Shows GitHub logo
-- Entity: Shows entity's configured icon
+- Entity (auto): Uses entity's configured icon automatically
+- Entity (explicit): Same result, but explicitly specified
+
+**Status:** ✅ **PASSED** (v1.11.23)
+- All three icon formats render correctly
+- Entity icon auto-detection works (HA style)
+- `icon: 'entity'` is optional - just use `show_icon: true` with entity binding
+- MDI and Simple Icons require explicit `icon:` specification
 
 ---
 
@@ -446,6 +482,7 @@ type: custom:lcards-simple-button
 entity: light.bedroom
 label: "Brightness Aware"
 icon: 'mdi:lightbulb'
+show_icon: true
 
 style:
   card:
@@ -459,19 +496,22 @@ style:
         active: 'white'
 
 rules:
-  - when:
-      condition: "entity.attributes.brightness > 200"
-      type: javascript
+  - id: high_brightness
+    when:
+      any:
+        - condition: '[[[return entity.attributes.brightness > 200]]]'
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-yellow)'
-        text:
-          default:
-            color:
-              active: 'black'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-yellow)'
+            text:
+              default:
+                color:
+                  active: 'black'
 ```
 
 **Test Actions:**
@@ -479,6 +519,8 @@ rules:
 2. Set light brightness > 200 → Yellow background, black text
 
 **Expected:** Colors change **instantly** as brightness changes.
+
+**Note:** JavaScript conditions use `[[[...]]]` wrapper and go inside `when.any`. The `entity` variable contains the button's bound entity. You can also access any entity via `states['entity.id']`.
 
 ---
 
@@ -488,6 +530,8 @@ rules:
 type: custom:lcards-simple-button
 entity: sensor.temperature
 label: "Temperature"
+show_icon: true
+icon: 'mdi:thermometer'
 
 style:
   card:
@@ -501,61 +545,33 @@ style:
         active: 'white'
 
 rules:
-  - when:
-      condition: "{{ float(states('sensor.temperature')) > 25 }}"
-      type: jinja2
+  - id: high_temperature
+    when:
+      any:
+        - condition: "{{ float(states('sensor.temperature')) > 25 }}"
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-ui-red)'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-red)'
 ```
 
 **Expected:**
 - Temperature ≤ 25: Blue background
 - Temperature > 25: Red background
 
+**Note:** Jinja2 conditions use `{{ ... }}` wrapper and can use all Home Assistant template functions like `states()` and `float()`.
+
 ---
 
 ## Test 13: Rules Engine - Token Syntax
 
-```yaml
-type: custom:lcards-simple-button
-entity: binary_sensor.door
-label: "Door Sensor"
-icon: 'mdi:door'
+**Note:** This test is a duplicate of Test 11 (JavaScript). Token syntax `${}` is not a separate rule type - tokens are replaced during template processing before rules evaluate. Use JavaScript or Jinja2 templates instead.
 
-style:
-  card:
-    color:
-      background:
-        active: 'var(--lcars-green)'
-
-  text:
-    default:
-      color:
-        active: 'black'
-
-rules:
-  - when:
-      condition: "${entity.state} === 'on'"
-      type: token
-    apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-ui-red)'
-        text:
-          default:
-            color:
-              active: 'white'
-```
-
-**Expected:**
-- Door closed (off): Green background
-- Door open (on): Red background, white text
+**SKIP THIS TEST** - Use Test 11 (JavaScript) or Test 12 (Jinja2) instead.
 
 ---
 
@@ -565,6 +581,8 @@ rules:
 type: custom:lcards-simple-button
 entity: switch.living_room
 label: "Living Room Switch"
+show_icon: true
+icon: 'mdi:lightbulb'
 
 style:
   card:
@@ -573,20 +591,26 @@ style:
         active: 'var(--lcars-gray)'
 
 rules:
-  - when:
-      condition: "on"
-      type: entity
+  - id: switch_on
+    when:
+      any:
+        - entity: switch.living_room
+          state: "on"
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-green)'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-green)'
 ```
 
 **Expected:**
 - Switch off: Gray background
 - Switch on: Green background
+
+**Note:** Simple entity state matching uses `entity:` and `state:` under `when.any`. This is the simplest rules syntax.
 
 ---
 
@@ -594,43 +618,62 @@ rules:
 
 ```yaml
 type: custom:lcards-simple-button
-entity: light.bedroom
-label: "Multi-Rule"
+entity: binary_sensor.motion
+label: "Motion Sensor"
+show_icon: true
+icon: 'mdi:motion-sensor'
 
 style:
   card:
     color:
       background:
-        active: 'var(--lcars-blue)'
+        active: 'var(--lcars-gray)'
 
 rules:
-  - when:
-      condition: "entity.state === 'on'"
-      type: javascript
+  # High priority - critical motion detected
+  - id: motion_critical
+    priority: 100
+    stop_after: true  # Stops further rules from applying
+    when:
+      any:
+        - entity: binary_sensor.motion
+          state: "on"
+        - entity: sensor.motion_level
+          above: 90
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-green)'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-ui-red)'
 
-  - when:
-      condition: "entity.attributes.brightness > 200"
-      type: javascript
+  # Low priority - normal motion (won't apply if stop_after triggered)
+  - id: motion_normal
+    priority: 50
+    when:
+      any:
+        - entity: binary_sensor.motion
+          state: "on"
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-yellow)'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-gold)'
 ```
 
 **Test Sequence:**
-1. Light OFF → Blue (default)
-2. Light ON, brightness < 200 → Green (first rule)
-3. Light ON, brightness > 200 → Yellow (second rule wins)
+1. Motion off: Gray (default)
+2. Motion on, level < 90: Gold (motion_normal rule)
+3. Motion on, level > 90: Red (motion_critical applies, stop_after prevents motion_normal)
 
-**Expected:** Last matching rule takes priority.
+**Expected:** Rules execute in priority order (higher first). Use `stop_after: true` to prevent lower-priority rules from applying when a match occurs.
+
+**Note:** Without `stop_after`, later matching rules would also apply. Priority controls evaluation order, `stop_after` controls whether to continue evaluating.
 
 ---
 
@@ -752,24 +795,27 @@ hold_action:
   action: more-info
 
 rules:
-  - when:
-      condition: "entity.attributes.brightness > 200"
-      type: javascript
+  - id: high_brightness
+    when:
+      any:
+        - condition: '[[[return states["light.bedroom"].attributes.brightness > 200]]]'
     apply:
-      style:
-        card:
-          color:
-            background:
-              active: 'var(--lcars-yellow)'
-        border:
-          color:
-            active: 'var(--lcars-orange)'
+      overlays:
+        tag:button:
+          style:
+            card:
+              color:
+                background:
+                  active: 'var(--lcars-yellow)'
+            border:
+              color:
+                active: 'var(--lcars-orange)'
 ```
 
 **Expected:**
 - Lozenge shape with computed alpha
 - State changes work instantly
-- Brightness > 200 changes to yellow
+- Brightness > 200 changes to yellow with orange border
 - Click toggles, long-press shows more info
 - All nested schema properties work together
 
