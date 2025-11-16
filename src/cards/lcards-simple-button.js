@@ -1175,15 +1175,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 ? strokeWidth + iconAreaContentWidth
                 : availableWidth + strokeWidth - iconAreaWidth;
 
-            if (hasBorder) {
-                // Interior mode: avoid overlapping button border
-                dividerY = strokeWidth;
-                dividerHeight = buttonHeight - (strokeWidth * 2);
-            } else {
-                // Full height mode: create visual separation
-                dividerY = 0;
-                dividerHeight = buttonHeight;
-            }
+            // Divider positioning for expanded viewBox system:
+            // Border strokes are centered on paths (e.g., at Y=0), extending ±strokeWidth/2
+            // Divider should be inset by strokeWidth/2 to sit just inside the border strokes
+            const strokeInset = strokeWidth / 2;
+            dividerY = strokeInset;
+            dividerHeight = buttonHeight - (strokeInset * 2);
 
             // Determine icon type and rendering
             let iconElement = '';
@@ -1253,7 +1250,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const fontWeight = this._buttonStyle?.text?.default?.font_weight || 'bold';
         const fontFamily = this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif";
 
-        const text = config.label || 'Button';
+        const text = config.label || 'LCARdS Button';
 
         // Resolve border configuration with per-corner support
         const border = this._resolveBorderConfiguration();
@@ -1789,8 +1786,8 @@ ${textMarkup}
             }
         }
 
-        // Render corner arcs if we have radii
-        if (border.hasIndividualRadius && hasAnyRadius) {
+        // Render corner arcs if any corner has a radius (individual or global)
+        if (hasAnyRadius) {
             borderMarkup += this._renderCornerArcs(width, height, border);
         }
 
