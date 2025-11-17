@@ -27,6 +27,9 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { deepMerge } from '../utils/deepMerge.js';
+import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
+import { escapeHtml } from '../utils/StringUtils.js';
 
 export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
@@ -312,77 +315,6 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 this._lastActionElement = buttonElement;
             }
         }
-    }    /**
-     * Deep merge two objects, with target taking priority
-     * Handles nested objects properly (unlike spread operator)
-     * @private
-     */
-    _deepMerge(base, override) {
-        if (!override || typeof override !== 'object') return base;
-        if (!base || typeof base !== 'object') return override;
-
-        const result = { ...base };
-
-        for (const [key, value] of Object.entries(override)) {
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-                // Recursively merge nested objects
-                result[key] = this._deepMerge(result[key], value);
-            } else {
-                // Override with new value
-                result[key] = value;
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Recursively resolve theme: tokens AND computed tokens in an object
-     * @private
-     */
-    _resolveThemeTokensRecursive(obj) {
-        if (!obj || typeof obj !== 'object' || !this._singletons?.themeManager) {
-            return obj;
-        }
-
-        const result = Array.isArray(obj) ? [...obj] : { ...obj };
-
-        for (const [key, value] of Object.entries(result)) {
-            if (typeof value === 'string') {
-                if (value.startsWith('theme:')) {
-                    // Resolve theme token
-                    const tokenPath = value.substring(6);
-                    const resolved = this._singletons.themeManager.getToken(tokenPath, value);
-                    if (resolved !== value) {
-                        result[key] = this._resolveThemeTokensRecursive(resolved); // Recurse in case token resolves to another token
-                        lcardsLog.trace(`[LCARdSSimpleButtonCard] Resolved theme token: ${value} -> ${result[key]}`);
-                    } else {
-                        lcardsLog.warn(`[LCARdSSimpleButtonCard] Theme token not found: '${value}' - using as literal value`);
-                    }
-                } else if (value.includes('(') && (value.startsWith('alpha(') || value.startsWith('darken(') || value.startsWith('lighten('))) {
-                    // Resolve computed token (alpha, darken, lighten, etc.)
-                    try {
-                        lcardsLog.debug(`[LCARdSSimpleButtonCard] Attempting to resolve computed token: ${value}`);
-                        lcardsLog.debug(`[LCARdSSimpleButtonCard] Resolver available:`, !!this._singletons?.themeManager?.resolver);
-                        const resolved = this._singletons.themeManager.resolver.resolve(value, value);
-                        lcardsLog.debug(`[LCARdSSimpleButtonCard] Resolution result: ${value} -> ${resolved}`);
-                        if (resolved !== value) {
-                            result[key] = resolved;
-                            lcardsLog.trace(`[LCARdSSimpleButtonCard] Resolved computed token: ${value} -> ${resolved}`);
-                        } else {
-                            lcardsLog.warn(`[LCARdSSimpleButtonCard] Computed token unchanged: ${value}`);
-                        }
-                    } catch (error) {
-                        lcardsLog.warn(`[LCARdSSimpleButtonCard] Failed to resolve computed token: ${value}`, error);
-                    }
-                }
-            } else if (value && typeof value === 'object') {
-                // Recursively resolve nested objects
-                result[key] = this._resolveThemeTokensRecursive(value);
-            }
-        }
-
-        return result;
     }
 
     /**
@@ -445,7 +377,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 });
                 if (preset) {
                     // Deep copy preset to avoid mutation issues
-                    style = this._deepMerge({}, preset);
+                    style = deepMerge({}, preset);
                     lcardsLog.debug(`[LCARdSSimpleButtonCard] Applied preset '${this.config.preset}'`, {
                         borderRadius: preset.border?.radius,
                         borderWidth: preset.border?.width,
@@ -467,9 +399,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // First create a deep copy to avoid mutating the original config
             const configStyleCopy = JSON.parse(JSON.stringify(this.config.style));
             // Then resolve ALL tokens recursively (theme: and computed)
-            const configWithTokens = this._resolveThemeTokensRecursive(configStyleCopy);
+            const configWithTokens = resolveThemeTokensRecursive(configStyleCopy, this._singletons?.themeManager);
             // Then deep merge (handles nested objects)
-            style = this._deepMerge(style, configWithTokens);
+            style = deepMerge(style, configWithTokens);
             lcardsLog.trace(`[LCARdSSimpleButtonCard] Deep merged config styles`);
         }
 
@@ -1927,25 +1859,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             textAttrs.push(`data-field-id="${field.id}"`);
 
             // Build complete text element
-            const textElement = `<text ${textAttrs.join(' ')}>${this._escapeHtml(field.content)}</text>`;
+            const textElement = `<text ${textAttrs.join(' ')}>${escapeHtml(field.content)}</text>`;
             textElements.push(textElement);
         }
 
         return textElements.join('\n        ');
-    }
-
-    /**
-     * Escape HTML special characters for safe SVG content
-     * @private
-     */
-    _escapeHtml(text) {
-        if (!text) return '';
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
     }
 
     /**
