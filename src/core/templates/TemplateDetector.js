@@ -148,13 +148,16 @@ export class TemplateDetector {
   /**
    * Check if content has Home Assistant Jinja2 templates
    *
-   * Jinja2 templates use double braces with specific indicators:
-   * - Function calls: states(), state_attr(), now(), etc.
-   * - Filters: | round, | float, | int, etc.
-   * - Statements: {% if %}, {% for %}, etc.
+   * Jinja2 templates use double braces with specific HA functions/filters/control structures.
+   * Context variables like {{entity.state}} should use single braces {entity.state} for local resolution.
+   *
+   * Valid Jinja2 patterns:
+   * - HA functions: {{states('entity')}}, {{state_attr()}}, {{now()}}, etc.
+   * - Filters: {{value | round}}, {{value | float}}, etc.
+   * - Control structures: {% if %}, {% for %}, etc.
    *
    * @param {string} content - Content to check
-   * @returns {boolean} True if has Jinja2 templates ({{...}})
+   * @returns {boolean} True if has Jinja2 templates requiring server-side rendering
    */
   static hasJinja2Templates(content) {
     if (!content || typeof content !== 'string') {
@@ -170,7 +173,7 @@ export class TemplateDetector {
       return false;
     }
 
-    // Jinja2 indicators:
+    // Jinja2 indicators requiring server-side rendering:
     // - Function calls: states(), state_attr(), now(), etc.
     // - Filters: | round, | float, | int, etc.
     // - Control structures: {% if %}, {% for %}, {% set %}, etc.

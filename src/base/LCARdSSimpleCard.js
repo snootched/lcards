@@ -1127,59 +1127,21 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
-     * Process standard text fields (label, content, texts array)
+     * Process standard text fields (legacy fields no longer supported)
+     * This is now a no-op base implementation. Subclasses should override
+     * _processCustomTemplates() to handle their specific template needs.
      * @protected
      */
     async _processStandardTexts() {
-        // Process label template (with aliases)
-        const rawLabel = this.config.label || this.config.text || '';
-        const newLabel = await this.processTemplate(rawLabel);
-
-        // Process content template (with aliases)
-        const rawContent = this.config.content || this.config.value || '';
-        const newContent = await this.processTemplate(rawContent);        // Process texts array
-        const newTexts = [];
-        if (this.config.texts && Array.isArray(this.config.texts)) {
-            for (const textConfig of this.config.texts) {
-                if (textConfig && typeof textConfig === 'object') {
-                    const processedText = {
-                        ...textConfig,
-                        text: await this.processTemplate(textConfig.text || textConfig.content || '')
-                    };
-                    newTexts.push(processedText);
-                }
-            }
-        }
-
-        // Only update if values actually changed to avoid unnecessary re-renders
-        const labelChanged = this._processedTexts.label !== newLabel;
-        const contentChanged = this._processedTexts.content !== newContent;
-        const textsChanged = JSON.stringify(this._processedTexts.texts) !== JSON.stringify(newTexts);
-
-        if (labelChanged || contentChanged || textsChanged) {
-            this._processedTexts.label = newLabel;
-            this._processedTexts.content = newContent;
-            this._processedTexts.texts = newTexts;
-
-            // Extract and track entities from Jinja2 templates for auto-updates
-            this._updateTrackedEntities();
-
-            lcardsLog.debug(`[LCARdSSimpleCard] Templates processed for ${this._cardGuid}:`, {
-                label: this._processedTexts.label,
-                content: this._processedTexts.content,
-                textsCount: this._processedTexts.texts.length,
-                changed: { labelChanged, contentChanged, textsChanged }
-            });
-
-            // Call subclass hook for style resolution after template changes
-            if (typeof this._onTemplatesChanged === 'function') {
-                this._onTemplatesChanged();
-            }
-        }
+        // No-op: Legacy fields (label, content, texts array) are no longer supported.
+        // Subclasses should implement _processCustomTemplates() for their specific needs.
+        lcardsLog.trace(`[LCARdSSimpleCard] _processStandardTexts called (no-op, legacy fields not supported)`);
     }
 
     /**
      * Extract and track entities from Jinja2 templates
+     * Base implementation only tracks primary entity.
+     * Subclasses should override to add their specific template sources.
      * @private
      */
     _updateTrackedEntities() {
@@ -1189,31 +1151,6 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         if (this.config.entity) {
             trackedEntities.add(this.config.entity);
         }
-
-        // Extract entities from templates
-        const templates = [
-            this.config.label,
-            this.config.text,
-            this.config.content,
-            this.config.value
-        ].filter(Boolean);
-
-        // Add texts array templates
-        if (this.config.texts && Array.isArray(this.config.texts)) {
-            this.config.texts.forEach(textConfig => {
-                if (textConfig) {
-                    templates.push(textConfig.text || textConfig.content);
-                }
-            });
-        }
-
-        // Parse dependencies from all templates
-        templates.forEach(template => {
-            if (template && typeof template === 'string') {
-                const deps = TemplateParser.extractDependencies(template);
-                deps.forEach(entityId => trackedEntities.add(entityId));
-            }
-        });
 
         this._trackedEntities = Array.from(trackedEntities);
 

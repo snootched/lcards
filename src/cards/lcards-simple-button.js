@@ -866,6 +866,83 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
+     * Process custom templates for multi-text system
+     * Override base class hook to handle text.{fieldId}.content templates
+     * @protected
+     * @override
+     */
+    async _processCustomTemplates() {
+        // Track if any templates changed to avoid unnecessary re-renders
+        let hasChanges = false;
+
+        // Process multi-text field templates
+        if (this.config.text && typeof this.config.text === 'object') {
+            for (const [fieldId, fieldConfig] of Object.entries(this.config.text)) {
+                // Skip 'default' - it's configuration, not a field
+                if (fieldId === 'default' || !fieldConfig || typeof fieldConfig !== 'object') {
+                    continue;
+                }
+
+                // Process template if enabled (default is true)
+                const shouldTemplate = fieldConfig.template !== false;
+                if (shouldTemplate && fieldConfig.content) {
+                    const processedContent = await this.processTemplate(fieldConfig.content);
+
+                    // Check if content actually changed
+                    if (this.config.text[fieldId].content !== processedContent) {
+                        // Store processed content back in config for rendering
+                        // (This modifies config in-place, which is safe since it's already been merged)
+                        this.config.text[fieldId].content = processedContent;
+                        hasChanges = true;
+                    }
+                }
+            }
+        }
+
+        if (hasChanges) {
+            // Extract and track entities from templates for auto-updates
+            this._updateTrackedEntities();
+
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Multi-text templates processed for ${this._cardGuid}`);
+
+            // Call subclass hook for style resolution after template changes
+            if (typeof this._onTemplatesChanged === 'function') {
+                this._onTemplatesChanged();
+            }
+        }
+    }
+
+    /**
+     * Extract and track entities from templates (override base class)
+     * Tracks dependencies from multi-text field templates
+     * @private
+     * @override
+     */
+    _updateTrackedEntities() {
+        // Call parent to get base tracking (primary entity)
+        super._updateTrackedEntities();
+
+        const trackedEntities = new Set(this._trackedEntities || []);
+
+        // Add multi-text field templates
+        if (this.config.text && typeof this.config.text === 'object') {
+            for (const [fieldId, fieldConfig] of Object.entries(this.config.text)) {
+                if (fieldId === 'default' || !fieldConfig?.content) continue;
+
+                const template = fieldConfig.content;
+                if (typeof template === 'string') {
+                    const deps = TemplateParser.extractDependencies(template);
+                    deps.forEach(entityId => trackedEntities.add(entityId));
+                }
+            }
+        }
+
+        this._trackedEntities = Array.from(trackedEntities);
+
+        lcardsLog.trace(`[LCARdSSimpleButtonCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
+    }
+
+    /**
      * Translate HA entity state to button state
      * Uses base class _classifyEntityState() for standardized state classification
      * @private
