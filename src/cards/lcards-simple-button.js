@@ -28,7 +28,6 @@ import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
-import { getDomainIcon } from '../msd/utils/HADomains.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 
@@ -115,6 +114,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             const newState = this._entity.state;
 
             if (oldState !== newState) {
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Entity state changed: ${oldState} -> ${newState}`, {
+                    entityId: this.config.entity,
+                    oldState,
+                    newState,
+                    entity: this._entity
+                });
+
                 // Schedule template processing to avoid update cycles
                 this._scheduleTemplateUpdate();
 
@@ -123,7 +129,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // The _getStateOverrides() method will return different colors based on state
                 this._resolveButtonStyleSync();
 
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Entity state changed: ${oldState} -> ${newState}, re-resolved button style`);
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Button style re-resolved after state change`);
             }
         }
     }
@@ -563,26 +569,23 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Handle 'entity' icon - either type='entity' OR type='mdi' with icon='entity'
             // This covers both cases from base class _parseIconString
             if (parsedIcon.type === 'entity' || (parsedIcon.type === 'mdi' && parsedIcon.icon === 'entity')) {
-                // Get entity icon with fallback to domain default
-                let entityIcon = this._entity?.attributes?.icon;
-
-                if (!entityIcon && this._entity?.entity_id) {
-                    // No explicit icon - use domain default
-                    entityIcon = getDomainIcon(this._entity.entity_id);
-                } else if (!entityIcon) {
-                    // No entity at all - use generic fallback
-                    entityIcon = 'mdi:bookmark';
-                }
+                // Use HA's state-aware icon resolution (respects entity.attributes.icon + state-based defaults)
+                const entityIcon = this._resolveEntityIcon(this._entity);
 
                 lcardsLog.debug('[LCARdSSimpleButtonCard] Resolving entity icon:', {
                     entityId: this._entity?.entity_id,
-                    explicitIcon: this._entity?.attributes?.icon,
+                    entityState: this._entity?.state,
                     resolvedIcon: entityIcon,
-                    usedDomainDefault: !this._entity?.attributes?.icon
+                    timestamp: Date.now(),
+                    note: 'Using HA stateIcon() for state-aware resolution'
                 });
                 // Re-parse the resolved entity icon to get its type (mdi/si) and name
                 const resolvedParsed = this._parseIconString(entityIcon);
                 if (resolvedParsed) {
+                    lcardsLog.debug('[LCARdSSimpleButtonCard] Parsed icon result:', {
+                        type: resolvedParsed.type,
+                        icon: resolvedParsed.icon
+                    });
                     parsedIcon.type = resolvedParsed.type;
                     parsedIcon.icon = resolvedParsed.icon;
                 }

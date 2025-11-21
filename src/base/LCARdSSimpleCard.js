@@ -1261,6 +1261,61 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     /**
+     * Resolve icon for entity using HA's state-aware logic
+     * @param {Object} entity - Entity state object
+     * @returns {string} Icon name (e.g., 'mdi:lightbulb-on')
+     * @protected
+     */
+    _resolveEntityIcon(entity) {
+        if (!entity) {
+            lcardsLog.debug('[LCARdSSimpleCard] _resolveEntityIcon: No entity provided');
+            return 'mdi:bookmark';
+        }
+
+        // Check for explicit icon override in attributes
+        if (entity.attributes?.icon) {
+            lcardsLog.debug('[LCARdSSimpleCard] _resolveEntityIcon: Using attributes.icon', {
+                entityId: entity.entity_id,
+                icon: entity.attributes.icon
+            });
+            return entity.attributes.icon;
+        }
+
+        // Use HA's native <ha-state-icon> element for state-aware icon resolution
+        if (typeof customElements !== 'undefined' && customElements.get('ha-state-icon') && this.hass) {
+            try {
+                const tempIcon = document.createElement('ha-state-icon');
+                tempIcon.hass = this.hass;
+                tempIcon.stateObj = entity;
+                document.body.appendChild(tempIcon);
+
+                const haIcon = tempIcon.shadowRoot?.querySelector('ha-icon');
+                const resolvedIcon = haIcon?.icon || tempIcon.icon;
+
+                document.body.removeChild(tempIcon);
+
+                if (resolvedIcon) {
+                    lcardsLog.debug('[LCARdSSimpleCard] _resolveEntityIcon: Resolved via ha-state-icon', {
+                        entityId: entity.entity_id,
+                        state: entity.state,
+                        resolvedIcon,
+                        timestamp: Date.now()
+                    });
+                    return resolvedIcon;
+                }
+            } catch (error) {
+                lcardsLog.debug('[LCARdSSimpleCard] _resolveEntityIcon: Error using ha-state-icon', error);
+            }
+        }
+
+        // Final fallback
+        lcardsLog.debug('[LCARdSSimpleCard] _resolveEntityIcon: Using fallback icon', {
+            entityId: entity.entity_id
+        });
+        return 'mdi:bookmark';
+    }
+
+    /**
      * Resolve dot-notation token path
      * @private
      */
