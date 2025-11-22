@@ -74,14 +74,15 @@ resources:
 
 ## Quick Start
 
-### Your First Card
+### Your First Card - Simple Button
 
 ```yaml
-type: custom:lcards-button-card
-lcards_card_type: lcards-button-lozenge
+type: custom:lcards-simple-button
 entity: light.living_room
-show_label: true
-show_name: true
+preset: lozenge
+text:
+  label:
+    content: "Living Room"
 tap_action:
   action: toggle
 ```
@@ -106,33 +107,49 @@ msd:
 
 ## Documentation
 
-- 📚 [User Guide](doc/user-guide/) - Complete usage documentation
-- 🏗️ [Architecture Overview](doc/architecture/) - Technical architecture details
-- 🎨 [MSD Documentation](doc/msd/) - Master Systems Display guide
-- 🛠️ [Developer Guide](doc/developer/) - Development and customization
-- 🔧 [API Reference](doc/api/) - Complete API documentation
+- 📚 [User Guide](doc/user/) - Complete usage documentation
+- 🏗️ [Architecture Overview](doc/architecture/) - Technical architecture and developer docs
+- 🚀 [Getting Started](doc/user/getting-started/) - Installation and quick start
+- 🎨 [Configuration Guides](doc/user/configuration/) - Card configuration and overlays
+- 🔧 [API Reference](doc/architecture/api/) - Complete API documentation
 
 ---
 
 ## Examples
 
-### Button Cards
+### Simple Button Cards
 
 ```yaml
-# LCARS Button Lozenge
-type: custom:lcards-button-card
-lcards_card_type: lcards-button-lozenge
+# Basic Button with Preset
+type: custom:lcards-simple-button
 entity: light.bridge
-name: "BRIDGE"
-show_state: true
+preset: lozenge
+text:
+  label:
+    content: "BRIDGE"
+  state:
+    content: "{entity.state}"
 tap_action:
   action: toggle
 
-# LCARS Elbow
-type: custom:lcards-elbow-card
-lcards_card_type: lcards-elbow-left
-size: large
-color: orange
+# Custom Styled Button
+type: custom:lcards-simple-button
+entity: switch.shields
+text:
+  label:
+    content: "SHIELDS"
+    position: center
+icon:
+  icon: mdi:shield
+  position: center
+style:
+  card:
+    color:
+      background:
+        active: 'var(--lcars-orange)'
+        inactive: 'var(--lcars-gray)'
+tap_action:
+  action: toggle
 ```
 
 ### Advanced MSD
@@ -498,236 +515,234 @@ Add LCARdS cards to your dashboard just like any other card.
 
 ---
 
-## LCARdS Cards
+## LCARdS Card System
 
-For reference - these are the cards found in LCARdS.
-They are highly configurable - and some default styles are shown.
+LCARdS provides two primary card types for building LCARS interfaces:
 
-Additional style possibilities can be found in the screenshots section.
+### 1. Simple Button Card (`lcards-simple-button`)
 
-Settings are available in the UI editor.
+**Modern replacement for legacy standalone LCARS button cards.**
 
+The Simple Button is a feature-complete, self-contained button card that leverages the singleton architecture:
 
-<br>
+✅ **Use Cases:**
+- Interactive entity controls (lights, switches, scenes)
+- Navigation buttons
+- Status displays
+- Service triggers
 
-### LCARS Elbows
+✅ **Key Features:**
+- Multi-text label system with flexible positioning
+- Icon support (left, right, top, bottom, or absolute)
+- Template processing with Jinja2 syntax
+- Theme token integration
+- Rules engine for dynamic styling
+- Action handling (tap, hold, double-tap)
+- Built-in presets (lozenge, bullet, etc.)
 
-
-**`type: custom:lcards-elbow-card`**
-
-
-| `lcards_card_type:`                                            | Default Style          |
-| --------------------------------------------------------------- | ---------------------- |
-| [`lcards-header`](src/cb-lcars/lcards-header.yaml)              | ![lcards-header](images/button_samples/lcards-header.png)              |
-| [`lcards-header-right`](src/cb-lcars/lcards-header.yaml)        | ![lcards-header-right](images/button_samples/lcards-header-right.png)        |
-| [`lcards-header-contained`](src/cb-lcars/lcards-header.yaml)    | ![lcards-header-contained](images/button_samples/lcards-header-contained.png)    |
-| [`lcards-header-open`](src/cb-lcars/lcards-header.yaml)         | ![lcards-header-open](images/button_samples/lcards-header-open.png)         |
-
-
-| `lcards_card_type:`                                            | Default Style          |
-| --------------------------------------------------------------- | ---------------------- |
-| [`lcards-footer`](src/cb-lcars/lcards-footer.yaml)              | ![lcards-footer](images/button_samples/lcards-footer.png)              |
-| [`lcards-footer-right`](src/cb-lcars/lcards-footer.yaml)        | ![lcards-footer-right](images/button_samples/lcards-footer-right.png) |
-| [`lcards-footer-contained`](src/cb-lcars/lcards-footer.yaml)    | ![lcards-footer-contained](images/button_samples/lcards-footer-contained.png)    |
-| [`lcards-footer-open`](src/cb-lcars/lcards-footer.yaml)         | ![lcards-footer-open](images/button_samples/lcards-footer-open.png)         |
-
-| `lcards_card_type:`                                              | Default Style          |
-| ----------------------------------------------------------------- | ---------------------- |
-| [`lcards-header-callout`](src/cb-lcars/lcards-callout.yaml)       | ![lcards-header-callout](images/button_samples/lcards-header-callout.png)       |
-| [`lcards-header-callout-right`](src/cb-lcars/lcards-callout.yaml) | ![lcards-header-callout-right](images/button_samples/lcards-header-callout-right.png) |
-| [`lcards-footer-callout`](src/cb-lcars/lcards-callout.yaml)       | ![lcards-footer-callout](images/button_samples/lcards-footer-callout.png)       |
-| [`lcards-footer-callout-right`](src/cb-lcars/lcards-callout.yaml) | ![lcards-footer-callout-right](images/button_samples/lcards-footer-callout-right.png) |
-
-<br>
-
-**`type: custom:lcards-double-elbow-card`**
-
-| `lcards_card_type:`                                                   | Default Style          |
-| ---------------------------------------------------------------------- | ---------------------- |
-| [`lcards-header-picard`](src/cb-lcars/lcards-header-picard.yaml)       | ![lcards-header-picard](images/button_samples/lcards-header-picard.png)       |
-| [`lcards-header-picard-right`](src/cb-lcars/lcards-header-picard.yaml) | ![lcards-header-picard-right](images/button_samples/lcards-header-picard-right.png) |
-| [`lcards-footer-picard`](src/cb-lcars/lcards-footer-picard.yaml)       | ![lcards-footer-picard](images/button_samples/lcards-footer-picard.png)       |
-| [`lcards-footer-picard-right`](src/cb-lcars/lcards-footer-picard.yaml) | ![lcards-footer-picard-right](images/button_samples/lcards-footer-picard-right.png) |
-
-<br>
-
-### LCARS Buttons
-
-**`type: custom:lcards-button-card`**
-
-| `lcards_card_type:`                                                                 | Default Style          |
-| ------------------------------------------------------------------------------------ | ---------------------- |
-| [`lcards-button-lozenge`](src/cb-lcars/lcards-button-lozenge.yaml)                   | ![lcards-button-lozenge](images/button_samples/lcards-button-lozenge.png) |
-| [`lcards-button-bullet`](src/cb-lcars/lcards-button-bullet.yaml)                     | ![lcards-button-bullet](images/button_samples/lcards-button-bullet.png)  |
-| [`lcards-button-capped`](src/cb-lcars/lcards-button-capped.yaml)                     | ![lcards-button-capped](images/button_samples/lcards-button-capped.png)  |
-| [`lcards-button-picard`](src/cb-lcars/lcards-button-picard.yaml)                     | ![lcards-button-picard](images/button_samples/lcards-button-picard.png)              |
-| [`lcards-button-picard-dense`](src/cb-lcars/lcards-button-picard.yaml)               | ![lcards-button-picard-dense](images/button_samples/lcards-button-picard-dense.png)        |
-| [`lcards-button-picard-filled`](src/cb-lcars/lcards-button-picard-filled.yaml)       | ![lcards-button-picard-filled](images/button_samples/lcards-button-picard-filled.png)       |
-| [`lcards-button-picard-filled-dense`](src/cb-lcars/lcards-button-picard-filled.yaml) | ![lcards-button-picard-filled-dense](images/button_samples/lcards-button-picard-filled-dense.png) |
-| [`lcards-button-picard-icon`](src/cb-lcars/lcards-button-picard-icon.yaml)           | ![lcards-button-picard-icon](images/button_samples/lcards-button-picard-icon.png)         |
-
-<br>
-
-### LCARS Multimeter (Sliders/Gauges)
-
-**`type:lcards-multimeter-card`**
-
-- Supports interactive (entity) mode, or non-interactive (sensor) mode.
-  - Mode is determined automatically by the assigned entity
-- Run in Slider or Guage mode
-- Horizontal or Vertical orientation
-- Configurable multi-modal slider control:
-  - Light: brightness, temperature, hue, saturation
-  - Media Player: volume, seek
-  - (uses my-slider-v2 custom card internally)
-- Fully configurable borders, label/text, slider
-- Colour match [border|slider|gauge|gradient start/end etc.] to entity colour
-- Configurable min, max, gauge increments, slider step size
-  - Min/Max/Units are automatically obtained from the entity (if supported)
-- Show/Hide Units, Override unit
-- Configurable Subticks
-  - Show/Hide
-  - Size
-  - Count (number of subticks per segement)
-- Ranges: now supporting background colours set with ranges
-- Picard style option in vertical mode
-
-![lcards-multimeter](images/screenshots/multimeter.gif)
-![multimeter-picard](images/screenshots/lcards-multimeter-picard-samples-1.gif)
-
-#### Ranges
-
-Background colour in gauge mode can be segmented into ranges.
-This can currently be done in the yaml configuration of multimeter.
-
-!['multimeter-range'](images/button_samples/lcards-multimeter-ranges.png) !['multimeter-picard-range'](images/button_samples/lcards-multimeter-picard-ranges.png)
-
+**Example:**
 ```yaml
-type: custom:lcards-multimeter-card
-variables:
-  gauge:
-    ranges:
-      - from: 0
-        to: 30
-        color: var(--picard-darkest-yellow)
-      - from: 30
-        to: 75
-        color: var(--picard-darkest-green
-      - from: 75
-        to: 100
-        color: var(--picard-darkest-orange)
+type: custom:lcards-simple-button
+entity: light.bedroom
+preset: lozenge
+icon:
+  icon: mdi:lightbulb
+  position: center
+text:
+  label:
+    content: "Bedroom"
+    position: center
+tap_action:
+  action: toggle
 ```
 
-<br>
-
-### LCARS Labels
-
-**`type:lcards-label-card`**
-
-
-- Card for creating labels/text
-- Full graphical customization
-- Pre-configured label templates for various looks seen in LCARS
-
-| `lcards_card_type:`        | Styles          |
-| -------------- | ---------------------- |
-| [`lcards-label`](src/cb-lcars/lcards-label.yaml) | ![picard-callout-2](images/screenshots/label-2.png) |
-| [`lcards-label-picard`](src/cb-lcars/lcards-label-presets.yaml) | ![lcards-label-2](images/screenshots/picard-labels.png) |
-
-<br>
-
-### LCARS DPAD
-
-**`type:lcards-dpad-card`**
-
-- Card-wide active/inactive colours
-- Per-segment active/inactive colours
-- Assignable entity per segment
-- Assignable actions/controls per segment (default `toggle`)
-
-![lcards-dpad](images/screenshots/dpad.gif)
-
-<br>
+📖 **Documentation:** [Simple Button Quick Reference](doc/user/configuration/simple-button-quick-reference.md)
 
 ---
 
-## States
+### 2. Master Systems Display (`lcards-msd-card`)
 
-LCARdS cards allow you to dynamically change the appearance of card components—such as borders, backgrounds, text, and icons — based on the state of an entity or attribute. You can use built-in state options for common scenarios, or define advanced custom state conditions for more granular control.
+**Advanced multi-overlay display system for complex LCARS interfaces.**
 
-For full details on configuring states, including advanced matching (by value, range, regex, etc.) and applying custom styles, see the dedicated documentation: [doc/lcards-state-system.md](doc/lcards-state-system.md).
+The MSD card supports complex layouts with multiple overlays, datasources, and dynamic content:
+
+✅ **Use Cases:**
+- Ship diagrams with interactive controls
+- Multi-entity status displays
+- Complex dashboards with charts and controls
+- Custom LCARS compositions
+
+✅ **Key Features:**
+- SVG base layer (built-in or custom)
+- Multiple overlay types (button, text, status_grid, line, apexcharts)
+- Centralized datasource system with transformations
+- Global rules engine
+- Theme integration
+- Animation support
+
+**Overlay Types:**
+- **Button** - Interactive controls on the MSD
+- **Text** - Dynamic text displays
+- **Status Grid** - Entity status grids
+- **Line** - Connecting lines with attachment points
+- **ApexCharts** - Chart overlays
+
+**Example:**
+```yaml
+type: custom:lcards-msd-card
+msd:
+  version: 1
+  base_svg:
+    source: "builtin:ncc-1701-d"
+  data_sources:
+    warp:
+      type: entity
+      entity: sensor.warp_speed
+  overlays:
+    - id: warp_display
+      type: button
+      position: [300, 200]
+      size: [120, 50]
+      label: "WARP"
+      content: "{warp} c"
+      tap_action:
+        action: more-info
+        entity: sensor.warp_speed
+    - id: status
+      type: status_grid
+      position: [100, 100]
+      size: [200, 150]
+      entities:
+        - light.bridge
+        - light.engineering
+        - light.sickbay
+```
+
+📖 **Documentation:** [MSD Configuration Guide](doc/user/configuration/overlays/README.md)
 
 ---
 
-## Joining with a Symbiont [Card Encapsulation]
+## Understanding the Core/Singleton Architecture
 
-LCARdS has graduated the Initiate program and can become a host to a symbiont card.  Joining enables you to imprint some LCARdS styling to the encapsulated card.  Most common case would be with the Elbow card to add LCARS borders - but much more is possible.
+**Important for users coming from traditional HA cards:**
 
-Just supply your symbiont card configuration into the editor and it will inset the the symbiont into the LCARdS host card.  After joining, you can adjust settings, imprint host styles onto the symbiont, and even supply your own additional `card-mod` configuration to the symbiont.
+Unlike traditional Home Assistant cards that are self-contained, LCARdS uses a **singleton architecture** for efficiency and coordination:
 
-### Imprinting
-
-Currently, imprinting will apply the host background colours and text font, size, and colours to the symbiont.  This feature uses some basic `card-mod` configuration targeted primarily to `ha-card`.
-
-#### User card-mod styles
-You can provide your own `card-mod` configuration which will append to the host configuration.  You can also override any host styling with your `card-mod` config.
-
-Card-mod templating is supported and the host card's `variables:` block and `entity` are made available to the symbiont.  These can be accessed with standard card-mod jinja templating.
-
-```yaml
-Example accessing the host card's card default colour.
-
-variables:
-  symbiont:
-    enabled: true
-    imprint_host: true
-    symbiont_user_style: |
-      ha-card {
-        background: {{ config.variables.card.color.default }} !important;
-      }
+```mermaid
+graph TB
+    subgraph "Singleton Layer (Shared)"
+        Core[CoreSystemsManager]
+        Rules[RulesEngine]
+        DS[DataSourceManager]
+        Theme[ThemeManager]
+    end
+    
+    subgraph "Card Layer"
+        Simple1[Simple Button 1]
+        Simple2[Simple Button 2]
+        MSD[MSD Card]
+    end
+    
+    Core --> Simple1
+    Core --> Simple2
+    Core --> MSD
+    
+    Rules --> Simple1
+    Rules --> Simple2
+    Rules --> MSD
+    
+    DS --> MSD
+    Theme --> Simple1
+    Theme --> Simple2
+    Theme --> MSD
+    
+    style Core fill:#b8e0c1,stroke:#266239
+    style Rules fill:#b8e0c1,stroke:#266239
+    style DS fill:#b8e0c1,stroke:#266239
+    style Theme fill:#b8e0c1,stroke:#266239
 ```
 
-<br>
+**What this means:**
+- **Rules** defined in one card can affect other cards
+- **DataSources** in MSD cards are shared and processed once
+- **Theme** changes apply globally
+- **Performance** is optimized through shared entity caching (80-90% faster)
 
-**Example - Join with Entities Card**
+**For Simple Button users:**
+- Each button registers with the singleton systems automatically
+- Rules can dynamically style buttons based on entity states
+- Theme tokens are resolved globally
+- Entity states are cached and shared
 
-A regular entities card will join with a host LCARdS Elbow card and have the host styles imprinted (font, font colour and size, background)
+**For MSD users:**
+- Datasources are processed once, used by all overlays
+- Rules apply to all overlays in the card
+- Overlays share the same theme and style context
 
-We start with our basic entities card
-![unjoined](images/screenshots/symbiont-unjoined.png)
+📖 **Learn More:** [Architecture Overview](doc/architecture/overview.md)
 
-We join the card as our symbiont:
+---
 
-![joined-not-imprinted](images/screenshots/symbiont-joined-not-imprinted.png)
+## Legacy Note
 
-We then imprint the host card styles onto the symbiont:
-![joined-imprinted](images/screenshots/symbiont-joined-imprinted.png)
+> **⚠️ Legacy CB-LCARS Templates:** The `src/lcards/` directory contains YAML templates from the legacy CB-LCARS system (using custom-button-card). These are maintained for backward compatibility but will be phased out. New installations should use `lcards-simple-button` instead.
+>
+> Legacy card types like `lcards-button-card`, `lcards-elbow-card`, `lcards-multimeter-card`, etc. are YAML templates, not native cards. The modern LCARdS system uses native LitElement cards for better performance and features.
+
+---
+## Rules Engine for Dynamic Styling
+
+Both Simple Button and MSD cards support the **Rules Engine** for dynamic, state-based styling:
+
+```yaml
+# Simple Button with rules
+type: custom:lcards-simple-button
+entity: light.bedroom
+preset: lozenge
+text:
+  label:
+    content: "Bedroom"
+style:
+  card:
+    color:
+      background:
+        active: 'var(--lcars-blue)'
+        inactive: 'var(--lcars-gray)'
+rules:
+  - when:
+      condition: "entity.attributes.brightness > 200"
+      type: javascript
+    apply:
+      style:
+        card:
+          color:
+            background:
+              active: 'var(--lcars-yellow)'  # Bright when >200
+```
+
+**Rules capabilities:**
+- JavaScript, Jinja2, and token-based conditions
+- Entity state and attribute matching
+- Apply style overrides dynamically
+- Shared across all cards (singleton architecture)
+
+📖 **Learn More:** [Rules Engine Guide](doc/user/configuration/rules.md)
 
 ---
 
 ## Animations and Effects
 
-LCARdS includes a growing set of highly customizable animations and effects for your cards. Each animation offers extensive configuration options, accessible via the UI. For full details and usage instructions, see the dedicated documentation for each animation—just click the template links in the table below.
+LCARdS MSD cards support animations through the animation system:
 
-It's recommended to use either the Elbow or Button card as the base card to host your animation.
+✅ **Animation Features:**
+- Built on anime.js v4
+- Timeline support
+- Custom animation presets
+- Integration with overlays
 
-- [ALERT](doc/lcards-animation-alert.md)
-- [Data Cascade](doc/lcards-animation-cascade.md)
-- [Pulsewave](doc/lcards-animation-pulsewave.md)
-- [GRID](doc/lcards-animation-bg-grid.md)
-- [GEO Array](doc/lcards-animation-geo-array.md)
+**Available in MSD cards through overlays and the animation system.**
 
-<br>
-
-| template ||
-|----------|----------------|
-| [`lcards-animation-alert`](doc/lcards-animation-alert.md) | ![lcards-alert](images/screenshots/alert_condition_animated_1.gif) |
-| [`lcards-animation-cascade`](doc/lcards-animation-cascade.md) | ![lcards-cascade](images/screenshots/data_cascade.gif) |
-| [`lcards-animation-pulsewave`](doc/lcards-animation-pulsewave.md) | ![lcards-animation-pulsewave](images/screenshots/lcards-pulsewave-samples-1.gif) |
-[`lcards-animation-bg-grid`](doc/lcards-animation-bg-grid.md) |![lcards-animation-bg-grid](images/screenshots/lcards-bg-grid-samples-1.gif) <br>Nebula Samples ![nebula-samples-1](images/screenshots/nebula-samples-1.png)|
-[`lcards-animation-geo-array`](doc/lcards-animation-geo-array.md) | Can be used as an inset animation recreating some of the LCARS panel effects.  Animations are similar to Data Cascade ![lcards-animation-geo-array](images/screenshots/lcards-geo-array-samples-1.gif) |
-
-
+📖 **Learn More:** [Animation Guide](doc/user/guides/animations.md)
 
 ---
 
