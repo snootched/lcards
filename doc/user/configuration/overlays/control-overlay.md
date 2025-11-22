@@ -64,8 +64,7 @@ graph LR
 ### Minimal Example
 
 ```yaml
-type: custom:lcards-card
-config:
+type: custom:lcards-msd-card
   msd:
     overlays:
       - type: control
@@ -142,15 +141,14 @@ Embed any LCARdS button or custom card:
 - type: control
   id: lcars_button
   card:
-    type: custom:lcards-button-card
-    config:
-      lcards_card_type: lcards-button-lozenge
-      show_label: true
-      variables:
-        label: "WARP DRIVE"
-        entity: switch.warp_drive
-      tap_action:
-        action: toggle
+    type: custom:lcards-simple-button
+    entity: switch.warp_drive
+    preset: lozenge
+    text:
+      label:
+        content: "WARP DRIVE"
+    tap_action:
+      action: toggle
   position: [1200, 120]
   size: [200, 180]
 ```
@@ -516,42 +514,42 @@ overlays:
   - type: control
     id: warp_control
     card:
-      type: custom:lcards-button-card
-      config:
-        lcards_card_type: lcards-button-lozenge
-        variables:
-          label: "WARP DRIVE"
-          entity: switch.warp_drive
-        tap_action:
-          action: toggle
+      type: custom:lcards-simple-button
+      entity: switch.warp_drive
+      preset: lozenge
+      text:
+        label:
+          content: "WARP DRIVE"
+      tap_action:
+        action: toggle
     position: [100, 200]
     size: [200, 180]
 
   - type: control
     id: shields_control
     card:
-      type: custom:lcards-button-card
-      config:
-        lcards_card_type: lcards-button-lozenge
-        variables:
-          label: "SHIELDS"
-          entity: switch.shields
-        tap_action:
-          action: toggle
+      type: custom:lcards-simple-button
+      entity: switch.shields
+      preset: lozenge
+      text:
+        label:
+          content: "SHIELDS"
+      tap_action:
+        action: toggle
     position: [320, 200]
     size: [200, 180]
 
   - type: control
     id: weapons_control
     card:
-      type: custom:lcards-button-card
-      config:
-        lcards_card_type: lcards-button-lozenge
-        variables:
-          label: "WEAPONS"
-          entity: switch.weapons
-        tap_action:
-          action: toggle
+      type: custom:lcards-simple-button
+      entity: switch.weapons
+      preset: lozenge
+      text:
+        label:
+          content: "WEAPONS"
+      tap_action:
+        action: toggle
     position: [540, 200]
     size: [200, 180]
 

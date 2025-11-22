@@ -75,150 +75,150 @@ graph TD
 ### Example: Multi-Sensor Dashboard with Metadata
 
 ```yaml
-type: custom:lcards-card
-config:
-  msd:
-    # DataSources automatically capture metadata
-    data_sources:
-      temperature:
-        type: entity
-        entity: sensor.living_room_temperature
-        # Metadata auto-captured:
-        #   - friendly_name: "Living Room Temperature"
-        #   - unit_of_measurement: "°C"
-        #   - device_class: "temperature"
-        #   - icon: "mdi:thermometer"
+type: custom:lcards-msd-card
 
-      humidity:
-        type: entity
-        entity: sensor.living_room_humidity
-        # Metadata auto-captured:
-        #   - friendly_name: "Living Room Humidity"
-        #   - unit_of_measurement: "%"
-        #   - device_class: "humidity"
+msd:
+  # DataSources automatically capture metadata
+  data_sources:
+    temperature:
+      type: entity
+      entity: sensor.living_room_temperature
+      # Metadata auto-captured:
+      #   - friendly_name: "Living Room Temperature"
+      #   - unit_of_measurement: "°C"
+      #   - device_class: "temperature"
+      #   - icon: "mdi:thermometer"
 
-      pressure:
-        type: entity
-        entity: sensor.barometric_pressure
-        # Metadata auto-captured:
-        #   - friendly_name: "Barometric Pressure"
-        #   - unit_of_measurement: "hPa"
-        #   - device_class: "pressure"
+    humidity:
+      type: entity
+      entity: sensor.living_room_humidity
+      # Metadata auto-captured:
+      #   - friendly_name: "Living Room Humidity"
+      #   - unit_of_measurement: "%"
+      #   - device_class: "humidity"
 
-      power:
-        type: entity
-        entity: sensor.home_power
-        # Metadata auto-captured:
-        #   - friendly_name: "Home Power Consumption"
-        #   - unit_of_measurement: "W"
-        #   - device_class: "power"
+    pressure:
+      type: entity
+      entity: sensor.barometric_pressure
+      # Metadata auto-captured:
+      #   - friendly_name: "Barometric Pressure"
+      #   - unit_of_measurement: "hPa"
+      #   - device_class: "pressure"
 
-    overlays:
-      # Panel header
-      - type: text
-        id: header
-        content: "ENVIRONMENTAL MONITOR"
-        position: [100, 50]
-        style:
-          font_size: 28
-          color: var(--lcars-orange)
-          font_weight: bold
+    power:
+      type: entity
+      entity: sensor.home_power
+      # Metadata auto-captured:
+      #   - friendly_name: "Home Power Consumption"
+      #   - unit_of_measurement: "W"
+      #   - device_class: "power"
 
-      # Temperature Section
-      # Label uses friendly_name from metadata
-      - type: text
-        id: temp_label
-        content: "{temperature.metadata.friendly_name}"
-        position: [100, 120]
-        style:
-          font_size: 16
-          color: var(--lcars-blue)
+  overlays:
+    # Panel header
+    - type: text
+      id: header
+      content: "ENVIRONMENTAL MONITOR"
+      position: [100, 50]
+      style:
+        font_size: 28
+        color: var(--lcars-orange)
+        font_weight: bold
 
-      # Value uses automatic unit from metadata
-      - type: text
-        id: temp_value
-        content: "{temperature.v:.1f}{temperature.metadata.unit_of_measurement}"
-        position: [100, 150]
-        style:
-          font_size: 32
-          font_weight: bold
+    # Temperature Section
+    # Label uses friendly_name from metadata
+    - type: text
+      id: temp_label
+      content: "{temperature.metadata.friendly_name}"
+      position: [100, 120]
+      style:
+        font_size: 16
+        color: var(--lcars-blue)
 
-      # Device class for context
-      - type: text
-        id: temp_type
-        content: "Type: {temperature.metadata.device_class}"
-        position: [100, 190]
-        style:
-          font_size: 12
-          color: var(--lcars-gray)
+    # Value uses automatic unit from metadata
+    - type: text
+      id: temp_value
+      content: "{temperature.v:.1f}{temperature.metadata.unit_of_measurement}"
+      position: [100, 150]
+      style:
+        font_size: 32
+        font_weight: bold
 
-      # Humidity Section
-      - type: text
-        id: humidity_label
-        content: "{humidity.metadata.friendly_name}"
-        position: [450, 120]
-        style:
-          font_size: 16
-          color: var(--lcars-blue)
+    # Device class for context
+    - type: text
+      id: temp_type
+      content: "Type: {temperature.metadata.device_class}"
+      position: [100, 190]
+      style:
+        font_size: 12
+        color: var(--lcars-gray)
 
-      - type: text
-        id: humidity_value
-        content: "{humidity.v:.0f}{humidity.metadata.unit_of_measurement}"
-        position: [450, 150]
-        style:
-          font_size: 32
-          font_weight: bold
+    # Humidity Section
+    - type: text
+      id: humidity_label
+      content: "{humidity.metadata.friendly_name}"
+      position: [450, 120]
+      style:
+        font_size: 16
+        color: var(--lcars-blue)
 
-      # Pressure Section
-      - type: text
-        id: pressure_label
-        content: "{pressure.metadata.friendly_name}"
-        position: [800, 120]
-        style:
-          font_size: 16
-          color: var(--lcars-blue)
+    - type: text
+      id: humidity_value
+      content: "{humidity.v:.0f}{humidity.metadata.unit_of_measurement}"
+      position: [450, 150]
+      style:
+        font_size: 32
+        font_weight: bold
 
-      - type: text
-        id: pressure_value
-        content: "{pressure.v:.1f}{pressure.metadata.unit_of_measurement}"
-        position: [800, 150]
-        style:
-          font_size: 32
-          font_weight: bold
+    # Pressure Section
+    - type: text
+      id: pressure_label
+      content: "{pressure.metadata.friendly_name}"
+      position: [800, 120]
+      style:
+        font_size: 16
+        color: var(--lcars-blue)
 
-      # Power Section with Icon
-      - type: text
-        id: power_label
-        content: "{power.metadata.friendly_name}"
-        position: [1150, 120]
-        style:
-          font_size: 16
-          color: var(--lcars-blue)
+    - type: text
+      id: pressure_value
+      content: "{pressure.v:.1f}{pressure.metadata.unit_of_measurement}"
+      position: [800, 150]
+      style:
+        font_size: 32
+        font_weight: bold
 
-      - type: text
-        id: power_value
-        content: "{power.v:.0f}{power.metadata.unit_of_measurement}"
-        position: [1150, 150]
-        style:
-          font_size: 32
-          font_weight: bold
-          color: >
-            {% if power.v > 2000 %}
-              var(--lcars-red)
-            {% elif power.v > 1000 %}
-              var(--lcars-orange)
-            {% else %}
-              var(--lcars-green)
-            {% endif %}
+    # Power Section with Icon
+    - type: text
+      id: power_label
+      content: "{power.metadata.friendly_name}"
+      position: [1150, 120]
+      style:
+        font_size: 16
+        color: var(--lcars-blue)
 
-      # Entity IDs (for debugging)
-      - type: text
-        id: debug_info
-        content: "Entities: {temperature.metadata.entity_id} | {humidity.metadata.entity_id}"
-        position: [100, 900]
-        style:
-          font_size: 10
-          color: var(--lcars-dark-gray)
+    - type: text
+      id: power_value
+      content: "{power.v:.0f}{power.metadata.unit_of_measurement}"
+      position: [1150, 150]
+      style:
+        font_size: 32
+        font_weight: bold
+        color: >
+          {% if power.v > 2000 %}
+            var(--lcars-red)
+          {% elif power.v > 1000 %}
+            var(--lcars-orange)
+          {% else %}
+            var(--lcars-green)
+          {% endif %}
+
+    # Entity IDs (for debugging)
+    - type: text
+      id: debug_info
+      content: "Entities: {temperature.metadata.entity_id} | {humidity.metadata.entity_id}"
+      position: [100, 900]
+      style:
+        font_size: 10
+        color: var(--lcars-dark-gray)
 ```
 
 ### What This Example Shows

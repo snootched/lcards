@@ -424,10 +424,19 @@ graph TD
 Create this test card to verify installation:
 
 ```yaml
-type: custom:lcards-elbow-card
-lcards_card_type: lcards-header
-name: "INSTALLATION TEST"
-label: "LCARdS"
+type: custom:lcards-simple-button
+preset: lozenge
+text:
+  label:
+    content: "INSTALLATION TEST"
+  name:
+    content: "LCARdS"
+    position: top-left
+style:
+  card:
+    color:
+      background:
+        active: 'var(--lcars-blue)'
 ```
 
 **Expected:** Blue LCARS header with text.
@@ -464,7 +473,7 @@ graph TD
     style Success fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
-### Issue: "Custom element doesn't exist: lcards-elbow-card"
+### Issue: "Custom element doesn't exist: lcards-simple-button"
 
 **Causes:**
 - Resource not registered

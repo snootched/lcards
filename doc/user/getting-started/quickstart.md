@@ -135,17 +135,26 @@ graph LR
 **Copy-Paste Example:**
 
 ```yaml
-type: custom:lcards-elbow-card
-lcards_card_type: lcards-header
-name: "USS ENTERPRISE"
-label: "NCC-1701-D"
+type: custom:lcards-simple-button
+preset: lozenge
+text:
+  label:
+    content: "USS ENTERPRISE"
+  name:
+    content: "NCC-1701-D"
+    position: top-left
+style:
+  card:
+    color:
+      background:
+        active: 'var(--lcars-blue)'
 ```
 
 **Expected Result:**
 
-![Sample Header Card](../../../images/button_samples/lcards-header.png)
+A blue LCARS button with "USS ENTERPRISE" as the main label and "NCC-1701-D" in the top-left corner.
 
-> 🎉 **Success!** You should see a blue LCARS header with your text.
+> 🎉 **Success!** You should see a blue LCARS button with your text.
 
 ---
 
