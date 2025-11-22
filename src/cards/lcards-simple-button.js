@@ -95,6 +95,20 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     _onConfigSet(config) {
         super._onConfigSet(config);
 
+        // Resolve button style early (before template processing)
+        // This ensures _buttonStyle is populated with preset text fields
+        // before _processCustomTemplates() tries to access them
+        this._resolveButtonStyleSync();
+
+        // Re-process templates now that button style is resolved
+        // (The base class already called _processTemplates(), but _buttonStyle was null at that time)
+        if (this._initialized) {
+            this._scheduleTemplateUpdate();
+        } else {
+            // Not initialized yet - schedule it to happen after firstUpdated
+            this._needsInitialTemplateProcessing = true;
+        }
+
         // Re-setup actions if config changes after initial setup
         if (this._actionsInitialized) {
             lcardsLog.debug(`[LCARdSSimpleButtonCard] Config changed, re-setting up actions`);
@@ -122,15 +136,15 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     entity: this._entity
                 });
 
-                // Schedule template processing to avoid update cycles
-                this._scheduleTemplateUpdate();
-
                 // ✨ ENHANCEMENT: Re-resolve button style when entity state changes
                 // This makes the button color update reactively (without requiring page refresh)
                 // State-based colors are applied in _resolveButtonStyleSync()
                 this._resolveButtonStyleSync();
 
                 lcardsLog.debug(`[LCARdSSimpleButtonCard] Button style re-resolved after state change`);
+
+                // Schedule template processing AFTER style resolution (so preset text fields are available)
+                this._scheduleTemplateUpdate();
             }
         }
     }
@@ -179,6 +193,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // ✨ Setup auto-sizing via base class (triggers requestUpdate on resize)
         this._setupAutoSizing();
+
+        // Process initial templates if needed (after button style is resolved)
+        if (this._needsInitialTemplateProcessing) {
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Processing initial templates after firstUpdated`);
+            this._scheduleTemplateUpdate();
+            this._needsInitialTemplateProcessing = false;
+        }
     }
 
     /**
@@ -745,6 +766,19 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 iconSpacing = 8; // hardcoded fallback
             }
 
+            // Resolve layout spacing (spacing around icon area for auto-size calculation)
+            // Priority: config > preset > theme token > hardcoded
+            let layoutSpacing;
+            if (typeof this.config.icon === 'object' && this.config.icon?.layout_spacing !== undefined) {
+                layoutSpacing = this.config.icon.layout_spacing;
+            } else if (resolvedStyle.icon?.layout_spacing !== undefined) {
+                layoutSpacing = resolvedStyle.icon.layout_spacing;
+            } else if (iconTokens.layout_spacing !== undefined) {
+                layoutSpacing = iconTokens.layout_spacing;
+            } else {
+                layoutSpacing = 8; // hardcoded fallback
+            }
+
             // Resolve icon area size (width for left/right, height for top/bottom)
             // Priority: config.icon_area_size > config.icon.area_size > preset.icon_area_size > preset.icon.area_size > auto-calculated from size
             let iconAreaSize;
@@ -863,6 +897,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Visual properties
                 size: iconSize,      // Visual icon size
                 spacing: iconSpacing, // Space around icon (affects clamping and area calculation)
+                layoutSpacing: layoutSpacing, // Spacing around icon area for auto-size calculation
                 areaSize: iconAreaSize, // Area size (width for left/right, height for top/bottom) - optional, auto-calculated if not set
                 color: iconColor,    // State-resolved color
 
@@ -908,10 +943,65 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @override
      */
     async _processCustomTemplates() {
+        lcardsLog.debug(`[LCARdSSimpleButtonCard] _processCustomTemplates called for ${this._cardGuid}`);
+
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
 
-        // Process multi-text field templates
+        // Ensure this.config.text exists
+        if (!this.config.text) {
+            this.config.text = {};
+        }
+
+        // First, merge in preset text fields that aren't in config
+        // This ensures preset templates get processed too
+        const presetTextFields = this._buttonStyle?.text || {};
+
+        lcardsLog.debug(`[LCARdSSimpleButtonCard] Merging preset text fields`, {
+            presetFieldIds: Object.keys(presetTextFields),
+            configFieldIds: Object.keys(this.config.text),
+            cardGuid: this._cardGuid
+        });
+
+        for (const [fieldId, presetFieldConfig] of Object.entries(presetTextFields)) {
+            // Skip 'default' - it's configuration, not a field
+            if (fieldId === 'default' || !presetFieldConfig || typeof presetFieldConfig !== 'object') {
+                continue;
+            }
+
+            // If field doesn't exist in config, add it from preset
+            if (!this.config.text[fieldId]) {
+                this.config.text[fieldId] = { ...presetFieldConfig };
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Added preset field '${fieldId}' to config`, {
+                    content: presetFieldConfig.content,
+                    cardGuid: this._cardGuid
+                });
+                hasChanges = true; // Mark as changed since we added a field
+            } else {
+                // Field exists in config - merge preset properties as defaults
+                // Only add preset properties that aren't in the config
+                const configField = this.config.text[fieldId];
+                let fieldChanged = false;
+
+                for (const [propKey, propValue] of Object.entries(presetFieldConfig)) {
+                    if (configField[propKey] === undefined && propValue !== undefined) {
+                        configField[propKey] = propValue;
+                        fieldChanged = true;
+
+                        lcardsLog.debug(`[LCARdSSimpleButtonCard] Merged preset property '${propKey}' into field '${fieldId}'`, {
+                            value: propValue,
+                            cardGuid: this._cardGuid
+                        });
+                    }
+                }
+
+                if (fieldChanged) {
+                    hasChanges = true;
+                }
+            }
+        }
+
+        // Process multi-text field templates (now includes both config and preset fields)
         if (this.config.text && typeof this.config.text === 'object') {
             for (const [fieldId, fieldConfig] of Object.entries(this.config.text)) {
                 // Skip 'default' - it's configuration, not a field
@@ -922,7 +1012,19 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Process template if enabled (default is true)
                 const shouldTemplate = fieldConfig.template !== false;
                 if (shouldTemplate && fieldConfig.content) {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Processing template for field '${fieldId}'`, {
+                        originalContent: fieldConfig.content,
+                        cardGuid: this._cardGuid
+                    });
+
                     const processedContent = await this.processTemplate(fieldConfig.content);
+
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Template processed for field '${fieldId}'`, {
+                        originalContent: fieldConfig.content,
+                        processedContent,
+                        changed: this.config.text[fieldId].content !== processedContent,
+                        cardGuid: this._cardGuid
+                    });
 
                     // Check if content actually changed
                     if (this.config.text[fieldId].content !== processedContent) {
@@ -934,6 +1036,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 }
             }
         }
+
+        lcardsLog.debug(`[LCARdSSimpleButtonCard] _processCustomTemplates complete`, {
+            hasChanges,
+            finalFieldIds: Object.keys(this.config.text),
+            cardGuid: this._cardGuid
+        });
 
         if (hasChanges) {
             // Extract and track entities from templates for auto-updates
@@ -1338,8 +1446,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Use explicit area size (height for top/bottom areas)
             iconAreaHeight = iconConfig.areaSize;
         } else {
-            // Auto-calculate area height using fixed layout spacing (8px)
-            const layoutSpacing = 8;
+            // Auto-calculate area height using layout spacing from config/preset/theme
+            const layoutSpacing = iconConfig.layoutSpacing || 8;
             iconAreaHeight = requestedSize + layoutSpacing * 2 + dividerWidth;
         }
 
@@ -1531,10 +1639,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             if (iconConfig.areaSize) {
                 iconAreaWidth = iconConfig.areaSize;
             } else {
-                // Auto-calculate area width using fixed layout spacing (8px)
+                // Auto-calculate area width using layout spacing from config/preset/theme
                 // This provides consistent horizontal layout regardless of vertical spacing setting
                 // Vertical spacing (iconConfig.spacing) only affects icon SIZE clamping
-                const layoutSpacing = 8; // Fixed horizontal spacing for layout
+                const layoutSpacing = iconConfig.layoutSpacing || 8;
                 iconAreaWidth = requestedSize + layoutSpacing * 2 + dividerWidth;
             }
 
@@ -2050,6 +2158,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Extract user-defined defaults from text.default
         const userDefaults = textConfig.default || {};
 
+        // Get preset text fields from resolved button style
+        const presetTextFields = this._buttonStyle?.text || {};
+
         // Default positions for preset fields
         // NOTE: Only specify position here. Anchor/baseline should come from named position calculation!
         const presetDefaults = {
@@ -2058,37 +2169,47 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             state: { position: 'bottom-right' }
         };
 
-        // Process each text field
-        for (const [fieldId, fieldConfig] of Object.entries(textConfig)) {
-            if (!fieldConfig || typeof fieldConfig !== 'object') continue;
+        // Collect all field IDs from both config and preset
+        const allFieldIds = new Set([
+            ...Object.keys(textConfig),
+            ...Object.keys(presetTextFields)
+        ]);
 
+        // Process each text field (from config OR preset)
+        for (const fieldId of allFieldIds) {
             // Skip 'default' - it's configuration, not a field to render
             if (fieldId === 'default') continue;
+
+            const fieldConfig = textConfig[fieldId] || {};
+            const presetFieldConfig = presetTextFields[fieldId] || {};
+
+            // Skip if both are not objects (shouldn't happen, but safety check)
+            if (typeof fieldConfig !== 'object' && typeof presetFieldConfig !== 'object') continue;
 
             // Get preset defaults if this is a known field
             const presetDefault = presetDefaults[fieldId] || {};
 
             // Resolve field configuration with defaults
-            // Priority: field-specific > text.default > theme default > hardcoded fallback
+            // Priority: config field-specific > preset field-specific > text.default > theme default > hardcoded fallback
             resolvedFields[fieldId] = {
                 id: fieldId,
-                content: fieldConfig.content || '',
-                position: fieldConfig.position || presetDefault.position || null,
-                x: fieldConfig.x !== undefined ? fieldConfig.x : null,
-                y: fieldConfig.y !== undefined ? fieldConfig.y : null,
-                x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : null,
-                y_percent: fieldConfig.y_percent !== undefined ? fieldConfig.y_percent : null,
-                padding: fieldConfig.padding !== undefined ? fieldConfig.padding : 8,
-                size: fieldConfig.font_size || fieldConfig.size || userDefaults.font_size || this._buttonStyle?.text?.default?.font_size || 14,
-                color: fieldConfig.color || userDefaults.color || null, // null means use default
-                font_weight: fieldConfig.font_weight || userDefaults.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
-                font_family: fieldConfig.font_family || userDefaults.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
-                text_transform: fieldConfig.text_transform || userDefaults.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
-                anchor: fieldConfig.anchor || presetDefault.anchor || null,
-                baseline: fieldConfig.baseline || presetDefault.baseline || null,
-                rotation: fieldConfig.rotation !== undefined ? fieldConfig.rotation : 0,  // NEW: rotation in degrees
-                show: fieldConfig.show !== undefined ? fieldConfig.show : true,
-                template: fieldConfig.template !== undefined ? fieldConfig.template : true
+                content: fieldConfig.content || presetFieldConfig.content || '',
+                position: fieldConfig.position || presetFieldConfig.position || presetDefault.position || null,
+                x: fieldConfig.x !== undefined ? fieldConfig.x : (presetFieldConfig.x !== undefined ? presetFieldConfig.x : null),
+                y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),
+                x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : (presetFieldConfig.x_percent !== undefined ? presetFieldConfig.x_percent : null),
+                y_percent: fieldConfig.y_percent !== undefined ? fieldConfig.y_percent : (presetFieldConfig.y_percent !== undefined ? presetFieldConfig.y_percent : null),
+                padding: fieldConfig.padding !== undefined ? fieldConfig.padding : (presetFieldConfig.padding !== undefined ? presetFieldConfig.padding : 8),
+                size: fieldConfig.font_size || fieldConfig.size || presetFieldConfig.font_size || presetFieldConfig.size || userDefaults.font_size || this._buttonStyle?.text?.default?.font_size || 14,
+                color: fieldConfig.color || presetFieldConfig.color || userDefaults.color || null, // null means use default
+                font_weight: fieldConfig.font_weight || presetFieldConfig.font_weight || userDefaults.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
+                font_family: fieldConfig.font_family || presetFieldConfig.font_family || userDefaults.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
+                text_transform: fieldConfig.text_transform || presetFieldConfig.text_transform || userDefaults.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
+                anchor: fieldConfig.anchor || presetFieldConfig.anchor || presetDefault.anchor || null,
+                baseline: fieldConfig.baseline || presetFieldConfig.baseline || presetDefault.baseline || null,
+                rotation: fieldConfig.rotation !== undefined ? fieldConfig.rotation : (presetFieldConfig.rotation !== undefined ? presetFieldConfig.rotation : 0),
+                show: fieldConfig.show !== undefined ? fieldConfig.show : (presetFieldConfig.show !== undefined ? presetFieldConfig.show : true),
+                template: fieldConfig.template !== undefined ? fieldConfig.template : (presetFieldConfig.template !== undefined ? presetFieldConfig.template : true)
             };
         }
 
@@ -2127,9 +2248,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         if (iconConfig.areaSize) {
             iconAreaSize = iconConfig.areaSize;
         } else {
-            // Auto-calculate: icon size + spacing + divider
+            // Auto-calculate: icon size + layout spacing + divider
             const iconSize = iconConfig.size || 24;
-            const layoutSpacing = 8; // Fixed spacing
+            const layoutSpacing = iconConfig.layoutSpacing || 8;
             iconAreaSize = iconSize + layoutSpacing * 2 + dividerWidth;
         }
 

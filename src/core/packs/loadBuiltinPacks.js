@@ -136,6 +136,7 @@ const LCARDS_BUTTONS_PACK = {
         // Icon styling (nested structure)
         icon: {
           size: 'theme:components.button.base.icon.size',
+          layout_spacing: 'theme:components.button.base.icon.layout_spacing',
           position: 'left',
           color: {
             default: 'theme:components.button.base.icon.color.default',
@@ -178,11 +179,25 @@ const LCARDS_BUTTONS_PACK = {
             right: 0,
             left: 2
           }
-        }
+        },
+        text: {
+          name: {
+            padding: {
+              right: 22,
+              left: 0
+            }
+          },
+          state: {
+            padding: {
+              right: 22,
+              left: 0
+            }
+          }
+        },
       },
-
       'lozenge-right': {
         extends: 'button.lozenge',
+        show_icon: true,  // Enable icons by default for lozenge buttons
         icon_area: 'right',  // Icon area on right
         text: {
           default: {
@@ -192,30 +207,33 @@ const LCARDS_BUTTONS_PACK = {
         icon: {
           position: 'center',  // Icon centered within left area
           padding: {
-            right: '2',
-            left: '0'
+            right: 2,
+            left: 0
           }
-        }
+        },
+        text: {
+          name: {
+            position: 'bottom-left',
+            padding: {
+              right: 0,
+              left: 22
+            }
+          },
+          state: {
+            position: 'top-left',
+            padding: {
+              right: 0,
+              left: 22
+            }
+          }
+        },
       },
 
       // =====================================
       // BULLET BUTTONS - Half rounded
       // =====================================
       bullet: {
-        extends: 'button.base',
-        border: {
-          width: 0,  // No border for bullet (filled buttons)
-          radius: {
-            top_left: 'theme:components.button.base.radius.full',
-            bottom_left: 'theme:components.button.base.radius.full',
-            top_right: 'theme:components.button.base.radius.none',
-            bottom_right: 'theme:components.button.base.radius.none'
-          }
-        }
-      },
-
-      'bullet-right': {
-        extends: 'button.base',
+        extends: 'button.lozenge',
         border: {
           width: 0,  // No border for bullet (filled buttons)
           radius: {
@@ -224,6 +242,27 @@ const LCARDS_BUTTONS_PACK = {
             top_right: 'theme:components.button.base.radius.full',
             bottom_right: 'theme:components.button.base.radius.full'
           }
+        },
+        icon: {
+          position: 'center',  // Icon centered within left area
+          padding: 0
+        }
+      },
+
+      'bullet-right': {
+        extends: 'button.lozenge-right',
+        border: {
+          width: 0,  // No border for bullet (filled buttons)
+          radius: {
+            top_left: 'theme:components.button.base.radius.full',
+            bottom_left: 'theme:components.button.base.radius.full',
+            top_right: 'theme:components.button.base.radius.none',
+            bottom_right: 'theme:components.button.base.radius.none'
+          }
+        },
+        icon: {
+          position: 'center',  // Icon centered within left area
+          padding: 0
         }
       },
 

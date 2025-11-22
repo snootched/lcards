@@ -353,9 +353,9 @@ export const lcarsClassicTokens = {
               unavailable: 'var(--lcars-ui-red, #CC6666)'
             },
             // Typography
-            font_size: '14px',        // Standard text size
-            font_weight: 'bold',      // LCARS style: bold text
-            font_family: "'Antonio', Arial, sans-serif",
+            font_size: 'typography.fontSize.base.large',        // Standard text size
+            font_weight: 'typography.fontWeight.regular',      // LCARS style: regular text
+            font_family: "typography.fontFamily.primary", // LCARS style: primary font
             text_transform: 'uppercase'  // LCARS style: uppercase text
           }
         },
@@ -397,8 +397,8 @@ export const lcarsClassicTokens = {
         // ICON STYLING
         // ============================================================================
         icon: {
-          size: 24,       // Default icon size in pixels
-          spacing: 8,     // Space between icon and text
+          size: 24,           // Default icon size in pixels
+          layout_spacing: 4,  // Spacing around icon for area calculation
 
           // Icon colors (state-based)
           color: {
