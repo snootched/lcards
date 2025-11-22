@@ -1671,6 +1671,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
 
             // Determine vertical position within button
+            // Note: ha-icon component has internal layout that may not perfectly align with container,
+            // so we apply a small adjustment for better visual centering
+            const iconVisualAdjustment = 2; // Compensate for ha-icon internal padding/alignment
+
             if (iconPosition.includes('top')) {
                 // Align to top of button
                 iconY = strokeWidth + spacing + paddingTop;
@@ -1678,8 +1682,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Align to bottom of button
                 iconY = strokeWidth + availableHeight - actualIconSize - spacing - paddingBottom;
             } else {
-                // Center vertically within button
-                iconY = strokeWidth + (availableHeight - actualIconSize) / 2 + paddingTop - paddingBottom;
+                // Center vertically within button (with visual adjustment for ha-icon)
+                iconY = strokeWidth + (availableHeight - actualIconSize) / 2 + paddingTop - paddingBottom - iconVisualAdjustment;
             }
 
             // Position icon horizontally (from button interior edge)
@@ -2895,9 +2899,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Check if any corner has a radius (needed for corner arc rendering)
         const hasAnyRadius = topLeft > 0 || topRight > 0 || bottomRight > 0 || bottomLeft > 0;
 
-        // Use square line caps to fill gaps between paths
-        // Square caps extend by strokeWidth/2 perpendicular to path, creating seamless joins
-        const lineCap = 'square';
+        // Use 'butt' linecap for square corners (clean joins without overlap)
+        // Use 'square' linecap for rounded corners (fills gap between arc and straight border)
+        const lineCap = hasAnyRadius ? 'square' : 'butt';
 
         // Inset borders by strokeWidth/2 to keep full stroke visible within viewBox
         // This replicates CSS border behavior where borders are drawn "inside" the box

@@ -140,7 +140,7 @@ export const lcarsClassicTokens = {
       },
       lg: 16,
       xl: 18,
-      '2xl': 24,
+      '2xl': 22,
       '3xl': 32
     },
 

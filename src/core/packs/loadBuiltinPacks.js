@@ -137,7 +137,7 @@ const LCARDS_BUTTONS_PACK = {
         icon: {
           size: 'theme:components.button.base.icon.size',
           layout_spacing: 'theme:components.button.base.icon.layout_spacing',
-          position: 'left',
+          position: 'center',
           color: {
             default: 'theme:components.button.base.icon.color.default',
             active: 'theme:components.button.base.icon.color.active',
@@ -420,6 +420,9 @@ const LCARDS_BUTTONS_PACK = {
       'picard': {
         extends: 'button.base',
 
+        show_icon: false,
+        icon_area: 'left',
+
         // Outline style - transparent background with colored borders
         card: {
           color: {
@@ -446,22 +449,28 @@ const LCARDS_BUTTONS_PACK = {
 
         // Text styling - left aligned for outline style
         text: {
-          padding: {
-            top: '0px',
-            bottom: '0px',
-            left: 'theme:components.button.base.layout.padding.icon',
-            right: 'theme:components.button.base.layout.padding.icon'
-          },
+
           default: {
-            position: 'left-center',  // Left-aligned text for outline buttons
-            // Override text colors to use vibrant background colors for visibility
             color: {
               default: 'theme:components.button.base.background.active',
               active: 'theme:components.button.base.background.active',
               inactive: 'theme:components.button.base.background.inactive',
               unavailable: 'theme:components.button.base.background.unavailable'
             }
-            // NOTE: Inherits text.default.font_* from base preset
+          },
+          name: {
+            position: 'right',
+            //font_size: 'theme.components.button.base.text.default.font_size',
+            font_size: 'theme:typography.fontSize.2xl',
+            show: true,
+            padding: {
+              right: 12
+            }
+          },
+          state: {
+            position: 'left',
+            font_size: 'theme.components.button.base.text.default.font_size',
+            show: false
           }
         },
 
@@ -472,18 +481,6 @@ const LCARDS_BUTTONS_PACK = {
             active: 'theme:components.button.base.border.color.active',
             inactive: 'theme:components.button.base.border.color.inactive',
             unavailable: 'theme:components.button.base.border.color.unavailable'
-          },
-          border: {
-            right: {
-              size: '6px',
-              color: {
-                default: 'theme:components.button.base.border.color.active',
-                active: 'theme:components.button.base.border.color.active',
-                inactive: 'theme:components.button.base.border.color.inactive',
-                unavailable: 'theme:components.button.base.border.color.unavailable'
-              },
-              padding: 'theme:components.button.base.icon.border.padding.dense'
-            }
           }
         }
       },
@@ -491,35 +488,27 @@ const LCARDS_BUTTONS_PACK = {
       'picard-right': {
         extends: 'button.picard',
 
+        icon_area: 'right',
+
         text: {
           default: {
             position: 'left-center'  // Text on left when icon is on right
+          },
+          name: {
+            position: 'left',
+            //font_size: 'theme.components.button.base.text.default.font_size',
+            font_size: 'theme:typography.fontSize.2xl',
+            show: true,
+            padding: {
+              left: 12
+            }
+          },
+          state: {
+            position: 'right',
+            font_size: 'theme.components.button.base.text.default.font_size',
+            show: false
           }
         },
-        icon: {
-          border: {
-            left: {
-              size: '6px',
-              color: 'theme:components.button.base.border.color',
-              padding: 'theme:components.button.base.icon.border.padding.dense'
-            },
-            right: {
-              size: '6px',
-              color: 'theme:components.button.base.border.color.transparent',
-              padding: 'theme:components.button.base.icon.border.padding.minimal'
-            }
-          }
-        }
-      },
-
-      'picard-dense': {
-        extends: 'button.picard',
-        height: 'theme:components.button.base.layout.height.dense'
-      },
-
-      'picard-dense-right': {
-        extends: 'button.picard-right',
-        height: 'theme:components.button.base.layout.height.dense'
       },
 
       // =====================================
