@@ -162,7 +162,6 @@ const LCARDS_BUTTONS_PACK = {
       // =====================================
       lozenge: {
         extends: 'button.base',
-        show_icon: true,  // Enable icons by default for lozenge buttons
         icon_area: 'left', // Icon area on left with divider
         border: {
           width: 0,  // No border for lozenge (filled buttons)
@@ -317,9 +316,9 @@ const LCARDS_BUTTONS_PACK = {
 
 
       // =====================================
-      // PICARD FILLED - Solid backgrounds
+      // BARREL BUTTONS - Solid backgrounds
       // =====================================
-      'picard-filled': {
+      'barrel': {
         extends: 'button.base',
 
         // Filled buttons have no border, just background
@@ -328,96 +327,78 @@ const LCARDS_BUTTONS_PACK = {
           radius: 'theme:components.button.base.radius.none'
         },
 
-        // Background colors by state (inherits from base)
-        // Uses card.color.background from base preset
-
-        // Text styling - centered alignment
-        text: {
-          padding: {
-            top: '0px',
-            bottom: '5px',
-            left: 'theme:components.button.base.layout.padding.icon',
-            right: 'theme:components.button.base.layout.padding.icon'
-          },
-          default: {
-            position: 'center'  // Center-aligned text
-          }
-          // NOTE: Inherits text.default.color from base preset
-          // NOTE: Inherits text.default.font_* from base preset
-        },
-
-        // Icon styling - border on right side
-        icon: {
-          color: {
-            default: 'theme:components.button.base.icon.color.default',
-            active: 'theme:components.button.base.icon.color.active',
-            inactive: 'theme:components.button.base.icon.color.inactive',
-            unavailable: 'theme:components.button.base.icon.color.unavailable'
-          },
-          border: {
-            right: {
-              size: '6px',
-              color: {
-                default: 'theme:components.button.base.border.color.active',
-                active: 'theme:components.button.base.border.color.active',
-                inactive: 'theme:components.button.base.border.color.inactive',
-                unavailable: 'theme:components.button.base.border.color.unavailable'
-              },
-              padding: 'theme:components.button.base.icon.border.padding.dense'
-            },
-            left: {
-              size: '6px',
-              color: {
-                default: 'theme:components.button.base.border.color.transparent',
-                active: 'theme:components.button.base.border.color.transparent',
-                inactive: 'theme:components.button.base.border.color.transparent',
-                unavailable: 'theme:components.button.base.border.color.transparent'
-              },
-              padding: 'theme:components.button.base.icon.border.padding.minimal'
-            }
-          }
-        }
       },
 
-      'picard-filled-right': {
-        extends: 'button.picard-filled',
+      'barrel-right': {
+        extends: 'button.barrel',
 
+        icon_area: 'right',
         // Swap text and icon positions
         text: {
           default: {
             position: 'left-center'  // Text on left when icon is on right
+          },
+          name: {
+            position: 'bottom-left',
+          },
+          state: {
+            position: 'top-left',
           }
         },
-        icon: {
-          border: {
-            left: {
-              size: '6px',
-              color: 'theme:components.button.base.border.color',
-              padding: 'theme:components.button.base.icon.border.padding.dense'
-            },
-            right: {
-              size: '6px',
-              color: 'theme:components.button.base.border.color.transparent',
-              padding: 'theme:components.button.base.icon.border.padding.minimal'
+      },
+
+
+      // =====================================
+      // FILLED BUTTONS - Filled (larger text - Picard style)
+      // =====================================
+      'filled': {
+        extends: 'button.base',
+        icon_area: 'left',
+
+        // Text styling - left aligned for outline style
+        text: {
+          name: {
+            position: 'right',
+            //font_size: 'theme.components.button.base.text.default.font_size',
+            font_size: 'theme:typography.fontSize.2xl',
+            show: true,
+            padding: {
+              right: 12
             }
+          },
+          state: {
+            position: 'left',
+            font_size: 'theme.components.button.base.text.default.font_size',
+            show: false
           }
-        }
-      },
+        },
 
-      'picard-filled-dense': {
-        extends: 'button.picard-filled',
-        height: 'theme:components.button.base.layout.height.dense'
       },
-
-      'picard-filled-dense-right': {
-        extends: 'button.picard-filled-right',
-        height: 'theme:components.button.base.layout.height.dense'
+      'filled-right': {
+        extends: 'button.base',
+        icon_area: 'right',
+        text: {
+          name: {
+            position: 'left',
+            //font_size: 'theme.components.button.base.text.default.font_size',
+            font_size: 'theme:typography.fontSize.2xl',
+            show: true,
+            padding: {
+              left: 12
+            }
+          },
+          state: {
+            position: 'right',
+            font_size: 'theme.components.button.base.text.default.font_size',
+            show: false
+          }
+        },
       },
 
       // =====================================
-      // PICARD OUTLINE - Border only
+      // OUTLINE BUTTONS - Border only, large text (Picard style)
       // =====================================
-      'picard': {
+      'outline': {
         extends: 'button.base',
 
         show_icon: false,
@@ -455,7 +436,7 @@ const LCARDS_BUTTONS_PACK = {
               default: 'theme:components.button.base.background.active',
               active: 'theme:components.button.base.background.active',
               inactive: 'theme:components.button.base.background.inactive',
-              unavailable: 'theme:components.button.base.background.unavailable'
+              unavailable: 'theme:components.button.base.text.default.color.unavailable'
             }
           },
           name: {
@@ -485,8 +466,8 @@ const LCARDS_BUTTONS_PACK = {
         }
       },
 
-      'picard-right': {
-        extends: 'button.picard',
+      'outline-right': {
+        extends: 'button.outline',
 
         icon_area: 'right',
 
@@ -512,10 +493,10 @@ const LCARDS_BUTTONS_PACK = {
       },
 
       // =====================================
-      // PICARD ICON - Icon-only compact
+      // ICON - Icon-only compact
       // =====================================
-      'picard-icon': {
-        extends: 'button.picard-filled-dense',
+      'icon': {
+        extends: 'button.base',
 
         // Square dimensions for icon button
         width: 'theme:components.button.base.layout.height.icon',
@@ -534,9 +515,6 @@ const LCARDS_BUTTONS_PACK = {
 
         // Icon-only layout (center everything)
         show_icon: true,
-        show_label: false,
-        show_state: false,
-        show_name: false,
 
         icon: {
           size: 30,
@@ -549,105 +527,14 @@ const LCARDS_BUTTONS_PACK = {
             }
           }
         },
-
-        // Grid template for icon-only (single icon area)
-        grid_template_areas: '"i"'
+        text: {
+          default: {
+            show: false
+          }
+        }
       },
-
-      // =====================================
-      // SQUARE - Basic square button
-      // =====================================
-      square: {
-        extends: 'button.base',
-        show_icon: false
-      }
     },
 
-    // Legacy StatusGrid-specific presets (for backwards compatibility)
-    /*
-    status_grid: {
-      lozenge: {
-        // Layout & Positioning (lcars_text_preset takes precedence)
-        text_layout: 'diagonal',           // ⚠️ Parsed but not used yet
-        label_position: 'top-left',        // ✅ Works (fallback if no lcars_text_preset)
-        value_position: 'bottom-right',    // ✅ Works (fallback if no lcars_text_preset)
-        lcars_text_preset: 'lozenge',      // ✅ Works (overrides positions above)
-
-        // Cell Appearance
-        cell_radius: 34,                   // ✅ Works
-        cell_color: 'var(--lcars-card-button)',    // ✅ Works
-        cell_gap: 8,                       // ✅ Works
-        normalize_radius: false,            // ✅ Works
-        lcars_corners: false,              // ✅ Works
-
-        // Text Styling
-        text_padding: 14,                  // ✅ Works (smart padding)
-        text_margin: 3,                    // ✅ Works
-        label_font_size: 18,               // ✅ Works
-        value_font_size: 18,               // ✅ Works
-        label_color: 'black',              // ✅ Works
-        value_color: 'black',              // ✅ Works
-        font_family: 'Antonio',            // ✅ Works
-        font_weight: 'bold',               // ✅ Works
-
-        // Visibility
-        show_labels: true,                 // ✅ Works
-        show_values: true,                 // ✅ Works
-
-        // Border & Effects
-        border_width: 0,                   // ✅ Works
-        border_color: 'var(--lcars-gray)', // ✅ Works
-        cell_opacity: 0.9                 // ✅ Works
-      },
-      bullet: {
-        text_layout: 'side-by-side',
-        label_position: 'left',
-        value_position: 'right',
-        cell_radius: 38,
-        text_padding: 8,
-        normalize_radius: true,
-        show_labels: true,
-        show_values: true,
-        lcars_text_preset: 'bullet'
-      },
-      'picard-filled': {
-        text_layout: 'stacked',
-        label_position: 'south-east',
-        value_position: 'south-east',
-        cell_radius: 0,
-        text_padding: 12,
-        lcars_corners: true,
-        normalize_radius: false,
-        show_labels: true,
-        show_values: true,
-        lcars_text_preset: 'corner'
-      },
-      badge: {
-        text_layout: 'stacked',
-        label_position: 'center-top',
-        value_position: 'center',
-        cell_radius: 16,
-        text_padding: 8,
-        normalize_radius: true,
-        show_labels: true,
-        show_values: true,
-        lcars_text_preset: 'badge'
-      },
-      compact: {
-        text_layout: 'stacked',
-        label_position: 'center-top',
-        value_position: 'center-bottom',
-        cell_radius: 4,
-        text_padding: 6,
-        text_margin: 1,
-        cell_gap: 1,
-        label_font_size: 14,
-        value_font_size: 12,
-        show_labels: true,
-        show_values: true
-      }
-    }
-    */
   },
 
   anchors: {},

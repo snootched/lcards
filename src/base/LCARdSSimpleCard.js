@@ -1291,9 +1291,9 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Domain-specific state-aware icon mappings (from HA source)
         const stateIconMap = {
             'light': {
-                'on': 'mdi:lightbulb-on',
-                'off': 'mdi:lightbulb',
-                'unavailable': 'mdi:lightbulb-off-outline'
+                'on': 'mdi:lightbulb',
+                'off': 'mdi:lightbulb-off',
+                'unavailable': 'mdi:lightbulb-question'
             },
             'switch': {
                 'on': 'mdi:toggle-switch',
