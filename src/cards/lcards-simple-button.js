@@ -2346,7 +2346,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 x: left + (width / 2),
                 y: top + (height / 2),
                 anchor: 'middle',
-                baseline: 'central'
+                baseline: 'middle'  // 'middle' is more visually centered than 'central'
             },
             'top-left': {
                 x: left + pad.left,
@@ -2388,13 +2388,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 x: left + pad.left,
                 y: top + (height / 2),
                 anchor: 'start',
-                baseline: 'central'
+                baseline: 'middle'  // 'middle' is more visually centered than 'central'
             },
             'right-center': {
                 x: left + width - pad.right,
                 y: top + (height / 2),
                 anchor: 'end',
-                baseline: 'central'
+                baseline: 'middle'  // 'middle' is more visually centered than 'central'
             }
         };
 
