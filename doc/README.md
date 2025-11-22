@@ -19,10 +19,7 @@ Internal architecture and developer documentation:
 - **[Subsystems](./architecture/subsystems/)** - Core system architecture (RulesEngine, DataSources, Theme, etc.)
 - **[Schemas](./architecture/schemas/)** - Card schemas and configuration structure
 - **[Diagrams](./architecture/diagrams/)** - System flow diagrams and architecture visualizations
-- **API References** - Debug API, Runtime API documentation
-
-### 🗄️ [Archive](./archive/)
-Historical documents, implementation notes, and work-in-progress documentation.
+- **[API References](./architecture/api/)** - Debug API, Runtime API documentation
 
 ---
 
@@ -36,8 +33,8 @@ Historical documents, implementation notes, and work-in-progress documentation.
 
 ### For Developers
 - 🏛️ [Architecture Overview](./architecture/overview.md)
-- 🧩 [Simple Card Foundation](./architecture/simple-card-foundation.md)
-- 🔌 [Debug API Reference](./architecture/API_REFERENCE.md)
+- 🧩 [Simple Card Foundation](./architecture/cards/simple-card-foundation.md)
+- 🔌 [API Reference](./architecture/api/api-reference.md)
 - 🎭 [Subsystems Overview](./architecture/subsystems/README.md)
 
 ---
@@ -50,7 +47,7 @@ All documentation in this tree reflects the **current state of the code**. Docum
 - ✅ **Current** - Actively maintained
 - ✅ **Clear** - Written for comprehension
 
-Implementation notes, work-in-progress documents, and historical references are in the [archive](./archive/).
+Historical and work-in-progress documents can be found in `doc-old/` for reference.
 
 ---
 
