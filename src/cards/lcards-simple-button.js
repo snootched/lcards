@@ -3119,10 +3119,14 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         return {
             type: 'custom:lcards-simple-button',
             entity: 'light.example',
-            label: 'LCARdS Button',
             preset: 'lozenge',
             tap_action: {
                 action: 'toggle'
+            },
+            text: {
+                name: {
+                    content: 'LCARdS Button',
+                }
             }
         };
     }
@@ -3525,13 +3529,5 @@ if (window.lcardsCore?.configManager) {
     lcardsLog.debug('[LCARdSSimpleButtonCard] Registered with CoreConfigManager');
 }
 
-// Register with card picker
-window.customCards = window.customCards || [];
-window.customCards.push({
-    type: 'lcards-simple-button',
-    name: 'LCARdS Button',
-    description: 'LCARS-styled button with actions and templates',
-    preview: true
-});
-
-lcardsLog.debug('[LCARdSSimpleButtonCard] Card registered');
+// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js
+// This ensures all core singletons are initialized before cards can be instantiated

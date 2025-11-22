@@ -1180,6 +1180,13 @@ const LCARdSCardClasses = [
         documentationURL: "https://cb-lcars.unimatrix01.ca",
     },
     {
+        type: 'lcards-simple-button',
+        name: 'LCARdS Simple Button',
+        preview: true,
+        description: 'Modern LCARS button with multi-text labels and flexible positioning',
+        documentationURL: "https://cb-lcars.unimatrix01.ca",
+    },
+    {
         type: 'lcards-msd-card',
         name: 'LCARdS MSD',
         preview: true,
