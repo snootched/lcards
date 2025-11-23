@@ -1198,43 +1198,36 @@ export class AdvancedRenderer {
 
     // Phase 3: Create instance-based renderers for all overlay types
 
-    // Text overlays use TextOverlay class
-    if (overlay.type === 'text') {
-      const textOverlay = new TextOverlay(overlay, this.systemsManager);
-      this.overlayRenderers.set(overlay.id, textOverlay);
-      return textOverlay;
-    }
-
-    // Button overlays use ButtonOverlay class
-    if (overlay.type === 'button') {
-      const buttonOverlay = new ButtonOverlay(overlay, this.systemsManager);
-      this.overlayRenderers.set(overlay.id, buttonOverlay);
-      return buttonOverlay;
-    }
-
-    // Line overlays use LineOverlay class
+    // Line overlays use LineOverlay class (SVG-native, MSD-specific)
     if (overlay.type === 'line') {
       const lineOverlay = new LineOverlay(overlay, this.systemsManager, this.routerCore);
       this.overlayRenderers.set(overlay.id, lineOverlay);
       return lineOverlay;
     }
 
-    // ApexCharts overlays use ApexChartsOverlay class (wrapper pattern)
-    if (overlay.type === 'apexchart') {
-      const apexChartsOverlay = new ApexChartsOverlay(overlay, this.systemsManager);
-      this.overlayRenderers.set(overlay.id, apexChartsOverlay);
-      return apexChartsOverlay;
+    // UNIFIED CARD PATTERN:
+    // All other overlays are card-based and handled by MsdControlsRenderer
+    // This includes:
+    // - SimpleCards: custom:lcards-simple-button, custom:lcards-simple-chart
+    // - HA cards: entities, grid, button, light, etc.
+    // - Legacy control overlays with nested card definition
+    // - Legacy overlay types (button, text, apexchart, status_grid) - DEPRECATED
+
+    // Legacy overlay types - log deprecation warning
+    const legacyTypes = ['button', 'text', 'apexchart', 'status_grid'];
+    if (legacyTypes.includes(overlay.type)) {
+      lcardsLog.warn(`[AdvancedRenderer] ⚠️ DEPRECATED: overlay type '${overlay.type}' for ${overlay.id}. ` +
+        `Please migrate to SimpleCard pattern. See migration guide in doc/migration/`);
+
+      // Return null to trigger MsdControlsRenderer delegation
+      // The legacy overlays will still work but through the card system
+      return null;
     }
 
-    // Status grid overlays use StatusGridOverlay class (wrapper pattern)
-    if (overlay.type === 'status_grid') {
-      const statusGridOverlay = new StatusGridOverlay(overlay, this.systemsManager);
-      this.overlayRenderers.set(overlay.id, statusGridOverlay);
-      return statusGridOverlay;
-    }
-
-    // Control overlays are handled separately by MsdControlsRenderer
-    if (overlay.type === 'control') {
+    // Card-based overlays (SimpleCards, HA cards, controls)
+    // Return null to signal that MsdControlsRenderer should handle this
+    if (overlay.type === 'control' || overlay.type?.startsWith('custom:') || overlay.type?.startsWith('hui-')) {
+      lcardsLog.trace(`[AdvancedRenderer] Card-based overlay ${overlay.id} (${overlay.type}) - delegating to MsdControlsRenderer`);
       return null;
     }
 
@@ -1389,53 +1382,36 @@ export class AdvancedRenderer {
       const renderer = this._getRendererForOverlay(overlay);
 
       if (renderer instanceof OverlayBase) {
-        // Instance-based overlay - all overlays now use this pattern
+        // Instance-based overlay - currently only LineOverlay uses this pattern
         lcardsLog.trace(`[AdvancedRenderer] 🎯 Using instance-based renderer for ${overlay.id}`);
 
-        // Handle special cases for different overlay types
-
-        if (overlay.type === 'text') {
-          // Render first, then extract attachment points from metadata
-          result = renderer.render(overlay, anchors, viewBox, svgContainer);
-
-          // Extract and cache attachment points from render result
-          if (result && result.metadata && result.metadata.attachmentPoints) {
-            // Format for LineOverlay: needs {points: {...}, bbox: {...}}
-            const formattedAttachmentPoints = {
-              id: overlay.id,
-              points: result.metadata.attachmentPoints,
-              bbox: result.metadata.bbox,
-              center: result.metadata.attachmentPoints.center
-            };
-
-            // Cache in attachment manager
-            this.attachmentManager.setAttachmentPoints(overlay.id, formattedAttachmentPoints);
-          }
-        } else if (overlay.type === 'line') {
+        if (overlay.type === 'line') {
           // Lines need complete anchor set (static + virtual) for overlay-to-overlay connections
           const completeAnchors = this._getCompleteAnchors(anchors, overlay.type);
-
           result = renderer.render(overlay, completeAnchors, viewBox, svgContainer);
-        } else if (overlay.type === 'apexchart') {
-          // ApexCharts needs the effective container and card instance
-          const apexCardInstance = this.systemsManager ? this._resolveCardInstance() : null;
-          const effectiveSvgContainer = svgContainer || this.mountEl;
-
-          result = renderer.render(overlay, anchors, viewBox, effectiveSvgContainer, apexCardInstance);
         } else {
-          // Standard render for most overlay types (button, status_grid, etc.)
+          // Standard render for other instance-based overlays (if any)
           result = renderer.render(overlay, anchors, viewBox, svgContainer);
         }
 
       } else {
-        // No renderer available - expected for control overlays (embedded HA cards)
-        const isControl = overlay.type === 'control';
-        if (isControl) {
-          lcardsLog.debug(`[AdvancedRenderer] Control overlay ${overlay.id} has no renderer (uses embedded HA card)`);
-        } else {
-          lcardsLog.warn(`[AdvancedRenderer] ⚠️ No renderer instance for overlay ${overlay.id} (type: ${overlay.type})`);
+        // No renderer available - delegate to MsdControlsRenderer for card-based overlays
+        // This includes:
+        // - SimpleCards (custom:lcards-simple-button, custom:lcards-simple-chart)
+        // - HA cards (entities, grid, button, etc.)
+        // - Control overlays (type: 'control')
+        // - Legacy overlays (button, text, apexchart, status_grid) - DEPRECATED
+
+        if (overlay.type === 'line') {
+          // Line without renderer is an error
+          lcardsLog.error(`[AdvancedRenderer] ❌ Line overlay ${overlay.id} has no renderer`);
+          return this.renderFallbackOverlay(overlay);
         }
-        return '';
+
+        // Delegate to MsdControlsRenderer for all card-based overlays
+        lcardsLog.debug(`[AdvancedRenderer] 🎴 Delegating card-based overlay ${overlay.id} to MsdControlsRenderer`);
+
+        result = this._renderCardOverlayViaMsdControls(overlay, anchors, viewBox, svgContainer);
       }
 
       // ✅ NEW: Store renderer provenance after successful render
@@ -1455,6 +1431,54 @@ export class AdvancedRenderer {
       // ✅ NEW: Track failed render
       this._storeFailedRendererProvenance(overlay.id, overlay.type, error);
 
+      return this.renderFallbackOverlay(overlay);
+    }
+  }
+
+  /**
+   * Render card-based overlay via MsdControlsRenderer
+   *
+   * This delegates to the existing MsdControlsRenderer which handles:
+   * - foreignObject creation and positioning in SVG viewBox coordinates
+   * - Card element creation (SimpleCards & HA cards)
+   * - HASS context application with retry strategies
+   * - Config application via setConfig()
+   * - Event isolation
+   *
+   * @private
+   * @param {Object} overlay - Overlay configuration
+   * @param {Object} anchors - Anchor positions
+   * @param {Array} viewBox - SVG viewBox dimensions
+   * @param {Element} svgContainer - SVG container element
+   * @returns {string} Empty string (MsdControlsRenderer handles DOM directly)
+   */
+  _renderCardOverlayViaMsdControls(overlay, anchors, viewBox, svgContainer) {
+    if (!this.systemsManager?.controlsRenderer) {
+      lcardsLog.error('[AdvancedRenderer] No controlsRenderer available for card overlay');
+      return this.renderFallbackOverlay(overlay);
+    }
+
+    try {
+      // Build resolved model for MsdControlsRenderer
+      const resolvedModel = {
+        anchors,
+        viewBox,
+        overlays: [overlay]
+      };
+
+      // Delegate to MsdControlsRenderer
+      // Note: This is async but we don't await - MsdControlsRenderer handles timing
+      this.systemsManager.controlsRenderer.renderControlOverlay(overlay, resolvedModel)
+        .catch(error => {
+          lcardsLog.error(`[AdvancedRenderer] Error in MsdControlsRenderer for ${overlay.id}:`, error);
+        });
+
+      // Return empty string - MsdControlsRenderer manipulates DOM directly via foreignObject
+      // The SVG markup is handled separately, we just need to trigger the card creation
+      return '';
+
+    } catch (error) {
+      lcardsLog.error(`[AdvancedRenderer] Error delegating to MsdControlsRenderer for ${overlay.id}:`, error);
       return this.renderFallbackOverlay(overlay);
     }
   }

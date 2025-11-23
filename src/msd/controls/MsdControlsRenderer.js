@@ -269,6 +269,8 @@ export class MsdControlsRenderer {
       overlayType: overlay.type
     });
 
+    // Pattern 1: Nested card definition (traditional control pattern)
+    // { type: 'control', card: { type: 'custom:some-card', ... } }
     if (overlay.card) return overlay.card;
     if (overlay.card_config) return overlay.card_config;
     if (overlay.cardConfig) return overlay.cardConfig;
@@ -276,6 +278,26 @@ export class MsdControlsRenderer {
     if (overlay.meta?.card) return overlay.meta.card;
     if (overlay.extension?.card) return overlay.extension.card;
 
+    // Pattern 2: Overlay IS the card definition (new unified pattern)
+    // { type: 'custom:lcards-simple-button', entity: '...', position: [...], size: [...] }
+    // This supports SimpleCards and HA cards directly as overlays
+    if (overlay.type && overlay.type !== 'control' && overlay.type !== 'line') {
+      lcardsLog.debug('[MsdControlsRenderer] Using unified pattern - overlay IS card definition for', overlay.id);
+
+      // Build card definition from overlay itself
+      // Exclude MSD-specific positioning/metadata properties
+      const { id, position, size, z_index, tags, anchor, anchors, ...cardProps } = overlay;
+
+      lcardsLog.debug('[MsdControlsRenderer] Built card definition from overlay:', {
+        overlayId: id,
+        cardType: overlay.type,
+        cardProps
+      });
+
+      return cardProps;  // Everything except positioning metadata
+    }
+
+    // Pattern 3: Try raw overlay cache (backward compat during transition)
     // Build raw overlay index once from global cache if available
     if (!this._rawOverlayIndex) {
       const raw = (window && window._msdRawOverlays) ? window._msdRawOverlays : [];
