@@ -114,8 +114,9 @@ export class AdvancedRenderer {
       }
     };
 
-    // Phase 1: render overlays that others may depend on (text)
-    const earlyTypes = new Set(['text']);
+    // Phase 1: render overlays that others may depend on
+    // CLEANED: Removed text overlay from earlyTypes (removed in v1.16.22+)
+    const earlyTypes = new Set([]);
     let svgMarkupAccum = '';
     let processedCount = 0;
 
@@ -247,7 +248,8 @@ export class AdvancedRenderer {
     // This ensures line overlays have correct attachment points on initial render
     this._populateInitialAttachmentPoints(overlays, anchors);
 
-    // Build virtual anchors from Phase 1 overlays (text) for line anchoring
+    // Build virtual anchors from Phase 1 overlays for line anchoring
+    // CLEANED: Removed '(text)' comment - text overlays removed in v1.16.22+
     // These are base anchors without gaps - lines will overwrite with gap-applied versions
     this._buildVirtualAnchorsFromAllOverlays(overlays);
 
@@ -469,7 +471,8 @@ export class AdvancedRenderer {
     // ✅ NEW: Stage 3 - DOM Injection (Phase 5.3)
     const domStart = performance.now();
 
-    // ADDED: Attach Phase 2 actions (buttons, status grids, etc.) AFTER Phase 2 DOM injection
+    // ADDED: Attach Phase 2 actions AFTER Phase 2 DOM injection
+    // CLEANED: Removed '(buttons, status grids, etc.)' - those overlays removed in v1.16.22+
     lcardsLog.debug(`[AdvancedRenderer] 🎯 Attaching ${phase2ActionQueue.length} Phase 2 actions`);
 
     phase2ActionQueue.forEach(({ overlayId, actionInfo, overlay, cardInstance }) => {
@@ -489,7 +492,8 @@ export class AdvancedRenderer {
 
           // CHANGED: Handle different action config types
           if (actionInfo.config.simple) {
-            // Simple overlay-level actions (text, buttons)
+            // Simple overlay-level actions
+            // CLEANED: Removed '(text, buttons)' - those overlays removed in v1.16.22+
             ActionHelpers.attachActions(
               element,
               overlay,
@@ -547,7 +551,6 @@ export class AdvancedRenderer {
 
     lcardsLog.debug('[AdvancedRenderer] Injected elements (after phased render):', {
       total: this.overlayElementCache.size,
-      text: overlayGroup.querySelectorAll('[data-overlay-type="text"]').length,
       lines: overlayGroup.querySelectorAll('[data-overlay-type="line"]').length,
       controls: overlayGroup.querySelectorAll('[data-overlay-type="control"]').length
     });
@@ -620,26 +623,13 @@ export class AdvancedRenderer {
 
     try {
       switch (overlay.type) {
-        case 'text':
-          // DEPRECATED: TextOverlay removed (v1.16.22+) - use custom:lcards-simple-button or other cards
-          lcardsLog.warn('[AdvancedRenderer] text overlay type is deprecated - use card overlays instead');
-          return this._computeBasicAttachmentPoints(overlay, anchors, 'text');
-        case 'status_grid':
-          // DEPRECATED: StatusGridRenderer removed (v1.16.22+)
-          // Use custom:lcards-simple-chart with type: grid as MSD overlay instead
-          lcardsLog.warn('[AdvancedRenderer] status_grid overlay type is deprecated - use custom:lcards-simple-chart');
-          return this._computeBasicAttachmentPoints(overlay, anchors, 'status_grid');
         case 'control':
           return this._computeControlAttachmentPoints(overlay, anchors, container, effectiveViewBox);
         case 'line':
           // Lines don't have attachment points (they attach to others, not vice versa)
           return null;
-        case 'apexchart':
-          // DEPRECATED: ApexChartsOverlayRenderer removed (v1.16.22+)
-          // Use custom:lcards-simple-chart as MSD overlay instead
-          lcardsLog.warn('[AdvancedRenderer] apexchart overlay type is deprecated - use custom:lcards-simple-chart');
-          return this._computeBasicAttachmentPoints(overlay, anchors, 'apexchart');
         default:
+          // CLEANED: Removed deprecated cases for text, status_grid, apexchart (removed in v1.16.22+)
           lcardsLog.warn(`[AdvancedRenderer] Unknown overlay type for attachment points: ${overlay.type}`);
           return null;
       }
@@ -654,35 +644,14 @@ export class AdvancedRenderer {
   // DEPRECATED: _computeTextAttachmentPoints removed (v1.16.22+)
   // TextOverlay class deleted - use card overlays (custom:lcards-simple-button, etc.) instead
 
+  // DEPRECATED: _computeBasicAttachmentPoints removed (v1.16.22+)
+  // Was only used by deprecated text, status_grid, apexchart overlay types
+
   _computeControlAttachmentPoints(overlay, anchors, container, viewBox) {
     return MsdControlsRenderer.computeAttachmentPoints(overlay, anchors, container);
   }
 
-  /**
-   * Compute basic attachment points for non-text overlays using position/size
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} anchors - Available anchors
-   * @param {string} type - Overlay type for logging
-   * @returns {Object|null} Attachment points object
-   */
-  _computeBasicAttachmentPoints(overlay, anchors, type) {
-    const attachmentPoints = OverlayUtils.computeAttachmentPoints(overlay, anchors);
-
-    if (!attachmentPoints) {
-      lcardsLog.debug(`[AdvancedRenderer] Cannot compute attachment points for ${type} ${overlay.id}: missing position or size`);
-      return null;
-    }
-
-    // Add aliases for common naming conventions
-    attachmentPoints.points['top-left'] = attachmentPoints.points.topLeft;
-    attachmentPoints.points['top-right'] = attachmentPoints.points.topRight;
-    attachmentPoints.points['bottom-left'] = attachmentPoints.points.bottomLeft;
-    attachmentPoints.points['bottom-right'] = attachmentPoints.points.bottomRight;
-
-    lcardsLog.debug(`[AdvancedRenderer] 🔗 Created attachment points for ${type} ${overlay.id}`);
-
-    return attachmentPoints;
-  }  _ensureOverlayGroup(svg) {
+  _ensureOverlayGroup(svg) {
     let group = svg.querySelector('#msd-overlay-container');
     if (!group) {
       group = document.createElementNS('http://www.w3.org/2000/svg', 'g');

@@ -1,7 +1,6 @@
 import { computeCanonicalChecksum } from '../../utils/checksum.js';
 import { perfTime, perfTimeAsync, perfCount } from '../../utils/performance.js';
 import { loadBuiltinPacks } from './loadBuiltinPacks.js';
-import { chartTemplateRegistry } from '../../msd/templates/ChartTemplateRegistry.js';
 
 /**
  * Single consolidated merge algorithm - COMPLETE REPLACEMENT
@@ -13,14 +12,6 @@ export async function mergePacks(userConfig) {
   return await perfTimeAsync('merge.total', async () => {
     const layers = await perfTimeAsync('merge.loadLayers', () => loadAllLayers(userConfig));
     const merged = await perfTimeAsync('merge.processSingle', () => processSinglePass(layers));
-
-    // NEW: Register chart templates from packs
-    const packLayers = layers.filter(layer => layer.type === 'builtin' || layer.type === 'external');
-    packLayers.forEach(layer => {
-      if (layer.data.chartTemplates) {
-        chartTemplateRegistry.registerFromPack(layer.data.id || layer.pack, layer.data.chartTemplates);
-      }
-    });
 
     return merged;
   }, {

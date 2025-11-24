@@ -35,40 +35,19 @@ export class BaseOverlayUpdater {
    * @private
    */
   _registerUpdaters() {
-    // Text overlay updater with template processing
-    this.overlayUpdaters.set('text', {
-      needsUpdate: (overlay, sourceData) => this._textNeedsUpdate(overlay, sourceData),
-      update: (overlayId, overlay, sourceData) => this._updateTextOverlay(overlayId, overlay, sourceData),
-      hasTemplates: (overlay) => this._hasTemplateContent(overlay)
-    });
-
-    // Status grid updater
-    this.overlayUpdaters.set('status_grid', {
-      needsUpdate: (overlay, sourceData) => this._statusGridNeedsUpdate(overlay, sourceData),
-      update: (overlayId, overlay, sourceData) => this._updateStatusGrid(overlayId, overlay, sourceData),
-      hasTemplates: (overlay) => this._hasTemplateContent(overlay)
-    });
-
-    // Button overlay updater
-    this.overlayUpdaters.set('button', {
-      needsUpdate: (overlay, sourceData) => this._hasTemplateContent(overlay),
-      update: (overlayId, overlay, sourceData) => this._updateButtonOverlay(overlayId, overlay, sourceData),
-      hasTemplates: (overlay) => this._hasTemplateContent(overlay)
-    });
-
-    // ApexCharts updater for rule-driven style changes
-    this.overlayUpdaters.set('apexchart', {
-      needsUpdate: (overlay, sourceData) => this._apexChartNeedsUpdate(overlay, sourceData),
-      update: (overlayId, overlay, sourceData) => this._updateApexChart(overlayId, overlay, sourceData),
-      hasTemplates: (overlay) => this._apexChartHasTemplates(overlay)
-    });
-
-    // Generic updater for future overlay types
+    // Generic updater for card and line overlays
+    // Cards (control type) and lines use template processing for dynamic content
     this.overlayUpdaters.set('default', {
       needsUpdate: (overlay, sourceData) => this._hasTemplateContent(overlay),
       update: (overlayId, overlay, sourceData) => this._updateGenericOverlay(overlayId, overlay, sourceData),
       hasTemplates: (overlay) => this._hasTemplateContent(overlay)
     });
+
+    // Note: Removed overlay types (v1.16.22+)
+    // - text: Use custom:lcards-simple-button or HA cards instead
+    // - status_grid: Use type: grid (HA card) instead
+    // - button: Use custom:lcards-simple-button instead
+    // - apexchart: Use custom:lcards-simple-chart instead
   }
 
   /**
@@ -323,188 +302,6 @@ export class BaseOverlayUpdater {
   }
 
   /**
-   * Text overlay specific update logic
-   * @private
-   * @param {string} overlayId - Overlay identifier
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Updated source data
-   */
-  _updateTextOverlay(overlayId, overlay, sourceData) {
-    lcardsLog.debug(`[BaseOverlayUpdater] 📝 Updating text overlay ${overlayId} with data:`, {
-      hasSourceData: !!sourceData,
-      entityState: sourceData?.entity?.state,
-      entityId: sourceData?.entity?.entity_id,
-      timestamp: sourceData?.timestamp,
-      hasRenderer: !!this.systemsManager.renderer,
-      hasUpdateMethod: !!this.systemsManager.renderer?.updateOverlayData
-    });
-
-    if (this.systemsManager.renderer && this.systemsManager.renderer.updateOverlayData) {
-      this.systemsManager.renderer.updateOverlayData(overlayId, sourceData);
-    } else if (this.systemsManager.renderer && this.systemsManager.renderer.updateTextOverlay) {
-      // Legacy fallback for backward compatibility
-      this.systemsManager.renderer.updateTextOverlay(overlayId, sourceData);
-    } else {
-      lcardsLog.warn(`[BaseOverlayUpdater] ⚠️ No renderer method available for text overlay ${overlayId}`);
-    }
-  }
-
-  /**
-   * Status grid update logic with template processing
-   * @private
-   * @param {string} overlayId - Overlay identifier
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Updated source data
-   */
-  _updateStatusGrid(overlayId, overlay, sourceData) {
-    lcardsLog.debug(`[BaseOverlayUpdater] 📊 Updating status grid ${overlayId} with template processing`);
-
-    // Ensure renderer has updated HASS context before processing (Phase 1 new method)
-    const updatedHass = this.systemsManager.getHassV2();
-    if (updatedHass && this.systemsManager.renderer) {
-      if (this.systemsManager.renderer.setHass) {
-        this.systemsManager.renderer.setHass(updatedHass);
-        lcardsLog.debug(`[BaseOverlayUpdater] 📊 Updated renderer HASS context for status grid ${overlayId}`);
-      }
-    }
-
-    try {
-      // Get the cached overlay element
-      const gridElement = this.systemsManager.renderer?.overlayElementCache?.get(overlayId);
-
-      if (gridElement && overlay) {
-        // DEPRECATED: StatusGridRenderer removed (v1.16.22+)
-        // Use type: grid (HA card) instead
-        lcardsLog.warn(`[BaseOverlayUpdater] ⚠️ status_grid overlay type deprecated. Use type: grid (HA card) instead`);
-        // const { StatusGridRenderer } = require('./StatusGridRenderer.js');
-        // const updated = StatusGridRenderer.updateGridData(gridElement, overlay, sourceData);
-      } else {
-        // Fallback to renderer's updateOverlayData method
-        if (this.systemsManager.renderer && this.systemsManager.renderer.updateOverlayData) {
-          const enhancedSourceData = {
-            ...sourceData,
-            hass: updatedHass,
-            overlay: overlay
-          };
-          this.systemsManager.renderer.updateOverlayData(overlayId, enhancedSourceData);
-          lcardsLog.debug(`[BaseOverlayUpdater] 📊 Used fallback renderer update for ${overlayId}`);
-        }
-      }
-    } catch (error) {
-      lcardsLog.error(`[BaseOverlayUpdater] ❌ Failed to update status grid ${overlayId}:`, error);
-
-      // Final fallback to renderer
-      if (this.systemsManager.renderer && this.systemsManager.renderer.updateOverlayData) {
-        this.systemsManager.renderer.updateOverlayData(overlayId, sourceData);
-      }
-    }
-  }
-
-  /**
-   * Update button overlay with new DataSource data
-   * @private
-   * @param {string} overlayId - Overlay identifier
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Updated source data
-   */
-  _updateButtonOverlay(overlayId, overlay, sourceData) {
-    if (this.systemsManager.renderer && this.systemsManager.renderer.updateOverlayData) {
-      this.systemsManager.renderer.updateOverlayData(overlayId, sourceData);
-    } else {
-      lcardsLog.warn(`[BaseOverlayUpdater] No renderer method available for button overlay ${overlayId}`);
-    }
-  }
-
-  /**
-   * ApexChart update logic - handles both data and style changes from rules
-   * @private
-   * @param {string} overlayId - Overlay identifier
-   * @param {Object} overlay - Overlay configuration with finalStyle from rules
-   * @param {Object} sourceData - Updated source data
-   */
-  _updateApexChart(overlayId, overlay, sourceData) {
-    lcardsLog.debug(`[BaseOverlayUpdater] 📊 Updating ApexChart ${overlayId}`);
-
-    // DEPRECATED: ApexChartsOverlayRenderer removed (v1.16.22+)
-    // Use type: custom:lcards-simple-chart instead
-    lcardsLog.warn(`[BaseOverlayUpdater] ⚠️ apexchart overlay type deprecated. Use type: custom:lcards-simple-chart instead`);
-    return;
-
-    // LEGACY CODE BELOW (commented out):
-    // const { ApexChartsOverlayRenderer } = require('./ApexChartsOverlayRenderer.js');
-    // const instance = ApexChartsOverlayRenderer._getInstance();
-
-    // Check if chart exists
-    const chart = instance.charts.get(overlayId);
-
-    if (!chart) {
-      lcardsLog.warn(`[BaseOverlayUpdater] ⚠️ ApexChart instance not found: ${overlayId}`);
-      return;
-    }
-
-    try {
-      const style = overlay.finalStyle || overlay.style || {};
-      const sourceRef = overlay.source || overlay.data_source || overlay.sources;
-
-      // Get updated series data
-      const dataSourceManager = this.systemsManager.dataSourceManager;
-      if (!dataSourceManager) {
-        lcardsLog.warn(`[BaseOverlayUpdater] ⚠️ No DataSourceManager for ApexChart update`);
-        return;
-      }
-
-      // Import adapter for series conversion
-      const { ApexChartsAdapter } = require('../../charts/ApexChartsAdapter.js');
-
-      // Convert data to series format
-      const isMultiSeries = Array.isArray(sourceRef);
-      const newSeries = isMultiSeries ?
-        ApexChartsAdapter.convertToMultiSeries(sourceRef, dataSourceManager, {
-          time_window: style.time_window,
-          max_points: style.max_points || 500,
-          seriesNames: style.series_names || style.seriesNames
-        }) :
-        ApexChartsAdapter.convertToSeries(sourceRef, dataSourceManager, {
-          time_window: style.time_window,
-          max_points: style.max_points || 500,
-          name: style.name
-        });
-
-      // Get overlay dimensions for style updates
-      const overlayInfo = instance.overlayDivs.get(overlayId);
-      const size = overlay.size || [300, 150];
-
-      // Calculate screen coordinates if we have overlay info
-      let screenSize = size;
-      if (overlayInfo && overlayInfo.div) {
-        const divRect = overlayInfo.div.getBoundingClientRect();
-        screenSize = [Math.round(divRect.width), Math.round(divRect.height)];
-      }
-
-      // Generate updated options from current style
-      const updatedOptions = ApexChartsAdapter.generateOptions(
-        style,
-        screenSize,
-        {}
-      );
-
-      // CRITICAL FIX: Use separate update calls to prevent re-creation
-      // Step 1: Update options without series
-      const optionsOnly = { ...updatedOptions };
-      delete optionsOnly.series; // Remove series to update separately
-
-      chart.updateOptions(optionsOnly, false, false); // Don't redraw yet
-
-      // Step 2: Update series with animation
-      chart.updateSeries(newSeries, true); // Animate the update
-
-      lcardsLog.debug(`[BaseOverlayUpdater] ✅ ApexChart ${overlayId} updated with new data and styles`);
-
-    } catch (error) {
-      lcardsLog.error(`[BaseOverlayUpdater] ❌ Failed to update ApexChart ${overlayId}:`, error);
-    }
-  }
-  /**
    * Generic overlay update logic
    * @private
    * @param {string} overlayId - Overlay identifier
@@ -519,78 +316,6 @@ export class BaseOverlayUpdater {
   /**
    * Helper methods for determining update needs
    */
-
-  /**
-   * Check if text overlay needs update
-   * @private
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Source data
-   * @returns {boolean} True if update needed
-   */
-  _textNeedsUpdate(overlay, sourceData) {
-    return this._hasTemplateContent(overlay);
-  }
-
-  /**
-   * Check if status grid needs update
-   * @private
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Source data
-   * @returns {boolean} True if update needed
-   */
-  _statusGridNeedsUpdate(overlay, sourceData) {
-    return this._hasTemplateContent(overlay);
-  }
-
-  /**
-   * Check if ApexChart needs update
-   * @private
-   * @param {Object} overlay - Overlay configuration
-   * @param {Object} sourceData - Source data
-   * @returns {boolean} True if update needed
-   */
-  _apexChartNeedsUpdate(overlay, sourceData) {
-    // ApexCharts need updates when:
-    // 1. Their DataSource changes (data updates)
-    // 2. Their style changes (rule-driven patches)
-    return true; // Always check for updates
-  }
-
-  /**
-   * Check if ApexChart uses templates in its configuration
-   * @private
-   * @param {Object} overlay - Overlay configuration
-   * @returns {boolean} True if templates used
-   */
-  _apexChartHasTemplates(overlay) {
-    // Check if overlay has any template references in style properties
-    const style = overlay.finalStyle || overlay.style || {};
-
-    // Check common style properties that might contain templates
-    const templateProps = [
-      'name',
-      'tooltip_time_format',
-      'value_format',
-      'series_names'
-    ];
-
-    for (const prop of templateProps) {
-      if (style[prop] && typeof style[prop] === 'string' && this._hasAnyTemplateMarkers(style[prop])) {
-        return true;
-      }
-    }
-
-    // Check if series names contain templates
-    if (style.series_names && typeof style.series_names === 'object') {
-      for (const name of Object.values(style.series_names)) {
-        if (typeof name === 'string' && this._hasAnyTemplateMarkers(name)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
 
   /**
    * Find DataSource ID for given entity ID
