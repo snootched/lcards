@@ -39,14 +39,16 @@ export async function processAndValidateConfig(userMsdConfig) {
       mergedConfig.__issues = issues;
 
     } catch (error) {
+      // FALLBACK: CoreConfigManager failed (network/load error) - use direct mergePacks
+      // This path should rarely execute - CoreConfigManager initialization is part of lcards-core.js startup
       lcardsLog.warn('[ConfigProcessor] CoreConfigManager failed, falling back to mergePacks:', error);
-      // Fallback to legacy path
       mergedConfig = await mergePacks(userMsdConfig);
       provenance = mergedConfig.__provenance;
     }
   } else {
-    // Fallback: CoreConfigManager not available (legacy path)
-    lcardsLog.debug('[ConfigProcessor] CoreConfigManager not available, using mergePacks directly');
+    // FALLBACK: CoreConfigManager not loaded yet (rare timing issue)
+    // This path should rarely execute - CoreConfigManager is loaded in lcards-core.js before MSD cards render
+    lcardsLog.warn('[ConfigProcessor] CoreConfigManager not available (timing issue), using mergePacks directly');
     mergedConfig = await mergePacks(userMsdConfig);
     provenance = mergedConfig.__provenance;
   }

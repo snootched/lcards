@@ -397,15 +397,6 @@ export class SystemsManager extends BaseService {
     });
   }
 
-  // Keep the original initializeSystems method for backward compatibility but mark it deprecated
-  async initializeSystems(mergedConfig, cardModel, mountEl, hass) {
-    lcardsLog.warn('[SystemsManager] ⚠️ initializeSystems is deprecated, use initializeSystemsWithPacksFirst + completeSystems');
-
-    // Use the new sequenced approach
-    await this.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
-    await this.completeSystems(mergedConfig, cardModel, mountEl);
-  }
-
   setReRenderCallback(callback) {
     this._reRenderCallback = callback;
   }
