@@ -1,7 +1,18 @@
-# LCARdS Documentation
+# LCARdS Documentation (ARCHIVE)
 
-**Version:** 1.10.70+
+> ⚠️ **ARCHIVED DOCUMENTATION**
+>
+> This directory contains historical documentation that may be outdated.
+> Please refer to `/doc/` for current documentation.
+>
+> **Last Active Version:** 1.10.70+
+> **Archived:** November 2025
+
+---
+
+**Version:** 1.10.70+ (historical)
 **Last Updated:** November 15, 2025
+**Status:** ARCHIVED - See `/doc/` for current docs
 
 ---
 

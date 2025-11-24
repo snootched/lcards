@@ -678,11 +678,15 @@ TemplateProcessor.setDebugMode(true);
 ### Example 1: Basic MSD Template
 
 ```yaml
+# Template processing works with any overlay or card
 overlays:
   - id: temp_display
-    type: text
+    type: control
     position: [100, 100]
-    content: "Temperature: {indoor_temp:.1f}°F"
+    size: [200, 80]
+    card:
+      type: custom:lcards-text-card
+      content: "Temperature: {indoor_temp:.1f}°F"
 ```
 
 **Processing:**
@@ -714,9 +718,12 @@ const deps = TemplateProcessor.extractEntityDependencies(content);
 ```yaml
 overlays:
   - id: ha_temp
-    type: text
+    type: control
     position: [100, 100]
-    content: "Temp: {{states('sensor.temperature') | float | round(1)}}°C"
+    size: [200, 80]
+    card:
+      type: custom:lcards-text-card
+      content: "Temp: {{states('sensor.temperature') | float | round(1)}}°C"
 ```
 
 **Processing:**
@@ -744,12 +751,15 @@ const deps = TemplateProcessor.extractEntityDependencies(content);
 ```yaml
 overlays:
   - id: mixed_display
-    type: text
+    type: control
     position: [100, 100]
-    content: |
-      Inside: {{states('sensor.indoor_temp') | float | round(1)}}°C
-      Outside: {outdoor_temp:.1f}°C
-      CPU: {cpu_temp.v:.1f}°C
+    size: [300, 150]
+    card:
+      type: custom:lcards-multiline-card
+      content: |
+        Inside: {{states('sensor.indoor_temp') | float | round(1)}}°C
+        Outside: {outdoor_temp:.1f}°C
+        CPU: {cpu_temp.v:.1f}°C
 ```
 
 **Processing:**
@@ -781,10 +791,15 @@ data_sources:
         type: formula
         expression: "value * 9/5 + 32"
 
+# Used in any card/overlay that supports templates
 overlays:
-  - id: temp_f
-    type: text
-    content: "{temperature.transformations.fahrenheit:.1f}°F"
+  - id: temp_panel
+    type: control
+    position: [100, 100]
+    size: [200, 80]
+    card:
+      type: custom:lcards-text-card
+      content: "{temperature.transformations.fahrenheit:.1f}°F"
 ```
 
 **Processing:**

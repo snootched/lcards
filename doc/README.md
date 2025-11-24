@@ -4,6 +4,25 @@
 
 ---
 
+## 🏛️ Current Architecture (v1.16.22+)
+
+LCARdS uses a **singleton-based core architecture** with the following key systems:
+
+| Singleton | Access | Purpose |
+|-----------|--------|---------|
+| `lcardsCore.themeManager` | ThemeManager | Theme and design tokens |
+| `lcardsCore.dataSourceManager` | DataSourceManager | Entity state and data fetching |
+| `lcardsCore.rulesManager` | RulesEngine | Conditional styling rules |
+| `lcardsCore.validationService` | CoreValidationService | Config validation |
+| `lcardsCore.animationRegistry` | AnimationRegistry | Animation caching |
+| `lcardsCore.animationManager` | AnimationManager | Animation coordination |
+
+**MSD Overlay Types:** `line` (SVG lines) and `card/control` (embedded HA cards)
+
+> **Note:** Previous overlay types (text, button, status_grid, apexchart) were removed in v1.16.22+. Use SimpleCards or embedded HA cards instead.
+
+---
+
 ## 📚 Documentation Structure
 
 ### 👤 [User Documentation](./user/)
