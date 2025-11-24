@@ -6,10 +6,12 @@
  * - Range validation (min, max, length)
  * - Format validation (patterns, enums, custom formats)
  * - Array/object structure validation
- * - ✅ NEW: Design token resolution and validation
- * - ✅ NEW: Enhanced property format support
+ * - Design token resolution and validation
+ * - Enhanced property format support
  *
- * @module msd/validation/ValueValidator
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/ValueValidator
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -21,9 +23,9 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Enhanced with token resolution and enhanced property support.
  */
 export class ValueValidator {
-  constructor() {
-    // ✅ NEW: ThemeManager for token resolution
-    this.themeManager = null;
+  constructor(themeManager = null) {
+    // ThemeManager for token resolution
+    this.themeManager = themeManager;
 
     // Register custom format validators
     this.formatValidators = new Map([
@@ -35,7 +37,7 @@ export class ValueValidator {
   }
 
   /**
-   * ✅ NEW: Set ThemeManager for token resolution
+   * Set ThemeManager for token resolution
    * @param {Object} themeManager - ThemeManager instance
    */
   setThemeManager(themeManager) {
@@ -79,12 +81,12 @@ export class ValueValidator {
       return result;
     }
 
-    // ✅ NEW: Check if value is a token reference
+    // Check if value is a token reference
     if (this._isTokenReference(value)) {
       return this._validateTokenValue(value, schema, meta);
     }
 
-    // ✅ NEW: Check for enhanced property format
+    // Check for enhanced property format
     if (this._isEnhancedProperty(value, schema)) {
       return this._validateEnhancedProperty(value, schema, meta);
     }
@@ -131,7 +133,7 @@ export class ValueValidator {
   }
 
   /**
-   * ✅ FIXED: Check if value is a token reference
+   * Check if value is a token reference
    * Token references use dot notation: colors.primary, typography.fontSize.2xl
    * Segments can start with letters OR numbers (e.g., 2xl, 3d, 4k)
    * @private
@@ -143,13 +145,10 @@ export class ValueValidator {
     // First segment must start with letter (e.g., "typography")
     // Subsequent segments can start with letter OR number (e.g., "2xl", "fontSize")
     return /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$/.test(value);
-    //                                    ↑↑↑↑↑↑↑↑
-    // Changed from [a-zA-Z][a-zA-Z0-9]* to [a-zA-Z0-9]+
-    // Now allows "2xl", "3d", "4k" as token segments
   }
 
   /**
-   * ✅ NEW: Validate token value by resolving it first
+   * Validate token value by resolving it first
    * @private
    */
   _validateTokenValue(value, schema, meta) {
@@ -208,7 +207,7 @@ export class ValueValidator {
   }
 
   /**
-   * ✅ NEW: Check if value is an enhanced property format
+   * Check if value is an enhanced property format
    * Enhanced properties are complex objects that replace simple values
    * @private
    */
@@ -236,7 +235,7 @@ export class ValueValidator {
   }
 
   /**
-   * ✅ NEW: Validate enhanced property format
+   * Validate enhanced property format
    * @private
    */
   _validateEnhancedProperty(value, schema, meta) {
@@ -304,7 +303,7 @@ export class ValueValidator {
   }
 
   /**
-   * ✅ NEW: Validate resolved token value against schema
+   * Validate resolved token value against schema
    * @private
    */
   _validateResolvedValue(value, schema, meta) {
@@ -338,10 +337,10 @@ export class ValueValidator {
    * @private
    */
   _validateType(value, schema, meta) {
-    const result = { valid: true, errors: [] };
+    const result = { valid: true, errors: [], warnings: [] };
     const actualType = Array.isArray(value) ? 'array' : typeof value;
 
-    // ✅ ENHANCED: Handle multiple allowed types
+    // Handle multiple allowed types
     const allowedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
 
     if (!allowedTypes.includes(actualType)) {
@@ -434,7 +433,7 @@ export class ValueValidator {
 
     // Max value
     if (schema.max !== undefined && value > schema.max) {
-      result.valid = false,
+      result.valid = false;
       result.errors.push({
         field: meta.field,
         type: 'out_of_range',
@@ -560,7 +559,7 @@ export class ValueValidator {
    * @private
    */
   _validateEnum(value, schema, meta, result) {
-    // ✅ NEW: Skip enum validation for objects (they're enhanced properties)
+    // Skip enum validation for objects (they're enhanced properties)
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       // Objects are enhanced property formats - enum doesn't apply
       return;
@@ -585,6 +584,7 @@ export class ValueValidator {
       });
     }
   }
+
   /**
    * Validate custom format
    *
@@ -607,6 +607,8 @@ export class ValueValidator {
         severity: 'warning'
       });
     }
+
+    return result;
   }
 
   /**

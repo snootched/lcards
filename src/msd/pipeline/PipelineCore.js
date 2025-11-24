@@ -10,8 +10,7 @@ import { diffItem } from '../export/diffItem.js';
 import { perfGetAll } from '../perf/PerfCounters.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { StyleResolverService } from '../styles/StyleResolverService.js';
-import { ValidationService } from '../validation/ValidationService.js';
-import { registerAllSchemas } from '../validation/schemas/index.js';
+// ✅ CONSOLIDATED: Use Core ValidationService singleton instead of MSD-specific ValidationService
 import { applyBaseSvgFilters } from '../utils/BaseSvgFilters.js';
 import { lcardsCore } from '../../core/lcards-core.js';
 
@@ -104,51 +103,60 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
       lcardsLog.debug('[PipelineCore] ✅ StyleResolver connected to ThemeManager');
     }
 
-    // ✅ NEW: Phase 7 - Phase 2.2: Initialize ValidationService
-    lcardsLog.debug('[PipelineCore] ✅ Phase 2.2: Initializing ValidationService');
+    // ✅ CONSOLIDATED: Use Core ValidationService singleton instead of creating MSD-specific instance
+    lcardsLog.debug('[PipelineCore] ✅ Phase 2.2: Configuring Core ValidationService');
     let validationService = null;
 
     try {
-      validationService = new ValidationService({
-        strict: mergedConfig?.debug?.strictValidation || false,
-        stopOnError: false,
-        validateTokens: true,
-        validateDataSources: true,
-        debug: mergedConfig?.debug?.validation || false
-      });
+      // Get the core validation service singleton
+      validationService = lcardsCore.validationService;
 
-      // Register all overlay schemas
-      registerAllSchemas(validationService.schemaRegistry);
-      lcardsLog.debug('[PipelineCore] 📋 Registered validation schemas:', {
-        schemaCount: validationService.schemaRegistry.getSchemaCount(),
-        types: validationService.schemaRegistry.getRegisteredTypes()
-      });
+      if (validationService) {
+        // Configure for MSD-specific needs
+        validationService.config.strict = mergedConfig?.debug?.strictValidation || false;
+        validationService.config.stopOnError = false;
+        validationService.config.validateTokens = true;
+        validationService.config.validateDataSources = true;
+        validationService.config.debug = mergedConfig?.debug?.validation || false;
 
-      // Connect ValidationService to ThemeManager and DataSourceManager
-      if (systemsManager.themeManager) {
-        validationService.setThemeManager(systemsManager.themeManager);
-        lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to ThemeManager');
+        // Initialize overlay validation subsystem (only happens once - has internal guard)
+        // This also registers all MSD overlay schemas
+        validationService.initializeOverlayValidation();
+
+        const overlayRegistry = validationService.getOverlaySchemaRegistry();
+        lcardsLog.debug('[PipelineCore] 📋 Core ValidationService configured:', {
+          schemaCount: overlayRegistry?.getSchemaCount() || 0,
+          types: overlayRegistry?.getRegisteredTypes() || []
+        });
+
+        // Connect ValidationService to ThemeManager and DataSourceManager
+        if (systemsManager.themeManager) {
+          validationService.setThemeManager(systemsManager.themeManager);
+          lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to ThemeManager');
+        }
+
+        if (systemsManager.dataSourceManager) {
+          validationService.setDataSourceManager(systemsManager.dataSourceManager);
+          lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to DataSourceManager');
+        }
+
+        // Make ValidationService globally accessible (reference to core singleton)
+        if (typeof window !== 'undefined') {
+          if (!window.lcards) window.lcards = {};
+          window.lcards.validationService = validationService;
+          lcardsLog.debug('[PipelineCore] ✅ ValidationService available at window.lcards.validationService');
+        }
+
+        // Store in SystemsManager (reference to core singleton)
+        systemsManager.validationService = validationService;
+
+        lcardsLog.debug('[PipelineCore] ✅ Core ValidationService configured for MSD');
+      } else {
+        lcardsLog.warn('[PipelineCore] ⚠️ Core ValidationService not available - overlays will not be pre-validated');
       }
-
-      if (systemsManager.dataSourceManager) {
-        validationService.setDataSourceManager(systemsManager.dataSourceManager);
-        lcardsLog.debug('[PipelineCore] 🔗 ValidationService connected to DataSourceManager');
-      }
-
-      // Make ValidationService globally accessible
-      if (typeof window !== 'undefined') {
-        if (!window.lcards) window.lcards = {};
-        window.lcards.validationService = validationService;
-        lcardsLog.debug('[PipelineCore] ✅ ValidationService available at window.lcards.validationService');
-      }
-
-      // Store in SystemsManager
-      systemsManager.validationService = validationService;
-
-      lcardsLog.debug('[PipelineCore] ✅ ValidationService initialized and connected');
 
     } catch (validationInitError) {
-      lcardsLog.warn('[PipelineCore] ⚠️ ValidationService initialization failed:', validationInitError);
+      lcardsLog.warn('[PipelineCore] ⚠️ ValidationService configuration failed:', validationInitError);
       lcardsLog.warn('[PipelineCore] ⚠️ Continuing without ValidationService - overlays will not be pre-validated');
       // Don't fail the pipeline - validation is helpful but not critical
     }

@@ -1,7 +1,7 @@
 /**
- * @fileoverview Common Overlay Schema
+ * @fileoverview Common Schema
  *
- * Base schema inherited by all overlay types.
+ * Base schema inherited by all config types.
  * Defines validation rules for common fields (id, type, position, etc.)
  *
  * STANDARDIZATION: Aligns with cb-lcars legacy template structure
@@ -9,7 +9,9 @@
  * - snake_case for user-facing properties
  * - Supports both legacy and new formats during migration
  *
- * @module msd/validation/schemas/common
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/schemas/common
  */
 
 /**
@@ -86,10 +88,10 @@ export const commonSchema = {
     type: {
       type: 'string',
       minLength: 1,
-      errorMessage: 'Overlay type is required'
+      errorMessage: 'Config type is required'
     },
 
-    // ✅ ENHANCED: Accept array OR string (anchor reference)
+    // ENHANCED: Accept array OR string (anchor reference)
     position: {
       type: ['array', 'string'],
       length: 2,  // Only applies when type is array
@@ -131,7 +133,7 @@ export const commonSchema = {
       optional: true
     },
 
-    // ✅ NEW: Tags for bulk rule targeting (Appendix C - Global Alert System)
+    // Tags for bulk rule targeting
     tags: {
       type: 'array',
       items: {
@@ -165,9 +167,7 @@ export const commonSchema = {
       type: 'object',
       optional: true,
       properties: {
-        // ============================================================================
         // COLORS
-        // ============================================================================
         color: {
           type: ['string', 'object'],
           format: 'color',
@@ -189,9 +189,7 @@ export const commonSchema = {
           errorMessage: 'Opacity must be between 0 and 1'
         },
 
-        // ============================================================================
         // BORDER (Standardized nested structure)
-        // ============================================================================
         border: {
           type: 'object',
           optional: true,
@@ -232,9 +230,7 @@ export const commonSchema = {
         border_radius_bottom_right: { type: 'number', min: 0, optional: true },
         border_radius_bottom_left: { type: 'number', min: 0, optional: true },
 
-        // ============================================================================
         // TEXT (Nested structure - matches legacy templates)
-        // ============================================================================
         text: {
           type: 'object',
           optional: true,
@@ -269,9 +265,7 @@ export const commonSchema = {
         value_color: { type: 'string', format: 'color', optional: true },
         text_color: { type: 'string', format: 'color', optional: true },
 
-        // ============================================================================
         // LAYOUT/SPACING (Nested - matches legacy templates)
-        // ============================================================================
         padding: paddingSchema,
         margin: paddingSchema,
 
@@ -299,6 +293,7 @@ export const commonSchema = {
 };
 
 export default commonSchema;
+
 /**
  * Export reusable schema definitions for use in type-specific schemas
  */
@@ -308,4 +303,3 @@ export const reusableSchemas = {
   colorStateSchema,
   textStyleSchema
 };
-

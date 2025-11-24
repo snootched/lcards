@@ -1,10 +1,12 @@
 /**
  * @fileoverview Schema Export Index
  *
- * Central export point for all overlay validation schemas.
+ * Central export point for all validation schemas.
  * Imports and registers all schemas with SchemaRegistry.
  *
- * @module msd/validation/schemas
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/schemas
  */
 
 import { commonSchema } from './common.js';

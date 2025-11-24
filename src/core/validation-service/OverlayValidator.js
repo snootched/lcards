@@ -1,22 +1,24 @@
 /**
- * @fileoverview Overlay Validator - Schema-based structural validation
+ * @fileoverview Overlay/Config Validator - Schema-based structural validation
  *
- * Validates overlay structure against registered schemas:
+ * Validates config structure against registered schemas:
  * - Required fields present
  * - Field types correct
  * - Array/object structures valid
  * - References to other entities valid
  *
- * @module msd/validation/OverlayValidator
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/OverlayValidator
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ValueValidator } from './ValueValidator.js';
 
 /**
- * Overlay Validator
+ * Overlay/Config Validator
  *
- * Validates overlay configurations against schemas.
+ * Validates configurations against schemas.
  */
 export class OverlayValidator {
   /**
@@ -30,9 +32,19 @@ export class OverlayValidator {
   }
 
   /**
-   * Validate an overlay against its schema
+   * Set ThemeManager for token validation
+   * @param {Object} themeManager - ThemeManager instance
+   */
+  setThemeManager(themeManager) {
+    if (this.valueValidator) {
+      this.valueValidator.setThemeManager(themeManager);
+    }
+  }
+
+  /**
+   * Validate a config against its schema
    *
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration to validate (overlay, card config, etc.)
    * @param {Object} context - Validation context
    * @returns {Object} Validation result with errors and warnings
    *
@@ -44,121 +56,121 @@ export class OverlayValidator {
    *   position: [100, 100]
    * });
    */
-  validate(overlay, context = {}) {
+  validate(config, context = {}) {
     const result = {
       errors: [],
       warnings: []
     };
 
     // Basic structure validation
-    if (!overlay || typeof overlay !== 'object') {
+    if (!config || typeof config !== 'object') {
       result.errors.push({
-        field: 'overlay',
+        field: 'config',
         type: 'invalid_type',
-        message: 'Overlay must be an object',
+        message: 'Configuration must be an object',
         severity: 'error'
       });
       return result;
     }
 
     // Validate required base fields (id, type)
-    this._validateBaseFields(overlay, result);
+    this._validateBaseFields(config, result);
 
-    // Get schema for overlay type
-    const schema = this.schemaRegistry.getSchema(overlay.type);
+    // Get schema for config type
+    const schema = this.schemaRegistry.getSchema(config.type);
 
     if (!schema) {
       // No schema registered - issue warning but don't fail
       result.warnings.push({
         field: 'type',
         type: 'unknown_type',
-        message: `No validation schema registered for type '${overlay.type}'`,
+        message: `No validation schema registered for type '${config.type}'`,
         severity: 'warning',
-        suggestion: 'This overlay type may not be validated completely'
+        suggestion: 'This config type may not be validated completely'
       });
       return result;
     }
 
     // Validate required fields
     if (schema.required) {
-      this._validateRequiredFields(overlay, schema.required, result);
+      this._validateRequiredFields(config, schema.required, result);
     }
 
     // Validate properties
     if (schema.properties) {
-      this._validateProperties(overlay, schema.properties, result, context);
+      this._validateProperties(config, schema.properties, result, context);
     }
 
     // Run custom validators
     if (schema.validators) {
-      this._runCustomValidators(overlay, schema.validators, result, context);
+      this._runCustomValidators(config, schema.validators, result, context);
     }
 
-    // Validate anchor references (if overlay uses anchors)
+    // Validate anchor references (if config uses anchors)
     if (context.anchors) {
-      this._validateAnchorReferences(overlay, context.anchors, result);
+      this._validateAnchorReferences(config, context.anchors, result);
     }
 
-    // Validate attach_to references (if overlay attaches to another)
+    // Validate attach_to references (if config attaches to another)
     if (context.overlays) {
-      this._validateAttachmentReferences(overlay, context.overlays, result);
+      this._validateAttachmentReferences(config, context.overlays, result);
     }
 
     return result;
   }
 
   /**
-   * Validate base fields (id, type) required for all overlays
+   * Validate base fields (id, type) required for all configs
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Object} result - Validation result to populate
    */
-  _validateBaseFields(overlay, result) {
+  _validateBaseFields(config, result) {
     // Validate ID
-    if (!overlay.id) {
+    if (!config.id) {
       result.errors.push({
         field: 'id',
         type: 'required_field',
-        message: 'Overlay is missing required field "id"',
+        message: 'Configuration is missing required field "id"',
         severity: 'error',
         suggestion: 'Add an "id" field with a unique identifier'
       });
-    } else if (typeof overlay.id !== 'string') {
+    } else if (typeof config.id !== 'string') {
       result.errors.push({
         field: 'id',
         type: 'invalid_type',
-        message: 'Overlay "id" must be a string',
-        actual: typeof overlay.id,
+        message: 'Configuration "id" must be a string',
+        actual: typeof config.id,
         expected: 'string',
         severity: 'error'
       });
-    } else if (!/^[a-zA-Z0-9_-]+$/.test(overlay.id)) {
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(config.id)) {
       result.errors.push({
         field: 'id',
         type: 'invalid_format',
-        message: 'Overlay "id" contains invalid characters',
-        value: overlay.id,
+        message: 'Configuration "id" contains invalid characters',
+        value: config.id,
         severity: 'error',
         suggestion: 'Use only letters, numbers, hyphens, and underscores'
       });
     }
 
     // Validate type
-    if (!overlay.type) {
+    if (!config.type) {
       result.errors.push({
         field: 'type',
         type: 'required_field',
-        message: 'Overlay is missing required field "type"',
+        message: 'Configuration is missing required field "type"',
         severity: 'error',
         suggestion: 'Add a "type" field (e.g., "text", "button", "line")'
       });
-    } else if (typeof overlay.type !== 'string') {
+    } else if (typeof config.type !== 'string') {
       result.errors.push({
         field: 'type',
         type: 'invalid_type',
-        message: 'Overlay "type" must be a string',
-        actual: typeof overlay.type,
+        message: 'Configuration "type" must be a string',
+        actual: typeof config.type,
         expected: 'string',
         severity: 'error'
       });
@@ -169,19 +181,19 @@ export class OverlayValidator {
    * Validate required fields from schema
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Array<string>} required - Required field names
    * @param {Object} result - Validation result
    */
-  _validateRequiredFields(overlay, required, result) {
+  _validateRequiredFields(config, required, result) {
     required.forEach(fieldName => {
-      if (!(fieldName in overlay)) {
+      if (!(fieldName in config)) {
         result.errors.push({
           field: fieldName,
           type: 'required_field',
           message: `Required field "${fieldName}" is missing`,
           severity: 'error',
-          suggestion: `Add the "${fieldName}" field to your overlay configuration`
+          suggestion: `Add the "${fieldName}" field to your configuration`
         });
       }
     });
@@ -191,15 +203,15 @@ export class OverlayValidator {
    * Validate properties against schema definitions
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Object} properties - Schema property definitions
    * @param {Object} result - Validation result
    * @param {Object} context - Validation context
    */
-  _validateProperties(overlay, properties, result, context) {
+  _validateProperties(config, properties, result, context) {
     Object.entries(properties).forEach(([propName, propSchema]) => {
       // Skip if field not present and is optional
-      if (!(propName in overlay)) {
+      if (!(propName in config)) {
         if (!propSchema.optional && !propSchema.required) {
           // Field is neither required nor explicitly optional - assume optional
           return;
@@ -209,13 +221,13 @@ export class OverlayValidator {
         }
       }
 
-      const value = overlay[propName];
+      const value = config[propName];
 
       // Validate using ValueValidator
       const valueResult = this.valueValidator.validate(
         value,
         propSchema,
-        { field: propName, overlayType: overlay.type, context }
+        { field: propName, overlayType: config.type, context }
       );
 
       if (!valueResult.valid) {
@@ -229,15 +241,15 @@ export class OverlayValidator {
    * Run custom validator functions
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Array<Function>} validators - Custom validator functions
    * @param {Object} result - Validation result
    * @param {Object} context - Validation context
    */
-  _runCustomValidators(overlay, validators, result, context) {
+  _runCustomValidators(config, validators, result, context) {
     validators.forEach(validator => {
       try {
-        const validatorResult = validator(overlay, context);
+        const validatorResult = validator(config, context);
 
         if (validatorResult && !validatorResult.valid) {
           if (validatorResult.errors) {
@@ -263,15 +275,15 @@ export class OverlayValidator {
    * Validate anchor references
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Object} anchors - Available anchors
    * @param {Object} result - Validation result
    */
-  _validateAnchorReferences(overlay, anchors, result) {
+  _validateAnchorReferences(config, anchors, result) {
     const anchorFields = ['anchor', 'position'];
 
     anchorFields.forEach(field => {
-      const value = overlay[field];
+      const value = config[field];
 
       // Check if it's an anchor reference (string)
       if (typeof value === 'string' && value.length > 0) {
@@ -296,15 +308,15 @@ export class OverlayValidator {
    * Validate attachment references (attach_to, attachTo)
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Array<Object>} overlays - All overlays
    * @param {Object} result - Validation result
    */
-  _validateAttachmentReferences(overlay, overlays, result) {
+  _validateAttachmentReferences(config, overlays, result) {
     const attachFields = ['attach_to', 'attachTo'];
 
     attachFields.forEach(field => {
-      const value = overlay[field];
+      const value = config[field];
 
       if (typeof value === 'string' && value.length > 0) {
         // Check if target overlay exists
@@ -324,11 +336,11 @@ export class OverlayValidator {
         }
 
         // Warn about self-attachment
-        if (value === overlay.id) {
+        if (value === config.id) {
           result.warnings.push({
             field: field,
             type: 'self_reference',
-            message: `Overlay "${overlay.id}" is attached to itself`,
+            message: `Config "${config.id}" is attached to itself`,
             severity: 'warning',
             suggestion: 'Attach to a different overlay or remove the attachment'
           });

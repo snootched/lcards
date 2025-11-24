@@ -5,12 +5,14 @@
  * - Exist in DataSourceManager
  * - Have valid paths (for dot notation)
  * - Reference valid transformations/aggregations
- * - Are used with compatible overlay types
+ * - Are used with compatible overlay/card types
  *
  * Integrates with:
  * - DataSourceManager for source lookup
  *
- * @module msd/validation/DataSourceValidator
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/DataSourceValidator
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -18,7 +20,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 /**
  * DataSource Validator
  *
- * Validates data source references in overlay configurations.
+ * Validates data source references in configurations.
  */
 export class DataSourceValidator {
   /**
@@ -26,24 +28,36 @@ export class DataSourceValidator {
    *
    * @param {Object} dataSourceManager - DataSourceManager instance
    */
-  constructor(dataSourceManager) {
+  constructor(dataSourceManager = null) {
     this.dataSourceManager = dataSourceManager;
 
-    // Overlay types that can use data sources
-    this.dataSourceOverlayTypes = [
-      'apexchart',
+    // Card/overlay types that can use data sources
+    // Note: apexchart is deprecated, use simple-chart instead
+    this.dataSourceTypes = [
       'sparkline',
       'gauge',
-      'metric'
+      'metric',
+      'simple-chart',
+      'chart'
     ];
 
     lcardsLog.debug('[DataSourceValidator] Initialized');
   }
 
   /**
-   * Validate data source references in an overlay
+   * Set DataSourceManager after construction
    *
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} dataSourceManager - DataSourceManager instance
+   */
+  setDataSourceManager(dataSourceManager) {
+    this.dataSourceManager = dataSourceManager;
+    lcardsLog.debug('[DataSourceValidator] DataSourceManager connected');
+  }
+
+  /**
+   * Validate data source references in a config
+   *
+   * @param {Object} config - Configuration to validate (overlay, card config, etc.)
    * @param {Object} context - Validation context
    * @returns {Object} Validation result with errors and warnings
    *
@@ -55,7 +69,7 @@ export class DataSourceValidator {
    *   data_source: 'sensor.living_room.transformations.celsius'
    * });
    */
-  validate(overlay, context = {}) {
+  validate(config, context = {}) {
     const result = {
       errors: [],
       warnings: []
@@ -66,14 +80,14 @@ export class DataSourceValidator {
       return result;
     }
 
-    // Check if overlay type supports data sources
-    if (!this._supportsDataSources(overlay.type)) {
+    // Check if config type supports data sources
+    if (!this._supportsDataSources(config.type)) {
       // Check if data source fields are present anyway
-      if (overlay.source || overlay.data_source || overlay.sources) {
+      if (config.source || config.data_source || config.sources) {
         result.warnings.push({
           field: 'source',
           type: 'unsupported_feature',
-          message: `Overlay type "${overlay.type}" does not typically use data sources`,
+          message: `Config type "${config.type}" does not typically use data sources`,
           severity: 'warning',
           suggestion: 'Data source field may be ignored'
         });
@@ -82,44 +96,44 @@ export class DataSourceValidator {
     }
 
     // Validate source/data_source fields
-    this._validateSourceFields(overlay, result);
+    this._validateSourceFields(config, result);
 
     return result;
   }
 
   /**
-   * Check if overlay type supports data sources
+   * Check if config type supports data sources
    *
    * @private
-   * @param {string} overlayType - Overlay type
+   * @param {string} configType - Config type
    * @returns {boolean} True if type supports data sources
    */
-  _supportsDataSources(overlayType) {
-    return this.dataSourceOverlayTypes.includes(overlayType);
+  _supportsDataSources(configType) {
+    return this.dataSourceTypes.includes(configType);
   }
 
   /**
    * Validate source fields (source, data_source, sources)
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration
    * @param {Object} result - Validation result
    */
-  _validateSourceFields(overlay, result) {
+  _validateSourceFields(config, result) {
     // Collect all source references
     const sourceRefs = [];
 
-    if (overlay.source) {
-      sourceRefs.push({ field: 'source', value: overlay.source });
+    if (config.source) {
+      sourceRefs.push({ field: 'source', value: config.source });
     }
 
-    if (overlay.data_source) {
-      sourceRefs.push({ field: 'data_source', value: overlay.data_source });
+    if (config.data_source) {
+      sourceRefs.push({ field: 'data_source', value: config.data_source });
     }
 
-    if (overlay.sources) {
-      if (Array.isArray(overlay.sources)) {
-        overlay.sources.forEach((src, index) => {
+    if (config.sources) {
+      if (Array.isArray(config.sources)) {
+        config.sources.forEach((src, index) => {
           sourceRefs.push({ field: `sources[${index}]`, value: src });
         });
       } else {
@@ -127,7 +141,7 @@ export class DataSourceValidator {
           field: 'sources',
           type: 'invalid_type',
           message: 'Field "sources" must be an array',
-          actual: typeof overlay.sources,
+          actual: typeof config.sources,
           expected: 'array',
           severity: 'error'
         });
@@ -154,11 +168,11 @@ export class DataSourceValidator {
     }
 
     // Check if source is required but missing
-    if (sourceRefs.length === 0) {
+    if (sourceRefs.length === 0 && this._supportsDataSources(config.type)) {
       result.errors.push({
         field: 'source',
         type: 'required_field',
-        message: `Overlay type "${overlay.type}" requires a data source`,
+        message: `Config type "${config.type}" requires a data source`,
         severity: 'error',
         suggestion: 'Add a "source" or "data_source" field'
       });
@@ -174,7 +188,7 @@ export class DataSourceValidator {
    * @param {Object} result - Validation result
    */
   _validateDataSourceReference(field, value, result) {
-    // ✅ FIXED: Better type checking that handles edge cases
+    // Better type checking that handles edge cases
     if (value === null || value === undefined) {
       result.errors.push({
         field: field,
@@ -187,7 +201,7 @@ export class DataSourceValidator {
       return;
     }
 
-    // ✅ FIXED: Convert to string if needed (handles wrapped values)
+    // Convert to string if needed (handles wrapped values)
     const stringValue = typeof value === 'string' ? value : String(value);
 
     // Validate it's actually a valid string (not "[object Object]")
@@ -246,6 +260,7 @@ export class DataSourceValidator {
       lcardsLog.debug('[DataSourceValidator] Error getting data source data:', error);
     }
   }
+
   /**
    * Parse data source path (e.g., "temp.transformations.celsius")
    *
@@ -412,7 +427,7 @@ export class DataSourceValidator {
   getStats() {
     return {
       hasDataSourceManager: !!this.dataSourceManager,
-      supportedOverlayTypes: this.dataSourceOverlayTypes.length
+      supportedTypes: this.dataSourceTypes.length
     };
   }
 }

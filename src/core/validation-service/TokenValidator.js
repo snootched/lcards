@@ -11,7 +11,9 @@
  * - ThemeManager for token lookup
  * - ThemeTokenResolver for resolution testing
  *
- * @module msd/validation/TokenValidator
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/TokenValidator
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -27,7 +29,7 @@ export class TokenValidator {
    *
    * @param {Object} themeManager - ThemeManager instance
    */
-  constructor(themeManager) {
+  constructor(themeManager = null) {
     this.themeManager = themeManager;
     this.tokenResolver = themeManager?.getResolver?.() || null;
 
@@ -46,9 +48,20 @@ export class TokenValidator {
   }
 
   /**
-   * Validate token references in an overlay
+   * Set ThemeManager after construction
    *
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} themeManager - ThemeManager instance
+   */
+  setThemeManager(themeManager) {
+    this.themeManager = themeManager;
+    this.tokenResolver = themeManager?.getResolver?.() || null;
+    lcardsLog.debug('[TokenValidator] ThemeManager connected');
+  }
+
+  /**
+   * Validate token references in an overlay or config object
+   *
+   * @param {Object} config - Configuration to validate (overlay, card config, etc.)
    * @param {Object} context - Validation context
    * @returns {Object} Validation result with errors and warnings
    *
@@ -62,7 +75,7 @@ export class TokenValidator {
    *   }
    * });
    */
-  validate(overlay, context = {}) {
+  validate(config, context = {}) {
     const result = {
       errors: [],
       warnings: []
@@ -73,8 +86,8 @@ export class TokenValidator {
       return result;
     }
 
-    // Find all token references in overlay
-    const tokenRefs = this._findTokenReferences(overlay);
+    // Find all token references in config
+    const tokenRefs = this._findTokenReferences(config);
 
     // Validate each token reference
     tokenRefs.forEach(ref => {
@@ -85,21 +98,21 @@ export class TokenValidator {
   }
 
   /**
-   * Find all token references in overlay configuration
+   * Find all token references in configuration
    *
    * @private
-   * @param {Object} overlay - Overlay configuration
+   * @param {Object} config - Configuration object
    * @param {string} [path=''] - Current path in object tree
    * @returns {Array<Object>} Array of token references with paths
    */
-  _findTokenReferences(overlay, path = '') {
+  _findTokenReferences(config, path = '') {
     const refs = [];
 
-    if (!overlay || typeof overlay !== 'object') {
+    if (!config || typeof config !== 'object') {
       return refs;
     }
 
-    Object.entries(overlay).forEach(([key, value]) => {
+    Object.entries(config).forEach(([key, value]) => {
       const currentPath = path ? `${path}.${key}` : key;
 
       if (typeof value === 'string' && this._isTokenReference(value)) {

@@ -4,7 +4,9 @@
  * Validation schema for line overlays.
  * Defines required fields and constraints specific to line rendering.
  *
- * @module msd/validation/schemas/lineOverlay
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/schemas/lineOverlay
  */
 
 /**
@@ -14,7 +16,7 @@ export const lineOverlaySchema = {
   type: 'line',
   extends: 'common',
 
-  // ✅ CHANGED: points not required at schema level
+  // Points not required at schema level
   // Custom validator handles conditional requirement
   required: [],
 
@@ -22,7 +24,7 @@ export const lineOverlaySchema = {
     points: {
       type: 'array',
       minItems: 2,
-      optional: true,  // ✅ Made optional
+      optional: true,  // Made optional
       items: {
         type: 'array',
         length: 2,
@@ -65,7 +67,7 @@ export const lineOverlaySchema = {
           errorMessage: 'Line join must be "miter", "round", or "bevel"'
         },
 
-        // ✅ ENHANCED: Accept string OR array for easier configuration
+        // Accept string OR array for easier configuration
         // String format: "5,5" (SVG standard)
         // Array format: [5, 5] (easier to configure)
         dash_array: {
@@ -82,7 +84,7 @@ export const lineOverlaySchema = {
           optional: true
         },
 
-        // ✅ ENHANCED: Accept string OR object (for enhanced marker configuration)
+        // Accept string OR object (for enhanced marker configuration)
         // Simple format: "arrow"
         // Enhanced format: { type: "diamond", size: "medium", color: "var(--lcars-red)", rotate: false }
         marker_start: {
@@ -106,7 +108,7 @@ export const lineOverlaySchema = {
           errorMessage: 'Marker mid must be a marker type string or an enhanced marker configuration object'
         },
 
-        // ✅ ENHANCED: Accept boolean OR object (for enhanced glow configuration)
+        // Accept boolean OR object (for enhanced glow configuration)
         // Enhanced format: { color: "var(--lcars-orange)", blur: 30, intensity: 10 }
         glow: {
           type: ['boolean', 'object'],
@@ -139,7 +141,7 @@ export const lineOverlaySchema = {
   },
 
   validators: [
-    // ✅ NEW: Conditional points requirement
+    // Conditional points requirement
     (overlay, context) => {
       const hasPoints = overlay.points && Array.isArray(overlay.points) && overlay.points.length >= 2;
       const hasAttachment = overlay.attach_to || overlay.attachTo;

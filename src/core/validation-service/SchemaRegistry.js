@@ -1,10 +1,12 @@
 /**
- * @fileoverview Schema Registry for Overlay Validation
+ * @fileoverview Schema Registry for Validation
  *
- * Manages validation schemas for all overlay types.
+ * Manages validation schemas for all config types.
  * Supports schema inheritance and custom validation rules.
  *
- * @module msd/validation/SchemaRegistry
+ * Migrated from MSD validation to core singleton architecture.
+ *
+ * @module core/validation-service/SchemaRegistry
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -12,7 +14,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 /**
  * Schema Registry
  *
- * Central registry for overlay validation schemas.
+ * Central registry for validation schemas.
  */
 export class SchemaRegistry {
   constructor() {
@@ -26,9 +28,9 @@ export class SchemaRegistry {
   }
 
   /**
-   * Register a schema for an overlay type
+   * Register a schema for a config type
    *
-   * @param {string} type - Overlay type (e.g., 'text', 'button')
+   * @param {string} type - Config type (e.g., 'text', 'button', 'line')
    * @param {Object} schema - Validation schema
    *
    * @example
@@ -74,9 +76,9 @@ export class SchemaRegistry {
   }
 
   /**
-   * Get schema for overlay type (with inheritance)
+   * Get schema for config type (with inheritance)
    *
-   * @param {string} type - Overlay type
+   * @param {string} type - Config type
    * @returns {Object} Merged schema (common + type-specific)
    */
   getSchema(type) {
@@ -97,7 +99,7 @@ export class SchemaRegistry {
   /**
    * Check if schema exists for type
    *
-   * @param {string} type - Overlay type
+   * @param {string} type - Config type
    * @returns {boolean} True if schema exists
    */
   hasSchema(type) {
@@ -105,9 +107,9 @@ export class SchemaRegistry {
   }
 
   /**
-   * Get all registered overlay types
+   * Get all registered config types
    *
-   * @returns {Array<string>} Array of overlay types
+   * @returns {Array<string>} Array of config types
    */
   getRegisteredTypes() {
     return Array.from(this.schemas.keys());
@@ -120,6 +122,14 @@ export class SchemaRegistry {
    */
   getSchemaCount() {
     return this.schemas.size;
+  }
+
+  /**
+   * List all available schemas
+   * @returns {Array<string>} Array of schema names
+   */
+  listSchemas() {
+    return this.getRegisteredTypes();
   }
 
   /**

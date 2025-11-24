@@ -1,24 +1,31 @@
 /**
- * @fileoverview CoreValidationService - Shared validation system for LCARdS core infrastructure
+ * @fileoverview CoreValidationService - Unified validation system for LCARdS core infrastructure
  *
- * Simplified version of MSD ValidationService focused on:
- * - Basic schema validation for config objects
- * - Type checking and format validation
- * - Error formatting and user-friendly messages
- * - Shared validation for all card types
- * - Integration with other core systems
+ * Comprehensive validation service that consolidates:
+ * - Schema-based structural validation
+ * - Token reference validation
+ * - Data source validation
+ * - Value type/range validation
+ * - User-friendly error messages with suggestions
  *
- * Note: This is a streamlined version. For full MSD validation features
- * including overlay-specific schemas, the MSD ValidationService continues
- * to provide comprehensive validation capabilities.
+ * This is the singleton validation service used by all LCARdS cards.
+ * Migrated from MSD-specific validation to core singleton architecture.
  *
  * @module core/validation-service
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { SchemaRegistry } from './SchemaRegistry.js';
+import { OverlayValidator } from './OverlayValidator.js';
+import { TokenValidator } from './TokenValidator.js';
+import { DataSourceValidator } from './DataSourceValidator.js';
+import { ErrorFormatter } from './ErrorFormatter.js';
+import { ValueValidator } from './ValueValidator.js';
+import { registerAllSchemas } from './schemas/index.js';
 
 /**
- * Simplified schema registry for core validation needs
+ * Legacy CoreSchemaRegistry for backward compatibility
+ * Wraps the new SchemaRegistry with additional card-specific schemas
  */
 class CoreSchemaRegistry {
   constructor() {
@@ -634,4 +641,332 @@ export class CoreValidationService {
 
     lcardsLog.debug('[CoreValidationService] Destroyed');
   }
+
+  // ============================================================================
+  // MSD VALIDATION FEATURES (Consolidated from MSD ValidationService)
+  // ============================================================================
+
+  /**
+   * Set ThemeManager for token validation
+   *
+   * @param {Object} themeManager - ThemeManager instance
+   */
+  setThemeManager(themeManager) {
+    this.themeManager = themeManager;
+    this.tokenValidator = new TokenValidator(themeManager);
+
+    // Pass ThemeManager to ValueValidator if OverlayValidator exists
+    if (this.overlayValidator && this.overlayValidator.valueValidator) {
+      this.overlayValidator.valueValidator.setThemeManager(themeManager);
+    }
+
+    lcardsLog.debug('[CoreValidationService] ThemeManager connected for token validation');
+  }
+
+  /**
+   * Set DataSourceManager for data source validation
+   *
+   * @param {Object} dataSourceManager - DataSourceManager instance
+   */
+  setDataSourceManager(dataSourceManager) {
+    this.dataSourceValidator = new DataSourceValidator(dataSourceManager);
+    lcardsLog.debug('[CoreValidationService] DataSourceManager connected for data source validation');
+  }
+
+  /**
+   * Initialize the enhanced overlay validation subsystem
+   * This sets up schema registry and overlay validator for MSD overlays
+   */
+  initializeOverlayValidation() {
+    if (this.overlaySchemaRegistry) {
+      // Already initialized
+      return;
+    }
+
+    // Create enhanced schema registry for overlays
+    this.overlaySchemaRegistry = new SchemaRegistry();
+    this.overlayValidator = new OverlayValidator(this.overlaySchemaRegistry);
+    this.enhancedErrorFormatter = new ErrorFormatter();
+
+    // Register all MSD overlay schemas
+    registerAllSchemas(this.overlaySchemaRegistry);
+
+    lcardsLog.debug('[CoreValidationService] Overlay validation initialized', {
+      schemaCount: this.overlaySchemaRegistry.getSchemaCount(),
+      types: this.overlaySchemaRegistry.getRegisteredTypes()
+    });
+  }
+
+  /**
+   * Validate a single overlay (MSD-style)
+   *
+   * @param {Object} overlay - Overlay configuration
+   * @param {Object} context - Validation context
+   * @param {Array} [context.viewBox] - SVG viewBox [x, y, width, height]
+   * @param {Object} [context.anchors] - Available anchors
+   * @param {Object} [context.overlays] - All overlays (for reference validation)
+   * @returns {Object} Validation result
+   *
+   * @example
+   * const result = validationService.validateOverlay({
+   *   id: 'my-text',
+   *   type: 'text',
+   *   text: 'Hello',
+   *   position: [100, 100]
+   * }, { viewBox: [0, 0, 800, 600] });
+   *
+   * if (!result.valid) {
+   *   console.error(result.errors);
+   * }
+   */
+  validateOverlay(overlay, context = {}) {
+    // Initialize overlay validation if not done yet
+    if (!this.overlaySchemaRegistry) {
+      this.initializeOverlayValidation();
+    }
+
+    this.stats.validationsPerformed++;
+
+    // Check cache
+    const cacheKey = this._generateOverlayCacheKey(overlay, context);
+    if (this.config.cacheResults && this.validationCache.has(cacheKey)) {
+      this.stats.cacheHits++;
+      const cached = this.validationCache.get(cacheKey);
+      lcardsLog.debug('[CoreValidationService] Cache hit:', overlay.id);
+      return cached;
+    }
+
+    const result = {
+      valid: true,
+      errors: [],
+      warnings: [],
+      overlayId: overlay.id,
+      overlayType: overlay.type
+    };
+
+    // Validation guard
+    if (!overlay || typeof overlay !== 'object') {
+      result.errors.push({
+        field: 'overlay',
+        type: 'invalid_type',
+        message: 'Overlay must be an object',
+        severity: 'error'
+      });
+      result.valid = false;
+      this.stats.errorsFound++;
+      return result;
+    }
+
+    // Enhanced context with DataSourceManager
+    const enhancedContext = {
+      ...context,
+      dataSourceManager: context.dataSourceManager ||
+                        (typeof window !== 'undefined' ? window.lcards?.debug?.msd?.pipelineInstance?.systemsManager?.dataSourceManager : null)
+    };
+
+    // 1. Structural validation (schema-based)
+    try {
+      const structuralValidation = this.overlayValidator.validate(overlay, enhancedContext);
+      result.errors.push(...structuralValidation.errors);
+      result.warnings.push(...structuralValidation.warnings);
+    } catch (error) {
+      lcardsLog.error('[CoreValidationService] Structural validation failed:', error);
+      result.errors.push({
+        field: 'overlay',
+        type: 'validation_error',
+        message: `Validation error: ${error.message}`,
+        severity: 'error'
+      });
+    }
+
+    // 2. Token validation (if enabled and available)
+    if (this.config.validateTokens !== false && this.tokenValidator) {
+      try {
+        const tokenValidation = this.tokenValidator.validate(overlay, context);
+        result.errors.push(...tokenValidation.errors);
+        result.warnings.push(...tokenValidation.warnings);
+        this.stats.tokenValidations = (this.stats.tokenValidations || 0) + 1;
+      } catch (error) {
+        if (this.config.debug) {
+          lcardsLog.debug('[CoreValidationService] Token validation failed:', error);
+        }
+      }
+    }
+
+    // 3. Data source validation (if enabled and available)
+    if (this.config.validateDataSources !== false && this.dataSourceValidator) {
+      try {
+        const dsValidation = this.dataSourceValidator.validate(overlay, context);
+        result.errors.push(...dsValidation.errors);
+        result.warnings.push(...dsValidation.warnings);
+        this.stats.dataSourceValidations = (this.stats.dataSourceValidations || 0) + 1;
+      } catch (error) {
+        if (this.config.debug) {
+          lcardsLog.debug('[CoreValidationService] DataSource validation failed:', error);
+        }
+      }
+    }
+
+    // Determine validity
+    result.valid = result.errors.length === 0 &&
+                   (!this.config.strict || result.warnings.length === 0);
+
+    // Update stats
+    if (!result.valid) this.stats.errorsFound++;
+    if (result.warnings.length > 0) this.stats.warningsFound++;
+
+    // Cache result
+    if (this.config.cacheResults) {
+      this.validationCache.set(cacheKey, result);
+    }
+
+    return result;
+  }
+
+  /**
+   * Validate all overlays
+   *
+   * @param {Array} overlays - Array of overlay configurations
+   * @param {Object} context - Validation context
+   * @returns {Object} Validation summary
+   *
+   * @example
+   * const validation = validationService.validateAll(overlays, {
+   *   viewBox: [0, 0, 800, 600],
+   *   anchors: { center: [400, 300] }
+   * });
+   *
+   * if (!validation.valid) {
+   *   console.log(validationService.formatErrors(validation));
+   * }
+   */
+  validateAll(overlays, context = {}) {
+    const results = [];
+    let hasErrors = false;
+
+    // Enhance context with overlay list (for reference validation)
+    const enhancedContext = {
+      ...context,
+      overlays: overlays
+    };
+
+    for (const overlay of overlays) {
+      const result = this.validateOverlay(overlay, enhancedContext);
+      results.push(result);
+
+      if (!result.valid) {
+        hasErrors = true;
+        if (this.config.stopOnError) {
+          lcardsLog.debug('[CoreValidationService] Stopping on first error');
+          break;
+        }
+      }
+    }
+
+    return {
+      valid: !hasErrors,
+      results,
+      summary: {
+        total: overlays.length,
+        valid: results.filter(r => r.valid).length,
+        invalid: results.filter(r => !r.valid).length,
+        errors: results.reduce((sum, r) => sum + r.errors.length, 0),
+        warnings: results.reduce((sum, r) => sum + r.warnings.length, 0)
+      }
+    };
+  }
+
+  /**
+   * Format validation errors for display
+   *
+   * @param {Object} validationResult - Result from validateOverlay/validateAll
+   * @returns {string} Formatted error message
+   *
+   * @example
+   * const result = validationService.validateOverlay(overlay);
+   * if (!result.valid) {
+   *   console.error(validationService.formatErrors(result));
+   * }
+   */
+  formatErrors(validationResult) {
+    if (!this.enhancedErrorFormatter) {
+      this.enhancedErrorFormatter = new ErrorFormatter();
+    }
+    return this.enhancedErrorFormatter.format(validationResult);
+  }
+
+  /**
+   * Validate tokens in a config
+   *
+   * @param {Object} config - Configuration to validate
+   * @param {Object} context - Validation context
+   * @returns {Object} Validation result with errors and warnings
+   */
+  validateTokens(config, context = {}) {
+    if (!this.tokenValidator) {
+      return { errors: [], warnings: [] };
+    }
+    return this.tokenValidator.validate(config, context);
+  }
+
+  /**
+   * Validate data sources in a config
+   *
+   * @param {Object} config - Configuration to validate
+   * @param {Object} context - Validation context
+   * @returns {Object} Validation result with errors and warnings
+   */
+  validateDataSources(config, context = {}) {
+    if (!this.dataSourceValidator) {
+      return { errors: [], warnings: [] };
+    }
+    return this.dataSourceValidator.validate(config, context);
+  }
+
+  /**
+   * Generate cache key for overlay validation
+   *
+   * @private
+   * @param {Object} overlay - Overlay configuration
+   * @param {Object} context - Validation context
+   * @returns {string} Cache key
+   */
+  _generateOverlayCacheKey(overlay, context) {
+    // Simple cache key based on overlay ID and type
+    return `overlay:${overlay.id || 'unknown'}:${overlay.type || 'unknown'}`;
+  }
+
+  /**
+   * Get the overlay schema registry (for external schema registration)
+   *
+   * @returns {SchemaRegistry} Schema registry
+   */
+  getOverlaySchemaRegistry() {
+    if (!this.overlaySchemaRegistry) {
+      this.initializeOverlayValidation();
+    }
+    return this.overlaySchemaRegistry;
+  }
+
+  /**
+   * Enable or disable validation caching
+   *
+   * @param {boolean} enabled - Enable caching
+   */
+  setCaching(enabled) {
+    this.config.cacheResults = enabled;
+    if (!enabled) {
+      this.clearCache();
+    }
+    lcardsLog.debug('[CoreValidationService] Caching:', enabled);
+  }
 }
+
+// Re-export components for external use
+export { SchemaRegistry } from './SchemaRegistry.js';
+export { OverlayValidator } from './OverlayValidator.js';
+export { TokenValidator } from './TokenValidator.js';
+export { DataSourceValidator } from './DataSourceValidator.js';
+export { ErrorFormatter } from './ErrorFormatter.js';
+export { ValueValidator } from './ValueValidator.js';
+export { registerAllSchemas } from './schemas/index.js';
