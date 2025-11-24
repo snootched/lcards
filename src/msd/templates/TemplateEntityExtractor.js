@@ -60,17 +60,6 @@ export class TemplateEntityExtractor {
         }
       });
 
-      // Extract from status grid cells
-      if (overlay.type === 'status_grid' && overlay.cells) {
-        overlay.cells.forEach(cell => {
-          templateProperties.forEach(prop => {
-            if (cell[prop]) {
-              this.extractEntityReferences(cell[prop]).forEach(entity => entities.add(entity));
-            }
-          });
-        });
-      }
-
       lcardsLog.trace(`[TemplateEntityExtractor] Extracted entities from overlay ${overlay.id}:`, Array.from(entities));
     } catch (error) {
       lcardsLog.error(`[TemplateEntityExtractor] Error extracting entities from overlay ${overlay.id}:`, error);
