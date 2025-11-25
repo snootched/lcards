@@ -573,10 +573,7 @@ when:
 
 #### Implementation Notes
 
-**Simplification (v1.9.42):**
-- Removed ~300 lines of complex token resolution code
-- Simplified to match custom-button-card approach
-- Users write normal JavaScript/Jinja2, no special token syntax needed
+The implementation is streamlined to match the custom-button-card approach - users write normal JavaScript/Jinja2, no special token syntax needed.
 
 **Debug Logging:**
 Both JavaScript and Jinja2 evaluation include debug logging when enabled:

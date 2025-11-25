@@ -94,7 +94,7 @@ export class MySimpleCard extends LCARdSSimpleCard {
 
 ### Available Helpers
 
-#### CoreSystemsManager Integration ⭐ (v1.8.0+)
+#### CoreSystemsManager Integration
 
 **Cached Entity Access** - 80-90% faster with multiple cards:
 ```javascript
@@ -188,7 +188,7 @@ this._actionCleanup = this.setupActions(element, {
 });
 ```
 
-### RulesEngine Integration ⭐ (v1.9.30+)
+### RulesEngine Integration
 
 SimpleCard provides first-class RulesEngine support for dynamic styling and behavior based on entity states.
 
@@ -339,7 +339,7 @@ The base class handles this automatically when you register your overlay. The sy
 - Trigger initial rule evaluation if HASS is ready
 - Set up callback for future rule changes
 
-#### Performance Optimization (v1.9.31+)
+#### Performance Optimization
 
 **Entity-Specific Rule Evaluation**
 
@@ -362,7 +362,6 @@ await this._rulesManager.setupHassMonitoring(this._hass);
 - ✅ **No unnecessary evaluations**: Rules only run when their entities change
 - ✅ **Shared monitoring**: Multiple cards share the same WebSocket subscription
 - ✅ **Low overhead**: O(1) entity lookup via cached Set
-- ❌ **Old behavior** (v1.9.30): All rules evaluated on every HASS update
 
 **Example:**
 
@@ -425,7 +424,7 @@ Common issues and solutions:
 | Rules evaluate but no visual change | Console shows patches applied but colors don't change | Add `this.requestUpdate()` after style changes |
 | Styles computed but not displayed | Logs show correct colors but DOM shows old colors | Use inline styles, not CSS classes |
 | Inline styles ignored | DOM shows correct style attribute but wrong rendering | Remove `!important` from static CSS |
-| Rules don't evaluate on load | Button shows default style when light already ON | Base class handles this automatically (v1.9.30+) |
+| Rules don't evaluate on load | Button shows default style when light already ON | Base class handles this automatically |
 
 #### Performance Notes
 

@@ -1,6 +1,5 @@
 # RulesEngine Template Syntax Reference
 
-**Version:** 2.0 (Post-v1.9.30 Unified Template System)
 **Status:** Active
 **Related:** RulesEngine Jinja2 Integration
 

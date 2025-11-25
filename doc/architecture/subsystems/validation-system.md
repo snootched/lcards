@@ -463,14 +463,12 @@ sequenceDiagram
 
 ### Current Overlay Types
 
-As of v1.16.22+, MSD supports only **2 overlay types**:
+MSD supports only **2 overlay types**:
 
 | Type | Description | Renderer |
 |------|-------------|----------|
 | **line** | SVG line/path overlays | `src/msd/overlays/LineOverlay.js` |
 | **card** (control) | Embedded HA cards | `src/msd/controls/MsdControlsRenderer.js` |
-
-> **Note:** Previous overlay types (`button`, `text`, `lozenge`, `status_grid`, `history_bar`, `multimeter`, `apexchart`) have been removed. Use SimpleCards or embedded HA cards instead.
 
 **Line Overlay:**
 ```javascript

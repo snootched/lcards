@@ -42,8 +42,6 @@ The renderer handles these overlay types:
 | **line** | LineOverlay | SVG line/path | Visual dividers and connectors |
 | **card** / **control** | MsdControlsRenderer | SVG foreignObject | Embedded HA cards (SimpleCards, custom cards) |
 
-> **Note:** Previous overlay types (`text`, `button`, `status_grid`, `apexchart`, etc.) were removed in v1.16.22+. Use SimpleCards or embedded HA cards instead.
-
 ---
 
 ## Architecture
@@ -514,8 +512,6 @@ class MsdControlsRenderer {
 ```
 
 **Location:** `src/msd/controls/MsdControlsRenderer.js`
-
-> **Note:** Previous specialized renderers (TextOverlay, ButtonOverlay, StatusGridOverlay, ApexChartsOverlay) were removed in v1.16.22+. Their functionality is now provided through SimpleCards or embedded HA cards.
 
 ---
 

@@ -1,11 +1,7 @@
-# Simple Button Card - Official Schema Definition (v1.14.18)
+# Simple Button Card - Official Schema Definition
 
-**Date:** November 20, 2025
 **Purpose:** Single source of truth for schema - update tokens, presets, code, and docs from this
 **Status:** 🎯 DEFINITIVE - All implementations must match this
-
-**BREAKING CHANGES:** v1.14.18 removes all legacy/backward compatibility support.
-Only the nested schema is supported going forward.
 
 ---
 
@@ -662,7 +658,7 @@ button: {
 
 ## Multi-Text Label System (Phase 1)
 
-**Status:** ✅ IMPLEMENTED (v1.14.17)
+**Status:** ✅ IMPLEMENTED
 
 The multi-text label system allows multiple text fields with flexible positioning and rotation.
 
@@ -867,10 +863,10 @@ text:
 
 Phase 2 will add:
 - Multi-line text wrapping
-- ~~Text rotation~~ ✅ **DONE** (v1.14.17)
-- ~~Template support in content~~ ✅ **DONE** (already supported)
-- ~~Advanced positioning (explicit x/y coordinates)~~ ✅ **DONE** (v1.14.17)
-- ~~Percentage-based positioning~~ ✅ **DONE** (v1.14.17)
+- Text rotation ✅ **DONE**
+- Template support in content ✅ **DONE**
+- Advanced positioning (explicit x/y coordinates) ✅ **DONE**
+- Percentage-based positioning ✅ **DONE**
 
 Remaining Phase 2 features:
 
@@ -1010,6 +1006,3 @@ rules:
 ---
 
 **Status:** 🎯 DEFINITIVE SCHEMA - Use this to update all implementations
-**Version:** 1.14.18+
-**Date:** November 20, 2025
-**Breaking Changes:** Removed all legacy flat-key support (background_color, text_color, etc.)

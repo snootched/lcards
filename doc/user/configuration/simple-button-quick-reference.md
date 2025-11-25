@@ -1,14 +1,7 @@
 # Simple Button Card - Quick Reference
 
 **Component:** `custom:lcards-simple-button`
-**Version:** 1.14.31+
 **Schema:** CB-LCARS Nested Schema with Multi-Text Support
-**Last Updated:** November 21, 2025
-
-**BREAKING CHANGES:**
-- **v1.14.18:** Removed all legacy/backward compatibility support. Only nested schema supported.
-- **v1.14.30:** Icon positioning overhaul - `icon.position` now means position WITHIN icon area. Use `icon_area` for area placement.
-- **v1.14.31:** Renamed `icon_area_width` → `icon_area_size` for consistency across all orientations.
 
 ---
 
@@ -569,7 +562,7 @@ components.button.base.text.default.font_family
 
 ## Multi-Text Label System
 
-**NEW in v1.14.17** - Multiple text fields with flexible positioning and rotation.
+Multiple text fields with flexible positioning and rotation.
 
 ### Named Positions
 
@@ -763,6 +756,4 @@ text:
 ---
 
 **For complete implementation details, see:**
-- `simple-button-schema-definition.md` - Full schema specification (v1.14.18)
-- `doc/user-guide/testing/simple-button-testing.md` - Testing guide
-- `doc/architecture/rules-engine-template-syntax.md` - Rules Engine reference
+- `simple-button-schema-definition.md` - Full schema specification

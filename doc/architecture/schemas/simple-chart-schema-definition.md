@@ -460,48 +460,27 @@ Works in both standalone and MSD contexts without MSD-specific dependencies.
 
 ---
 
-## Migration from MSD ApexChartsOverlay
+## SimpleChart Features
 
-SimpleChart provides full feature parity with MSD ApexChartsOverlay:
+SimpleChart provides full chart functionality:
 
-**Replace:**
-```yaml
-type: custom:lcards-msd
-overlays:
-  - type: apexcharts
-    source: sensor.temperature
-    chart_type: line
-```
-
-**With:**
+**Example:**
 ```yaml
 type: custom:lcards-simple-chart
 source: sensor.temperature
 chart_type: line
 ```
 
-All overlay features work in SimpleChart:
+All chart features available:
 - ✅ All chart types
 - ✅ Multi-series
 - ✅ Advanced styling
 - ✅ Theme integration
 - ✅ Animation presets
 - ✅ `chart_options` override
-
-**New in SimpleChart:**
 - ✅ `data_sources` config (inline DataSource configuration)
 - ✅ Works standalone (no MSD required)
-- ✅ Smaller bundle (~8KB saved by removing overlay renderer)
 
 ---
 
-## Version History
-
-- **v1.16.22** (Nov 23, 2025): Initial SimpleChart release with full MSD parity
-  - Auto-creation feature
-  - `data_sources` config support
-  - ApexChartsAdapter integration
-  - Multi-series synchronization fix
-  - Animation preset singleton access
-  - Theme token resolution
-  - CSS variable resolution
+**Status:** Complete SimpleChart schema documentation

@@ -44,7 +44,6 @@
 - ✅ `simple-button-schema-definition.md` - SimpleButton complete schema
 - ✅ `MSD_SCHEMA_V1_Ratified.yaml` - MSD main schema
 - ✅ `MSD_SCHEMA_V1_Routing_Details.yaml` - Routing schema
-- ✅ `MSD_SCHEMA_V1_Text_Details.yaml` - Text overlay schema
 - ✅ `MSD_LINE_ATTACHMENT_SCHEMA.yaml` - Line attachment schema
 
 **Diagrams:**

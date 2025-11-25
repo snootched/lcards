@@ -138,8 +138,6 @@ graph TB
 - **LineOverlay** - Inherits from OverlayBase
 - **MsdControlsRenderer** - Handles card-based overlays (SimpleCards, HA cards)
 
-> **Note:** Previous renderers (TextOverlayRenderer, ButtonRenderer, StatusGridRenderer, ApexChartsOverlayRenderer) were removed in v1.16.22+.
-
 **Resolution Chain:**
 
 1. **Explicit Value** - Direct value from overlay config (highest priority)
@@ -733,11 +731,4 @@ Object.entries(styles).forEach(([prop, result]) => {
 
 - **[Theme System](theme-system.md)** - Theme management
 - **[Advanced Renderer](advanced-renderer.md)** - Rendering system
-- **[Overlay System](../../user-guide/configuration/overlays/README.md)** - Overlay types
-
----
-
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
-**Source:** `/src/msd/styles/StyleResolverService.js` (565 lines)
-**Consolidates:** `user/style-resolution.md` (434 lines), `user/style-resolver-api.md` (181 lines)
+- **[Overlay System](../../user/configuration/overlays/README.md)** - Overlay types
