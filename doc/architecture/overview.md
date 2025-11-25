@@ -195,6 +195,60 @@ Most singletons extend `BaseService` for consistent lifecycle:
 - Entity subscriptions shared (no duplicate subscriptions)
 - Rules can target overlays across cards
 
+### Global Data Source and Rules Publication
+
+**Any card can define data sources and rules that become globally available:**
+
+```yaml
+# MSD card defines a data source
+type: custom:lcards-msd-card
+data_sources:
+  cpu_temperature:
+    entity: sensor.cpu_temp
+    window_seconds: 3600
+    history: { preload: true, hours: 6 }
+
+# The data source is registered with DataSourceManager singleton
+# Any other card can now reference 'cpu_temperature' in templates
+```
+
+```yaml
+# Simple card defines rules
+type: custom:lcards-simple-button
+entity: light.bedroom
+rules:
+  - id: light_on_style
+    when:
+      entity: light.bedroom
+      state: 'on'
+    apply:
+      style:
+        primary: '#00ff00'
+
+# These rules are registered with RulesEngine singleton
+# Rule evaluation is shared and distributed to all cards
+```
+
+**Benefits:**
+- ✅ Define data sources in one place, use everywhere
+- ✅ No duplicate Home Assistant subscriptions
+- ✅ Shared data processing (transformations, aggregations)
+- ✅ Consistent rule evaluation across all cards
+
+---
+
+## 📊 MSD + Simple Cards: Hybrid Architecture
+
+The recommended approach combines MSD cards for layout with embedded Simple Cards for interactions:
+
+| Component | Responsibility |
+|-----------|----------------|
+| **MSD Card** | Layout, line routing, SVG backgrounds |
+| **Simple Cards (embedded)** | Buttons, charts, interactive elements |
+| **Simple Cards (standalone)** | Individual controls outside MSD |
+
+**See:** [MSD Flow Part 2](diagrams/MSD%20Flow%20-%20Part%202.md#-msd--simple-cards-together) for detailed examples.
+
 ---
 
 ## 📚 Detailed Documentation

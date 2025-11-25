@@ -540,6 +540,93 @@ graph TD
 
 ---
 
+## 🔗 Global Data Source and Rules Publication
+
+### Any Card Can Define Data Sources and Rules
+
+A key architectural feature: **data sources and rules defined in any card are registered with global singletons**, making them available system-wide.
+
+```mermaid
+graph LR
+    subgraph "Card A (MSD)"
+        DSA[data_sources:<br/>cpu_temp]
+        RA[rules:<br/>cpu_hot]
+    end
+
+    subgraph "Card B (SimpleCard)"
+        DSB[data_sources:<br/>memory_usage]
+        RB[rules:<br/>memory_warning]
+    end
+
+    subgraph "Global Singletons"
+        DSM[DataSourceManager<br/>• cpu_temp<br/>• memory_usage]
+        RE[RulesEngine<br/>• cpu_hot<br/>• memory_warning]
+    end
+
+    subgraph "Card C (Any Card)"
+        CC[Can use:<br/>• cpu_temp<br/>• memory_usage<br/>• All rules apply]
+    end
+
+    DSA --> DSM
+    DSB --> DSM
+    RA --> RE
+    RB --> RE
+    DSM --> CC
+    RE --> CC
+```
+
+**How It Works:**
+
+1. **Card defines data sources** → Registered with `DataSourceManager` singleton
+2. **Card defines rules** → Registered with `RulesEngine` singleton
+3. **All cards receive** → Updates from shared data sources and rule evaluations
+4. **No duplication** → Same entity subscription serves all cards
+
+**Example: Shared Data Source**
+
+```yaml
+# Card A (MSD) defines a data source
+type: custom:lcards-msd-card
+data_sources:
+  temperature:
+    entity: sensor.temperature
+    window_seconds: 3600
+    history:
+      preload: true
+      hours: 6
+
+# Card B (SimpleCard) can reference the same data
+# via template syntax: {temperature.v} or {temperature.aggregations.avg}
+```
+
+**Example: Cross-Card Rules**
+
+```yaml
+# Card A defines a rule
+rules:
+  - id: global_alert
+    when:
+      all:
+        - entity: binary_sensor.alarm
+          state: 'on'
+    apply:
+      base_svg:
+        filter_preset: red-alert
+
+# This rule affects Card A directly
+# Other cards on the dashboard get rule updates too
+# Each card applies its own applicable rules
+```
+
+**Benefits:**
+
+- ✅ **No duplicate subscriptions** - One Home Assistant connection per entity
+- ✅ **Consistent state** - All cards see the same entity state
+- ✅ **Shared processing** - Transformations and aggregations computed once
+- ✅ **Flexible architecture** - Define data sources where convenient, use anywhere
+
+---
+
 ## 📚 Related Documentation
 
 - **[MSD SystemsManager](../subsystems/msd-systems-manager.md)** - Per-card orchestrator for MSD cards

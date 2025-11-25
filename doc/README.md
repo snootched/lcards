@@ -17,7 +17,9 @@ LCARdS uses a **singleton-based core architecture** with the following key syste
 | `lcardsCore.animationRegistry` | AnimationRegistry | Animation caching |
 | `lcardsCore.animationManager` | AnimationManager | Animation coordination |
 
-**MSD Overlay Types:** `line` (SVG lines) and `card/control` (embedded HA cards)
+**MSD Overlay Types:** `line` (SVG lines) and `control` (embedded HA cards)
+
+**Key Principle:** Any card can define `data_sources` and `rules` that are registered with global singletons, making them available system-wide for cross-card data sharing.
 
 ---
 

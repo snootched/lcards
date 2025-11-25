@@ -44,15 +44,15 @@ Detailed documentation for each singleton system:
 
 ## 📋 [Schemas](./schemas/)
 
-Official YAML schema definitions:
+Official schema definitions (markdown with fully commented YAML):
 
 ### Simple Cards
 - **[simple-button-schema-definition.md](./schemas/simple-button-schema-definition.md)** - Complete SimpleButton schema
+- **[simple-chart-schema-definition.md](./schemas/simple-chart-schema-definition.md)** - Complete SimpleChart schema
 
 ### MSD Cards
-- **[MSD_SCHEMA_V1_Ratified.yaml](./schemas/MSD_SCHEMA_V1_Ratified.yaml)** - Main MSD configuration
-- **[MSD_SCHEMA_V1_Routing_Details.yaml](./schemas/MSD_SCHEMA_V1_Routing_Details.yaml)** - Navigation schema
-- **[MSD_LINE_ATTACHMENT_SCHEMA.yaml](./schemas/MSD_LINE_ATTACHMENT_SCHEMA.yaml)** - Line attachment schema
+- **[msd-schema-definition.md](./schemas/msd-schema-definition.md)** - Complete MSD card configuration ⭐
+- **[line-overlay-schema-definition.md](./schemas/line-overlay-schema-definition.md)** - Line overlay with routing and attachment
 
 ---
 

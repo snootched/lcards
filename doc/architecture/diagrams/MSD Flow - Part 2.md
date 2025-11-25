@@ -692,6 +692,161 @@ core.getAllCardInstances();
 
 ---
 
+## 🎨 MSD + Simple Cards Together
+
+### Hybrid Dashboard Pattern
+
+The recommended architecture combines MSD cards for complex layouts with embedded Simple Cards for interactive elements:
+
+```yaml
+# MSD card with embedded Simple Cards
+type: custom:lcards-msd-card
+base_svg:
+  source: "none"
+view_box: [0, 0, 1200, 800]
+
+# Shared data sources (registered globally)
+data_sources:
+  temperature:
+    entity: sensor.temperature
+    window_seconds: 3600
+    history: { preload: true, hours: 6 }
+
+overlays:
+  # Complex chart using SimpleChart
+  - id: temp_chart
+    type: control
+    position: [50, 50]
+    size: [400, 250]
+    card:
+      type: custom:lcards-simple-chart
+      source: sensor.temperature    # Can use entity directly
+      chart_type: area
+      height: 250
+
+  # Interactive button using SimpleButton
+  - id: hvac_control
+    type: control
+    position: [500, 50]
+    size: [200, 80]
+    card:
+      type: custom:lcards-simple-button
+      entity: climate.hvac
+      label: "HVAC Control"
+      preset: lozenge
+
+  # Status indicator
+  - id: status_button
+    type: control
+    position: [500, 150]
+    size: [150, 50]
+    card:
+      type: custom:lcards-simple-button
+      entity: binary_sensor.system_ok
+      label: "Status"
+
+  # Line connecting chart to controls
+  - id: chart_to_hvac
+    type: line
+    anchor: temp_chart
+    anchor_side: right
+    anchor_gap: 10
+    attach_to: hvac_control
+    attach_side: left
+    attach_gap: 10
+    style:
+      color: var(--lcars-cyan)
+      width: 2
+      corner_style: round
+      corner_radius: 12
+
+# Shared rules (apply to all cards)
+rules:
+  - id: high_temp_alert
+    when:
+      all:
+        - entity: sensor.temperature
+          above: 80
+    apply:
+      overlays:
+        - id: chart_to_hvac
+          style:
+            color: var(--lcars-red)
+            width: 4
+```
+
+### Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Dashboard"
+        subgraph "MSD Card"
+            MSD[MSD Container<br/>SVG viewBox]
+            L1[Line Overlay]
+            L2[Line Overlay]
+
+            subgraph "Control Overlays (foreignObject)"
+                C1[SimpleChart<br/>(lightweight)]
+                C2[SimpleButton<br/>(lightweight)]
+                C3[SimpleButton<br/>(lightweight)]
+            end
+
+            L1 --> C1
+            L1 --> C2
+            L2 --> C3
+        end
+
+        subgraph "Standalone Simple Cards"
+            S1[SimpleButton]
+            S2[SimpleButton]
+        end
+    end
+
+    subgraph "Global Singletons"
+        DSM[DataSourceManager<br/>Shared data sources]
+        RE[RulesEngine<br/>Shared rules]
+        TM[ThemeManager<br/>Shared themes]
+    end
+
+    MSD --> DSM
+    C1 --> DSM
+    C2 --> RE
+    S1 --> RE
+    S2 --> TM
+
+    style MSD fill:#80bb93,stroke:#083717
+    style C1,C2,C3 fill:#458359,stroke:#095320
+    style S1,S2 fill:#458359,stroke:#095320
+    style DSM,RE,TM fill:#b8e0c1,stroke:#266239
+```
+
+### Benefits of Hybrid Approach
+
+| Feature | MSD Alone | Simple Cards Alone | MSD + Simple Cards |
+|---------|-----------|--------------------|--------------------|
+| **Layout Control** | ✅ Full SVG layout | ❌ HA grid only | ✅ Full SVG layout |
+| **Line Routing** | ✅ Intelligent routing | ❌ Not supported | ✅ Connect to embedded cards |
+| **Memory Per Card** | ~4-5 MB | ~5 KB | ~4-5 MB + minimal overhead |
+| **Interactive Elements** | ✅ Control overlays | ✅ Native | ✅ Best of both |
+| **Performance** | Good | Excellent | Good + lightweight elements |
+| **Complexity** | High | Low | Moderate |
+
+### When to Use
+
+**Use MSD for:**
+- Overall dashboard layout and structure
+- SVG-based backgrounds and decoration
+- Line routing between components
+- Complex multi-overlay displays
+
+**Use Simple Cards (embedded or standalone) for:**
+- Interactive buttons and controls
+- Charts and data visualization
+- Status displays
+- Anything that benefits from lightweight rendering
+
+---
+
 **Related Documentation:**
 - **[MSD SystemsManager](../subsystems/msd-systems-manager.md)** - Per-card orchestration
 - **[DataSource System](../subsystems/datasource-system.md)** - Data processing
