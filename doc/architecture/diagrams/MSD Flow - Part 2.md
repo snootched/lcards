@@ -122,17 +122,11 @@ graph TD
     Renderer --> Loop[Loop Through Overlays]
     Loop --> Type{Overlay<br/>Type?}
 
-    Type -->|text| TextR[TextRenderer]
-    Type -->|button| ButtonR[ButtonRenderer]
     Type -->|line| LineR[LineRenderer]
-    Type -->|status_grid| GridR[StatusGridRenderer]
-    Type -->|apexchart| ChartR[ApexChartRenderer]
+    Type -->|control| ControlR[ControlRenderer]
 
-    TextR --> Style[Resolve Styles]
-    ButtonR --> Style
-    LineR --> Style
-    GridR --> Style
-    ChartR --> Style
+    LineR --> Style[Resolve Styles]
+    ControlR --> Style
 
     Style --> Theme[Apply Theme from ThemeManager Singleton]
     Theme --> Preset{Preset<br/>specified?}
@@ -638,11 +632,11 @@ core.getAllCardInstances();
 - ThemeManager (themes, tokens) - **Used by all cards**
 - AnimationManager (animation coordination) - **Used by all cards**
 - ValidationService (schema validation) - **Used by all cards**
-- CoreSystemsManager (entity caching) - **Only used by SimpleCard/V2, NOT MSD**
+- CoreSystemsManager (entity caching) - **Only used by Simple Cards, NOT MSD**
 
 **Card Type Comparison:**
 
-| Feature | MSD Cards | SimpleCard/V2 Cards |
+| Feature | MSD Cards | Simple Cards |
 |---------|-----------|-------------------|
 | **Systems Manager** | MSD SystemsManager (per-card) | Uses CoreSystemsManager (singleton) |
 | **Entity Access** | DataSourceManager (full pipeline) | CoreSystemsManager (cached) |
@@ -653,9 +647,7 @@ core.getAllCardInstances();
 
 ---
 
-**Last Updated:** November 10, 2025 (Post-Singleton Architecture Completion)
-**Version:** 2025.11.10-msd-flow-part2
-**Status:** ✅ MSD/SimpleCard architecture clarified
+**Status:** ✅ MSD/Simple Card architecture clarified
 6. **DataSources** → Register with singleton, share entity subscriptions (coordinated)
 7. **Resolution** → Resolve templates, evaluate rules (per card + singleton)
 8. **Rendering** → Generate SVG from resolved model (per card)
@@ -701,15 +693,14 @@ core.getAllCardInstances();
 ---
 
 **Related Documentation:**
-- **[MSD SystemsManager](subsystems/msd-systems-manager.md)** - Per-card orchestration
-- **[DataSource System](subsystems/datasource-system.md)** - Data processing
-- **[Advanced Renderer](subsystems/advanced-renderer.md)** - SVG generation
-- **[Pack System](subsystems/pack-system.md)** - Configuration merging
-- **[Rules Engine](subsystems/rules-engine.md)** - Conditional logic
-- **[Template Processor](subsystems/template-processor.md)** - String resolution
-- **[Architecture Overview](overview.md)** - Complete system architecture
+- **[MSD SystemsManager](../subsystems/msd-systems-manager.md)** - Per-card orchestration
+- **[DataSource System](../subsystems/datasource-system.md)** - Data processing
+- **[Advanced Renderer](../subsystems/advanced-renderer.md)** - SVG generation
+- **[Pack System](../subsystems/pack-system.md)** - Configuration merging
+- **[Rules Engine](../subsystems/rules-engine.md)** - Conditional logic
+- **[Template Processor](../subsystems/template-processor.md)** - String resolution
+- **[Architecture Overview](../overview.md)** - Complete system architecture
 
 ---
 
-**Last Updated:** November 10, 2025
-**Version:** 2025.11.1-msd-flow-part2
+**Status:** ✅ MSD/Simple Card architecture clarified

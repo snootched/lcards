@@ -181,8 +181,8 @@
 
 ### Coordination & Management
 
-#### [CoreSystemsManager](core-systems-manager.md) ⭐ NEW v1.8.0
-**Lightweight entity tracking singleton** for SimpleCard and V2 cards.
+#### [CoreSystemsManager](core-systems-manager.md)
+**Lightweight entity tracking singleton** for Simple Cards.
 
 **Key Features:**
 - Entity state caching (80-90% performance improvement)
@@ -191,12 +191,12 @@
 - Cross-card entity change notifications
 - HASS change detection and distribution
 
-**When to use:** SimpleCard, V2 cards, lightweight entity access.
+**When to use:** Simple Cards, lightweight entity access.
 
 **NOT for:** MSD cards (use DataSourceManager instead).
 
 #### [MSD Systems Manager](msd-systems-manager.md)
-**Per-card orchestrator** for MSD cards (NOT used by SimpleCard).
+**Per-card orchestrator** for MSD cards (NOT used by Simple Cards).
 
 **Key Features:**
 - Per-MSD-card coordination
@@ -205,7 +205,7 @@
 - Lifecycle management for MSD overlays
 - Performance monitoring
 
-**When to use:** MSD cards only. SimpleCard uses CoreSystemsManager instead.
+**When to use:** MSD cards only. Simple Cards use CoreSystemsManager instead.
 
 ---
 
@@ -362,6 +362,4 @@ rulesEngine.on('rulesChanged', () => {
 
 ---
 
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
-**Subsystems Documented:** 10 of 12 complete
+**Status:** Complete

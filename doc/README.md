@@ -4,7 +4,7 @@
 
 ---
 
-## 🏛️ Current Architecture (v1.16.22+)
+## 🏛️ Architecture
 
 LCARdS uses a **singleton-based core architecture** with the following key systems:
 
@@ -18,8 +18,6 @@ LCARdS uses a **singleton-based core architecture** with the following key syste
 | `lcardsCore.animationManager` | AnimationManager | Animation coordination |
 
 **MSD Overlay Types:** `line` (SVG lines) and `card/control` (embedded HA cards)
-
-> **Note:** Previous overlay types (text, button, status_grid, apexchart) were removed in v1.16.22+. Use SimpleCards or embedded HA cards instead.
 
 ---
 
@@ -66,7 +64,7 @@ All documentation in this tree reflects the **current state of the code**. Docum
 - ✅ **Current** - Actively maintained
 - ✅ **Clear** - Written for comprehension
 
-Historical and work-in-progress documents can be found in `doc-old/` for reference.
+
 
 ---
 

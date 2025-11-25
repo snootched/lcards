@@ -52,7 +52,6 @@ Official YAML schema definitions:
 ### MSD Cards
 - **[MSD_SCHEMA_V1_Ratified.yaml](./schemas/MSD_SCHEMA_V1_Ratified.yaml)** - Main MSD configuration
 - **[MSD_SCHEMA_V1_Routing_Details.yaml](./schemas/MSD_SCHEMA_V1_Routing_Details.yaml)** - Navigation schema
-- **[MSD_SCHEMA_V1_Text_Details.yaml](./schemas/MSD_SCHEMA_V1_Text_Details.yaml)** - Text overlay schema
 - **[MSD_LINE_ATTACHMENT_SCHEMA.yaml](./schemas/MSD_LINE_ATTACHMENT_SCHEMA.yaml)** - Line attachment schema
 
 ---

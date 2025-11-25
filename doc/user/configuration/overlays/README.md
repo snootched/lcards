@@ -5,35 +5,24 @@
 
 ---
 
-## ⚠️ Important: Overlay Type Changes (v1.16.22+)
+## 📋 Table of Contents
 
-As of v1.16.22+, MSD supports only **2 overlay types**:
+1. [Overlay Types](#overlay-types)
+2. [Line Overlay](#line-overlay)
+3. [Card/Control Overlay](#cardcontrol-overlay)
+4. [Common Concepts](#common-concepts)
+5. [Best Practices](#best-practices)
+
+---
+
+## Overlay Types
+
+MSD supports **2 overlay types**:
 
 | Type | Description |
 |------|-------------|
 | **line** | SVG line/path overlays for visual connectors |
 | **card** / **control** | Embedded Home Assistant cards (SimpleCards, custom cards, built-in cards) |
-
-**Previous overlay types have been removed:**
-- ❌ `text` → Use SimpleCards (e.g., `lcards-text-card`)
-- ❌ `button` → Use SimpleCards (e.g., `lcards-button-card`)
-- ❌ `status_grid` → Use SimpleCards with grid layout
-- ❌ `apexchart` → Use `SimpleChart` card
-
----
-
-## 📋 Table of Contents
-
-1. [Current Overlay Types](#current-overlay-types)
-2. [Line Overlay](#line-overlay)
-3. [Card/Control Overlay](#cardcontrol-overlay)
-4. [Migrating from Legacy Overlays](#migrating-from-legacy-overlays)
-5. [Common Concepts](#common-concepts)
-6. [Best Practices](#best-practices)
-
----
-
-## Current Overlay Types
 
 ### Quick Comparison
 
@@ -42,10 +31,10 @@ As of v1.16.22+, MSD supports only **2 overlay types**:
 | **line** | Visual connectors, dividers, paths | ⭐ Simple |
 | **card/control** | Any HA card functionality | ⭐⭐ Moderate |
 
-### Architecture
+### Example
 
 ```yaml
-# Current overlay structure
+# Overlay structure
 overlays:
   # Line overlay
   - id: power_line
@@ -143,101 +132,6 @@ overlays:
 
 ---
 
-## Migrating from Legacy Overlays
-
-### Text Overlay → SimpleCard
-
-**Before (deprecated):**
-```yaml
-overlays:
-  - id: temp_display
-    type: text
-    source: temperature
-    position: [100, 100]
-    style:
-      content: "Temperature: {value}°F"
-      font_size: 24px
-      color: var(--lcars-orange)
-```
-
-**After (current):**
-```yaml
-overlays:
-  - id: temp_display
-    type: control
-    position: [100, 100]
-    size: [200, 50]
-    card:
-      type: custom:lcards-text-card
-      entity: sensor.temperature
-      content: "Temperature: {{ state }}°F"
-      style:
-        font_size: 24px
-        color: var(--lcars-orange)
-```
-
-### Button Overlay → SimpleCard
-
-**Before (deprecated):**
-```yaml
-overlays:
-  - id: light_toggle
-    type: button
-    source: light.living_room
-    position: [100, 100]
-    size: [200, 60]
-    style:
-      label: "Living Room"
-      color: var(--lcars-orange)
-    actions:
-      - service: light.toggle
-```
-
-**After (current):**
-```yaml
-overlays:
-  - id: light_toggle
-    type: control
-    position: [100, 100]
-    size: [200, 60]
-    card:
-      type: custom:lcards-button-card
-      entity: light.living_room
-      name: "Living Room"
-      tap_action:
-        action: toggle
-```
-
-### ApexCharts Overlay → SimpleChart
-
-**Before (deprecated):**
-```yaml
-overlays:
-  - id: temp_chart
-    type: apexchart
-    source: temperature
-    position: [100, 100]
-    size: [400, 200]
-    style:
-      chart_type: line
-```
-
-**After (current):**
-```yaml
-overlays:
-  - id: temp_chart
-    type: control
-    position: [100, 100]
-    size: [400, 200]
-    card:
-      type: custom:lcards-simple-chart
-      entity: sensor.temperature
-      chart_type: line
-      hours_to_show: 24
-```
-
----
-
 ## Common Concepts
 
 ### Positioning
@@ -278,7 +172,7 @@ attach_end: another_overlay.middle-left
 
 ### Use SimpleCards for Content
 
-Instead of MSD native overlays, use LCARdS SimpleCards:
+Use LCARdS SimpleCards for interactive content:
 - `lcards-button-card` - Interactive buttons
 - `lcards-text-card` - Text displays
 - `lcards-simple-chart` - Charts and graphs
@@ -318,12 +212,9 @@ overlays:
 
 ## 📚 Related Documentation
 
-### Current Overlay Guides
+### Overlay Guides
 - **[Line Overlay Guide](line-overlay.md)** - SVG lines and paths
 - **[Control Overlay Guide](control-overlay.md)** - Embedded HA cards
-
-### SimpleCards
-- **[SimpleChart Card](../cards/simple-chart.md)** - Chart functionality
 
 ### Architecture
 - **[Control Overlay System](../../../architecture/subsystems/control-overlay-system.md)** - Technical details
@@ -331,6 +222,4 @@ overlays:
 
 ---
 
-**Last Updated:** November 2025
-**Version:** 2025.11 (Post-Architecture Refactor)
 **Current Overlay Types:** line, card/control

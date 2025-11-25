@@ -96,17 +96,14 @@ Learn how to configure every aspect of LCARdS.
 
 ### Overlay System
 
-**Overlays** are visual elements on your dashboard:
+**Overlays** are visual elements on your MSD dashboard:
 
 | Overlay Type | Description | Guide |
 |--------------|-------------|-------|
-| 📝 **[Text](configuration/overlays/text-overlay.md)** | Display dynamic text and values | Labels, sensors, status |
-| 🔘 **[Button](configuration/overlays/button-overlay.md)** | Interactive controls | Toggle, navigate, actions |
 | ➖ **[Line](configuration/overlays/line-overlay.md)** | Connect overlays visually | Flowcharts, diagrams |
-| 📊 **[Status Grid](configuration/overlays/status-grid-overlay.md)** | Multi-cell status display | Organized data grids |
-| 📈 **[ApexCharts](configuration/overlays/apexcharts-overlay.md)** | Advanced charts | 15 chart types |
+| 🎮 **[Control](configuration/overlays/control-overlay.md)** | Embed any HA card | Full card functionality |
 
-**[Overlay System Guide](configuration/overlays/README.md)** - Complete overview with decision tree
+**[Overlay System Guide](configuration/overlays/README.md)** - Complete overview with examples
 
 ### Data Integration
 
@@ -195,7 +192,7 @@ graph LR
     GS --> I[Installation]
     GS --> F[First Card]
 
-    Config --> Ov[Overlays<br/>5 types]
+    Config --> Ov[Overlays<br/>2 types]
     Config --> DS[DataSources<br/>+ Transforms]
     Config --> St[Styles]
 
@@ -216,23 +213,20 @@ graph LR
 
 ### All Guides by Directory
 
-#### 🚀 Getting Started (3 files, 30 diagrams)
+#### 🚀 Getting Started (3 files)
 - [quickstart.md](getting-started/quickstart.md) - 5-minute setup
 - [installation.md](getting-started/installation.md) - Complete installation
 - [first-card.md](getting-started/first-card.md) - Tutorial
 
-#### ⚙️ Configuration (10+ files, 15+ diagrams)
+#### ⚙️ Configuration
 
 **Overlays:**
-- [README.md](configuration/overlays/README.md) - System overview (1 diagram)
-- [text-overlay.md](configuration/overlays/text-overlay.md) - Text configuration
-- [button-overlay.md](configuration/overlays/button-overlay.md) - Buttons (2 diagrams)
-- [line-overlay.md](configuration/overlays/line-overlay.md) - Lines (3 diagrams)
-- [status-grid-overlay.md](configuration/overlays/status-grid-overlay.md) - Status grids
-- [apexcharts-overlay.md](configuration/overlays/apexcharts-overlay.md) - Charts
+- [README.md](configuration/overlays/README.md) - System overview
+- [line-overlay.md](configuration/overlays/line-overlay.md) - Line overlays
+- [control-overlay.md](configuration/overlays/control-overlay.md) - Control overlays
 
 **Data Integration:**
-- [datasources.md](configuration/datasources.md) - Main guide (5 diagrams)
+- [datasources.md](configuration/datasources.md) - Main guide
 - [datasource-transformations.md](configuration/datasource-transformations.md) - Transformations
 - [datasource-aggregations.md](configuration/datasource-aggregations.md) - Aggregations
 - [computed-sources.md](configuration/computed-sources.md) - Computed sources
@@ -242,15 +236,15 @@ graph LR
 - [packs.md](configuration/packs.md) - Configuration packs
 - [animations.md](configuration/animations.md) - Anime.js
 
-#### 🎨 Examples (3 files, 1 diagram)
+#### 🎨 Examples
 - [basic-dashboard.md](examples/basic-dashboard.md) - Starter dashboard
 - [advanced-layouts.md](examples/advanced-layouts.md) - Complex layouts
-- [datasource-examples.md](examples/datasource-examples.md) - Data examples (1 diagram)
+- [datasource-examples.md](examples/datasource-examples.md) - Data examples
 
-#### 🔧 Advanced (8 files, 3 diagrams)
+#### 🔧 Advanced
 - [README.md](advanced/README.md) - Advanced topics hub
-- [theme_creation_tutorial.md](advanced/theme_creation_tutorial.md) - Themes (2 diagrams)
-- [configuration-layers.md](advanced/configuration-layers.md) - Layers (1 diagram)
+- [theme_creation_tutorial.md](advanced/theme_creation_tutorial.md) - Themes
+- [configuration-layers.md](advanced/configuration-layers.md) - Configuration layers
 - [style-priority.md](advanced/style-priority.md) - Style resolution
 - [validation_guide.md](advanced/validation_guide.md) - Validation
 - [msd-controls.md](advanced/msd-controls.md) - Controls
@@ -263,13 +257,12 @@ graph LR
 
 ### User Guide Coverage
 
-| Section | Files | Diagrams | Status |
-|---------|-------|----------|--------|
-| **Getting Started** | 3 | 30 | ✅ Complete |
-| **Configuration** | 10+ | 15+ | ✅ Complete |
-| **Examples** | 3 | 1 | ✅ Complete |
-| **Advanced** | 8 | 3 | ✅ Complete |
-| **Total** | **24+** | **49+** | ✅ Comprehensive |
+| Section | Status |
+|---------|--------|
+| **Getting Started** | ✅ Complete |
+| **Configuration** | ✅ Complete |
+| **Examples** | ✅ Complete |
+| **Advanced** | ✅ Complete |
 
 ### Diagram Types Used
 
@@ -277,7 +270,6 @@ graph LR
 - 🎯 **Decision Trees** - "Which option?" guides
 - 📊 **Sequence Diagrams** - Interaction flows
 - 🏗️ **Architecture Diagrams** - System structure
-- 🎨 **Visual Examples** - Before/after, layouts
 
 ---
 
@@ -352,5 +344,3 @@ Start your journey with the [Quick Start Guide](getting-started/quickstart.md) a
 **Navigation:**
 - 🏠 [Main Documentation](../README.md)
 - 🏗️ [Architecture Docs](../architecture/)
-- 📋 [Proposals](../proposals/)
-- 🔧 [Maintenance](../maintenance/)

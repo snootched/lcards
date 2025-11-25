@@ -1,6 +1,6 @@
 # CoreSystemsManager
 
-> **Lightweight entity tracking singleton for SimpleCard and V2 cards**
+> **Lightweight entity tracking singleton for Simple Cards**
 > Provides basic entity state management without the heavy MSD rendering pipeline.
 
 ---
@@ -18,7 +18,7 @@
 
 ## Overview
 
-**CoreSystemsManager** is a **global singleton** that provides lightweight entity state tracking and subscription management for **non-MSD cards** (SimpleCard, V2 cards, future cards). It is **NOT** used by MSD cards.
+**CoreSystemsManager** is a **global singleton** that provides lightweight entity state tracking and subscription management for **non-MSD cards** (Simple Cards, future cards). It is **NOT** used by MSD cards.
 
 **Location**: `src/core/systems-manager/index.js`
 
@@ -26,7 +26,7 @@
 
 **Access Pattern**:
 ```javascript
-// SimpleCard/V2 cards access via lcardsCore
+// Simple Cards access via lcardsCore
 const systemsManager = window.lcardsCore.systemsManager;
 ```
 
@@ -62,7 +62,7 @@ graph TB
     subgraph "Card Instances"
         SC1[SimpleCard A]
         SC2[SimpleCard B]
-        SC3[V2 Button C]
+        SC3[SimpleButton C]
     end
 
     subgraph "Shared Data"
@@ -203,7 +203,7 @@ cardContext.unsubscribeFromEntity('light.desk', callback);
 
 ### SimpleCard Integration (✅ Fully Implemented)
 
-**As of v1.8.0**, LCARdSSimpleCard fully integrates with CoreSystemsManager:
+LCARdSSimpleCard fully integrates with CoreSystemsManager:
 
 ```javascript
 // src/base/LCARdSSimpleCard.js
@@ -481,7 +481,7 @@ console.log(debug);
 | Feature | CoreSystemsManager | MSD SystemsManager |
 |---------|-------------------|-------------------|
 | **Instantiation** | Singleton (one globally) | Per-card instance |
-| **Used By** | SimpleCard, V2 cards | MSD cards only |
+| **Used By** | Simple Cards | MSD cards only |
 | **Entity Tracking** | ✅ Yes | ✅ Yes (via DataSourceManager) |
 | **Entity Subscriptions** | ✅ Yes | ✅ Yes (via DataSourceManager) |
 | **Overlay Rendering** | ❌ No | ✅ Yes (AdvancedRenderer) |
@@ -498,8 +498,7 @@ console.log(debug);
 
 | Card Type | Use CoreSystemsManager | Use MSD SystemsManager |
 |-----------|----------------------|----------------------|
-| **SimpleCard (button, label, etc.)** | ✅ Yes | ❌ No |
-| **V2 Cards** | ✅ Yes | ❌ No |
+| **Simple Cards (button, label, etc.)** | ✅ Yes | ❌ No |
 | **MSD Cards (multi-overlay)** | ❌ No | ✅ Yes |
 
 ---
@@ -572,6 +571,4 @@ csm._entityStates.forEach((state, entityId) => {
 
 ---
 
-**Last Updated:** November 10, 2025 (Post-SimpleCard Integration)
-**Version:** 2025.11.10-v1.8.0
-**Status:** ✅ Fully integrated with SimpleCard
+**Status:** ✅ Fully integrated with Simple Cards
