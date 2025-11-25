@@ -229,7 +229,7 @@ Returns a simplified array of overlay objects with basic information (id, type, 
 ```javascript
 {
   id: string,           // Overlay identifier
-  type: string,         // Overlay type (text, button, status_grid, etc.)
+  type: string,         // Overlay type (line, control)
   position: [x, y],     // Position coordinates
   size: [w, h]          // Size dimensions
 }
@@ -247,11 +247,11 @@ overlays.forEach(overlay => {
 });
 
 // Find specific overlay types
-const textOverlays = overlays.filter(o => o.type === 'text');
-console.log('Text overlays:', textOverlays.map(o => o.id));
+const lineOverlays = overlays.filter(o => o.type === 'line');
+console.log('Line overlays:', lineOverlays.map(o => o.id));
 
-const statusGrids = overlays.filter(o => o.type === 'status_grid');
-console.log('Status grids:', statusGrids.length);
+const controlOverlays = overlays.filter(o => o.type === 'control');
+console.log('Control overlays:', controlOverlays.length);
 ```
 
 ---
@@ -294,11 +294,7 @@ overlays.forEach(overlay => {
 ```
 
 **Supported Overlay Types:**
-- ✅ Text overlays
-- ✅ Button overlays
 - ✅ Line overlays
-- ✅ Status grid overlays
-- ✅ ApexChart overlays
 - ✅ Control overlays (foreignObject)
 
 ---
@@ -474,16 +470,16 @@ console.log('Theme:', theme.name);
 ### Find and Highlight Overlays
 
 ```javascript
-// Find all status grids
-const statusGrids = window.lcards.msd.overlays.list()
-  .filter(o => o.type === 'status_grid');
+// Find all control overlays
+const controlOverlays = window.lcards.msd.overlays.list()
+  .filter(o => o.type === 'control');
 
-console.log('Found status grids:', statusGrids.map(o => o.id));
+console.log('Found control overlays:', controlOverlays.map(o => o.id));
 
 // Highlight each one
-statusGrids.forEach(grid => {
-  console.log('Highlighting:', grid.id);
-  window.lcards.msd.overlays.highlight(grid.id, 3000);
+controlOverlays.forEach(control => {
+  console.log('Highlighting:', control.id);
+  window.lcards.msd.overlays.highlight(control.id, 3000);
 });
 ```
 

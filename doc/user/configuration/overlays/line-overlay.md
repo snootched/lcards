@@ -52,25 +52,29 @@ The absolute minimum needed to connect two overlays:
 
 ```yaml
 overlays:
-  - id: button1
-    type: button
+  - id: control1
+    type: control
     position: [100, 100]
     size: [120, 40]
-    label: "SOURCE"
+    card:
+      type: custom:lcards-button-card
+      entity: light.living_room
 
-  - id: button2
-    type: button
+  - id: control2
+    type: control
     position: [300, 100]
     size: [120, 40]
-    label: "DEST"
+    card:
+      type: custom:lcards-button-card
+      entity: light.kitchen
 
   - id: line1
     type: line
-    anchor: button1          # Source overlay
-    attach_to: button2       # Destination overlay
+    anchor: control1          # Source overlay
+    attach_to: control2       # Destination overlay
 ```
 
-**Result:** A line connecting button1 to button2 with automatic routing.
+**Result:** A line connecting control1 to control2 with automatic routing.
 
 ### With Gaps
 
@@ -80,9 +84,9 @@ Add spacing from overlay edges:
 overlays:
   - id: line_with_gaps
     type: line
-    anchor: button1
-    anchor_gap: 20           # 20px offset from button1
-    attach_to: button2
+    anchor: control1
+    anchor_gap: 20           # 20px offset from control1
+    attach_to: control2
     attach_gap: 20           # 20px offset from button2
     style:
       stroke: var(--lcars-orange)
@@ -1478,15 +1482,5 @@ console.log('Line config:', {
 
 ## 📚 Related Documentation
 
-- **[Gap System Architecture](../../architecture/implementation-details/gap-system.md)** - Deep dive into gap implementation
-- **[Attachment Point Manager](../../architecture/components/attachment-point-manager.md)** - How attachment points work
-- **[Auto-Attach System](../../architecture/implementation-details/auto-attach.md)** - Automatic side determination
-- **[Virtual Anchors](../../architecture/implementation-details/virtual-anchors.md)** - Pre-computed attachment points
-- **[Button Overlay](button-overlay.md)** - Connect buttons with lines
-- **[Text Overlay](text-overlay.md)** - Connect text labels with lines
-- **[Connecting Overlays Guide](../../guides/connecting-overlays.md)** - User guide for connections
-
----
-
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
+- **[Control Overlay](control-overlay.md)** - Connect control overlays with lines
+- **[Overlay System Guide](README.md)** - Overview of all overlay types

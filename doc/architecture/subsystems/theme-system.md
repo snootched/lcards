@@ -181,16 +181,9 @@ const theme = {
       thickness: 2
     },
 
-    status_grid: {
-      gap: 'spacing.md',
-      label_color: 'colors.text',
-      value_color: 'colors.primary'
-    },
-
-    apexchart: {
-      stroke_width: 2,
-      color: 'colors.primary',
-      grid_color: 'colors.secondary'
+    control: {
+      background: 'colors.background',
+      border_radius: 4
     }
   }
 };
@@ -306,37 +299,6 @@ const textDefaults = themeManager.getComponentDefaults('text');
 
 Each overlay type has dedicated defaults:
 
-#### Text Overlay
-
-```javascript
-tokens: {
-  text: {
-    font_size: '16px',
-    color: '#ffffff',
-    font_family: '"Antonio", sans-serif',
-    text_transform: 'uppercase',
-    border_width: 0,
-    border_color: 'transparent',
-    background_color: 'transparent'
-  }
-}
-```
-
-#### Button Overlay
-
-```javascript
-tokens: {
-  button: {
-    font_size: '18px',
-    color: '#ff9900',              // Background
-    text_color: '#000000',         // Label
-    font_family: '"Antonio", sans-serif',
-    border_radius: 8,
-    padding: '12px 24px'
-  }
-}
-```
-
 #### Line Overlay
 
 ```javascript
@@ -349,31 +311,14 @@ tokens: {
 }
 ```
 
-#### Status Grid Overlay
+#### Control Overlay
 
 ```javascript
 tokens: {
-  status_grid: {
-    gap: 16,
-    label_color: '#ffffff',
-    label_size: '14px',
-    value_color: '#ff9900',
-    value_size: '24px',
-    border_width: 0
-  }
-}
-```
-
-#### ApexCharts Overlay
-
-```javascript
-tokens: {
-  apexchart: {
-    stroke_width: 2,
-    color: '#9999ff',
-    grid_color: '#333333',
-    label_color: '#ffffff',
-    show_grid: true
+  control: {
+    background: 'transparent',
+    border_radius: 4,
+    padding: '8px'
   }
 }
 ```
@@ -716,10 +661,4 @@ rules:
 
 - **[Style Resolver](style-resolver.md)** - Style resolution system
 - **[Advanced Renderer](advanced-renderer.md)** - Rendering system
-- **[Overlay System](../../user-guide/configuration/overlays/README.md)** - Overlay types
-
----
-
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
-**Source:** `/home/jweyermars/code/cb-lcars/doc/user/theme_system_complete_reference.md` (856 lines)
+- **[Overlay System](../../user/configuration/overlays/README.md)** - Overlay types

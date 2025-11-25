@@ -1,6 +1,5 @@
 # LCARdS Debug API Documentation
 
-**Version:** 2025.10.1-msd.17-69
 **Phase:** 1 - Core Debug Functionality COMPLETE
 **Namespace:** `window.lcards.debug.msd`
 
@@ -92,18 +91,18 @@ Get performance breakdown by overlay type/renderer.
 **Example:**
 ```javascript
 const byType = window.lcards.debug.msd.perf.byRenderer();
-console.log('Status grids:', byType.status_grid);
-console.log('Text overlays:', byType.text);
+console.log('Line overlays:', byType.line);
+console.log('Control overlays:', byType.control);
 ```
 
 **Return Structure:**
 ```javascript
 {
-  status_grid: { count: 5, total_ms: 18.5, avg_ms: 3.7 },
-  text: { count: 12, total_ms: 8.2, avg_ms: 0.68 },
-  button: { count: 6, total_ms: 4.1, avg_ms: 0.68 },
+  line: { count: 5, total_ms: 18.5, avg_ms: 3.7 },
+  control: { count: 12, total_ms: 8.2, avg_ms: 0.68 },
   // ...
 }
+```
 ```
 
 ---
@@ -755,5 +754,4 @@ Future enhancements planned:
 ---
 
 **Status:** Phase 1 Complete ✅
-**Build:** v2025.10.1-msd.17-69
 **Documentation:** Complete and comprehensive

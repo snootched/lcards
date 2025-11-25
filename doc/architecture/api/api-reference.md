@@ -594,44 +594,9 @@ console.log('Average time:', stats.averageTime);
 
 ---
 
-## Backward Compatibility
-
-LCARdS maintains 16 deprecated methods for backward compatibility. These methods still work but display deprecation warnings.
-
-### Deprecated Methods (Use Modern Equivalents)
-
-| Deprecated | Modern Equivalent | Status |
-|------------|-------------------|--------|
-| `perfGetAll()` | `perf.getAll()` | ⚠️ Deprecated |
-| `perfStats()` | `perf.stats()` | ⚠️ Deprecated |
-| `perfReset()` | `perf.reset()` | ⚠️ Deprecated |
-| `routingInspect()` | `routing.inspect()` | ⚠️ Deprecated |
-| `routingStats()` | `routing.stats()` | ⚠️ Deprecated |
-| `dataEntities()` | `data.entities()` | ⚠️ Deprecated |
-| `dataState()` | `data.state()` | ⚠️ Deprecated |
-| `stylesCurrent()` | `styles.current()` | ⚠️ Deprecated |
-| `stylesInspect()` | `styles.inspect()` | ⚠️ Deprecated |
-| `chartsList()` | `charts.list()` | ⚠️ Deprecated |
-| `chartsInspect()` | `charts.inspect()` | ⚠️ Deprecated |
-| `rulesTrace()` | `rules.trace()` | ⚠️ Deprecated |
-| `animationsActive()` | `animations.active()` | ⚠️ Deprecated |
-| `animationsList()` | `animations.list()` | ⚠️ Deprecated |
-| `packsList()` | `packs.list()` | ⚠️ Deprecated |
-| `packsInspect()` | `packs.inspect()` | ⚠️ Deprecated |
-
-**Example Deprecation Warning:**
-
-```javascript
-// Using deprecated method
-msd.perfGetAll();
-// ⚠️ Console warning: "[MSD API] perfGetAll() is deprecated - use perf.getAll() instead"
-```
-
----
-
 ## Future Enhancements
 
-The following features are planned for Phase 5 but not yet implemented. They return `NOT_IMPLEMENTED` responses with helpful messages.
+The following features are planned but not yet implemented. They return `NOT_IMPLEMENTED` responses with helpful messages.
 
 ### Phase 5 Placeholders (7 features)
 
@@ -751,28 +716,4 @@ msd.help();
 
 ---
 
-## Version History
-
-- **v4.0** (Phase 4) - October 30, 2025
-  - ✅ 71/71 API entries complete
-  - ✅ Unified namespace structure
-  - ✅ Backward compatibility maintained
-  - ✅ Enhanced `rules.listActive()` with filtering
-  - ✅ 7 Phase 5 placeholders documented
-
-- **v3.0** (Phase 3) - October 29, 2025
-  - Namespace migration
-  - Internal property standardization
-
-- **v2.0** (Phase 2) - October 29, 2025
-  - API standardization
-  - Deprecation warnings
-
-- **v1.0** (Phase 1) - Legacy
-  - Initial debug API
-
----
-
-**Last Updated:** October 30, 2025
 **Status:** ✅ Production Ready
-**API Completeness:** 71/71 (100%)

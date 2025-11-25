@@ -634,37 +634,6 @@ Create test HTML file:
 </html>
 ```
 
-## Migration from V2
-
-### Before (V2 - Complex)
-
-```javascript
-// ❌ Over-engineered
-export class MyV2Card extends LCARdSV2Card {
-    constructor() {
-        super();
-        this.systemsManager = new V2CardSystemsManager(this);
-        // ... complex initialization
-    }
-
-    _applyOverlayPatch(patch) {
-        // ... overlay logic (wrong abstraction)
-    }
-}
-```
-
-### After (Simple - Clean)
-
-```javascript
-// ✅ Clean and clear
-export class MySimpleCard extends LCARdSSimpleCard {
-    _renderCard() {
-        const text = this.processTemplate(this.config.text);
-        return html`<div>${text}</div>`;
-    }
-}
-```
-
 ## API Reference
 
 ### LCARdSSimpleCard Properties
@@ -724,6 +693,4 @@ Nothing more, nothing less.
 
 ---
 
-**Last Updated:** November 14, 2025 (Post-RulesEngine Integration)
-**Version:** v1.9.30+
 **Status:** ✅ RulesEngine fully integrated with SimpleCard

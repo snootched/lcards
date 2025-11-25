@@ -74,7 +74,7 @@ graph TB
     subgraph "Card Instance Layer"
         CardA[MSD Card A]
         CardB[MSD Card B]
-        CardC[V2 Button Card]
+        CardC[SimpleButton Card]
 
         subgraph "Card A Components"
             SMA[Systems Manager A]
@@ -137,7 +137,7 @@ sequenceDiagram
     participant RE as RulesEngine Singleton
     participant CardA as MSD Card A
     participant CardB as MSD Card B
-    participant CardC as V2 Card C
+    participant CardC as SimpleCard C
 
     Note over CardA,CardC: Card Initialization Phase
     CardA->>RE: registerRules([rule1, rule2])
@@ -577,12 +577,6 @@ when:
 - Removed ~300 lines of complex token resolution code
 - Simplified to match custom-button-card approach
 - Users write normal JavaScript/Jinja2, no special token syntax needed
-
-**Key Changes from Previous Versions:**
-- ❌ **Old:** Token syntax like `{light.bedroom.state}` (removed)
-- ❌ **Old:** Complex `resolveTokensInCode()` function (removed)
-- ✅ **New:** Direct `states["entity.id"]` access (like custom-button-card)
-- ✅ **New:** Simple `new Function()` execution
 
 **Debug Logging:**
 Both JavaScript and Jinja2 evaluation include debug logging when enabled:
@@ -1217,10 +1211,4 @@ rulesEngine.setOption('cache_conditions', true);
 - **[DataSource System](datasource-system.md)** - Data integration
 - **[Advanced Renderer](advanced-renderer.md)** - Rendering system
 - **[Template Processor](template-processor.md)** - Template evaluation
-- **[Systems Manager](systems-manager.md)** - System coordination
-
----
-
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
-**Source:** `/home/jweyermars/code/cb-lcars/doc/user/rules_engine_complete_documentation.md` (1,163 lines)
+- **[MSD Systems Manager](msd-systems-manager.md)** - System coordination

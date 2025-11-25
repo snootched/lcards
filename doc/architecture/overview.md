@@ -40,11 +40,11 @@ LCARdSNativeCard (HA integration, shadow DOM, actions)
 
 ### Current State
 
-- ✅ **SimpleCard Foundation**: New, clean architecture - all new cards use this
-- ✅ **SimpleButton Card**: First production Simple Card (v1.14+)
-- ⏳ **MSD Cards**: Current implementation, will be refactored to leverage Simple Cards
+- ✅ **SimpleCard Foundation**: Clean architecture - all new cards use this
+- ✅ **SimpleButton Card**: Production Simple Card
+- ✅ **MSD Cards**: Complex multi-overlay displays
 
-**See:** [Simple Card Foundation](simple-card-foundation.md) for details on the go-forward architecture.
+**See:** [Simple Card Foundation](cards/simple-card-foundation.md) for details on the Simple Card architecture.
 
 ---
 
@@ -199,15 +199,8 @@ Most singletons extend `BaseService` for consistent lifecycle:
 
 ## 📚 Detailed Documentation
 
-### Architecture Details
-- **[Core Components](core-components.md)** - All singleton systems explained
-- **[Rendering Pipeline](rendering-pipeline.md)** - How MSD cards render overlays
-- **[Data Flow](data-flow.md)** - Entity data processing pipeline
-- **[Multi-Card Architecture](multi-card-architecture.md)** - Cross-card coordination
-- **[Design Patterns](design-patterns.md)** - Key architectural patterns
-
 ### Card Types
-- **[Simple Card Foundation](simple-card-foundation.md)** ⭐ Go-forward architecture
+- **[Simple Card Foundation](cards/simple-card-foundation.md)** - Simple Card architecture
 - **[MSD Flow Diagrams](diagrams/)** - MSD initialization and rendering
 
 ### Systems
@@ -217,5 +210,4 @@ Most singletons extend `BaseService` for consistent lifecycle:
 
 ---
 
-**Last Updated:** November 22, 2025  
 **Status:** Current - reflects singleton architecture with Simple Card foundation
