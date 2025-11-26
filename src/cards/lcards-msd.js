@@ -1081,10 +1081,21 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             }
 
             // Set global card instance references
-            window.cb_lcars_card_instance = this;
-            window._currentCardInstance = this;
+            // NOTE: Multiple globals exist for backward compatibility with legacy code.
+            // - window.cb_lcars_card_instance: Legacy custom-button-card prefix (deprecated)
+            // - window._currentCardInstance: Legacy internal reference (deprecated)
+            // - window.lcards.debug.msd.cardInstance: Modern canonical reference (preferred)
+            // 
+            // IMPORTANT: With multiple MSD cards, these globals point to the most recently
+            // initialized card. For multi-card support, use window.lcards.debug.msd.MsdInstanceManager
+            // to access specific instances by GUID.
+            //
+            // TODO: Phase out cb_lcars_card_instance and _currentCardInstance in future major version
+            // See: MsdInstanceManager.js, MsdTemplateEngine.js, BaseRenderer.js, AdvancedRenderer.js, ActionHelpers.js
+            window.cb_lcars_card_instance = this;  // @deprecated - use window.lcards.debug.msd.cardInstance
+            window._currentCardInstance = this;    // @deprecated - use window.lcards.debug.msd.cardInstance
             if (window.lcards.debug.msd) {
-                window.lcards.debug.msd.cardInstance = this;
+                window.lcards.debug.msd.cardInstance = this;  // Canonical reference
             }
 
             const mount = this.getMountElement();

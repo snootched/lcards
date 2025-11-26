@@ -444,14 +444,43 @@ export class SystemsManager extends BaseService {
   // ============================================================================
 
   /**
-   * Render the MSD display
+   * Render method (no-op)
+   *
+   * Rendering is handled automatically by the MSD pipeline via the reRender() callback.
+   * This method exists for backward compatibility with legacy code that may call
+   * systemsManager.render() directly. New code should use pipelineApi.reRender() instead.
+   *
+   * @deprecated Use pipelineApi.reRender() for manual re-renders
+   * @returns {void}
    */
   render() {
-    // Rendering is handled automatically via pipeline
-    // This method exists for API compatibility
+    // No-op: Rendering handled by pipeline via reRender() callback
+    lcardsLog.trace('[SystemsManager] render() called (no-op, use reRender() instead)');
   }
 
+  /**
+   * Instrument the rules engine for performance debugging.
+   *
+   * This method wraps the rules engine to collect performance metrics for debugging.
+   * Performance instrumentation is only enabled when debug mode is active to avoid
+   * production overhead.
+   *
+   * @param {Object} mergedConfig - Merged MSD configuration
+   * @private
+   */
   _instrumentRulesEngine(mergedConfig) {
+    // Skip instrumentation if debug mode is not enabled
+    // This avoids unnecessary overhead in production
+    const debugEnabled = mergedConfig?.debug?.performance ||
+                         mergedConfig?.debug?.rules ||
+                         mergedConfig?.debug?.enabled;
+    if (!debugEnabled) {
+      lcardsLog.debug('[SystemsManager] Performance instrumentation disabled (debug mode off)');
+      return;
+    }
+
+    lcardsLog.debug('[SystemsManager] Enabling rules engine performance instrumentation');
+
     try {
       const depIndex = new Map();
       (mergedConfig.rules||[]).forEach(r=>{
@@ -1228,8 +1257,20 @@ export class SystemsManager extends BaseService {
             // For now, we'll use the full re-render as a fallback since we need
             // the renderer to re-render just this one overlay
 
-            // TODO: Implement per-overlay re-render capability in AdvancedRenderer
-            // For now, log and continue - the full re-render will handle it
+            // ============================================================================
+            // PERFORMANCE TODO: Implement per-overlay selective re-rendering
+            // ============================================================================
+            // Feature: Selective overlay re-rendering for rule patches
+            // Benefit: Performance - only re-render affected overlays, not entire MSD
+            // Current: Full re-render when any overlay needs update
+            // Target: Individual overlay updates via AdvancedRenderer.reRenderOverlay()
+            //
+            // Implementation notes:
+            // 1. AdvancedRenderer needs reRenderOverlay(overlayId) method
+            // 2. Must preserve overlay DOM position during re-render
+            // 3. Should handle overlay dependencies (z-index, anchors)
+            // 4. Consider batch rendering for multiple overlays
+            // ============================================================================
             lcardsLog.debug(`[SystemsManager] ℹ️ Overlay ${overlay.id} will be re-rendered in next full render`);
           }
         } catch (error) {
@@ -1238,7 +1279,7 @@ export class SystemsManager extends BaseService {
       });
 
       // For now, trigger a full re-render if ANY overlay failed
-      // TODO: Implement true selective re-rendering at the renderer level
+      // See performance TODO above for selective re-rendering implementation plan
       lcardsLog.debug('[SystemsManager] 🔄 Using AdvancedRenderer.reRenderOverlays() for selective re-rendering');
 
       // Get the complete resolved model (needed for anchors, viewBox, etc.)

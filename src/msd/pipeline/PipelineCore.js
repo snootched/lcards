@@ -42,8 +42,31 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   lcardsLog.trace('[PipelineCore] 🔧 Phase 2: Initializing SystemsManager and loading pack defaults');
   const systemsManager = new SystemsManager();
 
-  // ✅ MOVED: Phase 2.5 - Initialize StyleResolverService BEFORE SystemsManager initialization
-  // This ensures StyleResolver is available when SystemsManager checks for it
+  // ============================================================================
+  // PHASE 2.5: StyleResolver Two-Phase Initialization
+  // ============================================================================
+  //
+  // ARCHITECTURE NOTE: StyleResolver requires two-phase initialization due to
+  // circular dependency resolution:
+  //
+  // Phase 1 (here): Create StyleResolver WITHOUT ThemeManager
+  //   - StyleResolver is needed by renderers during overlay processing
+  //   - ThemeManager is not available yet (created by SystemsManager.initializeSystemsWithPacksFirst)
+  //   - StyleResolver can function without ThemeManager using fallback resolution
+  //
+  // Phase 2 (after SystemsManager init): Connect ThemeManager to StyleResolver
+  //   - SystemsManager.initializeSystemsWithPacksFirst() creates ThemeManager
+  //   - StyleResolver is patched with ThemeManager reference for full functionality
+  //   - TokenResolver is also patched for complete theme token resolution
+  //
+  // This pattern is intentional and necessary because:
+  // 1. StyleResolver must be available early for SystemsManager initialization
+  // 2. ThemeManager creation depends on pack loading which happens inside SystemsManager
+  // 3. Full token resolution requires ThemeManager, but basic resolution works without it
+  //
+  // FUTURE: Consider lazy initialization pattern in StyleResolver.get themeManager()
+  // to eliminate explicit patching, or restructure to load packs before Phase 2.
+  // ============================================================================
   lcardsLog.trace('[PipelineCore] 🎨 Phase 2.5: Initializing StyleResolverService (before SystemsManager)');
 
   let styleResolver = null;
@@ -51,8 +74,8 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     // Get preset configuration from merged config
     const presets = mergedConfig?.presets || {};
 
-    // Create StyleResolverService instance
-    styleResolver = new StyleResolverService(null, {  // ← ThemeManager not available yet
+    // Create StyleResolverService instance (Phase 1: without ThemeManager)
+    styleResolver = new StyleResolverService(null, {  // ThemeManager connected in Phase 2 below
       presets,
       cacheEnabled: true,
       maxCacheSize: 1000,
@@ -68,7 +91,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     // Store in SystemsManager
     systemsManager.styleResolver = styleResolver;
 
-    lcardsLog.debug('[PipelineCore] ✅ StyleResolverService initialized (before SystemsManager)');
+    lcardsLog.debug('[PipelineCore] ✅ StyleResolverService initialized (Phase 1: without ThemeManager)');
   } catch (error) {
     lcardsLog.warn('[PipelineCore] ⚠️ StyleResolverService initialization failed:', error);
     lcardsLog.warn('[PipelineCore] ⚠️ Continuing without StyleResolverService - renderers will use fallback resolution');
@@ -92,15 +115,20 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
   try {
     await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
 
-    // ✅ NEW: Update StyleResolver with ThemeManager after SystemsManager initializes it
+    // ============================================================================
+    // StyleResolver Phase 2: Connect ThemeManager (now available)
+    // ============================================================================
+    // ThemeManager was created during initializeSystemsWithPacksFirst().
+    // Patch StyleResolver with ThemeManager for full token resolution capability.
+    // ============================================================================
     if (styleResolver && systemsManager.themeManager) {
-      lcardsLog.debug('[PipelineCore] 🔗 Connecting StyleResolver to ThemeManager');
+      lcardsLog.debug('[PipelineCore] 🔗 StyleResolver Phase 2: Connecting to ThemeManager');
       styleResolver.themeManager = systemsManager.themeManager;
 
       // Re-initialize token resolver with actual theme manager
       styleResolver.tokenResolver.themeManager = systemsManager.themeManager;
 
-      lcardsLog.debug('[PipelineCore] ✅ StyleResolver connected to ThemeManager');
+      lcardsLog.debug('[PipelineCore] ✅ StyleResolver connected to ThemeManager (Phase 2 complete)');
     }
 
     // ✅ CONSOLIDATED: Use Core ValidationService singleton instead of creating MSD-specific instance
@@ -119,8 +147,13 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
         validationService.config.validateDataSources = true;
         validationService.config.debug = mergedConfig?.debug?.validation || false;
 
-        // Initialize overlay validation subsystem (only happens once - has internal guard)
-        // This also registers all MSD overlay schemas
+        // Initialize overlay validation subsystem (idempotent - has internal guard)
+        // Guard implementation: initializeOverlayValidation() checks if overlaySchemaRegistry
+        // already exists and returns early if so (see CoreValidationService line 681).
+        // This allows safe calling from multiple MSD card instances without:
+        // - Duplicate schema registrations
+        // - Memory leaks from repeated initialization
+        // - Performance degradation
         validationService.initializeOverlayValidation();
 
         const overlayRegistry = validationService.getOverlaySchemaRegistry();
@@ -574,7 +607,22 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
     }
   }
 
-  // ✅ NEW: Register the MSD card with LCARdS Core Infrastructure
+  // ============================================================================
+  // Card Registration with LCARdS Core Infrastructure
+  // ============================================================================
+  // Register the MSD card with the core card registry for advanced features.
+  //
+  // Registration enables:
+  // - Global card registry access (lcardsCore.getCard(cardId))
+  // - Cross-card communication and messaging
+  // - Card lifecycle management and cleanup coordination
+  // - Debug tooling integration (window.lcards.debug.cards)
+  //
+  // Registration failure is NON-FATAL:
+  // - Card will render and function normally for standalone use
+  // - All MSD overlays, rules, data sources work correctly
+  // - Only advanced cross-card features are disabled
+  // ============================================================================
   try {
     // Generate unique card ID based on config or element
     const cardId = `msd_${mergedConfig.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -588,7 +636,10 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass = null) {
 
     lcardsLog.debug('[PipelineCore] ✅ MSD card registered with LCARdS Core Infrastructure');
   } catch (error) {
+    // Registration failure is non-fatal: card renders and functions normally,
+    // but won't appear in global card registry for cross-card communication.
     lcardsLog.warn('[PipelineCore] ⚠️ Failed to register MSD card with core:', error);
+    lcardsLog.debug('[PipelineCore] ℹ️ Card will function normally but cross-card features disabled');
   }
 
   lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with enhanced sequencing');

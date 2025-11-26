@@ -258,9 +258,13 @@ export { mergePacks, validateMerged };
   });
 
   // DataSourceManager property with getter
+  // NOTE: Fallback chain exists for backward compatibility during pipeline initialization.
+  // Primary: pipelineInstance.dataSourceManager (set after full pipeline init)
+  // Fallback: pipelineInstance.systemsManager.dataSourceManager (available earlier)
+  // The fallback handles edge cases where the top-level dataSourceManager reference
+  // hasn't been set yet but SystemsManager is already initialized.
   Object.defineProperty(window.lcards.debug.msd, 'dataSourceManager', {
     get() {
-      // Simplified: Use pipelineInstance as single source of truth
       return window.lcards.debug.msd.pipelineInstance?.dataSourceManager ||
              window.lcards.debug.msd.pipelineInstance?.systemsManager?.dataSourceManager;
     },
