@@ -58,17 +58,6 @@ export class LCARdSUnifiedAPI {
       lcardsLog.debug('[UnifiedAPI] Debug API methods to merge:', Object.keys(debugAPIMethods));
       lcardsLog.debug('[UnifiedAPI] Existing debug.msd keys before merge:', Object.keys(window.lcards.debug.msd));
 
-      // CRITICAL: Delete deprecated properties that would block Object.assign()
-
-      // Delete 'pipeline' getter (read-only property can't be overwritten)
-      if ('pipeline' in window.lcards.debug.msd) {
-        const descriptor = Object.getOwnPropertyDescriptor(window.lcards.debug.msd, 'pipeline');
-        if (descriptor && descriptor.get && !descriptor.set) {
-          delete window.lcards.debug.msd.pipeline;
-          lcardsLog.debug('[UnifiedAPI] Deleted read-only pipeline getter to allow merge');
-        }
-      }
-
       // Delete legacy 'perf' function (needs to become an object namespace)
       if ('perf' in window.lcards.debug.msd && typeof window.lcards.debug.msd.perf === 'function') {
         delete window.lcards.debug.msd.perf;

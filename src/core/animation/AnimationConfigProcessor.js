@@ -4,7 +4,7 @@
  * Responsibilities:
  * - Parse and validate animation_presets from merged config
  * - Process animations[] arrays on overlays
- * - Resolve preset_ref references to custom presets
+ * - Resolve preset references to custom presets
  * - Validate animation configurations
  * - Prepare animation data for AnimationManager
  *
@@ -176,24 +176,13 @@ function processOverlayAnimations(overlayId, animations, customPresets, issues =
       return;
     }
 
-    // Must have either preset or preset_ref
-    if (!animDef.preset && !animDef.preset_ref) {
+    // Must have preset specified
+    if (!animDef.preset) {
       issues.push({
         severity: 'error',
-        message: `Animation ${index} for overlay "${overlayId}" must specify either "preset" or "preset_ref"`,
+        message: `Animation ${index} for overlay "${overlayId}" must specify "preset"`,
         overlayId,
         animation: animDef
-      });
-      return;
-    }
-
-    // Validate preset_ref if used
-    if (animDef.preset_ref && !customPresets[animDef.preset_ref]) {
-      issues.push({
-        severity: 'error',
-        message: `Animation ${index} for overlay "${overlayId}" references unknown preset: ${animDef.preset_ref}`,
-        overlayId,
-        preset_ref: animDef.preset_ref
       });
       return;
     }

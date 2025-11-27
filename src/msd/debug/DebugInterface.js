@@ -22,19 +22,8 @@ export function setupDebugInterface(pipelineApi, mergedConfig, provenance, syste
   // REDUCED: Minimal startup logging
   lcardsLog.debug('[DebugInterface] 🛠️ Debug interface ready - type window.lcards.debug.msd.help() for usage');
 
-  // Core pipeline access - UNIFIED: Only set pipelineInstance
+  // Core pipeline access
   dbg.pipelineInstance = pipelineApi;
-
-  // Add backward compatibility getter with deprecation warning
-  if (!dbg.hasOwnProperty('pipeline')) {
-    Object.defineProperty(dbg, 'pipeline', {
-      get() {
-        lcardsLog.warn('[DebugInterface] ⚠️ window.lcards.debug.msd.pipeline is deprecated. Use window.lcards.debug.msd.pipelineInstance instead.');
-        return this.pipelineInstance;
-      },
-      configurable: true
-    });
-  }
 
   dbg._provenance = provenance;
 

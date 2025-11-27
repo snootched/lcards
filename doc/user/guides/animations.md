@@ -251,6 +251,7 @@ Define reusable animation presets at the root level:
 ```yaml
 animation_presets:
   custom_pulse:
+    preset: pulse  # Extend built-in pulse preset
     duration: 800
     easing: easeInOutQuad
     properties:
@@ -261,7 +262,7 @@ overlays:
   - id: my_button
     type: button
     animations:
-      - preset_ref: custom_pulse
+      - preset: custom_pulse  # Reference custom preset by name
         trigger: on_tap
 ```
 

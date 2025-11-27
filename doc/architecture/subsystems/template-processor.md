@@ -47,7 +47,6 @@ The **Template Processor** is a **per-card system** that provides template proce
 
 **Does NOT handle:**
 - HA template evaluation (delegated to `MsdTemplateEngine`)
-- Action context templates (handled by `ActionHelpers`)
 - Actual entity data processing (handled by singleton DataSourceManager)
 - Cross-card template coordination (handled at singleton level)
 

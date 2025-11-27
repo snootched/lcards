@@ -1175,9 +1175,6 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * @protected
      */
     async _processTemplates() {
-        // Default implementation processes standard text fields
-        await this._processStandardTexts();
-
         // Process icon configuration
         await this._processIcon();
 
@@ -1185,18 +1182,6 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         if (typeof this._processCustomTemplates === 'function') {
             await this._processCustomTemplates();
         }
-    }
-
-    /**
-     * Process standard text fields (legacy fields no longer supported)
-     * This is now a no-op base implementation. Subclasses should override
-     * _processCustomTemplates() to handle their specific template needs.
-     * @protected
-     */
-    async _processStandardTexts() {
-        // No-op: Legacy fields (label, content, texts array) are no longer supported.
-        // Subclasses should implement _processCustomTemplates() for their specific needs.
-        lcardsLog.trace(`[LCARdSSimpleCard] _processStandardTexts called (no-op, legacy fields not supported)`);
     }
 
     /**

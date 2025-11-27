@@ -28,7 +28,7 @@ export class AnimationManager extends BaseService {
     // Core components
     this.registry = new AnimationRegistry();
     this.scopes = new Map(); // overlayId -> { scope, overlay, activeAnimations, triggerManager }
-    this.customPresets = new Map(); // preset_ref -> preset definition
+    this.customPresets = new Map(); // preset name -> preset definition
     this.timelines = new Map(); // timelineId -> timeline instance
 
     // Animation tracking
@@ -455,7 +455,7 @@ export class AnimationManager extends BaseService {
   resolveAnimationDefinition(animDef) {
     let resolved = { ...animDef };
 
-    // Check if preset refers to a custom preset
+    // Check if preset refers to a custom preset (supports both built-in and custom)
     if (animDef.preset) {
       const customPreset = this.customPresets.get(animDef.preset);
       if (customPreset) {
@@ -474,25 +474,6 @@ export class AnimationManager extends BaseService {
         delete resolved.type;
 
         lcardsLog.debug(`[AnimationManager] Resolved custom preset: ${animDef.preset} -> ${basePresetName}`);
-      }
-    }
-
-    // Check for legacy preset_ref (backwards compatibility)
-    if (animDef.preset_ref) {
-      const customPreset = this.customPresets.get(animDef.preset_ref);
-      if (customPreset) {
-        const basePresetName = customPreset._basePreset || customPreset.preset || customPreset.type;
-        resolved = {
-          ...customPreset,
-          ...animDef,
-          preset: basePresetName
-        };
-        delete resolved.preset_ref;
-        delete resolved._basePreset;
-        delete resolved.type;
-        lcardsLog.debug(`[AnimationManager] Resolved preset_ref: ${animDef.preset_ref} -> ${basePresetName}`);
-      } else {
-        lcardsLog.warn(`[AnimationManager] preset_ref not found: ${animDef.preset_ref}`);
       }
     }
 
