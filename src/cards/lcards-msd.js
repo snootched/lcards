@@ -145,7 +145,16 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             timestamp: new Date().toISOString()
         });
 
-        // Extract MSD configuration
+        // Store full config for MSD pipeline (includes rules, data_sources, etc. at root level)
+        // Exclude Home Assistant metadata (type, grid_options)
+        this._fullConfig = {
+            ...config,
+            // Remove HA card infrastructure metadata
+            type: undefined,
+            grid_options: undefined
+        };
+
+        // Also extract MSD configuration for backward compatibility
         this._msdConfig = config.msd;
 
         // Skip MSD processing for card picker context
@@ -1092,11 +1101,25 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             });
 
             // Enhance config with processed anchors (like YAML template did)
-            const enhancedConfig = { ...this._msdConfig };
-            if (this._anchors && Object.keys(this._anchors).length > 0) {
-                enhancedConfig.anchors = this._anchors;
-                lcardsLog.debug('[LCARdSMSDCard] Enhanced config with anchors:', Object.keys(this._anchors));
-            }
+            // Merge root-level properties (rules, data_sources) with msd section
+            const enhancedConfig = {
+                ...this._msdConfig,  // Start with msd section (overlays, base_svg, etc.)
+                ...(this._fullConfig.rules ? { rules: this._fullConfig.rules } : {}),  // Add rules from root
+                ...(this._fullConfig.data_sources ? { data_sources: this._fullConfig.data_sources } : {}),  // Add data_sources from root
+                // Add processed anchors if available
+                ...(this._anchors && Object.keys(this._anchors).length > 0 ? { anchors: this._anchors } : {})
+            };
+
+            lcardsLog.debug('[LCARdSMSDCard] Enhanced config structure:', {
+                hasRules: !!enhancedConfig.rules,
+                rulesCount: enhancedConfig.rules?.length || 0,
+                hasDataSources: !!enhancedConfig.data_sources,
+                hasOverlays: !!enhancedConfig.overlays,
+                overlaysCount: enhancedConfig.overlays?.length || 0,
+                hasBaseSvg: !!enhancedConfig.base_svg,
+                hasAnchors: !!enhancedConfig.anchors,
+                anchorCount: enhancedConfig.anchors ? Object.keys(enhancedConfig.anchors).length : 0
+            });
 
             // ADDED: Cache raw overlays for control recovery (replaces YAML template JavaScript processing)
             if (this._msdConfig.overlays && Array.isArray(this._msdConfig.overlays)) {
@@ -1200,22 +1223,94 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     }
 
     /**
-     * Update MSD rendering
+     * Update MSD rendering after rule changes
+     * Selectively updates affected overlays without full re-render
      * @private
      */
     async _updateMsdRendering() {
         if (!this._msdPipeline || !this._msdInitialized) {
+            lcardsLog.debug('[LCARdSMSDCard] Cannot update rendering - pipeline not initialized');
             return;
         }
 
         try {
-            // Get rendered content from MSD pipeline
-            if (this._msdPipeline.systemsManager && this._msdPipeline.systemsManager.render) {
-                const renderResult = await this._msdPipeline.systemsManager.render();
-                if (renderResult && renderResult.html) {
-                    this._renderContent = renderResult.html;
-                    this.requestUpdate();
+            // For rule-based style changes, the SystemsManager has already:
+            // 1. Merged patches into overlay.finalStyle
+            // 2. Triggered animations if needed
+            //
+            // For line overlays and other static overlays, we need to update their DOM elements
+            // For card overlays, they self-update via Lit reactivity
+
+            if (this._msdPipeline.systemsManager?.renderer) {
+                const renderer = this._msdPipeline.systemsManager.renderer;
+                const resolvedModel = this._msdPipeline.systemsManager.getResolvedModel();
+
+                if (!resolvedModel) {
+                    lcardsLog.warn('[LCARdSMSDCard] No resolved model available for update');
+                    return;
                 }
+
+                lcardsLog.debug('[LCARdSMSDCard] 🔄 Selectively updating overlays after rule change');
+
+                // Find overlays that need visual updates (lines, shapes, etc - not cards)
+                const staticOverlays = resolvedModel.overlays.filter(o =>
+                    o.type === 'line' || o.type === 'shape' || o.type === 'text'
+                );
+
+                // Update each static overlay's DOM element
+                for (const overlay of staticOverlays) {
+                    if (overlay.finalStyle) {
+                        // Get the overlay container element
+                        let element = renderer.overlayElementCache?.get(overlay.id);
+
+                        // Fallback to DOM query if not in cache
+                        if (!element || !element.isConnected) {
+                            const overlayGroup = this.shadowRoot?.querySelector('#msd-overlay-container');
+                            if (overlayGroup) {
+                                element = overlayGroup.querySelector(`[data-overlay-id="${overlay.id}"]`);
+                            }
+                        }
+
+                        if (element) {
+                            // For line overlays, we need to update the <path> element inside the <g>
+                            let targetElement = element;
+                            if (overlay.type === 'line') {
+                                const pathElement = element.querySelector('path');
+                                if (pathElement) {
+                                    targetElement = pathElement;
+                                }
+                            }
+
+                            // Update stroke/fill attributes directly
+                            if (overlay.finalStyle.stroke) {
+                                targetElement.setAttribute('stroke', overlay.finalStyle.stroke);
+                            }
+                            if (overlay.finalStyle.fill) {
+                                targetElement.setAttribute('fill', overlay.finalStyle.fill);
+                            }
+                            if (overlay.finalStyle.color) {
+                                // color can be used for both stroke and fill
+                                targetElement.setAttribute('stroke', overlay.finalStyle.color);
+                            }
+                            if (overlay.finalStyle.opacity !== undefined) {
+                                targetElement.setAttribute('opacity', overlay.finalStyle.opacity);
+                            }
+                            if (overlay.finalStyle.stroke_width || overlay.finalStyle.strokeWidth) {
+                                targetElement.setAttribute('stroke-width', overlay.finalStyle.stroke_width || overlay.finalStyle.strokeWidth);
+                            }
+
+                            lcardsLog.trace(`[LCARdSMSDCard] ✅ Updated ${overlay.type} overlay ${overlay.id} style directly`, {
+                                hasElement: !!element,
+                                hasPath: overlay.type === 'line' && !!targetElement,
+                                updatedAttrs: Object.keys(overlay.finalStyle)
+                            });
+                        } else {
+                            lcardsLog.warn(`[LCARdSMSDCard] ⚠️ Could not find element for overlay ${overlay.id}`);
+                        }
+                    }
+                }
+
+                lcardsLog.debug(`[LCARdSMSDCard] ✅ Selective update complete for ${staticOverlays.length} static overlays`);
             }
         } catch (error) {
             lcardsLog.error('[LCARdSMSDCard] Failed to update MSD rendering:', error);
