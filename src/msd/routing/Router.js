@@ -3,9 +3,8 @@ import { stableStringify } from '../../utils/stableStringify.js';
 
 /**
  * Router adapter:
- * - Attempts legacy advanced routing via window.lcards.connectors / helpers if available.
- * - Falls back to straight line path.
- * - Caches per overlay id + endpoints + mode signature.
+ * - Generates simple line paths between overlay anchors
+ * - Caches per overlay id + endpoints + mode signature
  */
 export class Router {
   constructor(routingConfig, anchors, viewBox) {
@@ -47,53 +46,9 @@ export class Router {
     }
     perfInc('connectors.route.cache.miss', 1);
 
-    // Try legacy advanced routing if available
-    let d = `M${a1[0]},${a1[1]} L${a2[0]},${a2[1]}`;
-    let meta = { strategy: 'fallback-line' };
-    try {
-      const legacy = typeof window !== 'undefined' ? (window.lcards?.connectors) : null;
-      // Heuristic: prefer a legacy API if present (adjust names if actual differ)
-      const api = legacy && (legacy.computeOverlayRoute || legacy.computeRoute || legacy.route);
-      if (api) {
-        const res = api({
-          id: overlay.id,
-            a1,
-            a2,
-            overlay,
-            anchors: this.anchors,
-            viewBox: this.viewBox,
-            routing: this.routingConfig,
-            raw
-        });
-        if (res && typeof res === 'object') {
-          if (res.d) {
-            d = res.d;
-            meta = { strategy: res.strategy || 'legacy', bends: res.bends, cost: res.cost };
-          } else if (res.path) {
-            d = res.path;
-            meta = { strategy: res.strategy || 'legacy' };
-          }
-        } else if (typeof res === 'string') {
-          d = res;
-          meta = { strategy: 'legacy-string' };
-        }
-      } else {
-        // Attempt grid/manhattan helper fallback if exposed
-        const manhattan = legacy?.manhattanRoute;
-        if (manhattan) {
-          const m = manhattan(a1, a2, raw, this.routingConfig);
-          if (m && m.d) {
-            d = m.d;
-            meta = { strategy: 'legacy-manhattan' };
-          }
-        }
-      }
-      if (meta.strategy.startsWith('fallback')) perfInc('connectors.route.fallback', 1);
-    } catch {
-      perfInc('connectors.route.fallback', 1);
-      d = `M${a1[0]},${a1[1]} L${a2[0]},${a2[1]}`;
-      meta = { strategy: 'error-fallback' };
-    }
+    // Simple line routing (no legacy advanced routing available)
+    const d = `M${a1[0]},${a1[1]} L${a2[0]},${a2[1]}`;
+    const meta = { strategy: 'simple-line' };
 
     const record = { key, d, meta };
     this.cache.set(overlay.id, record);

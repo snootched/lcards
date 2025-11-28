@@ -839,24 +839,6 @@ export class RulesEngine extends BaseService {
     return patches;
   }
 
-  evaluateConditions(when, getEntity) {
-    if (!when) return {};
-
-    const results = {};
-
-    // Evaluate all conditions
-    if (when.all) {
-      results.all = when.all.map(condition => this.evaluateCondition(condition, getEntity));
-    }
-
-    // Evaluate any conditions
-    if (when.any) {
-      results.any = when.any.map(condition => this.evaluateCondition(condition, getEntity));
-    }
-
-    return results;
-  }
-
   evaluateCondition(condition, getEntity) {
     const result = {
       condition,
