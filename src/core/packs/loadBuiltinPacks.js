@@ -538,6 +538,7 @@ const LCARDS_BUTTONS_PACK = {
       // TEXT-ONLY - Pure text label with no background or border
       // =====================================
       'text-only': {
+        extends: 'button.base',
         description: 'Pure text label with no background or border',
 
         // No border
