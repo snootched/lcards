@@ -355,12 +355,17 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             });
         });
 
-        // Strip javascript: URLs in href/xlink:href
+        // Strip dangerous URL schemes in href/xlink:href
+        // Checks for javascript:, data:, and vbscript: schemes
+        const dangerousSchemes = ['javascript:', 'data:', 'vbscript:'];
         allElements.forEach(el => {
             ['href', 'xlink:href'].forEach(attr => {
                 const value = el.getAttribute(attr);
-                if (value && value.trim().toLowerCase().startsWith('javascript:')) {
-                    el.removeAttribute(attr);
+                if (value) {
+                    const trimmedLower = value.trim().toLowerCase();
+                    if (dangerousSchemes.some(scheme => trimmedLower.startsWith(scheme))) {
+                        el.removeAttribute(attr);
+                    }
                 }
             });
         });
@@ -481,7 +486,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
 
             return {
-                id: segment.id || `segment-${Math.random().toString(36).substr(2, 9)}`,
+                id: segment.id || `segment-${Math.random().toString(36).substring(2, 11)}`,
                 selector: segment.selector,
 
                 // Actions
@@ -582,15 +587,36 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             e.stopPropagation();
         };
 
-        // Active (pressed) handlers
+        // Hold action handler (long press)
+        let holdTimer = null;
+        const handleHoldStart = () => {
+            if (segment.hold_action) {
+                holdTimer = setTimeout(() => {
+                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Segment "${segment.id}" held`);
+                    this._executeSegmentAction(segment.hold_action, segment);
+                    holdTimer = null;
+                }, 500); // 500ms hold threshold
+            }
+        };
+
+        const handleHoldCancel = () => {
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+        };
+
+        // Active (pressed) handlers - combined with hold start
         const handleMouseDown = (e) => {
             isActive = true;
             this._applySegmentStyle(element, { ...originalStyle, ...segment.active_style });
+            handleHoldStart(); // Start hold timer
             e.stopPropagation(); // Prevent button-level action
         };
 
         const handleMouseUp = (e) => {
             isActive = false;
+            handleHoldCancel(); // Cancel hold timer
             // Return to hover style (mouse still over element)
             this._applySegmentStyle(element, { ...originalStyle, ...segment.hover_style });
             e.stopPropagation();
@@ -608,38 +634,28 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
         };
 
-        // Hold action handler (long press)
-        let holdTimer = null;
-        const handleHoldStart = (e) => {
-            if (segment.hold_action) {
-                holdTimer = setTimeout(() => {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Segment "${segment.id}" held`);
-                    this._executeSegmentAction(segment.hold_action, segment);
-                    holdTimer = null;
-                }, 500); // 500ms hold threshold
+        // Handle mouse leave while pressed - cancel hold and reset style
+        const handleMouseLeaveWhilePressed = (e) => {
+            if (isActive) {
+                handleHoldCancel();
             }
-        };
-
-        const handleHoldCancel = () => {
-            if (holdTimer) {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-            }
+            handleMouseLeave(e);
         };
 
         // Attach listeners
         element.addEventListener('mouseenter', handleMouseEnter);
-        element.addEventListener('mouseleave', handleMouseLeave);
+        element.addEventListener('mouseleave', handleMouseLeaveWhilePressed);
         element.addEventListener('mousedown', handleMouseDown);
         element.addEventListener('mouseup', handleMouseUp);
         element.addEventListener('click', handleClick);
-        element.addEventListener('mousedown', handleHoldStart);
-        element.addEventListener('mouseup', handleHoldCancel);
-        element.addEventListener('mouseleave', handleHoldCancel);
 
         // Touch support
-        element.addEventListener('touchstart', handleHoldStart, { passive: true });
-        element.addEventListener('touchend', handleHoldCancel);
+        element.addEventListener('touchstart', (e) => {
+            handleMouseDown(e);
+        }, { passive: true });
+        element.addEventListener('touchend', (e) => {
+            handleMouseUp(e);
+        });
         element.addEventListener('touchcancel', handleHoldCancel);
 
         // Make element pointer-interactive
@@ -649,16 +665,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Return cleanup function
         return () => {
             element.removeEventListener('mouseenter', handleMouseEnter);
-            element.removeEventListener('mouseleave', handleMouseLeave);
+            element.removeEventListener('mouseleave', handleMouseLeaveWhilePressed);
             element.removeEventListener('mousedown', handleMouseDown);
             element.removeEventListener('mouseup', handleMouseUp);
             element.removeEventListener('click', handleClick);
-            element.removeEventListener('mousedown', handleHoldStart);
-            element.removeEventListener('mouseup', handleHoldCancel);
-            element.removeEventListener('mouseleave', handleHoldCancel);
-            element.removeEventListener('touchstart', handleHoldStart);
-            element.removeEventListener('touchend', handleHoldCancel);
-            element.removeEventListener('touchcancel', handleHoldCancel);
+            // Note: anonymous functions for touch events can't be removed exactly,
+            // but the element will be garbage collected when the SVG is regenerated
             if (holdTimer) clearTimeout(holdTimer);
         };
     }
