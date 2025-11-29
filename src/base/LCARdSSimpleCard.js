@@ -1031,6 +1031,147 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     }
 
     // ============================================================================
+    // STATE MAPPING UTILITIES - Unified state resolution for buttons and segments
+    // ============================================================================
+
+    /**
+     * Map entity state to SimpleButton style state convention
+     * Supports both direct matching and mapped states
+     *
+     * @param {string} entityState - Raw entity state (on/off/playing/etc)
+     * @param {string} domain - Entity domain (light/media_player/etc) - optional
+     * @returns {string} Mapped state (active/inactive/unavailable/unknown/custom)
+     *
+     * @example
+     * _mapEntityStateToStyleState('on') // Returns 'active'
+     * _mapEntityStateToStyleState('playing') // Returns 'active'
+     * _mapEntityStateToStyleState('buffering') // Returns 'buffering' (custom, passed through)
+     */
+    _mapEntityStateToStyleState(entityState, domain = null) {
+        if (!entityState) return 'default';
+
+        const normalizedState = entityState.toLowerCase();
+
+        // Map to standard SimpleButton states
+        switch (normalizedState) {
+            // Active states (entity is "on" or actively doing something)
+            case 'on':
+            case 'playing':
+            case 'locked':
+            case 'home':
+            case 'open':
+            case 'opening':
+            case 'cleaning':
+            case 'mowing':
+            case 'armed_home':
+            case 'armed_away':
+            case 'armed_night':
+            case 'armed_custom_bypass':
+            case 'pending':
+            case 'triggered':
+            case 'active':
+            case 'running':
+            case 'heating':
+            case 'cooling':
+            case 'fan':
+            case 'dry':
+            case 'heat_cool':
+                return 'active';
+
+            // Inactive states (entity is "off" or idle)
+            case 'off':
+            case 'paused':
+            case 'idle':
+            case 'stopped':
+            case 'standby':
+            case 'unlocked':
+            case 'away':
+            case 'closed':
+            case 'closing':
+            case 'docked':
+            case 'returning':
+            case 'disarmed':
+            case 'inactive':
+                return 'inactive';
+
+            // Special states
+            case 'unavailable':
+                return 'unavailable';
+            case 'unknown':
+                return 'unknown';
+
+            // Custom states: return as-is for direct matching
+            // Examples: buffering, loading, error, charging, etc.
+            default:
+                return normalizedState;
+        }
+    }
+
+    /**
+     * Resolve style value for a given state with fallback chain
+     * Supports direct state matching, mapped states, and defaults
+     *
+     * Priority:
+     * 1. Direct state match (e.g., "playing" in config)
+     * 2. Mapped state (e.g., "playing" → "active" → use "active" value)
+     * 3. Default fallback
+     *
+     * @param {Object} styleConfig - Style configuration (can be nested object or direct value)
+     * @param {string} state - Current state to resolve (entity state or interaction state)
+     * @param {string} fallbackState - Fallback if state not found (default: 'default')
+     * @returns {*} Resolved style value
+     *
+     * @example
+     * // Config: { default: "gray", active: "orange", playing: "yellow" }
+     * _resolveStyleForState(config, 'playing') // Returns "yellow" (direct match)
+     * _resolveStyleForState(config, 'on') // Returns "orange" (mapped: on → active)
+     * _resolveStyleForState(config, 'buffering') // Returns "gray" (fallback to default)
+     */
+    _resolveStyleForState(styleConfig, state, fallbackState = 'default') {
+        // If styleConfig is not an object, it's a direct value (not state-based)
+        if (!styleConfig || typeof styleConfig !== 'object' || Array.isArray(styleConfig)) {
+            return styleConfig;
+        }
+
+        // Priority 1: Direct state match
+        if (state in styleConfig) {
+            return styleConfig[state];
+        }
+
+        // Priority 2: Mapped state (e.g., "on" → "active")
+        const mappedState = this._mapEntityStateToStyleState(state);
+        if (mappedState !== state && mappedState in styleConfig) {
+            return styleConfig[mappedState];
+        }
+
+        // Priority 3: Fallback state
+        if (fallbackState in styleConfig) {
+            return styleConfig[fallbackState];
+        }
+
+        // Priority 4: Default key
+        if ('default' in styleConfig) {
+            return styleConfig.default;
+        }
+
+        // Priority 5: First available value (last resort)
+        const values = Object.values(styleConfig);
+        return values.length > 0 ? values[0] : undefined;
+    }
+
+    /**
+     * Get entity state for a given entity ID
+     *
+     * @param {string} entityId - Entity ID to look up
+     * @returns {string|null} Entity state or null if not found
+     */
+    _getEntityState(entityId) {
+        if (!entityId || !this.hass?.states) return null;
+        const entity = this.hass.states[entityId];
+        return entity?.state || null;
+    }
+
+    // ============================================================================
     // HELPER METHODS - Available to subclasses
     // ============================================================================
 

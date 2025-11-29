@@ -117,6 +117,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Segmented SVG support (Phase 2)
         this._processedSegments = null;
         this._segmentCleanups = [];
+        this._segmentElements = new Map(); // Stores segment ID → { element, segment config }
+        this._segmentEntityStates = new Map(); // Stores entity ID → last known state
     }
 
     /**
@@ -543,9 +545,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         }
 
         // Find the rendered SVG in shadow DOM
-        const svgContainer = this.shadowRoot?.querySelector('[data-button-id="simple-button"]');
+        // For segmented SVG, content is inside the nested SVG within the button-bg-svg group
+        const svgContainer = this.shadowRoot?.querySelector('.button-bg-svg svg');
         if (!svgContainer) {
-            lcardsLog.warn('[LCARdSSimpleButtonCard] Cannot find SVG container for segments');
+            // This is expected on initial render before SVG is in DOM - it will be called again
+            lcardsLog.debug('[LCARdSSimpleButtonCard] SVG container not yet rendered for segments (will retry on next update)');
             return;
         }
 
@@ -580,63 +584,168 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
-     * Resolve segment style for a given state
-     * Follows SimpleButton convention: style.{property}.{state}
-     * States: default, active, inactive, unavailable, hover
+     * Resolve segment style with support for interaction and entity states
+     *
+     * Priority Resolution:
+     * 1. Interaction state (if active): pressed > hover
+     * 2. Entity state (if defined): on/off/playing/etc. or active/inactive/unavailable
+     * 3. Default fallback
+     *
+     * Supported States:
+     * - Interaction: hover, pressed
+     * - SimpleButton mapped: active, inactive, unavailable, unknown, default
+     * - Direct entity states: on, off, playing, paused, locked, etc.
+     *
      * @private
      * @param {Object} style - Style configuration object
-     * @param {string} state - Target state (default, active, inactive, unavailable, hover)
+     * @param {string} interactionState - Interaction state (hover, pressed, or null)
+     * @param {string} entityState - Entity state (on, off, playing, etc. or null)
      * @returns {Object} Resolved style object with concrete values
+     *
+     * @example
+     * // Config: { default: "gray", hover: "yellow", pressed: "red", active: "orange" }
+     * _resolveSegmentStyleForState(style, 'hover', null) // Returns hover value
+     * _resolveSegmentStyleForState(style, null, 'on') // Returns active value (on → active)
+     * _resolveSegmentStyleForState(style, 'pressed', 'on') // Returns pressed value (interaction priority)
      */
-    _resolveSegmentStyleForState(style, state) {
+    _resolveSegmentStyleForState(style, interactionState = null, entityState = null) {
         if (!style || typeof style !== 'object') {
             return {};
         }
 
-        const resolvedStyle = {};
+        // Check if this is a state-first format (state → properties) or property-first format (property → states)
+        const firstKey = Object.keys(style)[0];
+        const firstValue = style[firstKey];
 
-        Object.entries(style).forEach(([property, value]) => {
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-                // State-based value: { default: "color1", active: "color2", hover: "color3" }
-                // Priority: requested state > default > first available value
-                resolvedStyle[property] = value[state] ?? value.default ?? Object.values(value)[0];
-            } else {
-                // Direct value (not state-based)
-                resolvedStyle[property] = value;
+        // Detect format by checking if first key is a state name and value is an object with style properties
+        const isStateFirst = firstValue && typeof firstValue === 'object' &&
+                            ('fill' in firstValue || 'stroke' in firstValue || 'opacity' in firstValue);
+
+        if (isStateFirst) {
+            // State-first format: { active: { fill: '#ff9966', stroke: '#ffbb88' }, hover: { stroke: '#fff' } }
+            // This is the format used in the YAML examples
+
+            // Priority 1: Interaction state (hover, pressed)
+            if (interactionState && style[interactionState]) {
+                return style[interactionState];
             }
-        });
 
-        return resolvedStyle;
+            // Priority 2: Entity state (direct or mapped)
+            if (entityState) {
+                // Try direct match first
+                if (style[entityState]) {
+                    return style[entityState];
+                }
+
+                // Try mapped state (on → active, off → inactive, etc.)
+                const mappedState = this._mapEntityStateToStyleState(entityState);
+                if (mappedState && style[mappedState]) {
+                    return style[mappedState];
+                }
+            }
+
+            // Priority 3: Default fallback
+            if (style.default) {
+                return style.default;
+            }
+
+            // Priority 4: Return first available state
+            return firstValue;
+
+        } else {
+            // Property-first format: { fill: { active: '#ff9966', inactive: '#6688aa' }, stroke: { ... } }
+            // This is the alternative format
+
+            const resolvedStyle = {};
+
+            Object.entries(style).forEach(([property, value]) => {
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    // State-based value - use priority resolution
+
+                    // Priority 1: Interaction state (hover, pressed)
+                    if (interactionState && interactionState in value) {
+                        resolvedStyle[property] = value[interactionState];
+                        return;
+                    }
+
+                    // Priority 2: Entity state (direct or mapped)
+                    if (entityState) {
+                        const resolved = this._resolveStyleForState(value, entityState, 'default');
+                        if (resolved !== undefined) {
+                            resolvedStyle[property] = resolved;
+                            return;
+                        }
+                    }
+
+                    // Priority 3: Default fallback
+                    if ('default' in value) {
+                        resolvedStyle[property] = value.default;
+                    } else {
+                        // Use first available value
+                        resolvedStyle[property] = Object.values(value)[0];
+                    }
+                } else {
+                    // Direct value (not state-based)
+                    resolvedStyle[property] = value;
+                }
+            });
+
+            return resolvedStyle;
+        }
     }
 
     /**
      * Attach event listeners to a segment element
-     * Handles hover, active, and action events
+     * Handles hover, pressed (interaction), and entity state styling
      * @private
      * @param {SVGElement} element - SVG element to attach listeners to
      * @param {Object} segment - Segment configuration
      * @returns {Function} Cleanup function
      */
     _attachSegmentListeners(element, segment) {
-        // Resolve styles for different states
-        const defaultStyle = this._resolveSegmentStyleForState(segment.style, 'default');
-        const hoverStyle = this._resolveSegmentStyleForState(segment.style, 'hover');
-        const activeStyle = this._resolveSegmentStyleForState(segment.style, 'active');
-        let isActive = false;
+        // Get entity state for this segment
+        const entityId = segment.entity || this.config.entity;
+        const entityState = entityId ? this._getEntityState(entityId) : null;
+
+        // Store element reference for later updates
+        this._segmentElements.set(segment.id, {
+            element,
+            segment,
+            entityId,
+            currentEntityState: entityState
+        });
+
+        // Track which entities are used by segments
+        if (entityId) {
+            this._segmentEntityStates.set(entityId, entityState);
+        }
+
+        // Resolve styles for interaction states
+        const hoverStyle = this._resolveSegmentStyleForState(segment.style, 'hover', entityState);
+        const pressedStyle = this._resolveSegmentStyleForState(segment.style, 'pressed', entityState);
+
+        // Apply initial state (entity state or default)
+        const initialStyle = this._resolveSegmentStyleForState(segment.style, null, entityState);
+        this._applySegmentStyle(element, initialStyle);
+
+        let isPressed = false;
 
         // Hover handlers
         const handleMouseEnter = (e) => {
-            if (!isActive) {
-                // Apply hover style, falling back to default if hover not defined
-                const hasHoverStyle = Object.keys(hoverStyle).length > 0;
-                this._applySegmentStyle(element, hasHoverStyle ? hoverStyle : defaultStyle);
+            if (!isPressed) {
+                // Apply hover style if defined, otherwise keep entity state style
+                const hasHoverStyle = Object.keys(hoverStyle).some(k => hoverStyle[k] !== initialStyle[k]);
+                if (hasHoverStyle) {
+                    this._applySegmentStyle(element, hoverStyle);
+                }
             }
             e.stopPropagation(); // Prevent button-level hover
         };
 
         const handleMouseLeave = (e) => {
-            if (!isActive) {
-                this._applySegmentStyle(element, defaultStyle);
+            if (!isPressed) {
+                // Return to entity state style
+                this._applySegmentStyle(element, initialStyle);
             }
             e.stopPropagation();
         };
@@ -660,23 +769,28 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
         };
 
-        // Active (pressed) handlers - combined with hold start
+        // Pressed (mousedown) handlers
         const handleMouseDown = (e) => {
-            isActive = true;
-            // Apply active style, falling back to hover then default
-            const hasActiveStyle = Object.keys(activeStyle).length > 0;
-            const hasHoverStyle = Object.keys(hoverStyle).length > 0;
-            this._applySegmentStyle(element, hasActiveStyle ? activeStyle : (hasHoverStyle ? hoverStyle : defaultStyle));
+            isPressed = true;
+            // Apply pressed style if defined
+            const hasPressedStyle = Object.keys(pressedStyle).some(k => pressedStyle[k] !== initialStyle[k]);
+            if (hasPressedStyle) {
+                this._applySegmentStyle(element, pressedStyle);
+            }
             handleHoldStart(); // Start hold timer
             e.stopPropagation(); // Prevent button-level action
         };
 
         const handleMouseUp = (e) => {
-            isActive = false;
+            isPressed = false;
             handleHoldCancel(); // Cancel hold timer
             // Return to hover style (mouse still over element)
-            const hasHoverStyle = Object.keys(hoverStyle).length > 0;
-            this._applySegmentStyle(element, hasHoverStyle ? hoverStyle : defaultStyle);
+            const hasHoverStyle = Object.keys(hoverStyle).some(k => hoverStyle[k] !== initialStyle[k]);
+            if (hasHoverStyle) {
+                this._applySegmentStyle(element, hoverStyle);
+            } else {
+                this._applySegmentStyle(element, initialStyle);
+            }
             e.stopPropagation();
         };
 
@@ -694,7 +808,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Handle mouse leave while pressed - cancel hold and reset style
         const handleMouseLeaveWhilePressed = (e) => {
-            if (isActive) {
+            if (isPressed) {
                 handleHoldCancel();
             }
             handleMouseLeave(e);
@@ -725,6 +839,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Return cleanup function
         return () => {
+            // Remove from tracking maps
+            this._segmentElements.delete(segment.id);
+
             element.removeEventListener('mouseenter', handleMouseEnter);
             element.removeEventListener('mouseleave', handleMouseLeaveWhilePressed);
             element.removeEventListener('mousedown', handleMouseDown);
@@ -760,6 +877,52 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             } else {
                 // Generic attribute setting
                 element.setAttribute(attrName, value);
+            }
+        });
+    }
+
+    /**
+     * Refresh segment styles based on current entity states
+     * Called when HASS updates and entity states have changed
+     * @private
+     * @param {Set<string>|null} changedEntityIds - Set of entity IDs that changed (or null to update all)
+     */
+    _refreshSegmentStyles(changedEntityIds = null) {
+        if (!this._segmentElements || this._segmentElements.size === 0) return;
+
+        lcardsLog.debug(`[LCARdSSimpleButtonCard] Refreshing segment styles`, {
+            totalSegments: this._segmentElements.size,
+            changedEntities: changedEntityIds ? Array.from(changedEntityIds) : 'all'
+        });
+
+        this._segmentElements.forEach((segmentData, segmentId) => {
+            const { element, segment, entityId, currentEntityState } = segmentData;
+
+            // Skip if we have a filter and this entity didn't change
+            if (changedEntityIds && entityId && !changedEntityIds.has(entityId)) {
+                return;
+            }
+
+            // Get current entity state
+            const newEntityState = entityId ? this._getEntityState(entityId) : null;
+
+            // Only update if state actually changed (or no filter)
+            if (!changedEntityIds || newEntityState !== currentEntityState) {
+                // Update tracked state
+                segmentData.currentEntityState = newEntityState;
+                if (entityId) {
+                    this._segmentEntityStates.set(entityId, newEntityState);
+                }
+
+                // Resolve and apply new style (no interaction state, just entity state)
+                const newStyle = this._resolveSegmentStyleForState(segment.style, null, newEntityState);
+                this._applySegmentStyle(element, newStyle);
+
+                lcardsLog.debug(`[LCARdSSimpleButtonCard] Updated segment "${segmentId}" style`, {
+                    entityId,
+                    oldState: currentEntityState,
+                    newState: newEntityState
+                });
             }
         });
     }
@@ -3784,6 +3947,40 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
+     * Handle HASS changes
+     * Monitors entity state changes for segments and updates their styles
+     * @override
+     * @param {Object} hass - New HASS object
+     * @param {Object} oldHass - Previous HASS object
+     */
+    _onHassChanged(hass, oldHass) {
+        super._onHassChanged(hass, oldHass);
+
+        // Skip if no segments with entities
+        if (!this._segmentEntityStates || this._segmentEntityStates.size === 0) {
+            return;
+        }
+
+        // Check which entity states changed
+        const changedEntityIds = new Set();
+
+        this._segmentEntityStates.forEach((oldState, entityId) => {
+            const newState = hass.states[entityId]?.state;
+            if (newState !== oldState) {
+                changedEntityIds.add(entityId);
+            }
+        });
+
+        // Refresh segment styles if any tracked entities changed
+        if (changedEntityIds.size > 0) {
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Entity states changed, refreshing segments`, {
+                changedEntities: Array.from(changedEntityIds)
+            });
+            this._refreshSegmentStyles(changedEntityIds);
+        }
+    }
+
+    /**
      * Cleanup on disconnect
      */
     disconnectedCallback() {
@@ -3797,6 +3994,14 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         if (this._segmentCleanups && this._segmentCleanups.length > 0) {
             this._segmentCleanups.forEach(cleanup => cleanup());
             this._segmentCleanups = [];
+        }
+
+        // Clear segment tracking maps
+        if (this._segmentElements) {
+            this._segmentElements.clear();
+        }
+        if (this._segmentEntityStates) {
+            this._segmentEntityStates.clear();
         }
 
         // Clean up ResizeObserver
