@@ -530,7 +530,50 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             };
         }).filter(s => s !== null);
 
+        // Collect segment entities for HASS change tracking
+        this._collectSegmentEntities();
+
         lcardsLog.debug(`[LCARdSSimpleButtonCard] Processed ${this._processedSegments.length} segments`);
+    }
+
+    /**
+     * Collect entities from segments and add to tracked entities
+     * This ensures HASS updates trigger re-render when segment entities change
+     * @private
+     */
+    _collectSegmentEntities() {
+        if (!this._processedSegments || this._processedSegments.length === 0) {
+            return;
+        }
+
+        // Initialize tracked entities array if not exists
+        if (!this._trackedEntities) {
+            this._trackedEntities = [];
+        }
+
+        // Collect unique entity IDs from segments
+        const segmentEntities = new Set();
+
+        this._processedSegments.forEach(segment => {
+            // Use segment entity if specified, otherwise inherit from card
+            const entityId = segment.entity || this.config?.entity;
+            if (entityId) {
+                segmentEntities.add(entityId);
+            }
+        });
+
+        // Add segment entities to tracked entities (avoid duplicates)
+        segmentEntities.forEach(entityId => {
+            if (!this._trackedEntities.includes(entityId)) {
+                this._trackedEntities.push(entityId);
+            }
+        });
+
+        if (segmentEntities.size > 0) {
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Tracking ${segmentEntities.size} segment entities for HASS updates`, {
+                entities: Array.from(segmentEntities)
+            });
+        }
     }
 
     /**
@@ -3395,7 +3438,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 `font-size="${field.size}"`,
                 `fill="${field.color}"`,
                 `text-anchor="${field.anchor}"`,
-                `dominant-baseline="${field.baseline}"`
+                `dominant-baseline="${field.baseline}"`,
+                `pointer-events="none"`  // Allow clicks to pass through to segments below
             ];
 
             if (field.font_weight) {
