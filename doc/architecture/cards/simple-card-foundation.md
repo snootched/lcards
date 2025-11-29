@@ -477,6 +477,27 @@ SimpleCard integrates with the singleton HASS distribution system and CoreSystem
 - `_onHassChanged()` called automatically when HASS updates
 - Entity references updated automatically via CoreSystemsManager cache
 
+### Entity Tracking
+- Card's `entity` is automatically tracked for HASS change detection
+- Additional entities can be tracked via `this._trackedEntities` array
+- `_shouldUpdateOnHassChange()` checks tracked entities to determine if re-render needed
+- **Example**: SimpleButton tracks segment entities for multi-entity cards
+
+```javascript
+// In card constructor or config processing:
+this._trackedEntities = [];
+
+// Collect entities to track (e.g., from segments):
+segments.forEach(segment => {
+    const entityId = segment.entity || this.config.entity;
+    if (entityId && !this._trackedEntities.includes(entityId)) {
+        this._trackedEntities.push(entityId);
+    }
+});
+
+// Now card re-renders when ANY tracked entity changes
+```
+
 ### Feeding HASS to Singletons
 - SimpleCard calls `window.lcards.core.ingestHass(hass)` to update singletons
 - This enables cross-card coordination and shared entity state

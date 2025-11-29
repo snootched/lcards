@@ -53,6 +53,40 @@ text:
     show: <boolean>            # Show/hide field (default: true)
     template: <boolean>        # Enable template processing (default: true)
 
+# SVG Backgrounds & Interactive Segments
+svg:
+  content: <string>            # Inline SVG markup
+  src: <path>                  # External SVG file or data URI
+  viewBox: <string>            # ViewBox (e.g., "0 0 100 100", auto-detected if omitted)
+  preserveAspectRatio: <string> # Default: "xMidYMid meet"
+  enable_tokens: <boolean>     # Enable {{entity.state}} tokens (default: true)
+  allow_scripts: <boolean>     # Allow scripts (SECURITY RISK, default: false)
+
+  # Interactive segments with entity state awareness
+  segments:
+    - id: <string>             # Segment identifier
+      selector: <css-selector> # e.g., "#arrow-up", "[data-segment=up]"
+      entity: <entity_id>      # Optional: different entity per segment
+      tap_action: <action>     # Action configuration
+      hold_action: <action>
+      style:                   # State-based styling (auto-detects format)
+        # State-first format:
+        active:                # When entity is on/playing/unlocked
+          fill: <color>
+          stroke: <color>
+          stroke-width: <number>
+        inactive:              # When entity is off/paused/locked
+          fill: <color>
+        hover:                 # Mouse over
+          stroke: <color>
+        pressed:               # Mouse down
+          fill: <color>
+        # OR property-first format:
+        fill:
+          active: <color>
+          inactive: <color>
+          hover: <color>
+
 style:
   # Card background colors (state-based)
   card:
@@ -559,6 +593,221 @@ Entity states map to button states:
 - `active`: 1.0 (100%)
 - `inactive`: 0.7 (70%)
 - `unavailable`: 0.5 (50%)
+
+---
+
+## SVG Backgrounds & Interactive Segments
+
+Replace button background with custom SVG and create multi-action interactive regions.
+
+### Basic SVG Background
+
+```yaml
+type: custom:lcards-simple-button
+svg:
+  content: |
+    <rect width="100" height="100" fill="url(#grad1)" />
+    <defs>
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#ff9900" stop-opacity="1" />
+        <stop offset="100%" stop-color="#cc6600" stop-opacity="1" />
+      </linearGradient>
+    </defs>
+  viewBox: "0 0 100 100"
+text:
+  label:
+    content: "Gradient Button"
+    position: center
+    color: white
+```
+
+### External SVG File
+
+```yaml
+type: custom:lcards-simple-button
+svg:
+  src: "/local/shapes/starfleet-delta.svg"
+text:
+  label:
+    content: "Starfleet"
+    position: bottom-center
+```
+
+### SVG with Entity Tokens
+
+```yaml
+type: custom:lcards-simple-button
+entity: light.bedroom
+svg:
+  enable_tokens: true
+  content: |
+    <circle cx="50" cy="50" r="40"
+            fill="{{entity.state == 'on' ? 'var(--lcars-orange)' : 'var(--lcars-blue)'}}" />
+  viewBox: "0 0 100 100"
+text:
+  state:
+    content: "{{entity.state}}"
+    position: center
+```
+
+### Interactive Segments - Remote Control
+
+Create a D-pad with separate actions for each direction:
+
+```yaml
+type: custom:lcards-simple-button
+entity: remote.living_room
+svg:
+  content: |
+    <svg viewBox="0 0 100 100">
+      <!-- Up arrow -->
+      <path id="arrow-up" d="M 40,30 L 50,15 L 60,30 L 55,30 L 55,45 L 45,45 L 45,30 Z" />
+
+      <!-- Down arrow -->
+      <path id="arrow-down" d="M 40,70 L 50,85 L 60,70 L 55,70 L 55,55 L 45,55 L 45,70 Z" />
+
+      <!-- Left arrow -->
+      <path id="arrow-left" d="M 30,40 L 15,50 L 30,60 L 30,55 L 45,55 L 45,45 L 30,45 Z" />
+
+      <!-- Right arrow -->
+      <path id="arrow-right" d="M 70,40 L 85,50 L 70,60 L 70,55 L 55,55 L 55,45 L 70,45 Z" />
+
+      <!-- Center button -->
+      <circle id="center-circle" cx="50" cy="50" r="10" />
+    </svg>
+  viewBox: "0 0 100 100"
+  segments:
+    - id: up
+      selector: "#arrow-up"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: UP
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+          pressed: "#ff9900"
+
+    - id: down
+      selector: "#arrow-down"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: DOWN
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+
+    - id: left
+      selector: "#arrow-left"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: LEFT
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+
+    - id: right
+      selector: "#arrow-right"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: RIGHT
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+
+    - id: center
+      selector: "#center-circle"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: SELECT
+      style:
+        fill:
+          default: "#9966cc"
+          hover: "#ffcc00"
+```
+
+### Multi-Light Control - Different Entity Per Segment
+
+Each segment can control a different entity with entity state awareness:
+
+```yaml
+type: custom:lcards-simple-button
+svg:
+  content: |
+    <svg viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#000000" />
+
+      <!-- Bedroom light segment -->
+      <rect id="light-bedroom" x="10" y="10" width="35" height="80" rx="8" />
+      <text x="27.5" y="55" text-anchor="middle" fill="white" font-size="12">BED</text>
+
+      <!-- Living room light segment -->
+      <rect id="light-living" x="55" y="10" width="35" height="80" rx="8" />
+      <text x="72.5" y="55" text-anchor="middle" fill="white" font-size="12">LIV</text>
+    </svg>
+  viewBox: "0 0 100 100"
+  segments:
+    - id: bedroom
+      selector: "#light-bedroom"
+      entity: light.bedroom              # Controls bedroom light
+      tap_action:
+        action: toggle
+      style:
+        active:                           # Light on
+          fill: "#ff9966"
+          stroke: "#ffbb88"
+          stroke-width: 3
+        inactive:                         # Light off
+          fill: "#6688aa"
+          stroke: "#8899bb"
+          stroke-width: 2
+        hover:                            # Mouse over
+          stroke: "#ffffff"
+          stroke-width: 4
+
+    - id: living_room
+      selector: "#light-living"
+      entity: light.living_room          # Controls living room light
+      tap_action:
+        action: toggle
+      style:
+        active:
+          fill: "#ff9966"
+          stroke: "#ffbb88"
+          stroke-width: 3
+        inactive:
+          fill: "#6688aa"
+          stroke: "#8899bb"
+          stroke-width: 2
+        hover:
+          stroke: "#ffffff"
+          stroke-width: 4
+```
+
+**Key Features:**
+- **Entity Tracking:** Segment entities are automatically tracked - card updates when ANY segment entity changes
+- **Entity States:** Entity states (`on`, `off`, `playing`, `paused`, etc.) automatically map to `active`/`inactive`
+- **Text Click-Through:** Text elements automatically get `pointer-events: none` - hover works even over text
+- **State Priority:** `hover`/`pressed` (interaction) > entity state > `default`
+- **Style Formats:** Auto-detects state-first `{ active: { fill: "#f90" } }` OR property-first `{ fill: { active: "#f90" } }`
+
+**Supported States:**
+- **Entity:** `active`, `inactive`, `unavailable`, `default`
+- **Interaction:** `hover` (mouse over), `pressed` (mouse down)
+- **Auto-Mapping:** 40+ entity states automatically mapped (on→active, off→inactive, playing→active, paused→inactive, etc.)
 
 ---
 

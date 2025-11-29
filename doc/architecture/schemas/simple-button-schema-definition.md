@@ -105,6 +105,57 @@ icon:
 # - Default for icon within area: center
 # - Default for text: center
 
+# SVG Background & Interactive Segments (Phase 1 & 2)
+svg:
+  # Phase 1: Full SVG Background
+  content: <string>              # Inline SVG markup (with or without outer <svg> tag)
+  src: <path>                    # External SVG path or data URI
+  viewBox: <string>              # ViewBox (e.g., "0 0 100 100", auto-detected if omitted)
+  preserveAspectRatio: <string>  # Default: "xMidYMid meet"
+  enable_tokens: <boolean>       # Enable {{entity.state}} tokens (default: true)
+  allow_scripts: <boolean>       # Allow scripts (SECURITY RISK, default: false)
+
+  # Phase 2: Interactive Segments (Entity State Awareness)
+  segments:
+    - id: <string>               # Segment identifier
+      selector: <css-selector>   # CSS selector (e.g., "#arrow-up", "[data-segment=up]")
+      entity: <entity-id>        # Optional entity (inherits card entity if omitted)
+
+      # Actions (same structure as card actions)
+      tap_action: <action>
+      hold_action: <action>
+      double_tap_action: <action>
+
+      # State-based styling (auto-detects format)
+      style:
+        # STATE-FIRST FORMAT (recommended):
+        active:                  # Entity state when on/playing/unlocked/etc
+          fill: <color>
+          stroke: <color>
+          stroke-width: <number>
+          opacity: <number>
+        inactive:                # Entity state when off/paused/locked/etc
+          fill: <color>
+          stroke: <color>
+        hover:                   # Mouse over (interaction state)
+          stroke: <color>
+          stroke-width: <number>
+        pressed:                 # Mouse down (interaction state)
+          fill: <color>
+        default:                 # Fallback
+          fill: <color>
+
+        # OR PROPERTY-FIRST FORMAT (alternative):
+        fill:
+          active: <color>
+          inactive: <color>
+          hover: <color>
+          pressed: <color>
+          default: <color>
+        stroke:
+          active: <color>
+          inactive: <color>
+
 # Style (CB-LCARS schema)
 style:
   # Card colors
@@ -856,6 +907,256 @@ text:
 2. Percentage `x_percent` and `y_percent`
 3. Named `position`
 4. Default: `center`
+
+---
+
+## SVG Backgrounds & Interactive Segments
+
+### Phase 1: Full SVG Backgrounds
+
+Replace the button background with custom SVG content:
+
+```yaml
+type: custom:lcards-simple-button
+svg:
+  content: |
+    <rect width="100" height="100" fill="url(#grad1)" />
+    <defs>
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#ff9900;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#cc6600;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  viewBox: "0 0 100 100"
+```
+
+**SVG Configuration Properties:**
+- `content` - Inline SVG markup (with or without outer `<svg>` tag)
+- `src` - External SVG path (`/local/shapes/icon.svg`) or data URI
+- `viewBox` - ViewBox for scaling (auto-detected if omitted)
+- `preserveAspectRatio` - Aspect ratio handling (default: `xMidYMid meet`)
+- `enable_tokens` - Enable template token replacement (default: `true`)
+- `allow_scripts` - Allow script elements (SECURITY RISK, default: `false`)
+
+**Token Support in SVG:**
+```yaml
+svg:
+  enable_tokens: true
+  content: |
+    <circle cx="50" cy="50" r="40"
+            fill="{{entity.state == 'on' ? 'var(--lcars-orange)' : 'var(--lcars-blue)'}}" />
+```
+
+**Security:**
+- Scripts and event handlers are sanitized by default
+- External resources in `foreignObject` are blocked
+- `javascript:` and `data:` URLs are stripped
+- Set `allow_scripts: true` only for trusted content
+
+**Text Click-Through:**
+- All `<text>`, `<tspan>`, and `<foreignObject>` elements automatically get `pointer-events="none"`
+- This allows text to overlay interactive segments without blocking interactions
+
+---
+
+### Phase 2: Interactive Segments (Entity State Awareness)
+
+Create multi-action regions within SVG with independent entity states and interactions:
+
+```yaml
+type: custom:lcards-simple-button
+entity: remote.living_room    # Card-level entity (default for segments)
+svg:
+  content: |
+    <svg viewBox="0 0 100 100">
+      <!-- Each segment is a clickable region -->
+      <path id="arrow-up" d="M 40,30 L 50,15 L 60,30 ..." fill="#6688aa" />
+      <path id="arrow-down" d="M 40,70 L 50,85 L 60,70 ..." fill="#6688aa" />
+      <circle id="center-btn" cx="50" cy="50" r="10" fill="#9966cc" />
+    </svg>
+  viewBox: "0 0 100 100"
+  segments:
+    - id: up
+      selector: "#arrow-up"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: UP
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+          pressed: "#ff9900"
+
+    - id: down
+      selector: "#arrow-down"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: DOWN
+      style:
+        fill:
+          default: "#6688aa"
+          hover: "#ffcc00"
+          pressed: "#ff9900"
+
+    - id: center
+      selector: "#center-btn"
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data:
+          command: SELECT
+      style:
+        fill:
+          default: "#9966cc"
+          hover: "#ffcc00"
+          pressed: "#ff9900"
+```
+
+**Segment Configuration:**
+- `id` - Unique segment identifier (for debugging)
+- `selector` - CSS selector to find SVG elements (e.g., `#arrow-up`, `[data-segment="up"]`, `.button-group`)
+- `entity` - Optional entity for this segment (inherits card entity if omitted)
+- `tap_action` / `hold_action` / `double_tap_action` - Actions (same structure as card actions)
+- `style` - State-based styling (see Style Formats below)
+
+**Entity Tracking:**
+- Segments with `entity` are automatically tracked for HASS updates
+- Card re-renders when ANY segment entity changes
+- Segment inherits card entity if `entity` is omitted
+- Each segment can control a different entity
+
+**Example: Multi-Light Control** (different entities per segment)
+```yaml
+type: custom:lcards-simple-button
+svg:
+  content: |
+    <svg viewBox="0 0 100 100">
+      <circle id="light1" cx="25" cy="50" r="20" fill="gray" />
+      <circle id="light2" cx="75" cy="50" r="20" fill="gray" />
+    </svg>
+  segments:
+    - id: bedroom
+      selector: "#light1"
+      entity: light.bedroom        # Controls bedroom light
+      tap_action:
+        action: toggle
+      style:
+        fill:
+          inactive: "#6688aa"
+          active: "#ff9966"        # Orange when light is on
+          hover: "#ffcc00"
+
+    - id: living_room
+      selector: "#light2"
+      entity: light.living_room    # Controls living room light
+      tap_action:
+        action: toggle
+      style:
+        fill:
+          inactive: "#6688aa"
+          active: "#ff9966"        # Orange when light is on
+          hover: "#ffcc00"
+```
+
+---
+
+### Segment Style Formats
+
+Segments support **BOTH** style formats - auto-detected at runtime:
+
+#### State-First Format (Recommended for YAML)
+States at top level, properties nested inside:
+
+```yaml
+style:
+  active:                # Entity state: light is on
+    fill: "#ff9966"
+    stroke: "#ffbb88"
+    stroke-width: 3
+  inactive:              # Entity state: light is off
+    fill: "#6688aa"
+    stroke: "#8899bb"
+    stroke-width: 2
+  hover:                 # Interaction state: mouse over
+    stroke: "#ffffff"
+    stroke-width: 4
+  pressed:               # Interaction state: mouse down
+    fill: "#ffcc99"
+  default:               # Fallback
+    fill: "#888888"
+```
+
+#### Property-First Format (Alternative)
+Properties at top level, states nested inside:
+
+```yaml
+style:
+  fill:
+    active: "#ff9966"
+    inactive: "#6688aa"
+    hover: "#ffcc00"
+    pressed: "#ffcc99"
+    default: "#888888"
+  stroke:
+    active: "#ffbb88"
+    inactive: "#8899bb"
+    hover: "#ffffff"
+  stroke-width:
+    active: 3
+    inactive: 2
+    hover: 4
+```
+
+**Format Detection:**
+- Auto-detects by checking if first value contains style properties (`fill`, `stroke`, `opacity`)
+- Both formats produce identical results
+- State-first is more compact for YAML
+
+**Supported Style Properties:**
+- `fill` - Fill color
+- `stroke` - Stroke/border color
+- `stroke-width` - Border width
+- `opacity` - Element opacity (0-1)
+
+**State Priority (High to Low):**
+1. **Interaction States** - `hover` (mouse over), `pressed` (mouse down during click)
+2. **Entity State (Direct)** - Exact entity state (`on`, `off`, `playing`, `paused`, etc.)
+3. **Entity State (Mapped)** - Automatically mapped to SimpleButton conventions:
+   - `on`, `playing`, `unlocked`, `open`, `home` → `active`
+   - `off`, `paused`, `stopped`, `locked`, `closed`, `away` → `inactive`
+   - `unavailable`, `unknown` → `unavailable`
+   - 40+ entity states automatically mapped
+4. **Default State** - `default` fallback
+5. **First Available** - Any defined state
+
+**Entity State Examples:**
+```yaml
+# Light: on/off mapped to active/inactive
+entity: light.bedroom
+style:
+  fill:
+    active: "#ff9966"     # Applied when light is on
+    inactive: "#6688aa"   # Applied when light is off
+    unavailable: "#ff0000"
+
+# Media Player: detailed state mapping
+entity: media_player.spotify
+style:
+  fill:
+    playing: "#00ff00"    # Direct match
+    paused: "#ffcc00"     # Direct match
+    # 'playing' also maps to 'active' as fallback
+    # 'paused' also maps to 'inactive' as fallback
+```
+
+**Interaction Overlay:**
+- `hover` and `pressed` states overlay on top of entity state
+- Entity state persists - returns after interaction
+- Example: Light on (orange) → hover (white border overlay) → returns to orange
 
 ---
 

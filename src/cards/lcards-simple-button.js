@@ -391,6 +391,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             });
         });
 
+        // Make text elements click-through so they don't interfere with segment interactions
+        // This allows pointer events to pass through to interactive segments beneath
+        const textElements = svg.querySelectorAll('text, tspan, foreignObject');
+        textElements.forEach(el => {
+            el.setAttribute('pointer-events', 'none');
+        });
+
         // Return the full SVG (including wrapper if we added one)
         // _renderSvgBackground will strip the outer <svg> tag if present
         return new XMLSerializer().serializeToString(svg);
@@ -4183,19 +4190,19 @@ if (window.lcardsCore?.configManager) {
                     },
                     segments: {
                         type: 'array',
-                        description: 'Interactive segments within the SVG (Phase 2)',
+                        description: 'Interactive segments within the SVG (Phase 2 - Entity State Awareness). Each segment can have its own entity, actions, and state-based styling. Supports BOTH style formats: state-first { active: { fill: "#ff9966" } } OR property-first { fill: { active: "#ff9966" } }. Segment entities are automatically tracked for HASS updates. Text elements have pointer-events:none for click-through.',
                         items: {
                             type: 'object',
                             properties: {
                                 id: { type: 'string', description: 'Unique segment identifier' },
                                 selector: { type: 'string', description: 'CSS selector for SVG elements (e.g., "#arrow-up", "[data-segment=up]")' },
-                                entity: { type: 'string', description: 'Override entity for this segment' },
+                                entity: { type: 'string', description: 'Override entity for this segment (inherits card entity if omitted). Segment entities are automatically tracked for HASS change detection.' },
                                 tap_action: { type: 'object', description: 'Action on tap (same structure as card tap_action)' },
                                 hold_action: { type: 'object', description: 'Action on hold' },
                                 double_tap_action: { type: 'object', description: 'Action on double tap' },
                                 style: {
                                     type: 'object',
-                                    description: 'State-based style for segment. Properties can be direct values or state objects with: default, active, inactive, unavailable, hover',
+                                    description: 'State-based style for segment. Auto-detects format: STATE-FIRST { active: { fill: "#f90", stroke: "#fb8" } } OR PROPERTY-FIRST { fill: { active: "#f90", inactive: "#68a" }, stroke: { active: "#fb8" } }. States: default, active, inactive, unavailable, hover, pressed. Entity states (on/off/playing/etc) are automatically mapped to active/inactive. Priority: hover/pressed > entity state > default.',
                                     properties: {
                                         fill: {
                                             oneOf: [
@@ -4208,7 +4215,8 @@ if (window.lcardsCore?.configManager) {
                                                         active: { type: 'string' },
                                                         inactive: { type: 'string' },
                                                         unavailable: { type: 'string' },
-                                                        hover: { type: 'string' }
+                                                        hover: { type: 'string' },
+                                                        pressed: { type: 'string' }
                                                     }
                                                 }
                                             ]
@@ -4224,7 +4232,8 @@ if (window.lcardsCore?.configManager) {
                                                         active: { type: 'string' },
                                                         inactive: { type: 'string' },
                                                         unavailable: { type: 'string' },
-                                                        hover: { type: 'string' }
+                                                        hover: { type: 'string' },
+                                                        pressed: { type: 'string' }
                                                     }
                                                 }
                                             ]
@@ -4240,14 +4249,15 @@ if (window.lcardsCore?.configManager) {
                                                         active: { type: ['number', 'string'] },
                                                         inactive: { type: ['number', 'string'] },
                                                         unavailable: { type: ['number', 'string'] },
-                                                        hover: { type: ['number', 'string'] }
+                                                        hover: { type: ['number', 'string'] },
+                                                        pressed: { type: ['number', 'string'] }
                                                     }
                                                 }
                                             ]
                                         },
                                         opacity: {
                                             oneOf: [
-                                                { type: 'number', description: 'Uniform opacity' },
+                                                { type: 'number', description: 'Uniform opacity (0-1)' },
                                                 {
                                                     type: 'object',
                                                     description: 'State-based opacity values',
@@ -4256,7 +4266,8 @@ if (window.lcardsCore?.configManager) {
                                                         active: { type: 'number' },
                                                         inactive: { type: 'number' },
                                                         unavailable: { type: 'number' },
-                                                        hover: { type: 'number' }
+                                                        hover: { type: 'number' },
+                                                        pressed: { type: 'number' }
                                                     }
                                                 }
                                             ]
