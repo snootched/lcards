@@ -11,6 +11,7 @@
 type: custom:lcards-simple-button
 entity: <entity_id>           # Optional: Home Assistant entity
 preset: <preset_name>          # Optional: 'lozenge', 'lozenge-right', etc.
+component: <component_name>    # Optional: Component preset (e.g., 'dpad' for D-pad control)
 
 # Icon Area Configuration
 icon_area: left | right | top | bottom | none  # Where icon's reserved space is (default: left)
@@ -69,6 +70,7 @@ svg:
       entity: <entity_id>      # Optional: different entity per segment
       tap_action: <action>     # Action configuration
       hold_action: <action>
+      double_tap_action: <action>
       style:                   # State-based styling (auto-detects format)
         # State-first format:
         active:                # When entity is on/playing/unlocked
@@ -86,6 +88,12 @@ svg:
           active: <color>
           inactive: <color>
           hover: <color>
+      animations:              # Optional: segment-level animations
+        - preset: <preset-name>  # Animation preset (e.g., pulse, glow, scale)
+          trigger: <trigger>     # on_hover, on_tap, on_leave, on_entity_change
+          duration: <number>     # Duration in ms
+          loop: <bool/number>    # true, false, or count (e.g., 3)
+          # ... preset-specific parameters
 
 style:
   # Card background colors (state-based)
@@ -803,11 +811,78 @@ svg:
 - **Text Click-Through:** Text elements automatically get `pointer-events: none` - hover works even over text
 - **State Priority:** `hover`/`pressed` (interaction) > entity state > `default`
 - **Style Formats:** Auto-detects state-first `{ active: { fill: "#f90" } }` OR property-first `{ fill: { active: "#f90" } }`
+- **Animations:** Segments support per-segment animations with triggers (hover, tap, entity change, etc.)
 
 **Supported States:**
 - **Entity:** `active`, `inactive`, `unavailable`, `default`
 - **Interaction:** `hover` (mouse over), `pressed` (mouse down)
 - **Auto-Mapping:** 40+ entity states automatically mapped (on→active, off→inactive, playing→active, paused→inactive, etc.)
+
+### Segments with Animations
+
+Add animations to individual segments for visual feedback:
+
+```yaml
+type: custom:lcards-simple-button
+component: dpad
+dpad:
+  segments:
+    up:
+      entity: light.bedroom
+      tap_action:
+        action: toggle
+      animations:
+        # Pulse while hovering
+        - preset: pulse
+          trigger: on_hover
+          max_scale: 1.3
+          duration: 1000
+        # Reset when leaving
+        - preset: scale-reset
+          trigger: on_leave
+          duration: 200
+        # Flash when entity changes
+        - preset: glow
+          trigger: on_entity_change
+          color: '#ff9900'
+          loop: 3
+          duration: 400
+
+    down:
+      animations:
+        # Scale on hover
+        - preset: scale
+          trigger: on_hover
+          scale: 1.1
+          duration: 200
+        # Reset on leave
+        - preset: scale-reset
+          trigger: on_leave
+          duration: 200
+        # Quick pulse on tap
+        - preset: pulse
+          trigger: on_tap
+          duration: 300
+          loop: 1
+      tap_action:
+        action: call-service
+        service: media_player.volume_down
+```
+
+**Animation Triggers:**
+- `on_load` - When card first renders
+- `on_tap` - When segment is clicked
+- `on_hold` - When segment is held for 500ms
+- `on_hover` - When mouse enters segment
+- `on_leave` - When mouse leaves segment
+- `on_entity_change` - When segment's entity state changes
+
+**Common Patterns:**
+- **Hover feedback:** Use `scale` + `scale-reset` for smooth hover/leave
+- **Entity alerts:** Use `glow` or `pulse` with `on_entity_change` and `loop: 3`
+- **Button press:** Use `pulse` on `on_tap` with short duration
+
+See [Animation Presets Reference](../reference/animation-presets.md) for all available presets and parameters.
 
 ---
 
@@ -1016,7 +1091,120 @@ text:
 3. Named `position`
 4. Default: center
 
+---
 
+## Component Presets
+
+Component presets provide ready-made SVG shapes with pre-configured interactive segments.
+
+> **📚 Full Documentation:** [Component Presets Reference](../reference/component-presets.md)
+
+### D-Pad Control
+
+The `dpad` component provides a 9-segment directional control with 4 arrows, 4 corners, and center button.
+
+**Quick example:**
+
+```yaml
+type: custom:lcards-simple-button
+component: dpad
+entity: remote.living_room  # Optional: default entity for all segments
+
+dpad:
+  segments:
+    # Directional arrows
+    up:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: UP }
+      animations:
+        - preset: pulse
+          trigger: on_hover
+          duration: 800
+
+    down:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: DOWN }
+
+    left:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: LEFT }
+
+    right:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: RIGHT }
+
+    # Diagonal corners (optional)
+    up-left:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: HOME }
+
+    up-right:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: BACK }
+
+    # Center button
+    center:
+      tap_action:
+        action: call-service
+        service: remote.send_command
+        data: { command: SELECT }
+      animations:
+        - preset: scale
+          trigger: on_tap
+          scale: 1.2
+          duration: 200
+```
+
+**Available Segments:**
+- `up`, `down`, `left`, `right` - Directional arrows
+- `up-left`, `up-right`, `down-left`, `down-right` - Diagonal corners
+- `center` - Center button
+
+**Features:**
+- Pre-configured SVG shape with proper selectors
+- Theme-aware styling (inherits from active theme)
+- Supports all segment features (entity, actions, style, animations)
+- Can override per-segment or use defaults
+
+**Multi-Entity Control:**
+```yaml
+type: custom:lcards-simple-button
+component: dpad
+
+dpad:
+  segments:
+    up:
+      entity: light.ceiling
+      tap_action: { action: toggle }
+      animations:
+        - preset: glow
+          trigger: on_entity_change
+          loop: 2
+
+    down:
+      entity: light.desk
+      tap_action: { action: toggle }
+
+    center:
+      entity: media_player.speakers
+      tap_action:
+        action: call-service
+        service: media_player.media_play_pause
+```
+
+---
 
 ## Troubleshooting
 
@@ -1041,4 +1229,7 @@ text:
 ---
 
 **For complete implementation details, see:**
+- [Animation Presets Reference](../reference/animation-presets.md) - All animation presets and parameters
+- [Animation System Guide](../guides/animations.md) - Complete animation system documentation
+- [Segment Animation Guide](../../../SEGMENT_ANIMATION_GUIDE.md) - Detailed segment animation examples
 - `simple-button-schema-definition.md` - Full schema specification
