@@ -3858,9 +3858,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 const bgPadding = field.background_padding || 8;
                 const bgRadius = field.background_radius || 4;
                 
-                // Estimate text width (rough approximation based on content length and font size)
-                // For more accurate sizing, we'd need canvas measurement, but this works for LCARS aesthetics
-                const charWidth = field.size * 0.6; // Average character width heuristic
+                // Estimate text width using average character width approximation.
+                // This heuristic (0.6 * font_size) works well for typical LCARS fonts like Antonio
+                // and uppercase text. For more precise sizing, canvas text measurement would be
+                // needed, but this provides good visual results for the bar-label use case.
+                const charWidth = field.size * 0.6;
                 const textWidth = field.content.length * charWidth;
                 
                 const bgWidth = textWidth + (bgPadding * 2);
@@ -3879,12 +3881,17 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // 'start' anchor: bgX = field.x (no adjustment needed)
                 
                 // Adjust Y based on dominant-baseline
+                // For alphabetic baseline, text sits on the baseline with ascenders above,
+                // so we offset by most of the text height plus a small adjustment for the baseline.
                 if (field.baseline === 'middle' || field.baseline === 'central') {
                     bgY = field.y - (bgHeight / 2);
                 } else if (field.baseline === 'hanging') {
                     bgY = field.y;
                 } else if (field.baseline === 'alphabetic') {
-                    bgY = field.y - bgHeight + (bgPadding / 2); // Adjust for baseline offset
+                    // Text baseline is at y, so background should start above the text
+                    // Typical ascender height is ~80% of font size
+                    const ascenderRatio = 0.8;
+                    bgY = field.y - (field.size * ascenderRatio) - bgPadding;
                 }
                 
                 // Build background rect attributes
@@ -3902,7 +3909,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 ];
                 
                 // Apply rotation transform if specified (same as text rotation)
-                if (field.rotation && field.rotation !== 0) {
+                if (field.rotation !== 0) {
                     bgAttrs.push(`transform="rotate(${field.rotation} ${field.x} ${field.y})"`);
                 }
                 
