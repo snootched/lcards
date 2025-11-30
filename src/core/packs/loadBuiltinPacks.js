@@ -590,123 +590,114 @@ const LCARDS_BUTTONS_PACK = {
       // These create LCARS-style labels with opaque text backgrounds
       // that "break" colored horizontal bars.
       // =====================================
-      
+
       // Base Bar Label - Foundation for all bar labels
       'bar-label-base': {
         extends: 'button.base',
-        description: 'Base bar label preset with transparent background and opaque text box',
-        
-        // Transparent background - bar is created by borders only
+        description: 'Base bar label - filled button with text overlay that creates bar "break" effect',
+
+        // Height matches one HA row (56px standard)
+        height: 56,
+
+        // Filled background (uses normal button state colors) - no border
+        // This is essentially a filled button with special text overlay
         card: {
           color: {
             background: {
-              default: 'transparent',
-              active: 'transparent',
-              inactive: 'transparent',
-              unavailable: 'transparent'
+              default: 'theme:components.button.base.background.active',
+              active: 'theme:components.button.base.background.active',
+              inactive: 'theme:components.button.base.background.inactive',
+              unavailable: 'theme:components.button.base.background.unavailable'
             }
           }
         },
-        
-        // Border creates the "bar" effect
+
+        // No border for filled style
         border: {
-          width: 2,
-          color: {
-            default: 'theme:components.button.base.border.color.default',
-            active: 'theme:components.button.base.border.color.active',
-            inactive: 'theme:components.button.base.border.color.inactive',
-            unavailable: 'theme:components.button.base.border.color.unavailable'
-          }
+          width: 0,
+          radius: 0  // Square corners by default
         },
-        
+
         // Text styling with opaque background for bar-break effect
         text: {
           default: {
-            font_size: 20,
-            font_weight: 100,
+            font_size: 56,  // Slightly smaller than box for proper visual centering
+            font_weight: 100,  // Thin weight for LCARS aesthetic
             text_transform: 'uppercase',
             color: {
-              default: 'theme:components.button.base.text.default.color.default',
-              active: 'theme:components.button.base.text.default.color.active',
-              inactive: 'theme:components.button.base.text.default.color.inactive',
-              unavailable: 'theme:components.button.base.text.default.color.unavailable'
+              default: 'var(--picard-yellow, #FFCC99)',  // LCARS yellow for labels
+              active: 'var(--picard-yellow, #FFCC99)',
+              inactive: 'var(--picard-yellow, #FFCC99)',
+              unavailable: 'var(--lcars-ui-red, #CC6666)'
             },
             // Opaque background creates the bar "break" effect
             background: 'black',
-            background_padding: 10,
-            background_radius: 4,
+            background_padding: 15,  // Space between text and colored bars
+            background_radius: 0,    // Sharp corners for LCARS aesthetic
             padding: {
               top: 0,
-              bottom: 8,
+              bottom: 4,    // Small offset down to visually center Antonio font (compensates for cap height)
               left: 15,
               right: 15
             }
+          },
+          label: {
+            show: true
+          },
+          state: {
+            show: false
+          },
+          name: {
+            show: false
           }
         },
-        
+
         // No icon by default for bar labels
         show_icon: false
       },
-      
+
       // Bar Label Left - Text positioned on left side of bar
       'bar-label-left': {
         extends: 'button.bar-label-base',
         description: 'Bar label with left-aligned text',
-        
-        border: {
-          left: { width: 60 },
-          right: { width: 40 }
-        },
-        
+
         text: {
           default: {
             position: 'left-center'
           }
         }
       },
-      
+
       // Bar Label Center - Text centered in bar
       'bar-label-center': {
         extends: 'button.bar-label-base',
         description: 'Bar label with centered text',
-        
-        border: {
-          left: { width: 50 },
-          right: { width: 50 }
-        },
-        
+
         text: {
           default: {
             position: 'center'
           }
         }
       },
-      
+
       // Bar Label Right - Text positioned on right side of bar
       'bar-label-right': {
         extends: 'button.bar-label-base',
         description: 'Bar label with right-aligned text',
-        
-        border: {
-          left: { width: 40 },
-          right: { width: 60 }
-        },
-        
+
         text: {
           default: {
             position: 'right-center'
           }
         }
       },
-      
+
       // Bar Label Square - Full-height bar with square corners
       'bar-label-square': {
         extends: 'button.bar-label-base',
         description: 'Bar label with square corners for large indicators',
-        
+
         border: {
-          left: { width: 50 },
-          right: { width: 50 },
           radius: {
             top_left: 0,
             top_right: 0,
@@ -714,19 +705,19 @@ const LCARDS_BUTTONS_PACK = {
             bottom_right: 0
           }
         },
-        
+
         text: {
           default: {
             position: 'center'
           }
         }
       },
-      
+
       // Bar Label Lozenge - Full-height bar with rounded ends (pill shape)
       'bar-label-lozenge': {
-        extends: 'button.bar-label-square',
+        extends: 'button.bar-label-base',
         description: 'Bar label with rounded ends (pill shape)',
-        
+
         border: {
           radius: {
             top_left: 'theme:components.button.base.radius.full',
@@ -734,14 +725,20 @@ const LCARDS_BUTTONS_PACK = {
             bottom_left: 'theme:components.button.base.radius.full',
             bottom_right: 'theme:components.button.base.radius.full'
           }
+        },
+
+        text: {
+          default: {
+            position: 'center'
+          }
         }
       },
-      
+
       // Bar Label Bullet Left - Half-lozenge with rounded left, flat right
       'bar-label-bullet-left': {
-        extends: 'button.bar-label-square',
+        extends: 'button.bar-label-base',
         description: 'Bar label with rounded left side, flat right (left-pointing)',
-        
+
         border: {
           radius: {
             top_left: 'theme:components.button.base.radius.full',
@@ -750,19 +747,19 @@ const LCARDS_BUTTONS_PACK = {
             bottom_right: 0
           }
         },
-        
+
         text: {
           default: {
             position: 'left-center'
           }
         }
       },
-      
+
       // Bar Label Bullet Right - Half-lozenge with flat left, rounded right
       'bar-label-bullet-right': {
-        extends: 'button.bar-label-square',
+        extends: 'button.bar-label-base',
         description: 'Bar label with flat left side, rounded right (right-pointing)',
-        
+
         border: {
           radius: {
             top_left: 0,
@@ -771,7 +768,7 @@ const LCARDS_BUTTONS_PACK = {
             bottom_right: 'theme:components.button.base.radius.full'
           }
         },
-        
+
         text: {
           default: {
             position: 'right-center'

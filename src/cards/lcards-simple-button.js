@@ -60,6 +60,7 @@ import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { getComponent } from '../core/packs/components/index.js';
 import { getShape } from '../core/packs/shapes/index.js';
+import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 
 export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
@@ -94,8 +95,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
                 .button-svg {
                     display: block;
-                    width: 200px;
-                    height: 60px;
+                    width: 100%;
+                    height: 100%;
                     cursor: pointer;
                 }
 
@@ -112,6 +113,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         this._lastActionElement = null;
         this._containerSize = { width: 200, height: 56 };
         this._resizeObserver = null;
+        this._fontsChecked = false; // Track if fonts have been loaded
 
         // SVG background support (Phase 1)
         this._processedSvg = null;
@@ -1634,11 +1636,48 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     }
 
     /**
+     * Ensure fonts are loaded before measuring text
+     * Triggers a re-render once fonts are available to get accurate measurements
+     * @private
+     */
+    async _ensureFontsLoaded() {
+        try {
+            // Check if document.fonts API is available
+            if (!document.fonts || !document.fonts.load) {
+                lcardsLog.debug('[LCARdSSimpleButtonCard] Font Loading API not available');
+                return;
+            }
+
+            // Try to load Antonio font explicitly
+            await document.fonts.load('100 56px Antonio');
+
+            // Clear text measurement cache to force remeasure with loaded font
+            if (window.lcards?._textMeasureCache) {
+                window.lcards._textMeasureCache.clear();
+            }
+
+            // Trigger re-render with correct font measurements
+            this.requestUpdate();
+
+            lcardsLog.debug('[LCARdSSimpleButtonCard] Fonts loaded, re-rendering with correct measurements');
+        } catch (error) {
+            lcardsLog.debug(`[LCARdSSimpleButtonCard] Font loading check failed: ${error.message}`);
+        }
+    }
+
+    /**
      * Lit lifecycle - called after every render
      * Re-attach actions because Lit recreates DOM elements
      */
     updated(changedProperties) {
         super.updated(changedProperties);
+
+        // Ensure fonts are loaded before rendering text backgrounds
+        // This prevents measuring with fallback fonts (Helvetica) instead of Antonio
+        if (!this._fontsChecked) {
+            this._fontsChecked = true;
+            this._ensureFontsLoaded();
+        }
 
         // Only re-attach actions if we have relevant changes and actions are initialized
         // This prevents excessive re-attachment on every render
@@ -2497,7 +2536,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // ✨ Use container size if available, otherwise config or defaults
         // This enables auto-sizing for HA grid cards and responsive layouts
-        const width = this.config.width || this._containerSize?.width || 200;
+        const width = this.config.width || this._containerSize?.width || 400;
         const height = this.config.height || this._containerSize?.height || 56;
 
         lcardsLog.debug(`[LCARdSSimpleButtonCard] Size resolution:`, {
@@ -3194,7 +3233,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Process text fields (resolve positions, colors, etc.)
             const processedFields = this._processTextFields(textFields, width, height, this._processedIcon);
 
-            // Generate SVG text elements
+            // Generate SVG text elements normally
+            // For bar labels, the filled background + text background creates the "break" effect
             textMarkup = this._generateTextElements(processedFields);
         }
 
@@ -3455,11 +3495,14 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const textConfig = config.text || {};
         const resolvedFields = {};
 
-        // Extract user-defined defaults from text.default
+        // Extract user-defined defaults from text.default (config)
         const userDefaults = textConfig.default || {};
 
         // Get preset text fields from resolved button style
         const presetTextFields = this._buttonStyle?.text || {};
+
+        // Get preset defaults from text.default (preset)
+        const presetTextDefaults = this._buttonStyle?.text?.default || {};
 
         // Default positions for preset fields
         // NOTE: Only specify position here. Anchor/baseline should come from named position calculation!
@@ -3499,9 +3542,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),
                 x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : (presetFieldConfig.x_percent !== undefined ? presetFieldConfig.x_percent : null),
                 y_percent: fieldConfig.y_percent !== undefined ? fieldConfig.y_percent : (presetFieldConfig.y_percent !== undefined ? presetFieldConfig.y_percent : null),
-                padding: fieldConfig.padding !== undefined ? fieldConfig.padding : (presetFieldConfig.padding !== undefined ? presetFieldConfig.padding : 8),
+                padding: fieldConfig.padding !== undefined ? fieldConfig.padding :
+                        (presetFieldConfig.padding !== undefined ? presetFieldConfig.padding :
+                        (userDefaults.padding !== undefined ? userDefaults.padding :
+                        (presetTextDefaults.padding !== undefined ? presetTextDefaults.padding : 8))),
                 size: fieldConfig.font_size || fieldConfig.size || presetFieldConfig.font_size || presetFieldConfig.size || userDefaults.font_size || this._buttonStyle?.text?.default?.font_size || 14,
-                color: fieldConfig.color || presetFieldConfig.color || userDefaults.color || null, // null means use default
+                color: fieldConfig.color || presetFieldConfig.color || userDefaults.color || presetTextDefaults.color || null, // null means use default
                 font_weight: fieldConfig.font_weight || presetFieldConfig.font_weight || userDefaults.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
                 font_family: fieldConfig.font_family || presetFieldConfig.font_family || userDefaults.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
                 text_transform: fieldConfig.text_transform || presetFieldConfig.text_transform || userDefaults.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
@@ -3510,11 +3556,21 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 rotation: fieldConfig.rotation !== undefined ? fieldConfig.rotation : (presetFieldConfig.rotation !== undefined ? presetFieldConfig.rotation : 0),
                 show: fieldConfig.show !== undefined ? fieldConfig.show : (presetFieldConfig.show !== undefined ? presetFieldConfig.show : true),
                 template: fieldConfig.template !== undefined ? fieldConfig.template : (presetFieldConfig.template !== undefined ? presetFieldConfig.template : true),
-                
+
                 // Text background properties for "bar label" effect
-                background: fieldConfig.background !== undefined ? fieldConfig.background : (presetFieldConfig.background !== undefined ? presetFieldConfig.background : null),
-                background_padding: fieldConfig.background_padding !== undefined ? fieldConfig.background_padding : (presetFieldConfig.background_padding !== undefined ? presetFieldConfig.background_padding : 8),
-                background_radius: fieldConfig.background_radius !== undefined ? fieldConfig.background_radius : (presetFieldConfig.background_radius !== undefined ? presetFieldConfig.background_radius : 4)
+                // Priority: field-specific config > preset field config > text.default (config) > text.default (preset) > null
+                background: fieldConfig.background !== undefined ? fieldConfig.background :
+                           (presetFieldConfig.background !== undefined ? presetFieldConfig.background :
+                           (userDefaults.background !== undefined ? userDefaults.background :
+                           (presetTextDefaults.background !== undefined ? presetTextDefaults.background : null))),
+                background_padding: fieldConfig.background_padding !== undefined ? fieldConfig.background_padding :
+                                   (presetFieldConfig.background_padding !== undefined ? presetFieldConfig.background_padding :
+                                   (userDefaults.background_padding !== undefined ? userDefaults.background_padding :
+                                   (presetTextDefaults.background_padding !== undefined ? presetTextDefaults.background_padding : 8))),
+                background_radius: fieldConfig.background_radius !== undefined ? fieldConfig.background_radius :
+                                  (presetFieldConfig.background_radius !== undefined ? presetFieldConfig.background_radius :
+                                  (userDefaults.background_radius !== undefined ? userDefaults.background_radius :
+                                  (presetTextDefaults.background_radius !== undefined ? presetTextDefaults.background_radius : 4)))
             };
         }
 
@@ -3785,6 +3841,27 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 baseline = 'central';
             }
 
+            // Apply padding offset for visual adjustment (e.g., to nudge centered text)
+            // Padding is directional: positive values push text away from that edge
+            if (field.padding) {
+                const padding = typeof field.padding === 'number'
+                    ? { top: field.padding, right: field.padding, bottom: field.padding, left: field.padding }
+                    : field.padding;
+
+                // For vertically centered text (baseline: 'middle'), apply vertical padding offset
+                // This includes 'center', 'left-center', and 'right-center' positions
+                if (baseline === 'middle' || baseline === 'central') {
+                    y += (padding.bottom || 0) - (padding.top || 0);
+                }
+
+                // For horizontally positioned text, apply horizontal padding
+                if (anchor === 'start') {
+                    x += (padding.left || 0);
+                } else if (anchor === 'end') {
+                    x -= (padding.right || 0);
+                }
+            }
+
             // Resolve color based on state
             let resolvedColor;
             if (field.color) {
@@ -3831,7 +3908,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 anchor: anchor,
                 baseline: baseline,
                 rotation: field.rotation,  // NEW: pass through rotation
-                
+
                 // Text background properties for "bar label" effect
                 background: field.background,
                 background_padding: field.background_padding,
@@ -3855,23 +3932,27 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Render background rectangle if specified (before text so text appears on top)
             if (field.background) {
                 // Calculate background bounds based on text properties
-                const bgPadding = field.background_padding || 8;
-                const bgRadius = field.background_radius || 4;
-                
-                // Estimate text width using average character width approximation.
-                // This heuristic (0.6 * font_size) works well for typical LCARS fonts like Antonio
-                // and uppercase text. For more precise sizing, canvas text measurement would be
-                // needed, but this provides good visual results for the bar-label use case.
-                const charWidth = field.size * 0.6;
-                const textWidth = field.content.length * charWidth;
-                
+                const bgPadding = field.background_padding ?? 8;
+                const bgRadius = field.background_radius ?? 4;
+
+                // Use actual text measurement for accurate sizing
+                const fontFamily = field.fontFamily || 'Antonio, Helvetica Neue, sans-serif';
+                const fontWeight = field.weight || 100;
+                const fontString = `${fontWeight} ${field.size}px ${fontFamily}`;
+
+                const metrics = RendererUtils.measureText(field.content, fontString);
+                const textWidth = metrics.width;
+
                 const bgWidth = textWidth + (bgPadding * 2);
-                const bgHeight = field.size + (bgPadding * 2);
-                
+
+                // For bar labels, use container height but round up to ensure full coverage
+                // (e.g., 55.984375 → 56). This respects custom row heights while preventing gaps.
+                const bgHeight = (Math.ceil(this._containerSize?.height || (metrics.height + (bgPadding * 2))) + 1);
+
                 // Calculate background position based on text anchor
                 let bgX = field.x;
-                let bgY = field.y;
-                
+                let bgY = 0; // Start at top of button for bar labels
+
                 // Adjust X based on text-anchor
                 if (field.anchor === 'middle') {
                     bgX = field.x - (bgWidth / 2);
@@ -3879,21 +3960,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     bgX = field.x - bgWidth;
                 }
                 // 'start' anchor: bgX = field.x (no adjustment needed)
-                
-                // Adjust Y based on dominant-baseline
-                // For alphabetic baseline, text sits on the baseline with ascenders above,
-                // so we offset by most of the text height plus a small adjustment for the baseline.
-                if (field.baseline === 'middle' || field.baseline === 'central') {
-                    bgY = field.y - (bgHeight / 2);
-                } else if (field.baseline === 'hanging') {
-                    bgY = field.y;
-                } else if (field.baseline === 'alphabetic') {
-                    // Text baseline is at y, so background should start above the text
-                    // Typical ascender height is ~80% of font size
-                    const ascenderRatio = 0.8;
-                    bgY = field.y - (field.size * ascenderRatio) - bgPadding;
-                }
-                
+
                 // Build background rect attributes
                 const bgAttrs = [
                     `class="text-background"`,
@@ -3907,16 +3974,16 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     `fill="${field.background}"`,
                     `pointer-events="none"`
                 ];
-                
+
                 // Apply rotation transform if specified (same as text rotation)
                 if (field.rotation !== 0) {
                     bgAttrs.push(`transform="rotate(${field.rotation} ${field.x} ${field.y})"`);
                 }
-                
+
                 const bgRect = `<rect ${bgAttrs.join(' ')} />`;
                 textElements.push(bgRect);
             }
-            
+
             // Build SVG <text> element
             const textAttrs = [
                 `x="${field.x}"`,
@@ -3950,6 +4017,129 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         }
 
         return textElements.join('\n        ');
+    }
+
+    /**
+     * Generate bar label with auto-sized colored bars that fill space around text
+     * Used for bar-label-* presets with border.width: 'auto'
+     * @private
+     * @param {Array} processedFields - Processed text field configurations
+     * @param {number} width - Button width
+     * @param {number} height - Button height
+     * @param {Object} border - Border configuration
+     * @returns {Object} { barMarkup, textMarkup }
+     */
+    _generateBarLabelWithAutoSizing(processedFields, width, height, border) {
+        if (!processedFields || processedFields.length === 0) {
+            return { barMarkup: '', textMarkup: '' };
+        }
+
+        const field = processedFields[0];  // Bar labels typically use a single text field
+        const barElements = [];
+        const textElements = [];
+
+        // Get border color (use active state by default)
+        const buttonState = this._getButtonState();
+        const borderColor = border.individualSides?.left?.color ||
+                          border.individualSides?.right?.color ||
+                          border.color?.[buttonState] ||
+                          border.color?.default ||
+                          'var(--lcars-card-button, var(--picard-medium-light-gray))';
+
+        // Calculate text background dimensions
+        const bgPadding = field.background_padding || 15;
+        const bgRadius = field.background_radius || 0;
+
+        // Estimate text width
+        const charWidth = field.size * 0.6;
+        const textWidth = field.content.length * charWidth;
+        const bgWidth = textWidth + (bgPadding * 2);
+        const bgHeight = height;  // Full height for bar labels
+
+        // Calculate background position based on text anchor and position
+        let bgX = field.x;
+        if (field.anchor === 'middle') {
+            bgX = field.x - (bgWidth / 2);
+        } else if (field.anchor === 'end') {
+            bgX = field.x - bgWidth;
+        }
+
+        // Determine which bars to render based on border configuration
+        const hasLeftBar = border.individualSides?.left?.width === 'auto';
+        const hasRightBar = border.individualSides?.right?.width === 'auto';
+
+        // Render left bar (from edge to text background)
+        if (hasLeftBar && bgX > 0) {
+            barElements.push(`
+                <rect class="bar-left"
+                      x="0"
+                      y="0"
+                      width="${bgX}"
+                      height="${height}"
+                      fill="${borderColor}"
+                      pointer-events="none" />`);
+        }
+
+        // Render right bar (from text background to edge)
+        if (hasRightBar && (bgX + bgWidth) < width) {
+            const rightBarX = bgX + bgWidth;
+            const rightBarWidth = width - rightBarX;
+            barElements.push(`
+                <rect class="bar-right"
+                      x="${rightBarX}"
+                      y="0"
+                      width="${rightBarWidth}"
+                      height="${height}"
+                      fill="${borderColor}"
+                      pointer-events="none" />`);
+        }
+
+        // Render text background (black box that "breaks" the bar)
+        if (field.background) {
+            let bgY = 0;  // Full height, start from top
+
+            // Build background rect
+            const bgRect = `<rect class="text-background"
+                                  data-field-id="${field.id}-bg"
+                                  x="${bgX}"
+                                  y="${bgY}"
+                                  width="${bgWidth}"
+                                  height="${bgHeight}"
+                                  rx="${bgRadius}"
+                                  ry="${bgRadius}"
+                                  fill="${field.background}"
+                                  pointer-events="none" />`;
+            textElements.push(bgRect);
+        }
+
+        // Build text element
+        const textAttrs = [
+            `x="${field.x}"`,
+            `y="${field.y}"`,
+            `font-size="${field.size}"`,
+            `fill="${field.color}"`,
+            `text-anchor="${field.anchor}"`,
+            `dominant-baseline="${field.baseline}"`,
+            `pointer-events="none"`
+        ];
+
+        if (field.font_weight) {
+            textAttrs.push(`font-weight="${field.font_weight}"`);
+        }
+
+        if (field.font_family) {
+            textAttrs.push(`font-family="${field.font_family}"`);
+        }
+
+        textAttrs.push(`data-field-id="${field.id}"`);
+
+        const textElement = `<text ${textAttrs.join(' ')}>${escapeHtml(field.content)}</text>`;
+        textElements.push(textElement);
+
+        return {
+            barMarkup: barElements.join('\n                    '),
+            textMarkup: textElements.join('\n                    ')
+        };
     }
 
     /**
@@ -4574,7 +4764,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      */
     getLayoutOptions() {
         return {
-            grid_columns: this.config.grid_columns || 2,  // Default span 2 columns
+            grid_columns: this.config.grid_columns !== undefined ? this.config.grid_columns : 'full',  // Default to full width
             grid_rows: this.config.grid_rows || 1,        // Default span 1 row
             grid_min_columns: this.config.grid_min_columns || 1,
             grid_min_rows: this.config.grid_min_rows || 1
@@ -5076,8 +5266,8 @@ if (window.lcardsCore?.configManager) {
 
             // Grid Layout Properties
             grid_columns: {
-                type: 'number',
-                description: 'Number of grid columns to span (default: 2)',
+                type: ['number', 'string'],
+                description: 'Number of grid columns to span or "full" for full width (default: "full")',
                 minimum: 1
             },
             grid_rows: {
