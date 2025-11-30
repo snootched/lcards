@@ -446,6 +446,42 @@ registerAnimationPreset('ripple', (def) => {
   };
 });
 
+/**
+ * Scale - Simple scale transform animation
+ * Ideal for button press feedback or hover effects
+ *
+ * Parameters:
+ * - scale (default: 1.1) - Target scale factor
+ * - from (default: 1) - Starting scale
+ * - duration (default: 200)
+ * - easing (default: 'easeOutQuad')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('scale', (def) => {
+  const p = def.params || def;
+  const scale = p.scale !== undefined ? p.scale : 1.1;
+  const from = p.from !== undefined ? p.from : 1;
+  const duration = p.duration || 200;
+  const easing = p.easing || 'easeOutQuad';
+  const loop = p.loop || false;
+  const alternate = p.alternate || false;
+
+  return {
+    anime: {
+      scale: [from, scale],
+      duration,
+      easing,
+      loop,
+      direction: alternate ? 'alternate' : 'normal'
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
+});
+
 // ==============================================================================
 // UTILITY PRESETS
 // ==============================================================================
