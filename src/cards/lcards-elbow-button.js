@@ -291,6 +291,11 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
 
     /**
      * Parse CSS unit value to number (pixels)
+     * 
+     * Note: This is intentionally kept as a local method rather than using a shared
+     * utility to ensure stable behavior independent of parent class changes and to
+     * maintain encapsulation of elbow-specific configuration parsing.
+     * 
      * @param {string|number} value - Value with or without unit
      * @returns {number} Numeric value in pixels
      * @private
@@ -353,8 +358,9 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
         // Clamp radii to prevent overflow
         // Outer radius cannot exceed either the horizontal or vertical bar size
         const maxOuterRadius = Math.min(horizontal, height - vertical);
-        const clampedOuterRadius = Math.min(outerRadius, maxOuterRadius);
-        const clampedInnerRadius = Math.min(innerRadius, clampedOuterRadius - 1);
+        const clampedOuterRadius = Math.max(0, Math.min(outerRadius, maxOuterRadius));
+        // Ensure inner radius is non-negative and less than outer radius
+        const clampedInnerRadius = Math.max(0, Math.min(innerRadius, clampedOuterRadius - 1));
 
         // Generate path based on elbow type
         // Each path is a closed shape representing the elbow
@@ -404,24 +410,6 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
         // - Horizontal bar: y = 0 to y = vertical, x = horizontal to x = width
         // - Vertical bar: x = 0 to x = horizontal, y = vertical to y = height
 
-        const path = [
-            // Start at top-left corner (with outer arc radius offset)
-            `M ${outerRadius} 0`,
-            // Top edge of horizontal bar
-            `L ${width} 0`,
-            // Right edge of horizontal bar (down)
-            `L ${width} ${vertical}`,
-            // Bottom edge of horizontal bar (left to inner arc start)
-            `L ${horizontal} ${vertical}`,
-            // Inner arc (quarter circle, from horizontal bar to vertical bar)
-            // Arc from (horizontal, vertical) curving to (horizontal - innerRadius, vertical + innerRadius)
-            // but we need to go from right side to bottom side
-            `L ${horizontal} ${vertical + innerRadius}`,
-            // Actually, inner arc: from point on horizontal bar bottom to point on vertical bar right edge
-            // Going counter-clockwise for inner cut
-        ];
-
-        // Reconstruct with proper arcs
         // SVG arc: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
         // sweep-flag: 0 = counter-clockwise, 1 = clockwise
 
