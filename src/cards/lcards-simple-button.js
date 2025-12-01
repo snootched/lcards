@@ -3953,13 +3953,17 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 let bgX = field.x;
                 let bgY = 0; // Start at top of button for bar labels
 
-                // Adjust X based on text-anchor
+                // Adjust X based on text-anchor to ensure padding on both sides
                 if (field.anchor === 'middle') {
+                    // Text centered at X, so background centered at X
                     bgX = field.x - (bgWidth / 2);
                 } else if (field.anchor === 'end') {
-                    bgX = field.x - bgWidth;
+                    // Text ends at X, so background ends at X + padding
+                    bgX = field.x - bgWidth + bgPadding;
+                } else if (field.anchor === 'start') {
+                    // Text starts at X, so background starts at X - padding
+                    bgX = field.x - bgPadding;
                 }
-                // 'start' anchor: bgX = field.x (no adjustment needed)
 
                 // Build background rect attributes
                 const bgAttrs = [

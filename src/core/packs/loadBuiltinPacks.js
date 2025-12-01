@@ -663,7 +663,13 @@ const LCARDS_BUTTONS_PACK = {
 
         text: {
           default: {
-            position: 'left-center'
+            position: 'left-center',
+            padding: {
+              top: 0,
+              bottom: 4,
+              left: 32,  // Space from left edge of bar
+              right: 15
+            }
           }
         }
       },
@@ -675,7 +681,13 @@ const LCARDS_BUTTONS_PACK = {
 
         text: {
           default: {
-            position: 'center'
+            position: 'center',
+            padding: {
+              top: 0,
+              bottom: 4,
+              left: 15,
+              right: 15
+            }
           }
         }
       },
@@ -687,7 +699,13 @@ const LCARDS_BUTTONS_PACK = {
 
         text: {
           default: {
-            position: 'right-center'
+            position: 'right-center',
+            padding: {
+              top: 0,
+              bottom: 4,
+              left: 15,
+              right: 32  // Space from right edge of bar
+            }
           }
         }
       },
@@ -736,7 +754,7 @@ const LCARDS_BUTTONS_PACK = {
 
       // Bar Label Bullet Left - Half-lozenge with rounded left, flat right
       'bar-label-bullet-left': {
-        extends: 'button.bar-label-base',
+        extends: 'button.bar-label-left',
         description: 'Bar label with rounded left side, flat right (left-pointing)',
 
         border: {
@@ -757,7 +775,7 @@ const LCARDS_BUTTONS_PACK = {
 
       // Bar Label Bullet Right - Half-lozenge with flat left, rounded right
       'bar-label-bullet-right': {
-        extends: 'button.bar-label-base',
+        extends: 'button.bar-label-right',
         description: 'Bar label with flat left side, rounded right (right-pointing)',
 
         border: {
