@@ -184,6 +184,19 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
                 // Schedule template processing AFTER style resolution
                 this._scheduleTemplateUpdate();
+
+                // Trigger card-level on_entity_change animations AFTER render completes
+                // Use requestAnimationFrame to ensure DOM is updated first
+                if (this.config.animations) {
+                    requestAnimationFrame(() => {
+                        const animationManager = window.lcards?.core?.getAnimationManager?.();
+                        const elementId = `simple-button-${this._cardGuid}`;
+                        if (animationManager && elementId) {
+                            animationManager.triggerAnimations(elementId, 'on_entity_change');
+                            lcardsLog.debug(`[LCARdSSimpleButtonCard] Card-level on_entity_change animations triggered`);
+                        }
+                    });
+                }
             }
         }
     }

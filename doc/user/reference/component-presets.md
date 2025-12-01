@@ -11,6 +11,8 @@ Component presets eliminate the need to create custom SVG markup by providing ba
 - Apply theme-based styling
 - Support all segment features (actions, animations, entity tracking)
 
+**Note:** For LCARS-style bar labels (horizontal bars with text), see [Bar Label Presets Reference](./bar-label-presets.md).
+
 ## Using Component Presets
 
 ### Basic Syntax

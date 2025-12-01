@@ -302,6 +302,31 @@ style:
 
 ---
 
+### Animated Entity Status
+
+Glow effect on entity state changes:
+
+```yaml
+type: custom:lcards-simple-button
+preset: bar-label-left
+entity: light.living_room
+text:
+  label:
+    content: "{{entity.attributes.friendly_name}}"
+animations:
+  - preset: glow
+    trigger: on_entity_change
+    duration: 400
+    color: var(--lcars-orange)
+  - preset: pulse
+    trigger: on_hover
+    duration: 500
+```
+
+**Result:** Bar glows orange whenever the light state changes, and pulses on hover.
+
+---
+
 ### Alert Indicator
 
 ```yaml

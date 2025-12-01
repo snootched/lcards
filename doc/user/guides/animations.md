@@ -60,7 +60,26 @@ overlays:
 These triggers respond to data or lifecycle changes:
 
 - **`on_load`** - Fires once when the overlay is rendered
+- **`on_entity_change`** - Fires when the card's entity state changes (requires `entity` property)
 - **`on_datasource_change`** - Fires when a datasource value changes (requires `datasource` property)
+
+**Simple Entity Animation:**
+
+Use `on_entity_change` for card-level animations that should play whenever the entity state changes:
+
+```yaml
+type: custom:lcards-simple-button
+preset: bar-label-left
+entity: light.bedroom
+text:
+  label:
+    content: "BEDROOM"
+animations:
+  - preset: glow
+    trigger: on_entity_change  # Plays on every state change
+    duration: 400
+    color: var(--lcars-orange)
+```
 
 **Simple Datasource Animation:**
 

@@ -142,6 +142,14 @@ hold_action:
 double_tap_action:
   action: <action_type>
 
+# Card-level Animations
+animations:
+  - preset: <preset-name>      # Animation preset (e.g., pulse, glow, scale)
+    trigger: <trigger>         # on_tap, on_hold, on_hover, on_leave, on_load, on_entity_change
+    duration: <number>         # Duration in ms
+    loop: <bool/number>        # true, false, or count (e.g., 3)
+    # ... preset-specific parameters
+
 # Rules Engine (dynamic styling)
 rules:
   - when:
