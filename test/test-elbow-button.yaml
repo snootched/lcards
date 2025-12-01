@@ -1,0 +1,248 @@
+# LCARdS Elbow Button Test Configurations
+# These examples demonstrate the various elbow button configurations
+
+# ============================================================================
+# Test 1: Header-Left Elbow (Standard)
+# ============================================================================
+# Creates an L-shaped elbow with:
+# - Vertical sidebar on the left (90px wide)
+# - Horizontal bar on top (20px tall)
+# - Curved corner connecting them in the top-left
+test_header_left:
+  type: custom:lcards-elbow-button
+  entity: light.bedroom
+  elbow:
+    type: header-left
+    border:
+      horizontal: 90
+      vertical: 20
+    radius:
+      outer: auto  # Uses horizontal value (90px) for authentic LCARS arc
+      inner_factor: 4
+  text:
+    name:
+      content: "Engineering"
+  tap_action:
+    action: toggle
+
+# ============================================================================
+# Test 2: Header-Right Elbow
+# ============================================================================
+# Creates an L-shaped elbow with:
+# - Vertical sidebar on the right
+# - Horizontal bar on top
+# - Curved corner in top-right
+test_header_right:
+  type: custom:lcards-elbow-button
+  entity: light.living_room
+  elbow:
+    type: header-right
+    border:
+      horizontal: 120
+      vertical: 30
+    radius:
+      outer: 120
+      inner_factor: 4
+  text:
+    name:
+      content: "Medical Bay"
+      align: right
+  tap_action:
+    action: toggle
+
+# ============================================================================
+# Test 3: Footer-Left Elbow
+# ============================================================================
+# Creates an L-shaped elbow with:
+# - Vertical sidebar on the left
+# - Horizontal bar on bottom
+# - Curved corner in bottom-left
+test_footer_left:
+  type: custom:lcards-elbow-button
+  entity: light.kitchen
+  elbow:
+    type: footer-left
+    border:
+      horizontal: 90
+      vertical: 20
+    radius:
+      outer: auto
+      inner_factor: 4
+  text:
+    name:
+      content: "Navigation"
+  tap_action:
+    action: toggle
+
+# ============================================================================
+# Test 4: Footer-Right Elbow
+# ============================================================================
+# Creates an L-shaped elbow with:
+# - Vertical sidebar on the right
+# - Horizontal bar on bottom
+# - Curved corner in bottom-right
+test_footer_right:
+  type: custom:lcards-elbow-button
+  entity: light.bedroom
+  elbow:
+    type: footer-right
+    border:
+      horizontal: 150
+      vertical: 25
+    radius:
+      outer: 150
+      inner_factor: 4
+  text:
+    name:
+      content: "Tactical"
+      align: right
+  tap_action:
+    action: toggle
+
+# ============================================================================
+# Test 5: Elbow with Custom Colors
+# ============================================================================
+# Demonstrates color overrides for the elbow
+test_custom_colors:
+  type: custom:lcards-elbow-button
+  entity: binary_sensor.door
+  elbow:
+    type: header-left
+    border:
+      horizontal: 100
+      vertical: 25
+    colors:
+      background: var(--lcars-purple)
+  text:
+    name:
+      content: "Security"
+      color: "#FFFFFF"
+  tap_action:
+    action: more-info
+
+# ============================================================================
+# Test 6: Elbow with Rules (Dynamic Colors)
+# ============================================================================
+# Shows how rules work with elbow buttons for state-based styling
+test_with_rules:
+  type: custom:lcards-elbow-button
+  entity: light.bedroom
+  elbow:
+    type: header-left
+    border:
+      horizontal: 90
+      vertical: 20
+  text:
+    name:
+      content: "Operations"
+  rules:
+    - id: elbow_color_on
+      when:
+        entity: light.bedroom
+        state: 'on'
+      apply:
+        style:
+          card:
+            color:
+              background:
+                active: var(--lcars-blue)
+  tap_action:
+    action: toggle
+
+# ============================================================================
+# Test 7: Compact Elbow
+# ============================================================================
+# Smaller elbow for inline use
+test_compact:
+  type: custom:lcards-elbow-button
+  elbow:
+    type: header-left
+    border:
+      horizontal: 50
+      vertical: 15
+    radius:
+      outer: 50
+      inner_factor: 3
+  text:
+    name:
+      content: "Aux"
+      font_size: 12
+  grid_rows: 1
+
+# ============================================================================
+# Test 8: Large Header Elbow
+# ============================================================================
+# Larger elbow suitable for main dashboard headers
+test_large_header:
+  type: custom:lcards-elbow-button
+  entity: light.main
+  elbow:
+    type: header-left
+    border:
+      horizontal: 180
+      vertical: 40
+    radius:
+      outer: auto
+      inner_factor: 4
+  text:
+    name:
+      content: "MAIN ENGINEERING"
+      font_size: 24
+      font_weight: bold
+  grid_rows: 3
+  tap_action:
+    action: navigate
+    navigation_path: /engineering
+
+# ============================================================================
+# Test 9: All Four Elbows in a Grid (Dashboard Layout)
+# ============================================================================
+# This would be used in a HA grid layout to create a complete LCARS frame
+
+# Top-left corner
+frame_top_left:
+  type: custom:lcards-elbow-button
+  elbow:
+    type: header-left
+    border:
+      horizontal: 120
+      vertical: 30
+  text:
+    name:
+      content: "LCARS v4.0"
+
+# Top-right corner
+frame_top_right:
+  type: custom:lcards-elbow-button
+  elbow:
+    type: header-right
+    border:
+      horizontal: 120
+      vertical: 30
+  text:
+    name:
+      content: "STARDATE"
+
+# Bottom-left corner
+frame_bottom_left:
+  type: custom:lcards-elbow-button
+  elbow:
+    type: footer-left
+    border:
+      horizontal: 120
+      vertical: 30
+  text:
+    name:
+      content: "USS ENTERPRISE"
+
+# Bottom-right corner
+frame_bottom_right:
+  type: custom:lcards-elbow-button
+  elbow:
+    type: footer-right
+    border:
+      horizontal: 120
+      vertical: 30
+  text:
+    name:
+      content: "NCC-1701-D"

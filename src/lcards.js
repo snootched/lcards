@@ -30,6 +30,7 @@ import { LCARdSMSDCard } from './cards/lcards-msd.js';
 
 // Simple card imports
 import { LCARdSSimpleButtonCard } from './cards/lcards-simple-button.js';
+import { LCARdSElbowButtonCard } from './cards/lcards-elbow-button.js';
 import { LCARdSSimpleChart } from './cards/lcards-simple-chart.js';
 
 // Unified API system import
@@ -150,6 +151,7 @@ initializeCustomCard()
     .then(() => {
         // Register cards (registered here to ensure singletons are ready)
         customElements.define('lcards-simple-button', LCARdSSimpleButtonCard);
+        customElements.define('lcards-elbow-button', LCARdSElbowButtonCard);
         customElements.define('lcards-simple-chart', LCARdSSimpleChart);
         customElements.define('lcards-msd-card', LCARdSMSDCard);
 
@@ -222,6 +224,13 @@ const LCARdSCardClasses = [
         name: 'LCARdS Simple Button',
         preview: true,
         description: 'Modern LCARS button with multi-text labels and flexible positioning',
+        documentationURL: "https://cb-lcars.unimatrix01.ca",
+    },
+    {
+        type: 'lcards-elbow-button',
+        name: 'LCARdS Elbow Button',
+        preview: true,
+        description: 'LCARS button with elbow/corner cap treatment for header and footer styles',
         documentationURL: "https://cb-lcars.unimatrix01.ca",
     },
     {
