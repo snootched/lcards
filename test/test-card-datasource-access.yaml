@@ -7,8 +7,8 @@ type: vertical-stack
 cards:
   # Test 1: SimpleCard with explicit datasource syntax
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-explicit
+    card_type: button
+    card_name: button-datasource-explicit
     entity: sensor.test
     label_top: "Temp (explicit)"
     label_main: "{datasource:temperature_chain:.1f}°C"
@@ -18,8 +18,8 @@ cards:
 
   # Test 2: SimpleCard with legacy datasource syntax
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-legacy
+    card_type: button
+    card_name: button-datasource-legacy
     entity: sensor.test
     label_top: "Temp (legacy)"
     label_main: "{sensor.temp:.1f}°C"
@@ -28,8 +28,8 @@ cards:
 
   # Test 3: SimpleCard with mixed templates including datasource
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-mixed-with-datasource
+    card_type: button
+    card_name: button-mixed-with-datasource
     entity: sensor.test
     label_top: "[[[return 'Computed']]]"
     label_main: "{entity.state}"
@@ -40,7 +40,7 @@ cards:
 
   # Test 4: SimpleCard with datasource in button text
   - type: custom:lcards
-    card_type: simple_button
+    card_type: button
     card_name: button-with-datasource
     entity: light.test
     label: "Temp: {datasource:temperature_chain:.1f}°C"
@@ -49,8 +49,8 @@ cards:
 
   # Test 5: SimpleCard with datasource + Jinja2
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-jinja-combo
+    card_type: button
+    card_name: button-datasource-jinja-combo
     entity: sensor.test
     label_top: "Combo Test"
     label_main: "DS: {datasource:temperature_chain:.1f}°C"
@@ -60,8 +60,8 @@ cards:
 
   # Test 6: SimpleCard accessing datasource transformation
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-transformation
+    card_type: button
+    card_name: button-datasource-transformation
     entity: sensor.test
     label_top: "Transformation Test"
     label_main: "{datasource:temperature_chain.transformations.celsius:.1f}"
@@ -70,8 +70,8 @@ cards:
 
   # Test 7: SimpleCard accessing datasource aggregation
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-aggregation
+    card_type: button
+    card_name: button-datasource-aggregation
     entity: sensor.test
     label_top: "Aggregation Test"
     label_main: "Avg: {datasource:test_aggregations.aggregations.avg_10:.1f}"
@@ -80,8 +80,8 @@ cards:
 
   # Test 8: All template types in one SimpleCard
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-all-types-with-datasource
+    card_type: button
+    card_name: button-all-types-with-datasource
     entity: sensor.test
     label_top: "[[[return 'JS: ' + entity.state]]]"
     label_main: "Token: {entity.attributes.friendly_name}"

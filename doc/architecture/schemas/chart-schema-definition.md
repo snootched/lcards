@@ -4,7 +4,7 @@
 **Purpose:** Single source of truth for schema - update tokens, presets, code, and docs from this
 **Status:** 🎯 DEFINITIVE - All implementations must match this
 
-**Architecture:** Standalone SimpleCard with full feature parity to MSD ApexChartsOverlay
+**Architecture:** Standalone LCARdSCard with full feature parity to MSD ApexChartsOverlay
 **Adapter:** Uses ApexChartsAdapter for 50+ advanced styling properties
 
 ---
@@ -12,7 +12,7 @@
 ## Complete YAML Schema
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 
 # ============================================================================
 # DATA SOURCE CONFIGURATION
@@ -205,13 +205,13 @@ animations:                            # Optional: anime.js animations
 # ============================================================================
 
 # Example 1: Simple usage (auto-creates DataSource)
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
 
 # Example 2: Multi-series with custom names
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 sources:
   - sensor.indoor_temperature
   - sensor.outdoor_temperature
@@ -223,7 +223,7 @@ style:
   colors: ["#FF9900", "#99CCFF"]
 
 # Example 3: Advanced data_sources config
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 data_sources:
   temperature:
     entity: sensor.temperature
@@ -242,7 +242,7 @@ style:
   curve: smooth
 
 # Example 4: Advanced styling
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -273,7 +273,7 @@ style:
   background_color: "rgba(0, 0, 0, 0.3)"
 
 # Example 5: Monochrome theme
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: area
 height: 300
@@ -286,7 +286,7 @@ style:
   fill_opacity: 0.4
 
 # Example 6: Animation presets
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -294,7 +294,7 @@ style:
   animation_preset: lcars_minimal  # Quick 400ms animation
 
 # Example 7: Theme tokens
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -304,7 +304,7 @@ style:
   xaxis_color: "theme:colors.accent.yellow"
 
 # Example 8: Raw ApexCharts options override
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: bar
 height: 300
@@ -329,7 +329,7 @@ style:
 
 ### DataSource Auto-Creation
 
-When using simple `source` or `sources`, SimpleChart automatically creates DataSources with default settings:
+When using simple `source` or `sources`, Chart automatically creates DataSources with default settings:
 - `window_seconds`: 3600 (1 hour)
 - `history.preload`: false
 - No throttling/coalescing
@@ -369,7 +369,7 @@ Presets configure:
 
 ### Multi-Series Synchronization
 
-For multi-series charts, SimpleChart waits for ALL series to have initial data before rendering. This prevents race conditions where only one series appears.
+For multi-series charts, Chart waits for ALL series to have initial data before rendering. This prevents race conditions where only one series appears.
 
 Update behavior: When any series data changes, ALL series are re-rendered together to maintain consistency.
 
@@ -428,9 +428,9 @@ Deep merge order ensures `chart_options` has highest precedence, overriding all 
 
 ## Architecture Integration
 
-### SimpleCard Foundation
+### LCARdSCard Foundation
 
-SimpleChart extends `LCARdSSimpleCard` base class:
+Chart extends `LCARdSLCARdSCard` base class:
 - ✅ Automatic entity tracking
 - ✅ Rules engine integration
 - ✅ Animation system integration
@@ -450,7 +450,7 @@ All styling passes through `ApexChartsAdapter.generateOptions()`:
 
 ### Singleton Architecture
 
-SimpleChart uses core singletons:
+Chart uses core singletons:
 - `DataSourceManager` for data subscriptions
 - `ThemeManager` for theme token resolution
 - `CoreConfigManager` for PackRegistry access (animation presets)
@@ -460,13 +460,13 @@ Works in both standalone and MSD contexts without MSD-specific dependencies.
 
 ---
 
-## SimpleChart Features
+## Chart Features
 
-SimpleChart provides full chart functionality:
+Chart provides full chart functionality:
 
 **Example:**
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 ```
@@ -483,4 +483,4 @@ All chart features available:
 
 ---
 
-**Status:** Complete SimpleChart schema documentation
+**Status:** Complete Chart schema documentation

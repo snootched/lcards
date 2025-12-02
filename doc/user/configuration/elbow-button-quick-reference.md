@@ -1,7 +1,7 @@
 # Elbow Button Card - Quick Reference
 
-**Component:** `custom:lcards-elbow-button`
-**Extends:** `custom:lcards-simple-button`
+**Component:** `custom:lcards-elbow`
+**Extends:** `custom:lcards-button`
 **Purpose:** Classic LCARS elbow/corner designs with curved borders
 
 ---
@@ -20,7 +20,7 @@ The Elbow Button Card creates the iconic LCARS interface aesthetic with L-shaped
 ## Complete Schema
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: <entity_id>           # Optional: Home Assistant entity
 
 # Elbow Configuration
@@ -219,7 +219,7 @@ segment:
 ### Simple Header Elbow
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.living_room
 elbow:
   type: header-left
@@ -236,7 +236,7 @@ tap_action:
 ### Large Sweeping Arc (Uniform Line)
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.bedroom
 elbow:
   type: footer-left
@@ -259,7 +259,7 @@ grid_options:
 ### Footer Elbow with State Colors
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: climate.hvac
 elbow:
   type: footer-right
@@ -328,7 +328,7 @@ You can override these auto-adjustments with explicit values.
 ### Multiple Text Fields
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: sensor.temperature
 elbow:
   type: header-left
@@ -358,7 +358,7 @@ tap_action:
 ### With Icon
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.bridge
 elbow:
   type: footer-left
@@ -382,7 +382,7 @@ tap_action:
 ### Custom Curves (Non-LCARS)
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: switch.warp_core
 elbow:
   type: header-right
@@ -401,7 +401,7 @@ tap_action:
 ### State-Based Background Color
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: binary_sensor.security
 elbow:
   type: footer-right
@@ -426,7 +426,7 @@ tap_action:
 
 **Basic Segmented Header:**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.ready_room
 elbow:
   type: header-left
@@ -449,7 +449,7 @@ tap_action:
 
 **Segmented with Custom Colors:**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: sensor.warp_core_temp
 elbow:
   type: footer-right
@@ -478,7 +478,7 @@ tap_action:
 
 **Wide Segmented Footer:**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.bridge
 elbow:
   type: footer-left
@@ -507,7 +507,7 @@ grid_options:
 
 **Equal-Sized Segments (Uniform Double Line):**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.corridor
 elbow:
   type: header-left
@@ -533,7 +533,7 @@ tap_action:
 
 **Narrow Outer Band (Border Effect):**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: sensor.power_level
 elbow:
   type: footer-left
@@ -560,7 +560,7 @@ tap_action:
 
 **Custom Curve Radii (Breaking LCARS Formula):**
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: light.engineering
 elbow:
   type: header-right
@@ -642,7 +642,7 @@ The Elbow Button inherits **all features** from Simple Button:
 - ✅ **State colors** - Active/inactive/unavailable
 - ✅ **Presets** - Style preset system
 
-See [Simple Button Quick Reference](simple-button-quick-reference.md) for details.
+See [Simple Button Quick Reference](button-quick-reference.md) for details.
 
 ---
 
@@ -651,7 +651,7 @@ See [Simple Button Quick Reference](simple-button-quick-reference.md) for detail
 ### Dashboard Headers
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 elbow:
   type: header-left
   segment:
@@ -668,7 +668,7 @@ tap_action:
 ### Decorative Corners
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 elbow:
   type: footer-right
   segment:
@@ -685,7 +685,7 @@ grid_options:
 ### Interactive Controls
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: cover.bay_door
 elbow:
   type: header-right
@@ -743,7 +743,7 @@ hold_action:
 
 ## Related Documentation
 
-- [Simple Button Quick Reference](simple-button-quick-reference.md) - Parent card features
+- [Simple Button Quick Reference](button-quick-reference.md) - Parent card features
 - [Animation Presets](../reference/animation-presets.md) - Animation configuration
 - [Component Presets](../reference/component-presets.md) - Preset system
 

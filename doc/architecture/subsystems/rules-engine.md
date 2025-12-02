@@ -137,7 +137,7 @@ sequenceDiagram
     participant RE as RulesEngine Singleton
     participant CardA as MSD Card A
     participant CardB as MSD Card B
-    participant CardC as SimpleCard C
+    participant CardC as LCARdSCard C
 
     Note over CardA,CardC: Card Initialization Phase
     CardA->>RE: registerRules([rule1, rule2])

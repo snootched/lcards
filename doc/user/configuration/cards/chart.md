@@ -56,7 +56,7 @@ The **Simple Chart Card** is a standalone card that provides powerful charting c
 The absolute minimum needed for a chart:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -69,7 +69,7 @@ height: 300
 Add colors and customize appearance:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: area
 height: 300
@@ -90,7 +90,7 @@ SimpleChart offers three levels of data source configuration, from simple to adv
 Auto-creates DataSource with default settings (1 hour window, no history preload):
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature        # Single entity
 chart_type: line
 height: 300
@@ -107,7 +107,7 @@ attribute: temperature           # Track specific attribute
 Auto-creates multiple DataSources:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 sources:
   - sensor.indoor_temperature
   - sensor.outdoor_temperature
@@ -124,7 +124,7 @@ style:
 **NEW in v1.16!** Define advanced DataSource settings inline:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 data_sources:
   temperature:
     entity: sensor.temperature
@@ -192,7 +192,7 @@ SimpleChart supports all ApexCharts chart types:
 Best for trends over time:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -266,7 +266,7 @@ Display multiple data sources on one chart.
 ### Simple Multi-Series
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 sources:
   - sensor.cpu_temperature
   - sensor.gpu_temperature
@@ -613,7 +613,7 @@ width: 800                          # Chart width (defaults to container)
 ### Temperature Monitor with History
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 data_sources:
   temperature:
     entity: sensor.temperature
@@ -636,7 +636,7 @@ style:
 ### Multi-Sensor Comparison
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 data_sources:
   indoor:
     entity: sensor.indoor_temperature
@@ -666,7 +666,7 @@ style:
 ### Styled Bar Chart
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.daily_energy
 chart_type: bar
 height: 300
@@ -680,7 +680,7 @@ style:
 ### Theme-Integrated Chart
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 300
@@ -697,7 +697,7 @@ style:
 ### Advanced Multi-Series with Custom Styling
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 data_sources:
   cpu_temp:
     entity: sensor.cpu_temperature
@@ -780,7 +780,7 @@ overlays:
 ### After (SimpleChart):
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature
 chart_type: line
 height: 150
@@ -859,7 +859,7 @@ style:
 
 ## Further Reading
 
-- **Schema Definition:** See `doc/architecture/schemas/simple-chart-schema-definition.md`
+- **Schema Definition:** See `doc/architecture/schemas/chart-schema-definition.md`
 - **ApexCharts Docs:** https://apexcharts.com/docs/
 - **DataSource System:** See LCARdS DataSource documentation
 - **Theme System:** See LCARdS theme system documentation

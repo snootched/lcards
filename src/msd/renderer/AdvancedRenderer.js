@@ -872,11 +872,11 @@ export class AdvancedRenderer {
     // UNIFIED CARD PATTERN:
     // All other overlays are card-based and handled by MsdControlsRenderer
     // This includes:
-    // - SimpleCards: custom:lcards-simple-button, custom:lcards-simple-chart
+    // - LCARdS cards: custom:lcards-button, custom:lcards-chart
     // - HA cards: entities, grid, button, light, etc.
     // - Legacy control overlays with nested card definition
 
-    // Card-based overlays (SimpleCards, HA cards, controls)
+    // Card-based overlays (LCARdS cards, HA cards, controls)
     // Return null to signal that MsdControlsRenderer should handle this
     if (overlay.type === 'control' ||
         overlay.type?.startsWith('custom:') ||
@@ -945,7 +945,7 @@ export class AdvancedRenderer {
       } else {
         // No renderer available - delegate to MsdControlsRenderer for card-based overlays
         // This includes:
-        // - SimpleCards (custom:lcards-simple-button, custom:lcards-simple-chart)
+        // - LCARdS cards (custom:lcards-button, custom:lcards-chart)
         // - HA cards (entities, grid, button, etc.)
         // - Control overlays (type: 'control')
 
@@ -987,7 +987,7 @@ export class AdvancedRenderer {
    *
    * This delegates to the existing MsdControlsRenderer which handles:
    * - foreignObject creation and positioning in SVG viewBox coordinates
-   * - Card element creation (SimpleCards & HA cards)
+   * - Card element creation (LCARdS cards & HA cards)
    * - HASS context application with retry strategies
    * - Config application via setConfig()
    * - Event isolation

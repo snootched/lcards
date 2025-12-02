@@ -710,7 +710,7 @@ overlays:
       # Card handles its own cascade animation
 ```
 
-> **Note:** StatusGrid cascade animations are now handled via SimpleCards or embedded HA cards.
+> **Note:** StatusGrid cascade animations are now handled via LCARdSCards or embedded HA cards.
 
 **Animation:**
 ```javascript

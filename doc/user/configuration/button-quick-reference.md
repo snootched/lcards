@@ -1,6 +1,6 @@
 # Simple Button Card - Quick Reference
 
-**Component:** `custom:lcards-simple-button`
+**Component:** `custom:lcards-button`
 **Schema:** CB-LCARS Nested Schema with Multi-Text Support
 
 ---
@@ -8,7 +8,7 @@
 ## Complete Schema
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: <entity_id>           # Optional: Home Assistant entity
 preset: <preset_name>          # Optional: 'lozenge', 'lozenge-right', etc.
 component: <component_name>    # Optional: Component preset (e.g., 'dpad' for D-pad control)
@@ -264,7 +264,7 @@ icon:
 Presets like `lozenge` set `show_icon: true` by default. If you don't specify an icon and an entity exists, it automatically uses the entity's icon:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.kitchen
 preset: lozenge
 text:
@@ -386,7 +386,7 @@ rules:
 
 ### Example 1: Basic Entity Button
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 label: "Living Room"
 icon: 'mdi:lightbulb'
@@ -404,7 +404,7 @@ tap_action:
 
 ### Example 2: Lozenge with Per-Side Borders
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 label: "Engineering"
 icon: 'mdi:wrench'
@@ -421,7 +421,7 @@ style:
 
 ### Example 3: Brightness-Aware Button
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.bedroom
 label: "Bedroom"
 icon: 'entity'
@@ -459,7 +459,7 @@ rules:
 
 ### Example 4: Service Call Button
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 text:
   label:
     content: "All Lights Off"
@@ -488,7 +488,7 @@ tap_action:
 
 ```yaml
 # Left icon area (default)
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 icon_area: left
 icon_area_size: 60
@@ -507,7 +507,7 @@ text:
 ---
 
 # Top icon area with horizontal divider
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: climate.bedroom
 icon_area: top
 icon_area_size: 50
@@ -558,7 +558,7 @@ Built-in style presets extend `button.base` theme:
 
 **Usage:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 label: "Rounded"
 # Preset automatically sets: icon_area: left, icon.position: center, etc.
@@ -566,7 +566,7 @@ label: "Rounded"
 
 **Override preset styles:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 label: "Custom Lozenge"
 icon_area_size: 80                 # Override icon area width
@@ -583,7 +583,7 @@ style:
 Use the `text-only` preset for pure text labels without button appearance:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: text-only
 text:
   label:
@@ -616,7 +616,7 @@ Bar label presets create LCARS-style horizontal bars with positioned text. The t
 
 **Basic Usage:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 text:
   label:
@@ -625,7 +625,7 @@ text:
 
 **Customize Background:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 text:
   label:
@@ -663,7 +663,7 @@ Replace button background with custom SVG and create multi-action interactive re
 ### Basic SVG Background
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 svg:
   content: |
     <rect width="100" height="100" fill="url(#grad1)" />
@@ -684,7 +684,7 @@ text:
 ### External SVG File
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 svg:
   src: "/local/shapes/starfleet-delta.svg"
 text:
@@ -696,7 +696,7 @@ text:
 ### SVG with Entity Tokens
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.bedroom
 svg:
   enable_tokens: true
@@ -715,7 +715,7 @@ text:
 Create a D-pad with separate actions for each direction:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: remote.living_room
 svg:
   content: |
@@ -804,7 +804,7 @@ svg:
 Each segment can control a different entity with entity state awareness:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 svg:
   content: |
     <svg viewBox="0 0 100 100">
@@ -875,7 +875,7 @@ svg:
 Add animations to individual segments for visual feedback:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 dpad:
   segments:
@@ -1158,7 +1158,7 @@ The `dpad` component provides a 9-segment directional control with 4 arrows, 4 c
 **Quick example:**
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: remote.living_room  # Optional: default entity for all segments
 
@@ -1232,7 +1232,7 @@ dpad:
 
 **Multi-Entity Control:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 
 dpad:

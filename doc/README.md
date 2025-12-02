@@ -52,7 +52,7 @@ Internal architecture and developer documentation:
 
 ### For Developers
 - 🏛️ [Architecture Overview](./architecture/overview.md)
-- 🧩 [Simple Card Foundation](./architecture/cards/simple-card-foundation.md)
+- 🧩 [Simple Card Foundation](./architecture/cards/lcards-card-foundation.md)
 - 🔌 [API Reference](./architecture/api/api-reference.md)
 - 🎭 [Subsystems Overview](./architecture/subsystems/README.md)
 

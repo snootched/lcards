@@ -10,4 +10,4 @@
 export { TemplateDetector } from './TemplateDetector.js';
 export { TemplateParser } from './TemplateParser.js';
 export { TemplateEvaluator, createEvaluator } from './TemplateEvaluator.js';
-export { SimpleCardTemplateEvaluator } from './SimpleCardTemplateEvaluator.js';
+export { LCARdSCardTemplateEvaluator } from './LCARdSCardTemplateEvaluator.js';

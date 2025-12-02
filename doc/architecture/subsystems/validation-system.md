@@ -22,7 +22,7 @@ The LCARdS validation system uses **CoreValidationService** as the single source
 ### Key Features
 
 - 🌐 **Core Singleton Architecture** - Single validation service shared by all LCARdS cards via `lcardsCore.validationService`
-- **Universal Availability** - Token validation and datasource validation available for ALL cards (MSD, SimpleCards, etc.)
+- **Universal Availability** - Token validation and datasource validation available for ALL cards (MSD, LCARdSCards, etc.)
 - **Schema-based validation** - Card types and overlay types have declarative schemas
 - **Token-aware** - Resolves design tokens from singleton ThemeManager before validation
 - **Enhanced properties** - Supports complex object formats (font_size objects, marker objects, etc.)
@@ -56,7 +56,7 @@ graph TB
 
     subgraph "Consumers"
         MSD[MSD Cards]
-        SC[SimpleCards]
+        SC[LCARdSCards]
         SCH[SimpleChart]
     end
 
@@ -129,7 +129,7 @@ const dsResult = validationService.validateDataSources(config, dataSourceManager
 
 ## CoreConfigManager Integration
 
-All LCARdS cards (both MSD and SimpleCards) use **CoreConfigManager** for configuration processing and validation. This provides a unified pipeline:
+All LCARdS cards (both MSD and LCARdSCards) use **CoreConfigManager** for configuration processing and validation. This provides a unified pipeline:
 
 1. **Config Merging** - Merges card defaults, theme defaults, presets, and user config
 2. **Schema Validation** - Validates against registered card schema via CoreValidationService
@@ -141,7 +141,7 @@ All LCARdS cards (both MSD and SimpleCards) use **CoreConfigManager** for config
 Each card type registers its schema with CoreConfigManager:
 
 ```javascript
-// SimpleCard registration (e.g., lcards-simple-button.js)
+// LCARdSCard registration (e.g., lcards-button.js)
 if (window.lcardsCore?.configManager) {
     const configManager = window.lcardsCore.configManager;
 

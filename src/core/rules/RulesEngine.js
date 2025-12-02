@@ -706,7 +706,7 @@ export class RulesEngine extends BaseService {
 
     // Get all available overlays from:
     // 1. Context (during initial render)
-    // 2. SystemsManager overlay registry (for SimpleCards with registered overlays)
+    // 2. SystemsManager overlay registry (for LCARdS cards with registered overlays)
     // 3. SystemsManager getResolvedModel (for MSD cards)
     const allOverlays = contextOverlays
       || this.systemsManager?.getAllTargetableOverlays?.()

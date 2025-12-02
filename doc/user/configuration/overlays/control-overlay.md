@@ -141,7 +141,7 @@ Embed any LCARdS button or custom card:
 - type: control
   id: lcars_button
   card:
-    type: custom:lcards-simple-button
+    type: custom:lcards-button
     entity: switch.warp_drive
     preset: lozenge
     text:
@@ -514,7 +514,7 @@ overlays:
   - type: control
     id: warp_control
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: switch.warp_drive
       preset: lozenge
       text:
@@ -528,7 +528,7 @@ overlays:
   - type: control
     id: shields_control
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: switch.shields
       preset: lozenge
       text:
@@ -542,7 +542,7 @@ overlays:
   - type: control
     id: weapons_control
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: switch.weapons
       preset: lozenge
       text:

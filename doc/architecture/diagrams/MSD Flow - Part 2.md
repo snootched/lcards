@@ -632,11 +632,11 @@ core.getAllCardInstances();
 - ThemeManager (themes, tokens) - **Used by all cards**
 - AnimationManager (animation coordination) - **Used by all cards**
 - ValidationService (schema validation) - **Used by all cards**
-- CoreSystemsManager (entity caching) - **Only used by Simple Cards, NOT MSD**
+- CoreSystemsManager (entity caching) - **Only used by LCARdS Cards, NOT MSD**
 
 **Card Type Comparison:**
 
-| Feature | MSD Cards | Simple Cards |
+| Feature | MSD Cards | LCARdS Cards |
 |---------|-----------|-------------------|
 | **Systems Manager** | MSD SystemsManager (per-card) | Uses CoreSystemsManager (singleton) |
 | **Entity Access** | DataSourceManager (full pipeline) | CoreSystemsManager (cached) |
@@ -692,14 +692,14 @@ core.getAllCardInstances();
 
 ---
 
-## 🎨 MSD + Simple Cards Together
+## 🎨 MSD + LCARdS Cards Together
 
 ### Hybrid Dashboard Pattern
 
-The recommended architecture combines MSD cards for complex layouts with embedded Simple Cards for interactive elements:
+The recommended architecture combines MSD cards for complex layouts with embedded LCARdS Cards for interactive elements:
 
 ```yaml
-# MSD card with embedded Simple Cards
+# MSD card with embedded LCARdS Cards
 type: custom:lcards-msd-card
 base_svg:
   source: "none"
@@ -719,7 +719,7 @@ overlays:
     position: [50, 50]
     size: [400, 250]
     card:
-      type: custom:lcards-simple-chart
+      type: custom:lcards-chart
       source: sensor.temperature    # Can use entity directly
       chart_type: area
       height: 250
@@ -730,7 +730,7 @@ overlays:
     position: [500, 50]
     size: [200, 80]
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: climate.hvac
       label: "HVAC Control"
       preset: lozenge
@@ -741,7 +741,7 @@ overlays:
     position: [500, 150]
     size: [150, 50]
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: binary_sensor.system_ok
       label: "Status"
 
@@ -796,7 +796,7 @@ graph TB
             L2 --> C3
         end
 
-        subgraph "Standalone Simple Cards"
+        subgraph "Standalone LCARdS Cards"
             S1[SimpleButton]
             S2[SimpleButton]
         end
@@ -822,7 +822,7 @@ graph TB
 
 ### Benefits of Hybrid Approach
 
-| Feature | MSD Alone | Simple Cards Alone | MSD + Simple Cards |
+| Feature | MSD Alone | LCARdS Cards Alone | MSD + LCARdS Cards |
 |---------|-----------|--------------------|--------------------|
 | **Layout Control** | ✅ Full SVG layout | ❌ HA grid only | ✅ Full SVG layout |
 | **Line Routing** | ✅ Intelligent routing | ❌ Not supported | ✅ Connect to embedded cards |
@@ -839,7 +839,7 @@ graph TB
 - Line routing between components
 - Complex multi-overlay displays
 
-**Use Simple Cards (embedded or standalone) for:**
+**Use LCARdS Cards (embedded or standalone) for:**
 - Interactive buttons and controls
 - Charts and data visualization
 - Status displays

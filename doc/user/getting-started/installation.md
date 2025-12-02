@@ -424,7 +424,7 @@ graph TD
 Create this test card to verify installation:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 text:
   label:
@@ -473,7 +473,7 @@ graph TD
     style Success fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
-### Issue: "Custom element doesn't exist: lcards-simple-button"
+### Issue: "Custom element doesn't exist: lcards-button"
 
 **Causes:**
 - Resource not registered

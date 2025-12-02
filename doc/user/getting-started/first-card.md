@@ -47,7 +47,7 @@ Let's start with the simplest possible LCARdS card.
 ### 1.2 Paste Basic Button
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 text:
   label:
@@ -64,7 +64,7 @@ style:
 
 ### Understanding the Code
 
-- `type: custom:lcards-simple-button` - Uses the LCARdS Simple Button card
+- `type: custom:lcards-button` - Uses the LCARdS Button card
 - `preset: lozenge` - Applies the lozenge style (fully rounded ends)
 - `text.label.content` - The main text to display
 - `style.card.color.background.active` - The button color using LCARS theme variables
@@ -78,7 +78,7 @@ Let's make the button control a real entity!
 ### 2.1 Add Entity Control
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room  # ← Change this to your entity!
 preset: lozenge
 text:
@@ -130,7 +130,7 @@ Let's make it look more authentic!
 ### 3.1 Add an Icon
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
 icon_area: left
@@ -164,7 +164,7 @@ style:
 ### 3.2 Add Multiple Text Fields
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
 icon_area: left
@@ -205,7 +205,7 @@ Let's make the button change color based on brightness!
 ### 4.1 Rules for Brightness
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
 icon_area: left
@@ -339,7 +339,7 @@ msd:
 Now that you have the basics, explore more features:
 
 ### Simple Button Deep Dive
-- 📖 [Simple Button Quick Reference](../configuration/simple-button-quick-reference.md)
+- 📖 [Simple Button Quick Reference](../configuration/button-quick-reference.md)
 - 🎨 [Theme Tokens and Styling](../advanced/theme_creation_tutorial.md)
 - 📜 [Rules Engine Guide](../configuration/rules.md)
 

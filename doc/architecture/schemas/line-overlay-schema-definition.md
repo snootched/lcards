@@ -468,7 +468,7 @@ overlays:
     position: [50, 50]
     size: [200, 100]
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: sensor.status
 
   - id: detail_panel

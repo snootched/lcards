@@ -22,7 +22,7 @@ MSD supports **2 overlay types**:
 | Type | Description |
 |------|-------------|
 | **line** | SVG line/path overlays for visual connectors |
-| **card** / **control** | Embedded Home Assistant cards (SimpleCards, custom cards, built-in cards) |
+| **card** / **control** | Embedded Home Assistant cards (LCARdS Cards, custom cards, built-in cards) |
 
 ### Quick Comparison
 
@@ -110,7 +110,7 @@ overlays:
 ```
 
 **Supported card types:**
-- LCARdS SimpleCards (`custom:lcards-*`)
+- LCARdS LCARdS Cards (`custom:lcards-*`)
 - Any custom Home Assistant card
 - Built-in HA cards (button, light, entities, etc.)
 
@@ -170,12 +170,12 @@ attach_end: another_overlay.middle-left
 
 ## Best Practices
 
-### Use SimpleCards for Content
+### Use LCARdS Cards for Content
 
-Use LCARdS SimpleCards for interactive content:
+Use LCARdS LCARdS Cards for interactive content:
 - `lcards-button-card` - Interactive buttons
 - `lcards-text-card` - Text displays
-- `lcards-simple-chart` - Charts and graphs
+- `lcards-chart` - Charts and graphs
 
 ### Keep Lines Simple
 

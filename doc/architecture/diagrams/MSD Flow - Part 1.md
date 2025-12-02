@@ -37,21 +37,21 @@ The MSD (Master Systems Display) system follows a **two-tier architecture**: glo
 
 **Tier 1: Global Singleton Layer**
 - Shared intelligence systems (RulesEngine, DataSourceManager, ThemeManager, AnimationManager)
-- CoreSystemsManager (for Simple Cards only - MSD cards do NOT use this)
+- CoreSystemsManager (for LCARdS Cards only - MSD cards do NOT use this)
 - Created once on first MSD card initialization
 - Serves all cards simultaneously
 - Efficient resource usage through shared processing
 
 **Tier 2: Per-Card Instance Layer**
 - Each MSD card creates its own MSD SystemsManager
-- Simple Cards use CoreSystemsManager (NOT MSD SystemsManager)
+- LCARdS Cards use CoreSystemsManager (NOT MSD SystemsManager)
 - Card-specific rendering pipeline (AdvancedRenderer, RouterCore, etc.) - MSD cards only
 - Connects to singleton layer for shared intelligence
 - Independent rendering but coordinated updates
 
 **Important Distinction:**
 - **MSD Cards** → Use DataSourceManager directly (bypass CoreSystemsManager)
-- **Simple Cards** → Use CoreSystemsManager for entity caching (lighter weight)
+- **LCARdS Cards** → Use CoreSystemsManager for entity caching (lighter weight)
 - Both leverage shared RulesEngine, ThemeManager, AnimationManager
 
 ### Key Characteristics
@@ -536,7 +536,7 @@ graph TD
 6. **MsdHudManager** - Card-specific HUD management
 7. **BaseOverlayUpdater** - Card-specific incremental updates
 
-**Key Point**: MSD cards do **NOT** use CoreSystemsManager. They bypass it entirely and connect directly to the singleton layer (DataSourceManager, RulesEngine, etc.). CoreSystemsManager is only for Simple Cards.
+**Key Point**: MSD cards do **NOT** use CoreSystemsManager. They bypass it entirely and connect directly to the singleton layer (DataSourceManager, RulesEngine, etc.). CoreSystemsManager is only for LCARdS Cards.
 
 ---
 
@@ -553,7 +553,7 @@ graph LR
         RA[rules:<br/>cpu_hot]
     end
 
-    subgraph "Card B (SimpleCard)"
+    subgraph "Card B (LCARdS card)"
         DSB[data_sources:<br/>memory_usage]
         RB[rules:<br/>memory_warning]
     end
@@ -595,7 +595,7 @@ data_sources:
       preload: true
       hours: 6
 
-# Card B (SimpleCard) can reference the same data
+# Card B (LCARdS card) can reference the same data
 # via template syntax: {temperature.v} or {temperature.aggregations.avg}
 ```
 
@@ -630,11 +630,11 @@ rules:
 ## 📚 Related Documentation
 
 - **[MSD SystemsManager](../subsystems/msd-systems-manager.md)** - Per-card orchestrator for MSD cards
-- **[CoreSystemsManager](../subsystems/core-systems-manager.md)** - Lightweight singleton for Simple Cards
+- **[CoreSystemsManager](../subsystems/core-systems-manager.md)** - Lightweight singleton for LCARdS Cards
 - **[Architecture Overview](../overview.md)** - Complete system architecture
 - **[DataSource System](../subsystems/datasource-system.md)** - Data processing pipeline
 - **[Advanced Renderer](../subsystems/advanced-renderer.md)** - SVG rendering engine
 
 ---
 
-**Status:** ✅ Singleton extraction complete, CoreSystemsManager integrated with Simple Cards
+**Status:** ✅ Singleton extraction complete, CoreSystemsManager integrated with LCARdS Cards

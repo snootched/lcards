@@ -25,7 +25,7 @@ LitElement (Lit web component)
     ↓
 LCARdSNativeCard (HA integration, shadow DOM, actions)
     ↓
-    ├─→ LCARdSSimpleCard → Simple Cards (SimpleButton, etc.)
+    ├─→ LCARdSLCARdSCard → LCARdS Cards (SimpleButton, etc.)
     │   • Lightweight, single-purpose cards
     │   • Direct singleton integration
     │   • Template processing & action handling
@@ -35,16 +35,16 @@ LCARdSNativeCard (HA integration, shadow DOM, actions)
         • Multi-overlay complex displays
         • Advanced rendering pipeline
         • Navigation & routing
-        • **Future: Will be refactored to use Simple Cards for overlays**
+        • **Future: Will be refactored to use LCARdS Cards for overlays**
 ```
 
 ### Current State
 
-- ✅ **SimpleCard Foundation**: Clean architecture - all new cards use this
-- ✅ **SimpleButton Card**: Production Simple Card
+- ✅ **LCARdSCard Foundation**: Clean architecture - all new cards use this
+- ✅ **SimpleButton Card**: Production LCARdS Card
 - ✅ **MSD Cards**: Complex multi-overlay displays
 
-**See:** [Simple Card Foundation](cards/simple-card-foundation.md) for details on the Simple Card architecture.
+**See:** [LCARdS Card Foundation](cards/lcards-card-foundation.md) for details on the LCARdS Card architecture.
 
 ---
 
@@ -177,7 +177,7 @@ graph TB
 All intelligence is shared across card instances:
 - **RulesEngine** - Conditional logic evaluation
 - **DataSourceManager** - Entity subscriptions and data processing (MSD cards)
-- **CoreSystemsManager** - Entity caching (Simple Cards)
+- **CoreSystemsManager** - Entity caching (LCARdS Cards)
 - **ThemeManager** - Color schemes and styling
 - **AnimationManager** - Animation coordination
 
@@ -214,7 +214,7 @@ data_sources:
 
 ```yaml
 # Simple card defines rules
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.bedroom
 rules:
   - id: light_on_style
@@ -237,15 +237,15 @@ rules:
 
 ---
 
-## 📊 MSD + Simple Cards: Hybrid Architecture
+## 📊 MSD + LCARdS Cards: Hybrid Architecture
 
-The recommended approach combines MSD cards for layout with embedded Simple Cards for interactions:
+The recommended approach combines MSD cards for layout with embedded LCARdS Cards for interactions:
 
 | Component | Responsibility |
 |-----------|----------------|
 | **MSD Card** | Layout, line routing, SVG backgrounds |
-| **Simple Cards (embedded)** | Buttons, charts, interactive elements |
-| **Simple Cards (standalone)** | Individual controls outside MSD |
+| **LCARdS Cards (embedded)** | Buttons, charts, interactive elements |
+| **LCARdS Cards (standalone)** | Individual controls outside MSD |
 
 **See:** [MSD Flow Part 2](diagrams/MSD%20Flow%20-%20Part%202.md#-msd--simple-cards-together) for detailed examples.
 
@@ -254,7 +254,7 @@ The recommended approach combines MSD cards for layout with embedded Simple Card
 ## 📚 Detailed Documentation
 
 ### Card Types
-- **[Simple Card Foundation](cards/simple-card-foundation.md)** - Simple Card architecture
+- **[LCARdS Card Foundation](cards/lcards-card-foundation.md)** - LCARdS Card architecture
 - **[MSD Flow Diagrams](diagrams/)** - MSD initialization and rendering
 
 ### Systems
@@ -264,4 +264,4 @@ The recommended approach combines MSD cards for layout with embedded Simple Card
 
 ---
 
-**Status:** Current - reflects singleton architecture with Simple Card foundation
+**Status:** Current - reflects singleton architecture with LCARdS Card foundation

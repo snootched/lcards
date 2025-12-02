@@ -1,6 +1,6 @@
 # CoreSystemsManager
 
-> **Lightweight entity tracking singleton for Simple Cards**
+> **Lightweight entity tracking singleton for LCARdS Cards**
 > Provides basic entity state management without the heavy MSD rendering pipeline.
 
 ---
@@ -18,7 +18,7 @@
 
 ## Overview
 
-**CoreSystemsManager** is a **global singleton** that provides lightweight entity state tracking and subscription management for **non-MSD cards** (Simple Cards, future cards). It is **NOT** used by MSD cards.
+**CoreSystemsManager** is a **global singleton** that provides lightweight entity state tracking and subscription management for **non-MSD cards** (LCARdS Cards, future cards). It is **NOT** used by MSD cards.
 
 **Location**: `src/core/systems-manager/index.js`
 
@@ -26,7 +26,7 @@
 
 **Access Pattern**:
 ```javascript
-// Simple Cards access via lcardsCore
+// LCARdS Cards access via lcardsCore
 const systemsManager = window.lcardsCore.systemsManager;
 ```
 
@@ -60,8 +60,8 @@ graph TB
     end
 
     subgraph "Card Instances"
-        SC1[SimpleCard A]
-        SC2[SimpleCard B]
+        SC1[LCARdSCard A]
+        SC2[LCARdSCard B]
         SC3[SimpleButton C]
     end
 
@@ -89,7 +89,7 @@ graph TB
 ### Data Flow
 
 ```javascript
-// SimpleCard subscribes to entity
+// LCARdSCard subscribes to entity
 const unsubscribe = window.lcardsCore.systemsManager.subscribeToEntity(
   'light.desk',
   (entityId, newState, oldState) => {
@@ -98,7 +98,7 @@ const unsubscribe = window.lcardsCore.systemsManager.subscribeToEntity(
 );
 
 // CoreSystemsManager maintains ONE entity subscription
-// Distributes updates to ALL SimpleCard subscribers
+// Distributes updates to ALL LCARdSCard subscribers
 ```
 
 ---
@@ -116,7 +116,7 @@ const state = systemsManager.getEntityState('light.desk');
 **Cache Behavior**:
 - Populated on initialization from HASS
 - Updated on HASS change detection
-- Shared across all SimpleCard instances
+- Shared across all LCARdSCard instances
 - Lightweight Map<entityId, state>
 
 ---
@@ -201,13 +201,13 @@ cardContext.unsubscribeFromEntity('light.desk', callback);
 
 ## Usage
 
-### SimpleCard Integration (✅ Fully Implemented)
+### LCARdSCard Integration (✅ Fully Implemented)
 
-LCARdSSimpleCard fully integrates with CoreSystemsManager:
+LCARdSLCARdSCard fully integrates with CoreSystemsManager:
 
 ```javascript
-// src/base/LCARdSSimpleCard.js
-export class LCARdSSimpleCard extends LCARdSNativeCard {
+// src/base/LCARdSLCARdSCard.js
+export class LCARdSLCARdSCard extends LCARdSNativeCard {
 
   // 1. Initialization - Register with CoreSystemsManager
   _initializeSingletons() {
@@ -245,7 +245,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
   // 3. Subscription API - Reactive entity updates
   subscribeToEntity(entityId, callback) {
     if (!this._singletons?.systemsManager) {
-      lcardsLog.warn('[LCARdSSimpleCard] CoreSystemsManager not available');
+      lcardsLog.warn('[LCARdSLCARdSCard] CoreSystemsManager not available');
       return () => {};
     }
 
@@ -270,7 +270,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         try {
           unsubscribe();
         } catch (error) {
-          lcardsLog.warn('[LCARdSSimpleCard] Error unsubscribing', error);
+          lcardsLog.warn('[LCARdSLCARdSCard] Error unsubscribing', error);
         }
       });
       this._entitySubscriptions.clear();
@@ -283,7 +283,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
           this._cardContext.cardGuid
         );
       } catch (error) {
-        lcardsLog.warn('[LCARdSSimpleCard] Error unregistering card', error);
+        lcardsLog.warn('[LCARdSLCARdSCard] Error unregistering card', error);
       }
     }
 
@@ -294,7 +294,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
 **Integration Benefits**:
 - ✅ **80-90% faster entity access** with multiple cards (cached vs HASS lookup)
-- ✅ **Memory efficient** - One entity cache serves all SimpleCards
+- ✅ **Memory efficient** - One entity cache serves all LCARdSCards
 - ✅ **Reactive updates** - `subscribeToEntity()` API for entity change notifications
 - ✅ **Clean lifecycle** - Automatic cleanup prevents memory leaks
 - ✅ **Backwards compatible** - Fallback to direct HASS if CoreSystemsManager unavailable
@@ -481,7 +481,7 @@ console.log(debug);
 | Feature | CoreSystemsManager | MSD SystemsManager |
 |---------|-------------------|-------------------|
 | **Instantiation** | Singleton (one globally) | Per-card instance |
-| **Used By** | Simple Cards | MSD cards only |
+| **Used By** | LCARdS Cards | MSD cards only |
 | **Entity Tracking** | ✅ Yes | ✅ Yes (via DataSourceManager) |
 | **Entity Subscriptions** | ✅ Yes | ✅ Yes (via DataSourceManager) |
 | **Overlay Rendering** | ❌ No | ✅ Yes (AdvancedRenderer) |
@@ -498,7 +498,7 @@ console.log(debug);
 
 | Card Type | Use CoreSystemsManager | Use MSD SystemsManager |
 |-----------|----------------------|----------------------|
-| **Simple Cards (button, label, etc.)** | ✅ Yes | ❌ No |
+| **LCARdS Cards (button, label, etc.)** | ✅ Yes | ❌ No |
 | **MSD Cards (multi-overlay)** | ❌ No | ✅ Yes |
 
 ---
@@ -512,14 +512,14 @@ console.log(debug);
 - Subscriptions: ~0.5 KB per subscription
 - Total: ~50 KB + (0.5 KB × subscription count)
 
-**Per SimpleCard**:
+**Per LCARdSCard**:
 - Config object: ~1 KB
 - Singleton references: ~0.5 KB
 - DOM elements: ~3-5 KB
 - Total: ~5 KB per card
 
 **Comparison**:
-- 10 SimpleCards: ~50 KB (global) + 50 KB (cards) = ~100 KB
+- 10 LCARdSCards: ~50 KB (global) + 50 KB (cards) = ~100 KB
 - 10 MSD Cards: ~200 KB (singletons) + ~1.5 MB (cards) = ~1.7 MB
 
 ---
@@ -567,8 +567,8 @@ csm._entityStates.forEach((state, entityId) => {
 
 - **[MSD SystemsManager](./msd-systems-manager.md)** - Full pipeline coordinator for MSD cards
 - **[Architecture Overview](../overview.md)** - System architecture
-- **[SimpleCard Foundation](../simple-card-foundation.md)** - SimpleCard architecture
+- **[LCARdSCard Foundation](../simple-card-foundation.md)** - LCARdSCard architecture
 
 ---
 
-**Status:** ✅ Fully integrated with Simple Cards
+**Status:** ✅ Fully integrated with LCARdS Cards

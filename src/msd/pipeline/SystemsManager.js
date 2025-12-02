@@ -85,7 +85,7 @@ export class SystemsManager extends BaseService {
 
     // DEPRECATED: Overlay renderer registry removed (v1.16.22+)
     // Old pattern: Custom overlay renderer classes (ButtonOverlay, ApexChartsOverlayRenderer, etc.)
-    // New pattern: Unified card overlays (SimpleCards, HA cards) handle their own lifecycle
+    // New pattern: Unified card overlays (LCARdS cards, HA cards) handle their own lifecycle
     // No registry needed - all overlays use MsdControlsRenderer for embedding
   }
 
@@ -1184,7 +1184,7 @@ export class SystemsManager extends BaseService {
 
   // REMOVED METHOD: _updateTextOverlaysForDataSourceChanges
   // This method was deprecated and is no longer needed since text overlays
-  // have been replaced by SimpleCards.
+  // have been replaced by LCARdS cards.
   // Deleted in Phase 0 of architecture refactor.
 
   // REMOVED METHOD: _findDataSourceForEntity
@@ -1289,7 +1289,7 @@ export class SystemsManager extends BaseService {
   }
 }
 
-// CLEANUP NOTE: Text overlays have been removed and replaced by SimpleCards
-// All overlay-specific update logic has been removed as SimpleCards handle
+// CLEANUP NOTE: Text overlays have been removed and replaced by LCARdS cards
+// All overlay-specific update logic has been removed as LCARdS cards handle
 // their own lifecycle and updates.
 

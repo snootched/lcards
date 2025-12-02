@@ -81,7 +81,7 @@ graph LR
 ### 1.2 Paste Basic Button
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 text:
   label:
@@ -100,7 +100,7 @@ style:
 
 ```mermaid
 graph TD
-    Type[type: custom:lcards-simple-button] --> Card[Tells HA to use<br/>LCARdS Simple Button]
+    Type[type: custom:lcards-button] --> Card[Tells HA to use<br/>LCARdS Button]
     Preset[preset: lozenge] --> Style[Applies lozenge style<br/>with rounded ends]
     Text[text.label.content] --> Content[Main text displayed<br/>on the button]
 

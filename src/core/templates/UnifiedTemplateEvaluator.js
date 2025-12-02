@@ -1,6 +1,6 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateDetector } from './TemplateDetector.js';
-import { SimpleCardTemplateEvaluator } from './SimpleCardTemplateEvaluator.js';
+import { LCARdSCardTemplateEvaluator } from './LCARdSCardTemplateEvaluator.js';
 import { MSDTemplateEvaluator } from '../../msd/templates/MSDTemplateEvaluator.js';
 
 /**
@@ -8,7 +8,7 @@ import { MSDTemplateEvaluator } from '../../msd/templates/MSDTemplateEvaluator.j
  *
  * Phase 3: Unified Template System Architecture
  *
- * This evaluator orchestrates all template types across both SimpleCard and MSD:
+ * This evaluator orchestrates all template types across both LCARdS Card and MSD:
  * - JavaScript templates: [[[code]]]
  * - Token templates: {entity.state}
  * - Datasource templates: {datasource:sensor.temp} (new explicit syntax)
@@ -22,7 +22,7 @@ import { MSDTemplateEvaluator } from '../../msd/templates/MSDTemplateEvaluator.j
  * 4. Jinja2 templates (async via Home Assistant)
  *
  * This enables:
- * - SimpleCard to use datasources
+ * - LCARdS Card to use datasources
  * - MSD to use tokens, JavaScript, and Jinja2
  * - No ambiguity with explicit {datasource:...} prefix
  * - One unified template processing system
@@ -48,9 +48,9 @@ export class UnifiedTemplateEvaluator {
       this.context.hass = this.hass;
     }
 
-    // Create SimpleCard template evaluator (handles JS, tokens, Jinja2)
-    // Note: SimpleCardTemplateEvaluator expects hass inside the context object
-    this.simpleCardEvaluator = new SimpleCardTemplateEvaluator(this.context);
+    // Create LCARdS Card template evaluator (handles JS, tokens, Jinja2)
+    // Note: LCARdSCardTemplateEvaluator expects hass inside the context object
+    this.lcardsCardEvaluator = new LCARdSCardTemplateEvaluator(this.context);
 
     // Create MSD template evaluator (handles datasources)
     // Note: MSDTemplateEvaluator expects dataSourceManager directly, not as an object property
@@ -76,7 +76,7 @@ export class UnifiedTemplateEvaluator {
    * @returns {Promise<string>} Evaluated content
    *
    * @example
-   * // SimpleCard using datasources
+   * // LCARdS Card using datasources
    * await evaluator.evaluateAsync('Temp: {datasource:sensor.temp:.1f}°C')
    *
    * // MSD using Jinja2
@@ -101,13 +101,13 @@ export class UnifiedTemplateEvaluator {
       // Phase 1: JavaScript templates (sync)
       if (TemplateDetector.detectTemplateTypes(result).hasJavaScript) {
         lcardsLog.debug('[UnifiedTemplateEvaluator] Phase 1: Evaluating JavaScript templates');
-        result = this.simpleCardEvaluator.evaluateJavaScript(result);
+        result = this.lcardsCardEvaluator.evaluateJavaScript(result);
       }
 
       // Phase 2: Token templates (sync)
       if (TemplateDetector.detectTemplateTypes(result).hasTokens) {
         lcardsLog.debug('[UnifiedTemplateEvaluator] Phase 2: Evaluating token templates');
-        result = this.simpleCardEvaluator.evaluateTokens(result);
+        result = this.lcardsCardEvaluator.evaluateTokens(result);
       }
 
       // Phase 3: Datasource templates (sync)
@@ -123,7 +123,7 @@ export class UnifiedTemplateEvaluator {
       // Phase 4: Jinja2 templates (async via HA)
       if (TemplateDetector.detectTemplateTypes(result).hasJinja2) {
         lcardsLog.debug('[UnifiedTemplateEvaluator] Phase 4: Evaluating Jinja2 templates');
-        result = await this.simpleCardEvaluator.evaluateJinja2(result);
+        result = await this.lcardsCardEvaluator.evaluateJinja2(result);
       }
 
       lcardsLog.debug('[UnifiedTemplateEvaluator] Evaluation complete', {
@@ -225,12 +225,12 @@ export class UnifiedTemplateEvaluator {
 
     // Phase 1: JavaScript
     if (TemplateDetector.detectTemplateTypes(result).hasJavaScript) {
-      result = this.simpleCardEvaluator.evaluateJavaScript(result);
+      result = this.lcardsCardEvaluator.evaluateJavaScript(result);
     }
 
     // Phase 2: Tokens
     if (TemplateDetector.detectTemplateTypes(result).hasTokens) {
-      result = this.simpleCardEvaluator.evaluateTokens(result);
+      result = this.lcardsCardEvaluator.evaluateTokens(result);
     }
 
     // Phase 3: Datasources
@@ -249,7 +249,7 @@ export class UnifiedTemplateEvaluator {
    * @returns {Array<string>} Array of entity IDs
    */
   extractDependencies(content) {
-    return this.simpleCardEvaluator.extractDependencies(content);
+    return this.lcardsCardEvaluator.extractDependencies(content);
   }
 
   /**
@@ -259,7 +259,7 @@ export class UnifiedTemplateEvaluator {
    */
   updateContext(newContext) {
     this.context = newContext;
-    this.simpleCardEvaluator.updateContext(newContext);
+    this.lcardsCardEvaluator.updateContext(newContext);
   }
 
   /**
@@ -269,7 +269,7 @@ export class UnifiedTemplateEvaluator {
    */
   updateHass(newHass) {
     this.hass = newHass;
-    this.simpleCardEvaluator.updateHass(newHass);
+    this.lcardsCardEvaluator.updateHass(newHass);
   }
 
   /**

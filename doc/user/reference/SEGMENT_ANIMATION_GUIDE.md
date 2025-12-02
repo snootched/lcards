@@ -12,7 +12,7 @@ This guide addresses common questions about segment animations in LCARdS button 
 **Solution**: Add an `on_leave` trigger with `scale-reset` preset or explicit scale animation.
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 dpad:
   segments:
@@ -56,7 +56,7 @@ dpad:
 
 **Example - Glow 3 times on entity change**:
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 dpad:
   segments:
@@ -97,13 +97,13 @@ dpad:
 4. Works regardless of what caused the state change (your segment, another card, automation, etc.)
 
 **Debugging tips**:
-- Check console logs for `[LCARdSSimpleButtonCard] Entity states changed`
+- Check console logs for `[LCARdSButton] Entity states changed`
 - Verify entity is correctly specified: `segment.entity` or fallback to `config.entity`
 - Ensure animation has correct trigger: `trigger: on_entity_change`
 
 **Example - Flash when light changes (from anywhere)**:
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 dpad:
   segments:
@@ -137,7 +137,7 @@ entity: light.living_room
 ## Complete Example
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: light.tv  # Card-level entity (fallback)
 
@@ -274,4 +274,4 @@ dpad:
 ### Entity change not firing
 - Verify entity exists and is accessible in HASS
 - Check that entity state is actually changing
-- Look for debug logs: `[LCARdSSimpleButtonCard] Entity states changed`
+- Look for debug logs: `[LCARdSButton] Entity states changed`

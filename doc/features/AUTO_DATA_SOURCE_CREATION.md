@@ -47,7 +47,7 @@ Now SimpleChart can be used standalone **without any MSD config**:
 
 ```yaml
 # Just reference the entity directly!
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.temperature  # Auto-creates DataSource with history
 chart_type: line
 ```
@@ -65,7 +65,7 @@ The card will:
 ### Custom History Hours
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 source: sensor.energy_usage
 chart_type: bar
 history_hours: 48  # Override default 24 hours
@@ -76,7 +76,7 @@ history_hours: 48  # Override default 24 hours
 Works with multiple sources too:
 
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 sources:
   - sensor.temperature
   - sensor.humidity
@@ -89,7 +89,7 @@ chart_type: line
 
 ### Location
 
-`src/cards/lcards-simple-chart.js` → `_subscribeToDataSources()` method
+`src/cards/lcards-chart.js` → `_subscribeToDataSources()` method
 
 ### Logic
 
@@ -146,7 +146,7 @@ config:
 
 **After** (standalone):
 ```yaml
-type: custom:lcards-simple-chart
+type: custom:lcards-chart
 sources: [sensor.temperature, sensor.humidity]
 chart_type: line
 ```
@@ -202,12 +202,12 @@ In MSD configs, it's still **recommended** to define data sources explicitly for
 
 ## Future Enhancements
 
-### 1. Other SimpleCards
+### 1. Other LCARdSCards
 
 Extend auto-creation to other cards:
-- `lcards-simple-button` - auto-create for `entity:` config
-- `lcards-simple-text` - auto-create for template entities
-- `lcards-simple-status` - auto-create for `entity:` config
+- `lcards-button` - auto-create for `entity:` config
+- `lcards-text` - auto-create for template entities
+- `lcards-status` - auto-create for `entity:` config
 
 ### 2. Smart Defaults
 
@@ -239,4 +239,4 @@ See test guides:
 ✅ Customizable history hours
 ✅ Multi-series support
 
-**Next Step:** Extend to other SimpleCards (button, text, status) for consistency.
+**Next Step:** Extend to other LCARdSCards (button, text, status) for consistency.

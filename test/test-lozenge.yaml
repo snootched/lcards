@@ -1,4 +1,4 @@
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 preset: 'lozenge'
 text: 'Test Button'

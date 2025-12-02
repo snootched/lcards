@@ -5,9 +5,9 @@ import { TemplateParser } from './TemplateParser.js';
 import { HATemplateEvaluator } from './HATemplateEvaluator.js';
 
 /**
- * SimpleCardTemplateEvaluator - Evaluates button-card style templates
+ * LCARdSCardTemplateEvaluator - Evaluates button-card style templates
  *
- * Extracted from LCARdSSimpleCard.processTemplate()
+ * Extracted from LCARdSCard.processTemplate()
  *
  * Supports:
  * - JavaScript templates: [[[return entity.state]]]
@@ -22,11 +22,11 @@ import { HATemplateEvaluator } from './HATemplateEvaluator.js';
  * - (optional) theme: Theme configuration
  *
  * @extends TemplateEvaluator
- * @module SimpleCardTemplateEvaluator
+ * @module LCARdSCardTemplateEvaluator
  */
-export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
+export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
   /**
-   * Create SimpleCard template evaluator
+   * Create LCARdS Card template evaluator
    *
    * @param {Object} context - Evaluation context
    * @param {Object} context.entity - Home Assistant entity
@@ -56,7 +56,7 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {string} Evaluated content
    *
    * @example
-   * const evaluator = new SimpleCardTemplateEvaluator({
+   * const evaluator = new LCARdSCardTemplateEvaluator({
    *   entity: entityObj,
    *   hass: hassObj,
    *   config: configObj
@@ -160,7 +160,7 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
       try {
         return this._safeEvalCode(code.trim());
       } catch (error) {
-        lcardsLog.warn('[SimpleCardTemplateEvaluator] JavaScript evaluation failed:', error);
+        lcardsLog.warn('[LCARdSCardTemplateEvaluator] JavaScript evaluation failed:', error);
         return match; // Return original if evaluation fails
       }
     });
@@ -201,7 +201,7 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
         const value = this._resolveToken(token.trim());
         return value !== null && value !== undefined ? String(value) : '';
       } catch (error) {
-        lcardsLog.warn('[SimpleCardTemplateEvaluator] Token resolution failed:', error);
+        lcardsLog.warn('[LCARdSCardTemplateEvaluator] Token resolution failed:', error);
         return match; // Return original if resolution fails
       }
     });
@@ -384,12 +384,12 @@ export class SimpleCardTemplateEvaluator extends TemplateEvaluator {
 
     // Warn if critical context is missing
     if (!this.context.hass) {
-      lcardsLog.warn('[SimpleCardTemplateEvaluator] Context missing hass object');
+      lcardsLog.warn('[LCARdSCardTemplateEvaluator] Context missing hass object');
     }
   }
 }
 
 // Expose for debugging
 if (typeof window !== 'undefined') {
-  window.__simpleCardTemplateEvaluator = SimpleCardTemplateEvaluator;
+  window.__simpleCardTemplateEvaluator = LCARdSCardTemplateEvaluator;
 }

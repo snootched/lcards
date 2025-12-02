@@ -14,7 +14,7 @@
 # ==============================================================================
 # EXAMPLE 1: Basic Media Player Control
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: media_player.living_room
 dpad:
@@ -48,7 +48,7 @@ dpad:
 # ==============================================================================
 # EXAMPLE 2: Full Remote Control with All Segments
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: remote.roku
 dpad:
@@ -118,7 +118,7 @@ dpad:
 # ==============================================================================
 # EXAMPLE 3: Multi-Entity Segments with State Tracking
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 dpad:
   segments:
@@ -149,7 +149,7 @@ dpad:
 # ==============================================================================
 # EXAMPLE 4: Theme Token Overrides (Advanced)
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: media_player.sonos
 dpad:
@@ -189,7 +189,7 @@ dpad:
 # ==============================================================================
 # EXAMPLE 5: Hold and Double-Tap Actions
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: media_player.living_room
 dpad:
@@ -225,7 +225,7 @@ dpad:
 # ==============================================================================
 # EXAMPLE 6: Minimal Configuration (Defaults to theme)
 # ==============================================================================
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: media_player.bedroom
 dpad:

@@ -23,7 +23,7 @@ Each segment has exactly **4 properties**:
 ## Proposed Clean Schema
 
 ```yaml
-type: custom:lcards-elbow-button
+type: custom:lcards-elbow
 entity: <entity_id>
 
 elbow:

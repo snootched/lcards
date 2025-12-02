@@ -1,8 +1,8 @@
-# LCARdS Simple Card Architecture
+# LCARdS Card Architecture
 
 ## Overview
 
-The Simple Card foundation provides a minimal, clear base for building single-purpose Home Assistant cards that leverage LCARdS singleton systems without MSD complexity.
+The LCARdS Card foundation provides a minimal, clear base for building single-purpose Home Assistant cards that leverage LCARdS singleton systems without MSD complexity.
 
 ## Philosophy
 
@@ -30,14 +30,14 @@ LitElement
     ↓
 LCARdSNativeCard (HA integration, shadow DOM, actions)
     ↓
-LCARdSSimpleCard (singleton access, helpers)
+LCARdSCard (singleton access, helpers)
     ↓
-[Your Simple Card] (rendering, logic)
+[Your LCARdS Card] (rendering, logic)
 ```
 
 ## When to Use
 
-### Use Simple Card For:
+### Use LCARdS Card For:
 - ✅ Single-purpose cards (buttons, labels, status)
 - ✅ Cards with 1-3 entities
 - ✅ Template-driven content
@@ -51,15 +51,15 @@ LCARdSSimpleCard (singleton access, helpers)
 - ✅ Custom SVG composition
 - ✅ Advanced animation sequences
 
-## Creating a Simple Card
+## Creating an LCARdS Card
 
 ### Basic Structure
 
 ```javascript
 import { html } from 'lit';
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
+import { LCARdSCard } from '../base/LCARdSCard.js';
 
-export class MySimpleCard extends LCARdSSimpleCard {
+export class MyLCARdSCard extends LCARdSCard {
 
     // 1. Define reactive properties
     static get properties() {
@@ -190,7 +190,7 @@ this._actionCleanup = this.setupActions(element, {
 
 ### RulesEngine Integration
 
-SimpleCard provides first-class RulesEngine support for dynamic styling and behavior based on entity states.
+LCARdSCard provides first-class RulesEngine support for dynamic styling and behavior based on entity states.
 
 #### Overview
 
@@ -208,7 +208,7 @@ Style Resolution Priority:
 #### Basic Setup
 
 ```javascript
-export class MySimpleCard extends LCARdSSimpleCard {
+export class MyLCARdSCard extends LCARdSCard {
 
     constructor() {
         super();
@@ -343,7 +343,7 @@ The base class handles this automatically when you register your overlay. The sy
 
 **Entity-Specific Rule Evaluation**
 
-SimpleCards use the same efficient entity-based monitoring as MSD cards:
+LCARdSCards use the same efficient entity-based monitoring as MSD cards:
 
 ```javascript
 // Automatically called in _onConnected() after rules are loaded
@@ -470,7 +470,7 @@ _onRulePatchesChanged(patches) {
 
 ## HASS Distribution Integration
 
-SimpleCard integrates with the singleton HASS distribution system and CoreSystemsManager:
+LCARdSCard integrates with the singleton HASS distribution system and CoreSystemsManager:
 
 ### Automatic HASS Updates
 - Inherits from `LCARdSNativeCard` which gets HASS from HA
@@ -499,7 +499,7 @@ segments.forEach(segment => {
 ```
 
 ### Feeding HASS to Singletons
-- SimpleCard calls `window.lcards.core.ingestHass(hass)` to update singletons
+- LCARdSCard calls `window.lcards.core.ingestHass(hass)` to update singletons
 - This enables cross-card coordination and shared entity state
 - Rules engine, theme manager, CoreSystemsManager get updated HASS data
 
@@ -508,7 +508,7 @@ segments.forEach(segment => {
 - First entity access: Cache miss → Direct HASS lookup → Cache population
 - Subsequent accesses: Cache hit (~80-90% faster)
 - Cache automatically updated on HASS changes
-- All SimpleCards share the same cache
+- All LCARdSCards share the same cache
 
 ### HASS Flow
 ```
@@ -516,7 +516,7 @@ Home Assistant
     ↓
 Card.hass = hass (automatic via LCARdSNativeCard)
     ↓
-_onHassChanged() (SimpleCard override)
+_onHassChanged() (LCARdSCard override)
     ↓
 window.lcards.core.ingestHass(hass) (feed to singletons)
     ↓  ↓  ↓
@@ -533,13 +533,13 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 - **With CoreSystemsManager**: 1 cache update + 10 cache reads = ~10 operations
 - **Result**: ~80-90% performance improvement with multiple cards
 
-## Example: Simple Label Card
+## Example: Label Card
 
 ```javascript
 import { html, css } from 'lit';
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
+import { LCARdSCard } from '../base/LCARdSCard.js';
 
-export class LCARdSSimpleLabelCard extends LCARdSSimpleCard {
+export class LCARdSLabelCard extends LCARdSCard {
 
     static get properties() {
         return {
@@ -577,7 +577,7 @@ export class LCARdSSimpleLabelCard extends LCARdSSimpleCard {
     }
 }
 
-customElements.define('lcards-simple-label', LCARdSSimpleLabelCard);
+customElements.define('lcards-label', LCARdSLabelCard);
 ```
 
 ## Best Practices
@@ -645,18 +645,18 @@ Create test HTML file:
     <script type="module" src="/dist/lcards.js"></script>
 </head>
 <body>
-    <lcards-simple-button
+    <lcards-button
         entity="light.bedroom"
         label="Test Button"
         preset="lozenge">
-    </lcards-simple-button>
+    </lcards-button>
 </body>
 </html>
 ```
 
 ## API Reference
 
-### LCARdSSimpleCard Properties
+### LCARdSCard Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -668,7 +668,7 @@ Create test HTML file:
 | `_overlayRegistered` | Boolean | Whether overlay is registered with RulesEngine |
 | `_currentRulePatches` | Object | Cached rule patches for this overlay |
 
-### LCARdSSimpleCard Methods
+### LCARdSCard Methods
 
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
@@ -695,7 +695,7 @@ Create test HTML file:
 
 ## Summary
 
-Simple Card provides exactly what you need:
+LCARdS Card provides exactly what you need:
 - ✅ CoreSystemsManager integration (entity caching + subscriptions)
 - ✅ 80-90% faster entity access with multiple cards
 - ✅ Reactive entity subscription API
@@ -713,4 +713,4 @@ Nothing more, nothing less.
 
 ---
 
-**Status:** ✅ RulesEngine fully integrated with SimpleCard
+**Status:** ✅ RulesEngine fully integrated with LCARdSCard

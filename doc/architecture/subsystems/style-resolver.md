@@ -136,7 +136,7 @@ graph TB
 - **PipelineCore** - Creates StyleResolverService during initialization
 - **BaseRenderer** - Automatic integration via `this.styleResolver` property
 - **LineOverlay** - Inherits from OverlayBase
-- **MsdControlsRenderer** - Handles card-based overlays (SimpleCards, HA cards)
+- **MsdControlsRenderer** - Handles card-based overlays (LCARdSCards, HA cards)
 
 **Resolution Chain:**
 
@@ -431,7 +431,7 @@ overlays:
 | `dotted` | Dotted line | `dash_array: 2,2` |
 | `thick` | Wide line | `stroke_width: 4` |
 
-> **Note:** Card styling presets are handled by individual SimpleCards (e.g., `lcards-button-card`) via their own preset systems.
+> **Note:** Card styling presets are handled by individual LCARdSCards (e.g., `lcards-button-card`) via their own preset systems.
 
 ### Preset Resolution
 

@@ -53,7 +53,7 @@
         <div class="test-config">
 Config:
 {
-  "type": "custom:lcards-simple-button",
+  "type": "custom:lcards-button",
   "entity": "light.test",
   "text": "Default Button"
 }</div>
@@ -65,7 +65,7 @@ Config:
         <div class="test-config">
 Config:
 {
-  "type": "custom:lcards-simple-button",
+  "type": "custom:lcards-button",
   "entity": "light.test",
   "preset": "lozenge",
   "text": "Lozenge Button"
@@ -78,7 +78,7 @@ Config:
         <div class="test-config">
 Config:
 {
-  "type": "custom:lcards-simple-button",
+  "type": "custom:lcards-button",
   "entity": "light.test",
   "preset": "pill",
   "text": "Pill Button"
@@ -91,7 +91,7 @@ Config:
         <div class="test-config">
 Config:
 {
-  "type": "custom:lcards-simple-button",
+  "type": "custom:lcards-button",
   "entity": "light.test",
   "preset": "rectangle",
   "text": "Rectangle Button"
@@ -104,7 +104,7 @@ Config:
         <div class="test-config">
 Config:
 {
-  "type": "custom:lcards-simple-button",
+  "type": "custom:lcards-button",
   "entity": "sensor.temperature",
   "preset": "lozenge",
   "text": ["Living Room", "Temperature", "{{sensor.temperature.state}}°C"]
@@ -205,7 +205,7 @@ Config:
                 {
                     element: 'test1',
                     config: {
-                        type: 'custom:lcards-simple-button',
+                        type: 'custom:lcards-button',
                         entity: 'light.test',
                         text: 'Default Button'
                     }
@@ -213,7 +213,7 @@ Config:
                 {
                     element: 'test2',
                     config: {
-                        type: 'custom:lcards-simple-button',
+                        type: 'custom:lcards-button',
                         entity: 'light.test',
                         preset: 'lozenge',
                         text: 'Lozenge Button'
@@ -222,7 +222,7 @@ Config:
                 {
                     element: 'test3',
                     config: {
-                        type: 'custom:lcards-simple-button',
+                        type: 'custom:lcards-button',
                         entity: 'light.test',
                         preset: 'pill',
                         text: 'Pill Button'
@@ -231,7 +231,7 @@ Config:
                 {
                     element: 'test4',
                     config: {
-                        type: 'custom:lcards-simple-button',
+                        type: 'custom:lcards-button',
                         entity: 'light.test',
                         preset: 'rectangle',
                         text: 'Rectangle Button'
@@ -240,7 +240,7 @@ Config:
                 {
                     element: 'test5',
                     config: {
-                        type: 'custom:lcards-simple-button',
+                        type: 'custom:lcards-button',
                         entity: 'sensor.temperature',
                         preset: 'lozenge',
                         text: ['Living Room', 'Temperature', '{{sensor.temperature.state}}°C']
@@ -254,7 +254,7 @@ Config:
                     if (!element) continue;
 
                     // Create card instance
-                    const cardElement = document.createElement('lcards-simple-button');
+                    const cardElement = document.createElement('lcards-button');
                     cardElement.setConfig(test.config);
                     cardElement.hass = mockHass;
 

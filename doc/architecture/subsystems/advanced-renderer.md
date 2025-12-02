@@ -40,7 +40,7 @@ The renderer handles these overlay types:
 | Type | Renderer | Element | Description |
 |------|----------|---------|-------------|
 | **line** | LineOverlay | SVG line/path | Visual dividers and connectors |
-| **card** / **control** | MsdControlsRenderer | SVG foreignObject | Embedded HA cards (SimpleCards, custom cards) |
+| **card** / **control** | MsdControlsRenderer | SVG foreignObject | Embedded HA cards (LCARdSCards, custom cards) |
 
 ---
 
@@ -490,7 +490,7 @@ class LineOverlay extends OverlayBase {
 
 ### MsdControlsRenderer (Card-based overlays)
 
-Renders Home Assistant cards and SimpleCards in foreignObject:
+Renders Home Assistant cards and LCARdSCards in foreignObject:
 
 ```javascript
 class MsdControlsRenderer {

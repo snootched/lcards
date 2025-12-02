@@ -37,8 +37,8 @@ export function registerAllSchemas(schemaRegistry) {
   schemaRegistry.register('line', lineOverlaySchema);
 
   // Note: button, text, apexchart, status_grid schemas removed (v1.16.22+)
-  // These overlay types are deprecated - use SimpleCards instead:
-  // - button/text → custom:lcards-simple-button
-  // - apexchart → custom:lcards-simple-chart
+  // These overlay types are deprecated - use LCARdS cards instead:
+  // - button/text → custom:lcards-button
+  // - apexchart → custom:lcards-chart
   // - status_grid → type: grid (HA card)
 }

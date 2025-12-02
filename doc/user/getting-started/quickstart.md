@@ -135,7 +135,7 @@ graph LR
 **Copy-Paste Example:**
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 text:
   label:

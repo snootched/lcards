@@ -9,7 +9,7 @@
 # - Horizontal bar on top (20px tall)
 # - Curved corner connecting them in the top-left
 test_header_left:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.bedroom
   elbow:
     type: header-left
@@ -33,7 +33,7 @@ test_header_left:
 # - Horizontal bar on top
 # - Curved corner in top-right
 test_header_right:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.living_room
   elbow:
     type: header-right
@@ -58,7 +58,7 @@ test_header_right:
 # - Horizontal bar on bottom
 # - Curved corner in bottom-left
 test_footer_left:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.kitchen
   elbow:
     type: footer-left
@@ -82,7 +82,7 @@ test_footer_left:
 # - Horizontal bar on bottom
 # - Curved corner in bottom-right
 test_footer_right:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.bedroom
   elbow:
     type: footer-right
@@ -104,7 +104,7 @@ test_footer_right:
 # ============================================================================
 # Demonstrates color overrides for the elbow
 test_custom_colors:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: binary_sensor.door
   elbow:
     type: header-left
@@ -125,7 +125,7 @@ test_custom_colors:
 # ============================================================================
 # Shows how rules work with elbow buttons for state-based styling
 test_with_rules:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.bedroom
   elbow:
     type: header-left
@@ -154,7 +154,7 @@ test_with_rules:
 # ============================================================================
 # Smaller elbow for inline use
 test_compact:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   elbow:
     type: header-left
     border:
@@ -174,7 +174,7 @@ test_compact:
 # ============================================================================
 # Larger elbow suitable for main dashboard headers
 test_large_header:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   entity: light.main
   elbow:
     type: header-left
@@ -201,7 +201,7 @@ test_large_header:
 
 # Top-left corner
 frame_top_left:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   elbow:
     type: header-left
     border:
@@ -213,7 +213,7 @@ frame_top_left:
 
 # Top-right corner
 frame_top_right:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   elbow:
     type: header-right
     border:
@@ -225,7 +225,7 @@ frame_top_right:
 
 # Bottom-left corner
 frame_bottom_left:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   elbow:
     type: footer-left
     border:
@@ -237,7 +237,7 @@ frame_bottom_left:
 
 # Bottom-right corner
 frame_bottom_right:
-  type: custom:lcards-elbow-button
+  type: custom:lcards-elbow
   elbow:
     type: footer-right
     border:

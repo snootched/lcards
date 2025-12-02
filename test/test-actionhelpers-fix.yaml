@@ -9,7 +9,7 @@ views:
   - title: Click Test
     cards:
       # Simple Button Test - Light Toggle
-      - type: custom:lcards-simple-button
+      - type: custom:lcards-button
         entity: light.tv
         label: "Bedroom Light"
         preset: lozenge
@@ -19,7 +19,7 @@ views:
           action: more-info
 
       # Simple Button Test - Script Action
-      - type: custom:lcards-simple-button
+      - type: custom:lcards-button
         entity: script.test_action
         label: "RUN SCRIPT"
         preset: pill
@@ -30,7 +30,7 @@ views:
             entity_id: script.test_action
 
       # Simple Button Test - Navigation
-      - type: custom:lcards-simple-button
+      - type: custom:lcards-button
         label: "NAVIGATION TEST"
         preset: rectangle
         tap_action:

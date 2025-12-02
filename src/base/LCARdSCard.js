@@ -1,7 +1,7 @@
 /**
- * LCARdS Simple Card Foundation
+ * LCARdS Card Foundation
  *
- * Minimal base class for simple, single-purpose cards that leverage
+ * Minimal base class for single-purpose cards that leverage
  * singleton architecture without MSD complexity.
  *
  * Philosophy:
@@ -63,7 +63,7 @@ import { TemplateParser } from '../core/templates/TemplateParser.js';
  *
  * @example
  * // Minimal implementation with RulesEngine:
- * export class MyCard extends LCARdSSimpleCard {
+ * export class MyCard extends LCARdSCard {
  *     constructor() {
  *         super();
  *         this._cardStyle = {};
@@ -94,13 +94,13 @@ import { TemplateParser } from '../core/templates/TemplateParser.js';
  *     }
  * }
  */
-export class LCARdSSimpleCard extends LCARdSNativeCard {
+export class LCARdSCard extends LCARdSNativeCard {
 
     static get properties() {
         return {
             ...super.properties,
 
-            // Simple card state
+            // Card state
             _entity: { type: Object, state: true },
             _singletons: { type: Object, state: true },
             _initialized: { type: Boolean, state: true }
@@ -117,13 +117,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     height: 100%;
                 }
 
-                .simple-card-container {
+                .lcards-card-container {
                     width: 100%;
                     height: 100%;
                     position: relative;
                 }
 
-                .simple-card-error {
+                .lcards-card-error {
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -136,7 +136,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     font-size: 14px;
                 }
 
-                .simple-card-loading {
+                .lcards-card-loading {
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -152,7 +152,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     constructor() {
         super();
 
-        // Simple card state
+        // Card state
         this._entity = null;
         this._singletons = null;
         this._initialized = false;
@@ -184,7 +184,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
 
-        lcardsLog.trace(`[LCARdSSimpleCard] Constructor called for ${this._getDisplayId()}`);
+        lcardsLog.trace(`[LCARdSCard] Constructor called for ${this._getDisplayId()}`);
     }
 
     /**
@@ -209,7 +209,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // CRITICAL: setConfig MUST be synchronous for Home Assistant!
         // Store raw config immediately, then process asynchronously
 
-        lcardsLog.trace(`[LCARdSSimpleCard] setConfig called`, {
+        lcardsLog.trace(`[LCARdSCard] setConfig called`, {
             hasId: !!config.id,
             id: config.id,
             hasPreset: !!config.preset,
@@ -223,7 +223,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Start async config processing in background (don't await!)
         // Store the promise so subclasses can wait for it if needed
         this._configProcessingPromise = this._processConfigAsync(config).catch(error => {
-            lcardsLog.error(`[LCARdSSimpleCard] Async config processing failed:`, error);
+            lcardsLog.error(`[LCARdSCard] Async config processing failed:`, error);
         });
     }
 
@@ -237,14 +237,14 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         const core = window.lcardsCore || window.lcards?.core;
 
         if (!core?.configManager?.initialized) {
-            lcardsLog.trace(`[LCARdSSimpleCard] CoreConfigManager not available`);
+            lcardsLog.trace(`[LCARdSCard] CoreConfigManager not available`);
             return;
         }
 
         try {
             const cardType = this.constructor.CARD_TYPE || rawConfig.type || 'simple-card';
 
-            lcardsLog.trace(`[LCARdSSimpleCard] Processing config with CoreConfigManager`, {
+            lcardsLog.trace(`[LCARdSCard] Processing config with CoreConfigManager`, {
                 cardType,
                 hasPreset: !!rawConfig.preset
             });
@@ -257,16 +257,16 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
             // Log validation results
             if (result.errors?.length > 0) {
-                lcardsLog.error(`[LCARdSSimpleCard] Config validation errors:`, result.errors);
+                lcardsLog.error(`[LCARdSCard] Config validation errors:`, result.errors);
             }
             if (result.warnings?.length > 0) {
-                lcardsLog.warn(`[LCARdSSimpleCard] Config validation warnings:`, result.warnings);
+                lcardsLog.warn(`[LCARdSCard] Config validation warnings:`, result.warnings);
             }
 
             // Store provenance for debugging
             this._provenance = result.provenance;
 
-            lcardsLog.trace(`[LCARdSSimpleCard] Config processed`, {
+            lcardsLog.trace(`[LCARdSCard] Config processed`, {
                 valid: result.valid,
                 hasProvenance: !!result.provenance,
                 mergeOrder: result.provenance?.merge_order
@@ -293,18 +293,18 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             }
 
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleCard] CoreConfigManager processing failed:`, error);
+            lcardsLog.error(`[LCARdSCard] CoreConfigManager processing failed:`, error);
         }
     }
 
     /**
      * Process data_sources configuration to create advanced DataSource instances
-     * Allows SimpleCards to define DataSources with full config (window_seconds,
+     * Allows LCARdSCards to define DataSources with full config (window_seconds,
      * minEmitMs, coalesceMs, history preload, etc.) without requiring MSD.
      *
      * @example
      * ```yaml
-     * type: custom:lcards-simple-chart
+     * type: custom:lcards-chart
      * data_sources:
      *   cpu_temp:
      *     entity: sensor.cpu_temp
@@ -325,11 +325,11 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         const dataSourceManager = this._singletons?.dataSourceManager;
         if (!dataSourceManager) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Cannot process data_sources: DataSourceManager not available`);
+            lcardsLog.warn(`[LCARdSCard] Cannot process data_sources: DataSourceManager not available`);
             return;
         }
 
-        lcardsLog.debug(`[LCARdSSimpleCard] Processing data_sources config`, {
+        lcardsLog.debug(`[LCARdSCard] Processing data_sources config`, {
             sourceCount: Object.keys(dataSourcesConfig).length,
             sources: Object.keys(dataSourcesConfig)
         });
@@ -339,24 +339,24 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             const promises = Object.entries(dataSourcesConfig).map(async ([name, config]) => {
                 try {
                     const source = await dataSourceManager.createDataSource(name, config);
-                    lcardsLog.debug(`[LCARdSSimpleCard] Created DataSource '${name}'`, {
+                    lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
                         windowSeconds: config.window_seconds
                     });
                     return source;
                 } catch (error) {
-                    lcardsLog.error(`[LCARdSSimpleCard] Failed to create DataSource '${name}':`, error);
+                    lcardsLog.error(`[LCARdSCard] Failed to create DataSource '${name}':`, error);
                     return null;
                 }
             });
 
             await Promise.all(promises);
 
-            lcardsLog.debug(`[LCARdSSimpleCard] data_sources processing complete`);
+            lcardsLog.debug(`[LCARdSCard] data_sources processing complete`);
 
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleCard] data_sources processing failed:`, error);
+            lcardsLog.error(`[LCARdSCard] data_sources processing failed:`, error);
         }
     }
 
@@ -385,7 +385,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             }
         }
 
-        lcardsLog.debug(`[LCARdSSimpleCard] Config set for ${this._getDisplayId()}`, {
+        lcardsLog.debug(`[LCARdSCard] Config set for ${this._getDisplayId()}`, {
             entity: config.entity,
             hasEntity: !!this._entity,
             rulesCount: config.rules?.length || 0,
@@ -414,7 +414,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     async _onHassChanged(newHass, oldHass) {
         super._onHassChanged(newHass, oldHass);
 
-        lcardsLog.debug(`[LCARdSSimpleCard] _onHassChanged called for ${this._cardGuid}`, {
+        lcardsLog.debug(`[LCARdSCard] _onHassChanged called for ${this._cardGuid}`, {
             hasCore: !!window.lcards?.core,
             hasConfig: !!this.config,
             configEntity: this.config?.entity,
@@ -427,7 +427,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         }
 
         // Set up efficient entity-based rule monitoring on first HASS (once only)
-        lcardsLog.trace(`[LCARdSSimpleCard] Checking monitoring setup for ${this._getDisplayId()}`, {
+        lcardsLog.trace(`[LCARdSCard] Checking monitoring setup for ${this._getDisplayId()}`, {
             _hassMonitoringSetup: this._hassMonitoringSetup,
             hasRulesManager: !!(this._singletons?.rulesEngine),
             hasNewHass: !!newHass,
@@ -439,12 +439,12 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         if (!this._hassMonitoringSetup && this._singletons?.rulesEngine && newHass && !oldHass) {
             this._hassMonitoringSetup = true;
-            lcardsLog.trace(`[LCARdSSimpleCard] Setting up entity-based monitoring for ${this._getDisplayId()}`);
+            lcardsLog.trace(`[LCARdSCard] Setting up entity-based monitoring for ${this._getDisplayId()}`);
             try {
                 await this._singletons.rulesEngine.setupHassMonitoring(newHass);
-                lcardsLog.trace(`[LCARdSSimpleCard] Entity-based rule monitoring enabled for ${this._getDisplayId()}`);
+                lcardsLog.trace(`[LCARdSCard] Entity-based rule monitoring enabled for ${this._getDisplayId()}`);
             } catch (error) {
-                lcardsLog.error(`[LCARdSSimpleCard] Failed to setup rule monitoring:`, error);
+                lcardsLog.error(`[LCARdSCard] Failed to setup rule monitoring:`, error);
             }
         }
 
@@ -460,17 +460,17 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             );
 
             if (!oldHass || cardEntityChanged || trackedEntitiesChanged) {
-                lcardsLog.trace(`[LCARdSSimpleCard] Forwarding HASS to core.ingestHass() for ${this._cardGuid}`, {
+                lcardsLog.trace(`[LCARdSCard] Forwarding HASS to core.ingestHass() for ${this._cardGuid}`, {
                     reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity' : 'tracked entity',
                     cardEntity: this.config?.entity,
                     trackedCount: this._trackedEntities?.length || 0
                 });
                 window.lcards.core.ingestHass(newHass);
             } else {
-                lcardsLog.trace(`[LCARdSSimpleCard] Skipping core.ingestHass() - no relevant entity changes for ${this._cardGuid}`);
+                lcardsLog.trace(`[LCARdSCard] Skipping core.ingestHass() - no relevant entity changes for ${this._cardGuid}`);
             }
         } else {
-            lcardsLog.warn(`[LCARdSSimpleCard] ⚠️ No core singleton available for ${this._cardGuid}`);
+            lcardsLog.warn(`[LCARdSCard] ⚠️ No core singleton available for ${this._cardGuid}`);
         }
 
         // Check if any tracked entities changed (for Jinja2 template updates)
@@ -512,7 +512,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             // Try to setup monitoring now that we have singletons AND rules (if HASS already arrived)
             if (!this._hassMonitoringSetup && this._singletons?.rulesEngine && this._hass) {
                 this._hassMonitoringSetup = true;
-                lcardsLog.trace(`[LCARdSSimpleCard] Setting up entity-based monitoring (after rules loaded) for ${this._getDisplayId()}`, {
+                lcardsLog.trace(`[LCARdSCard] Setting up entity-based monitoring (after rules loaded) for ${this._getDisplayId()}`, {
                     hasRulesEngine: !!this._singletons.rulesEngine,
                     hasHass: !!this._hass,
                     hasConnection: !!this._hass?.connection,
@@ -522,17 +522,17 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     await this._singletons.rulesEngine.setupHassMonitoring(this._hass);
                     // Verify it actually worked
                     if (this._singletons.rulesEngine.hassUnsubscribe) {
-                        lcardsLog.trace(`[LCARdSSimpleCard] Entity-based rule monitoring enabled for ${this._getDisplayId()}`);
+                        lcardsLog.trace(`[LCARdSCard] Entity-based rule monitoring enabled for ${this._getDisplayId()}`);
                     } else {
-                        lcardsLog.warn(`[LCARdSSimpleCard] setupHassMonitoring() completed but no subscription created for ${this._getDisplayId()}`);
+                        lcardsLog.warn(`[LCARdSCard] setupHassMonitoring() completed but no subscription created for ${this._getDisplayId()}`);
                     }
                 } catch (error) {
-                    lcardsLog.error(`[LCARdSSimpleCard] Failed to setup rule monitoring:`, error);
+                    lcardsLog.error(`[LCARdSCard] Failed to setup rule monitoring:`, error);
                 }
             }
         }
 
-        lcardsLog.trace(`[LCARdSSimpleCard] Connected: ${this._getDisplayId()}`);
+        lcardsLog.trace(`[LCARdSCard] Connected: ${this._getDisplayId()}`);
     }
 
     /**
@@ -554,7 +554,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             this._handleFirstUpdate(changedProperties);
         }
 
-        lcardsLog.trace(`[LCARdSSimpleCard] First updated: ${this._getDisplayId()}`);
+        lcardsLog.trace(`[LCARdSCard] First updated: ${this._getDisplayId()}`);
     }
 
     /**
@@ -572,7 +572,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             this._resizeObserver = null;
         }
 
-        lcardsLog.trace(`[LCARdSSimpleCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
+        lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
     }
 
     /**
@@ -617,7 +617,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     this._containerSize = { width, height };
                 }
 
-                lcardsLog.trace(`[LCARdSSimpleCard] Container resized to ${width}x${height} for ${this._getDisplayId()}`);
+                lcardsLog.trace(`[LCARdSCard] Container resized to ${width}x${height} for ${this._getDisplayId()}`);
 
                 // Call custom callback if provided
                 if (onResize && typeof onResize === 'function') {
@@ -633,7 +633,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // The web component should fill its container via CSS (width: 100%, height: 100%)
         this._resizeObserver.observe(this);
 
-        lcardsLog.trace(`[LCARdSSimpleCard] Auto-sizing enabled for ${this._getDisplayId()}`, {
+        lcardsLog.trace(`[LCARdSCard] Auto-sizing enabled for ${this._getDisplayId()}`, {
             element: this.tagName,
             hasCallback: !!onResize
         });
@@ -649,12 +649,12 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             const core = window.lcards?.core;
 
             if (!core) {
-                lcardsLog.warn(`[LCARdSSimpleCard] Core singletons not available`);
+                lcardsLog.warn(`[LCARdSCard] Core singletons not available`);
                 return;
             }
 
             const animationManager = core.getAnimationManager();
-            lcardsLog.trace(`[LCARdSSimpleCard] AnimationManager singleton check for ${this._cardGuid}`, {
+            lcardsLog.trace(`[LCARdSCard] AnimationManager singleton check for ${this._cardGuid}`, {
                 hasGetMethod: typeof core.getAnimationManager === 'function',
                 managerResult: !!animationManager,
                 managerType: animationManager?.constructor?.name,
@@ -680,10 +680,10 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     this,
                     this.config
                 );
-                lcardsLog.trace(`[LCARdSSimpleCard] Registered with CoreSystemsManager: ${this._cardGuid}`);
+                lcardsLog.trace(`[LCARdSCard] Registered with CoreSystemsManager: ${this._cardGuid}`);
             }
 
-            lcardsLog.trace(`[LCARdSSimpleCard] Singletons initialized for ${this._cardGuid}`, {
+            lcardsLog.trace(`[LCARdSCard] Singletons initialized for ${this._cardGuid}`, {
                 hasSystemsManager: !!this._singletons.systemsManager,
                 hasTheme: !!this._singletons.themeManager,
                 hasRules: !!this._singletons.rulesEngine,
@@ -692,7 +692,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             });
 
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleCard] Singleton initialization failed:`, error);
+            lcardsLog.error(`[LCARdSCard] Singleton initialization failed:`, error);
         }
     }
 
@@ -709,7 +709,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      */
     _loadRulesFromConfig(rules) {
         if (!this._singletons?.rulesEngine) {
-            lcardsLog.warn('[LCARdSSimpleCard] RulesEngine not available, cannot load rules from config');
+            lcardsLog.warn('[LCARdSCard] RulesEngine not available, cannot load rules from config');
             return;
         }
 
@@ -725,13 +725,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             rules.forEach(rule => {
                 // Ensure rule has an ID
                 if (!rule.id) {
-                    lcardsLog.warn('[LCARdSSimpleCard] Rule missing ID, skipping:', rule);
+                    lcardsLog.warn('[LCARdSCard] Rule missing ID, skipping:', rule);
                     return;
                 }
 
                 // Skip if rule already exists in engine
                 if (rulesEngine.rulesById.has(rule.id)) {
-                    lcardsLog.debug(`[LCARdSSimpleCard] Rule ${rule.id} already exists in engine, skipping`);
+                    lcardsLog.debug(`[LCARdSCard] Rule ${rule.id} already exists in engine, skipping`);
                     return;
                 }
 
@@ -747,11 +747,11 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 rulesEngine._compileRules();
                 rulesEngine.markAllDirty(); // Mark all rules dirty for initial evaluation
 
-                lcardsLog.info(`[LCARdSSimpleCard] Loaded ${addedCount} rules from config. Total rules in engine: ${rulesEngine.rules.length}`);
+                lcardsLog.info(`[LCARdSCard] Loaded ${addedCount} rules from config. Total rules in engine: ${rulesEngine.rules.length}`);
             }
 
         } catch (error) {
-            lcardsLog.error('[LCARdSSimpleCard] Failed to load rules from config:', error);
+            lcardsLog.error('[LCARdSCard] Failed to load rules from config:', error);
         }
     }
 
@@ -801,13 +801,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      */
     _registerOverlayForRules(overlayId, tags = []) {
         if (!this._singletons?.rulesEngine || !this._singletons?.systemsManager) {
-            lcardsLog.debug('[LCARdSSimpleCard] Rules or SystemsManager not available, skipping overlay registration');
+            lcardsLog.debug('[LCARdSCard] Rules or SystemsManager not available, skipping overlay registration');
             return;
         }
 
         // Prevent duplicate registration
         if (this._overlayRegistered) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Overlay already registered for ${this._getDisplayId()}, skipping duplicate registration`);
+            lcardsLog.warn(`[LCARdSCard] Overlay already registered for ${this._getDisplayId()}, skipping duplicate registration`);
             return;
         }
 
@@ -827,7 +827,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Register callback with RulesEngine (SINGLE callback per card)
         // Callback evaluates rules and applies relevant patches
         this._rulesCallbackIndex = this._singletons.rulesEngine.setReEvaluationCallback(async () => {
-            lcardsLog.trace(`[LCARdSSimpleCard] Rules re-evaluation callback triggered for ${this._overlayId}`);
+            lcardsLog.trace(`[LCARdSCard] Rules re-evaluation callback triggered for ${this._overlayId}`);
 
             try {
                 // Evaluate dirty rules to get patches
@@ -835,7 +835,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     entity: this.config?.entity,  // Pass bound entity ID for JavaScript context
                     getEntity: (entityId) => {
                         const state = this.hass?.states?.[entityId];
-                        lcardsLog.trace(`[LCARdSSimpleCard] getEntity(${entityId}) => ${state?.state}`);
+                        lcardsLog.trace(`[LCARdSCard] getEntity(${entityId}) => ${state?.state}`);
                         return state;
                     }
                 });
@@ -845,13 +845,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                     this._applyRulePatches(ruleResults.overlayPatches);
                 }
             } catch (error) {
-                lcardsLog.error(`[LCARdSSimpleCard] Error in rules callback for ${this._overlayId}:`, error);
+                lcardsLog.error(`[LCARdSCard] Error in rules callback for ${this._overlayId}:`, error);
             }
         });
 
         this._overlayRegistered = true;
 
-        lcardsLog.debug(`[LCARdSSimpleCard] Registered overlay for rules: ${this._overlayId}`, {
+        lcardsLog.debug(`[LCARdSCard] Registered overlay for rules: ${this._overlayId}`, {
             tags: this._overlayTags,
             callbackIndex: this._rulesCallbackIndex,
             cardGuid: this._cardGuid
@@ -860,7 +860,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Trigger initial rule evaluation if HASS is already available
         // This ensures rules are applied even if the light is already ON during page load
         if (this.hass) {
-            lcardsLog.trace(`[LCARdSSimpleCard] HASS available, triggering initial rule evaluation for ${this._overlayId}`);
+            lcardsLog.trace(`[LCARdSCard] HASS available, triggering initial rule evaluation for ${this._overlayId}`);
             this._singletons.rulesEngine.markAllDirty();
             // Trigger the callback we just registered
             if (this._rulesCallbackIndex >= 0) {
@@ -885,13 +885,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         if (this._rulesCallbackIndex !== null && this._singletons?.rulesEngine) {
             this._singletons.rulesEngine.removeReEvaluationCallback(this._rulesCallbackIndex);
             this._rulesCallbackIndex = null;
-            lcardsLog.debug(`[LCARdSSimpleCard] Removed rules callback for ${this._overlayId}`);
+            lcardsLog.debug(`[LCARdSCard] Removed rules callback for ${this._overlayId}`);
         }
 
         // Unregister overlay from SystemsManager
         if (this._overlayId && this._singletons?.systemsManager) {
             this._singletons.systemsManager.unregisterOverlay(this._overlayId);
-            lcardsLog.debug(`[LCARdSSimpleCard] Unregistered overlay: ${this._overlayId}`);
+            lcardsLog.debug(`[LCARdSCard] Unregistered overlay: ${this._overlayId}`);
         }
 
         this._overlayId = null;
@@ -908,13 +908,13 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      * @private
      */
     _applyRulePatches(overlayPatches) {
-        lcardsLog.trace(`[LCARdSSimpleCard] _applyRulePatches called for ${this._overlayId}`, {
+        lcardsLog.trace(`[LCARdSCard] _applyRulePatches called for ${this._overlayId}`, {
             patchesProvided: Array.isArray(overlayPatches) ? overlayPatches.length : 0,
             overlayId: this._overlayId
         });
 
         if (!overlayPatches || !this._overlayId) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Cannot apply patches - missing overlayPatches or overlayId`);
+            lcardsLog.warn(`[LCARdSCard] Cannot apply patches - missing overlayPatches or overlayId`);
             return;
         }
 
@@ -925,7 +925,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             // No patches for this overlay - clear cached patches if any existed
             if (this._lastRulePatches !== null) {
                 this._lastRulePatches = null;
-                lcardsLog.debug(`[LCARdSSimpleCard] Cleared rule patches for ${this._overlayId}`);
+                lcardsLog.debug(`[LCARdSCard] Cleared rule patches for ${this._overlayId}`);
 
                 // Call subclass hook to handle style resolution after patch clearing
                 if (typeof this._onRulePatchesChanged === 'function') {
@@ -951,14 +951,14 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(mergedPatch);
 
         if (!patchesChanged) {
-            lcardsLog.trace(`[LCARdSSimpleCard] Rule patches unchanged for ${this._overlayId}`);
+            lcardsLog.trace(`[LCARdSCard] Rule patches unchanged for ${this._overlayId}`);
             return;
         }
 
         // Cache patches for style resolution
         this._lastRulePatches = mergedPatch;
 
-        lcardsLog.debug(`[LCARdSSimpleCard] Applied rule patches to ${this._overlayId}`, {
+        lcardsLog.debug(`[LCARdSCard] Applied rule patches to ${this._overlayId}`, {
             patchCount: myPatches.length
         });
 
@@ -1035,7 +1035,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Map entity state to SimpleButton style state convention
+     * Map entity state to Button style state convention
      * Supports both direct matching and mapped states
      *
      * @param {string} entityState - Raw entity state (on/off/playing/etc)
@@ -1052,7 +1052,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         const normalizedState = entityState.toLowerCase();
 
-        // Map to standard SimpleButton states
+        // Map to standard Button states
         switch (normalizedState) {
             // Active states (entity is "on" or actively doing something)
             case 'on':
@@ -1217,7 +1217,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 // Schedule a retry when DataSourceManager becomes available
                 this._scheduleDatasourceRetry();
 
-                lcardsLog.trace('[LCARdSSimpleCard] Datasource template detected but DataSourceManager not ready, will retry', {
+                lcardsLog.trace('[LCARdSCard] Datasource template detected but DataSourceManager not ready, will retry', {
                     cardGuid: this._cardGuid,
                     template: template.substring(0, 50)
                 });
@@ -1236,7 +1236,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
             return result;
 
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleCard] Template processing failed:`, error);
+            lcardsLog.error(`[LCARdSCard] Template processing failed:`, error);
             return template;
         }
     }
@@ -1264,7 +1264,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 }
                 this._datasourceRetryScheduled = false;
 
-                lcardsLog.info('[LCARdSSimpleCard] DataSourceManager now available, re-processing templates', {
+                lcardsLog.info('[LCARdSCard] DataSourceManager now available, re-processing templates', {
                     cardGuid: this._cardGuid
                 });
 
@@ -1279,7 +1279,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 clearInterval(checkInterval);
                 this._datasourceRetryScheduled = false;
                 this._datasourceTimeoutId = null;
-                lcardsLog.warn('[LCARdSSimpleCard] DataSourceManager not available after timeout', {
+                lcardsLog.warn('[LCARdSCard] DataSourceManager not available after timeout', {
                     cardGuid: this._cardGuid
                 });
             }
@@ -1341,7 +1341,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         this._trackedEntities = Array.from(trackedEntities);
 
-        lcardsLog.trace(`[LCARdSSimpleCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
+        lcardsLog.trace(`[LCARdSCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
     }
 
     /**
@@ -1651,7 +1651,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         try {
             return this._singletons.themeManager.getToken(tokenPath, fallback);
         } catch (error) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Theme token fetch failed:`, error);
+            lcardsLog.warn(`[LCARdSCard] Theme token fetch failed:`, error);
             return fallback;
         }
     }
@@ -1680,7 +1680,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 themeManager
             );
         } catch (error) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Preset fetch failed:`, error);
+            lcardsLog.warn(`[LCARdSCard] Preset fetch failed:`, error);
             return null;
         }
     }
@@ -1830,12 +1830,12 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      */
     subscribeToEntity(entityId, callback) {
         if (!entityId || typeof callback !== 'function') {
-            lcardsLog.warn('[LCARdSSimpleCard] Invalid entityId or callback for subscription');
+            lcardsLog.warn('[LCARdSCard] Invalid entityId or callback for subscription');
             return () => {}; // No-op unsubscribe
         }
 
         if (!this._singletons?.systemsManager) {
-            lcardsLog.warn('[LCARdSSimpleCard] CoreSystemsManager not available for subscription');
+            lcardsLog.warn('[LCARdSCard] CoreSystemsManager not available for subscription');
             return () => {}; // No-op unsubscribe
         }
 
@@ -1853,7 +1853,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
         // Track subscription for automatic cleanup
         this._entitySubscriptions.add(unsubscribe);
 
-        lcardsLog.debug(`[LCARdSSimpleCard] Subscribed to entity: ${entityId} (card: ${this._cardGuid})`);
+        lcardsLog.debug(`[LCARdSCard] Subscribed to entity: ${entityId} (card: ${this._cardGuid})`);
 
         // Return unsubscribe function
         return () => {
@@ -1872,15 +1872,15 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
      */
     async callService(domain, service, data = {}) {
         if (!this.hass) {
-            lcardsLog.warn(`[LCARdSSimpleCard] Cannot call service - no HASS instance`);
+            lcardsLog.warn(`[LCARdSCard] Cannot call service - no HASS instance`);
             return;
         }
 
         try {
             await this.hass.callService(domain, service, data);
-            lcardsLog.debug(`[LCARdSSimpleCard] Called service ${domain}.${service}`, data);
+            lcardsLog.debug(`[LCARdSCard] Called service ${domain}.${service}`, data);
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleCard] Service call failed:`, error);
+            lcardsLog.error(`[LCARdSCard] Service call failed:`, error);
         }
     }
 
@@ -1932,7 +1932,7 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     _getAnimationSetup() {
         // Default implementation - subclasses should override
         return {
-            overlayId: `simple-card-${this._cardGuid}`,
+            overlayId: `lcards-card-${this._cardGuid}`,
             elementSelector: '[data-overlay-id]'
         };
     }
@@ -1948,8 +1948,8 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
     _renderCard() {
         if (!this._initialized) {
             return html`
-                <div class="simple-card-container">
-                    <div class="simple-card-loading">
+                <div class="lcards-card-container">
+                    <div class="lcards-card-loading">
                         Initializing...
                     </div>
                 </div>
@@ -1958,8 +1958,8 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
 
         // Subclasses must implement this
         return html`
-            <div class="simple-card-container">
-                <div class="simple-card-error">
+            <div class="lcards-card-container">
+                <div class="lcards-card-error">
                     Subclass must implement _renderCard()
                 </div>
             </div>
@@ -1988,20 +1988,20 @@ export class LCARdSSimpleCard extends LCARdSNativeCard {
                 try {
                     unsubscribe();
                 } catch (error) {
-                    lcardsLog.error('[LCARdSSimpleCard] Error unsubscribing from entity:', error);
+                    lcardsLog.error('[LCARdSCard] Error unsubscribing from entity:', error);
                 }
             });
             this._entitySubscriptions.clear();
-            lcardsLog.debug(`[LCARdSSimpleCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
+            lcardsLog.debug(`[LCARdSCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
         }
 
         // Unregister from CoreSystemsManager
         if (this._singletons?.systemsManager && this._cardGuid) {
             try {
                 this._singletons.systemsManager.unregisterCard(this._cardGuid);
-                lcardsLog.debug(`[LCARdSSimpleCard] Unregistered from CoreSystemsManager: ${this._cardGuid}`);
+                lcardsLog.debug(`[LCARdSCard] Unregistered from CoreSystemsManager: ${this._cardGuid}`);
             } catch (error) {
-                lcardsLog.error('[LCARdSSimpleCard] Error unregistering from CoreSystemsManager:', error);
+                lcardsLog.error('[LCARdSCard] Error unregistering from CoreSystemsManager:', error);
             }
         }
 

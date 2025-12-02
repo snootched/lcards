@@ -281,8 +281,8 @@ export class MsdControlsRenderer {
     if (overlay.extension?.card) return overlay.extension.card;
 
     // Pattern 2: Overlay IS the card definition (new unified pattern)
-    // { type: 'custom:lcards-simple-button', entity: '...', position: [...], size: [...] }
-    // This supports SimpleCards and HA cards directly as overlays
+    // { type: 'custom:lcards-button', entity: '...', position: [...], size: [...] }
+    // This supports LCARdS cards and HA cards directly as overlays
     if (overlay.type && overlay.type !== 'control' && overlay.type !== 'line') {
       lcardsLog.debug('[MsdControlsRenderer] Using unified pattern - overlay IS card definition for', overlay.id);
 
@@ -568,8 +568,8 @@ export class MsdControlsRenderer {
   async _createCustomCard(normalizedCardType, cardDef, overlay) {
     let cardElement = null;
 
-    // Check if this is a SimpleCard (lcards-simple-*)
-    const isSimpleCard = normalizedCardType.startsWith('lcards-simple-');
+    // Check if this is an LCARdS card (lcards-*)
+    const isLCARdSCard = normalizedCardType.startsWith('lcards-');
 
     // Strategy 1: Try direct custom element creation
     if (window.customElements && typeof window.customElements.get === 'function') {
@@ -584,7 +584,7 @@ export class MsdControlsRenderer {
       }
     }
 
-    // Strategy 2: Try document.createElement (simplified for SimpleCards)
+    // Strategy 2: Try document.createElement (simplified for LCARdS cards)
     if (!cardElement) {
       lcardsLog.debug('[MsdControls] Strategy 2: Attempting createElement for:', normalizedCardType);
       try {
@@ -592,9 +592,9 @@ export class MsdControlsRenderer {
 
         // Check if this is actually a custom element (not a generic div)
         if (cardElement.tagName.toLowerCase() === normalizedCardType.toLowerCase()) {
-          if (isSimpleCard) {
-            // SimpleCards are already registered, no upgrade wait needed
-            lcardsLog.debug('[MsdControls] ✅ Strategy 2 SUCCESS: Created SimpleCard via createElement:', normalizedCardType);
+          if (isLCARdSCard) {
+            // LCARdS cards are already registered, no upgrade wait needed
+            lcardsLog.debug('[MsdControls] ✅ Strategy 2 SUCCESS: Created LCARdS card via createElement:', normalizedCardType);
           } else {
             // Other custom cards might need upgrade waiting
             lcardsLog.debug('[MsdControls] Strategy 2: Created element, checking for upgrade:', normalizedCardType);
@@ -618,8 +618,8 @@ export class MsdControlsRenderer {
       }
     }
 
-    // Strategy 3: Try creating in document body (only for non-SimpleCards that failed above)
-    if (!cardElement && !isSimpleCard) {
+    // Strategy 3: Try creating in document body (only for non-LCARdS cards that failed above)
+    if (!cardElement && !isLCARdSCard) {
       lcardsLog.debug('[MsdControls] Strategy 3: Attempting body attachment technique for:', normalizedCardType);
       try {
         cardElement = document.createElement(normalizedCardType);

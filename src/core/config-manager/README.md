@@ -6,7 +6,7 @@
 
 ## Overview
 
-CoreConfigManager provides unified configuration processing for all LCARdS card types (SimpleCard, MSD, future cards). It orchestrates existing systems (mergePacks, CoreValidationService, StylePresetManager, ThemeManager) through a consistent API.
+CoreConfigManager provides unified configuration processing for all LCARdS card types (LCARdS Card, MSD, future cards). It orchestrates existing systems (mergePacks, CoreValidationService, StylePresetManager, ThemeManager) through a consistent API.
 
 ## Key Principle: Behavioral vs. Style Defaults
 
@@ -208,7 +208,7 @@ Get debug information about registered cards and processing stats.
 
 ## Usage Examples
 
-### Example 1: SimpleCard with Preset
+### Example 1: LCARdS Card with Preset
 
 ```javascript
 // Card self-registers at module load
@@ -248,7 +248,7 @@ async setConfig(config) {
 
 ```yaml
 # User's YAML config
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: lozenge
 entity: light.living_room
 label: Living Room
@@ -268,7 +268,7 @@ style:
 
 ```javascript
 {
-  type: 'custom:lcards-simple-button',
+  type: 'custom:lcards-button',
   entity: 'light.living_room',
   label: 'Living Room',
   preset: 'lozenge',
@@ -532,7 +532,7 @@ Runtime (Every Render):
 
 ## See Also
 
-- [Simple Card Foundation](../architecture/simple-card-foundation.md) - SimpleCard usage
+- [Simple Card Foundation](../architecture/lcards-card-foundation.md) - LCARdS Card usage
 - [Theme System](../themes/README.md) - Theme tokens and component defaults
 - [Style Presets](../presets/README.md) - Named style configurations
 - [UNIFIED_ACTION_SYSTEM](../../architecture/UNIFIED_ACTION_SYSTEM.md) - Action handling

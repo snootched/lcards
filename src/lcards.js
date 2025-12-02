@@ -28,10 +28,10 @@ import './msd/index.js';
 // Native card imports
 import { LCARdSMSDCard } from './cards/lcards-msd.js';
 
-// Simple card imports
-import { LCARdSSimpleButtonCard } from './cards/lcards-simple-button.js';
-import { LCARdSElbowButtonCard } from './cards/lcards-elbow-button.js';
-import { LCARdSSimpleChart } from './cards/lcards-simple-chart.js';
+// LCARdS card imports
+import { LCARdSButton } from './cards/lcards-button.js';
+import { LCARdSElbow } from './cards/lcards-elbow.js';
+import { LCARdSChart } from './cards/lcards-chart.js';
 
 // Unified API system import
 import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
@@ -150,9 +150,9 @@ async function initializeCustomCard() {
 initializeCustomCard()
     .then(() => {
         // Register cards (registered here to ensure singletons are ready)
-        customElements.define('lcards-simple-button', LCARdSSimpleButtonCard);
-        customElements.define('lcards-elbow-button', LCARdSElbowButtonCard);
-        customElements.define('lcards-simple-chart', LCARdSSimpleChart);
+        customElements.define('lcards-button', LCARdSButton);
+        customElements.define('lcards-elbow', LCARdSElbow);
+        customElements.define('lcards-chart', LCARdSChart);
         customElements.define('lcards-msd-card', LCARdSMSDCard);
 
         lcardsLog.info('[lcards.js] ✅ All custom elements registered after core initialization');
@@ -220,22 +220,22 @@ window.lcards.setAlertCondition = setAlertCondition;
 window.customCards = window.customCards || [];
 const LCARdSCardClasses = [
     {
-        type: 'lcards-simple-button',
-        name: 'LCARdS Simple Button',
+        type: 'lcards-button',
+        name: 'LCARdS Button',
         preview: true,
         description: 'Modern LCARS button with multi-text labels and flexible positioning',
         documentationURL: "https://cb-lcars.unimatrix01.ca",
     },
     {
-        type: 'lcards-elbow-button',
-        name: 'LCARdS Elbow Button',
+        type: 'lcards-elbow',
+        name: 'LCARdS Elbow',
         preview: true,
         description: 'LCARS button with elbow/corner cap treatment for header and footer styles',
         documentationURL: "https://cb-lcars.unimatrix01.ca",
     },
     {
-        type: 'lcards-simple-chart',
-        name: 'LCARdS Simple Chart',
+        type: 'lcards-chart',
+        name: 'LCARdS Chart',
         preview: true,
         description: 'Data visualization chart powered by ApexCharts',
         documentationURL: "https://cb-lcars.unimatrix01.ca",

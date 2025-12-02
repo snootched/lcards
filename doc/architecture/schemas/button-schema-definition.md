@@ -8,7 +8,7 @@
 ## Complete YAML Schema
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 
 # Core properties
 entity: <entity-id>              # Optional - if omitted, always uses 'active' state
@@ -917,7 +917,7 @@ text:
 Replace the button background with custom SVG content:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 svg:
   content: |
     <rect width="100" height="100" fill="url(#grad1)" />
@@ -964,7 +964,7 @@ svg:
 Create multi-action regions within SVG with independent entity states and interactions:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: remote.living_room    # Card-level entity (default for segments)
 svg:
   content: |
@@ -1031,7 +1031,7 @@ svg:
 
 **Example: Multi-Light Control** (different entities per segment)
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 svg:
   content: |
     <svg viewBox="0 0 100 100">
@@ -1125,7 +1125,7 @@ style:
 **State Priority (High to Low):**
 1. **Interaction States** - `hover` (mouse over), `pressed` (mouse down during click)
 2. **Entity State (Direct)** - Exact entity state (`on`, `off`, `playing`, `paused`, etc.)
-3. **Entity State (Mapped)** - Automatically mapped to SimpleButton conventions:
+3. **Entity State (Mapped)** - Automatically mapped to Button conventions:
    - `on`, `playing`, `unlocked`, `open`, `home` → `active`
    - `off`, `paused`, `stopped`, `locked`, `closed`, `away` → `inactive`
    - `unavailable`, `unknown` → `unavailable`
@@ -1203,12 +1203,12 @@ To implement this schema:
 - [x] Remove all backward compatibility code for flat keys
 - [x] Only support nested schema paths
 - [x] Update `_resolveButtonStyleSync()` to only use nested paths
-- [x] Update `_generateSimpleButtonSVG()` to only read nested paths
+- [x] Update `_generateButtonSVG()` to only read nested paths
 - [x] Update `_resolveBorderConfiguration()` for nested schema only
 
 ### 4. Documentation
-- [x] Update `simple-button-schema-definition.md` with finalized schema
-- [x] Update `simple-button-quick-reference.md` to match exactly
+- [x] Update `button-schema-definition.md` with finalized schema
+- [x] Update `button-quick-reference.md` to match exactly
 - [x] Remove all backward compatibility references
 - [x] Standardize on `font_size` everywhere
 - [x] Add BREAKING CHANGES notice
@@ -1226,7 +1226,7 @@ To implement this schema:
 ## Complete Example
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 
 # Icon area on left with state-based colors

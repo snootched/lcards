@@ -6,10 +6,10 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Detects various template syntaxes used across the codebase:
  * - MSD templates: {datasource}, {datasource.key:format}
  * - HA Jinja2 templates: {{states('entity')}}
- * - SimpleCard JavaScript: [[[JavaScript code]]]
- * - SimpleCard tokens: {token}  [CHANGED from {{token}}]
+ * - LCARdS Card JavaScript: [[[JavaScript code]]]
+ * - LCARdS Card tokens: {token}  [CHANGED from {{token}}]
  *
- * Extracted from MSD TemplateProcessor and SimpleCard inline logic.
+ * Extracted from MSD TemplateProcessor and LCARdS Card inline logic.
  *
  * @module TemplateDetector
  */
@@ -209,7 +209,7 @@ export class TemplateDetector {
    * Check if content has JavaScript templates
    *
    * JavaScript templates use triple brackets: [[[JavaScript code]]]
-   * Used by SimpleCard for button-card style templates.
+   * Used by LCARdS Card for button-card style templates.
    *
    * @param {string} content - Content to check
    * @returns {boolean} True if has JavaScript templates ([[[...]]])

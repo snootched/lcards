@@ -13,7 +13,7 @@
 type: vertical-stack
 cards:
   # Test 1: Multi-entity aggregation with conditionals
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: "Lights: {{states.light | selectattr('state','eq','on') | list | count}} on, {{states.light | selectattr('state','eq','off') | list | count}} off"
@@ -21,7 +21,7 @@ cards:
     # Expected: "Lights: 3 on, 5 off"
 
   # Test 2: Complex conditional with multiple states
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: sensor.temperature
     preset: lozenge
     label: >-
@@ -35,7 +35,7 @@ cards:
     # Expected: "☀️ Warm: 22.5°C" (or appropriate for current temp)
 
   # Test 3: Time-based greeting with calculations
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: >-
@@ -49,7 +49,7 @@ cards:
     # Expected: "Good Afternoon 🌤️ - 14:30"
 
   # Test 4: List comprehension with filtering
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: "{{['kitchen','bedroom','living_room'] | map('regex_replace', '^', 'light.') | map('states') | select('eq','on') | list | count}}/3 zones active"
@@ -57,7 +57,7 @@ cards:
     # Expected: "2/3 zones active"
 
   # Test 5: Complex math with rounding
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: sensor.power
     preset: lozenge
     label: >-
@@ -69,7 +69,7 @@ cards:
     # Expected: "750W = 0.75kWh = $0.11/hr"
 
   # Test 6: Relative time calculation
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: >-
@@ -81,7 +81,7 @@ cards:
     # Expected: "Changed 15 min ago"
 
   # Test 7: String manipulation and formatting
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: "{{state_attr('light.tv', 'friendly_name') | upper | replace(' ', '_')}} [{{states('light.tv') | upper}}]"
@@ -89,7 +89,7 @@ cards:
     # Expected: "TV_LIGHT [ON]"
 
   # Test 8: Nested conditionals with state aggregation
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: >-
@@ -107,7 +107,7 @@ cards:
     # Expected: "Some On 🌗 (45%)"
 
   # Test 9: List operations with map/select
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: "Active: {{states.light | selectattr('state','eq','on') | map(attribute='name') | list | join(', ') | truncate(40, True, '...')}}"
@@ -115,7 +115,7 @@ cards:
     # Expected: "Active: Kitchen, Living Room, Bedr..."
 
   # Test 10: Advanced date/time formatting with calculations
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: >-
@@ -125,7 +125,7 @@ cards:
     # Expected: "Tue 12/11 - Week 45 - Day 317/365"
 
   # Test 11: Ternary operator with nested expressions
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: sensor.temperature
     preset: lozenge
     label: "{{(states('sensor.temperature') | float > 20) | iif((states('sensor.temperature') | float | round(1)) ~ '°C ⚠️', (states('sensor.temperature') | float | round(1)) ~ '°C ✓')}}"
@@ -133,7 +133,7 @@ cards:
     # Expected: "22.5°C ⚠️" or "18.5°C ✓"
 
   # Test 12: Complex state history (if available)
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     preset: lozenge
     label: >-

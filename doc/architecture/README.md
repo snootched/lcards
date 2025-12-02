@@ -14,7 +14,7 @@
 ## 🃏 [Cards](./cards/)
 
 Card-specific architecture:
-- **[simple-card-foundation.md](./cards/simple-card-foundation.md)** - Go-forward architecture for new cards
+- **[lcards-card-foundation.md](./cards/lcards-card-foundation.md)** - Go-forward architecture for new cards
 
 ---
 
@@ -24,7 +24,7 @@ Detailed documentation for each singleton system:
 
 | System | Purpose | Doc |
 |--------|---------|-----|
-| **Core Systems Manager** | Entity caching for Simple Cards | [Read](./subsystems/core-systems-manager.md) |
+| **Core Systems Manager** | Entity caching for LCARdS Cards | [Read](./subsystems/core-systems-manager.md) |
 | **Rules Engine** | Conditional logic and dynamic updates | [Read](./subsystems/rules-engine.md) |
 | **Rules Template Syntax** | Template processing and rule syntax | [Read](./subsystems/rules-template-syntax.md) |
 | **DataSource System** | Entity subscriptions for MSD cards | [Read](./subsystems/datasource-system.md) |
@@ -46,7 +46,7 @@ Detailed documentation for each singleton system:
 
 Official schema definitions (markdown with fully commented YAML):
 
-### Simple Cards
+### LCARdS Cards
 - **[simple-button-schema-definition.md](./schemas/simple-button-schema-definition.md)** - Complete SimpleButton schema
 - **[simple-chart-schema-definition.md](./schemas/simple-chart-schema-definition.md)** - Complete SimpleChart schema
 
@@ -83,7 +83,7 @@ Visual documentation:
 - **Distributed Presentation** - Individual cards handle only rendering
 
 ### Card Types
-- **Simple Cards** (go-forward) - Lightweight, single-purpose (SimpleButton)
+- **LCARdS Cards** (go-forward) - Lightweight, single-purpose (SimpleButton)
 - **MSD Cards** (current) - Complex multi-overlay displays
 
 ### Performance

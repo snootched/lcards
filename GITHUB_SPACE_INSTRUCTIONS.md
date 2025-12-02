@@ -2,14 +2,17 @@ You are an expert developer working on LCARdS - a comprehensive Star Trek LCARS 
 
 ## CRITICAL PROJECT CONTEXT
 
-**RECENT MAJOR REFACTOR (Nov 2025)**: We just completed implementing the V2 card foundation system, moving away from legacy button-card templates to native LIT-based cards. Key components:
-- `src/base/V2CardSystemsManager.js` - Central coordinator for singleton systems
-- `src/base/LightweightTemplateProcessor.js` - Template processing with `[[[JavaScript]]]` syntax
-- `src/base/V2StyleResolver.js` - Multi-source style resolution
-- `src/base/LCARdSV2Card.js` - Enhanced base class for V2 cards
-- `src/cards/lcards-v2-button.js` - Reference V2 implementation
+**CURRENT ARCHITECTURE (Dec 2025)**: LCARdS uses a two-tier card architecture:
 
-**CURRENT PRIORITY**: Migrating legacy YAML templates (lcards-button-picard, lcards-button-lozenge, etc.) to native V2 cards using the new foundation.
+1. **LCARdS Cards** (Primary pattern):
+   - `src/base/LCARdSCard.js` - Foundation base class
+   - `src/cards/lcards-button.js` - Button card (custom:lcards-button)
+   - `src/cards/lcards-elbow.js` - Elbow card (custom:lcards-elbow)
+   - `src/cards/lcards-chart.js` - Chart card (custom:lcards-chart)
+
+2. **MSD Cards** (Complex layouts):
+   - `src/cards/lcards-msd.js` - Master Systems Display card
+   - Multi-overlay displays with SVG composition
 
 ## ARCHITECTURE PRINCIPLES
 
@@ -18,13 +21,13 @@ You are an expert developer working on LCARdS - a comprehensive Star Trek LCARS 
 **Core Systems**:
 - MSD (Master Systems Display) in `src/msd/` - modular design with overlay/controls layers
 - Global singletons (`lcardsCore`) for themes, rules, animations, datasources
-- V2 cards connect directly to singletons without MSD pipeline dependency
+- LCARdS cards connect directly to singletons without MSD pipeline dependency
 
 **Template Processing**: Support button-card syntax `[[[return code]]]` and token replacement `{{token}}` with rich evaluation context (entity, hass, theme, variables).
 
 ## TECHNICAL REQUIREMENTS
 
-**Animations**: Anime.js v4 ONLY. Key changes: `targets` is separate parameter, use `alternate`/`reversed` not `direction`. Create chainable LCARS-specific animations on `window.cblcars.anim`.
+**Animations**: Anime.js v4 ONLY. Key changes: `targets` is separate parameter, use `alternate`/`reversed` not `direction`. Create chainable LCARS-specific animations on `window.lcards.anim`.
 
 **Code Standards**:
 - Full JSDoc documentation
@@ -35,32 +38,23 @@ You are an expert developer working on LCARdS - a comprehensive Star Trek LCARS 
 **File Structure**:
 ```
 src/
-├── base/ - Foundation classes (V2CardSystemsManager, processors, resolvers)
-├── cards/ - Card implementations (V2 and legacy)
+├── base/ - Foundation classes (LCARdSCard, LCARdSNativeCard, LCARdSActionHandler)
+├── cards/ - Card implementations (lcards-button, lcards-elbow, lcards-chart, lcards-msd)
 ├── msd/ - Master Systems Display modules
 ├── core/ - Singleton systems (themes, rules, animations)
 └── utils/ - Shared utilities
 ```
 
-## MIGRATION FOCUS
-
-**Legacy → V2 Migration Path**:
-1. Convert button-card YAML templates to V2 preset system
-2. Implement style variable resolution (`ulcars_*` variables)
-3. Maintain backward compatibility
-4. Create migration utilities
-
-**Key Files to Reference**:
-- `/doc/architecture/` - System architecture
-- `V2_FOUNDATION_COMPLETE.md` - Recent refactor summary
-- `template-migration-test.js` - Migration examples
-
 ## DEVELOPMENT PATTERNS
 
-**V2 Card Creation**: Extend `LCARdSV2Card`, use `this.systemsManager` for template/style processing. Example:
+**LCARdS Card Creation**: Extend `LCARdSCard`, use singleton helpers for template/style processing. Example:
 ```javascript
-async processTemplate(template) {
-  return this.systemsManager.processTemplate(template, this._config, this.hass, this._entity);
+import { LCARdSCard } from '../base/LCARdSCard.js';
+
+export class MyCard extends LCARdSCard {
+  _renderCard() {
+    return html`<div>My content</div>`;
+  }
 }
 ```
 
@@ -78,6 +72,6 @@ const style = this.resolveStyle(baseStyle, ['theme.token'], stateOverrides);
 
 ## TESTING & VALIDATION
 
-Use `test-v2-foundation.html` for live testing. Build with `npm run build`. All V2 components compile without errors.
+Use test HTML files for live testing. Build with `npm run build`. All components compile without errors.
 
-**Architecture Goal**: Create the definitive, extensible LCARS interface solution for Home Assistant. Prioritize performance, maintainability, and seamless legacy migration.
+**Architecture Goal**: Create the definitive, extensible LCARS interface solution for Home Assistant. Prioritize performance, maintainability, and clean architecture.

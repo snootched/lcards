@@ -29,7 +29,7 @@
 **Unified template processing system** for MSD and Home Assistant templates.
 
 **Key Features:**
-- Dual template support (SimpleCard tokens `{entity.state}` and Jinja2 `{{states('entity')}}`)
+- Dual template support (LCARdSCard tokens `{entity.state}` and Jinja2 `{{states('entity')}}`)
 - Reference extraction
 - Entity dependency tracking
 - Format specification parsing
@@ -182,7 +182,7 @@
 ### Coordination & Management
 
 #### [CoreSystemsManager](core-systems-manager.md)
-**Lightweight entity tracking singleton** for Simple Cards.
+**Lightweight entity tracking singleton** for LCARdS Cards.
 
 **Key Features:**
 - Entity state caching (80-90% performance improvement)
@@ -191,12 +191,12 @@
 - Cross-card entity change notifications
 - HASS change detection and distribution
 
-**When to use:** Simple Cards, lightweight entity access.
+**When to use:** LCARdS Cards, lightweight entity access.
 
 **NOT for:** MSD cards (use DataSourceManager instead).
 
 #### [MSD Systems Manager](msd-systems-manager.md)
-**Per-card orchestrator** for MSD cards (NOT used by Simple Cards).
+**Per-card orchestrator** for MSD cards (NOT used by LCARdS Cards).
 
 **Key Features:**
 - Per-MSD-card coordination
@@ -205,7 +205,7 @@
 - Lifecycle management for MSD overlays
 - Performance monitoring
 
-**When to use:** MSD cards only. Simple Cards use CoreSystemsManager instead.
+**When to use:** MSD cards only. LCARdS Cards use CoreSystemsManager instead.
 
 ---
 

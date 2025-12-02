@@ -553,7 +553,7 @@ systemsManager.updateHass(newHass);
 | Feature | CoreSystemsManager | MSD SystemsManager |
 |---------|-------------------|-------------------|
 | **Instantiation** | Singleton (one globally) | Per-card instance |
-| **Used By** | Simple Cards | MSD cards only |
+| **Used By** | LCARdS Cards | MSD cards only |
 | **Purpose** | Lightweight entity tracking | Full MSD pipeline orchestration |
 | **Overlay Rendering** | ❌ No | ✅ Yes (AdvancedRenderer) |
 | **Routing** | ❌ No | ✅ Yes (RouterCore) |
@@ -576,7 +576,7 @@ systemsManager.updateHass(newHass);
 
 | Card Type | Use CoreSystemsManager | Use MSD SystemsManager |
 |-----------|----------------------|----------------------|
-| **Simple Cards (button, label, etc.)** | ✅ Yes | ❌ No |
+| **LCARdS Cards (button, label, etc.)** | ✅ Yes | ❌ No |
 | **MSD Cards (multi-overlay)** | ❌ No | ✅ Yes |
 
 ---
@@ -676,7 +676,7 @@ console.log('Active routes:', sm.router.getActiveRoutes());
 
 ## 📚 Related Documentation
 
-- **[CoreSystemsManager](./core-systems-manager.md)** - Lightweight singleton for Simple Cards
+- **[CoreSystemsManager](./core-systems-manager.md)** - Lightweight singleton for LCARdS Cards
 - **[Architecture Overview](../overview.md)** - System architecture
 - **[MSD Flow - Part 1](../diagrams/MSD%20Flow%20-%20Part%201.md)** - Initialization flow
 - **[MSD Flow - Part 2](../diagrams/MSD%20Flow%20-%20Part%202.md)** - Runtime flow

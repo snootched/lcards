@@ -1,7 +1,7 @@
 /**
- * LCARdS Simple Button Card
+ * LCARdS Button Card
  *
- * A feature-complete button implementation using the SimpleCard foundation.
+ * A feature-complete button implementation using the LCARdSCard foundation.
  * Supports multi-text labels, flexible positioning, state-based styling, and dynamic rules.
  *
  * Features:
@@ -17,7 +17,7 @@
  *
  * @example Basic Button
  * ```yaml
- * type: custom:lcards-simple-button
+ * type: custom:lcards-button
  * entity: light.bedroom
  * preset: lozenge
  * text:
@@ -29,7 +29,7 @@
  *
  * @example Advanced Button with Multi-Text
  * ```yaml
- * type: custom:lcards-simple-button
+ * type: custom:lcards-button
  * entity: sensor.temperature
  * preset: bullet
  * icon_area: left
@@ -45,13 +45,13 @@
  *     font_size: 20
  * ```
  *
- * @see {@link ../doc/architecture/simple-button-schema-definition.md} for complete schema
+ * @see {@link ../doc/architecture/button-schema-definition.md} for complete schema
  * @version 1.14.18
  */
 
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
+import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
@@ -62,10 +62,10 @@ import { getComponent } from '../core/packs/components/index.js';
 import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 
-export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
+export class LCARdSButton extends LCARdSCard {
 
     /** Card type identifier for CoreConfigManager */
-    static CARD_TYPE = 'simple-button';
+    static CARD_TYPE = 'button';
 
     static get properties() {
         return {
@@ -152,7 +152,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Re-setup actions if config changes after initial setup
         if (this._actionsInitialized) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Config changed, re-setting up actions`);
+            lcardsLog.debug(`[LCARdSButton] Config changed, re-setting up actions`);
             this.updateComplete.then(() => {
                 this._setupButtonActions();
             });
@@ -170,7 +170,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             const newState = this._entity.state;
 
             if (oldState !== newState) {
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Entity state changed: ${oldState} -> ${newState}`, {
+                lcardsLog.debug(`[LCARdSButton] Entity state changed: ${oldState} -> ${newState}`, {
                     entityId: this.config.entity,
                     oldState,
                     newState,
@@ -180,7 +180,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Re-resolve button style when entity state changes for reactive color updates
                 this._resolveButtonStyleSync();
 
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Button style re-resolved after state change`);
+                lcardsLog.debug(`[LCARdSButton] Button style re-resolved after state change`);
 
                 // Schedule template processing AFTER style resolution
                 this._scheduleTemplateUpdate();
@@ -190,10 +190,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (this.config.animations) {
                     requestAnimationFrame(() => {
                         const animationManager = window.lcards?.core?.getAnimationManager?.();
-                        const elementId = `simple-button-${this._cardGuid}`;
+                        const elementId = `button-${this._cardGuid}`;
                         if (animationManager && elementId) {
                             animationManager.triggerAnimations(elementId, 'on_entity_change');
-                            lcardsLog.debug(`[LCARdSSimpleButtonCard] Card-level on_entity_change animations triggered`);
+                            lcardsLog.debug(`[LCARdSButton] Card-level on_entity_change animations triggered`);
                         }
                     });
                 }
@@ -218,12 +218,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @param {string} componentName - Name of component preset to load
      */
     _processComponentPreset(componentName) {
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Processing component preset`, { componentName });
+        lcardsLog.debug(`[LCARdSButton] Processing component preset`, { componentName });
 
         // Load component preset
         const componentPreset = getComponent(componentName);
         if (!componentPreset) {
-            lcardsLog.error(`[LCARdSSimpleButtonCard] Component preset not found: ${componentName}`);
+            lcardsLog.error(`[LCARdSButton] Component preset not found: ${componentName}`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
@@ -233,13 +233,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const shapeName = componentPreset.shape;
         const shapeContent = getShape(shapeName);
         if (!shapeContent) {
-            lcardsLog.error(`[LCARdSSimpleButtonCard] Shape not found for component: ${shapeName}`);
+            lcardsLog.error(`[LCARdSButton] Shape not found for component: ${shapeName}`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
         }
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Loaded component preset`, {
+        lcardsLog.debug(`[LCARdSButton] Loaded component preset`, {
             id: componentPreset.id,
             shape: shapeName,
             hasSegments: !!componentPreset.segments
@@ -268,7 +268,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             ...config
         }));
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Component segments merged`, {
+        lcardsLog.debug(`[LCARdSButton] Component segments merged`, {
             componentSegmentCount: Object.keys(componentPreset.segments).length,
             userSegmentCount: Object.keys(userSegments).length,
             finalSegmentCount: svgConfig.segments.length
@@ -330,11 +330,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Use ThemeManager resolver for proper token resolution
         if (this._singletons?.themeManager?.resolver) {
             const resolved = this._singletons.themeManager.resolver.resolve(tokenPath, tokenPath);
-            lcardsLog.trace(`[LCARdSSimpleButtonCard] Resolved component token "${tokenPath}" -> "${resolved}"`);
+            lcardsLog.trace(`[LCARdSButton] Resolved component token "${tokenPath}" -> "${resolved}"`);
             return resolved;
         } else {
             lcardsLog.warn(
-                `[LCARdSSimpleButtonCard] Cannot resolve component token "${tokenPath}" - ThemeManager not available`
+                `[LCARdSButton] Cannot resolve component token "${tokenPath}" - ThemeManager not available`
             );
             return tokenPath;
         }
@@ -371,7 +371,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @private
      */
     _processSvgConfig() {
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] _processSvgConfig called`, {
+        lcardsLog.debug(`[LCARdSButton] _processSvgConfig called`, {
             hasSvgConfig: !!this.config?.svg,
             hasComponent: !!this.config?.component,
             config: this.config?.svg
@@ -394,7 +394,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Priority 1: Inline content
         if (svgConfig.content) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Processing inline SVG content`, {
+            lcardsLog.debug(`[LCARdSButton] Processing inline SVG content`, {
                 contentLength: svgConfig.content?.length
             });
             svgContent = svgConfig.content;
@@ -409,7 +409,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     const dataContent = this._extractDataUriContent(svgConfig.src);
                     this._finalizeSvgProcessing(dataContent, svgConfig);
                 } catch (error) {
-                    lcardsLog.error(`[LCARdSSimpleButtonCard] Data URI parse failed:`, error);
+                    lcardsLog.error(`[LCARdSButton] Data URI parse failed:`, error);
                     this._processedSvg = null;
                 }
             } else {
@@ -465,7 +465,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Trigger re-render after async fetch
             this.requestUpdate();
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleButtonCard] SVG fetch failed:`, error);
+            lcardsLog.error(`[LCARdSButton] SVG fetch failed:`, error);
             this._processedSvg = null;
         }
     }
@@ -500,7 +500,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             preserveAspectRatio: svgConfig.preserveAspectRatio || 'xMidYMid meet'
         };
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] SVG processed`, {
+        lcardsLog.debug(`[LCARdSButton] SVG processed`, {
             hasContent: !!this._processedSvg.content,
             contentLength: this._processedSvg.content?.length,
             viewBox: this._processedSvg.viewBox,
@@ -539,7 +539,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Check for parsing errors
         const parserError = doc.querySelector('parsererror');
         if (parserError) {
-            lcardsLog.error('[LCARdSSimpleButtonCard] Invalid SVG markup:', parserError.textContent);
+            lcardsLog.error('[LCARdSButton] Invalid SVG markup:', parserError.textContent);
             return '';
         }
 
@@ -703,10 +703,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (this._singletons?.themeManager?.resolver) {
                     const resolvedValue = this._singletons.themeManager.resolver.resolve(tokenPath, value);
                     resolved[property] = resolvedValue;
-                    lcardsLog.trace(`[LCARdSSimpleButtonCard] Resolved segment theme token "${value}" -> `, resolvedValue);
+                    lcardsLog.trace(`[LCARdSButton] Resolved segment theme token "${value}" -> `, resolvedValue);
                 } else {
                     // Keep original token reference - will be resolved later when ThemeManager is available
-                    lcardsLog.trace(`[LCARdSSimpleButtonCard] Deferring resolution of segment token "${value}" (ThemeManager not yet available)`);
+                    lcardsLog.trace(`[LCARdSButton] Deferring resolution of segment token "${value}" (ThemeManager not yet available)`);
                     resolved[property] = value;
                 }
             } else if (typeof value === 'object' && value !== null) {
@@ -721,7 +721,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Now resolve any computed tokens (darken/lighten/alpha) within the resolved state objects
         if (this._singletons?.themeManager) {
             const fullyResolved = resolveThemeTokensRecursive(resolved, this._singletons.themeManager);
-            lcardsLog.trace(`[LCARdSSimpleButtonCard] Fully resolved segment tokens with computed tokens`);
+            lcardsLog.trace(`[LCARdSButton] Fully resolved segment tokens with computed tokens`);
             return fullyResolved;
         }
 
@@ -743,7 +743,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         this._processedSegments = segments.map(segment => {
             // Validate segment config
             if (!segment.selector) {
-                lcardsLog.warn('[LCARdSSimpleButtonCard] Segment missing selector:', segment);
+                lcardsLog.warn('[LCARdSButton] Segment missing selector:', segment);
                 return null;
             }
 
@@ -762,7 +762,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 double_tap_action: segment.double_tap_action,
 
                 // Style configuration with state-based values
-                // Follows existing SimpleButton convention: style.{property}.{state}
+                // Follows existing Button convention: style.{property}.{state}
                 // States: default, active, inactive, unavailable, hover
                 style: resolvedStyle,
 
@@ -777,7 +777,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Collect segment entities for HASS change tracking
         this._collectSegmentEntities();
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Processed ${this._processedSegments.length} segments`);
+        lcardsLog.debug(`[LCARdSButton] Processed ${this._processedSegments.length} segments`);
     }
 
     /**
@@ -814,7 +814,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         });
 
         if (segmentEntities.size > 0) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Tracking ${segmentEntities.size} segment entities for HASS updates`, {
+            lcardsLog.debug(`[LCARdSButton] Tracking ${segmentEntities.size} segment entities for HASS updates`, {
                 entities: Array.from(segmentEntities)
             });
         }
@@ -836,7 +836,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const svgContainer = this.shadowRoot?.querySelector('.button-bg-svg svg');
         if (!svgContainer) {
             // This is expected on initial render before SVG is in DOM - it will be called again
-            lcardsLog.debug('[LCARdSSimpleButtonCard] SVG container not yet rendered for segments (will retry on next update)');
+            lcardsLog.debug('[LCARdSButton] SVG container not yet rendered for segments (will retry on next update)');
             return;
         }
 
@@ -852,11 +852,11 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             const elements = svgContainer.querySelectorAll(segment.selector);
 
             if (elements.length === 0) {
-                lcardsLog.warn(`[LCARdSSimpleButtonCard] No elements found for segment selector: ${segment.selector}`);
+                lcardsLog.warn(`[LCARdSButton] No elements found for segment selector: ${segment.selector}`);
                 return;
             }
 
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Setting up segment "${segment.id}" on ${elements.length} elements`);
+            lcardsLog.debug(`[LCARdSButton] Setting up segment "${segment.id}" on ${elements.length} elements`);
 
             elements.forEach(element => {
                 // Get entity state for initial styling
@@ -887,7 +887,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         const animationManager = this._singletons?.animationManager;
         if (!animationManager) {
-            lcardsLog.debug('[LCARdSSimpleButtonCard] AnimationManager not available, skipping segment animations');
+            lcardsLog.debug('[LCARdSButton] AnimationManager not available, skipping segment animations');
             return;
         }
 
@@ -904,7 +904,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
                 const element = this.shadowRoot?.querySelector('.button-bg-svg svg')?.querySelector(segment.selector);
                 if (!element) {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Segment element not found for animation: ${segment.selector}`);
+                    lcardsLog.warn(`[LCARdSButton] Segment element not found for animation: ${segment.selector}`);
                     return;
                 }
 
@@ -914,7 +914,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
                 // If scope exists but element is different (DOM was recreated), update the reference
                 if (existingScope && existingScope.element !== element) {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Updating stale element reference for segment: ${segment.id}`);
+                    lcardsLog.debug(`[LCARdSButton] Updating stale element reference for segment: ${segment.id}`);
 
                     // Update element reference in scope
                     existingScope.element = element;
@@ -929,7 +929,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                         existingScope.triggerManager.element = element;
                     }
 
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] ✅ Updated element reference for segment: ${segment.id}`);
+                    lcardsLog.debug(`[LCARdSButton] ✅ Updated element reference for segment: ${segment.id}`);
                     return;
                 }
 
@@ -949,7 +949,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Mark as registered
                 this._registeredSegmentAnimations.add(segment.id);
 
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Registered animations for segment: ${segment.id}`, {
+                lcardsLog.debug(`[LCARdSButton] Registered animations for segment: ${segment.id}`, {
                     animationCount: segment.animations.length
                 });
             });
@@ -964,7 +964,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     _getAnimationCardId() {
         // Use config ID, then card GUID, then generate a fallback random ID
         const cardId = this.config?.id || this._cardGuid || `card-${Math.random().toString(36).substring(2, 11)}`;
-        return `simple-button-${cardId}`;
+        return `button-${cardId}`;
     }
 
     /**
@@ -981,7 +981,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         const cardId = this._getAnimationCardId();
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Triggering segment animation`, {
+        lcardsLog.debug(`[LCARdSButton] Triggering segment animation`, {
             cardId,
             segmentId,
             trigger
@@ -1016,7 +1016,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      *
      * Supported States:
      * - Interaction: hover, pressed
-     * - SimpleButton mapped: active, inactive, unavailable, unknown, default
+     * - Button mapped: active, inactive, unavailable, unknown, default
      * - Direct entity states: on, off, playing, paused, locked, etc.
      *
      * @private
@@ -1202,7 +1202,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const handleHoldStart = () => {
             if (segment.hold_action) {
                 holdTimer = setTimeout(() => {
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Segment "${segment.id}" held`);
+                    lcardsLog.debug(`[LCARdSButton] Segment "${segment.id}" held`);
 
                     // Trigger hold animation
                     if (hasAnimations) {
@@ -1252,7 +1252,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             e.preventDefault();
             e.stopPropagation();
 
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Segment "${segment.id}" clicked`);
+            lcardsLog.debug(`[LCARdSButton] Segment "${segment.id}" clicked`);
 
             // Trigger tap animation
             if (hasAnimations) {
@@ -1351,7 +1351,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
     _refreshSegmentStyles(changedEntityIds = null) {
         if (!this._segmentElements || this._segmentElements.size === 0) return;
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Refreshing segment styles`, {
+        lcardsLog.debug(`[LCARdSButton] Refreshing segment styles`, {
             totalSegments: this._segmentElements.size,
             changedEntities: changedEntityIds ? Array.from(changedEntityIds) : 'all'
         });
@@ -1384,7 +1384,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     this._triggerSegmentAnimation(segmentId, 'on_entity_change');
                 }
 
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Updated segment "${segmentId}" style`, {
+                lcardsLog.debug(`[LCARdSButton] Updated segment "${segmentId}" style`, {
                     entityId,
                     oldState: currentEntityState,
                     newState: newEntityState
@@ -1412,7 +1412,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             segment: segment.id
         };
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Executing segment action`, {
+        lcardsLog.debug(`[LCARdSButton] Executing segment action`, {
             action: action.action,
             service: action.service,
             target: action.target,
@@ -1489,7 +1489,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 break;
 
             default:
-                lcardsLog.warn(`[LCARdSSimpleButtonCard] Unknown segment action: ${action.action}`);
+                lcardsLog.warn(`[LCARdSButton] Unknown segment action: ${action.action}`);
         }
     }
 
@@ -1515,7 +1515,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Use card ID directly - config.id takes precedence over entity ID
         const overlayId = this.config.id || this.config.entity || this._cardGuid;
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Registering overlay with ID: ${overlayId}`, {
+        lcardsLog.debug(`[LCARdSButton] Registering overlay with ID: ${overlayId}`, {
             hasConfigId: !!this.config.id,
             configId: this.config.id,
             hasEntity: !!this.config.entity,
@@ -1538,7 +1538,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Process initial templates if needed
         if (this._needsInitialTemplateProcessing) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Processing initial templates after firstUpdated`);
+            lcardsLog.debug(`[LCARdSButton] Processing initial templates after firstUpdated`);
             this._scheduleTemplateUpdate();
             this._needsInitialTemplateProcessing = false;
         }
@@ -1573,7 +1573,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         if (this.config.preset) {
             const hasStylePresetManager = !!this._singletons?.stylePresetManager;
 
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Re-resolving styles after singletons initialized`, {
+            lcardsLog.debug(`[LCARdSButton] Re-resolving styles after singletons initialized`, {
                 hasStylePresetManager,
                 preset: this.config.preset
             });
@@ -1584,7 +1584,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 this.requestUpdate();
             } else {
                 // StylePresetManager not available yet - wait for it
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Waiting for StylePresetManager to become available`);
+                lcardsLog.debug(`[LCARdSButton] Waiting for StylePresetManager to become available`);
                 this._waitForStylePresetManager();
             }
         }
@@ -1607,7 +1607,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     this._singletons.stylePresetManager = core.getStylePresetManager();
                 }
 
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] StylePresetManager now available after ${attempt * delayMs}ms`);
+                lcardsLog.debug(`[LCARdSButton] StylePresetManager now available after ${attempt * delayMs}ms`);
 
                 // Re-resolve styles with preset data
                 this._resolveButtonStyleSync();
@@ -1621,7 +1621,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
 
-        lcardsLog.warn(`[LCARdSSimpleButtonCard] StylePresetManager did not become available after ${maxAttempts * delayMs}ms`);
+        lcardsLog.warn(`[LCARdSButton] StylePresetManager did not become available after ${maxAttempts * delayMs}ms`);
     }
 
     /**
@@ -1639,7 +1639,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @protected
      */
     _onConfigUpdated() {
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Config updated by CoreConfigManager, re-resolving button style and SVG`);
+        lcardsLog.debug(`[LCARdSButton] Config updated by CoreConfigManager, re-resolving button style and SVG`);
 
         // Re-process SVG configuration (in case config was replaced by CoreConfigManager)
         this._processSvgConfig();
@@ -1657,7 +1657,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         try {
             // Check if document.fonts API is available
             if (!document.fonts || !document.fonts.load) {
-                lcardsLog.debug('[LCARdSSimpleButtonCard] Font Loading API not available');
+                lcardsLog.debug('[LCARdSButton] Font Loading API not available');
                 return;
             }
 
@@ -1672,9 +1672,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Trigger re-render with correct font measurements
             this.requestUpdate();
 
-            lcardsLog.debug('[LCARdSSimpleButtonCard] Fonts loaded, re-rendering with correct measurements');
+            lcardsLog.debug('[LCARdSButton] Fonts loaded, re-rendering with correct measurements');
         } catch (error) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Font loading check failed: ${error.message}`);
+            lcardsLog.debug(`[LCARdSButton] Font loading check failed: ${error.message}`);
         }
     }
 
@@ -1695,12 +1695,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Only re-attach actions if we have relevant changes and actions are initialized
         // This prevents excessive re-attachment on every render
         if (this._actionsInitialized) {
-            const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
+            const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="button"]');
 
             // Check if the button element exists and if we need to re-attach
             // (Lit recreates SVG on every render, so we need to re-attach)
             if (buttonElement && buttonElement !== this._lastActionElement) {
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] 🔄 Re-attaching actions after render (element changed)`);
+                lcardsLog.debug(`[LCARdSButton] 🔄 Re-attaching actions after render (element changed)`);
                 this._setupButtonActions();
                 this._lastActionElement = buttonElement;
             }
@@ -1748,7 +1748,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         const core = window.lcards?.core;
         const stylePresetManager = this._singletons?.stylePresetManager || core?.getStylePresetManager?.();
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] _resolveButtonStyleSync starting`, {
+        lcardsLog.debug(`[LCARdSButton] _resolveButtonStyleSync starting`, {
             hasPreset: !!this.config.preset,
             presetName: this.config.preset,
             hasGetStylePreset: typeof this.getStylePreset === 'function',
@@ -1760,13 +1760,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         if (this.config.preset) {
             // Check if StylePresetManager is available (either via singletons or core)
             if (!stylePresetManager) {
-                lcardsLog.warn(`[LCARdSSimpleButtonCard] StylePresetManager not available yet, preset '${this.config.preset}' will be deferred`);
+                lcardsLog.warn(`[LCARdSButton] StylePresetManager not available yet, preset '${this.config.preset}' will be deferred`);
                 // Return early - don't process anything until StylePresetManager is ready
                 // This prevents rendering with incomplete/default values
                 return;
             } else {
                 const preset = this.getStylePreset('button', this.config.preset);
-                lcardsLog.debug(`[LCARdSSimpleButtonCard] Preset lookup result`, {
+                lcardsLog.debug(`[LCARdSButton] Preset lookup result`, {
                     presetName: this.config.preset,
                     presetFound: !!preset,
                     presetKeys: preset ? Object.keys(preset) : [],
@@ -1776,7 +1776,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (preset) {
                     // Deep copy preset to avoid mutation issues
                     style = deepMerge({}, preset);
-                    lcardsLog.debug(`[LCARdSSimpleButtonCard] Applied preset '${this.config.preset}'`, {
+                    lcardsLog.debug(`[LCARdSButton] Applied preset '${this.config.preset}'`, {
                         borderRadius: preset.border?.radius,
                         borderWidth: preset.border?.width,
                         styleKeys: Object.keys(style)
@@ -1784,12 +1784,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 }
             }
         } else {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] No preset specified, starting with empty style`);
+            lcardsLog.debug(`[LCARdSButton] No preset specified, starting with empty style`);
         }
 
         // 2. DEEP merge config styles (config wins over preset)
         if (this.config.style) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Merging config.style`, {
+            lcardsLog.debug(`[LCARdSButton] Merging config.style`, {
                 hasBorder: !!this.config.style.border,
                 borderRadius: this.config.style.border?.radius,
                 borderWidth: this.config.style.border?.width
@@ -1800,7 +1800,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             const configWithTokens = resolveThemeTokensRecursive(configStyleCopy, this._singletons?.themeManager);
             // Then deep merge (handles nested objects)
             style = deepMerge(style, configWithTokens);
-            lcardsLog.trace(`[LCARdSSimpleButtonCard] Config styles merged`);
+            lcardsLog.trace(`[LCARdSButton] Config styles merged`);
         }
 
         // 3. Get current button state
@@ -1828,7 +1828,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (!style.card.color.background) style.card.color.background = {};
                 style.card.color.background[buttonState] = resolved;
 
-                lcardsLog.trace(`[LCARdSSimpleButtonCard] Theme default applied: card.color.background.${buttonState}`);
+                lcardsLog.trace(`[LCARdSButton] Theme default applied: card.color.background.${buttonState}`);
             }
         }
 
@@ -1850,7 +1850,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (!style.text.default.color) style.text.default.color = {};
                 style.text.default.color[buttonState] = textColor;
 
-                lcardsLog.trace(`[LCARdSSimpleButtonCard] Theme default applied: text.default.color.${buttonState}`);
+                lcardsLog.trace(`[LCARdSButton] Theme default applied: text.default.color.${buttonState}`);
             }
         }
 
@@ -1875,7 +1875,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Only update if changed (avoid unnecessary re-renders)
         if (!this._buttonStyle || JSON.stringify(this._buttonStyle) !== JSON.stringify(resolvedStyle)) {
             this._buttonStyle = resolvedStyle;
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Button style resolved (state: ${buttonState}), triggering re-render`);
+            lcardsLog.debug(`[LCARdSButton] Button style resolved (state: ${buttonState}), triggering re-render`);
             this.requestUpdate(); // Trigger re-render to apply new styles
         }
     }
@@ -1933,7 +1933,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Validate icon_area
         const validAreas = ['left', 'right', 'top', 'bottom', 'none'];
         if (!validAreas.includes(iconArea)) {
-            lcardsLog.warn(`[LCARdSSimpleButtonCard] Invalid icon_area: ${iconArea}, defaulting to 'left'`);
+            lcardsLog.warn(`[LCARdSButton] Invalid icon_area: ${iconArea}, defaulting to 'left'`);
             iconArea = 'left';
         }
 
@@ -2019,7 +2019,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // Parse the icon string to get type (mdi, si, entity) and icon name
         const parsedIcon = this._parseIconString(iconName);
 
-        lcardsLog.trace('[LCARdSSimpleButtonCard] Icon parsed:', parsedIcon);
+        lcardsLog.trace('[LCARdSButton] Icon parsed:', parsedIcon);
 
         if (parsedIcon) {
             // Handle 'entity' icon - either type='entity' OR type='mdi' with icon='entity'
@@ -2028,12 +2028,12 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 // Use HA's state-aware icon resolution (respects entity.attributes.icon + state-based defaults)
                 const entityIcon = this._resolveEntityIcon(this._entity);
 
-                lcardsLog.trace('[LCARdSSimpleButtonCard] Resolved entity icon:', entityIcon);
+                lcardsLog.trace('[LCARdSButton] Resolved entity icon:', entityIcon);
 
                 // Re-parse the resolved entity icon to get its type (mdi/si) and name
                 const resolvedParsed = this._parseIconString(entityIcon);
                 if (resolvedParsed) {
-                    lcardsLog.trace('[LCARdSSimpleButtonCard] Parsed entity icon:', resolvedParsed);
+                    lcardsLog.trace('[LCARdSButton] Parsed entity icon:', resolvedParsed);
                     parsedIcon.type = resolvedParsed.type;
                     parsedIcon.icon = resolvedParsed.icon;
                 }
@@ -2049,7 +2049,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // Priority: config > preset > theme token (state-based) > text color (state-based) > hardcoded
             let iconColor;
 
-            lcardsLog.trace('[LCARdSSimpleButtonCard] Resolving icon color for state:', buttonState);
+            lcardsLog.trace('[LCARdSButton] Resolving icon color for state:', buttonState);
 
             // 1. Check explicit config color
             if (typeof this.config.icon === 'object' && this.config.icon?.color) {
@@ -2061,7 +2061,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 } else {
                     iconColor = this.config.icon.color;
                 }
-                lcardsLog.trace('[LCARdSSimpleButtonCard] Icon color from config:', iconColor);
+                lcardsLog.trace('[LCARdSButton] Icon color from config:', iconColor);
             }
             // 2. Check preset/resolvedStyle color
             else if (resolvedStyle.icon?.color) {
@@ -2073,7 +2073,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 } else {
                     iconColor = resolvedStyle.icon.color;
                 }
-                lcardsLog.trace('[LCARdSSimpleButtonCard] Icon color from preset:', iconColor);
+                lcardsLog.trace('[LCARdSButton] Icon color from preset:', iconColor);
             }
             // 3. Check theme token (can be state-based)
             else if (iconTokens.color) {
@@ -2081,10 +2081,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     iconColor = iconTokens.color[buttonState] ||
                                iconTokens.color.default ||
                                iconTokens.color.active;
-                    lcardsLog.trace('[LCARdSSimpleButtonCard] Icon color from theme token (state-based):', iconColor);
+                    lcardsLog.trace('[LCARdSButton] Icon color from theme token (state-based):', iconColor);
                 } else {
                     iconColor = iconTokens.color;
-                    lcardsLog.trace('[LCARdSSimpleButtonCard] Icon color from theme token:', iconColor);
+                    lcardsLog.trace('[LCARdSButton] Icon color from theme token:', iconColor);
                 }
             }
             // 4. Fall back to text color (also state-based)
@@ -2097,17 +2097,17 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 } else {
                     iconColor = textColor;
                 }
-                lcardsLog.trace('[LCARdSSimpleButtonCard] Icon color from text color:', iconColor);
+                lcardsLog.trace('[LCARdSButton] Icon color from text color:', iconColor);
             }
             // 5. Final hardcoded fallback
             else {
                 iconColor = 'var(--lcars-color-text, #FFFFFF)';
-                lcardsLog.warn('[LCARdSSimpleButtonCard] Icon color using hardcoded fallback');
+                lcardsLog.warn('[LCARdSButton] Icon color using hardcoded fallback');
             }
 
             // Ensure iconColor is a string (not an object)
             if (typeof iconColor !== 'string') {
-                console.warn('[LCARdSSimpleButtonCard] Icon color resolved to non-string:', iconColor);
+                console.warn('[LCARdSButton] Icon color resolved to non-string:', iconColor);
                 iconColor = 'var(--lcars-color-text, #FFFFFF)';
             }
 
@@ -2297,7 +2297,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @override
      */
     async _processIcon() {
-        lcardsLog.trace(`[LCARdSSimpleButtonCard] _processIcon override (no-op)`);
+        lcardsLog.trace(`[LCARdSButton] _processIcon override (no-op)`);
     }
 
     /**
@@ -2307,7 +2307,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @override
      */
     async _processCustomTemplates() {
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] _processCustomTemplates called for ${this._cardGuid}`);
+        lcardsLog.debug(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
 
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
@@ -2321,7 +2321,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // This ensures preset templates get processed too
         const presetTextFields = this._buttonStyle?.text || {};
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Merging preset text fields`, {
+        lcardsLog.debug(`[LCARdSButton] Merging preset text fields`, {
             presetFieldIds: Object.keys(presetTextFields),
             configFieldIds: Object.keys(this.config.text),
             cardGuid: this._cardGuid
@@ -2336,7 +2336,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             // If field doesn't exist in config, add it from preset
             if (!this.config.text[fieldId]) {
                 this.config.text[fieldId] = { ...presetFieldConfig };
-                lcardsLog.trace(`[LCARdSSimpleButtonCard] Added preset text field '${fieldId}'`);
+                lcardsLog.trace(`[LCARdSButton] Added preset text field '${fieldId}'`);
                 hasChanges = true;
             } else {
                 // Field exists in config - merge preset properties as defaults
@@ -2347,7 +2347,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     if (configField[propKey] === undefined && propValue !== undefined) {
                         configField[propKey] = propValue;
                         fieldChanged = true;
-                        lcardsLog.trace(`[LCARdSSimpleButtonCard] Merged preset property '${propKey}' into '${fieldId}'`);
+                        lcardsLog.trace(`[LCARdSButton] Merged preset property '${propKey}' into '${fieldId}'`);
                     }
                 }
 
@@ -2373,7 +2373,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                         fieldConfig._originalContent = fieldConfig.content;
                     }
 
-                    lcardsLog.trace(`[LCARdSSimpleButtonCard] Processing template field '${fieldId}'`);
+                    lcardsLog.trace(`[LCARdSButton] Processing template field '${fieldId}'`);
 
                     // Always process from original template, not previously processed content
                     const processedContent = await this.processTemplate(fieldConfig._originalContent);
@@ -2382,13 +2382,13 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     if (fieldConfig.content !== processedContent) {
                         fieldConfig.content = processedContent;
                         hasChanges = true;
-                        lcardsLog.trace(`[LCARdSSimpleButtonCard] Template field '${fieldId}' changed:`, processedContent);
+                        lcardsLog.trace(`[LCARdSButton] Template field '${fieldId}' changed:`, processedContent);
                     }
                 }
             }
         }
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Template processing complete`, {
+        lcardsLog.debug(`[LCARdSButton] Template processing complete`, {
             hasChanges,
             fieldCount: this.config.text ? Object.keys(this.config.text).length : 0
         });
@@ -2431,7 +2431,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         this._trackedEntities = Array.from(trackedEntities);
 
-        lcardsLog.trace(`[LCARdSSimpleButtonCard] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
+        lcardsLog.trace(`[LCARdSButton] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
     }
 
     /**
@@ -2455,7 +2455,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      */
     _setupButtonActions() {
         if (!this.hass) {
-            lcardsLog.trace(`[LCARdSSimpleButtonCard] HASS not available yet, deferring action setup`);
+            lcardsLog.trace(`[LCARdSButton] HASS not available yet, deferring action setup`);
             return;
         }
 
@@ -2466,10 +2466,10 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         }
 
         // Find the button group element in shadow DOM
-        const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="simple-button"]');
+        const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="button"]');
 
         if (!buttonElement) {
-            lcardsLog.trace(`[LCARdSSimpleButtonCard] Button element not found yet`);
+            lcardsLog.trace(`[LCARdSButton] Button element not found yet`);
             return;
         }
 
@@ -2492,7 +2492,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         };
 
         // Build elementId for animation targeting
-        const elementId = `simple-button-${this._cardGuid}`;
+        const elementId = `button-${this._cardGuid}`;
 
         // Use base class method to setup actions
         this._actionCleanup = this.setupActions(
@@ -2507,7 +2507,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             }
         );
 
-        lcardsLog.trace(`[LCARdSSimpleButtonCard] Actions attached to button element`);
+        lcardsLog.trace(`[LCARdSButton] Actions attached to button element`);
     }
 
     /**
@@ -2517,8 +2517,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      */
     _getAnimationSetup() {
         return {
-            overlayId: `simple-button-${this._cardGuid}`,
-            elementSelector: '[data-overlay-id="simple-button"]'
+            overlayId: `button-${this._cardGuid}`,
+            elementSelector: '[data-overlay-id="button"]'
         };
     }    /**
      * Render the button card
@@ -2532,7 +2532,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         // If we have a preset but haven't resolved styles yet, wait
         // This prevents rendering with default/incomplete values
         if (this.config.preset && !this._buttonStyle) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Delaying render - waiting for preset resolution: ${this.config.preset}`);
+            lcardsLog.debug(`[LCARdSButton] Delaying render - waiting for preset resolution: ${this.config.preset}`);
             return html`<div class="lcards-card">Loading preset...</div>`;
         }
 
@@ -2545,14 +2545,14 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @private
      */
     _renderButtonContent() {
-        lcardsLog.trace(`[LCARdSSimpleButtonCard] Rendering button ${this._overlayId}`);
+        lcardsLog.trace(`[LCARdSButton] Rendering button ${this._overlayId}`);
 
         // ✨ Use container size if available, otherwise config or defaults
         // This enables auto-sizing for HA grid cards and responsive layouts
         const width = this.config.width || this._containerSize?.width || 400;
         const height = this.config.height || this._containerSize?.height || 56;
 
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Size resolution:`, {
+        lcardsLog.debug(`[LCARdSButton] Size resolution:`, {
             'config.width': this.config.width,
             'config.height': this.config.height,
             '_containerSize': this._containerSize,
@@ -2562,7 +2562,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Build button configuration
         const buttonConfig = {
-            id: 'simple-button',
+            id: 'button',
             label: this._processedTexts.label,
             content: this._processedTexts.content,
             texts: this._processedTexts.texts,
@@ -2573,7 +2573,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Render synchronously with fallback SVG
         try {
-            const svgMarkup = this._generateSimpleButtonSVG(width, height, buttonConfig);
+            const svgMarkup = this._generateButtonSVG(width, height, buttonConfig);
 
             // Add cache-busting comment to force DOM update when style changes
             const timestamp = Date.now();
@@ -2585,7 +2585,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             `;
 
         } catch (error) {
-            lcardsLog.error(`[LCARdSSimpleButtonCard] Render failed:`, error);
+            lcardsLog.error(`[LCARdSButton] Render failed:`, error);
 
             return html`
                 <div class="simple-card-error">
@@ -2949,7 +2949,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
                 // Debug logging for entity icon resolution
                 if (iconConfig.type === 'entity') {
-                    lcardsLog.debug('[LCARdSSimpleButtonCard] Icon-only mode - Resolving entity icon:', {
+                    lcardsLog.debug('[LCARdSButton] Icon-only mode - Resolving entity icon:', {
                         entityId: this._entity?.entity_id,
                         entityIcon: this._entity?.attributes?.icon,
                         resolvedIconName: iconName
@@ -3066,7 +3066,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     ? (this._entity?.attributes?.icon || 'mdi:help-circle')
                     : `${iconConfig.type}:${iconConfig.icon}`;
 
-                lcardsLog.trace('[LCARdSSimpleButtonCard] Icon resolved:', iconName);
+                lcardsLog.trace('[LCARdSButton] Icon resolved:', iconName);
 
                 // Calculate rotation transform if needed
                 // Rotation is around the center of the icon
@@ -3110,7 +3110,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * @returns {string} SVG markup string
      * @private
      */
-    _generateSimpleButtonSVG(width, height, config) {
+    _generateButtonSVG(width, height, config) {
         // Read styling from _buttonStyle (resolved from preset/tokens)
         // Use CB-LCARS nested schema (v1.14.18+)
         const buttonState = this._buttonStyle?._currentState || this._getButtonState();
@@ -3202,7 +3202,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Generate button background (fill only, no stroke)
         // Priority: SVG background (Phase 1) > custom path > complex path > simple rect
-        lcardsLog.debug(`[LCARdSSimpleButtonCard] Rendering button background`, {
+        lcardsLog.debug(`[LCARdSButton] Rendering button background`, {
             hasProcessedSvg: !!this._processedSvg,
             hasContent: !!this._processedSvg?.content,
             contentLength: this._processedSvg?.content?.length
@@ -3211,15 +3211,15 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         let backgroundMarkup;
         if (this._processedSvg && this._processedSvg.content) {
             // Use full SVG content as background (Phase 1)
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Using SVG background`);
+            lcardsLog.debug(`[LCARdSButton] Using SVG background`);
             backgroundMarkup = this._renderSvgBackground(this._processedSvg, width, height);
         } else if (normalizedPath) {
             backgroundMarkup = this._renderCustomPathBackground(normalizedPath, backgroundColor);
         } else if (needsComplexPath) {
             backgroundMarkup = this._renderComplexButtonPath(width, height, border, backgroundColor);
         } else {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Using simple rect background`);
-            backgroundMarkup = this._renderSimpleButtonRect(width, height, border, backgroundColor);
+            lcardsLog.debug(`[LCARdSButton] Using simple rect background`);
+            backgroundMarkup = this._renderButtonRect(width, height, border, backgroundColor);
         }
 
         // Generate separate border paths for clean corner joins
@@ -3253,8 +3253,8 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
-                <g data-button-id="simple-button"
-                   data-overlay-id="simple-button"
+                <g data-button-id="button"
+                   data-overlay-id="button"
                    class="button-group"
                    style="pointer-events: visiblePainted; cursor: pointer;">
                     ${backgroundMarkup}
@@ -3317,9 +3317,9 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                 if (this._singletons?.themeManager?.resolver) {
                     const tokenPath = stringValue.replace('theme:', '');
                     resolved = this._singletons.themeManager.resolver.resolve(tokenPath, stringValue);
-                    lcardsLog.trace(`[LCARdSSimpleButtonCard] Resolved theme token "${stringValue}" -> "${resolved}"`);
+                    lcardsLog.trace(`[LCARdSButton] Resolved theme token "${stringValue}" -> "${resolved}"`);
                 } else {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Cannot resolve theme token "${stringValue}" - ThemeManager not available {hasSingletons: ${!!this._singletons}, hasThemeManager: ${!!this._singletons?.themeManager}, hasResolver: ${!!this._singletons?.themeManager?.resolver}}`);
+                    lcardsLog.warn(`[LCARdSButton] Cannot resolve theme token "${stringValue}" - ThemeManager not available {hasSingletons: ${!!this._singletons}, hasThemeManager: ${!!this._singletons?.themeManager}, hasResolver: ${!!this._singletons?.themeManager?.resolver}}`);
                 }
             }
 
@@ -3347,7 +3347,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
                     const tokenPath = stringValue.replace('theme:', '');
                     resolved = this._singletons.themeManager.resolver.resolve(tokenPath, stringValue);
                 } else {
-                    lcardsLog.warn(`[LCARdSSimpleButtonCard] Cannot resolve theme token "${stringValue}" - ThemeManager not available`);
+                    lcardsLog.warn(`[LCARdSButton] Cannot resolve theme token "${stringValue}" - ThemeManager not available`);
                 }
             }
 
@@ -3399,7 +3399,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
         let globalRadius = 20;
         const nestedRadius = this._buttonStyle?.border?.radius;
 
-        lcardsLog.debug('[LCARdSSimpleButtonCard] Border radius resolution:', {
+        lcardsLog.debug('[LCARdSButton] Border radius resolution:', {
             nestedRadius,
             isObject: typeof nestedRadius === 'object'
         });
@@ -3462,7 +3462,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
             globalRadius
         );
 
-        lcardsLog.debug('[LCARdSSimpleButtonCard] Parsed corner radii:', {
+        lcardsLog.debug('[LCARdSButton] Parsed corner radii:', {
             topLeft,
             topRight,
             bottomRight,
@@ -4164,7 +4164,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      * Background only - no stroke (borders rendered separately)
      * @private
      */
-    _renderSimpleButtonRect(width, height, border, backgroundColor) {
+    _renderButtonRect(width, height, border, backgroundColor) {
         return `<rect
                     class="button-bg button-clickable"
                     x="0"
@@ -4710,7 +4710,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
 
         // Refresh segment styles if any tracked entities changed
         if (changedEntityIds.size > 0) {
-            lcardsLog.debug(`[LCARdSSimpleButtonCard] Entity states changed, refreshing segments`, {
+            lcardsLog.debug(`[LCARdSButton] Entity states changed, refreshing segments`, {
                 changedEntities: Array.from(changedEntityIds)
             });
             this._refreshSegmentStyles(changedEntityIds);
@@ -4793,7 +4793,7 @@ export class LCARdSSimpleButtonCard extends LCARdSSimpleCard {
      */
     static getStubConfig() {
         return {
-            type: 'custom:lcards-simple-button',
+            type: 'custom:lcards-button',
             entity: 'light.example',
             preset: 'lozenge',
             tap_action: {
@@ -4817,14 +4817,14 @@ if (window.lcardsCore?.configManager) {
     const configManager = window.lcardsCore.configManager;
 
     // Register behavioral defaults (NO STYLES - those come from theme/presets)
-    configManager.registerCardDefaults('simple-button', {
+    configManager.registerCardDefaults('button', {
         enable_hold_action: true,   // Hold actions enabled
         enable_double_tap: false    // Double-tap disabled by default
     });
 
     // Register JSON schema for validation (v1.14.18+)
-    // Based on: doc/architecture/simple-button-schema-definition.md
-    configManager.registerCardSchema('simple-button', {
+    // Based on: doc/architecture/button-schema-definition.md
+    configManager.registerCardSchema('button', {
         type: 'object',
         properties: {
             // Core Properties
@@ -5357,7 +5357,7 @@ if (window.lcardsCore?.configManager) {
         // No required fields - allows decorative/static buttons without entities
     }, { version: '1.14.18' });
 
-    lcardsLog.debug('[LCARdSSimpleButtonCard] Registered with CoreConfigManager');
+    lcardsLog.debug('[LCARdSButton] Registered with CoreConfigManager');
 }
 
 // NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js

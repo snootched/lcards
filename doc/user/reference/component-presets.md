@@ -18,7 +18,7 @@ Component presets eliminate the need to create custom SVG markup by providing ba
 ### Basic Syntax
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: <component-name>
 
 <component-name>:
@@ -31,7 +31,7 @@ component: <component-name>
 
 **Top Level:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad           # Component preset name
 entity: <entity_id>       # Optional: default entity for all segments
 ```
@@ -97,7 +97,7 @@ The dpad component uses these theme tokens (customizable per theme):
 #### Example: Basic Remote Control
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: remote.living_room
 
@@ -157,7 +157,7 @@ dpad:
 #### Example: Media Player Control
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: media_player.living_room
 
@@ -194,7 +194,7 @@ dpad:
 Each segment can control a different entity:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 
 dpad:
@@ -233,7 +233,7 @@ dpad:
 #### Example: With Hover Animations
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 entity: remote.roku
 
@@ -283,7 +283,7 @@ dpad:
 Override theme defaults with custom colors:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 component: dpad
 
 dpad:
@@ -640,7 +640,7 @@ dpad:
 
 ## See Also
 
-- [Simple Button Quick Reference](../configuration/simple-button-quick-reference.md) - Complete button card documentation
+- [Simple Button Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
 - [Animation Presets Reference](./animation-presets.md) - All animation presets
 - [Segment Animation Guide](../../../SEGMENT_ANIMATION_GUIDE.md) - Detailed animation examples
 - [Actions Reference](../configuration/actions.md) - All available actions

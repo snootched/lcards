@@ -9,7 +9,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * - JavaScript: [[[code]]] => { code, tokens }
  * - Tokens: {entity.state} => { path, parts }  [CHANGED from {{entity.state}}]
  *
- * Extracted from MSD TemplateProcessor and SimpleCard inline logic.
+ * Extracted from MSD TemplateProcessor and LCARdS Card inline logic.
  *
  * @module TemplateParser
  */

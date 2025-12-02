@@ -6,7 +6,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Provides common interface for all template evaluators.
  * Subclasses implement specific evaluation logic for different template types:
  * - MSDTemplateEvaluator: MSD {datasource.key:format} templates
- * - SimpleCardTemplateEvaluator: [[[JavaScript]]] and {{token}} templates
+ * - LCARdSCardTemplateEvaluator: [[[JavaScript]]] and {{token}} templates
  * - HATemplateEvaluator: {{states('entity')}} templates (delegates to MsdTemplateEngine)
  *
  * @abstract

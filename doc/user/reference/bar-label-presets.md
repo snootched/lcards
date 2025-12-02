@@ -18,7 +18,7 @@ The colored borders create horizontal bars, while text sits in an opaque backgro
 ### Basic Syntax
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 text:
   label:
@@ -28,7 +28,7 @@ text:
 ### With Entity State
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: light.living_room
 text:
@@ -47,7 +47,7 @@ Text positioned on left side of bar.
 **Use Cases:** Status labels, entity names, left-aligned headers
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: light.living_room
 text:
@@ -66,7 +66,7 @@ Text centered in bar.
 **Use Cases:** Section titles, centered headers, dividers
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 text:
   label:
@@ -84,7 +84,7 @@ Text positioned on right side of bar.
 **Use Cases:** Right-aligned status text, values
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-right
 entity: sensor.temperature
 text:
@@ -103,7 +103,7 @@ Full-height bar with square corners, centered text.
 **Use Cases:** Large status indicators, key values
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-square
 height: 80
 text:
@@ -123,7 +123,7 @@ Full-height bar with rounded ends (pill shape), centered text.
 **Use Cases:** Modern LCARS aesthetic, pill-shaped labels
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-lozenge
 text:
   label:
@@ -141,7 +141,7 @@ Half-lozenge with rounded left side, flat right side.
 **Use Cases:** Left-pointing indicators, directional labels
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-bullet-left
 text:
   label:
@@ -159,7 +159,7 @@ Half-lozenge with flat left side, rounded right side.
 **Use Cases:** Right-pointing indicators, directional labels
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-bullet-right
 text:
   label:
@@ -177,7 +177,7 @@ text:
 Add multiple text elements with different positioning:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: light.bedroom
 text:
@@ -201,7 +201,7 @@ text:
 Override border and text colors:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 text:
   label:
@@ -224,7 +224,7 @@ style:
 For transparent text over full bar:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 text:
   label:
@@ -239,7 +239,7 @@ text:
 Control spacing around text:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 text:
   label:
@@ -254,7 +254,7 @@ text:
 ### Section Header
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-center
 width: 400
 height: 50
@@ -276,7 +276,7 @@ style:
 ### Entity Status with Value
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: sensor.warp_core_temp
 width: 350
@@ -307,7 +307,7 @@ style:
 Glow effect on entity state changes:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: light.living_room
 text:
@@ -330,7 +330,7 @@ animations:
 ### Alert Indicator
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-bullet-right
 entity: binary_sensor.security_breach
 width: 300
@@ -359,7 +359,7 @@ style:
 ### Lozenge Status Pill
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-lozenge
 entity: person.captain
 width: 250
@@ -392,7 +392,7 @@ label: "LCARS LABEL"
 
 **After:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 text:
   label:
@@ -412,7 +412,7 @@ label: "STATUS"
 
 **After:**
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-square
 text:
   label:
@@ -472,6 +472,6 @@ Text positioning accounts for border widths automatically via the `_calculateTex
 
 ## See Also
 
-- [SimpleButton Quick Reference](../configuration/simple-button-quick-reference.md) - Complete button card documentation
+- [SimpleButton Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
 - [Component Presets Reference](./component-presets.md) - Interactive SVG component presets
 - [Animation Presets Reference](./animation-presets.md) - Animation presets and triggers

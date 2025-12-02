@@ -1,8 +1,8 @@
 /**
- * LCARdS Simple Chart Card
+ * LCARdS Chart Card
  *
  * Data visualization using ApexCharts library (already bundled).
- * Ported from ApexChartsOverlay to standalone SimpleCard.
+ * Ported from ApexChartsOverlay to standalone LCARdSCard.
  *
  * Features:
  * - Real-time data updates via DataSourceManager
@@ -14,14 +14,14 @@
  *
  * @example Basic Usage
  * ```yaml
- * type: custom:lcards-simple-chart
+ * type: custom:lcards-chart
  * source: sensor.temperature
  * chart_type: line
  * ```
  *
  * @example With Theme Tokens
  * ```yaml
- * type: custom:lcards-simple-chart
+ * type: custom:lcards-chart
  * source: sensor.temperature
  * chart_type: area
  * style:
@@ -31,7 +31,7 @@
  *
  * @example Multi-Series
  * ```yaml
- * type: custom:lcards-simple-chart
+ * type: custom:lcards-chart
  * sources:
  *   - sensor.temperature
  *   - sensor.humidity
@@ -41,14 +41,14 @@
  */
 
 import { html, css } from 'lit';
-import { LCARdSSimpleCard } from '../base/LCARdSSimpleCard.js';
+import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import ApexCharts from 'apexcharts';
 import { ApexChartsAdapter } from '../charts/ApexChartsAdapter.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 
-export class LCARdSSimpleChart extends LCARdSSimpleCard {
-  static CARD_TYPE = 'simple-chart';
+export class LCARdSChart extends LCARdSCard {
+  static CARD_TYPE = 'chart';
 
   static get properties() {
     return {
@@ -69,7 +69,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
           min-height: 200px;
         }
 
-        .simple-card-container {
+        .lcards-card-container {
           width: 100%;
           height: 100%;
           background: transparent;
@@ -133,7 +133,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
    * @protected
    */
   async _handleFirstUpdate() {
-    // Note: LCARdSSimpleCard doesn't implement _handleFirstUpdate, don't call super
+    // Note: LCARdSCard doesn't implement _handleFirstUpdate, don't call super
 
     // Re-detect preview mode now that we're in the DOM
     // Need to check shadow DOM boundaries too
@@ -141,7 +141,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-dialog-create-card']);
     const isPreview = isInCardPicker || isInEditDialog || this._isPreviewMode;
 
-    lcardsLog.debug('[LCARdSSimpleChart] Preview detection in _handleFirstUpdate:', {
+    lcardsLog.debug('[LCARdSChart] Preview detection in _handleFirstUpdate:', {
       isInCardPicker,
       isInEditDialog,
       isPreviewFromNativeCard: this._isPreviewMode,
@@ -153,12 +153,12 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     });
 
     // Register with RulesEngine
-    const overlayId = this.config.id || `simple-chart-${this._cardGuid}`;
+    const overlayId = this.config.id || `chart-${this._cardGuid}`;
     this._registerOverlayForRules(overlayId, this.config.tags || []);
 
     // Skip data source subscription and chart init in preview mode
     if (isPreview) {
-      lcardsLog.debug('[LCARdSSimpleChart] Preview mode detected - skipping data source subscription and chart initialization');
+      lcardsLog.debug('[LCARdSChart] Preview mode detected - skipping data source subscription and chart initialization');
       this._chartReady = true; // Mark as "ready" to show preview
       this._isPreviewMode = true; // Update flag for render
       return;
@@ -166,9 +166,9 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
 
     // Wait for config processing to complete (includes data_sources creation)
     if (this._configProcessingPromise) {
-      lcardsLog.trace('[LCARdSSimpleChart] Waiting for config processing to complete...');
+      lcardsLog.trace('[LCARdSChart] Waiting for config processing to complete...');
       await this._configProcessingPromise;
-      lcardsLog.trace('[LCARdSSimpleChart] Config processing complete, continuing with subscription');
+      lcardsLog.trace('[LCARdSChart] Config processing complete, continuing with subscription');
     }
 
     // Subscribe to data sources (may auto-create them)
@@ -198,7 +198,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     const seriesWithData = this._chartData.filter(data => data && data.length > 0).length;
 
     if (seriesWithData < expectedSeriesCount) {
-      lcardsLog.trace(`[LCARdSSimpleChart] Waiting for all series data: ${seriesWithData}/${expectedSeriesCount} ready`);
+      lcardsLog.trace(`[LCARdSChart] Waiting for all series data: ${seriesWithData}/${expectedSeriesCount} ready`);
       return; // Wait for all series to have data
     }
 
@@ -258,14 +258,14 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
    */
   async _subscribeToDataSources() {
     if (!this._singletons?.dataSourceManager) {
-      lcardsLog.warn('[LCARdSSimpleChart] DataSourceManager not available');
+      lcardsLog.warn('[LCARdSChart] DataSourceManager not available');
       return;
     }
 
     // Get source(s)
     const sourceRef = this.config.source || this.config.data_source || this.config.sources;
     if (!sourceRef) {
-      lcardsLog.warn('[LCARdSSimpleChart] No data source configured');
+      lcardsLog.warn('[LCARdSChart] No data source configured');
       return;
     }
 
@@ -280,14 +280,14 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
 
       // Auto-create if doesn't exist
       if (!dataSource) {
-        lcardsLog.debug(`[LCARdSSimpleChart] Auto-creating data source: ${sourceId}`);
+        lcardsLog.debug(`[LCARdSChart] Auto-creating data source: ${sourceId}`);
 
         try {
           // Check if sourceId looks like an entity ID (domain.entity_name)
           const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(sourceId);
 
           if (!isEntityId) {
-            lcardsLog.warn(`[LCARdSSimpleChart] Invalid source reference: ${sourceId} (must be entity ID or configured data source)`);
+            lcardsLog.warn(`[LCARdSChart] Invalid source reference: ${sourceId} (must be entity ID or configured data source)`);
             continue;
           }
 
@@ -305,23 +305,23 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
             _chartEntity: true     // Mark as chart entity
           });
 
-          lcardsLog.info(`[LCARdSSimpleChart] ✅ Auto-created data source for entity: ${sourceId}`);
+          lcardsLog.info(`[LCARdSChart] ✅ Auto-created data source for entity: ${sourceId}`);
 
         } catch (error) {
-          lcardsLog.error(`[LCARdSSimpleChart] Failed to auto-create data source for ${sourceId}:`, error);
+          lcardsLog.error(`[LCARdSChart] Failed to auto-create data source for ${sourceId}:`, error);
           continue;
         }
       }
 
       // Subscribe to updates
       const subscription = dataSource.subscribe((data) => {
-        lcardsLog.trace(`[LCARdSSimpleChart] Data update for ${sourceId}:`, data);
+        lcardsLog.trace(`[LCARdSChart] Data update for ${sourceId}:`, data);
         this._handleDataUpdate(index, data);
       });
 
       this._dataSubscriptions.push(subscription);
 
-      lcardsLog.debug(`[LCARdSSimpleChart] Subscribed to data source: ${sourceId}`);
+      lcardsLog.debug(`[LCARdSChart] Subscribed to data source: ${sourceId}`);
     }
   }
 
@@ -375,7 +375,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     try {
       this._chart.updateSeries(allSeriesData, false);
     } catch (error) {
-      lcardsLog.error(`[LCARdSSimpleChart] Error updating chart data:`, error);
+      lcardsLog.error(`[LCARdSChart] Error updating chart data:`, error);
     }
   }
 
@@ -425,7 +425,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
   async _initializeChart() {
     const container = this.renderRoot.querySelector('.chart-container');
     if (!container) {
-      lcardsLog.error('[LCARdSSimpleChart] Chart container not found');
+      lcardsLog.error('[LCARdSChart] Chart container not found');
       this._error = 'Chart container not found';
       this.requestUpdate();
       return;
@@ -433,7 +433,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
 
     // Check if ApexCharts is available
     if (!window.ApexCharts && !ApexCharts) {
-      lcardsLog.error('[LCARdSSimpleChart] ApexCharts not available');
+      lcardsLog.error('[LCARdSChart] ApexCharts not available');
       this._error = 'ApexCharts library not available';
       this.requestUpdate();
       return;
@@ -443,7 +443,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     const containerWidth = container.offsetWidth || container.clientWidth || 400;
     const containerHeight = container.offsetHeight || container.clientHeight || 200;
 
-    lcardsLog.debug(`[LCARdSSimpleChart] Container dimensions:`, {
+    lcardsLog.debug(`[LCARdSChart] Container dimensions:`, {
       offsetWidth: container.offsetWidth,
       clientWidth: container.clientWidth,
       offsetHeight: container.offsetHeight,
@@ -464,9 +464,9 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
       this._chartReady = true;
       this._error = null;
 
-      lcardsLog.debug(`[LCARdSSimpleChart] Chart initialized for ${this._cardGuid}`);
+      lcardsLog.debug(`[LCARdSChart] Chart initialized for ${this._cardGuid}`);
     } catch (error) {
-      lcardsLog.error(`[LCARdSSimpleChart] Error initializing chart:`, error);
+      lcardsLog.error(`[LCARdSChart] Error initializing chart:`, error);
       this._error = `Chart initialization failed: ${error.message}`;
       this.requestUpdate();
     }
@@ -474,7 +474,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
 
   /**
    * Build ApexCharts options from config
-   * Ported from ApexChartsOverlayRenderer with SimpleCard enhancements
+   * Ported from ApexChartsOverlayRenderer with LCARdSCard enhancements
    * @private
    * @param {number} width - Container width in pixels
    * @param {number} height - Container height in pixels
@@ -500,7 +500,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     // functions like 'alpha(colors.chart.grid, 0.05)'
     if (this._singletons?.themeManager) {
       enhancedStyle = resolveThemeTokensRecursive(enhancedStyle, this._singletons.themeManager);
-      lcardsLog.trace(`[LCARdSSimpleChart] Resolved theme tokens in style:`, enhancedStyle);
+      lcardsLog.trace(`[LCARdSChart] Resolved theme tokens in style:`, enhancedStyle);
     }
 
     // Check if we have actual data
@@ -536,7 +536,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
       series
     };
 
-    lcardsLog.trace(`[LCARdSSimpleChart] Built chart options using ApexChartsAdapter:`, finalOptions);
+    lcardsLog.trace(`[LCARdSChart] Built chart options using ApexChartsAdapter:`, finalOptions);
 
     return finalOptions;
   }
@@ -595,9 +595,9 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
         grid: newOptions.grid
       }, false, false);
 
-      lcardsLog.trace(`[LCARdSSimpleChart] Updated chart options for ${this._cardGuid}`);
+      lcardsLog.trace(`[LCARdSChart] Updated chart options for ${this._cardGuid}`);
     } catch (error) {
-      lcardsLog.error(`[LCARdSSimpleChart] Error updating chart options:`, error);
+      lcardsLog.error(`[LCARdSChart] Error updating chart options:`, error);
     }
   }
 
@@ -615,7 +615,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     const sourceRef = this.config.source || this.config.data_source || this.config.sources;
     if (!sourceRef) {
       return html`
-        <div class="simple-card-container">
+        <div class="lcards-card-container">
           <div class="chart-loading">
             <p>📊 LCARdS Chart</p>
             <p style="font-size: 0.9em; opacity: 0.7;">Configure a data source to display chart</p>
@@ -626,7 +626,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
 
     if (this._error) {
       return html`
-        <div class="simple-card-container">
+        <div class="lcards-card-container">
           <div class="chart-error">
             ${this._error}
           </div>
@@ -638,7 +638,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     // Chart will initialize in updated() lifecycle when container has dimensions
     if (!this._chartData || this._chartData.length === 0) {
       return html`
-        <div class="simple-card-container">
+        <div class="lcards-card-container">
           <div class="chart-loading">
             Loading chart data...
           </div>
@@ -647,7 +647,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     }
 
     return html`
-      <div class="simple-card-container">
+      <div class="lcards-card-container">
         <div class="chart-container"></div>
       </div>
     `;
@@ -662,7 +662,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
     const color = this.config.style?.colors?.[0] || '#FF9900';
 
     return html`
-      <div class="simple-card-container">
+      <div class="lcards-card-container">
         <svg viewBox="0 0 400 200" style="width: 100%; height: 100%;">
           <rect width="400" height="200" fill="rgba(0,0,0,0.3)" rx="4"/>
           <line x1="0" y1="50" x2="400" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
@@ -753,7 +753,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
       try {
         this._chart.destroy();
       } catch (error) {
-        lcardsLog.warn('[LCARdSSimpleChart] Error destroying chart:', error);
+        lcardsLog.warn('[LCARdSChart] Error destroying chart:', error);
       }
       this._chart = null;
     }
@@ -777,7 +777,7 @@ export class LCARdSSimpleChart extends LCARdSSimpleCard {
    */
   static getStubConfig() {
     return {
-      type: 'custom:lcards-simple-chart',
+      type: 'custom:lcards-chart',
       chart_type: 'line',
       style: {
         colors: ['#FF9900']
@@ -793,7 +793,7 @@ if (window.lcardsCore?.configManager) {
     const configManager = window.lcardsCore.configManager;
 
     // Register behavioral defaults
-    configManager.registerCardDefaults('simple-chart', {
+    configManager.registerCardDefaults('chart', {
         chart_type: 'line',           // Default chart type
         height: 300,                  // Default height in pixels
         show_legend: false,           // Legend off by default
@@ -802,8 +802,8 @@ if (window.lcardsCore?.configManager) {
     });
 
     // Register JSON schema for validation (v1.16.22+)
-    // Based on: doc/architecture/schemas/simple-chart-schema-definition.md
-    configManager.registerCardSchema('simple-chart', {
+    // Based on: doc/architecture/schemas/chart-schema-definition.md
+    configManager.registerCardSchema('chart', {
         type: 'object',
         properties: {
             // Core Properties
@@ -1040,7 +1040,7 @@ if (window.lcardsCore?.configManager) {
         // Data source can be configured via source, sources, or data_sources
     }, { version: '1.16.22' });
 
-    lcardsLog.debug('[LCARdSSimpleChart] Registered with CoreConfigManager');
+    lcardsLog.debug('[LCARdSChart] Registered with CoreConfigManager');
 }
 
 // NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js

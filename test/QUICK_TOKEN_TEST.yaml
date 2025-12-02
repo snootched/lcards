@@ -7,7 +7,7 @@
 # 3. Check if you see the actual friendly name instead of "{entity.attributes.friendly_name}"
 # 4. Toggle the light - the state should update
 
-type: custom:lcards-simple-button
+type: custom:lcards-button
 entity: light.living_room
 label: "{entity.attributes.friendly_name} is {entity.state}"
 preset: lozenge

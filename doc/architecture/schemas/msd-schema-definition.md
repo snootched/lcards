@@ -136,7 +136,7 @@ data_sources:
 # MSD supports 2 overlay types:
 #   - line: SVG lines/paths for visual connectors
 #   - control: Embedded Home Assistant cards (any card type including LCARdS
-#              SimpleCards, standard HA cards, and third-party custom cards)
+#              LCARdS Cards, standard HA cards, and third-party custom cards)
 
 overlays:
   # --- LINE OVERLAY ---
@@ -256,14 +256,14 @@ overlays:
 
     # Simple Cards (recommended)
     card:
-      type: custom:lcards-simple-button  # LCARdS simple button
+      type: custom:lcards-button  # LCARdS button
       entity: light.living_room
       label: "Living Room"
       preset: lozenge
 
     # OR
     card:
-      type: custom:lcards-simple-chart   # LCARdS simple chart
+      type: custom:lcards-chart   # LCARdS chart
       source: sensor.temperature
       chart_type: line
 
@@ -477,7 +477,7 @@ overlays:
     position: [100, 100]
     size: [200, 80]
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: climate.hvac
       label: "HVAC Control"
 ```
@@ -554,7 +554,7 @@ overlays:
     position: [50, 50]
     size: [300, 200]
     card:
-      type: custom:lcards-simple-chart
+      type: custom:lcards-chart
       source: sensor.temperature
       chart_type: line
       height: 200
@@ -564,7 +564,7 @@ overlays:
     position: [400, 50]
     size: [150, 60]
     card:
-      type: custom:lcards-simple-button
+      type: custom:lcards-button
       entity: climate.hvac
       label: "HVAC"
       preset: lozenge

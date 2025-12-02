@@ -65,21 +65,21 @@
         <div class="test-grid">
             <div class="test-card">
                 <h3>Default Style</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-1"
                     data-entity="light.test"
                     data-label="Test Button">
-                </lcards-simple-button>
+                </lcards-button>
             </div>
 
             <div class="test-card">
                 <h3>With Preset</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-2"
                     data-entity="light.test"
                     data-label="Lozenge Button"
                     data-preset="lozenge">
-                </lcards-simple-button>
+                </lcards-button>
             </div>
         </div>
     </div>
@@ -90,20 +90,20 @@
         <div class="test-grid">
             <div class="test-card">
                 <h3>JavaScript Template</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-3"
                     data-entity="light.test"
                     data-label="[[[return entity.state.toUpperCase()]]]">
-                </lcards-simple-button>
+                </lcards-button>
             </div>
 
             <div class="test-card">
                 <h3>Token Template</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-4"
                     data-entity="light.test"
                     data-label="{{entity.attributes.friendly_name}}">
-                </lcards-simple-button>
+                </lcards-button>
             </div>
         </div>
     </div>
@@ -114,22 +114,22 @@
         <div class="test-grid">
             <div class="test-card">
                 <h3>Toggle Action</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-5"
                     data-entity="light.test"
                     data-label="Toggle Light"
                     data-tap-action='{"action": "toggle"}'>
-                </lcards-simple-button>
+                </lcards-button>
             </div>
 
             <div class="test-card">
                 <h3>More Info Action</h3>
-                <lcards-simple-button
+                <lcards-button
                     id="test-button-6"
                     data-entity="light.test"
                     data-label="Light Info"
                     data-tap-action='{"action": "more-info"}'>
-                </lcards-simple-button>
+                </lcards-button>
             </div>
         </div>
     </div>
@@ -195,7 +195,7 @@
                         console.log('Toggled entity:', data.entity_id, 'to', entity.state);
 
                         // Trigger update
-                        document.querySelectorAll('lcards-simple-button').forEach(card => {
+                        document.querySelectorAll('lcards-button').forEach(card => {
                             if (card.hass) {
                                 card.hass = { ...window.hass };
                             }
@@ -256,17 +256,17 @@
     <!-- Initialize cards with mock HASS and config -->
     <script type="module">
         // Wait for custom elements to be defined
-        console.log('Waiting for lcards-simple-button to be defined...');
-        await customElements.whenDefined('lcards-simple-button');
-        console.log('lcards-simple-button is defined!');
+        console.log('Waiting for lcards-button to be defined...');
+        await customElements.whenDefined('lcards-button');
+        console.log('lcards-button is defined!');
 
         // Configure and initialize cards
-        document.querySelectorAll('lcards-simple-button').forEach((card, index) => {
+        document.querySelectorAll('lcards-button').forEach((card, index) => {
             console.log('Configuring card', index + 1);
 
             // Build config from data attributes
             const config = {
-                type: 'custom:lcards-simple-button',
+                type: 'custom:lcards-button',
                 entity: card.dataset.entity,
                 label: card.dataset.label,
                 preset: card.dataset.preset,
@@ -298,7 +298,7 @@
             testEntity.state = 'off';
 
             // Notify all cards of the change
-            document.querySelectorAll('lcards-simple-button').forEach(card => {
+            document.querySelectorAll('lcards-button').forEach(card => {
                 card.hass = { ...window.hass };
             });
         }, 3000);
@@ -309,7 +309,7 @@
             testEntity.state = 'on';
 
             // Notify all cards of the change
-            document.querySelectorAll('lcards-simple-button').forEach(card => {
+            document.querySelectorAll('lcards-button').forEach(card => {
                 card.hass = { ...window.hass };
             });
         }, 6000);

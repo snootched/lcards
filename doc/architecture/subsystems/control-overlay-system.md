@@ -395,7 +395,7 @@ graph TD
 
 | Configuration | Internal Element | HASS Method |
 |---------------|------------------|-------------|
-| `custom:lcards-simple-button` | `lcards-simple-button` | Property + `requestUpdate()` |
+| `custom:lcards-button` | `lcards-button` | Property + `requestUpdate()` |
 | `custom:mini-graph-card` | `mini-graph-card` | `setHass()` |
 | `button` | `hui-button-card` | `setHass()` |
 | `light` | `hui-light-card` | `setHass()` |

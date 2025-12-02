@@ -68,7 +68,7 @@ These triggers respond to data or lifecycle changes:
 Use `on_entity_change` for card-level animations that should play whenever the entity state changes:
 
 ```yaml
-type: custom:lcards-simple-button
+type: custom:lcards-button
 preset: bar-label-left
 entity: light.bedroom
 text:

@@ -7,7 +7,7 @@ cards:
   # ===== TOKEN TEMPLATES (NEW SYNTAX) =====
 
   # Test 1: Simple entity state token
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "State: {entity.state}"
     preset: lozenge
@@ -16,7 +16,7 @@ cards:
     # EXPECTED: "State: on" or "State: off"
 
   # Test 2: Entity attribute token
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "{entity.attributes.friendly_name}"
     preset: lozenge
@@ -25,7 +25,7 @@ cards:
     # EXPECTED: "TV" or whatever the friendly name is
 
   # Test 3: Nested attribute token (brightness)
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "Brightness: {entity.attributes.brightness}"
     preset: lozenge
@@ -34,7 +34,7 @@ cards:
     # EXPECTED: "Brightness: 255" or "Brightness: " if light doesn't support
 
   # Test 4: Multiple tokens in one string
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "{entity.attributes.friendly_name}: {entity.state}"
     preset: lozenge
@@ -43,7 +43,7 @@ cards:
     # EXPECTED: "TV: on"
 
   # Test 5: Variables token
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "Color: {variables.test_color}"
     preset: lozenge
@@ -54,7 +54,7 @@ cards:
     # EXPECTED: "Color: #FF9900"
 
   # Test 6: Config token
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "Entity: {config.entity}"
     preset: lozenge
@@ -65,7 +65,7 @@ cards:
   # ===== JAVASCRIPT TEMPLATES =====
 
   # Test 7: Simple JavaScript expression
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "[[[return entity.state.toUpperCase()]]]"
     preset: lozenge
@@ -74,7 +74,7 @@ cards:
     # EXPECTED: "ON" or "OFF"
 
   # Test 8: JavaScript with conditional
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "[[[return entity.state === 'on' ? '✓ ON' : '✗ OFF']]]"
     preset: lozenge
@@ -83,7 +83,7 @@ cards:
     # EXPECTED: "✓ ON" or "✗ OFF"
 
   # Test 9: JavaScript with math
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "[[[return 'Brightness: ' + Math.round((entity.attributes.brightness || 0) / 255 * 100) + '%']]]"
     preset: lozenge
@@ -92,7 +92,7 @@ cards:
     # EXPECTED: "Brightness: 100%" or "Brightness: 0%"
 
   # Test 10: JavaScript accessing multiple properties
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "[[[return entity.attributes.friendly_name + ' is ' + entity.state]]]"
     preset: lozenge
@@ -103,7 +103,7 @@ cards:
   # ===== MIXED TEMPLATES =====
 
   # Test 11: Token + JavaScript mixed
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "{entity.attributes.friendly_name} [[[return entity.state === 'on' ? '●' : '○']]]"
     preset: lozenge
@@ -112,7 +112,7 @@ cards:
     # EXPECTED: "TV ●" or "TV ○"
 
   # Test 12: Multiple tokens + text
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "Device: {entity.attributes.friendly_name} | Status: {entity.state}"
     preset: lozenge
@@ -123,7 +123,7 @@ cards:
   # ===== JINJA2 TEMPLATES (NOT YET IMPLEMENTED) =====
 
   # Test 13: Jinja2 function (will show literally for now)
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "{{states('light.tv')}}"
     preset: lozenge
@@ -133,7 +133,7 @@ cards:
     # FUTURE: "on" or "off" (evaluated server-side)
 
   # Test 14: Jinja2 with filter (will show literally for now)
-  - type: custom:lcards-simple-button
+  - type: custom:lcards-button
     entity: light.tv
     label: "{{state_attr('light.tv', 'brightness') | round(0)}}"
     preset: lozenge

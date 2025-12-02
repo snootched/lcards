@@ -158,8 +158,8 @@ export class CoreConfigManager {
         return await this._processMSDConfig(userConfig, cardType, context);
       }
 
-      // SimpleCard: Four-layer merge
-      return await this._processSimpleCardConfig(userConfig, cardType, context);
+      // LCARdS Card: Four-layer merge
+      return await this._processLCARdSCardConfig(userConfig, cardType, context);
 
     } catch (error) {
       lcardsLog.error(`[CoreConfigManager] Processing failed for ${cardType}:`, error);
@@ -284,15 +284,15 @@ export class CoreConfigManager {
   }
 
   // ============================================================================
-  // PRIVATE METHODS - SimpleCard Processing
+  // PRIVATE METHODS - LCARdS Card Processing
   // ============================================================================
 
   /**
-   * Process SimpleCard-style four-layer configuration
+   * Process LCARdS card-style four-layer configuration
    * @private
    */
-  async _processSimpleCardConfig(userConfig, cardType, context) {
-    lcardsLog.debug(`[CoreConfigManager] Processing SimpleCard config (four-layer merge)`);
+  async _processLCARdSCardConfig(userConfig, cardType, context) {
+    lcardsLog.debug(`[CoreConfigManager] Processing LCARdS card config (four-layer merge)`);
 
     // STEP 1: Get behavioral defaults
     const behavioralDefaults = this._getCardDefaults(cardType);

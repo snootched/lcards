@@ -6,7 +6,7 @@
 type: vertical-stack
 cards:
   # Test: New token syntax (should work)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ New Syntax"
     name: "{entity.state}"
@@ -16,7 +16,7 @@ cards:
         - color: "#00FF00"
 
   # Test: Old token syntax (should NOT work - shows literally)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "❌ Old Syntax (broken)"
     name: "{{entity.state}}"
@@ -26,7 +26,7 @@ cards:
         - color: "#FF0000"
 
   # Test: Jinja2 syntax (preserved for future - shows literally for now)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "⏳ Jinja2 (not yet implemented)"
     name: "{{states('light.living_room')}}"
@@ -36,28 +36,28 @@ cards:
         - color: "#FFFF00"
 
   # Test: Mixed tokens and text
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ Mixed Content"
     name: "Device: {entity.attributes.friendly_name} | Status: {entity.state}"
     entity: light.living_room
 
   # Test: Nested attribute access
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ Deep Attribute"
     name: "Brightness: {entity.attributes.brightness}/255"
     entity: light.living_room
 
   # Test: Missing/undefined token (should show empty, not error)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ Missing Token"
     name: "Nonexistent: {entity.attributes.this_does_not_exist}"
     entity: light.living_room
 
   # Test: Variables token
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ Variable Token"
     name: "Color: {variables.test_color}"
@@ -66,7 +66,7 @@ cards:
       test_color: "#FF9900"
 
   # Test: MSD datasource (domain.entity format - should still work)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "✅ MSD Datasource"
     name: "Via datasource: {light.living_room}"

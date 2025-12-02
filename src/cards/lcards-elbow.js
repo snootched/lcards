@@ -1,7 +1,7 @@
 /**
- * LCARdS Elbow Button Card
+ * LCARdS Elbow Card
  *
- * Extends simple-button with classic LCARS elbow/corner treatments.
+ * Extends lcards-button with classic LCARS elbow/corner treatments.
  * Elbows are positioned borders with rounded corners that create the
  * iconic LCARS interface aesthetic (header/footer "caps").
  *
@@ -10,7 +10,7 @@
  * - 2 styles: 'simple' (single elbow) and 'segmented' (Picard-style double elbow)
  * - LCARS arc formula-based geometry for authentic curves
  * - Configurable bar dimensions (horizontal/vertical)
- * - Inherits all SimpleButton functionality (actions, rules, animations, templates)
+ * - Inherits all LCARdSButton functionality (actions, rules, animations, templates)
  *
  * The elbow creates an L-shaped design with:
  * - A horizontal bar (top or bottom edge)
@@ -37,7 +37,7 @@
  *
  * Configuration:
  * ```yaml
- * type: custom:lcards-elbow-button
+ * type: custom:lcards-elbow
  * entity: light.example
  * elbow:
  *   type: header-left          # Position of the elbow corner
@@ -58,18 +58,18 @@
  *       inner: '#FFCC99'       # Inner segment color (optional, uses main color if omitted)
  * ```
  *
- * @extends {LCARdSSimpleButtonCard}
+ * @extends {LCARdSButton}
  */
 
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { LCARdSSimpleButtonCard } from './lcards-simple-button.js';
+import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
-export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
+export class LCARdSElbow extends LCARdSButton {
 
     /** Card type identifier for CoreConfigManager */
-    static CARD_TYPE = 'elbow-button';
+    static CARD_TYPE = 'elbow';
 
     static get properties() {
         return {
@@ -785,7 +785,7 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
         // Compose SVG
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-                <g data-button-id="elbow-button"
+                <g data-button-id="elbow"
                    data-overlay-id="simple-button"
                    class="elbow-group"
                    style="pointer-events: visiblePainted; cursor: pointer;">
@@ -873,7 +873,7 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
         // Compose segmented SVG with two elbow paths
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-                <g data-button-id="elbow-button"
+                <g data-button-id="elbow"
                    data-overlay-id="simple-button"
                    class="elbow-group segmented-elbow"
                    style="pointer-events: visiblePainted; cursor: pointer;">
@@ -1107,7 +1107,7 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
      */
     static getStubConfig() {
         return {
-            type: 'custom:lcards-elbow-button',
+            type: 'custom:lcards-elbow',
             elbow: {
                 type: 'header-left',
                 border: {
@@ -1138,4 +1138,4 @@ export class LCARdSElbowButtonCard extends LCARdSSimpleButtonCard {
 // NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
 // This ensures all core singletons are initialized before cards can be instantiated.
 
-lcardsLog.info('[LCARdSElbowButtonCard] Card module loaded');
+lcardsLog.info('[LCARdSElbow] Card module loaded');

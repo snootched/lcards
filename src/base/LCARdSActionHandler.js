@@ -11,7 +11,7 @@
  * - All action types: tap, hold, double-tap, hover, leave
  * - Action execution: toggle, more-info, call-service, navigate, url
  *
- * Used by both SimpleCard and MSD card systems.
+ * Used by both LCARdS card and MSD card systems.
  */
 
 import { lcardsLog } from '../utils/lcards-logging.js';
