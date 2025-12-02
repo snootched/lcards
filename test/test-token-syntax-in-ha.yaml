@@ -15,7 +15,7 @@
 type: vertical-stack
 cards:
   # Test 1: Basic entity attribute token
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 1: Friendly Name"
     name: "{entity.attributes.friendly_name}"
@@ -24,7 +24,7 @@ cards:
       action: toggle
 
   # Test 2: Entity state token
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 2: State"
     name: "State: {entity.state}"
@@ -33,7 +33,7 @@ cards:
       action: toggle
 
   # Test 3: Multiple tokens in one string
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 3: Multiple Tokens"
     name: "{entity.attributes.friendly_name} is {entity.state}"
@@ -42,14 +42,14 @@ cards:
       action: toggle
 
   # Test 4: Sensor with numeric attribute
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 4: Sensor Value"
     name: "Temperature: {entity.state}°C"
     entity: sensor.your_sensor
 
   # Test 5: Brightness attribute (for lights)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 5: Brightness"
     name: "Brightness: {entity.attributes.brightness}"
@@ -58,7 +58,7 @@ cards:
       action: toggle
 
   # Test 6: Variables token (if you have variables defined)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 6: Variables"
     name: "Color: {variables.color}"
@@ -69,7 +69,7 @@ cards:
       action: toggle
 
   # Test 7: Empty/missing token (should show empty string, not error)
-  - type: custom:lcards-simple-card
+  - type: custom:lcards-button
     lcars_button_preset: button
     label: "Test 7: Missing Token"
     name: "Missing: {entity.attributes.nonexistent}"

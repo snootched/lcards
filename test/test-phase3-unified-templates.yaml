@@ -4,8 +4,8 @@ type: vertical-stack
 cards:
   # Test 1: SimpleCard with datasource (new syntax)
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-with-datasource
+    card_type: button
+    card_name: button-with-datasource
     entity: sensor.test_sensor
     label_top: "Temperature"
     label_bottom: "{datasource:sensor.temp:.1f}°C"
@@ -14,8 +14,8 @@ cards:
 
   # Test 2: SimpleCard with mixed templates
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-mixed
+    card_type: button
+    card_name: button-mixed
     entity: sensor.test_sensor
     label_top: "JS: [[[return 'Test']]]"
     label_main: "Token: {entity.state}"
@@ -25,8 +25,8 @@ cards:
 
   # Test 3: SimpleCard with datasource + Jinja2
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-jinja
+    card_type: button
+    card_name: button-datasource-jinja
     entity: sensor.test_sensor
     label_top: "{datasource:sensor.temp}°C"
     label_bottom: "At {{now().strftime('%H:%M')}}"
@@ -35,7 +35,7 @@ cards:
 
   # Test 4: SimpleCard with all template types
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-all-templates
     entity: sensor.test_sensor
     label_top: "[[[return 'Computed']]]"
@@ -47,7 +47,7 @@ cards:
 
   # Test 5: Legacy MSD datasource (backward compatibility)
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-legacy-datasource
     entity: sensor.test_sensor
     label_top: "Legacy Syntax"
@@ -57,7 +57,7 @@ cards:
 
   # Test 6: Tokens that should NOT conflict with datasources
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-tokens-not-datasource
     entity: sensor.test_sensor
     label_top: "{entity.state}"
@@ -68,8 +68,8 @@ cards:
 
   # Test 7: Explicit datasource prefix in various formats
   - type: custom:lcards
-    card_type: simple
-    card_name: simple-datasource-formats
+    card_type: button
+    card_name: button-datasource-formats
     entity: sensor.test_sensor
     label_top: "{datasource:sensor.temp}"
     label_main: "{datasource:sensor.temp:.2f}"
@@ -79,7 +79,7 @@ cards:
 
   # Test 8: Jinja2 with datasource reference
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-jinja-datasource-combo
     entity: sensor.test_sensor
     label_top: "{% if {datasource:sensor.temp} > 20 %}Hot{% else %}Cold{% endif %}"
@@ -89,7 +89,7 @@ cards:
 
   # Test 9: Complex mixed template
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-complex-mixed
     entity: sensor.test_sensor
     label_top: "[[[return 'Status']]]"
@@ -100,7 +100,7 @@ cards:
 
   # Test 10: Edge case - braces everywhere
   - type: custom:lcards
-    card_type: simple
+    card_type: button
     card_name: simple-edge-case-braces
     entity: sensor.test_sensor
     label_top: "{{ '{' + 'braces' + '}' }}"
