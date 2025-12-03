@@ -288,7 +288,10 @@ export class LCARdSSlider extends LCARdSCard {
      * @protected
      */
     _handleFirstUpdate(changedProperties) {
-        super._handleFirstUpdate?.(changedProperties);
+        // Call parent method if it exists (LCARdSCard extends LCARdSNativeCard)
+        if (super._handleFirstUpdate) {
+            super._handleFirstUpdate(changedProperties);
+        }
 
         // Register overlay for rules
         const overlayId = this.config?.id || `slider-${this._cardGuid}`;
@@ -1180,6 +1183,10 @@ export class LCARdSSlider extends LCARdSCard {
         const range = max - min;
         const isVertical = this._orientation === 'vertical';
 
+        // Ratio divisor for scaling width_ratio/height_ratio to percentage of container
+        // A ratio of 10 means 100% of container dimension, ratio of 1 means 10%
+        const RATIO_SCALE_FACTOR = 10;
+
         return config.ranges.zones.map(zone => {
             const startProgress = (zone.from - min) / range;
             const endProgress = (zone.to - min) / range;
@@ -1188,13 +1195,13 @@ export class LCARdSSlider extends LCARdSCard {
             if (isVertical) {
                 x = 0;
                 y = height - endProgress * height;
-                zoneWidth = width * config.ranges.width_ratio / 10;
+                zoneWidth = width * config.ranges.width_ratio / RATIO_SCALE_FACTOR;
                 zoneHeight = (endProgress - startProgress) * height;
             } else {
                 x = startProgress * width;
                 y = 0;
                 zoneWidth = (endProgress - startProgress) * width;
-                zoneHeight = height * config.ranges.height_ratio / 10;
+                zoneHeight = height * config.ranges.height_ratio / RATIO_SCALE_FACTOR;
             }
 
             return html`
