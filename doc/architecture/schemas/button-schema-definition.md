@@ -1,4 +1,4 @@
-# Simple Button Card - Official Schema Definition
+# LCARdS Button Card - Official Schema Definition
 
 **Purpose:** Single source of truth for schema - update tokens, presets, code, and docs from this
 **Status:** 🎯 DEFINITIVE - All implementations must match this

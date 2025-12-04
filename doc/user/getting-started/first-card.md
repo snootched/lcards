@@ -8,7 +8,7 @@
 ## 🎯 What You'll Build
 
 By the end of this tutorial, you'll create:
-- ✅ Interactive Simple Button that controls a light
+- ✅ Interactive LCARdS Button that controls a light
 - ✅ Button with custom styling and icons
 - ✅ Button with dynamic rules based on state
 - ✅ (Optional) MSD card with overlay
@@ -32,7 +32,7 @@ graph TD
 
 ---
 
-## Step 1: Create Your First Simple Button
+## Step 1: Create Your First LCARdS Button
 
 Let's start with the simplest possible LCARdS card.
 
@@ -115,7 +115,7 @@ graph LR
     Toggle --> Light
 ```
 
-The Simple Button automatically:
+The LCARdS Button automatically:
 - ✅ Monitors entity state
 - ✅ Changes appearance based on state
 - ✅ Adjusts opacity automatically
@@ -270,7 +270,7 @@ graph TD
 - Check entity attributes
 - Use JavaScript, Jinja2, or token syntax
 - Apply style overrides dynamically
-- Work with all Simple Button properties
+- Work with all LCARdS Button properties
 
 📖 **Learn More:** [Rules Engine Guide](../configuration/rules.md)
 
@@ -324,9 +324,9 @@ msd:
 
 | Use Case | Card Type | Why |
 |----------|-----------|-----|
-| Single button control | Simple Button | ✅ Lightweight, fast, self-contained |
-| Entity status display | Simple Button | ✅ Easy setup, automatic state handling |
-| Navigation button | Simple Button | ✅ Simple action configuration |
+| Single button control | LCARdS Button | ✅ Lightweight, fast, self-contained |
+| Entity status display | LCARdS Button | ✅ Easy setup, automatic state handling |
+| Navigation button | LCARdS Button | ✅ Simple action configuration |
 | Ship diagram with controls | MSD Card | ✅ Multiple overlays, visual context |
 | Status dashboard | MSD Card | ✅ Multiple entities, complex layout |
 | Charts and graphs | MSD Card | ✅ ApexCharts overlay support |
@@ -338,8 +338,8 @@ msd:
 
 Now that you have the basics, explore more features:
 
-### Simple Button Deep Dive
-- 📖 [Simple Button Quick Reference](../configuration/button-quick-reference.md)
+### LCARdS Button Deep Dive
+- 📖 [LCARdS Button Quick Reference](../configuration/button-quick-reference.md)
 - 🎨 [Theme Tokens and Styling](../advanced/theme_creation_tutorial.md)
 - 📜 [Rules Engine Guide](../configuration/rules.md)
 
@@ -386,14 +386,14 @@ Now that you have the basics, explore more features:
 
 **Congratulations!** 🎉 You've learned:
 
-- ✅ How to create Simple Button cards
+- ✅ How to create LCARdS Button cards
 - ✅ Connect buttons to Home Assistant entities
 - ✅ Add icons and multi-text labels
 - ✅ Use the Rules Engine for dynamic styling
-- ✅ When to use Simple Button vs MSD cards
+- ✅ When to use LCARdS Button vs MSD cards
 
 **Key Takeaways:**
-1. **Simple Button** - Best for single-purpose controls and displays
+1. **LCARdS Button** - Best for single-purpose controls and displays
 2. **MSD Card** - Best for complex multi-element interfaces
 3. **Singleton Architecture** - Rules and themes work across all cards
 4. **Templates** - Use `{entity.*}` to display live data

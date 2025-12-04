@@ -713,7 +713,7 @@ data_sources:
     history: { preload: true, hours: 6 }
 
 overlays:
-  # Complex chart using SimpleChart
+  # Complex chart using LCARdS Chart
   - id: temp_chart
     type: control
     position: [50, 50]
@@ -724,7 +724,7 @@ overlays:
       chart_type: area
       height: 250
 
-  # Interactive button using SimpleButton
+  # Interactive button using LCARdS Button
   - id: hvac_control
     type: control
     position: [500, 50]
@@ -786,9 +786,9 @@ graph TB
             L2[Line Overlay]
 
             subgraph "Control Overlays (foreignObject)"
-                C1[SimpleChart<br/>(lightweight)]
-                C2[SimpleButton<br/>(lightweight)]
-                C3[SimpleButton<br/>(lightweight)]
+                C1[LCARdS Chart<br/>(lightweight)]
+                C2[LCARdS Button<br/>(lightweight)]
+                C3[LCARdS Button<br/>(lightweight)]
             end
 
             L1 --> C1
@@ -797,8 +797,8 @@ graph TB
         end
 
         subgraph "Standalone LCARdS Cards"
-            S1[SimpleButton]
-            S2[SimpleButton]
+            S1[LCARdS Button]
+            S2[LCARdS Button]
         end
     end
 

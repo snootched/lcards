@@ -57,7 +57,7 @@ graph TB
     subgraph "Consumers"
         MSD[MSD Cards]
         SC[LCARdSCards]
-        SCH[SimpleChart]
+        SCH[LCARdS Chart]
     end
 
     MSD --> CCM
@@ -145,12 +145,12 @@ Each card type registers its schema with CoreConfigManager:
 if (window.lcardsCore?.configManager) {
     const configManager = window.lcardsCore.configManager;
 
-    configManager.registerCardDefaults('simple-button', {
+    configManager.registerCardDefaults('lcards-button', {
         enable_hold_action: true,
         enable_double_tap: false
     });
 
-    configManager.registerCardSchema('simple-button', {
+    configManager.registerCardSchema('lcards-button', {
         type: 'object',
         properties: {
             entity: { type: 'string' },
@@ -183,7 +183,7 @@ if (window.lcardsCore?.configManager) {
 // All cards use the same pattern
 const result = await configManager.processConfig(
     userConfig,
-    'simple-button',  // or 'msd'
+    'lcards-button',  // or 'msd'
     { hass: this.hass }
 );
 

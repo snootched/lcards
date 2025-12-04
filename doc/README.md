@@ -46,13 +46,13 @@ Internal architecture and developer documentation:
 
 ### For Users
 - 🚀 [Quick Start Guide](./user/getting-started/quickstart.md)
-- 📖 [Simple Button Card Reference](./user/configuration/simple-button-quick-reference.md)
+- 📖 [Button Card Reference](./user/configuration/button-quick-reference.md)
 - 🎨 [Rules Engine Guide](./user/configuration/rules.md)
 - 🔍 [Console Help](./user/advanced/CONSOLE_HELP_QUICK_REF.md)
 
 ### For Developers
 - 🏛️ [Architecture Overview](./architecture/overview.md)
-- 🧩 [Simple Card Foundation](./architecture/cards/lcards-card-foundation.md)
+- 🧩 [LCARdS Card Foundation](./architecture/cards/lcards-card-foundation.md)
 - 🔌 [API Reference](./architecture/api/api-reference.md)
 - 🎭 [Subsystems Overview](./architecture/subsystems/README.md)
 
@@ -80,4 +80,4 @@ When making code changes:
 
 ---
 
-*Last Updated: November 2025*
+*Last Updated: December 2025*

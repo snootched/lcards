@@ -74,7 +74,7 @@ graph TB
     subgraph "Card Instance Layer"
         CardA[MSD Card A]
         CardB[MSD Card B]
-        CardC[SimpleButton Card]
+        CardC[LCARdS Button Card]
 
         subgraph "Card A Components"
             SMA[Systems Manager A]

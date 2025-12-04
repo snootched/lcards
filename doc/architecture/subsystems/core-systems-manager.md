@@ -62,7 +62,7 @@ graph TB
     subgraph "Card Instances"
         SC1[LCARdSCard A]
         SC2[LCARdSCard B]
-        SC3[SimpleButton C]
+        SC3[LCARdS Button C]
     end
 
     subgraph "Shared Data"
@@ -186,7 +186,7 @@ this._notifyEntityChanges(Array.from(changedEntities));
 ```javascript
 // Cards register themselves for cleanup tracking
 const cardContext = systemsManager.registerCard(
-  'simple-button-123', // cardId
+  'lcards-button-123', // cardId
   cardInstance,        // card reference
   { entity: 'light.desk' } // config
 );
@@ -356,7 +356,7 @@ Register a card instance.
 
 ```javascript
 const context = systemsManager.registerCard(
-  'simple-button-123',
+  'lcards-button-123',
   cardInstance,
   { entity: 'light.desk' }
 );
@@ -376,7 +376,7 @@ const context = systemsManager.registerCard(
 Unregister a card and cleanup subscriptions.
 
 ```javascript
-systemsManager.unregisterCard('simple-button-123');
+systemsManager.unregisterCard('lcards-button-123');
 ```
 
 **Parameters**:
@@ -464,7 +464,7 @@ const debug = systemsManager.getDebugInfo();
 console.log(debug);
 // {
 //   initialized: true,
-//   registeredCards: ['simple-button-123', 'simple-button-456'],
+//   registeredCards: ['lcards-button-123', 'lcards-button-456'],
 //   totalCards: 2,
 //   entityStateCount: 150,
 //   entitySubscriptionCount: 5,

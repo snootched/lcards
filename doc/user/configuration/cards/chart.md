@@ -1,4 +1,4 @@
-# Simple Chart Card - User Guide
+# LCARdS Chart Card - User Guide
 
 > **Powerful standalone charting with 15+ chart types**
 > Create interactive, real-time charts using ApexCharts library without requiring MSD.
@@ -24,7 +24,7 @@
 
 ## Overview
 
-The **Simple Chart Card** is a standalone card that provides powerful charting capabilities using the ApexCharts library, with full integration into LCARdS theme and data systems.
+The **LCARdS Chart Card** is a standalone card that provides powerful charting capabilities using the ApexCharts library, with full integration into LCARdS theme and data systems.
 
 ### Key Features
 
@@ -38,7 +38,7 @@ The **Simple Chart Card** is a standalone card that provides powerful charting c
 ✅ **Performance optimized** - Data windowing and efficient updates
 ✅ **Standalone** - Works without MSD (~8KB smaller bundle)
 
-### When to Use Simple Chart
+### When to Use LCARdS Chart
 
 - **Time series monitoring** - Temperature, humidity, power over time
 - **Comparisons** - Bar charts for comparing values
@@ -83,7 +83,7 @@ style:
 
 ## Data Source Configuration
 
-SimpleChart offers three levels of data source configuration, from simple to advanced.
+LCARdS Chart offers three levels of data source configuration, from simple to advanced.
 
 ### Level 1: Simple Entity Reference
 
@@ -185,7 +185,7 @@ show_legend: true
 
 ## Chart Types
 
-SimpleChart supports all ApexCharts chart types:
+LCARdS Chart supports all ApexCharts chart types:
 
 ### Line Charts
 
@@ -306,7 +306,7 @@ style:
 ```
 
 **Multi-Series Notes:**
-- SimpleChart waits for ALL series to have initial data before rendering
+- LCARdS Chart waits for ALL series to have initial data before rendering
 - Updates are synchronized - when any series changes, all series re-render
 - Each series can have independent DataSource configuration
 - Series colors are applied in order from `colors` array
@@ -315,7 +315,7 @@ style:
 
 ## Styling Guide
 
-SimpleChart provides 50+ styling properties via ApexChartsAdapter.
+LCARdS Chart provides 50+ styling properties via ApexChartsAdapter.
 
 ### Series Colors
 
@@ -436,7 +436,7 @@ style:
 
 ## Theme Integration
 
-SimpleChart fully integrates with LCARdS themes and HA CSS variables.
+LCARdS Chart fully integrates with LCARdS themes and HA CSS variables.
 
 ### Using Theme Tokens
 
@@ -755,7 +755,7 @@ style:
 
 ## Migration from MSD
 
-SimpleChart provides full feature parity with MSD ApexChartsOverlay.
+LCARdS Chart provides full feature parity with MSD ApexChartsOverlay.
 
 ### Before (MSD Overlay):
 
@@ -777,7 +777,7 @@ overlays:
       color: "#FF9900"
 ```
 
-### After (SimpleChart):
+### After (LCARdS Chart):
 
 ```yaml
 type: custom:lcards-chart

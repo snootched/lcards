@@ -4,7 +4,7 @@
 
 ## Overview
 
-Both SimpleChart cards and MSD overlays now support **auto-creation** of DataSources when entities are referenced directly. This eliminates boilerplate configuration and makes cards more user-friendly.
+Both LCARdS Chart cards and MSD overlays now support **auto-creation** of DataSources when entities are referenced directly. This eliminates boilerplate configuration and makes cards more user-friendly.
 
 ## Background: MSD Pattern
 
@@ -41,9 +41,9 @@ This was implemented in `SystemsManager._createTemplateDataSources()`.
 
 ## New Feature: Chart Auto-Creation
 
-### SimpleChart Standalone Usage
+### LCARdS Chart Standalone Usage
 
-Now SimpleChart can be used standalone **without any MSD config**:
+Now LCARdS Chart can be used standalone **without any MSD config**:
 
 ```yaml
 # Just reference the entity directly!
@@ -227,12 +227,12 @@ Warn users when auto-created DataSource may not be optimal:
 ## Testing
 
 See test guides:
-- `test/simple-chart-standalone-test.md` - Standalone chart with auto-creation
+- `test/lcards-chart-standalone-test.md` - Standalone chart with auto-creation
 - `test/msd-unified-overlay-test.md` - MSD integration testing
 
 ## Summary
 
-✅ **SimpleChart** now auto-creates DataSources for entity IDs
+✅ **LCARdS Chart** now auto-creates DataSources for entity IDs
 ✅ Works standalone (no MSD config needed)
 ✅ Follows MSD template entity pattern
 ✅ Validated entity ID format

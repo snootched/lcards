@@ -25,7 +25,7 @@ LitElement (Lit web component)
     ↓
 LCARdSNativeCard (HA integration, shadow DOM, actions)
     ↓
-    ├─→ LCARdSLCARdSCard → LCARdS Cards (SimpleButton, etc.)
+    ├─→ LCARdSCard → LCARdS Cards (LCARdS Button, etc.)
     │   • Lightweight, single-purpose cards
     │   • Direct singleton integration
     │   • Template processing & action handling
@@ -41,7 +41,7 @@ LCARdSNativeCard (HA integration, shadow DOM, actions)
 ### Current State
 
 - ✅ **LCARdSCard Foundation**: Clean architecture - all new cards use this
-- ✅ **SimpleButton Card**: Production LCARdS Card
+- ✅ **LCARdS Button Card**: Production LCARdS Card
 - ✅ **MSD Cards**: Complex multi-overlay displays
 
 **See:** [LCARdS Card Foundation](cards/lcards-card-foundation.md) for details on the LCARdS Card architecture.
@@ -98,8 +98,8 @@ graph TB
             OIB[Overlay Instances B]
         end
 
-        subgraph "SimpleButton Card"
-            CardC[SimpleButton Card]
+        subgraph "LCARdS Button Card"
+            CardC[LCARdS Button Card]
             SimpleC[Direct Rendering]
         end
     end

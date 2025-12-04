@@ -1,4 +1,4 @@
-# Elbow Button Card - Quick Reference
+# LCARdS Elbow Card - Quick Reference
 
 **Component:** `custom:lcards-elbow`
 **Extends:** `custom:lcards-button`
@@ -8,12 +8,12 @@
 
 ## Overview
 
-The Elbow Button Card creates the iconic LCARS interface aesthetic with L-shaped designs featuring:
+The Elbow card creates the iconic LCARS interface aesthetic with L-shaped designs featuring:
 - Configurable elbow positions (header/footer, left/right)
 - Two styles: simple (single elbow) and segmented (Picard-style double elbow)
 - LCARS arc formula-based geometry for authentic curves
 - Uniform-width curved lines (like borders/overlays)
-- Full Simple Button functionality (actions, rules, animations, templates)
+- Full LCARdS Button functionality (actions, rules, animations, templates)
 
 ---
 
@@ -66,24 +66,24 @@ elbow:
   colors:
     background: <color>       # Override button background color for elbow
 
-# All Simple Button features available
+# All LCARdS Button features available
 preset: <preset_name>         # Optional: Style preset
-icon: <icon_config>           # Icon configuration (see Simple Button)
+icon: <icon_config>           # Icon configuration (see LCARdS Button)
 text:                         # Multi-text labels (auto-adjusted for elbow)
   <field-id>:
     content: <string>
     position: <position-name>
-    # ... (all Simple Button text options)
+    # ... (all LCARdS Button text options)
 
-# Actions (inherited from Simple Button)
+# Actions (inherited from LCARdS Button)
 tap_action: <action>
 hold_action: <action>
 double_tap_action: <action>
 
-# Animations (inherited from Simple Button)
+# Animations (inherited from LCARdS Button)
 animations: <animation_config>
 
-# Rules (inherited from Simple Button)
+# Rules (inherited from LCARdS Button)
 rules: <rules_config>
 
 # Layout
@@ -629,9 +629,9 @@ grid_options:
 
 ---
 
-## Integration with Simple Button
+## Integration with LCARdS Button
 
-The Elbow Button inherits **all features** from Simple Button:
+The Elbow Button inherits **all features** from LCARdS Button:
 
 - ✅ **Actions** - tap, hold, double-tap
 - ✅ **Rules** - conditional styling based on state
@@ -642,7 +642,7 @@ The Elbow Button inherits **all features** from Simple Button:
 - ✅ **State colors** - Active/inactive/unavailable
 - ✅ **Presets** - Style preset system
 
-See [Simple Button Quick Reference](button-quick-reference.md) for details.
+See [LCARdS Button Quick Reference](button-quick-reference.md) for details.
 
 ---
 
@@ -735,7 +735,7 @@ hold_action:
 ## Performance Notes
 
 - Elbow rendering is optimized (single SVG path)
-- No performance difference from Simple Button
+- No performance difference from LCARdS Button
 - Large radii may require larger cards but don't impact render performance
 - Text auto-adjustment happens once at config processing
 
@@ -743,7 +743,7 @@ hold_action:
 
 ## Related Documentation
 
-- [Simple Button Quick Reference](button-quick-reference.md) - Parent card features
+- [LCARdS Button Quick Reference](button-quick-reference.md) - Parent card features
 - [Animation Presets](../reference/animation-presets.md) - Animation configuration
 - [Component Presets](../reference/component-presets.md) - Preset system
 

@@ -442,7 +442,7 @@ Background dimensions are automatically calculated based on text content length 
 
 ### Border Configuration
 
-Bars are created using SimpleButton's border system:
+Bars are created using LCARdS Button's border system:
 
 ```yaml
 style:
@@ -472,6 +472,6 @@ Text positioning accounts for border widths automatically via the `_calculateTex
 
 ## See Also
 
-- [SimpleButton Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
+- [LCARdS Button Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
 - [Component Presets Reference](./component-presets.md) - Interactive SVG component presets
 - [Animation Presets Reference](./animation-presets.md) - Animation presets and triggers

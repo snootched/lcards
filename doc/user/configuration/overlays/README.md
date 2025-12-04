@@ -117,7 +117,7 @@ overlays:
 **Use cases:**
 - Light and device controls
 - Sensor displays
-- Charts and graphs (via SimpleChart)
+- Charts and graphs (via LCARdS Chart)
 - Status displays
 - Interactive controls
 

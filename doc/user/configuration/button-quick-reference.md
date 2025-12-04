@@ -1,7 +1,7 @@
-# Simple Button Card - Quick Reference
+# LCARdS Button Card - Quick Reference
 
 **Component:** `custom:lcards-button`
-**Schema:** CB-LCARS Nested Schema with Multi-Text Support
+**Schema:** LCARdS Nested Schema with Multi-Text Support
 
 ---
 
@@ -1284,4 +1284,4 @@ dpad:
 - [Animation Presets Reference](../reference/animation-presets.md) - All animation presets and parameters
 - [Animation System Guide](../guides/animations.md) - Complete animation system documentation
 - [Segment Animation Guide](../../../SEGMENT_ANIMATION_GUIDE.md) - Detailed segment animation examples
-- `simple-button-schema-definition.md` - Full schema specification
+- `button-schema-definition.md` - Full schema specification

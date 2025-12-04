@@ -481,7 +481,7 @@ LCARdSCard integrates with the singleton HASS distribution system and CoreSystem
 - Card's `entity` is automatically tracked for HASS change detection
 - Additional entities can be tracked via `this._trackedEntities` array
 - `_shouldUpdateOnHassChange()` checks tracked entities to determine if re-render needed
-- **Example**: SimpleButton tracks segment entities for multi-entity cards
+- **Example**: LCARdS Button tracks segment entities for multi-entity cards
 
 ```javascript
 // In card constructor or config processing:

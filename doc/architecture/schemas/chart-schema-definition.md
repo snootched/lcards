@@ -1,10 +1,10 @@
-# Simple Chart Card - Official Schema Definition (v1.16.22)
+# LCARdS Chart Card - Official Schema Definition
 
-**Date:** November 23, 2025
+**Date:** December 2025
 **Purpose:** Single source of truth for schema - update tokens, presets, code, and docs from this
 **Status:** 🎯 DEFINITIVE - All implementations must match this
 
-**Architecture:** Standalone LCARdSCard with full feature parity to MSD ApexChartsOverlay
+**Architecture:** Standalone LCARdS card with full feature parity to MSD ApexChartsOverlay
 **Adapter:** Uses ApexChartsAdapter for 50+ advanced styling properties
 
 ---

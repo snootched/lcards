@@ -47,8 +47,8 @@ Detailed documentation for each singleton system:
 Official schema definitions (markdown with fully commented YAML):
 
 ### LCARdS Cards
-- **[simple-button-schema-definition.md](./schemas/simple-button-schema-definition.md)** - Complete SimpleButton schema
-- **[simple-chart-schema-definition.md](./schemas/simple-chart-schema-definition.md)** - Complete SimpleChart schema
+- **[button-schema-definition.md](./schemas/button-schema-definition.md)** - Complete Button card schema
+- **[chart-schema-definition.md](./schemas/chart-schema-definition.md)** - Complete Chart card schema
 
 ### MSD Cards
 - **[msd-schema-definition.md](./schemas/msd-schema-definition.md)** - Complete MSD card configuration ⭐
@@ -83,7 +83,7 @@ Visual documentation:
 - **Distributed Presentation** - Individual cards handle only rendering
 
 ### Card Types
-- **LCARdS Cards** (go-forward) - Lightweight, single-purpose (SimpleButton)
+- **LCARdS Cards** (go-forward) - Lightweight, single-purpose (lcards-button, lcards-elbow, lcards-chart, lcards-slider)
 - **MSD Cards** (current) - Complex multi-overlay displays
 
 ### Performance

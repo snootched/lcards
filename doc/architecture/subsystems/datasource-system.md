@@ -455,7 +455,7 @@ const unitOfMeasurement = dataSource?.getCurrentData()?.unit_of_measurement;
 return DataSourceMixin.applyNumberFormat(numericValue, formatSpec, unitOfMeasurement);
 ```
 
-> **Note:** DataSources are a core feature used by ALL LCARdS cards (MSD, LCARdSCards, SimpleChart), not just MSD.
+> **Note:** DataSources are a core feature used by ALL LCARdS cards (MSD, LCARdSCards, LCARdS Chart), not just MSD.
 
 ### Helper Methods
 
