@@ -232,5 +232,5 @@ style:
 
 ## See Also
 
-- Full documentation: `doc/archive/SEGMENT_ENTITY_STATE_AWARENESS_2025-11-28.md`
-- Test examples: `test/segment-entity-state-test.yaml`
+- [Segment Animation Guide](segment-animation-guide.md)
+- [Button Quick Reference](../configuration/button-quick-reference.md)
