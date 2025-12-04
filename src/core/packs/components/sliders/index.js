@@ -13,27 +13,28 @@
  * Simple Horizontal Slider
  * Basic horizontal slider with track zone
  * No borders - just the track area
+ * ViewBox: 400x56 (matches HA 1 row height, standard card width)
  */
 const sliderHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 200 30" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 400 56" xmlns="http://www.w3.org/2000/svg">
   <metadata>
     <title>LCARdS Horizontal Slider Component</title>
     <description>Simple horizontal slider track for pill/gauge content</description>
   </metadata>
-  
+
   <!-- Track zone: where pills/gauge content is injected -->
-  <g id="track-zone" 
-     data-zone="track" 
-     data-bounds="0,5,200,20">
+  <g id="track-zone"
+     data-zone="track"
+     data-bounds="10,8,380,40">
     <!-- Card injects pills/gauge here -->
   </g>
-  
+
   <!-- Control zone: where the invisible range input is positioned -->
   <rect id="control-zone"
         data-zone="control"
-        data-bounds="0,0,200,30"
+        data-bounds="0,0,400,56"
         x="0" y="0"
-        width="200" height="30"
+        width="400" height="56"
         fill="none"
         stroke="none"
         pointer-events="none" />
@@ -42,27 +43,29 @@ const sliderHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
 /**
  * Simple Vertical Slider
  * Basic vertical slider with track zone
+ * ViewBox: 56x300 (matches HA 1 row width, tall for vertical orientation)
+ * preserveAspectRatio="none" allows stretching to fill container height
  */
 const sliderVerticalSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 30 200" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 56 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
   <metadata>
     <title>LCARdS Vertical Slider Component</title>
     <description>Simple vertical slider track for pill/gauge content</description>
   </metadata>
-  
+
   <!-- Track zone: where pills/gauge content is injected -->
-  <g id="track-zone" 
-     data-zone="track" 
-     data-bounds="5,0,20,200">
+  <g id="track-zone"
+     data-zone="track"
+     data-bounds="8,10,40,280">
     <!-- Card injects pills/gauge here -->
   </g>
-  
+
   <!-- Control zone: where the invisible range input is positioned -->
   <rect id="control-zone"
         data-zone="control"
-        data-bounds="0,0,30,200"
+        data-bounds="0,0,56,300"
         x="0" y="0"
-        width="30" height="200"
+        width="56" height="300"
         fill="none"
         stroke="none"
         pointer-events="none" />
@@ -78,26 +81,26 @@ const sliderBorderedHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
     <title>LCARdS Bordered Horizontal Slider</title>
     <description>Horizontal slider with LCARS border cap on left</description>
   </metadata>
-  
+
   <!-- Static border elements -->
   <rect id="border-left"
         x="0" y="0"
         width="60" height="50"
         rx="25" ry="25"
         fill="{{BORDER_COLOR}}" />
-  
+
   <rect id="border-top"
         x="35" y="0"
         width="265" height="15"
         fill="{{BORDER_COLOR}}" />
-  
+
   <!-- Track zone: right of border, below top bar -->
-  <g id="track-zone" 
-     data-zone="track" 
+  <g id="track-zone"
+     data-zone="track"
      data-bounds="70,20,220,20">
     <!-- Card injects pills/gauge here -->
   </g>
-  
+
   <!-- Control zone: covers the entire track interaction area -->
   <rect id="control-zone"
         data-zone="control"
@@ -107,7 +110,7 @@ const sliderBorderedHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
         fill="none"
         stroke="none"
         pointer-events="none" />
-  
+
   <!-- Text zone: for value/label display -->
   <g id="text-zone"
      data-zone="text"
@@ -127,34 +130,34 @@ const sliderPicardVerticalSvg = `<?xml version="1.0" encoding="UTF-8"?>
     <title>LCARdS Picard Vertical Slider</title>
     <description>Vertical slider with segmented elbow borders in TNG Picard style</description>
   </metadata>
-  
+
   <!-- Outer elbow - top -->
   <path id="elbow-top-outer"
         d="M 0,0 L 50,0 L 50,30 A 30,30 0 0 0 20,60 L 0,60 Z"
         fill="{{BORDER_COLOR}}" />
-  
+
   <!-- Inner elbow - top -->
   <path id="elbow-top-inner"
         d="M 0,65 L 15,65 L 15,80 A 15,15 0 0 0 30,95 L 50,95 L 50,100 L 0,100 Z"
         fill="{{BORDER_COLOR}}" />
-  
+
   <!-- Outer elbow - bottom -->
   <path id="elbow-bottom-outer"
         d="M 0,300 L 50,300 L 50,270 A 30,30 0 0 1 20,240 L 0,240 Z"
         fill="{{BORDER_COLOR}}" />
-  
+
   <!-- Inner elbow - bottom -->
   <path id="elbow-bottom-inner"
         d="M 0,235 L 15,235 L 15,220 A 15,15 0 0 1 30,205 L 50,205 L 50,200 L 0,200 Z"
         fill="{{BORDER_COLOR}}" />
-  
+
   <!-- Track zone: center vertical strip -->
-  <g id="track-zone" 
-     data-zone="track" 
+  <g id="track-zone"
+     data-zone="track"
      data-bounds="55,105,20,90">
     <!-- Card injects pills/gauge here -->
   </g>
-  
+
   <!-- Control zone: full height for interaction -->
   <rect id="control-zone"
         data-zone="control"
@@ -164,7 +167,7 @@ const sliderPicardVerticalSvg = `<?xml version="1.0" encoding="UTF-8"?>
         fill="none"
         stroke="none"
         pointer-events="none" />
-  
+
   <!-- Text zone: right side for labels -->
   <g id="text-zone"
      data-zone="text"
@@ -185,14 +188,14 @@ const sliderMinimalSvg = `<?xml version="1.0" encoding="UTF-8"?>
     <title>LCARdS Minimal Slider</title>
     <description>Minimal slider with just track zone - no borders</description>
   </metadata>
-  
+
   <!-- Track zone: full width -->
-  <g id="track-zone" 
-     data-zone="track" 
+  <g id="track-zone"
+     data-zone="track"
      data-bounds="0,2,100,16">
     <!-- Card injects pills/gauge here -->
   </g>
-  
+
   <!-- Control zone: same as track -->
   <rect id="control-zone"
         data-zone="control"
@@ -214,7 +217,7 @@ const gaugeHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
     <title>LCARdS Horizontal Gauge</title>
     <description>Horizontal gauge with scale zone for tick marks</description>
   </metadata>
-  
+
   <!-- Border/frame -->
   <rect id="frame"
         x="0" y="0"
@@ -223,14 +226,14 @@ const gaugeHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
         fill="none"
         stroke="{{BORDER_COLOR}}"
         stroke-width="2" />
-  
+
   <!-- Track zone: main gauge area -->
-  <g id="track-zone" 
-     data-zone="track" 
+  <g id="track-zone"
+     data-zone="track"
      data-bounds="10,10,280,25">
     <!-- Card injects gauge content here -->
   </g>
-  
+
   <!-- Scale zone: for tick marks below track -->
   <g id="scale-zone"
      data-zone="scale"
@@ -238,7 +241,7 @@ const gaugeHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
      transform="translate(10, 38)">
     <!-- Card injects tick marks here -->
   </g>
-  
+
   <!-- Text zone: value display -->
   <g id="text-zone"
      data-zone="text"
@@ -246,7 +249,7 @@ const gaugeHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
      transform="translate(250, 10)">
     <!-- Card injects value text here -->
   </g>
-  
+
   <!-- Control zone: for potential interactive mode -->
   <rect id="control-zone"
         data-zone="control"

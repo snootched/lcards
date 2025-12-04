@@ -46,6 +46,7 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { getSliderComponent } from '../core/packs/components/sliders/index.js';
 
 export class LCARdSSlider extends LCARdSCard {
 
@@ -100,6 +101,7 @@ export class LCARdSSlider extends LCARdSCard {
                     opacity: 0;
                     cursor: pointer;
                     z-index: 10;
+                    pointer-events: auto;
                 }
 
                 /* Slider track styling */
@@ -107,25 +109,28 @@ export class LCARdSSlider extends LCARdSCard {
                     background: transparent;
                     border: none;
                     cursor: pointer;
+                    height: 100%;
                 }
 
                 .slider-input-overlay::-moz-range-track {
                     background: transparent;
                     border: none;
                     cursor: pointer;
+                    height: 100%;
                 }
 
                 .slider-input-overlay::-webkit-slider-thumb {
                     -webkit-appearance: none;
                     appearance: none;
-                    width: 100%;
+                    width: 20px;
                     height: 100%;
                     background: transparent;
                     cursor: pointer;
+                    border: none;
                 }
 
                 .slider-input-overlay::-moz-range-thumb {
-                    width: 100%;
+                    width: 20px;
                     height: 100%;
                     background: transparent;
                     cursor: pointer;
@@ -186,6 +191,10 @@ export class LCARdSSlider extends LCARdSCard {
 
         // Entity domain for behavior
         this._domain = null;
+
+        // Bind event handlers
+        this._handleSliderInput = this._handleSliderInput.bind(this);
+        this._handleSliderChange = this._handleSliderChange.bind(this);
     }
 
     /**
@@ -224,14 +233,17 @@ export class LCARdSSlider extends LCARdSCard {
             const oldState = oldHass?.states[this.config.entity];
             const newState = this._entity;
 
-            // Check if value changed
+            // Get values
             const oldValue = this._getEntityValue(oldState);
             const newValue = this._getEntityValue(newState);
 
-            if (oldValue !== newValue) {
+            // Initialize value on first load (oldHass is null/undefined)
+            // OR update if value changed
+            if (!oldHass || oldValue !== newValue) {
+                const previousValue = this._sliderValue;
                 this._sliderValue = newValue;
 
-                lcardsLog.debug(`[LCARdSSlider] Value changed: ${oldValue} -> ${newValue}`);
+                lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
 
                 // Update pill opacities without regenerating track
                 this._updateDynamicElements();
@@ -247,7 +259,8 @@ export class LCARdSSlider extends LCARdSCard {
      * @protected
      */
     _handleFirstUpdate(changedProperties) {
-        super._handleFirstUpdate(changedProperties);
+        // NOTE: Do NOT call super._handleFirstUpdate() - it doesn't exist
+        // This is an optional hook called by parent's _onFirstUpdated()
 
         // Setup auto-sizing
         this._setupAutoSizing((width, height) => {
@@ -266,6 +279,22 @@ export class LCARdSSlider extends LCARdSCard {
             this._registerOverlayForRules(`slider-${this.config.id}`, ['slider']);
         } else {
             this._registerOverlayForRules(`slider-${this._cardGuid}`, ['slider']);
+        }
+    }
+
+    /**
+     * Called after each render - update dynamic elements
+     * @protected
+     */
+    updated(changedProperties) {
+        super.updated(changedProperties);
+
+        // Update pill opacities after render completes
+        // This ensures pills reflect current value on first load and subsequent updates
+        if (this._mode === 'slider') {
+            this._updatePillOpacities();
+        } else {
+            this._updateGaugeIndicator();
         }
     }
 
@@ -502,8 +531,7 @@ export class LCARdSSlider extends LCARdSCard {
         lcardsLog.debug(`[LCARdSSlider] Loading component: ${componentName}`);
 
         try {
-            // Try to get from component registry first
-            const { getSliderComponent } = await import('../core/packs/components/sliders/index.js');
+            // Use static import for webpack compatibility
             let svgContent = getSliderComponent(componentName);
 
             if (!svgContent) {
@@ -704,8 +732,9 @@ export class LCARdSSlider extends LCARdSCard {
 
         lcardsLog.debug(`[LCARdSSlider] Generating track content (cache miss)`);
 
-        // Generate pills
-        const content = this._generatePillsSVG(width, height, trackConfig, orientation);
+        // Generate pills with track zone bounds for proper positioning
+        const trackBounds = trackZone?.bounds || { x: 0, y: 0, width, height };
+        const content = this._generatePillsSVG(trackBounds, trackConfig, orientation);
 
         // Cache result
         this._memoizedTrack = content;
@@ -718,7 +747,7 @@ export class LCARdSSlider extends LCARdSCard {
      * Generate pill SVG elements
      * @private
      */
-    _generatePillsSVG(trackWidth, trackHeight, trackConfig, orientation = 'horizontal') {
+    _generatePillsSVG(trackBounds, trackConfig, orientation = 'horizontal') {
         const count = trackConfig?.count || 10;
         const gap = parseInt(trackConfig?.gap) || 4;
         const radius = trackConfig?.shape?.radius ?? 4;
@@ -727,6 +756,11 @@ export class LCARdSSlider extends LCARdSCard {
         const gradientStart = this._resolveCssVariable(trackConfig?.gradient?.start || 'var(--error-color)');
         const gradientEnd = this._resolveCssVariable(trackConfig?.gradient?.end || 'var(--success-color)');
         const unfilledOpacity = trackConfig?.appearance?.unfilled?.opacity ?? 0.2;
+
+        const trackWidth = trackBounds.width;
+        const trackHeight = trackBounds.height;
+        const trackX = trackBounds.x || 0; // X offset of track zone within viewBox
+        const trackY = trackBounds.y || 0; // Y offset of track zone within viewBox
 
         const isVertical = orientation === 'vertical';
 
@@ -740,24 +774,19 @@ export class LCARdSSlider extends LCARdSCard {
             const pillSize = availableHeight / count;
             pillWidth = trackWidth;
 
-            // Generate gradient definitions if interpolated
-            if (interpolated) {
-                for (let i = 0; i < count; i++) {
-                    const t = i / (count - 1 || 1);
-                    const color = ColorUtils.interpolateColor(gradientStart, gradientEnd, t);
-                    defs += `<linearGradient id="pill-grad-${i}"><stop offset="0%" stop-color="${color}"/></linearGradient>`;
-                }
-            }
+            // Generate per-pill colors (interpolated across the range)
             defs += '</defs>';
 
             // Generate pills from bottom to top
             for (let i = 0; i < count; i++) {
                 const y = trackHeight - ((i + 1) * pillSize) - (i * gap);
-                const x = 0;
+                const x = trackX + (trackWidth - pillWidth) / 2; // Center horizontally within track zone
 
-                const fill = interpolated
-                    ? `url(#pill-grad-${i})`
-                    : (gradientStart || 'var(--lcars-orange)');
+                // Calculate solid color for this pill based on position
+                // Note: ColorUtils.mix(c1, c2, t) returns c2 at t=0, c1 at t=1
+                // So we swap params: mix(end, start, t) to get start→end
+                const t = i / (count - 1 || 1);
+                const color = ColorUtils.mix(gradientEnd, gradientStart, t);
 
                 pills += `
                     <rect
@@ -769,7 +798,7 @@ export class LCARdSSlider extends LCARdSCard {
                         height="${pillSize}"
                         rx="${radius}"
                         ry="${radius}"
-                        fill="${fill}"
+                        fill="${color}"
                         opacity="${unfilledOpacity}"
                         data-pill-index="${i}" />
                 `;
@@ -779,24 +808,22 @@ export class LCARdSSlider extends LCARdSCard {
             const availableWidth = trackWidth - (gap * (count - 1));
             pillWidth = availableWidth / count;
 
-            // Generate gradient definitions if interpolated
-            if (interpolated) {
-                for (let i = 0; i < count; i++) {
-                    const t = i / (count - 1 || 1);
-                    const color = ColorUtils.interpolateColor(gradientStart, gradientEnd, t);
-                    defs += `<linearGradient id="pill-grad-${i}"><stop offset="0%" stop-color="${color}"/></linearGradient>`;
-                }
-            }
+            // Generate per-pill colors (interpolated across the range)
             defs += '</defs>';
 
             // Generate pills from left to right
             for (let i = 0; i < count; i++) {
-                const x = i * (pillWidth + gap);
-                const y = (trackHeight - pillHeight) / 2;
+                const x = trackX + (i * (pillWidth + gap));
+                // Center pill vertically within track zone, accounting for track zone's y offset
+                const idealY = trackY + (trackHeight - pillHeight) / 2;
+                // Clamp to ensure pill doesn't go above track zone (but allow overflow below)
+                const y = Math.max(trackY, idealY);
 
-                const fill = interpolated
-                    ? `url(#pill-grad-${i})`
-                    : (gradientStart || 'var(--lcars-orange)');
+                // Calculate solid color for this pill based on position
+                // Note: ColorUtils.mix(c1, c2, t) returns c2 at t=0, c1 at t=1
+                // So we swap params: mix(end, start, t) to get start→end
+                const t = i / (count - 1 || 1);
+                const color = ColorUtils.mix(gradientEnd, gradientStart, t);
 
                 pills += `
                     <rect
@@ -808,7 +835,7 @@ export class LCARdSSlider extends LCARdSCard {
                         height="${pillHeight}"
                         rx="${radius}"
                         ry="${radius}"
-                        fill="${fill}"
+                        fill="${color}"
                         opacity="${unfilledOpacity}"
                         data-pill-index="${i}" />
                 `;
@@ -1300,6 +1327,24 @@ export class LCARdSSlider extends LCARdSCard {
         const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
         const isVertical = orientation === 'vertical';
 
+        // Calculate scale factor from viewBox to actual container size
+        // The SVG viewBox is the coordinate system, but it gets scaled to container
+        const svgViewBoxWidth = this._componentSvg ?
+            (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[2]) || 200) : 200;
+        const svgViewBoxHeight = this._componentSvg ?
+            (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[3]) || 30) : 30;
+
+        const scaleX = width / svgViewBoxWidth;
+        const scaleY = height / svgViewBoxHeight;
+
+        // Scale the control bounds to actual rendered size
+        const scaledBounds = {
+            x: controlBounds.x * scaleX,
+            y: controlBounds.y * scaleY,
+            width: controlBounds.width * scaleX,
+            height: controlBounds.height * scaleY
+        };
+
         return html`
             <div class="slider-container">
                 ${unsafeHTML(svgContent)}
@@ -1308,18 +1353,18 @@ export class LCARdSSlider extends LCARdSCard {
                     <input
                         type="range"
                         class="slider-input-overlay"
-                        .value="${this._sliderValue}"
-                        .min="${this._controlConfig.min}"
-                        .max="${this._controlConfig.max}"
-                        .step="${this._controlConfig.step}"
+                        .value="${String(this._sliderValue)}"
+                        .min="${String(this._controlConfig.min)}"
+                        .max="${String(this._controlConfig.max)}"
+                        .step="${String(this._controlConfig.step)}"
                         ?disabled="${this._controlConfig.locked}"
                         @input="${this._handleSliderInput}"
                         @change="${this._handleSliderChange}"
                         style="
-                            left: ${controlBounds.x}px;
-                            top: ${controlBounds.y}px;
-                            width: ${controlBounds.width}px;
-                            height: ${controlBounds.height}px;
+                            left: ${scaledBounds.x}px;
+                            top: ${scaledBounds.y}px;
+                            width: ${scaledBounds.width}px;
+                            height: ${scaledBounds.height}px;
                             ${isVertical ? '-webkit-appearance: slider-vertical; writing-mode: bt-lr;' : ''}
                         "
                     />
