@@ -955,6 +955,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Detect changes and trigger animations
+   * Optimized to limit maximum animations for large grids
    * @private
    */
   _detectAndAnimateChanges() {
@@ -966,16 +967,23 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
-    // Find changed cells
+    // Maximum number of cells to animate (prevents performance issues on large grids)
+    const maxAnimations = this.config.animation?.max_highlight_cells || 50;
+
+    // Find changed cells with early termination
     const changedCells = [];
-    this._gridData.forEach((row, rowIndex) => {
-      row.forEach((cellValue, colIndex) => {
+    outer: for (let rowIndex = 0; rowIndex < this._gridData.length; rowIndex++) {
+      const row = this._gridData[rowIndex];
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
         const oldValue = this._previousGridData[rowIndex]?.[colIndex];
-        if (oldValue !== cellValue) {
+        if (oldValue !== row[colIndex]) {
           changedCells.push({ row: rowIndex, col: colIndex });
+          if (changedCells.length >= maxAnimations) {
+            break outer; // Early termination for performance
+          }
         }
-      });
-    });
+      }
+    }
 
     if (changedCells.length === 0) return;
 
@@ -998,9 +1006,15 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     if (!cell) return;
 
-    // Use CSS animation
+    // Use CSS animation with animationend event for cleanup
     cell.classList.add('cell-changed');
-    setTimeout(() => cell.classList.remove('cell-changed'), 500);
+
+    // Use animationend event to clean up class (more reliable than setTimeout)
+    const handleAnimationEnd = () => {
+      cell.classList.remove('cell-changed');
+      cell.removeEventListener('animationend', handleAnimationEnd);
+    };
+    cell.addEventListener('animationend', handleAnimationEnd);
   }
 
   // ============================================================================
@@ -1240,6 +1254,9 @@ export class LCARdSDataGrid extends LCARdSCard {
    * Cleanup on disconnect
    */
   disconnectedCallback() {
+    // Track cleanup errors for debugging
+    const cleanupErrors = [];
+
     // Stop cascade animation
     this._stopCascadeAnimation();
 
@@ -1250,17 +1267,21 @@ export class LCARdSDataGrid extends LCARdSCard {
     }
 
     // Unsubscribe from data sources
-    this._dataSubscriptions.forEach(unsubscribe => {
+    this._dataSubscriptions.forEach((unsubscribe, index) => {
       try {
         unsubscribe();
       } catch (error) {
-        lcardsLog.warn('[LCARdSDataGrid] Error unsubscribing:', error);
+        cleanupErrors.push({ index, error: error.message });
+        lcardsLog.warn(`[LCARdSDataGrid] Error unsubscribing from data source ${index}:`, error);
       }
     });
     this._dataSubscriptions = [];
 
+    // Log summary of cleanup errors if any occurred
+    if (cleanupErrors.length > 0) {
+      lcardsLog.warn(`[LCARdSDataGrid] Cleanup completed with ${cleanupErrors.length} error(s)`, cleanupErrors);
+    }
+
     super.disconnectedCallback();
   }
 }
-
-// NOTE: Card registration handled in src/lcards.js
