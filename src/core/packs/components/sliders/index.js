@@ -73,51 +73,35 @@ const sliderVerticalSvg = `<?xml version="1.0" encoding="UTF-8"?>
 
 /**
  * Bordered Horizontal Slider
- * Horizontal slider with LCARS-style left border/cap
+ * Horizontal slider with CSS borders (L-shaped elbow)
+ * Borders applied via CSS, SVG defines only track zone with insets
  */
 const sliderBorderedHorizontalSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 300 50" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
   <metadata>
     <title>LCARdS Bordered Horizontal Slider</title>
-    <description>Horizontal slider with LCARS border cap on left</description>
+    <description>Horizontal slider with CSS border (left cap + top bar)</description>
   </metadata>
 
-  <!-- Static border elements -->
-  <rect id="border-left"
-        x="0" y="0"
-        width="60" height="50"
-        rx="25" ry="25"
-        fill="{{BORDER_COLOR}}" />
-
-  <rect id="border-top"
-        x="35" y="0"
-        width="265" height="15"
-        fill="{{BORDER_COLOR}}" />
-
-  <!-- Track zone: right of border, below top bar -->
+  <!-- Track zone: inset for track content with margins -->
   <g id="track-zone"
      data-zone="track"
-     data-bounds="70,20,220,20">
+     data-bounds="5,5,95,40">
     <!-- Card injects pills/gauge here -->
+    <!-- Margins: top=5, left=5, right=0, bottom=0 (from track edge) -->
   </g>
 
-  <!-- Control zone: covers the entire track interaction area -->
+  <!-- Control zone: covers the track interaction area -->
   <rect id="control-zone"
         data-zone="control"
-        data-bounds="70,15,220,30"
-        x="70" y="15"
-        width="220" height="30"
+        data-bounds="0,0,100,50"
+        x="0" y="0"
+        width="100" height="50"
         fill="none"
         stroke="none"
         pointer-events="none" />
 
-  <!-- Text zone: for value/label display -->
-  <g id="text-zone"
-     data-zone="text"
-     data-bounds="5,15,50,30"
-     transform="translate(5, 15)">
-    <!-- Card injects text here -->
-  </g>
+  <!-- Text zone not needed - text positioned via CSS overlay -->
 </svg>`;
 
 /**

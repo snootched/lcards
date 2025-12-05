@@ -79,14 +79,32 @@ export class LCARdSSlider extends LCARdSCard {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: rgba(255, 0, 0, 0.1); /* TEMPORARY: Semi-transparent red for testing */
                     position: relative;
+                    box-sizing: border-box;
+                    /* CSS borders applied via inline styles from config */
                 }
 
                 .slider-svg {
                     display: block;
                     width: 100%;
                     height: 100%;
+                }
+
+                .text-overlay {
+                    position: absolute;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    pointer-events: none;
+                    z-index: 5;
+                }
+
+                .text-field {
+                    font-family: 'LCARS', 'Antonio', sans-serif;
+                    font-size: 14px;
+                    line-height: 1.2;
+                    color: var(--lcars-white, #ffffff);
+                    white-space: nowrap;
                 }
 
                 .slider-input-overlay {
@@ -408,6 +426,27 @@ export class LCARdSSlider extends LCARdSCard {
         let style = {
             // Border/frame colors
             border: {
+                enabled: false, // CSS borders disabled by default
+                left: {
+                    enabled: false,
+                    width: 0,
+                    color: 'var(--lcars-orange)'
+                },
+                top: {
+                    enabled: false,
+                    width: 0,
+                    color: 'var(--lcars-orange)'
+                },
+                right: {
+                    enabled: false,
+                    width: 0,
+                    color: 'var(--lcars-orange)'
+                },
+                bottom: {
+                    enabled: false,
+                    width: 0,
+                    color: 'var(--lcars-orange)'
+                },
                 color: {
                     active: 'var(--lcars-orange)',
                     inactive: 'var(--lcars-gray)'
@@ -693,6 +732,224 @@ export class LCARdSSlider extends LCARdSCard {
         }
 
         return value;
+    }
+
+    /**
+     * Build CSS border styles from config
+     * Returns inline style string for slider-container
+     * @returns {string} CSS style string
+     * @private
+     */
+    _buildBorderStyles() {
+        const borderConfig = this._sliderStyle?.border;
+        if (!borderConfig) return '';
+
+        const styles = [];
+
+        // Left border
+        if (borderConfig.left?.enabled && borderConfig.left?.width > 0) {
+            const color = this._resolveCssVariable(borderConfig.left.color);
+            styles.push(`border-left: ${borderConfig.left.width}px solid ${color}`);
+        }
+
+        // Top border
+        if (borderConfig.top?.enabled && borderConfig.top?.width > 0) {
+            const color = this._resolveCssVariable(borderConfig.top.color);
+            styles.push(`border-top: ${borderConfig.top.width}px solid ${color}`);
+        }
+
+        // Right border
+        if (borderConfig.right?.enabled && borderConfig.right?.width > 0) {
+            const color = this._resolveCssVariable(borderConfig.right.color);
+            styles.push(`border-right: ${borderConfig.right.width}px solid ${color}`);
+        }
+
+        // Bottom border
+        if (borderConfig.bottom?.enabled && borderConfig.bottom?.width > 0) {
+            const color = this._resolveCssVariable(borderConfig.bottom.color);
+            styles.push(`border-bottom: ${borderConfig.bottom.width}px solid ${color}`);
+        }
+
+        return styles.join('; ');
+    }
+
+    /**
+     * Normalize position name (handle synonyms)
+     * @param {string} position - Position name
+     * @returns {string} Normalized position
+     * @private
+     */
+    _normalizePositionName(position) {
+        if (!position || typeof position !== 'string') {
+            return position;
+        }
+
+        const synonyms = {
+            'left': 'left-center',
+            'right': 'right-center',
+            'top': 'top-center',
+            'bottom': 'bottom-center'
+        };
+
+        return synonyms[position] || position;
+    }
+
+    /**
+     * Calculate CSS positioning for text overlay
+     * @param {string} position - Position name (e.g., 'top-left', 'center', etc.)
+     * @param {Object} bounds - Positioning bounds {x, y, width, height}
+     * @param {Object} padding - Padding {top, right, bottom, left}
+     * @returns {Object} CSS positioning {top, left, transform, justifyContent, alignItems}
+     * @private
+     */
+    _calculateTextPosition(position, bounds, padding = 8) {
+        // Normalize position
+        position = this._normalizePositionName(position);
+
+        // Parse padding
+        const pad = typeof padding === 'number'
+            ? { top: padding, right: padding, bottom: padding, left: padding }
+            : {
+                top: padding?.top ?? 8,
+                right: padding?.right ?? 8,
+                bottom: padding?.bottom ?? 8,
+                left: padding?.left ?? 8
+            };
+
+        const { x = 0, y = 0, width, height } = bounds;
+
+        // Position map: CSS flexbox alignment
+        const positions = {
+            'center': {
+                top: `${y}px`,
+                left: `${x}px`,
+                width: `${width}px`,
+                height: `${height}px`,
+                justifyContent: 'center',
+                alignItems: 'center'
+            },
+            'top-left': {
+                top: `${y + pad.top}px`,
+                left: `${x + pad.left}px`,
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start'
+            },
+            'top-center': {
+                top: `${y + pad.top}px`,
+                left: `${x}px`,
+                width: `${width}px`,
+                justifyContent: 'center',
+                alignItems: 'flex-start'
+            },
+            'top-right': {
+                top: `${y + pad.top}px`,
+                right: `${pad.right}px`,
+                justifyContent: 'flex-end',
+                alignItems: 'flex-start'
+            },
+            'bottom-left': {
+                bottom: `${pad.bottom}px`,
+                left: `${x + pad.left}px`,
+                justifyContent: 'flex-start',
+                alignItems: 'flex-end'
+            },
+            'bottom-center': {
+                bottom: `${pad.bottom}px`,
+                left: `${x}px`,
+                width: `${width}px`,
+                justifyContent: 'center',
+                alignItems: 'flex-end'
+            },
+            'bottom-right': {
+                bottom: `${pad.bottom}px`,
+                right: `${pad.right}px`,
+                justifyContent: 'flex-end',
+                alignItems: 'flex-end'
+            },
+            'left-center': {
+                top: `${y}px`,
+                left: `${x + pad.left}px`,
+                height: `${height}px`,
+                justifyContent: 'flex-start',
+                alignItems: 'center'
+            },
+            'right-center': {
+                top: `${y}px`,
+                right: `${pad.right}px`,
+                height: `${height}px`,
+                justifyContent: 'flex-end',
+                alignItems: 'center'
+            }
+        };
+
+        return positions[position] || positions['center'];
+    }
+
+    /**
+     * Build text overlay styles from position calculation
+     * @param {Object} position - Position object from _calculateTextPosition
+     * @returns {string} CSS style string
+     * @private
+     */
+    _buildTextOverlayStyles(position) {
+        const styles = [];
+        for (const [key, value] of Object.entries(position)) {
+            // Convert camelCase to kebab-case
+            const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            styles.push(`${cssKey}: ${value}`);
+        }
+        return styles.join('; ');
+    }
+
+    /**
+     * Render text overlay fields
+     * @returns {TemplateResult|null} Text overlay HTML or null
+     * @private
+     */
+    _renderTextOverlay() {
+        const textConfig = this._sliderStyle?.text;
+        if (!textConfig?.fields) return null;
+
+        const borderConfig = this._sliderStyle?.border;
+
+        // Calculate border cap bounds (left border area)
+        // This is where text should be positioned
+        const leftBorderWidth = (borderConfig?.left?.enabled && borderConfig.left.width > 0)
+            ? borderConfig.left.width
+            : 0;
+        const topBorderHeight = (borderConfig?.top?.enabled && borderConfig.top.width > 0)
+            ? borderConfig.top.width
+            : 0;
+
+        if (leftBorderWidth === 0) return null; // No border cap to position text in
+
+        const containerHeight = this._containerSize.height || 60;
+
+        // Border cap bounds (full left border area)
+        const capBounds = {
+            x: 0,
+            y: topBorderHeight,
+            width: leftBorderWidth,
+            height: containerHeight - topBorderHeight
+        };
+
+        // Get position from config (default: center-center)
+        const position = textConfig.position || 'center';
+        const padding = textConfig.padding || 8;
+
+        const positionStyles = this._calculateTextPosition(position, capBounds, padding);
+        const styleString = this._buildTextOverlayStyles(positionStyles);
+
+        // Render text fields
+        const fields = Array.isArray(textConfig.fields) ? textConfig.fields : [textConfig.fields];
+
+        return html`
+            <div class="text-overlay" style="${styleString}">
+                ${fields.map(field => html`
+                    <div class="text-field">${field}</div>
+                `)}
+            </div>
+        `;
     }
 
     /**
@@ -1552,9 +1809,28 @@ export class LCARdSSlider extends LCARdSCard {
             // This prevents distortion when container aspect ratio differs from viewBox
             const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
 
-            // Use actual container dimensions as viewBox
-            // This way, 1 viewBox unit = 1 rendered pixel
-            this._componentSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            // Calculate CSS border offsets
+            // When CSS borders are present, they consume space OUTSIDE the SVG viewport
+            // The SVG content area is inset by the border widths
+            const borderConfig = this._sliderStyle?.border;
+            const borderInsets = {
+                left: (borderConfig?.left?.enabled && borderConfig.left.width > 0) ? borderConfig.left.width : 0,
+                top: (borderConfig?.top?.enabled && borderConfig.top.width > 0) ? borderConfig.top.width : 0,
+                right: (borderConfig?.right?.enabled && borderConfig.right.width > 0) ? borderConfig.right.width : 0,
+                bottom: (borderConfig?.bottom?.enabled && borderConfig.bottom.width > 0) ? borderConfig.bottom.width : 0
+            };
+
+            // Calculate effective SVG dimensions after subtracting CSS borders
+            // CSS borders are rendered outside the content box, so SVG gets the remaining space
+            const effectiveWidth = width - borderInsets.left - borderInsets.right;
+            const effectiveHeight = height - borderInsets.top - borderInsets.bottom;
+
+            lcardsLog.debug(`[LCARdSSlider] Border insets:`, borderInsets,
+                           `Effective dimensions: ${effectiveWidth}x${effectiveHeight}`);
+
+            // Use effective dimensions as viewBox
+            // This way, 1 viewBox unit = 1 rendered pixel in the content area (after borders)
+            this._componentSvg.setAttribute('viewBox', `0 0 ${effectiveWidth} ${effectiveHeight}`);
 
             // Parse margin configuration (can be number or {top, right, bottom, left})
             // Gauge mode defaults to zero margins for seamless ruler design
@@ -1580,17 +1856,21 @@ export class LCARdSSlider extends LCARdSCard {
             lcardsLog.debug(`[LCARdSSlider] ${orientation} viewBox adjustment:`, {
                 containerWidth: width,
                 containerHeight: height,
+                effectiveWidth,
+                effectiveHeight,
+                borderInsets,
                 margins
             });
 
             // Apply margins to track zone
+            // Track zone is relative to the EFFECTIVE dimensions (after CSS borders)
             const trackZone = this._zones.get('track');
             if (trackZone) {
                 trackZone.bounds = {
                     x: margins.left,
                     y: margins.top,
-                    width: width - margins.left - margins.right,
-                    height: height - margins.top - margins.bottom
+                    width: effectiveWidth - margins.left - margins.right,
+                    height: effectiveHeight - margins.top - margins.bottom
                 };
 
                 lcardsLog.debug(`[LCARdSSlider] Track zone bounds:`, trackZone.bounds);
@@ -1600,22 +1880,22 @@ export class LCARdSSlider extends LCARdSCard {
                     `${trackZone.bounds.x},${trackZone.bounds.y},${trackZone.bounds.width},${trackZone.bounds.height}`);
             }
 
-            // Control zone always fills entire container
+            // Control zone fills effective container (after CSS borders)
             const controlZone = this._zones.get('control');
             if (controlZone) {
                 controlZone.bounds = {
                     x: 0,
                     y: 0,
-                    width: width,
-                    height: height
+                    width: effectiveWidth,
+                    height: effectiveHeight
                 };
 
                 // Update control zone element
                 const controlElement = this._componentSvg.querySelector('#control-zone');
                 if (controlElement) {
-                    controlElement.setAttribute('data-bounds', `0,0,${width},${height}`);
-                    controlElement.setAttribute('width', width);
-                    controlElement.setAttribute('height', height);
+                    controlElement.setAttribute('data-bounds', `0,0,${effectiveWidth},${effectiveHeight}`);
+                    controlElement.setAttribute('width', effectiveWidth);
+                    controlElement.setAttribute('height', effectiveHeight);
                 }
             }
 
@@ -1632,27 +1912,48 @@ export class LCARdSSlider extends LCARdSCard {
         const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
         const isVertical = orientation === 'vertical';
 
-        // Calculate scale factor from viewBox to actual container size
-        // The SVG viewBox is the coordinate system, but it gets scaled to container
+        // Calculate CSS border offsets for positioning
+        const borderConfig = this._sliderStyle?.border;
+        const borderInsets = {
+            left: (borderConfig?.left?.enabled && borderConfig.left.width > 0) ? borderConfig.left.width : 0,
+            top: (borderConfig?.top?.enabled && borderConfig.top.width > 0) ? borderConfig.top.width : 0,
+            right: (borderConfig?.right?.enabled && borderConfig.right.width > 0) ? borderConfig.right.width : 0,
+            bottom: (borderConfig?.bottom?.enabled && borderConfig.bottom.width > 0) ? borderConfig.bottom.width : 0
+        };
+
+        // Calculate effective dimensions (after CSS borders)
+        const effectiveWidth = width - borderInsets.left - borderInsets.right;
+        const effectiveHeight = height - borderInsets.top - borderInsets.bottom;
+
+        // Calculate scale factor from viewBox to actual SVG render size
+        // The SVG viewBox uses effective dimensions (content area after borders)
+        // and scales to fill that space
         const svgViewBoxWidth = this._componentSvg ?
             (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[2]) || 200) : 200;
         const svgViewBoxHeight = this._componentSvg ?
             (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[3]) || 30) : 30;
 
-        const scaleX = width / svgViewBoxWidth;
-        const scaleY = height / svgViewBoxHeight;
+        const scaleX = effectiveWidth / svgViewBoxWidth;
+        const scaleY = effectiveHeight / svgViewBoxHeight;
 
         // Scale the control bounds to actual rendered size
+        // Then offset by CSS border insets (borders push content inward)
         const scaledBounds = {
-            x: controlBounds.x * scaleX,
-            y: controlBounds.y * scaleY,
+            x: (controlBounds.x * scaleX) + borderInsets.left,
+            y: (controlBounds.y * scaleY) + borderInsets.top,
             width: controlBounds.width * scaleX,
             height: controlBounds.height * scaleY
         };
 
+        // Build CSS border styles from config
+        const borderStyles = this._buildBorderStyles();
+
         return html`
-            <div class="slider-container">
+            <div class="slider-container" style="${borderStyles}">
                 ${unsafeHTML(svgContent)}
+
+                <!-- Text overlay for border cap text -->
+                ${this._renderTextOverlay()}
 
                 ${this._mode === 'slider' ? html`
                     <input
