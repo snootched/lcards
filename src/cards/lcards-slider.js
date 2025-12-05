@@ -422,14 +422,6 @@ export class LCARdSSlider extends LCARdSButton {
             locked: config.control?.locked ?? !isControllable
         };
 
-        lcardsLog.debug(`[LCARdSSlider] Initial control config from user:`, {
-            min: config.control?.min,
-            max: config.control?.max,
-            step: config.control?.step,
-            resultMin: this._controlConfig.min,
-            resultMax: this._controlConfig.max
-        });
-
         // Override from entity attributes if available
         if (entity?.attributes) {
             if (entity.attributes.min !== undefined && config.control?.min === undefined) {
@@ -1731,46 +1723,6 @@ export class LCARdSSlider extends LCARdSButton {
                 : this._generateGaugeSVG(trackZone.bounds.width, trackZone.bounds.height);  // Gauge ruler
             trackZone.element.innerHTML = trackContent;
         }
-
-        // Inject text content (disabled for gauge mode by default)
-        const textZone = this._zones.get('text');
-        if (textZone && this._sliderStyle?.text?.value?.enabled !== false) {
-            // For gauge mode, default to disabled unless explicitly enabled
-            if (this._mode === 'gauge' && this._sliderStyle?.text?.value?.enabled !== true) {
-                textZone.element.innerHTML = '';
-            } else {
-                const textContent = this._generateTextContent();
-                textZone.element.innerHTML = textContent;
-            }
-        }
-    }
-
-    /**
-     * Generate text content for text zone
-     * @private
-     */
-    _generateTextContent() {
-        const textConfig = this._sliderStyle?.text?.value;
-        if (!textConfig?.enabled) return '';
-
-        const value = this._sliderValue;
-        const unit = this._entity?.attributes?.unit_of_measurement || '';
-        const color = textConfig.color || 'var(--lcars-white)';
-        const fontSize = textConfig.font_size || 14;
-
-        // Simple value display
-        const displayValue = Number.isInteger(value) ? value : value.toFixed(1);
-
-        return `
-            <text x="50%" y="50%"
-                  text-anchor="middle"
-                  dominant-baseline="central"
-                  fill="${color}"
-                  font-size="${fontSize}"
-                  font-family="'LCARS', 'Antonio', sans-serif">
-                ${displayValue}${unit}
-            </text>
-        `;
     }
 
     /**
@@ -1873,19 +1825,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _handleSliderInput(event) {
-        const rawValue = event.target.value;
-        const value = parseFloat(rawValue);
-
-        lcardsLog.debug(`[LCARdSSlider] Input event:`, {
-            rawValue,
-            parsedValue: value,
-            inputMin: event.target.min,
-            inputMax: event.target.max,
-            inputStep: event.target.step,
-            configMin: this._controlConfig.min,
-            configMax: this._controlConfig.max
-        });
-
+        const value = parseFloat(event.target.value);
         this._sliderValue = value;
 
         // Update visuals immediately
@@ -1897,17 +1837,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     async _handleSliderChange(event) {
-        const rawValue = event.target.value;
-        const value = parseFloat(rawValue);
-
-        lcardsLog.debug(`[LCARdSSlider] Change event (will send to HA):`, {
-            rawValue,
-            parsedValue: value,
-            inputMin: event.target.min,
-            inputMax: event.target.max,
-            domain: this._domain,
-            entity: this.config.entity
-        });
+        const value = parseFloat(event.target.value);
 
         // Call appropriate service based on entity domain
         await this._setEntityValue(value);
@@ -1930,13 +1860,6 @@ export class LCARdSSlider extends LCARdSButton {
                 // The slider value represents a percentage (e.g., min=10, max=50 means 10%-50% brightness)
                 // Convert the percentage directly to 0-255 range
                 const brightness = Math.round((value / 100) * 255);
-
-                lcardsLog.debug(`[LCARdSSlider] Light brightness calculation:`, {
-                    sliderValue: value,
-                    percentBrightness: value,
-                    brightness,
-                    formula: `(${value} / 100) * 255 = ${brightness}`
-                });
 
                 await this.hass.callService('light', 'turn_on', {
                     entity_id: entityId,
@@ -2167,17 +2090,6 @@ export class LCARdSSlider extends LCARdSButton {
             scaledBounds.x = controlBounds.x * scaleX;
             scaledBounds.y = (controlBounds.y * scaleY) + (trackHeight * (1 - controlEndPercent));
         }
-
-        // Debug log render values
-        lcardsLog.debug(`[LCARdSSlider] render() - Control positioning:`, {
-            controlMin,
-            controlMax,
-            visualMin,
-            visualMax,
-            controlStartPercent,
-            controlWidthPercent,
-            scaledBounds
-        });
 
         return html`
             <div class="slider-container">

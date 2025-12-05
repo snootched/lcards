@@ -139,7 +139,6 @@ const sliderPicardVerticalSvg = `<?xml version="1.0" encoding="UTF-8"?>
  * @type {Object.<string, {svg: string, orientation: string, features: string[]}>}
  */
 export const sliderComponents = {
-    // === PRIMARY COMPONENTS ===
     // Simple base templates - borders added via style.border config
     'horizontal': {
         svg: sliderHorizontalSvg,
@@ -152,32 +151,8 @@ export const sliderComponents = {
         features: []
     },
 
-    // === DECORATIVE VARIANTS ===
     // Complex LCARS-styled components with decorative elbows/borders in SVG
     'picard': {
-        svg: sliderPicardVerticalSvg,
-        orientation: 'vertical',
-        features: ['decorative-borders', 'segmented-elbows', 'text-zone']
-    },
-
-    // === LEGACY ALIASES ===
-    // Maintained for backward compatibility with existing configs
-    'slider-horizontal': {
-        svg: sliderHorizontalSvg,
-        orientation: 'horizontal',
-        features: []
-    },
-    'slider-vertical': {
-        svg: sliderVerticalSvg,
-        orientation: 'vertical',
-        features: []
-    },
-    'gauge-horizontal': {
-        svg: sliderHorizontalSvg,  // Now just an alias - track style controlled by config
-        orientation: 'horizontal',
-        features: []
-    },
-    'picard-vertical': {
         svg: sliderPicardVerticalSvg,
         orientation: 'vertical',
         features: ['decorative-borders', 'segmented-elbows', 'text-zone']

@@ -89,10 +89,12 @@ Learn how to configure every aspect of LCARdS.
 
 | Card Type | Description | Guide |
 |-----------|-------------|-------|
-| 🔘 **[Simple Button](configuration/simple-button-card.md)** | SVG-based button card | Entity binding, state-aware styling, computed tokens |
+| 🔘 **[Simple Button](configuration/cards/simple-button.md)** | SVG-based button card | Entity binding, state-aware styling, computed tokens |
+| 🎚️ **[Slider](configuration/cards/slider.md)** | Interactive sliders & gauges | Pills/ruler styles, lights/covers/fans, sensors |
 
 **Testing Guides:**
 - **[Simple Button Testing](testing/simple-button-testing.md)** - 20 systematic tests with configs
+- **[Slider Testing](testing/slider-card-test-plan.md)** - Comprehensive test plan for pills/gauge modes
 
 ### Overlay System
 
