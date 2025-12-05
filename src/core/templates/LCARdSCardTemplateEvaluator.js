@@ -199,10 +199,14 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     return content.replace(tokenRegex, (match, token) => {
       try {
         const value = this._resolveToken(token.trim());
-        return value !== null && value !== undefined ? String(value) : '';
+        // Handle null/undefined/empty string - return empty string for clean UI
+        if (value === null || value === undefined || value === '') {
+          return '';
+        }
+        return String(value);
       } catch (error) {
         lcardsLog.warn('[LCARdSCardTemplateEvaluator] Token resolution failed:', error);
-        return match; // Return original if resolution fails
+        return ''; // Return empty string on error instead of original template
       }
     });
   }
@@ -273,6 +277,12 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
         return null;
       }
       current = current[part];
+    }
+
+    // Explicitly handle null values - return empty string instead of null
+    // This prevents "null" text from appearing in the UI
+    if (current === null || current === undefined) {
+      return '';
     }
 
     return current;

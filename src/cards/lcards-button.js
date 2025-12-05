@@ -2312,6 +2312,11 @@ export class LCARdSButton extends LCARdSCard {
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
 
+        // Initialize storage for processed templates (survives config replacement)
+        if (!this._processedTemplates) {
+            this._processedTemplates = {};
+        }
+
         // Ensure this.config.text exists
         if (!this.config.text) {
             this.config.text = {};
@@ -2378,9 +2383,10 @@ export class LCARdSButton extends LCARdSCard {
                     // Always process from original template, not previously processed content
                     const processedContent = await this.processTemplate(fieldConfig._originalContent);
 
-                    // Check if content actually changed
-                    if (fieldConfig.content !== processedContent) {
-                        fieldConfig.content = processedContent;
+                    // Store in _processedTemplates (survives config replacement)
+                    const previousProcessed = this._processedTemplates[fieldId];
+                    if (previousProcessed !== processedContent) {
+                        this._processedTemplates[fieldId] = processedContent;
                         hasChanges = true;
                         lcardsLog.trace(`[LCARdSButton] Template field '${fieldId}' changed:`, processedContent);
                     }
@@ -3545,11 +3551,18 @@ export class LCARdSButton extends LCARdSCard {
             // Get preset defaults if this is a known field
             const presetDefault = presetDefaults[fieldId] || {};
 
+            // Use processed template content if available (stored in _processedTemplates)
+            // This survives config replacement by CoreConfigManager
+            // Check if key EXISTS in _processedTemplates (not if value is truthy - empty string is valid!)
+            const content = this._processedTemplates && fieldId in this._processedTemplates
+                ? this._processedTemplates[fieldId]  // Use processed template value (may be empty string)
+                : (fieldConfig.content || presetFieldConfig.content || '');  // Fall back to raw config
+
             // Resolve field configuration with defaults
             // Priority: config field-specific > preset field-specific > text.default > theme default > hardcoded fallback
             resolvedFields[fieldId] = {
                 id: fieldId,
-                content: fieldConfig.content || presetFieldConfig.content || '',
+                content: content,
                 position: fieldConfig.position || presetFieldConfig.position || presetDefault.position || null,
                 x: fieldConfig.x !== undefined ? fieldConfig.x : (presetFieldConfig.x !== undefined ? presetFieldConfig.x : null),
                 y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),

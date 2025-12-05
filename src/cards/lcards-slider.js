@@ -838,6 +838,7 @@ export class LCARdSSlider extends LCARdSButton {
     /**
      * Override button's text area calculation to support slider-specific areas
      * Provides text positioning in border caps (left/top/right/bottom) and track area
+     * Includes adjacent borders when they form a continuous visual border
      * @param {number} sliderWidth - Slider width
      * @param {number} sliderHeight - Slider height
      * @param {Object} iconConfig - Icon configuration (unused for slider)
@@ -847,7 +848,6 @@ export class LCARdSSlider extends LCARdSButton {
     _calculateTextAreaBounds(sliderWidth, sliderHeight, iconConfig) {
         // Get border configuration
         const borderConfig = this._sliderStyle?.border;
-        const textConfig = this._sliderStyle?.text;
 
         // Calculate border offsets
         const borderOffsets = {
@@ -858,24 +858,24 @@ export class LCARdSSlider extends LCARdSButton {
         };
 
         // Determine text area from config (default: 'auto' uses largest border)
-        const textArea = textConfig?.area || 'auto';
+        const textArea = this.config?.text?.area || 'auto';
 
         // Auto-select: use left border if available, else top, else track
         if (textArea === 'auto') {
             if (borderOffsets.left > 0) {
-                // Left border cap
+                // Left border cap - INCLUDE adjacent top/bottom borders for continuous visual area
                 return {
                     left: 0,
-                    top: borderOffsets.top,
+                    top: 0,  // Include top border if present
                     width: borderOffsets.left,
-                    height: sliderHeight - borderOffsets.top - borderOffsets.bottom
+                    height: sliderHeight  // Full height including top and bottom borders
                 };
             } else if (borderOffsets.top > 0) {
-                // Top border cap
+                // Top border cap - INCLUDE adjacent left/right borders
                 return {
-                    left: borderOffsets.left,
+                    left: 0,  // Include left border if present
                     top: 0,
-                    width: sliderWidth - borderOffsets.left - borderOffsets.right,
+                    width: sliderWidth,  // Full width including left and right borders
                     height: borderOffsets.top
                 };
             } else {
@@ -890,33 +890,33 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        // Explicit area selection
+        // Explicit area selection - INCLUDE adjacent borders for continuous visual area
         if (textArea === 'left' && borderOffsets.left > 0) {
             return {
                 left: 0,
-                top: borderOffsets.top,
+                top: 0,  // Include top border
                 width: borderOffsets.left,
-                height: sliderHeight - borderOffsets.top - borderOffsets.bottom
+                height: sliderHeight  // Include bottom border
             };
         } else if (textArea === 'top' && borderOffsets.top > 0) {
             return {
-                left: borderOffsets.left,
+                left: 0,  // Include left border
                 top: 0,
-                width: sliderWidth - borderOffsets.left - borderOffsets.right,
+                width: sliderWidth,  // Include right border
                 height: borderOffsets.top
             };
         } else if (textArea === 'right' && borderOffsets.right > 0) {
             return {
                 left: sliderWidth - borderOffsets.right,
-                top: borderOffsets.top,
+                top: 0,  // Include top border
                 width: borderOffsets.right,
-                height: sliderHeight - borderOffsets.top - borderOffsets.bottom
+                height: sliderHeight  // Include bottom border
             };
         } else if (textArea === 'bottom' && borderOffsets.bottom > 0) {
             return {
-                left: borderOffsets.left,
+                left: 0,  // Include left border
                 top: sliderHeight - borderOffsets.bottom,
-                width: sliderWidth - borderOffsets.left - borderOffsets.right,
+                width: sliderWidth,  // Include right border
                 height: borderOffsets.bottom
             };
         } else if (textArea === 'track') {
@@ -949,8 +949,18 @@ export class LCARdSSlider extends LCARdSButton {
     _injectTextFields(width, height) {
         if (!this._componentSvg) return;
 
-        const textConfig = this._sliderStyle?.text;
-        if (!textConfig || !textConfig.fields) return;
+        // Use button's _resolveTextConfiguration() to get processed templates
+        // This reads from this.config.text which has been modified by _processCustomTemplates
+        const textFields = this._resolveTextConfiguration();
+        if (!textFields || Object.keys(textFields).length === 0) return;
+
+        // Get text area from config (slider-specific property)
+        const textArea = this.config.text?.area || 'auto';
+
+        lcardsLog.debug(`[LCARdSSlider] _injectTextFields - textFields:`, textFields);
+        lcardsLog.debug(`[LCARdSSlider] _injectTextFields - label content from textFields:`, textFields.label?.content);
+        lcardsLog.debug(`[LCARdSSlider] _injectTextFields - label content from this.config.text:`, this.config.text?.label?.content);
+        lcardsLog.debug(`[LCARdSSlider] _injectTextFields - label has _originalContent:`, this.config.text?.label?._originalContent);
 
         // Find or create text-zone group
         let textZone = this._componentSvg.querySelector('#text-zone');
@@ -970,32 +980,10 @@ export class LCARdSSlider extends LCARdSButton {
         // Clear existing text
         textZone.innerHTML = '';
 
-        // Resolve text configuration to button's internal format
-        // Convert slider text format to button's expected format (with 'content', 'show', etc.)
-        const resolvedFields = {};
-        for (const [fieldId, field] of Object.entries(textConfig.fields)) {
-            if (typeof field !== 'object') continue;
-
-            resolvedFields[fieldId] = {
-                content: field.text || '',  // Button expects 'content', not 'text'
-                show: true,  // Always show (slider doesn't have conditional display)
-                position: field.position || 'center',
-                x: field.x ?? null,  // Explicit null if not provided (button checks !== null)
-                y: field.y ?? null,
-                x_percent: field.x_percent ?? null,
-                y_percent: field.y_percent ?? null,
-                color: field.color,
-                size: field.size,
-                padding: field.padding,
-                anchor: field.anchor ?? null,  // Explicit null allows position-based calculation
-                baseline: field.baseline ?? null
-            };
-        }
-
-        lcardsLog.debug(`[LCARdSSlider] Resolved ${Object.keys(resolvedFields).length} text fields:`, resolvedFields);
+        lcardsLog.debug(`[LCARdSSlider] Resolved ${Object.keys(textFields).length} text fields:`, textFields);
 
         // Process text fields using button's system
-        const processedFields = this._processTextFields(resolvedFields, width, height, null);
+        const processedFields = this._processTextFields(textFields, width, height, null);
 
         lcardsLog.debug(`[LCARdSSlider] Processed ${processedFields.length} text fields:`, processedFields);
 
