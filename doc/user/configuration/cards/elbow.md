@@ -642,7 +642,7 @@ The Elbow Button inherits **all features** from LCARdS Button:
 - ✅ **State colors** - Active/inactive/unavailable
 - ✅ **Presets** - Style preset system
 
-See [LCARdS Button Quick Reference](button-quick-reference.md) for details.
+See [LCARdS Button Quick Reference](button.md) for details.
 
 ---
 
@@ -743,9 +743,9 @@ hold_action:
 
 ## Related Documentation
 
-- [LCARdS Button Quick Reference](button-quick-reference.md) - Parent card features
-- [Animation Presets](../reference/animation-presets.md) - Animation configuration
-- [Component Presets](../reference/component-presets.md) - Preset system
+- [LCARdS Button Quick Reference](button.md) - Parent card features
+- [Animation Presets](../../reference/animation-presets.md) - Animation configuration
+- [Component Presets](../../reference/component-presets.md) - Preset system
 
 ---
 

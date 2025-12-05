@@ -1,8 +1,144 @@
-# LCARdS Slider Card
+# LCARdS Slider Card - Quick Reference
 
-**Interactive slider and gauge display card for controlling and monitoring entity values.**
+**Component:** `custom:lcards-slider`
+**Extends:** `custom:lcards-button`
+**Purpose:** Interactive sliders and gauge displays for controlling and monitoring entity values
 
-The slider card provides both interactive controls (for lights, covers, fans, etc.) and read-only gauge displays (for sensors) with two distinct visual styles: segmented pills or gauge rulers with tick marks.
+---
+
+## Overview
+
+The Slider card provides both interactive controls (for lights, covers, fans, etc.) and read-only gauge displays (for sensors) with two distinct visual styles:
+- **Pills** - Segmented bar style with interpolated colors
+- **Gauge** - Ruler style with tick marks and progress bar
+
+Automatically configures itself based on entity domain, separating visual style from interactivity for maximum flexibility.
+
+---
+
+## Complete Schema
+
+```yaml
+type: custom:lcards-slider
+entity: <entity_id>           # Required: Entity to control/display
+
+# Component (required)
+component: horizontal | vertical | picard
+
+# Control Configuration
+control:
+  min: <number>               # Minimum value (default: 0 or entity min)
+  max: <number>               # Maximum value (default: 100 or entity max)
+  step: <number>              # Step increment (default: 1 or entity step)
+  attribute: <string>         # Entity attribute to control (auto-detected by domain)
+  locked: <boolean>           # Disable interaction (default: auto-set by domain)
+
+# Style Configuration
+style:
+  # Track Visual Style
+  track:
+    type: pills | gauge       # Visual style (auto-detected by domain)
+    orientation: horizontal | vertical  # Auto-detected from component
+    margin: <number> | object # Margin around track zone (px)
+
+    # Pills Configuration (when type: pills)
+    segments:
+      count: <number>         # Number of pills (undefined = auto-calculate)
+      gap: <number>           # Gap between pills in px (default: 4)
+      shape:
+        radius: <number>      # Border radius in px (default: 4)
+      size:
+        height: <number>      # Pill height in px (default: 12)
+        width: <number>       # Pill width in px (auto-calculated)
+      gradient:
+        interpolated: <boolean>  # Always true for pills
+        start: <color>        # Start color (left/bottom)
+        end: <color>          # End color (right/top)
+      appearance:
+        unfilled:
+          opacity: <number>   # Unfilled opacity (default: 0.2)
+        filled:
+          opacity: <number>   # Filled opacity (default: 1.0)
+
+  # Gauge Configuration (when type: gauge)
+  gauge:
+    progress_bar:
+      color: <color>          # Progress fill color
+      height: <number>        # Bar height in px (default: 12)
+      radius: <number>        # Border radius in px (default: 2)
+    scale:
+      tick_marks:
+        major:
+          enabled: <boolean>  # Show major ticks (default: true)
+          interval: <number>  # Value interval (default: 10)
+          color: <color>      # Tick color
+          height: <number>    # Tick height in px (default: 15)
+          width: <number>     # Tick width in px (default: 2)
+        minor:
+          enabled: <boolean>  # Show minor ticks (default: true)
+          interval: <number>  # Value interval (default: 2)
+          color: <color>      # Tick color
+          height: <number>    # Tick height in px (default: 10)
+          width: <number>     # Tick width in px (default: 1)
+      labels:
+        enabled: <boolean>    # Show labels (default: true)
+        unit: <string>        # Unit suffix (default: '' or entity unit)
+        color: <color>        # Label color
+        font_size: <number>   # Font size (default: 14)
+        padding: <number>     # Tick-label spacing (default: 3)
+    indicator:
+      enabled: <boolean>      # Show indicator (default: false)
+      type: line | thumb      # Indicator type (default: line)
+      color: <color>          # Indicator color
+      size:
+        width: <number>       # Indicator width (default: 4)
+        height: <number>      # Indicator height (default: 25)
+      border:
+        color: <color>        # Border color
+        width: <number>       # Border width (default: 1)
+
+  # CSS Borders (simple frame)
+  border:
+    left:
+      size: <number>          # Border width in px
+      color: <color>          # CSS color or variable
+    top:
+      size: <number>
+      color: <color>
+    right:
+      size: <number>
+      color: <color>
+    bottom:
+      size: <number>
+      color: <color>
+
+  # Text Fields (inherited from LCARdS Button)
+  text:
+    fields:
+      <field-id>:
+        content: <string>     # Text content (supports templates)
+        area: left | top | right | bottom | track  # Text area placement
+        position: <position-name>  # Position keyword
+        color: <color>        # Text color (default: var(--lcars-white))
+        font_size: <number>   # Font size (default: 14)
+        # ... (all LCARdS Button text options)
+
+# Actions (inherited from LCARdS Button)
+tap_action: <action>
+hold_action: <action>
+double_tap_action: <action>
+
+# Animations (inherited from LCARdS Button)
+animations: <animation_config>
+
+# Rules (inherited from LCARdS Button)
+rules: <rules_config>
+
+# Layout
+grid_options:
+  rows: <number>              # Grid rows for HA layout
+  columns: <number>           # Grid columns for HA layout
+```
 
 ---
 
@@ -20,9 +156,6 @@ component: horizontal
 type: custom:lcards-slider
 entity: sensor.temperature
 component: horizontal
-style:
-  track:
-    type: gauge  # Visual style: gauge ruler with ticks
 ```
 
 ### Bordered Slider with Text
@@ -52,9 +185,21 @@ style:
 
 ---
 
-## Core Concepts
+## Components
 
-### Visual Styles vs Interactivity
+Available slider components:
+
+| Component | Orientation | Description |
+|-----------|-------------|-------------|
+| `horizontal` | Horizontal | Simple horizontal track |
+| `vertical` | Vertical | Simple vertical track |
+| `picard` | Vertical | Decorative segmented elbows (TNG style) |
+
+**Note:** Component determines **orientation only**. Visual style (pills vs gauge) is controlled by `style.track.type`.
+
+---
+
+## Visual Styles vs Interactivity
 
 The slider card separates **visual style** from **interactivity**:
 
@@ -68,7 +213,9 @@ The slider card separates **visual style** from **interactivity**:
 - **Interactive Gauge:** Light slider with gauge ruler visual (set `style.track.type: gauge`)
 - **Read-only Gauge:** Sensor display with gauge ruler (auto-locked for sensors)
 
-### Automatic Behavior
+---
+
+## Automatic Behavior
 
 The card automatically configures itself based on entity domain:
 
@@ -85,54 +232,37 @@ All defaults can be overridden via configuration.
 
 ---
 
-## Configuration Reference
-
-### Base Properties
-
-```yaml
-type: custom:lcards-slider
-entity: string                  # Required. Entity ID to control/display
-component: string              # Required. Component name (horizontal, vertical, picard)
-```
-
-### Components
-
-Available slider components:
-
-| Component | Orientation | Description | Use Case |
-|-----------|-------------|-------------|----------|
-| `horizontal` | Horizontal | Simple horizontal track | General purpose sliders |
-| `vertical` | Vertical | Simple vertical track | Tall vertical controls |
-| `picard` | Vertical | Decorative segmented elbows (TNG style) | Complex LCARS aesthetic |
-
-**Note:** Component determines **orientation only**. Visual style (pills vs gauge) is controlled by `style.track.type`.
-
----
-
-### Control Configuration
+## Control Configuration
 
 Configure how the slider interacts with entities:
 
 ```yaml
 control:
-  min: number              # Minimum value (default: 0 or entity's min attribute)
-  max: number              # Maximum value (default: 100 or entity's max attribute)
-  step: number             # Step increment (default: 1 or entity's step attribute)
-  attribute: string        # Entity attribute to control (auto-detected by domain)
-  locked: boolean          # Disable interaction (default: auto-set by domain)
+  min: <number>               # Minimum value
+  max: <number>               # Maximum value
+  step: <number>              # Step increment
+  attribute: <string>         # Entity attribute to control
+  locked: <boolean>           # Disable interaction
 ```
 
-#### Examples
+### Custom Range for Light
 
-**Custom Range for Light:**
 ```yaml
+entity: light.bedroom
 control:
   min: 10      # Minimum brightness 10%
   max: 50      # Maximum brightness 50%
   step: 2      # Increment by 2%
 ```
 
-**Control Cover Position:**
+**How it works:**
+- Visual track: Full width (0-100% positions)
+- Control input: Sized to 40% width, positioned at 10% offset
+- Pill fill: Based on visual position (value 30 = 30% fill)
+- Brightness: Direct percentage conversion (value 30 = 30% = 76/255)
+
+### Control Cover Position
+
 ```yaml
 entity: cover.blinds
 control:
@@ -141,7 +271,8 @@ control:
   max: 100
 ```
 
-**Read-only Display:**
+### Read-only Display
+
 ```yaml
 control:
   locked: true  # Prevent user interaction
@@ -149,41 +280,7 @@ control:
 
 ---
 
-### Track Visual Style
-
-Choose between pills (segmented bar) or gauge (ruler) visual style:
-
-```yaml
-style:
-  track:
-    type: string           # 'pills' or 'gauge'
-    orientation: string    # 'horizontal' or 'vertical' (auto-detected from component)
-    margin: number | object  # Margin around track (px)
-```
-
-#### Margin Configuration
-
-Single value (all sides):
-```yaml
-style:
-  track:
-    margin: 10  # 10px on all sides
-```
-
-Per-side values:
-```yaml
-style:
-  track:
-    margin:
-      top: 10
-      right: 5
-      bottom: 10
-      left: 5
-```
-
----
-
-### Pills Style (Segmented Bar)
+## Pills Style (Segmented Bar)
 
 Configure appearance of segmented pills:
 
@@ -192,55 +289,53 @@ style:
   track:
     type: pills
     segments:
-      count: number        # Number of pills (undefined = auto-calculate)
-      gap: number          # Gap between pills in px (default: 4)
+      count: <number>         # Number of pills (undefined = auto-calculate)
+      gap: <number>           # Gap between pills in px (default: 4)
       shape:
-        radius: number     # Border radius in px (default: 4)
+        radius: <number>      # Border radius in px (default: 4)
       size:
-        height: number     # Pill height in px (default: 12)
-        width: number      # Pill width in px (auto-calculated)
+        height: <number>      # Pill height in px (default: 12)
+        width: <number>       # Pill width in px (auto-calculated)
       gradient:
-        interpolated: boolean  # Always true for pills (each pill gets unique color)
-        start: string      # Start color (CSS color or variable)
-        end: string        # End color (CSS color or variable)
+        start: <color>        # Start color (CSS color or variable)
+        end: <color>          # End color (CSS color or variable)
       appearance:
         unfilled:
-          opacity: number  # Opacity for unfilled pills (default: 0.2)
+          opacity: <number>   # Opacity for unfilled pills (default: 0.2)
         filled:
-          opacity: number  # Opacity for filled pills (default: 1.0)
+          opacity: <number>   # Opacity for filled pills (default: 1.0)
 ```
 
-#### Pill Count Behavior
+### Pill Count Behavior
 
 **Auto-sizing (recommended):**
 ```yaml
 style:
   track:
     segments:
-      count: undefined  # Omit to auto-calculate based on container size
+      count: undefined        # Omit to auto-calculate
       size:
-        width: 12       # Fixed pill width
+        width: 12             # Fixed pill width
         height: 12
       gap: 4
+# Card calculates: count = floor((trackWidth + gap) / (width + gap))
+# Pills scale automatically when grid size changes
 ```
-- Card calculates: `count = floor((trackWidth + gap) / (width + gap))`
-- Pills scale automatically when grid size changes
-- Maintains consistent pill dimensions
 
 **Fixed count:**
 ```yaml
 style:
   track:
     segments:
-      count: 20  # Always 20 pills
+      count: 20               # Always 20 pills
       gap: 4
+# Pill width auto-calculated to fill available space
+# Pill dimensions change when grid size changes
 ```
-- Pill width auto-calculated to fill available space
-- Pill dimensions change when grid size changes
 
-#### Gradient Interpolation
+### Gradient Interpolation
 
-Pills **always** use interpolated colors. Each pill receives a unique solid color calculated from the gradient range:
+Pills **always** use interpolated colors. Each pill receives a unique solid color:
 
 ```yaml
 style:
@@ -248,20 +343,17 @@ style:
     segments:
       count: 12
       gradient:
-        start: '#FF0000'  # Red
-        end: '#00FF00'    # Green
+        start: '#FF0000'      # Red (left/bottom)
+        end: '#00FF00'        # Green (right/top)
 ```
 
-Result:
+**Result:**
 - Pill 1: Pure red (#FF0000)
-- Pill 2: Red-orange
 - Pill 6: Yellow
-- Pill 11: Yellow-green
 - Pill 12: Pure green (#00FF00)
+- Each pill is a **solid color** (not gradient within pill)
 
-Each pill is a **solid color** (not a gradient within the pill). Gaps between pills show the color steps.
-
-#### Examples
+### Examples
 
 **High-density Pills:**
 ```yaml
@@ -288,12 +380,22 @@ style:
         end: 'var(--lcars-orange)'
       appearance:
         unfilled:
-          opacity: 0.1   # Nearly invisible when unfilled
+          opacity: 0.1        # Nearly invisible
+```
+
+**Solid Color (Same Start/End):**
+```yaml
+style:
+  track:
+    segments:
+      gradient:
+        start: 'var(--lcars-orange)'
+        end: 'var(--lcars-orange)'
 ```
 
 ---
 
-### Gauge Style (Ruler with Ticks)
+## Gauge Style (Ruler with Ticks)
 
 Configure gauge ruler appearance:
 
@@ -303,42 +405,42 @@ style:
     type: gauge
   gauge:
     progress_bar:
-      color: string      # Progress fill color (default: var(--picard-lightest-blue))
-      height: number     # Bar height in px (default: 12)
-      radius: number     # Border radius in px (default: 2)
+      color: <color>
+      height: <number>
+      radius: <number>
     scale:
       tick_marks:
         major:
-          enabled: boolean     # Show major ticks (default: true)
-          interval: number     # Value interval for major ticks (default: 10)
-          color: string        # Tick color (default: var(--lcars-card-button))
-          height: number       # Tick height in px (default: 15)
-          width: number        # Tick width in px (default: 2)
+          enabled: <boolean>
+          interval: <number>  # Value units (not pixels)
+          color: <color>
+          height: <number>
+          width: <number>
         minor:
-          enabled: boolean     # Show minor ticks (default: true)
-          interval: number     # Value interval for minor ticks (default: 2)
-          color: string        # Tick color (default: var(--lcars-card-button))
-          height: number       # Tick height in px (default: 10)
-          width: number        # Tick width in px (default: 1)
+          enabled: <boolean>
+          interval: <number>
+          color: <color>
+          height: <number>
+          width: <number>
       labels:
-        enabled: boolean       # Show value labels (default: true)
-        unit: string          # Unit suffix (default: '' or entity's unit_of_measurement)
-        color: string         # Label color (default: var(--lcars-card-button))
-        font_size: number     # Font size in px (default: 14)
-        padding: number       # Space between tick and label in px (default: 3)
+        enabled: <boolean>
+        unit: <string>        # Suffix for labels
+        color: <color>
+        font_size: <number>
+        padding: <number>
     indicator:
-      enabled: boolean        # Show indicator line/thumb (default: false)
-      type: string           # 'line' or 'thumb' (default: line)
-      color: string          # Indicator color (default: var(--lcars-white))
+      enabled: <boolean>
+      type: line | thumb
+      color: <color>
       size:
-        width: number        # Indicator width in px (default: 4)
-        height: number       # Indicator height in px (default: 25)
+        width: <number>
+        height: <number>
       border:
-        color: string        # Border color (default: var(--lcars-black))
-        width: number        # Border width in px (default: 1)
+        color: <color>
+        width: <number>
 ```
 
-#### Tick Mark Intervals
+### Tick Mark Intervals
 
 Intervals are in **value units** (not pixels):
 
@@ -351,9 +453,9 @@ style:
     scale:
       tick_marks:
         major:
-          interval: 20  # Ticks at 0, 20, 40, 60, 80, 100
+          interval: 20        # Ticks at 0, 20, 40, 60, 80, 100
         minor:
-          interval: 5   # Ticks at 0, 5, 10, 15, 20, 25...
+          interval: 5         # Ticks at 0, 5, 10, 15, 20, 25...
 ```
 
 For temperature sensor with custom range:
@@ -366,10 +468,10 @@ style:
     scale:
       tick_marks:
         major:
-          interval: 20  # Ticks at -20, 0, 20, 40, 60, 80, 100, 120
+          interval: 20        # Ticks at -20, 0, 20, 40, 60, 80, 100, 120
 ```
 
-#### Examples
+### Examples
 
 **Minimal Gauge (No Ticks):**
 ```yaml
@@ -402,7 +504,7 @@ style:
         minor:
           interval: 2
       labels:
-        unit: '°C'  # Will show as "20°C", "30°C", etc.
+        unit: '°C'            # Shows as "20°C", "30°C", etc.
 ```
 
 **Gauge with Line Indicator:**
@@ -420,32 +522,32 @@ style:
 
 ---
 
-### CSS Borders
+## CSS Borders
 
-Add simple CSS borders around the slider (uses standard CSS border properties):
+Add simple CSS borders around the slider:
 
 ```yaml
 style:
   border:
     left:
-      size: number       # Border width/size in px
-      color: string      # Border color (CSS color or variable)
+      size: <number>          # Border width in px
+      color: <color>          # CSS color or variable
     top:
-      size: number
-      color: string
+      size: <number>
+      color: <color>
     right:
-      size: number
-      color: string
+      size: <number>
+      color: <color>
     bottom:
-      size: number
-      color: string
+      size: <number>
+      color: <color>
 ```
 
 **Note:** Use `size` (recommended) or `width` (legacy) for border dimensions.
 
-#### Border + Track Layout
+### Border Layout
 
-Borders are applied as CSS borders on the container. Track content injects into the remaining space:
+Borders are applied as CSS borders on the container. Track content injects into remaining space:
 
 ```
 ┌─────────────────────────────────┐
@@ -465,7 +567,7 @@ Borders are applied as CSS borders on the container. Track content injects into 
 └────┴────────────────────────────┘
 ```
 
-#### Examples
+### Examples
 
 **L-shaped Border (LCARS Style):**
 ```yaml
@@ -499,54 +601,55 @@ style:
 
 ---
 
-### Text Fields
+## Text Fields
 
-The slider card inherits the text field system from LCARdSButton, providing consistent text rendering across all card types.
+The slider card inherits the text field system from LCARdS Button.
 
 ```yaml
 style:
   text:
     fields:
-      field_name:           # Custom field name
-        content: string     # Text content (supports templates)
-        area: string        # Text area: 'left', 'top', 'right', 'bottom', 'track'
-        position: string    # Position within area (see below)
-        color: string       # Text color (default: var(--lcars-white))
-        font_size: number   # Font size in px (default: 14)
+      <field-id>:             # Custom field name
+        content: <string>     # Text content (supports templates)
+        area: <string>        # Text area: left, top, right, bottom, track
+        position: <string>    # Position within area
+        color: <color>        # Text color (default: var(--lcars-white))
+        font_size: <number>   # Font size (default: 14)
 ```
 
-#### Text Areas
-
-Text fields can be positioned in different areas based on your component and borders:
+### Text Areas
 
 | Area | Description | Available When |
 |------|-------------|----------------|
-| `left` | Left border area | `border.left` is configured |
-| `top` | Top border area | `border.top` is configured |
-| `right` | Right border area | `border.right` is configured |
-| `bottom` | Bottom border area | `border.bottom` is configured |
+| `left` | Left border area | `border.left` configured |
+| `top` | Top border area | `border.top` configured |
+| `right` | Right border area | `border.right` configured |
+| `bottom` | Bottom border area | `border.bottom` configured |
 | `track` | Track zone (over pills/gauge) | Always available |
 
-#### Position Values
+### Position Values
 
 Standard position keywords:
 - `top-left`, `top-center`, `top-right`
 - `center-left`, `center`, `center-right`
 - `bottom-left`, `bottom-center`, `bottom-right`
 
-#### Template Support
+### Template Support
 
-Text fields support entity templates:
+```yaml
+text:
+  fields:
+    label:
+      content: "{entity.attributes.friendly_name}"
+    state:
+      content: "{entity.state}"
+    brightness:
+      content: "{entity.attributes.brightness}"
+```
 
-| Template | Description | Example |
-|----------|-------------|---------|
-| `{entity.state}` | Entity state | `"on"`, `"25.3"` |
-| `{entity.attributes.X}` | Entity attribute | `{entity.attributes.friendly_name}` → `"Bedroom Light"` |
-| `{entity.attributes.brightness}` | Specific attribute | `"128"` (raw brightness value) |
+**Null Handling:** If a template resolves to `null` or `undefined`, it displays as an empty string.
 
-**Null Handling:** If a template resolves to `null` or `undefined`, it displays as an empty string (blank).
-
-#### Examples
+### Examples
 
 **Border Label Text:**
 ```yaml
@@ -584,14 +687,13 @@ style:
         area: track
         position: center
         font_size: 18
-        color: var(--lcars-white)
 ```
 
 ---
 
 ## Complete Examples
 
-### 1. Classic LCARS Light Control
+### Example 1: Classic LCARS Light Control
 
 ```yaml
 type: custom:lcards-slider
@@ -628,9 +730,11 @@ style:
         area: left
         position: center
         color: var(--lcars-blue)
+tap_action:
+  action: toggle
 ```
 
-### 2. Vertical Temperature Gauge
+### Example 2: Vertical Temperature Gauge
 
 ```yaml
 type: custom:lcards-slider
@@ -661,7 +765,7 @@ control:
   locked: true
 ```
 
-### 3. Minimal Cover Control
+### Example 3: Minimal Cover Control
 
 ```yaml
 type: custom:lcards-slider
@@ -680,9 +784,11 @@ control:
   attribute: current_position
   min: 0
   max: 100
+tap_action:
+  action: toggle
 ```
 
-### 4. High-Density Pill Slider
+### Example 4: High-Density Pill Slider
 
 ```yaml
 type: custom:lcards-slider
@@ -695,9 +801,8 @@ style:
   track:
     type: pills
     segments:
-      # Auto-size with fixed width
       size:
-        width: 8
+        width: 8              # Fixed width for auto-sizing
         height: 10
       gap: 2
       shape:
@@ -705,9 +810,11 @@ style:
       gradient:
         start: '#FF0000'
         end: '#00FF00'
+tap_action:
+  action: toggle
 ```
 
-### 5. Interactive Gauge (Ruler Style, Still Controllable)
+### Example 5: Interactive Gauge (Controllable Ruler)
 
 ```yaml
 type: custom:lcards-slider
@@ -715,26 +822,28 @@ entity: light.bedroom
 component: horizontal
 style:
   track:
-    type: gauge  # Visual style: gauge ruler
+    type: gauge               # Visual style: gauge ruler
   gauge:
     scale:
       tick_marks:
         major:
           interval: 20
 control:
-  locked: false  # Explicitly enable interaction (auto-detected for lights)
+  locked: false               # Explicitly enable interaction
+tap_action:
+  action: toggle
 ```
 
-### 6. Custom Range Light Control
+### Example 6: Custom Range Light Control
 
 ```yaml
 type: custom:lcards-slider
 entity: light.mood_lighting
 component: horizontal
 control:
-  min: 10      # Won't go below 10% brightness
-  max: 50      # Won't go above 50% brightness
-  step: 2      # Changes in 2% increments
+  min: 10                     # Won't go below 10%
+  max: 50                     # Won't go above 50%
+  step: 2                     # Changes in 2% increments
 style:
   track:
     type: pills
@@ -743,6 +852,8 @@ style:
       gradient:
         start: var(--lcars-orange)
         end: var(--lcars-orange)  # Solid color
+tap_action:
+  action: toggle
 ```
 
 ---
@@ -758,18 +869,19 @@ style:
 - Range: 0-100 (percentage scale)
 
 **Brightness Conversion:**
-The slider operates in percentage space (0-100%) regardless of control min/max. The card automatically converts:
-- **Reading:** Home Assistant brightness (0-255) → Slider value (0-100%)
-- **Writing:** Slider value (0-100%) → Home Assistant brightness (0-255)
+The slider operates in percentage space (0-100%) regardless of control min/max.
+- **Reading:** HA brightness (0-255) → Slider value (0-100%)
+- **Writing:** Slider value (0-100%) → HA brightness (0-255)
 
 **Custom Range:**
 ```yaml
 control:
-  min: 10  # Slider constrained to 10-50%
-  max: 50  # Light will receive 10%-50% brightness
+  min: 10
+  max: 50
+# Slider constrained to 10-50%
+# Pills fill based on position in full visual range
+# Light receives 10%-50% brightness
 ```
-- Input range limited to 10-50 within 0-100 visual track
-- Pills fill based on position in full visual range (10 = 10% fill, 50 = 50% fill)
 
 ### Covers (`cover.*`)
 
@@ -793,7 +905,7 @@ control:
 - Visual style: `pills`
 - Locked: `false`
 - Attribute: (uses state)
-- Range: Inherits from entity attributes or 0-100
+- Range: Inherits from entity or 0-100
 
 ### Numbers (`number.*`)
 
@@ -811,13 +923,15 @@ Same as `input_number`.
 
 ## Architecture Notes
 
-### Extension of LCARdSButton
+### Extension of LCARdS Button
 
 The slider card extends `LCARdSButton` and inherits:
-- Text field system (`style.text.fields`)
-- Template processing
-- Entity binding
-- SVG border injection
+- ✅ **Text field system** - `style.text.fields`
+- ✅ **Template processing** - Entity tokens
+- ✅ **Entity binding** - State-based behavior
+- ✅ **Actions** - tap, hold, double-tap
+- ✅ **Rules** - Conditional styling
+- ✅ **Animations** - Transitions and effects
 
 This provides a consistent API across button, elbow, and slider cards.
 
@@ -835,190 +949,151 @@ This provides a consistent API across button, elbow, and slider cards.
 - Visual track: Full width (0-100% positions)
 - Control input: Sized to 40% width, positioned at 10% offset
 - Pill fill: Based on visual position (value 30 = 30% fill, not 50%)
-- Brightness: Direct percentage conversion (value 30 = 30% brightness = 76/255)
+- Brightness: Direct percentage (value 30 = 30% = 76/255)
 
 ### Memoization
 
-Track content (pills/gauge) is memoized for performance:
-- Cache key: Configuration hash (count, gap, colors, size, etc.)
-- Cache invalidation: Configuration changes, container size changes
-- Benefit: Opacity updates don't regenerate DOM (60fps smooth animation)
+Track content is memoized for performance:
+- **Cache key:** Configuration hash
+- **Invalidation:** Config or container size changes
+- **Benefit:** Opacity updates don't regenerate DOM (60fps smooth)
 
 ---
 
-## Schema Reference
+## Integration with LCARdS Button
 
-Full configuration schema:
+The Slider card inherits **all features** from LCARdS Button:
+
+- ✅ **Actions** - tap, hold, double-tap
+- ✅ **Rules** - Conditional styling based on state
+- ✅ **Animations** - Transitions and effects
+- ✅ **Templates** - Jinja2 in text content
+- ✅ **Text** - Multi-field text system
+- ✅ **State colors** - Active/inactive/unavailable
+- ✅ **Theme tokens** - CSS variables and theme paths
+
+See [LCARdS Button Quick Reference](button.md) for details.
+
+---
+
+## Common Use Cases
+
+### Dashboard Control Strip
 
 ```yaml
-type: custom:lcards-slider          # Required
-entity: string                       # Required. Entity ID
-
-# Component
-component: string                    # Required. Component name
-
-# Grid positioning (inherited from button)
+type: custom:lcards-slider
+entity: light.living_room
+component: horizontal
 grid_options:
-  rows: number
-  columns: number
-
-# Control configuration
-control:
-  min: number                       # Minimum value (default: 0 or entity min)
-  max: number                       # Maximum value (default: 100 or entity max)
-  step: number                      # Step increment (default: 1 or entity step)
-  attribute: string                 # Entity attribute (auto-detected by domain)
-  locked: boolean                   # Disable interaction (auto-set by domain)
-
-# Style configuration
+  rows: 1
+  columns: 4
 style:
-  # CSS borders (simple frame)
-  border:
-    left:
-      size: number                  # Border width in px
-      color: string                 # CSS color or variable
-    top:
-      size: number
-      color: string
-    right:
-      size: number
-      color: string
-    bottom:
-      size: number
-      color: string
-
-  # Track visual style
   track:
-    type: 'pills' | 'gauge'         # Visual style
-    orientation: 'horizontal' | 'vertical'  # Auto-detected from component
-    margin: number | object         # Margin around track zone
-
-    # Pills configuration (when type: pills)
+    type: pills
     segments:
-      count: number                 # Number of pills (undefined = auto)
-      gap: number                   # Gap in px (default: 4)
-      shape:
-        radius: number              # Border radius (default: 4)
-      size:
-        height: number              # Pill height (default: 12)
-        width: number               # Pill width (auto-calculated)
-      gradient:
-        start: string               # Start color
-        end: string                 # End color
-      appearance:
-        unfilled:
-          opacity: number           # Unfilled opacity (default: 0.2)
-        filled:
-          opacity: number           # Filled opacity (default: 1.0)
+      count: 30
+      gap: 2
+tap_action:
+  action: toggle
+```
 
-  # Gauge configuration (when type: gauge)
+### Sensor Monitoring Panel
+
+```yaml
+type: custom:lcards-slider
+entity: sensor.temperature
+component: vertical
+grid_options:
+  rows: 6
+  columns: 2
+style:
+  track:
+    type: gauge
   gauge:
-    progress_bar:
-      color: string                 # Fill color
-      height: number                # Bar height in px (default: 12)
-      radius: number                # Border radius (default: 2)
     scale:
       tick_marks:
         major:
-          enabled: boolean          # Show major ticks (default: true)
-          interval: number          # Value interval (default: 10)
-          color: string             # Tick color
-          height: number            # Tick height in px (default: 15)
-          width: number             # Tick width in px (default: 2)
-        minor:
-          enabled: boolean          # Show minor ticks (default: true)
-          interval: number          # Value interval (default: 2)
-          color: string             # Tick color
-          height: number            # Tick height in px (default: 10)
-          width: number             # Tick width in px (default: 1)
-      labels:
-        enabled: boolean            # Show labels (default: true)
-        unit: string                # Unit suffix
-        color: string               # Label color
-        font_size: number           # Font size (default: 14)
-        padding: number             # Tick-label spacing (default: 3)
-    indicator:
-      enabled: boolean              # Show indicator (default: false)
-      type: 'line' | 'thumb'        # Indicator type (default: line)
-      color: string                 # Indicator color
-      size:
-        width: number               # Indicator width (default: 4)
-        height: number              # Indicator height (default: 25)
-      border:
-        color: string               # Border color
-        width: number               # Border width (default: 1)
+          interval: 10
+control:
+  locked: true
+```
 
-  # Text fields (inherited from button)
+### Multi-Zone Control
+
+```yaml
+# Living Room
+type: custom:lcards-slider
+entity: light.living_room
+component: horizontal
+style:
+  border:
+    left:
+      size: 100
+      color: var(--lcars-orange)
   text:
     fields:
-      [field_name]:
-        content: string             # Text content (supports templates)
-        area: string                # Text area: left, top, right, bottom, track
-        position: string            # Position keyword
-        color: string               # Text color (default: var(--lcars-white))
-        font_size: number           # Font size (default: 14)
-```
+      label:
+        content: Living Room
+        area: left
 
 ---
 
-## Migration Notes
-
-### From v2.1.x to v2.2.x
-
-**Breaking Changes:**
-1. **Legacy `config.mode` deprecated** - Use `style.track.type` instead
-   - Old: `mode: slider` → New: `style.track.type: pills`
-   - Old: `mode: gauge` → New: `style.track.type: gauge`
-
-2. **SVG text zone removed** - Use `style.text.fields` instead
-   - Old: `style.text.value.enabled: true`
-   - New: Define text fields in `style.text.fields` object
-
-3. **Text system unified with button** - Consistent API across cards
-   - Old: Custom slider text positioning
-   - New: Use button's text field system with `area` and `position`
-
-**New Features:**
-- Control range configuration (`control.min`, `max`, `step`)
-- Visual range vs control range separation
-- Improved brightness mapping for lights
-- Template null handling (displays as empty string)
-- Border size configuration (`size` or `width` properties)
+# Bedroom
+type: custom:lcards-slider
+entity: light.bedroom
+component: horizontal
+style:
+  border:
+    left:
+      size: 100
+      color: var(--lcars-blue)
+  text:
+    fields:
+      label:
+        content: Bedroom
+        area: left
+```
 
 ---
 
 ## Troubleshooting
 
 ### Pills don't fill correctly
-- Check that `control.min` and `max` match expected range
+- Check `control.min` and `max` match expected range
 - For lights: Range should be 0-100 (percentages)
 - Verify entity state is within configured range
 
-### Slider doesn't respond to input
+### Slider doesn't respond
 - Check `control.locked` is not `true`
-- Verify entity domain is controllable (not a sensor)
+- Verify entity domain is controllable (not sensor)
 - Check browser console for errors
 
-### Gauge ticks are misaligned
-- Ensure `control.min` and `max` match your data range
-- Verify `tick_marks.major.interval` is a reasonable value
-- For temperature: Set `min` and `max` to cover expected range
+### Gauge ticks misaligned
+- Ensure `control.min`/`max` match data range
+- Verify `tick_marks.major.interval` is reasonable
+- For temperature: Set min/max to cover expected range
 
-### Text doesn't appear in border area
-- Verify border is configured: `style.border.left.size: 120`
-- Check text `area` matches border location: `area: left`
+### Text doesn't appear in border
+- Verify border configured: `style.border.left.size: 120`
+- Check text `area` matches border: `area: left`
 - Ensure text `content` template is valid
 
-### Brightness jumps to 100% when min/max configured
-- This was a bug in v2.2.68 and earlier
-- Fixed in v2.2.69: Direct percentage conversion
-- Update to latest version
+### Brightness jumps to 100%
+- Update to latest version (fixed in v2.2.69)
+- Check control min/max configuration
+- Verify entity state updates correctly
 
 ---
 
-## See Also
+## Related Documentation
 
-- [Button Card Documentation](./button.md) - Shared text field system
-- [Elbow Button Documentation](./elbow-button.md) - Similar bordered cards
+- [LCARdS Button Quick Reference](button.md) - Parent card features
+- [LCARdS Elbow Quick Reference](elbow.md) - Similar bordered cards
+- [Animation Presets](../../reference/animation-presets.md) - Animation configuration
 - [Template Conditions](../template-conditions.md) - Dynamic content
-- [LCARS Theme Variables](../../../getting-started/theme-setup.md) - Color tokens
+- [Slider Test Plan](../../testing/slider-card-test-plan.md) - Comprehensive testing guide
+
+---
+
+**Version:** LCARdS 2.2.70+
+**Last Updated:** December 2025

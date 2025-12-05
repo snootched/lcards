@@ -26,8 +26,8 @@ graph TD
     style Done fill:#00cc66,stroke:#009944,color:#fff
 ```
 
-**Time Required:** ~10 minutes  
-**Difficulty:** Beginner  
+**Time Required:** ~10 minutes
+**Difficulty:** Beginner
 **Prerequisites:** LCARdS installed ([Installation Guide](installation.md))
 
 ---
@@ -109,7 +109,7 @@ graph LR
     Light[Light Entity] -->|ON| Active[Button Blue<br/>opacity: 1.0]
     Light -->|OFF| Inactive[Button Gray<br/>opacity: 0.7]
     Light -->|Unavailable| Unavail[Button Gray<br/>opacity: 0.5]
-    
+
     Active -->|Click| Toggle[Toggle Action]
     Inactive -->|Click| Toggle
     Toggle --> Light
@@ -255,13 +255,13 @@ graph TD
     Entity[Entity State<br/>Changes] --> Rules[Rules Engine<br/>Evaluates Conditions]
     Rules -->|brightness > 200| Match[Condition Match]
     Rules -->|brightness ≤ 200| NoMatch[No Match]
-    
+
     Match --> Apply[Apply Rule Styles]
     NoMatch --> Base[Use Base Styles]
-    
+
     Apply --> Render[Button Renders<br/>with Yellow]
     Base --> Render2[Button Renders<br/>with Blue]
-    
+
     style Match fill:#00cc66,stroke:#009944,color:#fff
     style Apply fill:#00cc66,stroke:#009944,color:#fff
 ```
@@ -300,7 +300,7 @@ msd:
         navigation_path: /lovelace/bridge
       style:
         color: var(--lcars-orange)
-    
+
     - id: engineering_control
       type: button
       position: [200, 170]
@@ -339,7 +339,7 @@ msd:
 Now that you have the basics, explore more features:
 
 ### LCARdS Button Deep Dive
-- 📖 [LCARdS Button Quick Reference](../configuration/button-quick-reference.md)
+- 📖 [LCARdS Button Quick Reference](../configuration/cards/button.md)
 - 🎨 [Theme Tokens and Styling](../advanced/theme_creation_tutorial.md)
 - 📜 [Rules Engine Guide](../configuration/rules.md)
 

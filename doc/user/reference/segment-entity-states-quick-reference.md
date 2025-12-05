@@ -233,4 +233,4 @@ style:
 ## See Also
 
 - [Segment Animation Guide](segment-animation-guide.md)
-- [Button Quick Reference](../configuration/button-quick-reference.md)
+- [Button Quick Reference](../configuration/cards/button.md)

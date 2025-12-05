@@ -640,7 +640,7 @@ dpad:
 
 ## See Also
 
-- [LCARdS Button Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
+- [LCARdS Button Quick Reference](../configuration/cards/button.md) - Complete button card documentation
 - [Animation Presets Reference](./animation-presets.md) - All animation presets
 - [Segment Animation Guide](../../../segment-animation-guide.md) - Detailed animation examples
 - [Actions Reference](../configuration/actions.md) - All available actions

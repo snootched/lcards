@@ -46,7 +46,7 @@ Internal architecture and developer documentation:
 
 ### For Users
 - 🚀 [Quick Start Guide](./user/getting-started/quickstart.md)
-- 📖 [Button Card Reference](./user/configuration/button-quick-reference.md)
+- 📖 [Button Card Reference](./user/configuration/cards/button.md)
 - 🎨 [Rules Engine Guide](./user/configuration/rules.md)
 - 🔍 [Console Help](./user/advanced/console-help-quick-ref.md)
 

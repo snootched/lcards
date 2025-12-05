@@ -57,10 +57,10 @@ Learn how to configure every aspect of LCARdS.
 
 | Card Type | Description | Guide |
 |-----------|-------------|-------|
-| 🔘 **lcards-button** | SVG-based button card | [Button Reference](configuration/button-quick-reference.md) |
-| 🔲 **lcards-elbow** | LCARS elbow/corner designs | [Elbow Reference](configuration/elbow-button-quick-reference.md) |
+| 🔘 **lcards-button** | SVG-based button card | [Button Reference](configuration/cards/button.md) |
+| 🔲 **lcards-elbow** | LCARS elbow/corner designs | [Elbow Reference](configuration/cards/elbow.md) |
 | 📊 **lcards-chart** | ApexCharts integration | [Chart Guide](configuration/cards/chart.md) |
-| 🎚️ **lcards-slider** | Interactive sliders/gauges | Coming soon |
+| 🎚️ **lcards-slider** | Interactive sliders/gauges | [Slider Reference](configuration/cards/slider.md) |
 | 🖥️ **lcards-msd-card** | Master Systems Display | [MSD Controls](advanced/msd-controls.md) |
 
 ### Overlay System (MSD)
@@ -146,8 +146,9 @@ Detailed reference documentation:
 ### ⚙️ Configuration
 
 **Cards:**
-- [button-quick-reference.md](configuration/button-quick-reference.md) - Button card
-- [elbow-button-quick-reference.md](configuration/elbow-button-quick-reference.md) - Elbow card
+- [button.md](configuration/cards/button.md) - Button card
+- [elbow.md](configuration/cards/elbow.md) - Elbow card
+- [slider.md](configuration/cards/slider.md) - Slider card
 - [chart.md](configuration/cards/chart.md) - Chart card
 
 **Overlays:**

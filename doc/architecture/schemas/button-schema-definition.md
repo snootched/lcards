@@ -1208,7 +1208,7 @@ To implement this schema:
 
 ### 4. Documentation
 - [x] Update `button-schema-definition.md` with finalized schema
-- [x] Update `button-quick-reference.md` to match exactly
+- [x] Update `cards/button.md` to match exactly
 - [x] Remove all backward compatibility references
 - [x] Standardize on `font_size` everywhere
 - [x] Add BREAKING CHANGES notice

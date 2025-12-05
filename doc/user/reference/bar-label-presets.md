@@ -472,6 +472,6 @@ Text positioning accounts for border widths automatically via the `_calculateTex
 
 ## See Also
 
-- [LCARdS Button Quick Reference](../configuration/button-quick-reference.md) - Complete button card documentation
+- [LCARdS Button Quick Reference](../configuration/cards/button.md) - Complete button card documentation
 - [Component Presets Reference](./component-presets.md) - Interactive SVG component presets
 - [Animation Presets Reference](./animation-presets.md) - Animation presets and triggers
