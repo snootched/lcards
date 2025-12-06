@@ -59,8 +59,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     return {
       ...super.properties,
       _gridData: { type: Array, state: true },
-      _containerSize: { type: Object, state: true },
-      _cascadeActive: { type: Boolean, state: true }
+      _containerSize: { type: Object, state: true }
     };
   }
 
@@ -137,11 +136,6 @@ export class LCARdSDataGrid extends LCARdSCard {
           }
         }
 
-        /* Cascade animation keyframes - applied via JS */
-        .cascade-animate {
-          transition: color 0.5s ease-in-out;
-        }
-
         /* Loading state */
         .grid-loading {
           display: flex;
@@ -173,13 +167,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     super();
     this._gridData = [];
     this._containerSize = { width: 200, height: 200 };
-    this._cascadeActive = false;
     this._dataSubscriptions = [];
     this._templateEntities = [];
     this._previousGridData = null;
-    this._cascadeInterval = null;
-    this._cascadeColors = [];
-    this._currentCascadeStep = 0;
     this._error = null;
     this._columnConfig = [];
     this._rowConfig = [];
@@ -839,16 +829,31 @@ export class LCARdSDataGrid extends LCARdSCard {
    * Setup cascade animation
    * @private
    */
-  _setupCascadeAnimation() {
+  /**
+   * Setup cascade animation using AnimationManager
+   * Called after grid is rendered
+   * @private
+   */
+  async _setupCascadeAnimation() {
     const animation = this.config.animation;
     if (!animation || animation.type !== 'cascade') {
-      this._stopCascadeAnimation();
       return;
     }
 
+    const animationManager = this._singletons?.animationManager;
+    if (!animationManager) {
+      lcardsLog.warn('[LCARdSDataGrid] AnimationManager not available');
+      return;
+    }
+
+    // Wait for render to complete
+    await this.updateComplete;
+
+    const overlayId = this.config.id || `data-grid-${this._cardGuid}`;
+
     // Get cascade colors from config or theme
     const colors = animation.colors || {};
-    this._cascadeColors = [
+    const cascadeColors = [
       this.getThemeToken(colors.start || 'colors.lcars.blue') || '#99ccff',
       this.getThemeToken(colors.text || 'colors.lcars.dark-blue') || '#4466aa',
       this.getThemeToken(colors.end || 'colors.lcars.moonlight') || '#aaccff'
@@ -856,17 +861,42 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     // Get timing pattern
     const pattern = animation.pattern || 'default';
-    this._cascadeTimingPattern = this._getAnimationTiming(pattern);
+    const timingPattern = this._getAnimationTiming(pattern);
 
-    // Start cascade if not frozen
-    if (pattern !== 'frozen') {
-      this._startCascadeAnimation();
-    } else {
-      // For frozen, apply initial state
-      this._applyCascadeState(0);
+    // Calculate average stagger from timing pattern
+    const avgStagger = timingPattern.length > 0
+      ? timingPattern.reduce((sum, t) => sum + (t.delay || 0), 0) / timingPattern.length
+      : 100;
+
+    // Build animation definition
+    const animDef = {
+      trigger: 'on_load',
+      preset: 'cascade-color',
+      targets: '.grid-cell',
+      params: {
+        colors: cascadeColors,
+        stagger: avgStagger,
+        duration: animation.cycle_duration || 5000,
+        loop: pattern !== 'frozen',
+        alternate: true,
+        property: 'color'
+      }
+    };
+
+    // Register with AnimationManager
+    try {
+      // Register scope if not already registered
+      const containerEl = this.renderRoot.querySelector('.data-grid-container');
+      if (containerEl) {
+        await animationManager.onOverlayRendered(overlayId, containerEl, {
+          animations: [animDef]
+        });
+        
+        lcardsLog.debug('[LCARdSDataGrid] Cascade animation registered with AnimationManager');
+      }
+    } catch (error) {
+      lcardsLog.error('[LCARdSDataGrid] Failed to register cascade animation:', error);
     }
-
-    this._cascadeActive = true;
   }
 
   /**
@@ -904,49 +934,6 @@ export class LCARdSDataGrid extends LCARdSCard {
     }
 
     return patterns[patternName] || patterns.default;
-  }
-
-  /**
-   * Start cascade animation loop
-   * @private
-   */
-  _startCascadeAnimation() {
-    if (this._cascadeInterval) {
-      clearInterval(this._cascadeInterval);
-    }
-
-    const cycleDuration = this.config.animation?.cycle_duration || 5000;
-
-    this._cascadeInterval = setInterval(() => {
-      this._currentCascadeStep = (this._currentCascadeStep + 1) % this._cascadeColors.length;
-      this._applyCascadeState(this._currentCascadeStep);
-    }, cycleDuration);
-
-    // Apply initial state
-    this._applyCascadeState(0);
-  }
-
-  /**
-   * Stop cascade animation
-   * @private
-   */
-  _stopCascadeAnimation() {
-    if (this._cascadeInterval) {
-      clearInterval(this._cascadeInterval);
-      this._cascadeInterval = null;
-    }
-    this._cascadeActive = false;
-  }
-
-  /**
-   * Apply cascade state to rows
-   * @private
-   */
-  _applyCascadeState(step) {
-    // Animation is applied via CSS variables that are set per-row
-    // The actual color cycling happens in the render method
-    this._currentCascadeStep = step;
-    this.requestUpdate();
   }
 
   // ============================================================================
@@ -1093,15 +1080,13 @@ export class LCARdSDataGrid extends LCARdSCard {
           <div class="data-grid" style="${gridStyle}">
             ${this._gridData.map((row, rowIndex) =>
               row.map((cellValue, colIndex) => {
-                // Calculate cascade color for this row
-                const cellColor = this._getCascadeColorForRow(rowIndex, defaultColor);
                 const cellPadding = `${gap / 2}px ${gap}px`;
 
                 return html`
-                  <div class="grid-cell align-${align} cascade-animate"
+                  <div class="grid-cell align-${align}"
                        data-row="${rowIndex}"
                        data-col="${colIndex}"
-                       style="color: ${cellColor}; padding: ${cellPadding};">
+                       style="padding: ${cellPadding};">
                     ${escapeHtml(String(cellValue))}
                   </div>
                 `;
@@ -1111,24 +1096,6 @@ export class LCARdSDataGrid extends LCARdSCard {
         </div>
       </div>
     `;
-  }
-
-  /**
-   * Get cascade color for a specific row
-   * @private
-   */
-  _getCascadeColorForRow(rowIndex, defaultColor) {
-    if (!this._cascadeActive || !this._cascadeColors.length) {
-      return defaultColor;
-    }
-
-    // Get timing for this row
-    const timing = this._cascadeTimingPattern[rowIndex % this._cascadeTimingPattern.length];
-
-    // Calculate which color this row should be based on current step and delay
-    const colorIndex = (this._currentCascadeStep + Math.floor(timing.delay / 100)) % this._cascadeColors.length;
-
-    return this._cascadeColors[colorIndex] || defaultColor;
   }
 
   /**
@@ -1254,11 +1221,8 @@ export class LCARdSDataGrid extends LCARdSCard {
    * Cleanup on disconnect
    */
   disconnectedCallback() {
-    // Track cleanup errors for debugging
-    const cleanupErrors = [];
-
-    // Stop cascade animation
-    this._stopCascadeAnimation();
+    // AnimationManager automatically cleans up scoped animations
+    // No need to manually clear intervals
 
     // Stop random refresh
     if (this._randomRefreshInterval) {
@@ -1271,16 +1235,10 @@ export class LCARdSDataGrid extends LCARdSCard {
       try {
         unsubscribe();
       } catch (error) {
-        cleanupErrors.push({ index, error: error.message });
         lcardsLog.warn(`[LCARdSDataGrid] Error unsubscribing from data source ${index}:`, error);
       }
     });
     this._dataSubscriptions = [];
-
-    // Log summary of cleanup errors if any occurred
-    if (cleanupErrors.length > 0) {
-      lcardsLog.warn(`[LCARdSDataGrid] Cleanup completed with ${cleanupErrors.length} error(s)`, cleanupErrors);
-    }
 
     super.disconnectedCallback();
   }

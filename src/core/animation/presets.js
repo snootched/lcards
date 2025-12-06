@@ -414,6 +414,61 @@ registerAnimationPreset('cascade', (def) => {
 });
 
 /**
+ * Cascade Color - Row-by-row color cycling for data grids
+ * 
+ * Animates color property through multiple values in a staggered pattern.
+ * Designed for LCARS cascade text effects.
+ * 
+ * Parameters:
+ * - colors (required) - Array of colors to cycle through ['#99ccff', '#4466aa', '#aaccff']
+ * - stagger (default: 100) - ms delay between rows
+ * - duration (default: 5000) - Duration of full color cycle
+ * - easing (default: 'linear')
+ * - loop (default: true)
+ * - alternate (default: true) - Alternate direction each cycle
+ * - property (default: 'color') - CSS property to animate ('color', 'fill', etc.)
+ * 
+ * @example
+ * ```yaml
+ * animations:
+ *   - trigger: on_load
+ *     preset: cascade-color
+ *     targets: '.grid-cell'
+ *     params:
+ *       colors: ['theme:colors.lcars.blue', 'theme:colors.lcars.dark-blue', 'theme:colors.lcars.moonlight']
+ *       stagger: 100
+ *       duration: 5000
+ * ```
+ */
+registerAnimationPreset('cascade-color', (def) => {
+  const p = def.params || def;
+  const colors = p.colors || ['#99ccff', '#4466aa', '#aaccff'];
+  const stagger = p.stagger || 100;
+  const duration = p.duration || 5000;
+  const easing = p.easing || 'linear';
+  const loop = p.loop !== undefined ? p.loop : true;
+  const alternate = p.alternate !== undefined ? p.alternate : true;
+  const property = p.property || 'color';
+
+  if (!Array.isArray(colors) || colors.length < 2) {
+    lcardsLog.warn('[AnimationPresets] cascade-color requires at least 2 colors');
+    return { anime: {}, styles: {} };
+  }
+
+  return {
+    anime: {
+      [property]: colors,
+      duration,
+      easing,
+      delay: window.lcards?.anim?.stagger?.(stagger) || stagger,
+      loop,
+      direction: alternate ? 'alternate' : 'normal'
+    },
+    styles: {}
+  };
+});
+
+/**
  * Ripple - Expanding scale + opacity effect
  *
  * Parameters:
