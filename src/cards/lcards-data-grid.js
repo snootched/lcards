@@ -202,7 +202,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     await this._initializeDataMode();
 
     // Setup cascade animation if configured
-    this._setupCascadeAnimation();
+    await this._setupCascadeAnimation();
 
     this._isInitialized = true;
   }
@@ -211,13 +211,13 @@ export class LCARdSDataGrid extends LCARdSCard {
    * Called when config is set
    * @protected
    */
-  _onConfigSet(config) {
+  async _onConfigSet(config) {
     super._onConfigSet(config);
 
     // Re-initialize if already initialized and config changes
     if (this._isInitialized) {
-      this._initializeDataMode();
-      this._setupCascadeAnimation();
+      await this._initializeDataMode();
+      await this._setupCascadeAnimation();
     }
   }
 

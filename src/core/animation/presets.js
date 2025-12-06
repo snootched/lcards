@@ -406,7 +406,7 @@ registerAnimationPreset('cascade', (def) => {
       [property]: [from, to],
       duration,
       easing,
-      delay: window.lcards?.anim?.stagger?.(stagger) || stagger,
+      delay: window.lcards?.anim?.stagger?.(stagger) || ((el, i) => i * stagger),
       loop
     },
     styles: {}
@@ -460,7 +460,7 @@ registerAnimationPreset('cascade-color', (def) => {
       [property]: colors,
       duration,
       easing,
-      delay: window.lcards?.anim?.stagger?.(stagger) || stagger,
+      delay: window.lcards?.anim?.stagger?.(stagger) || ((el, i) => i * stagger),
       loop,
       direction: alternate ? 'alternate' : 'normal'
     },
