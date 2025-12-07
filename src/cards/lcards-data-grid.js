@@ -377,6 +377,19 @@ export class LCARdSDataGrid extends LCARdSCard {
   // ============================================================================
 
   /**
+   * Format cell value for display, handling null/undefined
+   * @private
+   * @param {*} value - Cell value
+   * @returns {string} Display string (empty for null/undefined)
+   */
+  _formatCellValue(value) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value);
+  }
+
+  /**
    * Parse CSS Grid dimension from template string
    * Handles complex patterns: repeat(), minmax(), explicit values, or combinations
    *
@@ -523,8 +536,21 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     this._randomRefreshInterval = setInterval(() => {
       const grid = this.config.grid || {};
-      const rows = grid.rows || 8;
-      const columns = grid.columns || 12;
+
+      // Parse grid dimensions - try new CSS Grid format first, fall back to old shorthand
+      let rows = null;
+      let columns = null;
+
+      if (grid['grid-template-rows']) {
+        rows = this._parseGridDimension(grid['grid-template-rows']);
+      }
+      if (grid['grid-template-columns']) {
+        columns = this._parseGridDimension(grid['grid-template-columns']);
+      }
+
+      // Fall back to old shorthand format
+      if (!rows) rows = grid.rows || 8;
+      if (!columns) columns = grid.columns || 12;
 
       // Store previous data for change detection
       this._previousGridData = this._gridData;
@@ -596,8 +622,16 @@ export class LCARdSDataGrid extends LCARdSCard {
           // Process the values array
           const processedValues = await Promise.all(
             row.values.map(async (cell) => {
-              if (typeof cell !== 'string') return String(cell);
-              return await this.processTemplate(cell);
+              // Handle null/undefined - keep as-is for proper rendering
+              if (cell === null || cell === undefined) return cell;
+
+              // Process string templates
+              if (typeof cell === 'string') {
+                return await this.processTemplate(cell);
+              }
+
+              // Convert other types to string
+              return String(cell);
             })
           );
 
@@ -612,10 +646,16 @@ export class LCARdSDataGrid extends LCARdSCard {
 
         return await Promise.all(
           row.map(async (cell) => {
-            if (typeof cell !== 'string') return String(cell);
+            // Handle null/undefined - keep as-is for proper rendering
+            if (cell === null || cell === undefined) return cell;
 
-            // Use base class template processor
-            return await this.processTemplate(cell);
+            // Process string templates
+            if (typeof cell === 'string') {
+              return await this.processTemplate(cell);
+            }
+
+            // Convert other types to string
+            return String(cell);
           })
         );
       })
@@ -1880,7 +1920,7 @@ export class LCARdSDataGrid extends LCARdSCard {
                        data-row="${rowIndex}"
                        data-col="${colIndex}"
                        style="${cellCss}">
-                    ${escapeHtml(String(cellValue))}
+                    ${escapeHtml(this._formatCellValue(cellValue))}
                   </div>
                 `;
               })
@@ -1969,7 +2009,7 @@ export class LCARdSDataGrid extends LCARdSCard {
                        data-row="${rowIndex}"
                        data-col="${colIndex}"
                        style="${cellCss}">
-                    ${escapeHtml(String(cellValue))}
+                    ${escapeHtml(this._formatCellValue(cellValue))}
                   </div>
                 `;
               })
