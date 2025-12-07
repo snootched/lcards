@@ -65,7 +65,48 @@ export const lcarsVoyagerTokens = {
       critical: 'saturate(lighten(colors.alert.base, 0.1), 0.5)',
       warning: 'mix(colors.alert.base, colors.status.warning, 0.7)',
       caution: 'desaturate(darken(colors.alert.base, 0.1), 0.25)'
-    }
+    },
+
+    grid: {
+      // Cell defaults
+      cellText: 'var(--lcars-blue, #99CCFF)',
+      cellBackground: 'transparent',
+      cellHighlight: 'alpha(var(--lcars-orange, #FFAA66), 0.3)',
+
+      // Header defaults
+      headerText: 'var(--lcars-white, #DDEEFF)',
+      headerBackground: 'var(--lcars-black-alt, #1a1a2a)',
+
+      // Row alternates
+      rowAlt: 'alpha(var(--lcars-white, #FFFFFF), 0.05)',
+
+      // Borders/dividers
+      divider: 'var(--lcars-gray, #334455)',
+      border: 'var(--lcars-gray, #556677)',
+
+      // Cascade animation
+      cascadeStart: 'var(--lcars-blue, #99CCFF)',
+      cascadeMid: 'var(--lcars-dark-blue, #4477BB)',
+      cascadeEnd: 'var(--lcars-moonlight, #AADDFF)',
+
+      // States
+      error: 'var(--lcars-red, #FF3366)',
+      warning: 'var(--lcars-orange, #FFAA66)',
+      success: 'var(--lcars-green, #66DD99)'
+    },
+
+    text: {
+      primary: 'var(--lcars-white, #DDEEFF)',
+      secondary: 'var(--lcars-gray, #8899AA)',
+      header: 'var(--lcars-white, #DDEEFF)'
+    },
+
+    background: {
+      header: 'var(--lcars-black-alt, #1a1a2a)',
+      surface: 'transparent'
+    },
+
+    divider: 'var(--lcars-gray, #334455)'
   },
 
   typography: {

@@ -65,7 +65,48 @@ export const lcarsHighContrastTokens = {
       critical: 'saturate(lighten(colors.alert.base, 0.2), 1.0)',
       warning: 'var(--lcars-bright-yellow, #FFFF00)',
       caution: 'var(--lcars-bright-orange, #FF8800)'
-    }
+    },
+
+    grid: {
+      // Cell defaults - high contrast
+      cellText: 'var(--lcars-bright-blue, #00FFFF)',
+      cellBackground: 'var(--lcars-black, #000000)',
+      cellHighlight: 'alpha(var(--lcars-bright-orange, #FF8800), 0.5)',
+
+      // Header defaults - high contrast
+      headerText: 'var(--lcars-bright-white, #FFFFFF)',
+      headerBackground: 'var(--lcars-black, #000000)',
+
+      // Row alternates - high contrast
+      rowAlt: 'alpha(var(--lcars-bright-white, #FFFFFF), 0.1)',
+
+      // Borders/dividers - high contrast
+      divider: 'var(--lcars-bright-gray, #888888)',
+      border: 'var(--lcars-bright-gray, #AAAAAA)',
+
+      // Cascade animation - high contrast
+      cascadeStart: 'var(--lcars-bright-blue, #00FFFF)',
+      cascadeMid: 'var(--lcars-bright-blue-alt, #0088FF)',
+      cascadeEnd: 'var(--lcars-bright-cyan, #00FFFF)',
+
+      // States - high contrast
+      error: 'var(--lcars-bright-red, #FF0000)',
+      warning: 'var(--lcars-bright-yellow, #FFFF00)',
+      success: 'var(--lcars-bright-green, #00FF00)'
+    },
+
+    text: {
+      primary: 'var(--lcars-bright-white, #FFFFFF)',
+      secondary: 'var(--lcars-bright-gray, #CCCCCC)',
+      header: 'var(--lcars-bright-white, #FFFFFF)'
+    },
+
+    background: {
+      header: 'var(--lcars-black, #000000)',
+      surface: 'var(--lcars-black, #000000)'
+    },
+
+    divider: 'var(--lcars-bright-gray, #888888)'
   },
 
   typography: {

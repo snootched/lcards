@@ -121,7 +121,48 @@ export const lcarsClassicTokens = {
       critical: 'saturate(lighten(colors.alert.base, 0.1), 0.3)',
       warning: 'mix(colors.alert.base, colors.status.warning, 0.6)',
       caution: 'desaturate(darken(colors.alert.base, 0.1), 0.2)'
-    }
+    },
+
+    grid: {
+      // Cell defaults
+      cellText: 'var(--lcars-blue, #99ccff)',
+      cellBackground: 'transparent',
+      cellHighlight: 'alpha(var(--lcars-orange, #FF9900), 0.3)',
+
+      // Header defaults
+      headerText: 'var(--lcars-white, #def)',
+      headerBackground: 'var(--lcars-black-alt, #1a1a1a)',
+
+      // Row alternates
+      rowAlt: 'alpha(var(--lcars-white, #FFFFFF), 0.05)',
+
+      // Borders/dividers
+      divider: 'var(--lcars-gray, #333)',
+      border: 'var(--lcars-gray, #555)',
+
+      // Cascade animation
+      cascadeStart: 'var(--lcars-blue, #99ccff)',
+      cascadeMid: 'var(--lcars-dark-blue, #4466aa)',
+      cascadeEnd: 'var(--lcars-moonlight, #aaccff)',
+
+      // States
+      error: 'var(--lcars-red, #ff0000)',
+      warning: 'var(--lcars-orange, #ff9900)',
+      success: 'var(--lcars-green, #00ff00)'
+    },
+
+    text: {
+      primary: 'var(--lcars-white, #ffffff)',
+      secondary: 'var(--lcars-gray, #999999)',
+      header: 'var(--lcars-white, #def)'
+    },
+
+    background: {
+      header: 'var(--lcars-black-alt, #1a1a1a)',
+      surface: 'transparent'
+    },
+
+    divider: 'var(--lcars-gray, #333)'
   },
 
   typography: {

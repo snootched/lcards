@@ -65,7 +65,48 @@ export const lcarsDs9Tokens = {
       critical: 'saturate(lighten(colors.alert.base, 0.15), 0.4)',
       warning: 'mix(colors.alert.base, colors.status.warning, 0.5)',
       caution: 'desaturate(darken(colors.alert.base, 0.15), 0.3)'
-    }
+    },
+
+    grid: {
+      // Cell defaults
+      cellText: 'var(--lcars-blue, #8899CC)',
+      cellBackground: 'transparent',
+      cellHighlight: 'alpha(var(--lcars-orange, #CC9966), 0.3)',
+
+      // Header defaults
+      headerText: 'var(--lcars-white, #CCDDEE)',
+      headerBackground: 'var(--lcars-black-alt, #1a1a1a)',
+
+      // Row alternates
+      rowAlt: 'alpha(var(--lcars-white, #FFFFFF), 0.05)',
+
+      // Borders/dividers
+      divider: 'var(--lcars-gray, #333)',
+      border: 'var(--lcars-gray, #555)',
+
+      // Cascade animation
+      cascadeStart: 'var(--lcars-blue, #8899CC)',
+      cascadeMid: 'var(--lcars-dark-blue, #445588)',
+      cascadeEnd: 'var(--lcars-moonlight, #AABBDD)',
+
+      // States
+      error: 'var(--lcars-red, #AA6666)',
+      warning: 'var(--lcars-orange, #CC9966)',
+      success: 'var(--lcars-green, #88AA88)'
+    },
+
+    text: {
+      primary: 'var(--lcars-white, #CCDDEE)',
+      secondary: 'var(--lcars-gray, #888888)',
+      header: 'var(--lcars-white, #CCDDEE)'
+    },
+
+    background: {
+      header: 'var(--lcars-black-alt, #1a1a1a)',
+      surface: 'transparent'
+    },
+
+    divider: 'var(--lcars-gray, #333)'
   },
 
   typography: {
