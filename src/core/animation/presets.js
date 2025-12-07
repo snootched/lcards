@@ -505,7 +505,7 @@ registerAnimationPreset('cascade', (def) => {
  */
 registerAnimationPreset('cascade-color', (def) => {
   const p = def.params || def;
-  const colors = p.colors || ['#99ccff', '#4466aa', '#aaccff'];
+  const colors = p.colors || ['#0783FF', '#0439A3', '#E7F3F7'];
   const duration = p.duration || 5000;
   const easing = p.easing || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
@@ -524,16 +524,17 @@ registerAnimationPreset('cascade-color', (def) => {
   // Legacy CSS percentages:
   // 0-75%: start color (blue) - long dwell
   // 80-90%: text color (dark blue) - snap/flash
-  // 100%: end color (moonlight) - brief final moment
+  // 95-100%: end color (moonlight) - hold briefly before loop
   //
   // For anime.js keyframes with duration-based progression:
-  // We need: blue(75%) → gap(5%) → dark-blue(10%) → moonlight(10% transition)
+  // We need: blue(75%) → gap(5%) → dark-blue(10%) → transition(5%) → moonlight-hold(5%)
   const keyframes = [
     { [property]: colors[0], duration: 0 },                          // 0% - Start immediately at blue
     { [property]: colors[0], duration: duration * 0.75 },            // 0-75% - Hold blue (long dwell)
     { [property]: colors[1], duration: duration * 0.05 },            // 75-80% - Transition gap to dark-blue
     { [property]: colors[1], duration: duration * 0.10 },            // 80-90% - Hold dark-blue (snap)
-    { [property]: colors[2], duration: duration * 0.10 }             // 90-100% - Transition to moonlight (brief)
+    { [property]: colors[2], duration: duration * 0.05 },            // 90-95% - Transition to moonlight
+    { [property]: colors[2], duration: duration * 0.05 }             // 95-100% - Hold moonlight before loop
   ];
 
   return {

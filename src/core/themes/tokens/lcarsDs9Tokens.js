@@ -85,9 +85,9 @@ export const lcarsDs9Tokens = {
       border: 'var(--lcars-gray, #555)',
 
       // Cascade animation
-      cascadeStart: 'var(--lcars-blue, #8899CC)',
-      cascadeMid: 'var(--lcars-dark-blue, #445588)',
-      cascadeEnd: 'var(--lcars-moonlight, #AABBDD)',
+      cascadeStart: 'var(--picard-blue, #8899CC)',
+      cascadeMid: 'var(--picard-dark-blue, #445588)',
+      cascadeEnd: 'var(--picard-moonlight, #AABBDD)',
 
       // States
       error: 'var(--lcars-red, #AA6666)',

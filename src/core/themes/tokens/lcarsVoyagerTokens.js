@@ -85,9 +85,9 @@ export const lcarsVoyagerTokens = {
       border: 'var(--lcars-gray, #556677)',
 
       // Cascade animation
-      cascadeStart: 'var(--lcars-blue, #99CCFF)',
-      cascadeMid: 'var(--lcars-dark-blue, #4477BB)',
-      cascadeEnd: 'var(--lcars-moonlight, #AADDFF)',
+      cascadeStart: 'var(--picard-blue, #99CCFF)',
+      cascadeMid: 'var(--picard-dark-blue, #4477BB)',
+      cascadeEnd: 'var(--picard-moonlight, #AADDFF)',
 
       // States
       error: 'var(--lcars-red, #FF3366)',

@@ -85,9 +85,9 @@ export const lcarsHighContrastTokens = {
       border: 'var(--lcars-bright-gray, #AAAAAA)',
 
       // Cascade animation - high contrast
-      cascadeStart: 'var(--lcars-bright-blue, #00FFFF)',
-      cascadeMid: 'var(--lcars-bright-blue-alt, #0088FF)',
-      cascadeEnd: 'var(--lcars-bright-cyan, #00FFFF)',
+      cascadeStart: 'var(--picard-bright-blue, #00FFFF)',
+      cascadeMid: 'var(--picard-bright-blue-alt, #0088FF)',
+      cascadeEnd: 'var(--picard-bright-cyan, #00FFFF)',
 
       // States - high contrast
       error: 'var(--lcars-bright-red, #FF0000)',

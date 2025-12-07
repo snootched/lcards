@@ -141,9 +141,9 @@ export const lcarsClassicTokens = {
       border: 'var(--lcars-gray, #555)',
 
       // Cascade animation
-      cascadeStart: 'var(--lcars-blue, #99ccff)',
-      cascadeMid: 'var(--lcars-dark-blue, #4466aa)',
-      cascadeEnd: 'var(--lcars-moonlight, #aaccff)',
+      cascadeStart: 'var(--picard-blue, #99ccff)',
+      cascadeMid: 'var(--picard-dark-blue, #4466aa)',
+      cascadeEnd: 'var(--picard-moonlight, #aaccff)',
 
       // States
       error: 'var(--lcars-red, #ff0000)',

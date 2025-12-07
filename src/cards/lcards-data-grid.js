@@ -1029,13 +1029,43 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
+    // Helper to normalize colors for anime.js compatibility
+    // anime.js v4 cannot interpolate between CSS vars and hex colors - they must be same format
+    // Additionally, anime.js has issues with CSS var fallbacks in looping animations
+    const normalizeColor = (colorValue) => {
+      if (!colorValue) return null;
+
+      // If it's already a CSS variable, check if it has a fallback
+      if (typeof colorValue === 'string' && colorValue.startsWith('var(')) {
+        // Strip fallback values from CSS variables for anime.js compatibility
+        // Convert: var(--name, fallback) -> var(--name)
+        const match = colorValue.match(/^var\((--[^,)]+)/);
+        if (match) {
+          return `var(${match[1]})`;
+        }
+        return colorValue;
+      }
+
+      // If it's a hex color, wrap it in a CSS var format for consistency
+      // This allows anime.js to handle all colors uniformly
+      if (typeof colorValue === 'string' && colorValue.startsWith('#')) {
+        return `var(--dummy, ${colorValue})`;
+      }
+
+      // Named colors or other formats - wrap them too
+      return `var(--dummy, ${colorValue})`;
+    };
+
     // Get cascade colors from config or theme
     const colors = animation.colors || {};
-    const cascadeColors = [
-      this.getThemeToken(colors.start || 'colors.lcars.blue') || '#99ccff',
-      this.getThemeToken(colors.text || 'colors.lcars.dark-blue') || '#4466aa',
-      this.getThemeToken(colors.end || 'colors.lcars.moonlight') || '#aaccff'
+    const rawColors = [
+      this.getThemeToken(colors.start || 'colors.grid.cascadeStart') || '#99ccff',
+      this.getThemeToken(colors.text || 'colors.grid.cascadeMid') || '#4466aa',
+      this.getThemeToken(colors.end || 'colors.grid.cascadeEnd') || '#aaccff'
     ];
+
+    // Normalize all colors to CSS var format for anime.js compatibility
+    const cascadeColors = rawColors.map(normalizeColor);
 
     // Get timing pattern (default, niagara, fast, custom)
     const pattern = animation.pattern || 'default';
@@ -1340,14 +1370,14 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Resolve cell style through hierarchy: grid → header → column → row → cell
-   * 
+   *
    * Style hierarchy (lower overrides higher):
    * 1. Grid-wide defaults (config.style)
    * 2. Header defaults (config.header_style) - only for header rows
    * 3. Column-level overrides (columns[i].style)
    * 4. Row-level overrides (rows[i].style)
    * 5. Cell-level overrides (rows[i].sources[j].style or rows[i].values[j].style)
-   * 
+   *
    * @param {number} rowIndex - Row index (0-based)
    * @param {number} colIndex - Column index (0-based)
    * @param {boolean} isHeader - Whether this is a header cell
@@ -1373,7 +1403,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     if (isHeader) {
       const headerDefaults = this._getDefaultHeaderStyle();
       style = this._mergeStyle(style, headerDefaults);
-      
+
       if (this.config.header_style) {
         style = this._mergeStyle(style, this.config.header_style);
       }
@@ -1414,7 +1444,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Merge source style into target style, resolving theme tokens
-   * 
+   *
    * @param {Object} target - Target style object
    * @param {Object} source - Source style object to merge
    * @returns {Object} Merged style object
@@ -1430,7 +1460,7 @@ export class LCARdSDataGrid extends LCARdSCard {
         // Resolve theme tokens for color-related properties
         const colorProps = [
           'color', 'background', 'background_color', 'backgroundColor',
-          'border_color', 'borderColor', 'border_bottom_color', 
+          'border_color', 'borderColor', 'border_bottom_color',
           'border_top_color', 'border_left_color', 'border_right_color'
         ];
 
@@ -1450,23 +1480,25 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Convert style object to inline CSS string
-   * 
+   *
    * Handles special cases:
    * - align → justify-content mapping
    * - Numeric values → px units (except font_weight, opacity, etc.)
    * - Underscore properties → kebab-case CSS properties
-   * 
+   *
    * @param {Object} style - Style object
+   * @param {Object} [options] - Optional conversion options
+   * @param {boolean} [options.excludeColor] - If true, skip color property (for animations)
    * @returns {string} CSS string for inline style attribute
    * @private
    */
-  _styleToCSS(style) {
+  _styleToCSS(style, options = {}) {
     if (!style || typeof style !== 'object') {
       return '';
     }
 
     const cssProps = [];
-    
+
     // Properties that should not get 'px' suffix when numeric
     const unitlessProps = [
       'opacity', 'font_weight', 'fontWeight', 'z_index', 'zIndex',
@@ -1504,6 +1536,12 @@ export class LCARdSDataGrid extends LCARdSCard {
     for (const [key, value] of Object.entries(style)) {
       if (value == null) continue;
 
+      // Skip color property if requested (for cascade animations)
+      // Inline color styles block anime.js color animations
+      if (options.excludeColor && key === 'color') {
+        continue;
+      }
+
       // Skip non-style properties
       if (key === 'width' && typeof value === 'number') {
         // Column width is handled separately
@@ -1532,7 +1570,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Get cached cell style with cache invalidation on config changes
-   * 
+   *
    * @param {number} rowIndex - Row index
    * @param {number} colIndex - Column index
    * @param {boolean} isHeader - Whether this is a header cell
@@ -1559,14 +1597,14 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Convert grid configuration to CSS Grid properties
-   * 
+   *
    * Supports both:
    * 1. Standard CSS Grid properties (new format):
    *    grid-template-columns, grid-template-rows, gap, etc.
-   * 
+   *
    * 2. Backward-compatible shorthand (old format):
    *    rows: 8, columns: 12, gap: 8, cell_width: 'auto'
-   * 
+   *
    * @param {Object} gridConfig - Grid configuration object
    * @param {number} [cols] - Optional column count override (for dynamic grids)
    * @returns {Object} Object with CSS Grid properties
@@ -1577,7 +1615,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     // Check if using old shorthand format
     const hasShorthand = gridConfig.rows || gridConfig.columns || gridConfig.cell_width;
-    
+
     if (hasShorthand) {
       // Log deprecation warning with migration guidance
       if (!this._hasLoggedDeprecation) {
@@ -1599,7 +1637,7 @@ export class LCARdSDataGrid extends LCARdSCard {
       const cellWidthValue = cellWidth === 'auto'
         ? '1fr'
         : (typeof cellWidth === 'number' ? `${cellWidth}px` : cellWidth);
-      
+
       cssProps['grid-template-columns'] = `repeat(${columns}, ${cellWidthValue})`;
       cssProps['grid-template-rows'] = `repeat(${rows}, auto)`;
       cssProps['gap'] = typeof gap === 'number' ? `${gap}px` : gap;
@@ -1617,12 +1655,12 @@ export class LCARdSDataGrid extends LCARdSCard {
       for (const prop of validGridProps) {
         if (gridConfig[prop]) {
           let value = gridConfig[prop];
-          
+
           // Add px unit to numeric gap values
           if ((prop === 'gap' || prop.includes('gap')) && typeof value === 'number') {
             value = `${value}px`;
           }
-          
+
           cssProps[prop] = value;
         }
       }
@@ -1683,29 +1721,29 @@ export class LCARdSDataGrid extends LCARdSCard {
    */
   _renderCascadeGrid() {
     const grid = this.config.grid || {};
-    
+
     // Calculate columns from actual grid data
     const cols = this._gridData[0]?.length || 12;
-    
+
     // Parse grid configuration (handles both old and new formats)
     const gridCssProps = this._parseGridConfig(grid, cols);
-    
+
     // Build grid style string from CSS properties
     const gridStyleParts = [];
     for (const [prop, value] of Object.entries(gridCssProps)) {
       gridStyleParts.push(`${prop}: ${value}`);
     }
-    
+
     // Add typography from grid-wide style or config defaults
     const gridStyle = this.config.style || {};
     const fontSize = gridStyle.font_size || this.config.font_size || 18;
     const fontFamily = gridStyle.font_family || this.config.font_family || "'Antonio', 'Helvetica Neue', sans-serif";
     const fontWeight = gridStyle.font_weight || this.config.font_weight || 400;
-    
+
     gridStyleParts.push(`font-family: ${fontFamily}`);
     gridStyleParts.push(`font-size: ${typeof fontSize === 'number' ? fontSize + 'px' : fontSize}`);
     gridStyleParts.push(`font-weight: ${fontWeight}`);
-    
+
     const gridStyleStr = gridStyleParts.join('; ');
 
     return html`
@@ -1716,8 +1754,12 @@ export class LCARdSDataGrid extends LCARdSCard {
               row.map((cellValue, colIndex) => {
                 // Resolve cell style through hierarchy
                 const cellStyle = this._getCachedCellStyle(rowIndex, colIndex, false);
-                const cellCss = this._styleToCSS(cellStyle);
-                
+
+                // Exclude color from inline styles if cascade animation is active
+                // (inline color styles block anime.js color animations)
+                const hasCascadeAnimation = this.config.animation?.type === 'cascade';
+                const cellCss = this._styleToCSS(cellStyle, { excludeColor: hasCascadeAnimation });
+
                 // Get alignment (default to right for cascade grid)
                 const align = cellStyle.align || this.config.align || 'right';
 
@@ -1743,7 +1785,7 @@ export class LCARdSDataGrid extends LCARdSCard {
    */
   _renderSpreadsheetGrid() {
     const grid = this.config.grid || {};
-    
+
     // Build grid-template-columns from column config or parse from grid config
     let gridCssProps;
     if (this._columnConfig && this._columnConfig.length > 0) {
@@ -1751,29 +1793,29 @@ export class LCARdSDataGrid extends LCARdSCard {
       const gridTemplateColumns = this._columnConfig
         .map(col => col.width ? `${col.width}px` : '1fr')
         .join(' ');
-      
+
       gridCssProps = this._parseGridConfig(grid);
       gridCssProps['grid-template-columns'] = gridTemplateColumns;
     } else {
       gridCssProps = this._parseGridConfig(grid);
     }
-    
+
     // Build grid style string
     const gridStyleParts = [];
     for (const [prop, value] of Object.entries(gridCssProps)) {
       gridStyleParts.push(`${prop}: ${value}`);
     }
-    
+
     // Add typography from grid-wide style or config defaults
     const gridStyle = this.config.style || {};
     const fontSize = gridStyle.font_size || this.config.font_size || 16;
     const fontFamily = gridStyle.font_family || this.config.font_family || "'Antonio', 'Helvetica Neue', sans-serif";
     const fontWeight = gridStyle.font_weight || this.config.font_weight || 400;
-    
+
     gridStyleParts.push(`font-family: ${fontFamily}`);
     gridStyleParts.push(`font-size: ${typeof fontSize === 'number' ? fontSize + 'px' : fontSize}`);
     gridStyleParts.push(`font-weight: ${fontWeight}`);
-    
+
     const gridStyleStr = gridStyleParts.join('; ');
 
     return html`
@@ -1801,8 +1843,11 @@ export class LCARdSDataGrid extends LCARdSCard {
               row.map((cellValue, colIndex) => {
                 // Resolve cell style through hierarchy
                 const cellStyle = this._getCachedCellStyle(rowIndex, colIndex, false);
-                const cellCss = this._styleToCSS(cellStyle);
-                
+
+                // Exclude color from inline styles if cascade animation is active
+                const hasCascadeAnimation = this.config.animation?.type === 'cascade';
+                const cellCss = this._styleToCSS(cellStyle, { excludeColor: hasCascadeAnimation });
+
                 // Get alignment from resolved style or column config
                 const col = this._columnConfig[colIndex] || {};
                 const align = cellStyle.align || col.align || 'left';
