@@ -1303,6 +1303,42 @@ export class LCARdSDataGrid extends LCARdSCard {
   // ============================================================================
 
   /**
+   * Get default grid-wide style with theme token defaults
+   * @private
+   * @returns {Object} Default style object
+   */
+  _getDefaultGridStyle() {
+    return {
+      font_size: 18,
+      font_family: "'Antonio', 'Helvetica Neue', sans-serif",
+      font_weight: 400,
+      color: this.getThemeToken('colors.grid.cellText', this.getThemeToken('colors.text.primary', '#99ccff')),
+      background: this.getThemeToken('colors.grid.cellBackground', 'transparent'),
+      align: 'right',
+      padding: '8px'
+    };
+  }
+
+  /**
+   * Get default header style with theme token defaults
+   * @private
+   * @returns {Object} Default header style object
+   */
+  _getDefaultHeaderStyle() {
+    return {
+      background: this.getThemeToken('colors.grid.headerBackground', this.getThemeToken('colors.background.header', '#1a1a1a')),
+      color: this.getThemeToken('colors.grid.headerText', this.getThemeToken('colors.text.header', '#def')),
+      font_size: 16,
+      font_weight: 700,
+      text_transform: 'uppercase',
+      padding: '12px 8px',
+      border_bottom_width: 2,
+      border_bottom_color: this.getThemeToken('colors.grid.divider', this.getThemeToken('colors.divider', '#333')),
+      border_bottom_style: 'solid'
+    };
+  }
+
+  /**
    * Resolve cell style through hierarchy: grid → header → column → row → cell
    * 
    * Style hierarchy (lower overrides higher):
@@ -1325,12 +1361,22 @@ export class LCARdSDataGrid extends LCARdSCard {
       return this._styleCache.get(cacheKey);
     }
 
-    // Start with grid-wide defaults
-    let style = this._mergeStyle({}, this.config.style || {});
+    // Start with theme-based defaults
+    let style = this._getDefaultGridStyle();
 
-    // Apply header style if this is a header row
-    if (isHeader && this.config.header_style) {
-      style = this._mergeStyle(style, this.config.header_style);
+    // Merge with user-configured grid-wide style
+    if (this.config.style) {
+      style = this._mergeStyle(style, this.config.style);
+    }
+
+    // Apply header defaults and user header style if this is a header row
+    if (isHeader) {
+      const headerDefaults = this._getDefaultHeaderStyle();
+      style = this._mergeStyle(style, headerDefaults);
+      
+      if (this.config.header_style) {
+        style = this._mergeStyle(style, this.config.header_style);
+      }
     }
 
     // Apply column-level style (if column config exists)

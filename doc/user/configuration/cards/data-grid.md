@@ -82,37 +82,102 @@ rows:                                        # Row definitions (required for spr
 # GRID CONFIGURATION
 # ==============================================================================
 
+# STANDARD CSS GRID (Recommended)
+# All standard CSS Grid properties are supported:
 grid:
-  rows: <number>                             # Number of rows (random/template/timeline)
-  columns: <number>                          # Number of columns (required)
-  gap: <number>                              # Gap between cells in px (default: 8)
-  cell_width: auto | <number>                # Cell width: 'auto' or fixed px (default: auto)
+  grid-template-columns: repeat(12, 1fr)     # Column track sizing
+  grid-template-rows: repeat(8, auto)        # Row track sizing
+  gap: 8px                                   # Gap between cells
+  grid-auto-flow: row                        # Auto-placement algorithm
+  justify-items: stretch                     # Horizontal alignment of items
+  align-items: stretch                       # Vertical alignment of items
+  
+  # Also supports:
+  # - grid-template-areas: Define named grid areas
+  # - grid-auto-columns / grid-auto-rows: Implicit track sizing
+  # - column-gap / row-gap: Individual gap control
+  # - justify-content / align-content: Grid container alignment
+
+# BACKWARD-COMPATIBLE SHORTHAND (Deprecated)
+# Still supported for compatibility, but logs deprecation warning:
+grid:
+  rows: 8                                    # Number of rows (converts to grid-template-rows)
+  columns: 12                                # Number of columns (converts to grid-template-columns)
+  gap: 8                                     # Gap in px (converts to gap property)
+  cell_width: auto | <number>                # Cell width: 'auto' (1fr) or fixed px
 
 # ==============================================================================
-# STYLING
+# HIERARCHICAL CELL STYLING
 # ==============================================================================
 
-# Typography
-font_size: <number>                          # Font size in px (default: 18)
-font_family: <string>                        # Font family (default: 'Antonio', 'Helvetica Neue', sans-serif)
-font_weight: <number>                        # Font weight (default: 400)
+# Style Resolution Hierarchy (lower priority to higher):
+# 1. Grid-wide defaults (style property)
+# 2. Header defaults (header_style property) - for header rows only
+# 3. Column-level overrides (columns[i].style)
+# 4. Row-level overrides (rows[i].style)  
+# 5. Cell-level overrides (highest priority)
 
-# Colors
-color: <color>                               # Default text color (hex, theme token, CSS var)
-                                             # Examples: '#99ccff', 'theme:colors.lcars.blue', 'var(--primary-text-color)'
+# Grid-wide Style (applies to all cells)
+style:
+  font_size: <number>                        # Font size in px (default: 18)
+  font_family: <string>                      # Font family (default: 'Antonio', 'Helvetica Neue', sans-serif)
+  font_weight: <number>                      # Font weight (default: 400)
+  color: <color>                             # Text color (default: theme:colors.grid.cellText)
+  background: <color>                        # Background color (default: transparent)
+  align: left | center | right               # Text alignment (default: right)
+  padding: <size>                            # Cell padding (default: 8px)
+  border_width: <number>                     # Border width in px
+  border_color: <color>                      # Border color
+  border_style: solid | dashed | dotted      # Border style
+  # ... any CSS property (underscore converts to kebab-case)
 
-# Alignment
-align: left | center | right                 # Cell text alignment (default: right)
-
-# Spreadsheet Header Styling (spreadsheet layout only)
+# Header Style (spreadsheet mode only)
 header_style:
-  background: <color>                        # Header background color (default: theme:colors.background.header)
-  color: <color>                             # Header text color (default: theme:colors.text.header)
-  font_size: <number>                        # Header font size in px (default: same as font_size)
+  background: <color>                        # Header background (default: theme:colors.grid.headerBackground)
+  color: <color>                             # Header text color (default: theme:colors.grid.headerText)
+  font_size: <number>                        # Header font size (default: 16)
   font_weight: <number>                      # Header font weight (default: 700)
-  text_transform: uppercase | lowercase | capitalize | none  # Text transform (default: uppercase)
-  divider_color: <color>                     # Divider line color (default: theme:colors.divider)
-  divider_width: <number>                    # Divider line width in px (default: 2)
+  text_transform: uppercase | lowercase      # Text transform (default: uppercase)
+  padding: <size>                            # Header padding (default: 12px 8px)
+  border_bottom_width: <number>              # Bottom border width (default: 2)
+  border_bottom_color: <color>               # Bottom border color (default: theme:colors.grid.divider)
+  border_bottom_style: solid                 # Bottom border style
+
+# Column-level Style (spreadsheet mode)
+columns:
+  - header: Location
+    width: 140                               # Column width in px
+    align: left                              # Column alignment
+    style:                                   # Column-wide style override
+      color: colors.lcars.blue
+      font_weight: 500
+
+# Row-level Style (all modes)
+rows:
+  - style:                                   # Style for entire row
+      background: colors.grid.rowAlt
+      font_weight: 600
+
+# Cell-level Style (template mode)
+rows:
+  - values: ['Cell 1', 'Cell 2', 'Cell 3']
+    style:                                   # Row-wide style
+      background: colors.grid.rowAlt
+    cellStyles:                              # Per-cell style array
+      - color: colors.lcars.red              # Style for first cell
+        font_weight: 900
+      - null                                 # No override for second cell
+      - color: colors.lcars.blue             # Style for third cell
+
+# Cell-level Style (spreadsheet mode)
+rows:
+  - sources:
+      - column: 0
+        value: "ALERT"
+        style:                               # Cell-specific override
+          color: colors.lcars.red
+          font_weight: 900
+          background: 'alpha(colors.lcars.red, 0.2)'
 
 # ==============================================================================
 # CASCADE ANIMATION
@@ -155,9 +220,35 @@ animation:
   change_duration: <number>                  # Duration in ms (default: 500)
   change_easing: <string>                    # Easing function (default: 'easeOutQuad')
   change_params: <object>                    # Additional preset-specific parameters (optional)
-    # Preset-specific params override preset defaults
-    # Example for 'pulse': { max_scale: 1.08, min_opacity: 0.8 }
-    # Example for 'glow': { color: '#ff9966', blur_max: 12 }
+    # See "Change Animation Presets" section below for detailed parameters
+
+# ==============================================================================
+# CHANGE ANIMATION PRESETS
+# ==============================================================================
+
+# PULSE PRESET
+# Scales and fades the cell to draw attention
+animation:
+  change_preset: pulse
+  change_params:
+    max_scale: 1.08                          # Maximum scale factor (default: 1.05)
+    min_opacity: 0.8                         # Minimum opacity (default: 0.7)
+
+# GLOW PRESET  
+# Adds an animated glow/shadow effect around the cell
+animation:
+  change_preset: glow
+  change_params:
+    color: '#ff9966'                         # Glow color (default: preset color)
+    blur_max: 12                             # Maximum blur radius in px (default: 8)
+
+# FLASH PRESET
+# Rapidly changes background color to highlight the cell
+animation:
+  change_preset: flash
+  change_params:
+    color: '#ffcc00'                         # Flash color (default: preset color)
+    intensity: 0.8                           # Flash intensity 0-1 (default: 0.6)
   max_highlight_cells: <number>              # Max cells to animate per update (default: 50)
 
 # ==============================================================================
@@ -345,6 +436,195 @@ animation:
 - Per-cell value formatting
 - Independent data sources per cell
 - Efficient update handling
+
+---
+
+## Hierarchical Styling Examples
+
+### Grid-Wide Styling
+
+Apply styles to all cells in the grid:
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: random
+style:
+  color: colors.grid.cellText
+  background: 'alpha(colors.grid.cellBackground, 0.05)'
+  font_size: 20
+  font_weight: 500
+  padding: 10px
+  border_width: 1
+  border_color: colors.grid.border
+  border_style: solid
+grid:
+  grid-template-columns: repeat(12, 1fr)
+  gap: 8px
+```
+
+### Column-Level Styling (Spreadsheet Mode)
+
+Override styles for specific columns:
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: datasource
+layout: spreadsheet
+
+columns:
+  - header: Status
+    width: 100
+    align: center
+    style:
+      color: colors.lcars.orange
+      font_weight: 700
+      background: 'alpha(colors.lcars.orange, 0.1)'
+  
+  - header: Location
+    width: 140
+    align: left
+    style:
+      color: colors.lcars.blue
+      font_weight: 500
+  
+  - header: Value
+    width: 80
+    align: right
+    # No style override - uses grid-wide defaults
+```
+
+### Row-Level Styling (Template Mode)
+
+Style entire rows or specific cells:
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: template
+
+rows:
+  # Row 1: Header row with custom styling
+  - values: ['Location', 'Status', 'Alert']
+    style:
+      background: colors.grid.headerBackground
+      color: colors.grid.headerText
+      font_weight: 700
+      text_transform: uppercase
+      border_bottom_width: 2
+      border_bottom_color: colors.grid.divider
+  
+  # Row 2: Normal row
+  - values: ['Deck 1', 'ACTIVE', 'NONE']
+  
+  # Row 3: Alert row with red styling
+  - values: ['Deck 2', 'WARNING', 'CRITICAL']
+    style:
+      background: 'alpha(colors.grid.error, 0.2)'
+      color: colors.grid.error
+      font_weight: 600
+```
+
+### Cell-Level Styling (Template Mode)
+
+Fine-grained control over individual cells:
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: template
+
+style:
+  color: colors.grid.cellText
+  font_size: 16
+
+rows:
+  - values: ['System', 'Status', 'Priority']
+    cellStyles:
+      - color: colors.lcars.blue          # First cell: blue
+        font_weight: 700
+      - color: colors.lcars.orange        # Second cell: orange
+        font_weight: 700
+      - color: colors.lcars.red           # Third cell: red
+        font_weight: 700
+  
+  - values: ['Shields', 'ONLINE', 'HIGH']
+    cellStyles:
+      - null                              # Use grid defaults
+      - color: colors.grid.success        # Green for online
+        font_weight: 600
+      - color: colors.grid.error          # Red for high priority
+        font_weight: 600
+```
+
+### Cell-Level Styling (Spreadsheet Mode)
+
+Style specific cells based on data source:
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: datasource
+layout: spreadsheet
+
+columns:
+  - header: Location
+    width: 140
+  - header: Temperature
+    width: 100
+  - header: Status
+    width: 100
+
+rows:
+  - sources:
+      # Location cell
+      - column: 0
+        type: static
+        value: 'Bridge'
+      
+      # Temperature cell
+      - column: 1
+        type: datasource
+        source: sensor.bridge_temp
+        format: '{value}°C'
+        style:
+          color: colors.lcars.blue
+      
+      # Status cell with conditional styling
+      - column: 2
+        type: static
+        value: 'ALERT'
+        style:
+          color: colors.grid.error
+          font_weight: 900
+          background: 'alpha(colors.grid.error, 0.2)'
+          border_width: 2
+          border_color: colors.grid.error
+          border_style: solid
+```
+
+### CSS Grid Advanced Examples
+
+Use any CSS Grid property:
+
+```yaml
+# Grid with named areas
+grid:
+  grid-template-columns: 1fr 2fr 1fr
+  grid-template-rows: auto auto
+  grid-template-areas: |
+    "header header header"
+    "sidebar content aside"
+  gap: 12px
+
+# Grid with minmax columns
+grid:
+  grid-template-columns: minmax(100px, 1fr) repeat(3, 1fr) minmax(150px, 1fr)
+  grid-auto-rows: 50px
+  gap: 8px
+
+# Grid with dense packing
+grid:
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr))
+  grid-auto-flow: dense
+  gap: 4px
+```
 
 ---
 
@@ -904,6 +1184,71 @@ animation:
 3. Lower `max_highlight_cells` limit
 4. Use `pattern: fast` for quicker cycles
 5. Disable change detection if not needed
+
+---
+
+## Theme Token Reference
+
+### Grid-Specific Color Tokens
+
+All grid colors can be referenced via theme tokens. Default values shown for Classic LCARS theme:
+
+```yaml
+# Cell Colors
+colors.grid.cellText: '#99ccff'              # Default cell text color
+colors.grid.cellBackground: 'transparent'    # Default cell background
+colors.grid.cellHighlight: 'rgba(255, 153, 0, 0.3)'  # Change highlight color
+
+# Header Colors (spreadsheet mode)
+colors.grid.headerText: '#def'               # Header text color
+colors.grid.headerBackground: '#1a1a1a'      # Header background color
+
+# Row Alternates
+colors.grid.rowAlt: 'rgba(255, 255, 255, 0.05)'  # Alternate row background
+
+# Borders/Dividers
+colors.grid.divider: '#333'                  # Default divider/border color
+colors.grid.border: '#555'                   # Border color
+
+# Cascade Animation Colors
+colors.grid.cascadeStart: '#99ccff'          # Cascade start color
+colors.grid.cascadeMid: '#4466aa'            # Cascade middle color
+colors.grid.cascadeEnd: '#aaccff'            # Cascade end color
+
+# State Colors
+colors.grid.error: '#ff0000'                 # Error state color
+colors.grid.warning: '#ff9900'               # Warning state color
+colors.grid.success: '#00ff00'               # Success state color
+```
+
+### Generic Color Tokens
+
+These are available across all LCARdS components:
+
+```yaml
+colors.text.primary: '#ffffff'               # Primary text color
+colors.text.secondary: '#999999'             # Secondary text color
+colors.text.header: '#def'                   # Header text color
+colors.background.header: '#1a1a1a'          # Header background
+colors.background.surface: 'transparent'     # Surface background
+colors.divider: '#333'                       # Generic divider color
+```
+
+### Using Theme Tokens
+
+Reference tokens in your configuration:
+
+```yaml
+# Direct token reference
+style:
+  color: colors.grid.cellText
+  background: colors.grid.cellBackground
+
+# Computed colors (using token functions)
+style:
+  color: 'alpha(colors.grid.cellText, 0.8)'
+  background: 'darken(colors.grid.headerBackground, 0.2)'
+```
 
 ---
 
