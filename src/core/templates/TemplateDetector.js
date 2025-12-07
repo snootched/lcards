@@ -155,6 +155,7 @@ export class TemplateDetector {
    * - HA functions: {{states('entity')}}, {{state_attr()}}, {{now()}}, etc.
    * - Filters: {{value | round}}, {{value | float}}, etc.
    * - Control structures: {% if %}, {% for %}, etc.
+   * - Dot notation: {{states.sensor.entity.state}}, {{states.sensor.entity.attributes.attr}}
    *
    * @param {string} content - Content to check
    * @returns {boolean} True if has Jinja2 templates requiring server-side rendering
@@ -178,16 +179,18 @@ export class TemplateDetector {
     // - Filters: | round, | float, | int, etc.
     // - Control structures: {% if %}, {% for %}, {% set %}, etc.
     // - Comments: {# comment #}
+    // - Dot notation to states object: states.domain.entity_id.attribute
 
     const jinja2Patterns = [
-      /\{\{\s*states\s*\(/,           // {{states('entity')}}
-      /\{\{\s*state_attr\s*\(/,       // {{state_attr('entity', 'attr')}}
-      /\{\{\s*now\s*\(/,              // {{now()}}
-      /\{\{\s*is_state\s*\(/,         // {{is_state('entity', 'on')}}
-      /\{\{\s*has_value\s*\(/,        // {{has_value('entity')}}
-      /\{\{[^}]*\|[^}]+\}\}/,         // {{value | filter}}
-      /\{%[\s\S]*?%\}/,               // {% if/for/set/etc %}
-      /\{#[\s\S]*?#\}/                // {# comment #}
+      /\{\{\s*states\s*\(/,              // {{states('entity')}}
+      /\{\{\s*state_attr\s*\(/,          // {{state_attr('entity', 'attr')}}
+      /\{\{\s*now\s*\(/,                 // {{now()}}
+      /\{\{\s*is_state\s*\(/,            // {{is_state('entity', 'on')}}
+      /\{\{\s*has_value\s*\(/,           // {{has_value('entity')}}
+      /\{\{\s*states\.[a-z_]+\.[a-z0-9_]+/i,  // {{states.domain.entity_id}} dot notation
+      /\{\{[^}]*\|[^}]+\}\}/,            // {{value | filter}}
+      /\{%[\s\S]*?%\}/,                  // {% if/for/set/etc %}
+      /\{#[\s\S]*?#\}/                   // {# comment #}
     ];
 
     return jinja2Patterns.some(pattern => pattern.test(content));

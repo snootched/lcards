@@ -1,181 +1,254 @@
-# LCARdS Data Grid Card - User Guide
+# LCARdS Data Grid Card - Quick Reference
 
-> **Flexible grid visualization with cascade animations**
-> Display data in LCARS-style grids with three input modes: random decorative, template-based, and real-time datasource.
-
----
-
-## 📋 Table of Contents
-
-1. [Overview](#overview)
-2. [Quick Start](#quick-start)
-3. [Data Modes](#data-modes)
-4. [Cascade Animations](#cascade-animations)
-5. [Grid Configuration](#grid-configuration)
-6. [Styling Guide](#styling-guide)
-7. [Theme Integration](#theme-integration)
-8. [Change Detection](#change-detection)
-9. [Complete Examples](#complete-examples)
-10. [Complete Schema Reference](#complete-schema-reference)
-11. [Troubleshooting](#troubleshooting)
+**Component:** `custom:lcards-data-grid`
+**Purpose:** Flexible LCARS-style data grid with cascade animations and multiple data modes
 
 ---
 
 ## Overview
 
-The **LCARdS Data Grid Card** provides authentic LCARS-style data grids with cascade animations, supporting multiple data input modes and real-time updates.
-
-### Key Features
-
-✅ **Three data modes** - Random decorative, template-based, DataSource integration
-✅ **Cascade animations** - Row-by-row color cycling with AnimationManager
-✅ **Change detection** - Highlight cells when values change
-✅ **Theme integration** - LCARdS theme tokens and CSS variables
-✅ **Real-time updates** - Live data from entities or DataSources
-✅ **Multiple layouts** - Timeline and spreadsheet layouts for DataSource mode
-✅ **Performance optimized** - CSS Grid layout and efficient updates
-✅ **Flexible formatting** - Custom value templates and formatting
-
-### When to Use Data Grid
-
-- **Decorative displays** - LCARS-style random data cascades for ambiance
-- **Status boards** - Show multiple sensor values in organized grid
-- **Historical data** - Timeline of values from a single source
-- **Multi-sensor grids** - Spreadsheet-style structured data display
-- **Custom dashboards** - Flexible grid layouts with template expressions
+The Data Grid card creates authentic LCARS-style data visualizations with:
+- Three data input modes: random (decorative), template (manual), datasource (real-time)
+- Cascade animations with per-row timing and authentic LCARS color cycling
+- Change detection with configurable highlight animations
+- Timeline and spreadsheet layouts for DataSource mode
+- Full theme integration with token support
+- Performance-optimized CSS Grid layout
 
 ---
 
-## Quick Start
-
-### Minimal Configuration (Random Mode)
-
-The absolute minimum for a decorative grid:
+## Complete Schema
 
 ```yaml
 type: custom:lcards-data-grid
-data_mode: random
-grid:
-  rows: 8
-  columns: 12
-```
 
-**Result:** An 8x12 grid with random alphanumeric data and default cascade animation.
+# ==============================================================================
+# DATA MODE (Required - choose one)
+# ==============================================================================
 
-### With Cascade Animation
+data_mode: random | template | datasource
 
-Add LCARS-style color cycling:
+# ------------------------------------------------------------------------------
+# RANDOM MODE - Decorative data generation
+# ------------------------------------------------------------------------------
 
-```yaml
-type: custom:lcards-data-grid
-data_mode: random
-grid:
-  rows: 8
-  columns: 12
-animation:
-  type: cascade
-  pattern: default
-  colors:
-    start: colors.lcars.blue
-    text: colors.lcars.dark-blue
-    end: colors.lcars.moonlight
-```
+format: digit | float | alpha | hex | mixed  # Data format (default: mixed)
+refresh_interval: <number>                   # Auto-refresh in ms (0 = disabled)
 
-### Simple Template Grid
+# ------------------------------------------------------------------------------
+# TEMPLATE MODE - Manual grid with templates
+# ------------------------------------------------------------------------------
 
-Display live sensor data:
-
-```yaml
-type: custom:lcards-data-grid
-data_mode: template
 rows:
-  - ['Living Room', '{{states.sensor.living_temp.state}}°C']
-  - ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C']
-  - ['Kitchen', '{{states.sensor.kitchen_temp.state}}°C']
-font_size: 16
+  - [<value>, <value>, ...]  # Row 1
+  - [<value>, <value>, ...]  # Row 2
+  # Values can be:
+  # - Static text: 'Label'
+  # - Entity state: '{{states.sensor.temp.state}}'
+  # - Entity attribute: '{{states.sensor.temp.attributes.unit}}'
+  # - Jinja2 logic: '{% if ... %}...{% endif %}'
+
+# ------------------------------------------------------------------------------
+# DATASOURCE MODE - Real-time data integration
+# ------------------------------------------------------------------------------
+
+layout: timeline | spreadsheet               # Layout type (required for datasource mode)
+
+# Timeline Layout - flowing data from single source
+source: <string>                             # Entity ID or DataSource name
+history_hours: <number>                      # Hours of history to preload (default: 1)
+value_template: <string>                     # Format template (default: '{value}')
+
+# Spreadsheet Layout - structured multi-source grid
+data_sources:                                # DataSource definitions (optional, can auto-create)
+  <name>:
+    entity: <entity_id>                      # Entity to track
+
+columns:                                     # Column definitions (required for spreadsheet)
+  - header: <string>                         # Column header text
+    width: <number>                          # Column width in px (optional)
+    align: left | center | right             # Alignment (default: left)
+
+rows:                                        # Row definitions (required for spreadsheet)
+  - sources:
+      - type: static | datasource
+        column: <number>                     # Column index (0-based)
+        value: <any>                         # For static type
+        source: <string>                     # For datasource type (name or entity)
+        format: <string>                     # Format template (default: '{value}')
+        aggregation: last | avg | min | max  # Aggregation (default: last)
+
+# ==============================================================================
+# GRID CONFIGURATION
+# ==============================================================================
+
+grid:
+  rows: <number>                             # Number of rows (random/template/timeline)
+  columns: <number>                          # Number of columns (required)
+  gap: <number>                              # Gap between cells in px (default: 8)
+  cell_width: auto | <number>                # Cell width: 'auto' or fixed px (default: auto)
+
+# ==============================================================================
+# STYLING
+# ==============================================================================
+
+# Typography
+font_size: <number>                          # Font size in px (default: 18)
+font_family: <string>                        # Font family (default: 'Antonio', 'Helvetica Neue', sans-serif)
+font_weight: <number>                        # Font weight (default: 400)
+
+# Colors
+color: <color>                               # Default text color (hex, theme token, CSS var)
+                                             # Examples: '#99ccff', 'theme:colors.lcars.blue', 'var(--primary-text-color)'
+
+# Alignment
+align: left | center | right                 # Cell text alignment (default: right)
+
+# Spreadsheet Header Styling (spreadsheet layout only)
+header_style:
+  background: <color>                        # Header background color (default: theme:colors.background.header)
+  color: <color>                             # Header text color (default: theme:colors.text.header)
+  font_size: <number>                        # Header font size in px (default: same as font_size)
+  font_weight: <number>                      # Header font weight (default: 700)
+  text_transform: uppercase | lowercase | capitalize | none  # Text transform (default: uppercase)
+  divider_color: <color>                     # Divider line color (default: theme:colors.divider)
+  divider_width: <number>                    # Divider line width in px (default: 2)
+
+# ==============================================================================
+# CASCADE ANIMATION
+# ==============================================================================
+
+animation:
+  type: cascade                              # Enable cascade animation
+
+  # Timing Pattern
+  pattern: default | niagara | fast | custom
+  # - default: Varied organic (3s, 3s, 4s, 4s, 4s, 2s, 2s, 2s)
+  # - niagara: Smooth uniform (all 2s)
+  # - fast: Quick waterfall (all 1s)
+  # - custom: User-defined (see below)
+
+  # Color Cycle (3-color cascade)
+  colors:
+    start: <color>                           # Starting color (75% dwell)
+    text: <color>                            # Middle color (10% snap)
+    end: <color>                             # Ending color (10% brief)
+
+  # Speed Controls (choose one)
+  speed_multiplier: <number>                 # Speed multiplier (2.0 = twice as fast)
+  duration: <number>                         # Override all row durations (ms)
+
+  # Advanced
+  easing: <string>                           # Easing function (default: 'linear')
+
+  # Custom Pattern (when pattern: custom)
+  timing:
+    - duration: <number>                     # Duration in ms
+      delay: <number>                        # Delay in seconds
+    - duration: <number>
+      delay: <number>
+    # Pattern repeats for remaining rows
+
+  # Change Detection (highlight cells when values change)
+  highlight_changes: <boolean>               # Enable change detection (default: false)
+  change_preset: pulse | glow | flash        # Animation preset (default: pulse)
+  change_duration: <number>                  # Duration in ms (default: 500)
+  change_easing: <string>                    # Easing function (default: 'easeOutQuad')
+  change_params: <object>                    # Additional preset-specific parameters (optional)
+    # Preset-specific params override preset defaults
+    # Example for 'pulse': { max_scale: 1.08, min_opacity: 0.8 }
+    # Example for 'glow': { color: '#ff9966', blur_max: 12 }
+  max_highlight_cells: <number>              # Max cells to animate per update (default: 50)
+
+# ==============================================================================
+# CARD METADATA (Optional)
+# ==============================================================================
+
+id: <string>                                 # Card identifier for rules/animations
+tags: [<string>, ...]                        # Tags for rules engine
 ```
 
 ---
 
 ## Data Modes
 
-LCARdS Data Grid offers three distinct data input modes, each optimized for different use cases.
-
 ### Mode 1: Random (Decorative)
 
-Auto-generates random data for LCARS-style visual effects.
-
-**Basic Usage:**
-
-```yaml
-type: custom:lcards-data-grid
-data_mode: random
-format: mixed              # 'digit' | 'float' | 'alpha' | 'hex' | 'mixed'
-grid:
-  rows: 8
-  columns: 12
-  gap: 8
-```
+Auto-generates random data for LCARS-style ambiance.
 
 **Format Options:**
 
 | Format | Output Example | Description |
 |--------|----------------|-------------|
-| `digit` | `0042`, `1337` | 4-digit numbers (padded) |
-| `float` | `42.17`, `3.14` | Decimal numbers (2 places) |
+| `digit` | `0042`, `1337` | 4-digit numbers (zero-padded) |
+| `float` | `42.17`, `3.14` | Decimal numbers (2 decimals) |
 | `alpha` | `AB`, `XY` | Two uppercase letters |
 | `hex` | `A3F1`, `00FF` | 4-digit hexadecimal |
 | `mixed` | Various | Random mix of all formats |
 
-**With Auto-Refresh:**
-
+**Basic Example:**
 ```yaml
 type: custom:lcards-data-grid
 data_mode: random
 format: hex
+grid:
+  rows: 8
+  columns: 12
+```
+
+**With Auto-Refresh:**
+```yaml
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
 refresh_interval: 3000     # Update every 3 seconds
 grid:
   rows: 6
   columns: 10
 animation:
-  type: cascade
-  highlight_changes: true  # Animate changes when data refreshes
+  highlight_changes: true  # Animate changes
 ```
+
+---
 
 ### Mode 2: Template (Manual Grid)
 
-Define grid content using templates and entity values.
+Define grid content using Home Assistant templates.
 
-**Basic Template:**
+**Template Syntax:**
+- **Static text:** `'CPU'`
+- **Entity state:** `'{{states.sensor.cpu_usage.state}}'`
+- **Entity attribute:** `'{{states.sensor.temp.attributes.unit}}'`
+- **Jinja2 logic:** `'{% if states.sensor.temp.state|float > 22 %}WARM{% else %}COOL{% endif %}'`
 
+**Basic Example:**
 ```yaml
 type: custom:lcards-data-grid
 data_mode: template
 rows:
-  - ['Label', 'Value']
-  - ['CPU', '{{states.sensor.cpu_usage.state}}%']
-  - ['RAM', '{{states.sensor.memory_usage.state}}%']
-  - ['Disk', '{{states.sensor.disk_usage.state}}%']
+  - ['Label', 'Value', 'Status']
+  - ['CPU', '{{states.sensor.cpu_usage.state}}%', 'OK']
+  - ['RAM', '{{states.sensor.memory_usage.state}}%', 'OK']
+font_size: 16
 ```
 
-**Advanced Templates with Expressions:**
-
+**With Conditionals:**
 ```yaml
 type: custom:lcards-data-grid
 data_mode: template
 rows:
-  - ['Room', 'Temp', 'Humidity', 'Status']
-  - ['Living', '{{states.sensor.living_temp.state}}°C', '{{states.sensor.living_humidity.state}}%', '{% if states.sensor.living_temp.state|float > 22 %}WARM{% else %}COOL{% endif %}']
-  - ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C', '{{states.sensor.bedroom_humidity.state}}%', '{% if states.sensor.bedroom_temp.state|float > 22 %}WARM{% else %}COOL{% endif %}']
+  - ['Room', 'Temp', 'Status']
+  - ['Living', '{{states.sensor.living_temp.state}}°C', '{% if states.sensor.living_temp.state|float > 22 %}WARM{% else %}COOL{% endif %}']
+  - ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C', '{% if states.sensor.bedroom_temp.state|float > 22 %}WARM{% else %}COOL{% endif %}']
 ```
 
-**Template Features:**
-
+**Features:**
 - Full Home Assistant template syntax
-- Entity state access via `{{states.entity_id.state}}`
-- Attribute access via `{{states.entity_id.attributes.attr}}`
-- Jinja2 filters and conditionals
 - Auto-updates when tracked entities change
+- Supports Jinja2 filters and conditionals
+- State and attribute access
+
+---
 
 ### Mode 3: DataSource (Real-Time)
 
@@ -183,30 +256,37 @@ Integrate with LCARdS DataSource system for advanced data handling.
 
 #### Timeline Layout
 
-Display flowing data from a single source:
+Display flowing data from a single source.
 
+**Example:**
 ```yaml
 type: custom:lcards-data-grid
 data_mode: datasource
 layout: timeline
-source: sensor.temperature  # Entity or DataSource name
+source: sensor.temperature    # Entity or DataSource name
 grid:
   rows: 6
   columns: 12
-history_hours: 1           # Preload 1 hour of history
-value_template: '{value}°C' # Format values
+history_hours: 1              # Preload 1 hour of history
+value_template: '{value}°C'   # Format values
+animation:
+  type: cascade
+  highlight_changes: true
 ```
 
-**Timeline Features:**
-- Automatically flows new values into grid (left-to-right, top-to-bottom)
+**Features:**
+- Flows new values left-to-right, top-to-bottom
 - Supports historical data preload
-- Change detection highlights new values
 - Auto-creates DataSource from entity if needed
+- Change detection highlights new values (disabled by default to avoid false positives from shifting)
+
+---
 
 #### Spreadsheet Layout
 
-Structured grid with multiple data sources:
+Structured grid with multiple data sources.
 
+**Example:**
 ```yaml
 type: custom:lcards-data-grid
 data_mode: datasource
@@ -232,28 +312,34 @@ rows:
         value: Living Room
       - type: datasource
         column: 1
-        source: living_temp
+        source: sensor.living_temperature
         format: '{value}°C'
       - type: datasource
         column: 2
-        source: living_humidity
+        source: sensor.living_humidity
         format: '{value}%'
-  
+
   - sources:
       - type: static
         column: 0
         value: Bedroom
       - type: datasource
         column: 1
-        source: bedroom_temp
+        source: sensor.bedroom_temperature
         format: '{value}°C'
       - type: datasource
         column: 2
-        source: bedroom_humidity
+        source: sensor.bedroom_humidity
         format: '{value}%'
+
+font_size: 15
+animation:
+  type: cascade
+  highlight_changes: true
+  change_preset: glow
 ```
 
-**Spreadsheet Features:**
+**Features:**
 - Column headers with configurable width and alignment
 - Mix static labels with dynamic data
 - Per-cell value formatting
@@ -262,37 +348,57 @@ rows:
 
 ---
 
-## Cascade Animations
+## Cascade Animation
 
-The signature LCARS feature: row-by-row color cycling animations powered by AnimationManager.
+The signature LCARS feature: row-by-row color cycling powered by AnimationManager.
 
 ### Basic Cascade
-
-Enable default cascade animation:
-
-```yaml
-animation:
-  type: cascade              # Enable cascade animation
-  pattern: default           # Animation timing pattern
-```
-
-### Animation Patterns
-
-Control the cascade timing behavior:
 
 ```yaml
 animation:
   type: cascade
-  pattern: niagara           # Choose pattern
+  pattern: default           # Animation timing pattern
+  colors:
+    start: colors.lcars.blue
+    text: colors.lcars.dark-blue
+    end: colors.lcars.moonlight
 ```
 
-| Pattern | Description | Delay Range | Use Case |
-|---------|-------------|-------------|----------|
-| `default` | Varied, organic | 100-800ms | Standard displays |
-| `niagara` | Uniform cascade | 100-800ms (linear) | Smooth wave effect |
-| `fast` | Quick cascade | 50-400ms | Rapid updates |
-| `frozen` | No animation | 0ms | Static display after initial cascade |
+### Animation Patterns
+
+| Pattern | Description | Row Durations | Use Case |
+|---------|-------------|---------------|----------|
+| `default` | Varied organic | 3s, 3s, 4s, 4s, 4s, 2s, 2s, 2s | Standard displays |
+| `niagara` | Smooth uniform | All 2s | Smooth wave effect |
+| `fast` | Quick cascade | All 1s | Rapid updates |
 | `custom` | User-defined | See below | Precise control |
+
+### Color Cycle Timing
+
+Authentic LCARS CSS keyframe timing:
+- **0-75%**: `start` color - **long dwell**
+- **80-90%**: `text` color - **snap/flash**
+- **90-100%**: `end` color - **brief transition**
+
+All cells in a row change color together. Each row has independent timing based on pattern.
+
+### Speed Control
+
+**Option 1: Speed Multiplier**
+```yaml
+animation:
+  type: cascade
+  pattern: default
+  speed_multiplier: 2.0      # 2x faster
+```
+
+**Option 2: Duration Override**
+```yaml
+animation:
+  type: cascade
+  pattern: default
+  duration: 1500             # All rows use 1500ms
+```
 
 ### Custom Timing Pattern
 
@@ -307,67 +413,139 @@ animation:
     - { duration: 3000, delay: 200 }   # Row 2
     - { duration: 4000, delay: 300 }   # Row 3
     - { duration: 2000, delay: 150 }   # Row 4
-    # ... more rows
-```
-
-### Cascade Colors
-
-Customize the color cycle:
-
-```yaml
-animation:
-  type: cascade
+    # Pattern repeats for remaining rows
   colors:
-    start: colors.lcars.blue        # First color (theme token)
-    text: colors.lcars.dark-blue    # Middle color
-    end: colors.lcars.moonlight     # End color
-  cycle_duration: 5000              # Full cycle in milliseconds
+    start: '#99ccff'
+    text: '#4466aa'
+    end: '#aaccff'
 ```
 
-**Color Options:**
-- Theme tokens: `colors.lcars.blue`, `colors.lcars.orange`, etc.
-- CSS variables: `var(--lcars-orange)`
-- Hex colors: `#99ccff`
+### Color Options
 
-### Advanced Animation Configuration
-
-Complete animation control:
-
+**Theme Tokens (Recommended):**
 ```yaml
 animation:
-  type: cascade
-  
-  # Timing
-  pattern: default
-  cycle_duration: 5000       # Duration of full color cycle (ms)
-  
-  # Colors (3-color cascade)
   colors:
-    start: '#99ccff'         # Starting color (left/top)
-    text: '#4466aa'          # Middle color
-    end: '#aaccff'           # Ending color (right/bottom)
-  
-  # Change Detection
-  highlight_changes: true    # Pulse animation when values change
-  change_preset: pulse       # 'pulse' | 'glow' | 'flash'
-  max_highlight_cells: 50    # Limit animations for performance
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
 ```
 
-### No Animation
+**CSS Variables:**
+```yaml
+animation:
+  colors:
+    start: var(--lcars-blue, #99ccff)
+    text: var(--lcars-dark-blue, #4466aa)
+    end: var(--lcars-moonlight, #aaccff)
+```
 
-Disable cascade for static grids:
+**Hex Colors:**
+```yaml
+animation:
+  colors:
+    start: '#99ccff'
+    text: '#4466aa'
+    end: '#aaccff'
+```
+
+---
+
+## Change Detection
+
+Highlight cells when values change.
+
+### Basic Configuration
 
 ```yaml
-# Omit animation config entirely, or set:
 animation:
-  type: none
+  highlight_changes: true    # Enable change detection
+  change_preset: pulse       # Animation preset
+```
+
+### Animation Presets
+
+| Preset | Effect | Duration | Use Case |
+|--------|--------|----------|----------|
+| `pulse` | Brightness + scale | 500ms | Default, subtle |
+| `glow` | Drop-shadow glow | 600ms | Draw attention |
+| `flash` | Quick color flash | 300ms | Rapid updates |
+
+### Advanced Configuration
+
+Fine-tune change animations with custom parameters:
+
+```yaml
+animation:
+  highlight_changes: true
+  change_preset: pulse
+  change_duration: 800           # Custom duration in ms
+  change_easing: easeOutCubic    # Custom easing function
+  change_params:                 # Preset-specific parameters
+    max_scale: 1.1               # Scale up to 110%
+    min_opacity: 0.7             # Fade to 70% opacity
+  max_highlight_cells: 30        # Limit animations for performance
+```
+
+**Available Easing Functions:**
+- `linear` - Constant speed
+- `easeInQuad`, `easeOutQuad`, `easeInOutQuad` - Quadratic
+- `easeInCubic`, `easeOutCubic`, `easeInOutCubic` - Cubic
+- `easeInQuart`, `easeOutQuart`, `easeInOutQuart` - Quartic
+- `easeInElastic`, `easeOutElastic`, `easeInOutElastic` - Elastic bounce
+- And more from anime.js easing library
+
+**Preset-Specific Parameters:**
+
+**Pulse Preset:**
+```yaml
+change_params:
+  max_scale: 1.08              # Maximum scale (default: 1.05)
+  min_opacity: 0.8             # Minimum opacity (default: 0.7)
+```
+
+**Glow Preset:**
+```yaml
+change_params:
+  color: '#ff9966'             # Glow color (default: preset color)
+  blur_max: 12                 # Maximum blur radius (default: 8)
+```
+
+**Flash Preset:**
+```yaml
+change_params:
+  color: '#ffcc00'             # Flash color (default: preset color)
+```
+
+### Performance Limiting
+
+Prevent excessive animations on large grids:
+
+```yaml
+animation:
+  highlight_changes: true
+  max_highlight_cells: 50    # Limit to 50 animated cells per update
+```
+
+### Cascade + Change Detection
+
+Both can work together:
+
+```yaml
+animation:
+  type: cascade              # Background cascade
+  pattern: niagara
+  highlight_changes: true    # Plus change highlights
+  change_preset: pulse
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
 ```
 
 ---
 
 ## Grid Configuration
-
-Control the grid layout and appearance.
 
 ### Basic Grid
 
@@ -376,25 +554,10 @@ grid:
   rows: 8                    # Number of rows
   columns: 12                # Number of columns
   gap: 8                     # Gap between cells (px)
+  cell_width: auto           # 'auto' or fixed px
 ```
 
-### Cell Alignment
-
-```yaml
-alignment: left              # 'left' | 'center' | 'right'
-```
-
-Applies to all cells. For per-column alignment in spreadsheet mode, use column config.
-
-### Font Styling
-
-```yaml
-font_size: 18               # Font size in pixels
-font_family: "'Antonio', 'Helvetica Neue', sans-serif"
-font_weight: 400            # 300 | 400 | 700
-```
-
-### Cell Width Control
+### Cell Width Options
 
 **Auto-sizing (default):**
 ```yaml
@@ -410,11 +573,31 @@ grid:
   cell_width: 80            # 80px per cell
 ```
 
-### Color Configuration
+### Cell Alignment
 
-**Default text color:**
 ```yaml
-color: '#99ccff'            # Hex, theme token, or CSS var
+align: left | center | right   # Default: right
+```
+
+Applies to all cells. For per-column alignment in spreadsheet mode, use column config.
+
+---
+
+## Styling
+
+### Typography
+
+```yaml
+font_size: 18               # Cell text size in px
+font_family: "'Antonio', 'Helvetica Neue', sans-serif"
+font_weight: 400            # Font weight
+```
+
+### Colors
+
+**Single color for all cells:**
+```yaml
+color: '#99ccff'            # Hex color
 ```
 
 **Theme integration:**
@@ -422,68 +605,25 @@ color: '#99ccff'            # Hex, theme token, or CSS var
 color: theme:colors.text.primary
 ```
 
----
-
-## Styling Guide
-
-Customize the visual appearance of the grid.
-
-### Text Colors
-
+**CSS variables:**
 ```yaml
-# Single color for all cells
-color: '#99ccff'
-
-# Or use theme tokens
-color: theme:colors.lcars.blue
-
-# Or CSS variables
 color: var(--primary-text-color)
 ```
 
-### Background
-
-Grid cells are transparent by default for proper LCARS aesthetics:
-
-```yaml
-# Card background is handled by container
-# Individual cell backgrounds not recommended for LCARS style
-```
-
-### Typography
-
-```yaml
-font_size: 16              # Cell text size
-font_family: "'Antonio', sans-serif"  # LCARS font
-font_weight: 400           # Font weight
-```
+**Note:** Cascade animation overrides this color during the color cycle.
 
 ### Grid Spacing
 
 ```yaml
 grid:
-  gap: 8                   # Gap between cells (px)
-  
-# Individual cell padding is auto-calculated from gap
+  gap: 8                   # Gap between cells in px
 ```
 
-### Borders and Dividers
-
-For spreadsheet layout:
-
-```yaml
-# Column headers automatically styled with divider
-# Controlled via theme tokens:
-# - theme:colors.background.header
-# - theme:colors.text.header
-# - theme:colors.divider
-```
+Individual cell padding is auto-calculated from gap value.
 
 ---
 
 ## Theme Integration
-
-LCARdS Data Grid fully integrates with LCARdS themes.
 
 ### Using Theme Tokens
 
@@ -519,103 +659,15 @@ color: var(--primary-text-color)
 animation:
   colors:
     start: var(--lcars-blue, #99ccff)  # With fallback
-```
-
-### Color Examples
-
-```yaml
-# Classic LCARS blue cascade
-animation:
-  type: cascade
-  colors:
-    start: '#99ccff'
-    text: '#4466aa'
-    end: '#aaccff'
-
-# Orange cascade
-animation:
-  type: cascade
-  colors:
-    start: '#ff9900'
-    text: '#cc6600'
-    end: '#ffcc00'
-
-# Theme-based (adapts to active theme)
-animation:
-  type: cascade
-  colors:
-    start: theme:colors.accent.primary
-    text: theme:colors.accent.secondary
-    end: theme:colors.accent.tertiary
-```
-
----
-
-## Change Detection
-
-Animate cells when their values change.
-
-### Basic Change Detection
-
-```yaml
-animation:
-  highlight_changes: true    # Enable change detection
-```
-
-**Behavior:**
-- Detects when cell values change
-- Triggers pulse animation on changed cells
-- Works in all data modes (random, template, datasource)
-
-### Change Animation Presets
-
-```yaml
-animation:
-  highlight_changes: true
-  change_preset: pulse       # 'pulse' | 'glow' | 'flash'
-```
-
-| Preset | Effect | Duration | Use Case |
-|--------|--------|----------|----------|
-| `pulse` | Scale + background | 500ms | Default, subtle |
-| `glow` | Opacity pulse | 600ms | Attention |
-| `flash` | Quick flash | 300ms | Rapid updates |
-
-### Performance Limiting
-
-Prevent excessive animations on large grids:
-
-```yaml
-animation:
-  highlight_changes: true
-  max_highlight_cells: 50    # Limit to 50 animated cells per update
-```
-
-### Complete Change Detection Config
-
-```yaml
-data_mode: datasource        # Or template with auto-refresh
-layout: timeline
-source: sensor.temperature
-
-animation:
-  type: cascade              # Cascade + change detection work together
-  highlight_changes: true
-  change_preset: pulse
-  max_highlight_cells: 30
-  
-  # Cascade colors
-  colors:
-    start: theme:colors.lcars.blue
-    text: theme:colors.lcars.dark-blue
-    end: theme:colors.lcars.moonlight
+    text: var(--lcars-dark-blue, #4466aa)
+    end: var(--lcars-moonlight, #aaccff)
 ```
 
 ---
 
 ## Complete Examples
 
-### Decorative LCARS Display
+### Example 1: Decorative LCARS Display
 
 Classic random data cascade for ambiance:
 
@@ -632,14 +684,15 @@ color: theme:colors.lcars.blue
 animation:
   type: cascade
   pattern: niagara
-  cycle_duration: 6000
   colors:
     start: '#99ccff'
     text: '#4466aa'
     end: '#aaccff'
 ```
 
-### Live Sensor Status Board
+---
+
+### Example 2: Live Sensor Status Board
 
 Template-based grid with live entity data:
 
@@ -652,9 +705,8 @@ rows:
   - ['CPU LOAD', '{{states.sensor.cpu_usage.state}}%', '{% if states.sensor.cpu_usage.state|float > 80 %}HIGH{% else %}OK{% endif %}']
   - ['MEMORY', '{{states.sensor.memory_usage.state}}%', '{% if states.sensor.memory_usage.state|float > 90 %}HIGH{% else %}OK{% endif %}']
   - ['DISK', '{{states.sensor.disk_usage.state}}%', '{% if states.sensor.disk_usage.state|float > 85 %}FULL{% else %}OK{% endif %}']
-  - ['NETWORK', '{{states.sensor.network_speed.state}} Mbps', 'ACTIVE']
 font_size: 16
-alignment: left
+align: left
 animation:
   type: cascade
   pattern: fast
@@ -665,7 +717,9 @@ animation:
     end: theme:colors.lcars.orange
 ```
 
-### Temperature Timeline
+---
+
+### Example 3: Temperature Timeline
 
 Historical temperature data in timeline layout:
 
@@ -681,11 +735,10 @@ grid:
 history_hours: 2            # Show last 2 hours
 value_template: '{value}°C'
 font_size: 14
-alignment: center
+align: center
 animation:
   type: cascade
   pattern: default
-  highlight_changes: true
   max_highlight_cells: 20
   colors:
     start: '#99ccff'
@@ -693,7 +746,9 @@ animation:
     end: '#99ccff'
 ```
 
-### Multi-Sensor Spreadsheet
+---
+
+### Example 4: Multi-Sensor Spreadsheet
 
 Structured data grid with multiple sources:
 
@@ -732,7 +787,7 @@ rows:
       - type: static
         column: 3
         value: NORMAL
-  
+
   - sources:
       - type: static
         column: 0
@@ -750,8 +805,17 @@ rows:
         value: NORMAL
 
 font_size: 15
+header_style:
+  background: colors.lcars.dark-blue
+  color: colors.lcars.blue
+  font_size: 16
+  font_weight: 700
+  text_transform: uppercase
+  divider_color: colors.lcars.blue
+  divider_width: 2
 animation:
   type: cascade
+  pattern: default
   highlight_changes: true
   colors:
     start: theme:colors.lcars.blue
@@ -759,9 +823,11 @@ animation:
     end: theme:colors.lcars.moonlight
 ```
 
-### High-Performance Grid with Refresh
+---
 
-Random data with controlled updates:
+### Example 5: High-Performance Auto-Refresh
+
+Rapid updates with performance controls:
 
 ```yaml
 type: custom:lcards-data-grid
@@ -776,151 +842,12 @@ font_size: 14
 animation:
   type: cascade
   pattern: fast
-  cycle_duration: 3000
   highlight_changes: true
-  max_highlight_cells: 30   # Limit animations for performance
+  max_highlight_cells: 30   # Limit for performance
   colors:
     start: '#99ccff'
     text: '#4466aa'
     end: '#aaccff'
-```
-
----
-
-## Complete Schema Reference
-
-### Top-Level Configuration
-
-```yaml
-type: custom:lcards-data-grid
-
-# Data Configuration (required)
-data_mode: random | template | datasource
-
-# Grid Layout
-grid:
-  rows: <number>             # Number of rows (random/template modes)
-  columns: <number>          # Number of columns
-  gap: <number>              # Gap between cells in px (default: 8)
-  cell_width: auto | <number> # Cell width: 'auto' or fixed px
-
-# Visual Styling
-font_size: <number>          # Font size in px (default: 18)
-font_family: <string>        # Font family (default: Antonio)
-font_weight: <number>        # Font weight (default: 400)
-color: <color>               # Default text color (hex, theme token, CSS var)
-alignment: left | center | right  # Cell text alignment (default: left)
-
-# Animation Configuration
-animation:
-  type: cascade | none       # Animation type
-  pattern: default | niagara | fast | frozen | custom
-  cycle_duration: <number>   # Full color cycle duration in ms (default: 5000)
-  
-  # Cascade Colors
-  colors:
-    start: <color>           # Starting color
-    text: <color>            # Middle color
-    end: <color>             # Ending color
-  
-  # Custom Timing (when pattern: custom)
-  timing:
-    - duration: <number>     # Duration in ms
-      delay: <number>        # Delay in ms
-    # ... more rows
-  
-  # Change Detection
-  highlight_changes: <boolean>  # Enable change detection (default: false)
-  change_preset: pulse | glow | flash  # Animation preset (default: pulse)
-  max_highlight_cells: <number>  # Max cells to animate (default: 50)
-
-# Card Metadata
-id: <string>                 # Card identifier for rules/animations
-tags: [<string>, ...]        # Tags for rules engine
-```
-
-### Random Mode
-
-```yaml
-data_mode: random
-
-# Format
-format: digit | float | alpha | hex | mixed  # Data format (default: mixed)
-
-# Grid Size (required)
-grid:
-  rows: <number>
-  columns: <number>
-
-# Auto-Refresh
-refresh_interval: <number>   # Update interval in ms (0 = disabled)
-```
-
-### Template Mode
-
-```yaml
-data_mode: template
-
-# Template Rows (required)
-rows:
-  - [<template>, <template>, ...]  # Row 1
-  - [<template>, <template>, ...]  # Row 2
-  # ... more rows
-
-# Template Syntax:
-# - Static text: 'Label'
-# - Entity state: '{{states.sensor.temp.state}}'
-# - Entity attribute: '{{states.sensor.temp.attributes.unit}}'
-# - Jinja2 expressions: '{% if ... %}...{% endif %}'
-```
-
-### DataSource Mode - Timeline Layout
-
-```yaml
-data_mode: datasource
-layout: timeline
-
-# Data Source (required)
-source: <string>             # Entity ID or DataSource name
-
-# Grid Configuration
-grid:
-  rows: <number>             # Display rows (optional)
-  columns: <number>          # Display columns (required)
-
-# History
-history_hours: <number>      # Hours of history to preload (default: 1)
-
-# Formatting
-value_template: <string>     # Format template (default: '{value}')
-                             # Use {value} placeholder
-```
-
-### DataSource Mode - Spreadsheet Layout
-
-```yaml
-data_mode: datasource
-layout: spreadsheet
-
-# Column Definitions (required)
-columns:
-  - header: <string>         # Column header text
-    width: <number>          # Column width in px (optional)
-    align: left | center | right  # Header/cell alignment (default: left)
-
-# Row Definitions (required)
-rows:
-  - sources:                 # Array of cell sources
-      - type: static | datasource
-        column: <number>     # Column index (0-based)
-        
-        # For static type:
-        value: <any>         # Static value
-        
-        # For datasource type:
-        source: <string>     # DataSource name or entity
-        format: <string>     # Format template (default: '{value}')
-        aggregation: last | avg | min | max  # Aggregation (default: last)
 ```
 
 ---
@@ -930,7 +857,7 @@ rows:
 ### Grid Not Appearing
 
 **Check:**
-1. Data mode is specified: `data_mode: random | template | datasource`
+1. `data_mode` is specified correctly
 2. Required fields for mode are provided:
    - Random: `grid.rows` and `grid.columns`
    - Template: `rows` array
@@ -940,10 +867,10 @@ rows:
 ### Cascade Animation Not Working
 
 **Check:**
-1. Animation type is set: `animation.type: cascade`
+1. `animation.type: cascade` is set
 2. Colors are valid (hex, theme tokens, or CSS vars)
 3. AnimationManager is loaded (check console logs)
-4. Pattern name is correct: `default`, `niagara`, `fast`, `frozen`, or `custom`
+4. Pattern name is correct
 
 ### Template Values Not Updating
 
@@ -959,44 +886,62 @@ rows:
 1. DataSource exists or entity ID is valid
 2. DataSourceManager is initialized (check console)
 3. Source name matches registered DataSource
-4. For spreadsheet: column indices match column definitions
+4. For spreadsheet: column indices are 0-based and match column definitions
 
 ### Change Detection Not Working
 
 **Check:**
 1. `animation.highlight_changes: true` is set
 2. Data is actually changing (check entity history)
-3. `max_highlight_cells` isn't limiting animations
-4. Mode supports change detection (all modes do)
+3. `max_highlight_cells` isn't limiting animations too much
+4. Mode supports updates (all modes do)
 
 ### Performance Issues
 
 **Solutions:**
-1. Reduce grid size: fewer rows/columns
+1. Reduce grid size (fewer rows/columns)
 2. Increase `refresh_interval` for random mode
 3. Lower `max_highlight_cells` limit
-4. Use `pattern: frozen` for static cascade
+4. Use `pattern: fast` for quicker cycles
 5. Disable change detection if not needed
-6. Reduce `cycle_duration` for faster animations
 
-### Spreadsheet Layout Issues
+---
 
-**Check:**
-1. Column indices are 0-based (first column = 0)
-2. All columns defined before use in rows
-3. Source names match DataSource registry
-4. Format templates use `{value}` placeholder
+## Technical Notes
+
+### Animation Architecture
+
+The Data Grid uses AnimationManager for all animations:
+- **Cascade:** Per-row independent animations with anime.js keyframes
+- **Change detection:** One-shot animations on modified cells
+- **Scope management:** All animations registered under grid overlay ID
+
+### Performance Optimizations
+
+- CSS Grid layout (native browser optimization)
+- Change detection limits (`max_highlight_cells`)
+- Efficient template processing
+- DataSource subscription management
+- ResizeObserver for responsive sizing
+
+### Browser Compatibility
+
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- Requires CSS Grid support
+- Requires Web Components (Custom Elements)
+- anime.js v4 for animations
 
 ---
 
 ## Further Reading
 
 - **Animation System:** See `doc/architecture/animation-system.md`
-- **DataSource System:** See LCARdS DataSource documentation  
-- **Theme System:** See LCARdS theme system documentation
+- **DataSource System:** See LCARdS DataSource documentation
+- **Theme System:** See LCARdS theme documentation
 - **Template Syntax:** Home Assistant template documentation
 
 ---
 
-**Version:** 1.9.30
-**Last Updated:** December 6, 2024
+**Version:** 2.3.22
+**Last Updated:** December 7, 2024
+**Status:** Stable - Authentic LCARS cascade animation with three data modes

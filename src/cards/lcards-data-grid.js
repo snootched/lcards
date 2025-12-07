@@ -8,10 +8,89 @@
  *
  * Features:
  * - CSS Grid layout (native browser optimization)
- * - Cascade animations (row-by-row color cycling)
- * - Change detection with highlight animations
+ * - Cascade animations (row-by-row color cycling with authentic LCARS timing)
+ * - Change detection with highlight animations (cell/row/column targeting)
  * - Theme token integration
  * - Responsive auto-sizing
+ *
+ * ============================================================================
+ * ANIMATION CONFIGURATION
+ * ============================================================================
+ *
+ * CASCADE ANIMATION (Continuous background effect)
+ * Creates authentic LCARS waterfall color cycling effect with per-row timing.
+ *
+ * @example Basic Cascade
+ * ```yaml
+ * type: custom:lcards-data-grid
+ * animation:
+ *   type: cascade
+ *   pattern: default  # 'default' | 'niagara' | 'fast' | 'frozen' | 'custom'
+ *   colors:
+ *     start: colors.lcars.blue
+ *     text: colors.lcars.dark-blue
+ *     end: colors.lcars.moonlight
+ * ```
+ *
+ * @example Speed Control
+ * ```yaml
+ * animation:
+ *   type: cascade
+ *   pattern: default
+ *   speed_multiplier: 2.0    # 2x faster (1500ms, 1000ms cycles)
+ *   # OR
+ *   duration: 1500           # Override all row durations to 1500ms
+ *   colors:
+ *     start: colors.lcars.blue
+ *     text: colors.lcars.dark-blue
+ *     end: colors.lcars.moonlight
+ * ```
+ *
+ * @example Advanced Cascade
+ * ```yaml
+ * animation:
+ *   type: cascade
+ *   pattern: custom
+ *   timing:
+ *     - { duration: 3000, delay: 0.1 }  # Row 0
+ *     - { duration: 2000, delay: 0.2 }  # Row 1
+ *     - { duration: 4000, delay: 0.3 }  # Row 2 (pattern repeats)
+ *   colors:
+ *     start: '#99ccff'
+ *     text: '#4466aa'
+ *     end: '#aaccff'
+ *   cell_stagger: 50  # ms between cells in same row
+ *   easing: linear
+ * ```
+ *
+ * CHANGE ANIMATION (One-shot highlight on data changes)
+ * Highlights changed cells/rows/columns to draw user attention.
+ *
+ * @example Cell-level Change Highlight
+ * ```yaml
+ * change_animation:
+ *   preset: pulse        # Any animation preset
+ *   target_mode: cell    # 'cell' | 'row' | 'column'
+ *   duration: 500
+ *   params:
+ *     max_scale: 1.08
+ *     min_opacity: 0.8
+ * ```
+ *
+ * @example Row-level Change Highlight
+ * ```yaml
+ * change_animation:
+ *   preset: glow
+ *   target_mode: row     # Entire row glows
+ *   duration: 600
+ *   params:
+ *     color: var(--lcars-orange)
+ *     blur_max: 12
+ * ```
+ *
+ * ============================================================================
+ * DATA MODES
+ * ============================================================================
  *
  * @example Random/Decorative Mode
  * ```yaml
@@ -201,6 +280,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Initialize based on data mode
     await this._initializeDataMode();
 
+    // Initialize animation scope (always needed for change detection)
+    await this._initializeAnimationScope();
+
     // Setup cascade animation if configured
     await this._setupCascadeAnimation();
 
@@ -217,6 +299,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Re-initialize if already initialized and config changes
     if (this._isInitialized) {
       await this._initializeDataMode();
+      await this._initializeAnimationScope();
       await this._setupCascadeAnimation();
     }
   }
@@ -470,6 +553,21 @@ export class LCARdSDataGrid extends LCARdSCard {
     lcardsLog.debug('[LCARdSDataGrid] Tracking template entities:', this._templateEntities);
   }
 
+  /**
+   * Process templates when tracked entities change (override from LCARdSCard)
+   * @protected
+   * @override
+   */
+  async _processTemplates() {
+    // Call parent to handle icon/label templates
+    await super._processTemplates();
+
+    // Re-process template grid if in template mode
+    if (this.config.data_mode === 'template') {
+      await this._processTemplateGrid();
+    }
+  }
+
   // ============================================================================
   // MODE 3: DATASOURCE (REAL-TIME)
   // ============================================================================
@@ -563,14 +661,24 @@ export class LCARdSDataGrid extends LCARdSCard {
    */
   _handleTimelineDataUpdate(data, columns) {
     const valueTemplate = this.config.value_template || '{value}';
+    const configuredRows = this.config.grid?.rows || 8;
+    const maxValues = configuredRows * columns;
     let values = [];
 
     // Handle different data formats
     if (data.buffer && typeof data.buffer.getAll === 'function') {
       // Rolling buffer data
       values = data.buffer.getAll().map(point => point.v);
+      // Keep only most recent maxValues
+      if (values.length > maxValues) {
+        values = values.slice(-maxValues);
+      }
     } else if (Array.isArray(data)) {
       values = data;
+      // Keep only most recent maxValues
+      if (values.length > maxValues) {
+        values = values.slice(-maxValues);
+      }
     } else if (data.v !== undefined) {
       // Single value - push to existing array or start new
       if (!this._timelineValues) {
@@ -578,8 +686,9 @@ export class LCARdSDataGrid extends LCARdSCard {
       }
       this._timelineValues.push(data.v);
 
-      // Limit to configured max values
-      const maxValues = (this.config.grid?.rows || 8) * columns;
+      // Keep only most recent maxValues (creates left-to-right flow)
+      // Example: 1 row × 4 cols, values [11, 22, 33, 44, 55]
+      // After slice: [22, 33, 44, 55] (oldest value 11 dropped from left)
       if (this._timelineValues.length > maxValues) {
         this._timelineValues = this._timelineValues.slice(-maxValues);
       }
@@ -589,19 +698,31 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Store previous data for change detection
     this._previousGridData = this._gridData;
 
-    // Format values into rows
+    // Timeline displays values left-to-right, filling rows sequentially
+    // Most recent N values (where N = rows × columns)
     const rows = [];
-    for (let i = 0; i < values.length; i += columns) {
-      const row = values.slice(i, i + columns).map(value =>
-        this._formatCellValue(value, valueTemplate)
+    for (let r = 0; r < configuredRows; r++) {
+      const rowStartIndex = r * columns;
+      const rowValues = values.slice(rowStartIndex, rowStartIndex + columns);
+
+      // Pad row with empty strings if not enough values yet
+      while (rowValues.length < columns) {
+        rowValues.push('');
+      }
+
+      const row = rowValues.map(value =>
+        value !== '' ? this._formatCellValue(value, valueTemplate) : ''
       );
       rows.push(row);
     }
 
     this._gridData = rows;
 
-    // Trigger change animations
-    this._detectAndAnimateChanges();
+    // NOTE: Change detection disabled for timeline mode
+    // Timeline shifts all cell values as data flows, causing false positives.
+    // Only the NEWEST value (rightmost cell) is truly "new", but detecting
+    // this would require tracking cell positions vs values, which is complex.
+    // For visual feedback in timeline mode, rely on cascade animation instead.
 
     this.requestUpdate();
   }
@@ -822,12 +943,56 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   // ============================================================================
+  // ANIMATION SCOPE INITIALIZATION
+  // ============================================================================
+
+  /**
+   * Initialize animation scope for the data grid
+   * This must be called before any animations (cascade or change detection)
+   * Creates the AnimationManager scope that all animations will use
+   * @private
+   */
+  async _initializeAnimationScope() {
+    const animationManager = this._singletons?.animationManager;
+    if (!animationManager) {
+      lcardsLog.debug('[LCARdSDataGrid] AnimationManager not available for scope initialization');
+      return;
+    }
+
+    // Get container element for AnimationManager scope
+    const containerEl = this.renderRoot.querySelector('.data-grid-container');
+    if (!containerEl) {
+      lcardsLog.debug('[LCARdSDataGrid] Container element not found for animation scope (will retry on next update)');
+      return;
+    }
+
+    const overlayId = this.config.id || `data-grid-${this._cardGuid}`;
+
+    // Check if scope already exists
+    const existingScope = animationManager.scopes.get(overlayId);
+    if (existingScope) {
+      lcardsLog.debug(`[LCARdSDataGrid] Animation scope already exists: ${overlayId}`);
+      return;
+    }
+
+    // Create empty scope (animations will be added later if needed)
+    try {
+      await animationManager.onOverlayRendered(overlayId, containerEl, {
+        animations: [] // Empty array - cascade will add animations if configured
+      });
+      lcardsLog.debug(`[LCARdSDataGrid] Animation scope initialized: ${overlayId}`);
+    } catch (error) {
+      lcardsLog.error('[LCARdSDataGrid] Failed to initialize animation scope:', error);
+    }
+  }
+
+  // ============================================================================
   // CASCADE ANIMATION
   // ============================================================================
 
   /**
    * Setup cascade animation using AnimationManager
-   * Called after grid is rendered
+   * Creates independent animations per row for authentic LCARS cascade effect
    * @private
    */
   async _setupCascadeAnimation() {
@@ -846,6 +1011,19 @@ export class LCARdSDataGrid extends LCARdSCard {
     await this.updateComplete;
 
     const overlayId = this.config.id || `data-grid-${this._cardGuid}`;
+    const numRows = this._gridData.length;
+
+    if (numRows === 0) {
+      lcardsLog.debug('[LCARdSDataGrid] No rows to animate');
+      return;
+    }
+
+    // Get container element for AnimationManager scope
+    const containerEl = this.renderRoot.querySelector('.data-grid-container');
+    if (!containerEl) {
+      lcardsLog.warn('[LCARdSDataGrid] Container element not found for cascade animation');
+      return;
+    }
 
     // Get cascade colors from config or theme
     const colors = animation.colors || {};
@@ -855,73 +1033,98 @@ export class LCARdSDataGrid extends LCARdSCard {
       this.getThemeToken(colors.end || 'colors.lcars.moonlight') || '#aaccff'
     ];
 
-    // Get timing pattern
+    // Get timing pattern (default, niagara, fast, custom)
     const pattern = animation.pattern || 'default';
     const timingPattern = this._getAnimationTiming(pattern);
 
-    // Calculate average stagger from timing pattern
-    const avgStagger = timingPattern.length > 0
-      ? timingPattern.reduce((sum, t) => sum + (t.delay || 0), 0) / timingPattern.length
-      : 100;
+    // User can override duration globally (affects all rows)
+    const durationOverride = animation.duration;
 
-    // Build animation definition
-    const animDef = {
-      trigger: 'on_load',
-      preset: 'cascade-color',
-      targets: '.grid-cell',
-      params: {
-        colors: cascadeColors,
-        stagger: avgStagger,
-        duration: animation.cycle_duration || 5000,
-        loop: pattern !== 'frozen',
-        alternate: true,
-        property: 'color'
-      }
-    };
+    // Or use speed multiplier (2.0 = twice as fast, 0.5 = half speed)
+    const speedMultiplier = animation.speed_multiplier !== undefined ? animation.speed_multiplier : 1.0;
 
-    // Register with AnimationManager
-    try {
-      // Register scope if not already registered
-      const containerEl = this.renderRoot.querySelector('.data-grid-container');
-      if (containerEl) {
-        await animationManager.onOverlayRendered(overlayId, containerEl, {
-          animations: [animDef]
-        });
-        
-        lcardsLog.debug('[LCARdSDataGrid] Cascade animation registered with AnimationManager');
+    lcardsLog.debug(`[LCARdSDataGrid] Setting up cascade animation for ${numRows} rows with pattern: ${pattern}`, {
+      speedMultiplier,
+      durationOverride
+    });
+
+    // Build animation definitions for all rows
+    const rowAnimations = [];
+    for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+      const timing = timingPattern[rowIndex % timingPattern.length];
+
+      // Calculate final duration: override > multiplier > pattern default
+      let finalDuration = timing.duration;
+      if (durationOverride !== undefined) {
+        finalDuration = durationOverride;
+      } else if (speedMultiplier !== 1.0) {
+        finalDuration = timing.duration / speedMultiplier;
       }
-    } catch (error) {
-      lcardsLog.error('[LCARdSDataGrid] Failed to register cascade animation:', error);
+
+      rowAnimations.push({
+        trigger: 'on_load',
+        preset: 'cascade-color',
+        targets: `.grid-cell[data-row="${rowIndex}"]`,
+        params: {
+          colors: cascadeColors,
+          duration: finalDuration,
+          delay: timing.delay * 1000, // Convert to ms - this is when the row starts
+          loop: true, // Cascade animations always loop
+          alternate: false, // Legacy uses normal direction (no reverse)
+          property: 'color',
+          easing: animation.easing || 'linear'
+        }
+      });
     }
-  }
 
-  /**
+    // Register cascade animations with the existing scope
+    // Scope was already created by _initializeAnimationScope()
+    try {
+      const scopeData = animationManager.scopes.get(overlayId);
+      if (!scopeData) {
+        lcardsLog.error('[LCARdSDataGrid] Animation scope not found for cascade setup');
+        return;
+      }
+
+      // Register each row animation
+      for (const animDef of rowAnimations) {
+        await animationManager.registerAnimation(overlayId, animDef);
+      }
+
+      lcardsLog.debug(`[LCARdSDataGrid] Cascade animation setup complete for ${numRows} rows`);
+    } catch (error) {
+      lcardsLog.error('[LCARdSDataGrid] Failed to setup cascade animation:', error);
+    }
+  }  /**
    * Get animation timing pattern
+   * These patterns are authentic LCARS animation timings from legacy CB-LCARS
    * @private
    */
   _getAnimationTiming(patternName) {
     const patterns = {
+      // Default LCARS pattern: slow → slower → fast (authentic rhythm)
       default: [
-        { duration: 3000, delay: 100 },
-        { duration: 3000, delay: 200 },
-        { duration: 4000, delay: 300 },
-        { duration: 4000, delay: 400 },
-        { duration: 4000, delay: 500 },
-        { duration: 2000, delay: 600 },
-        { duration: 2000, delay: 700 },
-        { duration: 2000, delay: 800 }
+        { duration: 3000, delay: 0.1 },
+        { duration: 3000, delay: 0.2 },
+        { duration: 4000, delay: 0.3 },
+        { duration: 4000, delay: 0.4 },
+        { duration: 4000, delay: 0.5 },
+        { duration: 2000, delay: 0.6 },
+        { duration: 2000, delay: 0.7 },
+        { duration: 2000, delay: 0.8 }
       ],
+
+      // Niagara: Smooth uniform cascade
       niagara: Array(8).fill(null).map((_, i) => ({
         duration: 2000,
-        delay: (i + 1) * 100
+        delay: (i + 1) * 0.1
       })),
+
+      // Fast: Quick waterfall effect
       fast: Array(8).fill(null).map((_, i) => ({
         duration: 1000,
-        delay: i * 50
-      })),
-      frozen: [
-        { duration: 0, delay: 0 }
-      ]
+        delay: i * 0.05
+      }))
     };
 
     // Support custom timing from config
@@ -951,7 +1154,12 @@ export class LCARdSDataGrid extends LCARdSCard {
     }
 
     // Maximum number of cells to animate (prevents performance issues on large grids)
-    const maxAnimations = this.config.animation?.max_highlight_cells || 50;
+    // Default to total grid size for small grids, or user-specified limit
+    const totalCells = this._gridData.length * (this._gridData[0]?.length || 0);
+    const defaultMax = Math.min(totalCells, 100); // Cap at 100 for very large grids
+    const maxAnimations = this.config.animation?.max_highlight_cells !== undefined
+      ? this.config.animation.max_highlight_cells
+      : defaultMax;
 
     // Find changed cells with early termination
     const changedCells = [];
@@ -979,12 +1187,98 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
-   * Animate a cell change
+   * Animate a cell change with flexible targeting
+   * Supports cell-level, row-level, or column-level highlights
+   * @private
+   * @param {number} rowIndex - Row index of changed cell
+   * @param {number} colIndex - Column index of changed cell
+   */
+  async _animateCellChange(rowIndex, colIndex) {
+    const animationManager = this._singletons?.animationManager;
+
+    // Fallback to CSS animation if AnimationManager not available
+    if (!animationManager) {
+      this._animateCellChangeFallback(rowIndex, colIndex);
+      return;
+    }
+
+    // Build target selector
+    const targetSelector = `.grid-cell[data-row="${rowIndex}"][data-col="${colIndex}"]`;
+
+    // Check if cell exists RIGHT NOW (no waiting, change happens during re-render)
+    const cellExists = this.renderRoot.querySelector(targetSelector);
+    if (!cellExists) {
+      // Cell not rendered yet, skip animation silently
+      return;
+    }
+
+    const overlayId = this.config.id || `data-grid-${this._cardGuid}`;
+    const scopeData = animationManager.scopes.get(overlayId);
+
+    if (!scopeData) {
+      lcardsLog.warn('[LCARdSDataGrid] No animation scope found for cell change');
+      this._animateCellChangeFallback(rowIndex, colIndex);
+      return;
+    }
+
+    // Get preset from config (default to 'pulse')
+    const changePreset = this.config.animation?.change_preset || 'pulse';
+
+    // Get animation parameters from config
+    // For change detection, we want the animation to return to original state after playing once
+    // Use loop:1 with alternate:true to play forward then back (total 2 iterations)
+    const changeParams = {
+      duration: this.config.animation?.change_duration || 500,
+      easing: this.config.animation?.change_easing || 'easeOutQuad',
+      loop: 1,            // Play twice total (forward + back in alternate mode)
+      alternate: true,    // Return to original state after animation
+      ...(this.config.animation?.change_params || {})
+    };    // Use anime.js directly on the element (bypass waitForElements since we already have it)
+    try {
+      // Get preset function from window.lcards.anim.presets
+      const presetFn = window.lcards.anim?.presets?.[changePreset];
+      if (!presetFn) {
+        lcardsLog.warn(`[LCARdSDataGrid] Unknown preset: ${changePreset}, falling back to CSS`);
+        this._animateCellChangeFallback(rowIndex, colIndex);
+        return;
+      }
+
+      // Get preset configuration
+      const presetResult = presetFn({ params: changeParams });
+
+      // Apply CSS styles
+      if (presetResult.styles) {
+        Object.assign(cellExists.style, presetResult.styles);
+      }
+
+      // Run anime.js animation directly on the element
+      // In anime.js v4, the target is passed as first arg, not as 'targets' property
+      const animeParams = {
+        ...presetResult.anime
+      };
+
+      // Create animation instance using the scope
+      scopeData.scope.add(() => {
+        window.lcards.anim.anime(cellExists, animeParams);
+      });
+
+      lcardsLog.debug(
+        `[LCARdSDataGrid] Cell change animation: preset=${changePreset}, row=${rowIndex}, col=${colIndex}`
+      );
+    } catch (error) {
+      lcardsLog.error('[LCARdSDataGrid] Failed to animate cell change:', error);
+      this._animateCellChangeFallback(rowIndex, colIndex);
+    }
+  }
+
+  /**
+   * Fallback CSS-based cell animation
+   * Used when AnimationManager is not available
    * @private
    */
-  _animateCellChange(rowIndex, colIndex) {
+  _animateCellChangeFallback(rowIndex, colIndex) {
     const cell = this.renderRoot?.querySelector(
-      `[data-row="${rowIndex}"][data-col="${colIndex}"]`
+      `.grid-cell[data-row="${rowIndex}"][data-col="${colIndex}"]`
     );
 
     if (!cell) return;
@@ -992,7 +1286,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Use CSS animation with animationend event for cleanup
     cell.classList.add('cell-changed');
 
-    // Use animationend event to clean up class (more reliable than setTimeout)
+    // Use animationend event to clean up class
     const handleAnimationEnd = () => {
       cell.classList.remove('cell-changed');
       cell.removeEventListener('animationend', handleAnimationEnd);
@@ -1118,23 +1412,44 @@ export class LCARdSDataGrid extends LCARdSCard {
       font-weight: ${fontWeight};
     `;
 
-    // Get colors
+    // Get default colors
     const textColor = this.getThemeToken('colors.text.primary') || '#ffffff';
-    const headerBgColor = this.getThemeToken('colors.background.header') || '#1a1a1a';
-    const headerTextColor = this.getThemeToken('colors.text.header') || '#def';
-    const dividerColor = this.getThemeToken('colors.divider') || '#333';
+    const defaultHeaderBg = this.getThemeToken('colors.background.header') || '#1a1a1a';
+    const defaultHeaderText = this.getThemeToken('colors.text.header') || '#def';
+    const defaultDivider = this.getThemeToken('colors.divider') || '#333';
+
+    // Header styling configuration
+    const headerStyle = this.config.header_style || {};
+    const headerBgColor = this.getThemeToken(headerStyle.background, defaultHeaderBg);
+    const headerTextColor = this.getThemeToken(headerStyle.color, defaultHeaderText);
+    const headerFontSize = headerStyle.font_size || fontSize;
+    const headerFontWeight = headerStyle.font_weight || 700;
+    const headerTextTransform = headerStyle.text_transform || 'uppercase';
+    const dividerColor = this.getThemeToken(headerStyle.divider_color, defaultDivider);
+    const dividerWidth = headerStyle.divider_width || 2;
 
     return html`
       <div class="lcards-card-container">
         <div class="data-grid-container">
           <div class="data-grid" style="${gridStyle}">
             <!-- Column headers -->
-            ${this._columnConfig.map(col => html`
-              <div class="grid-cell grid-header align-${col.align || 'left'}"
-                   style="background: ${headerBgColor}; color: ${headerTextColor}; border-bottom-color: ${dividerColor}; padding: ${gap}px;">
-                ${col.header || ''}
-              </div>
-            `)}
+            ${this._columnConfig.map(col => {
+              const headerCellStyle = `
+                background: ${headerBgColor};
+                color: ${headerTextColor};
+                font-size: ${headerFontSize}px;
+                font-weight: ${headerFontWeight};
+                text-transform: ${headerTextTransform};
+                border-bottom: ${dividerWidth}px solid ${dividerColor};
+                padding: ${gap}px;
+              `;
+              return html`
+                <div class="grid-cell grid-header align-${col.align || 'left'}"
+                     style="${headerCellStyle}">
+                  ${col.header || ''}
+                </div>
+              `;
+            })}
 
             <!-- Data rows -->
             ${this._gridData.map((row, rowIndex) =>

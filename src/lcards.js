@@ -19,6 +19,7 @@ import { loadFont, loadCoreFonts } from './utils/lcards-theme.js';
 
 import * as animHelpers from './utils/lcards-anim-helpers.js';
 import { animPresets } from './utils/lcards-anim-presets.js';
+import { listAnimationPresets, getAnimationPreset } from './core/animation/presets.js';
 import * as svgHelpers from './utils/lcards-svg-helpers.js';
 import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 
@@ -65,9 +66,17 @@ async function initializeCustomCard() {
         animateElement: animHelpers.animateElement,
         animateWithRoot: animHelpers.animateWithRoot,
         waitForElement: animHelpers.waitForElement,
-        presets: animPresets,
+        presets: { ...animPresets },   // Legacy presets (will be merged with MSD presets)
         scopes: new Map(),
     };
+
+    // Merge MSD presets into window.lcards.anim.presets for unified access
+    const msdPresetNames = listAnimationPresets();
+    msdPresetNames.forEach(name => {
+        window.lcards.anim.presets[name] = getAnimationPreset(name);
+    });
+
+    lcardsLog.debug(`[LCARdS] Loaded ${msdPresetNames.length} MSD animation presets:`, msdPresetNames);
 
     // Backward-compatible shortcuts (to be deprecated)
     window.lcards.animejs = window.lcards.anim.animejs;
