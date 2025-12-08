@@ -36,6 +36,9 @@ export function registerAllSchemas(schemaRegistry) {
   // Register type-specific schemas
   schemaRegistry.register('line', lineOverlaySchema);
 
+  // Note: Card schemas (button, data-grid, etc.) are self-registered by each card
+  // using CoreConfigManager.registerCardSchema() when the card class is loaded.
+
   // Note: button, text, apexchart, status_grid schemas removed (v1.16.22+)
   // These overlay types are deprecated - use LCARdS cards instead:
   // - button/text → custom:lcards-button

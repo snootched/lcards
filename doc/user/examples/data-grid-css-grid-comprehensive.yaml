@@ -1,0 +1,249 @@
+# ============================================================================
+# DATA GRID - CSS GRID COMPREHENSIVE EXAMPLES
+# ============================================================================
+# Purpose: Demonstrate full CSS Grid property support
+# Shows: Track sizing, gap control, alignment, auto-flow, implicit grid
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Example 1: Mixed Track Sizing with repeat() and minmax()
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+grid:
+  # Mixed sizing: fixed, flexible, and constrained
+  grid-template-columns: 100px repeat(2, 1fr) minmax(80px, 150px) 100px
+  grid-template-rows: repeat(6, auto)
+  gap: 10px
+  grid-auto-flow: row
+
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.05)
+  padding: 8px
+  align: center
+
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: css-grid-mixed-sizing
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 2: Container Alignment (justify-content, align-content)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: digit
+
+grid:
+  grid-template-columns: repeat(6, 100px)
+  grid-template-rows: repeat(4, 50px)
+  gap: 10px
+  # Center the grid horizontally and vertically within the card
+  justify-content: center
+  align-content: center
+
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.lcars.blue, 0.2)
+  padding: 8px
+  align: center
+
+id: css-grid-container-alignment
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 3: Separate Gap Controls (row-gap vs column-gap)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(4, 1fr)
+  grid-template-rows: repeat(3, auto)
+  # Large vertical gaps, small horizontal gaps
+  row-gap: 20px
+  column-gap: 5px
+
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 10px
+  background: theme:alpha(colors.grid.cellBackground, 0.05)
+  border_width: 1
+  border_color: theme:colors.grid.border
+  border_style: solid
+
+rows:
+  - values: ['A1', 'A2', 'A3', 'A4']
+  - values: ['B1', 'B2', 'B3', 'B4']
+  - values: ['C1', 'C2', 'C3', 'C4']
+
+id: css-grid-separate-gaps
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 4: Dense Packing with grid-auto-flow
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  # Mixed column sizing
+  grid-template-columns: 100px 1fr 1fr 100px
+  grid-template-rows: repeat(4, auto)
+  gap: 8px
+  # Dense packing algorithm fills holes
+  grid-auto-flow: row dense
+
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 12px
+  align: center
+
+rows:
+  - values: ['START', 'SYSTEM', 'STATUS', 'END']
+  - values: ['A', 'ONLINE', 'ACTIVE', 'B']
+  - values: ['C', 'STANDBY', 'READY', 'D']
+  - values: ['E', 'OFFLINE', 'ERROR', 'F']
+
+animation:
+  type: cascade
+  pattern: niagara
+  colors:
+    start: theme:colors.lcars.orange
+    text: theme:colors.lcars.yellow
+    end: theme:colors.lcars.orange
+
+id: css-grid-dense-packing
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 5: Implicit Grid (grid-auto-columns/rows)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  # Explicit grid: 3 columns × 2 rows (6 cells)
+  grid-template-columns: repeat(3, 100px)
+  grid-template-rows: repeat(2, 50px)
+  # Implicit sizing for overflow cells (cells 7-9)
+  grid-auto-columns: 80px
+  grid-auto-rows: 40px
+  gap: 8px
+
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 8px
+
+rows:
+  # 9 cells total - row 3 uses implicit grid
+  - values: ['1', '2', '3']
+  - values: ['4', '5', '6']
+  - values: ['7', '8', '9']
+
+id: css-grid-implicit
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 6: Item Alignment (justify-items, align-items)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
+
+grid:
+  grid-template-columns: repeat(4, 1fr)
+  grid-template-rows: repeat(3, 80px)
+  gap: 12px
+  # Items don't stretch - align to center
+  justify-items: center
+  align-items: center
+
+style:
+  font_size: 18
+  color: theme:colors.lcars.blue
+  background: theme:alpha(colors.lcars.blue, 0.1)
+  padding: 16px
+  border_width: 2
+  border_color: theme:colors.lcars.blue
+  border_style: solid
+  border_radius: 8px
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: true
+  change_preset: glow
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+refresh_interval: 5000
+
+id: css-grid-item-alignment
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 7: Complex Layout with All Properties
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+grid:
+  # Complex track sizing
+  grid-template-columns: minmax(80px, 100px) repeat(auto-fit, minmax(60px, 1fr)) 80px
+  grid-template-rows: repeat(5, minmax(40px, auto))
+  gap: 6px
+  grid-auto-flow: dense
+  justify-items: stretch
+  align-items: center
+  justify-content: space-evenly
+
+style:
+  font_size: 15
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.1)
+  padding: 10px
+  border_width: 1
+  border_color: theme:alpha(colors.grid.border, 0.3)
+  border_style: dashed
+
+animation:
+  type: cascade
+  pattern: custom
+  timing:
+    - { duration: 3000, delay: 100 }
+    - { duration: 2500, delay: 150 }
+    - { duration: 3500, delay: 200 }
+    - { duration: 2000, delay: 100 }
+    - { duration: 3000, delay: 250 }
+  colors:
+    start: theme:colors.lcars.purple
+    text: theme:colors.lcars.pink
+    end: theme:colors.lcars.purple
+
+refresh_interval: 8000
+
+id: css-grid-complex-layout

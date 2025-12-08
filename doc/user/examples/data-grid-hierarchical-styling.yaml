@@ -1,0 +1,305 @@
+# ============================================================================
+# DATA GRID - HIERARCHICAL STYLING EXAMPLES
+# ============================================================================
+# Purpose: Demonstrate 5-level style hierarchy
+# Hierarchy: Grid → Header → Column → Row → Cell (lowest to highest priority)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Example 1: Grid-Wide Base Styling
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  grid-template-rows: repeat(4, auto)
+  gap: 8px
+
+# Base style applies to all cells
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.05)
+  padding: 10px
+  border_width: 1
+  border_color: theme:colors.grid.border
+  border_style: solid
+  align: center
+
+rows:
+  - values: ['Cell 1', 'Cell 2', 'Cell 3']
+  - values: ['Cell 4', 'Cell 5', 'Cell 6']
+  - values: ['Cell 7', 'Cell 8', 'Cell 9']
+  - values: ['Cell 10', 'Cell 11', 'Cell 12']
+
+id: hierarchy-grid-base
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 2: Row-Level Style Override
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  gap: 10px
+
+# Grid-wide base style
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: transparent
+  padding: 8px
+
+rows:
+  # Row 1: Header row with custom style
+  - values: ['SYSTEM', 'STATUS', 'ALERT']
+    style:
+      background: theme:colors.grid.headerBackground
+      color: theme:colors.grid.headerText
+      font_weight: 700
+      text_transform: uppercase
+      border_bottom_width: 2
+      border_bottom_color: theme:colors.grid.divider
+
+  # Row 2: Normal row (uses grid style)
+  - values: ['Shields', 'ONLINE', 'NONE']
+
+  # Row 3: Warning row
+  - values: ['Engines', 'DEGRADED', 'WARNING']
+    style:
+      background: theme:alpha(colors.grid.warning, 0.2)
+      color: theme:colors.grid.warning
+      font_weight: 600
+
+  # Row 4: Critical row
+  - values: ['Hull', 'BREACH', 'CRITICAL']
+    style:
+      background: theme:alpha(colors.grid.error, 0.3)
+      color: theme:colors.grid.error
+      font_weight: 700
+
+id: hierarchy-row-override
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 3: Cell-Level Fine-Grained Control
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  gap: 8px
+
+# Base style
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  padding: 10px
+
+rows:
+  # Row with per-cell styling
+  - values: ['System', 'Status', 'Priority']
+    cellStyles:
+      - color: theme:colors.lcars.blue
+        font_weight: 700
+      - color: theme:colors.lcars.orange
+        font_weight: 700
+      - color: theme:colors.lcars.red
+        font_weight: 700
+
+  - values: ['Shields', 'ONLINE', 'HIGH']
+    cellStyles:
+      - null  # Use grid default
+      - color: theme:colors.grid.success
+        font_weight: 600
+        background: theme:alpha(colors.grid.success, 0.1)
+      - color: theme:colors.grid.error
+        font_weight: 600
+
+  - values: ['Weapons', 'ARMED', 'CRITICAL']
+    cellStyles:
+      - null
+      - color: theme:colors.lcars.orange
+        font_weight: 600
+        background: theme:alpha(colors.lcars.orange, 0.1)
+      - color: theme:colors.grid.error
+        font_weight: 900
+        background: theme:alpha(colors.grid.error, 0.2)
+        border_width: 2
+        border_color: theme:colors.grid.error
+        border_style: solid
+
+id: hierarchy-cell-control
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 4: Spreadsheet Mode - Column + Row + Cell Hierarchy
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: datasource
+layout: spreadsheet
+
+# Grid-wide defaults
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 8px
+
+# Header style (level 2)
+header_style:
+  background: theme:colors.grid.headerBackground
+  color: theme:colors.grid.headerText
+  font_size: 16
+  font_weight: 700
+  text_transform: uppercase
+  padding: 12px 8px
+  border_bottom_width: 2
+  border_bottom_color: theme:colors.grid.divider
+
+# Column definitions with column-level styles (level 3)
+columns:
+  - header: Location
+    width: 140
+    align: left
+    style:
+      color: theme:colors.lcars.blue
+      font_weight: 500
+
+  - header: Temperature
+    width: 100
+    align: center
+    style:
+      color: theme:colors.lcars.orange
+      font_weight: 400
+
+  - header: Status
+    width: 100
+    align: center
+    style:
+      font_weight: 600
+
+rows:
+  # Row 1 with cell override (level 5)
+  - sources:
+      - column: 0
+        type: static
+        value: 'Bridge'
+      - column: 1
+        type: datasource
+        source: sensor.bridge_temp
+        format: '{value}°C'
+      - column: 2
+        type: static
+        value: 'NORMAL'
+        style:
+          color: theme:colors.grid.success
+          background: theme:alpha(colors.grid.success, 0.1)
+
+  # Row 2 with row-level override (level 4)
+  - style:
+      background: theme:alpha(colors.grid.error, 0.1)
+    sources:
+      - column: 0
+        type: static
+        value: 'Engineering'
+      - column: 1
+        type: datasource
+        source: sensor.engineering_temp
+        format: '{value}°C'
+      - column: 2
+        type: static
+        value: 'ALERT'
+        style:
+          color: theme:colors.grid.error
+          font_weight: 900
+          background: theme:alpha(colors.grid.error, 0.3)
+          border_width: 2
+          border_color: theme:colors.grid.error
+
+animation:
+  type: cascade
+  pattern: default
+  highlight_changes: true
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: hierarchy-spreadsheet-full
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 5: Complete Hierarchy Demonstration
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: 120px 1fr 1fr 100px
+  gap: 12px
+
+# Level 1: Grid-wide base (lowest priority)
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  background: transparent
+  padding: 8px
+  align: left
+
+rows:
+  # Row 1: Header with row-level override (level 4)
+  - values: ['Location', 'System', 'Reading', 'Status']
+    style:
+      background: theme:colors.grid.headerBackground
+      color: theme:colors.grid.headerText
+      font_weight: 700
+      text_transform: uppercase
+      align: center
+
+  # Row 2: Mixed cell styles (level 5 overrides)
+  - values: ['Deck 1', 'Environmental', '22.5°C', 'OK']
+    cellStyles:
+      - color: theme:colors.lcars.blue  # Override color only
+        font_weight: 600
+      - null  # Use grid defaults
+      - color: theme:colors.lcars.orange
+        align: right
+      - color: theme:colors.grid.success
+        font_weight: 700
+        align: center
+
+  # Row 3: Row-level override (level 4) with one cell override (level 5)
+  - values: ['Deck 2', 'Weapons', 'ARMED', 'ALERT']
+    style:
+      background: theme:alpha(colors.grid.warning, 0.1)
+      color: theme:colors.grid.warning
+      font_weight: 500
+    cellStyles:
+      - null
+      - null
+      - null
+      - color: theme:colors.grid.error  # Cell override wins
+        font_weight: 900
+        background: theme:alpha(colors.grid.error, 0.3)
+        align: center
+
+  # Row 4: Grid defaults (no overrides)
+  - values: ['Deck 3', 'Life Support', 'NOMINAL', 'OK']
+
+animation:
+  type: cascade
+  pattern: niagara
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: hierarchy-complete-demo

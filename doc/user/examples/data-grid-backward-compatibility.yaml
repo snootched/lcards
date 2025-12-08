@@ -1,0 +1,204 @@
+# ============================================================================
+# DATA GRID - BACKWARD COMPATIBILITY EXAMPLES
+# ============================================================================
+# Purpose: Demonstrate legacy format support (deprecated but still functional)
+# Shows: Old rows/columns format, migration path to CSS Grid
+# Note: These configs generate deprecation warnings but work correctly
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Example 1: Legacy Format - Basic Grid
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+# OLD FORMAT (deprecated - generates warning)
+grid:
+  rows: 8
+  columns: 12
+  gap: 8
+
+# Converts internally to:
+# grid-template-rows: repeat(8, auto)
+# grid-template-columns: repeat(12, 1fr)
+# gap: 8px
+
+style:
+  font_size: 18
+  color: theme:colors.lcars.blue
+
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: legacy-basic-grid
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 2: Legacy Format with cell_width
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: digit
+
+# OLD FORMAT with fixed cell width
+grid:
+  rows: 6
+  columns: 10
+  gap: 10
+  cell_width: 80  # Fixed width in px
+
+# Converts to:
+# grid-template-rows: repeat(6, auto)
+# grid-template-columns: repeat(10, 80px)
+# gap: 10px
+
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.05)
+  padding: 8px
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: true
+  colors:
+    start: theme:colors.lcars.orange
+    text: theme:colors.lcars.yellow
+    end: theme:colors.lcars.orange
+
+refresh_interval: 5000
+
+id: legacy-fixed-width
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 3: Migration Example - Side by Side Comparison
+# ----------------------------------------------------------------------------
+
+# OLD FORMAT (deprecated):
+# type: custom:lcards-data-grid
+# data_mode: random
+# format: mixed
+# grid:
+#   rows: 8
+#   columns: 12
+#   gap: 8
+#   cell_width: auto
+
+# NEW FORMAT (recommended):
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
+
+grid:
+  grid-template-rows: repeat(8, auto)
+  grid-template-columns: repeat(12, 1fr)
+  gap: 8px
+
+style:
+  font_size: 18
+  color: theme:colors.grid.cellText
+
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: migration-example
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 4: Complex Legacy Config
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+# OLD FORMAT
+grid:
+  rows: 6
+  columns: 4
+  gap: 12
+
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.1)
+  padding: 10px
+  border_width: 1
+  border_color: theme:colors.grid.border
+  border_style: solid
+
+rows:
+  - values: ['SYSTEM', 'STATUS', 'VALUE', 'ALERT']
+    style:
+      background: theme:colors.grid.headerBackground
+      color: theme:colors.grid.headerText
+      font_weight: 700
+  - values: ['Shields', 'ONLINE', '100%', 'NONE']
+  - values: ['Weapons', 'ARMED', 'READY', 'NONE']
+  - values: ['Engines', 'ACTIVE', '98%', 'NONE']
+  - values: ['Hull', 'INTACT', '100%', 'NONE']
+  - values: ['Life Support', 'NOMINAL', 'OK', 'NONE']
+
+animation:
+  type: cascade
+  pattern: niagara
+  highlight_changes: true
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+id: legacy-complex
+
+---
+
+# ============================================================================
+# MIGRATION GUIDE
+# ============================================================================
+#
+# How to Migrate from Legacy Format to CSS Grid:
+#
+# 1. Replace 'rows' with 'grid-template-rows':
+#    OLD: rows: 8
+#    NEW: grid-template-rows: repeat(8, auto)
+#
+# 2. Replace 'columns' with 'grid-template-columns':
+#    OLD: columns: 12
+#    NEW: grid-template-columns: repeat(12, 1fr)
+#
+#    OR with fixed width:
+#    OLD: columns: 12, cell_width: 80
+#    NEW: grid-template-columns: repeat(12, 80px)
+#
+# 3. Add 'px' unit to gap:
+#    OLD: gap: 8
+#    NEW: gap: 8px
+#
+# 4. Remove 'cell_width' property (use explicit sizing in columns)
+#
+# Benefits of CSS Grid Format:
+# - Full CSS Grid feature support (minmax, fr, auto, etc.)
+# - Separate row/column gap control
+# - Container and item alignment options
+# - Implicit grid sizing
+# - No deprecation warnings
+# - Better performance (native browser layout)
+# - Future-proof
+#
+# The old format still works and will continue to be supported for backward
+# compatibility, but new configurations should use the CSS Grid format.
+# ============================================================================

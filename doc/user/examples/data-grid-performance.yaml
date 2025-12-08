@@ -1,0 +1,283 @@
+# ============================================================================
+# DATA GRID - PERFORMANCE & LARGE GRID EXAMPLES
+# ============================================================================
+# Purpose: Demonstrate performance with large grids and optimization techniques
+# Shows: 400-cell grid, refresh intervals, change detection limits
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Example 1: Large Grid - 20x20 (400 cells)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
+
+grid:
+  # 20 columns × 20 rows = 400 cells
+  grid-template-columns: repeat(20, 1fr)
+  grid-template-rows: repeat(20, auto)
+  gap: 4px
+
+style:
+  font_size: 12
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.03)
+  padding: 6px
+  border_width: 1
+  border_color: theme:alpha(colors.grid.border, 0.2)
+  border_style: solid
+  align: center
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: true
+  max_highlight_cells: 50  # Limit animations for performance
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+refresh_interval: 10000  # Refresh every 10 seconds
+
+id: performance-large-grid
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 2: High-Frequency Updates with Performance Limits
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+grid:
+  grid-template-columns: repeat(12, 1fr)
+  grid-template-rows: repeat(10, auto)
+  gap: 6px
+
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 8px
+  align: center
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: true
+  # Only animate 20 cells per update (performance optimization)
+  max_highlight_cells: 20
+  change_preset: flash
+  change_duration: 200
+  colors:
+    start: theme:colors.lcars.orange
+    text: theme:colors.lcars.yellow
+    end: theme:colors.lcars.orange
+
+# Rapid refresh every 2 seconds
+refresh_interval: 2000
+
+id: performance-high-frequency
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 3: Dense Grid with Minimal Styling (Maximum Performance)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: digit
+
+grid:
+  grid-template-columns: repeat(15, 1fr)
+  grid-template-rows: repeat(15, auto)
+  gap: 3px
+  grid-auto-flow: dense
+
+# Minimal styling for maximum performance
+style:
+  font_size: 13
+  color: theme:colors.lcars.blue
+  padding: 5px
+
+animation:
+  type: cascade
+  pattern: fast
+  # No change detection for maximum performance
+  highlight_changes: false
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.blue
+
+refresh_interval: 5000
+
+id: performance-minimal-styling
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 4: Large Grid with Complex Styling (Style Hierarchy Caching)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
+
+grid:
+  grid-template-columns: repeat(16, 1fr)
+  grid-template-rows: repeat(12, auto)
+  gap: 5px
+
+# Base style (cached across cells)
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  background: theme:alpha(colors.grid.cellBackground, 0.05)
+  padding: 8px
+  border_width: 1
+  border_color: theme:alpha(colors.grid.border, 0.3)
+  border_style: solid
+  align: right
+
+animation:
+  type: cascade
+  pattern: niagara
+  highlight_changes: true
+  max_highlight_cells: 40
+  change_preset: pulse
+  colors:
+    start: theme:colors.lcars.purple
+    text: theme:colors.lcars.pink
+    end: theme:colors.lcars.purple
+
+refresh_interval: 8000
+
+id: performance-cached-styles
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 5: Performance Comparison - Animation Disabled
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+grid:
+  grid-template-columns: repeat(18, 1fr)
+  grid-template-rows: repeat(14, auto)
+  gap: 4px
+
+style:
+  font_size: 13
+  color: theme:colors.lcars.blue
+  background: theme:alpha(colors.lcars.blue, 0.1)
+  padding: 6px
+
+# No animation for baseline performance comparison
+# (remove or comment out animation section)
+
+refresh_interval: 3000
+
+id: performance-no-animation
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 6: Optimized Change Detection
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: mixed
+
+grid:
+  grid-template-columns: repeat(14, 1fr)
+  grid-template-rows: repeat(12, auto)
+  gap: 6px
+
+style:
+  font_size: 14
+  color: theme:colors.grid.cellText
+  padding: 8px
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: true
+  # Optimized settings for change detection
+  max_highlight_cells: 30
+  change_preset: flash
+  change_duration: 250
+  change_easing: easeOutQuad
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+refresh_interval: 4000
+
+id: performance-optimized-changes
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 7: Extreme Performance Test - 25x25 (625 cells)
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: digit
+
+grid:
+  # Maximum tested: 25 columns × 25 rows = 625 cells
+  grid-template-columns: repeat(25, 1fr)
+  grid-template-rows: repeat(25, auto)
+  gap: 2px
+
+# Ultra-minimal styling
+style:
+  font_size: 11
+  color: theme:colors.lcars.blue
+  padding: 4px
+
+animation:
+  type: cascade
+  pattern: fast
+  highlight_changes: false  # Disabled for extreme grid
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.blue
+
+# Longer refresh interval for stability
+refresh_interval: 15000
+
+id: performance-extreme-test
+
+---
+
+# ============================================================================
+# PERFORMANCE NOTES
+# ============================================================================
+#
+# Tested Configurations:
+# - 20×20 (400 cells): Smooth with animation + change detection
+# - 25×25 (625 cells): Works, but disable change detection
+# - Recommended maximum: 500 cells with full features
+#
+# Optimization Techniques:
+# 1. Style Hierarchy Caching: Resolved styles cached per hierarchy level
+# 2. Change Detection Limiting: max_highlight_cells prevents overload
+# 3. Fast Animation Patterns: Shorter durations reduce overhead
+# 4. Minimal Styling: Remove borders/backgrounds for large grids
+# 5. Disable Change Detection: For grids > 500 cells
+# 6. Increase Refresh Interval: Longer intervals = better performance
+#
+# Performance Impact Factors:
+# - Cell count (biggest factor)
+# - Cascade animation complexity
+# - Change detection enabled/disabled
+# - Style complexity (borders, backgrounds, computed tokens)
+# - Refresh frequency
+# - Browser/device performance
+# ============================================================================

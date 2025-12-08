@@ -15,6 +15,13 @@ The Data Grid card creates authentic LCARS-style data visualizations with:
 - Full theme integration with token support
 - Performance-optimized CSS Grid layout
 
+**📚 Comprehensive Examples:**
+- **CSS Grid Features:** [`doc/examples/data-grid-css-grid-comprehensive.yaml`](../../examples/data-grid-css-grid-comprehensive.yaml)
+- **Hierarchical Styling:** [`doc/examples/data-grid-hierarchical-styling.yaml`](../../examples/data-grid-hierarchical-styling.yaml)
+- **Theme Tokens:** [`doc/examples/data-grid-theme-tokens.yaml`](../../examples/data-grid-theme-tokens.yaml)
+- **Performance & Large Grids:** [`doc/examples/data-grid-performance.yaml`](../../examples/data-grid-performance.yaml)
+- **Legacy Format Migration:** [`doc/examples/data-grid-backward-compatibility.yaml`](../../examples/data-grid-backward-compatibility.yaml)
+
 ---
 
 ## Complete Schema
@@ -83,20 +90,38 @@ rows:                                        # Row definitions (required for spr
 # ==============================================================================
 
 # STANDARD CSS GRID (Recommended)
-# All standard CSS Grid properties are supported:
+# All standard CSS Grid properties pass through to the browser.
+# This gives you full control over grid layout with native CSS Grid.
 grid:
+  # Track Sizing (defines explicit grid structure)
   grid-template-columns: repeat(12, 1fr)     # Column track sizing
   grid-template-rows: repeat(8, auto)        # Row track sizing
-  gap: 8px                                   # Gap between cells
-  grid-auto-flow: row                        # Auto-placement algorithm
-  justify-items: stretch                     # Horizontal alignment of items
-  align-items: stretch                       # Vertical alignment of items
-  
-  # Also supports:
-  # - grid-template-areas: Define named grid areas
-  # - grid-auto-columns / grid-auto-rows: Implicit track sizing
-  # - column-gap / row-gap: Individual gap control
-  # - justify-content / align-content: Grid container alignment
+
+  # Gap Control (spacing between cells)
+  gap: 8px                                   # Uniform gap (shorthand)
+  row-gap: 20px                              # Vertical gap only
+  column-gap: 5px                            # Horizontal gap only
+  # Note: Specify either 'gap' OR 'row-gap'/'column-gap', not both
+
+  # Auto-Placement (how cells fill the grid)
+  grid-auto-flow: row | column | dense       # Auto-placement algorithm (default: row)
+
+  # Item Alignment (how cells align within their grid areas)
+  justify-items: stretch | start | end | center  # Horizontal alignment (default: stretch)
+  align-items: stretch | start | end | center    # Vertical alignment (default: stretch)
+
+  # Container Alignment (how the grid aligns within the card)
+  justify-content: start | end | center | space-between | space-around | space-evenly
+  align-content: start | end | center | space-between | space-around | space-evenly
+
+  # Implicit Grid (sizing for auto-generated tracks)
+  grid-auto-columns: 100px                   # Width of implicit columns
+  grid-auto-rows: 50px                       # Height of implicit rows
+
+  # Advanced Features (browser-dependent)
+  grid-template-areas: |                     # Named grid areas
+    "header header header"
+    "sidebar content aside"
 
 # BACKWARD-COMPATIBLE SHORTHAND (Deprecated)
 # Still supported for compatibility, but logs deprecation warning:
@@ -114,7 +139,7 @@ grid:
 # 1. Grid-wide defaults (style property)
 # 2. Header defaults (header_style property) - for header rows only
 # 3. Column-level overrides (columns[i].style)
-# 4. Row-level overrides (rows[i].style)  
+# 4. Row-level overrides (rows[i].style)
 # 5. Cell-level overrides (highest priority)
 
 # Grid-wide Style (applies to all cells)
@@ -234,7 +259,7 @@ animation:
     max_scale: 1.08                          # Maximum scale factor (default: 1.05)
     min_opacity: 0.8                         # Minimum opacity (default: 0.7)
 
-# GLOW PRESET  
+# GLOW PRESET
 # Adds an animated glow/shadow effect around the cell
 animation:
   change_preset: glow
@@ -479,14 +504,14 @@ columns:
       color: colors.lcars.orange
       font_weight: 700
       background: 'alpha(colors.lcars.orange, 0.1)'
-  
+
   - header: Location
     width: 140
     align: left
     style:
       color: colors.lcars.blue
       font_weight: 500
-  
+
   - header: Value
     width: 80
     align: right
@@ -511,10 +536,10 @@ rows:
       text_transform: uppercase
       border_bottom_width: 2
       border_bottom_color: colors.grid.divider
-  
+
   # Row 2: Normal row
   - values: ['Deck 1', 'ACTIVE', 'NONE']
-  
+
   # Row 3: Alert row with red styling
   - values: ['Deck 2', 'WARNING', 'CRITICAL']
     style:
@@ -544,7 +569,7 @@ rows:
         font_weight: 700
       - color: colors.lcars.red           # Third cell: red
         font_weight: 700
-  
+
   - values: ['Shields', 'ONLINE', 'HIGH']
     cellStyles:
       - null                              # Use grid defaults
@@ -577,7 +602,7 @@ rows:
       - column: 0
         type: static
         value: 'Bridge'
-      
+
       # Temperature cell
       - column: 1
         type: datasource
@@ -585,7 +610,7 @@ rows:
         format: '{value}°C'
         style:
           color: colors.lcars.blue
-      
+
       # Status cell with conditional styling
       - column: 2
         type: static
@@ -1252,6 +1277,47 @@ style:
 
 ---
 
+## CSS Grid Support & Limitations
+
+### ✅ Fully Supported CSS Grid Features
+
+The following CSS Grid properties pass through directly to the browser and work as expected:
+
+- **Track Sizing:** `grid-template-columns`, `grid-template-rows`
+  - Supports `repeat()`, `minmax()`, `fr` units, fixed sizes, `auto`
+  - Parses and respects for grid dimensions
+
+- **Gap Control:** `gap`, `row-gap`, `column-gap`
+  - Use either unified `gap` OR separate `row-gap`/`column-gap`
+  - Don't specify both (separate gaps take precedence)
+
+- **Auto-Placement:** `grid-auto-flow` (row, column, dense)
+
+- **Item Alignment:** `justify-items`, `align-items`
+
+- **Container Alignment:** `justify-content`, `align-content`
+
+- **Implicit Grid:** `grid-auto-columns`, `grid-auto-rows`
+
+### ❌ Unsupported CSS Grid Features
+
+The following features are **not supported** due to the 2D array data model (`_gridData[row][col]`):
+
+- **Cell Spanning:** `grid-column`, `grid-row`, `grid-column-start/end`, `grid-row-start/end`
+  - The card uses a strict 2D array where each cell occupies exactly one grid position
+  - Spanning would require cells to occupy multiple positions, breaking the array model
+
+- **Named Grid Areas:** `grid-template-areas` with `grid-area` placement
+  - While `grid-template-areas` passes through to CSS, cells cannot be assigned to named areas
+  - Each cell is positioned by its row/column index in the data array
+
+- **Explicit Cell Positioning:** Direct `grid-column: 2 / 4` or `grid-row: 1 / 3` on cells
+  - Cell positions are determined by array indices, not CSS properties
+
+**Architectural Note:** These limitations are fundamental to the data model. Supporting spanning or explicit positioning would require a complete rewrite from a 2D array to a sparse grid structure with explicit cell placement. The current model prioritizes simplicity, performance, and compatibility with the three data modes (random, template, datasource).
+
+---
+
 ## Technical Notes
 
 ### Animation Architecture
@@ -1268,6 +1334,20 @@ The Data Grid uses AnimationManager for all animations:
 - Efficient template processing
 - DataSource subscription management
 - ResizeObserver for responsive sizing
+- 5-level style hierarchy with caching
+
+### Performance Characteristics
+
+**Tested Configuration:**
+- Grid Size: 20×20 (400 cells)
+- Animation: Cascade with change detection
+- Refresh: Every 10 seconds
+- Result: Smooth performance, stable rendering
+
+**Recommendations:**
+- Keep grids under 500 cells for optimal performance
+- Use `max_highlight_cells` to limit change animations
+- Consider disabling change detection for very large grids with frequent updates
 
 ### Browser Compatibility
 
@@ -1284,9 +1364,10 @@ The Data Grid uses AnimationManager for all animations:
 - **DataSource System:** See LCARdS DataSource documentation
 - **Theme System:** See LCARdS theme documentation
 - **Template Syntax:** Home Assistant template documentation
+- **Examples:** See `doc/examples/data-grid-*.yaml` for comprehensive examples
 
 ---
 
-**Version:** 2.3.22
-**Last Updated:** December 7, 2024
-**Status:** Stable - Authentic LCARS cascade animation with three data modes
+**Version:** 1.9.51
+**Last Updated:** December 7, 2025
+**Status:** Production Ready - CSS Grid standardization complete, all features tested

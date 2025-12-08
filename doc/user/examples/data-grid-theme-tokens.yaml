@@ -1,0 +1,312 @@
+# ============================================================================
+# DATA GRID - THEME TOKEN INTEGRATION EXAMPLES
+# ============================================================================
+# Purpose: Demonstrate theme token usage and computed token functions
+# Shows: Direct tokens, computed functions (alpha, darken, lighten, etc.)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Example 1: Direct Theme Tokens
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(4, 1fr)
+  gap: 10px
+
+# Using direct theme tokens
+style:
+  font_size: 16
+  color: theme:colors.grid.cellText
+  background: theme:colors.grid.cellBackground
+  padding: 10px
+  border_width: 1
+  border_color: theme:colors.grid.border
+  border_style: solid
+
+rows:
+  - values: ['System', 'Status', 'Value', 'Alert']
+    style:
+      background: theme:colors.grid.headerBackground
+      color: theme:colors.grid.headerText
+      font_weight: 700
+  - values: ['Shields', 'ONLINE', '100%', 'NONE']
+  - values: ['Weapons', 'ARMED', 'READY', 'NONE']
+  - values: ['Hull', 'INTACT', '100%', 'NONE']
+
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: theme:colors.grid.cascadeStart
+    text: theme:colors.grid.cascadeMid
+    end: theme:colors.grid.cascadeEnd
+
+id: tokens-direct
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 2: Computed Token - alpha() Function
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: hex
+
+grid:
+  grid-template-columns: repeat(6, 1fr)
+  gap: 8px
+
+style:
+  font_size: 16
+  color: theme:colors.lcars.blue
+  # Apply 20% opacity to blue background
+  background: theme:alpha(colors.lcars.blue, 0.2)
+  padding: 8px
+  border_width: 1
+  # Apply 50% opacity to border
+  border_color: theme:alpha(colors.lcars.blue, 0.5)
+  border_style: solid
+
+animation:
+  type: cascade
+  pattern: niagara
+  colors:
+    start: theme:colors.lcars.blue
+    text: theme:colors.lcars.dark-blue
+    end: theme:colors.lcars.moonlight
+
+refresh_interval: 5000
+
+id: tokens-alpha
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 3: Computed Tokens - darken() and lighten()
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  gap: 10px
+
+style:
+  font_size: 16
+  color: theme:colors.lcars.orange
+  padding: 10px
+
+rows:
+  - values: ['Darkest', 'Dark', 'Normal']
+    cellStyles:
+      - background: theme:darken(colors.lcars.orange, 0.4)
+        color: theme:lighten(colors.lcars.orange, 0.3)
+      - background: theme:darken(colors.lcars.orange, 0.2)
+        color: theme:colors.lcars.orange
+      - background: theme:colors.lcars.orange
+        color: theme:darken(colors.lcars.orange, 0.4)
+
+  - values: ['Light', 'Lighter', 'Lightest']
+    cellStyles:
+      - background: theme:lighten(colors.lcars.orange, 0.1)
+        color: theme:darken(colors.lcars.orange, 0.3)
+      - background: theme:lighten(colors.lcars.orange, 0.2)
+        color: theme:darken(colors.lcars.orange, 0.4)
+      - background: theme:lighten(colors.lcars.orange, 0.3)
+        color: theme:darken(colors.lcars.orange, 0.5)
+
+id: tokens-darken-lighten
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 4: All LCARS Palette Colors
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(5, 1fr)
+  gap: 8px
+
+style:
+  font_size: 14
+  padding: 12px
+  font_weight: 600
+  align: center
+
+rows:
+  - values: ['BLUE', 'ORANGE', 'RED', 'YELLOW', 'GREEN']
+    cellStyles:
+      - background: theme:colors.lcars.blue
+        color: theme:darken(colors.lcars.blue, 0.5)
+      - background: theme:colors.lcars.orange
+        color: theme:darken(colors.lcars.orange, 0.5)
+      - background: theme:colors.lcars.red
+        color: theme:darken(colors.lcars.red, 0.5)
+      - background: theme:colors.lcars.yellow
+        color: theme:darken(colors.lcars.yellow, 0.5)
+      - background: theme:colors.lcars.green
+        color: theme:darken(colors.lcars.green, 0.5)
+
+  - values: ['PURPLE', 'PINK', 'WHITE', 'GRAY', 'BLACK']
+    cellStyles:
+      - background: theme:colors.lcars.purple
+        color: theme:lighten(colors.lcars.purple, 0.4)
+      - background: theme:colors.lcars.pink
+        color: theme:darken(colors.lcars.pink, 0.5)
+      - background: theme:colors.lcars.white
+        color: theme:colors.lcars.black
+      - background: theme:colors.lcars.gray
+        color: theme:colors.lcars.white
+      - background: theme:colors.lcars.black
+        color: theme:colors.lcars.white
+
+id: tokens-lcars-palette
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 5: Computed Tokens - saturate() and desaturate()
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: random
+format: digit
+
+grid:
+  grid-template-columns: repeat(4, 1fr)
+  gap: 10px
+
+style:
+  font_size: 16
+  padding: 10px
+
+rows:
+  - values: ['', '', '', '']
+    cellStyles:
+      - background: theme:desaturate(colors.lcars.orange, 0.5)
+        color: theme:colors.lcars.orange
+      - background: theme:desaturate(colors.lcars.orange, 0.25)
+        color: theme:colors.lcars.orange
+      - background: theme:colors.lcars.orange
+        color: theme:darken(colors.lcars.orange, 0.5)
+      - background: theme:saturate(colors.lcars.orange, 0.25)
+        color: theme:darken(colors.lcars.orange, 0.5)
+
+animation:
+  type: cascade
+  pattern: fast
+  colors:
+    start: theme:saturate(colors.lcars.orange, 0.2)
+    text: theme:colors.lcars.orange
+    end: theme:desaturate(colors.lcars.orange, 0.2)
+
+refresh_interval: 3000
+
+id: tokens-saturate-desaturate
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 6: Computed Tokens - mix() Function
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(5, 1fr)
+  gap: 8px
+
+style:
+  font_size: 14
+  padding: 12px
+  font_weight: 600
+  align: center
+
+rows:
+  - values: ['BLUE', '75%', '50%', '25%', 'ORANGE']
+    cellStyles:
+      - background: theme:colors.lcars.blue
+        color: theme:darken(colors.lcars.blue, 0.5)
+      - background: theme:mix(colors.lcars.blue, colors.lcars.orange, 0.75)
+        color: theme:darken(colors.lcars.blue, 0.5)
+      - background: theme:mix(colors.lcars.blue, colors.lcars.orange, 0.5)
+        color: theme:colors.lcars.black
+      - background: theme:mix(colors.lcars.blue, colors.lcars.orange, 0.25)
+        color: theme:darken(colors.lcars.orange, 0.5)
+      - background: theme:colors.lcars.orange
+        color: theme:darken(colors.lcars.orange, 0.5)
+
+  - values: ['RED', '75%', '50%', '25%', 'BLUE']
+    cellStyles:
+      - background: theme:colors.lcars.red
+        color: theme:lighten(colors.lcars.red, 0.4)
+      - background: theme:mix(colors.lcars.red, colors.lcars.blue, 0.75)
+        color: theme:lighten(colors.lcars.red, 0.4)
+      - background: theme:mix(colors.lcars.red, colors.lcars.blue, 0.5)
+        color: theme:colors.lcars.white
+      - background: theme:mix(colors.lcars.red, colors.lcars.blue, 0.25)
+        color: theme:darken(colors.lcars.blue, 0.5)
+      - background: theme:colors.lcars.blue
+        color: theme:darken(colors.lcars.blue, 0.5)
+
+id: tokens-mix
+
+---
+
+# ----------------------------------------------------------------------------
+# Example 7: Complex Token Composition
+# ----------------------------------------------------------------------------
+type: custom:lcards-data-grid
+data_mode: template
+
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  gap: 10px
+
+# Base style with computed tokens
+style:
+  font_size: 15
+  color: theme:lighten(colors.grid.cellText, 0.1)
+  background: theme:alpha(colors.grid.cellBackground, 0.1)
+  padding: 10px
+  border_width: 2
+  border_color: theme:alpha(colors.grid.border, 0.5)
+  border_style: solid
+
+rows:
+  - values: ['Normal', 'Warning', 'Critical']
+    cellStyles:
+      - background: theme:alpha(colors.lcars.blue, 0.2)
+        color: theme:lighten(colors.lcars.blue, 0.2)
+        border_color: theme:alpha(colors.lcars.blue, 0.6)
+      - background: theme:alpha(colors.grid.warning, 0.2)
+        color: theme:saturate(colors.grid.warning, 0.2)
+        border_color: theme:alpha(colors.grid.warning, 0.7)
+      - background: theme:alpha(colors.grid.error, 0.3)
+        color: theme:lighten(colors.grid.error, 0.3)
+        border_color: theme:saturate(colors.grid.error, 0.3)
+
+  - values: ['Success', 'Info', 'Standby']
+    cellStyles:
+      - background: theme:alpha(colors.grid.success, 0.2)
+        color: theme:saturate(colors.grid.success, 0.2)
+        border_color: theme:alpha(colors.grid.success, 0.6)
+      - background: theme:alpha(mix(colors.lcars.blue, colors.lcars.purple, 0.5), 0.2)
+        color: theme:lighten(colors.lcars.purple, 0.2)
+        border_color: theme:alpha(colors.lcars.purple, 0.6)
+      - background: theme:alpha(desaturate(colors.lcars.orange, 0.3), 0.2)
+        color: theme:colors.lcars.orange
+        border_color: theme:alpha(colors.lcars.orange, 0.4)
+
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: theme:mix(colors.lcars.blue, colors.lcars.purple, 0.7)
+    text: theme:darken(colors.lcars.purple, 0.2)
+    end: theme:lighten(colors.lcars.purple, 0.1)
+
+id: tokens-complex-composition

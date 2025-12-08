@@ -223,7 +223,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Slider state
         this._sliderValue = 0;
-        this._mode = 'slider'; // 'slider' or 'gauge'
+        this._mode = 'pills'; // 'pills' or 'gauge'
         this._sliderStyle = null;
         this._containerSize = { width: 200, height: 60 };
 
@@ -373,14 +373,12 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _updateEntityContext() {
-        if (!this.config.entity) {
+        // Extract domain from entity ID (if entity is defined)
+        if (this.config.entity) {
+            this._domain = this.config.entity.split('.')[0];
+        } else {
             this._domain = null;
-            this._mode = 'gauge';  // Default visual style
-            return;
         }
-
-        // Extract domain from entity ID
-        this._domain = this.config.entity.split('.')[0];
 
         // Determine track visual style (pills vs gauge ruler)
         // Priority: 1. style.track.type, 2. deprecated config.mode, 3. default based on domain
@@ -1732,7 +1730,7 @@ export class LCARdSSlider extends LCARdSButton {
     _updateDynamicElements() {
         if (!this.shadowRoot) return;
 
-        if (this._mode === 'slider') {
+        if (this._mode === 'pills') {
             this._updatePillOpacities();
         } else {
             this._updateGaugeIndicator();
@@ -1906,7 +1904,7 @@ export class LCARdSSlider extends LCARdSButton {
         const trackY = isVertical ? 10 : (height - trackHeight) / 2;
 
         // Generate track content
-        const trackContent = this._mode === 'slider'
+        const trackContent = this._mode === 'pills'
             ? this._generatePillsSVG(trackWidth, trackHeight, this._sliderStyle?.track?.segments, orientation)
             : this._generateGaugeSVG(trackWidth, trackHeight);
 
@@ -2135,7 +2133,7 @@ export class LCARdSSlider extends LCARdSButton {
         return {
             grid_columns: this.config.grid_columns ?? 'full',
             grid_rows: this.config.grid_rows ?? 1,
-            grid_min_columns: this.config.grid_min_columns ?? 1,
+            grid_min_columns: this.config.grid_min_columns ?? 4,
             grid_min_rows: this.config.grid_min_rows ?? 1
         };
     }
@@ -2147,12 +2145,34 @@ export class LCARdSSlider extends LCARdSButton {
     static getStubConfig() {
         return {
             type: 'custom:lcards-slider',
-            entity: 'light.example',
+            component: 'horizontal',
             style: {
                 track: {
+                    type: 'pills',
                     segments: {
-                        count: 10,
-                        gap: 4
+                        gap: 4,
+                        size: {
+                            width: 10
+                        },
+                        shape: {
+                            radius: 0
+                        }
+                    },
+                    margin: {
+                        top: 5,
+                        left: 5,
+                        bottom: 0,
+                        right: 0
+                    }
+                },
+                border: {
+                    top: {
+                        enabled: true,
+                        size: 10
+                    },
+                    left: {
+                        enabled: true,
+                        size: 120
                     }
                 }
             }
