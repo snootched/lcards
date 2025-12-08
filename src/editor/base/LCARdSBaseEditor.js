@@ -10,7 +10,6 @@ import { fireEvent } from 'custom-card-helpers';
 import { editorStyles } from './editor-styles.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
-import { validateAgainstSchema } from '../utils/schema-utils.js';
 
 export class LCARdSBaseEditor extends LitElement {
     
@@ -199,11 +198,14 @@ export class LCARdSBaseEditor extends LitElement {
             // Parse YAML to config object
             const newConfig = yamlToConfig(this._yamlValue);
             
-            // Validate against schema
-            const errors = validateAgainstSchema(newConfig, this._getSchema());
-            this._validationErrors = errors;
+            // Validate against schema using singleton
+            const validationResult = this._validateConfigWithSingleton(newConfig);
+            this._validationErrors = validationResult.errors.map(err => ({
+                path: err.field || '',
+                message: err.message
+            }));
             
-            if (errors.length === 0) {
+            if (validationResult.valid) {
                 // Valid - update config (but don't re-sync YAML to prevent loops)
                 this._isUpdatingYaml = true;
                 this.config = newConfig;
@@ -222,16 +224,37 @@ export class LCARdSBaseEditor extends LitElement {
     }
     
     /**
+     * Validate configuration using singleton CoreValidationService
+     * @param {Object} config - Configuration to validate
+     * @returns {Object} Validation result with errors array
+     * @private
+     */
+    _validateConfigWithSingleton(config) {
+        const validationService = window.lcardsCore?.validationService;
+        const schema = this._getSchema();
+        
+        if (!validationService || !schema) {
+            // Fallback: no validation if singleton not available
+            return { valid: true, errors: [], warnings: [] };
+        }
+        
+        // Use singleton validation service
+        return validationService.validate(config, schema, {
+            cardType: this.cardType,
+            source: 'editor'
+        });
+    }
+    
+    /**
      * Validate configuration against schema
      * @private
      */
     _validateConfig() {
-        const schema = this._getSchema();
-        if (schema) {
-            this._validationErrors = validateAgainstSchema(this.config, schema);
-        } else {
-            this._validationErrors = [];
-        }
+        const validationResult = this._validateConfigWithSingleton(this.config);
+        this._validationErrors = validationResult.errors.map(err => ({
+            path: err.field || '',
+            message: err.message
+        }));
     }
     
     /**

@@ -79,11 +79,11 @@ editor/
 │   ├── common/             # Common UI components
 │   └── yaml/               # YAML editor
 └── utils/                  # Utility functions
-    ├── yaml-utils.js       # YAML conversion (uses js-yaml)
-    └── schema-utils.js     # Schema validation
+    └── yaml-utils.js       # YAML conversion (uses js-yaml)
 
 Note: Schemas are NOT stored in editor directory.
 Cards register schemas with CoreConfigManager singleton.
+Validation is performed by CoreValidationService singleton.
 ```
 
 ## Key Components
@@ -97,7 +97,7 @@ Cards register schemas with CoreConfigManager singleton.
 
 ✅ **Tab-based UI** - Organize editor into logical sections  
 ✅ **YAML synchronization** - Visual tabs ↔ YAML tab bidirectional sync  
-✅ **Schema validation** - Real-time validation with helpful error messages  
+✅ **Schema validation** - Uses CoreValidationService singleton for production-grade validation  
 ✅ **Singleton pattern** - Schemas queried from CoreConfigManager  
 ✅ **HA integration** - Uses Home Assistant's standard components  
 ✅ **Graceful fallbacks** - Works without HA-specific components  
@@ -106,6 +106,7 @@ Cards register schemas with CoreConfigManager singleton.
 
 - **Schema Registration**: Cards register schemas with `configManager.registerCardSchema()`
 - **Schema Query**: Editors query via `configManager.getCardSchema(cardType)`
+- **Validation**: Uses `validationService.validate()` for comprehensive validation
 - **Static Imports**: Editor imported statically in card file (webpack compatibility)
 - **Deep Merge**: Uses `core/config-manager/merge-helpers.js` (no duplication)
 

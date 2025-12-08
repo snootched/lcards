@@ -69,11 +69,11 @@ src/editor/
 │       └── lcards-monaco-yaml-editor.js   # YAML editor with validation
 │
 └── utils/
-    ├── yaml-utils.js             # YAML ↔ JSON conversion (uses js-yaml)
-    └── schema-utils.js           # Schema validation
+    └── yaml-utils.js             # YAML ↔ JSON conversion (uses js-yaml)
 
 Note: Schemas are NOT stored in editor directory. Cards register their schemas 
 with CoreConfigManager, and editors query them via window.lcardsCore.configManager.
+Validation is performed by CoreValidationService singleton.
 ```
 
 ## Creating a New Card Editor
@@ -290,19 +290,6 @@ const config = yamlToConfig(yamlString);
 const result = validateYaml(yamlString);
 ```
 
-### schema-utils.js
-
-```javascript
-import { validateAgainstSchema, getSchemaDescription } from '../utils/schema-utils.js';
-
-// Validate config against schema
-const errors = validateAgainstSchema(config, schema);
-// Returns: [{ path: 'entity', message: 'Missing required property' }]
-
-// Get description for a property path
-const desc = getSchemaDescription(schema, 'text.name.content');
-```
-
 ### Deep Merge
 
 The editor uses the existing `deepMerge` utility from the core config manager:
@@ -314,6 +301,28 @@ import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 // Use for merging partial config updates
 this.config = deepMerge(this.config, updates);
 ```
+
+### Schema Validation
+
+**Validation is handled by the singleton `CoreValidationService`**, not local utilities:
+
+```javascript
+// In LCARdSBaseEditor._validateConfigWithSingleton()
+const validationService = window.lcardsCore?.validationService;
+const result = validationService.validate(config, schema, {
+    cardType: this.cardType,
+    source: 'editor'
+});
+
+// Returns: { valid, errors, warnings, data, schema }
+```
+
+**Benefits of using singleton validation:**
+- Production-grade validation with full JSON Schema support
+- Entity existence checking (queries HASS)
+- Professional error messages with suggestions
+- Performance optimization via caching
+- Consistent validation across entire application
 
 ## Schema Definition
 
