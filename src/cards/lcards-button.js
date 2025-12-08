@@ -4819,6 +4819,16 @@ export class LCARdSButton extends LCARdSCard {
             }
         };
     }
+    
+    /**
+     * Get config element for visual editor
+     * @returns {HTMLElement} Editor element
+     */
+    static getConfigElement() {
+        // Dynamically import the editor to avoid bloating the main bundle
+        import('../editor/cards/lcards-button-editor.js');
+        return document.createElement('lcards-button-editor');
+    }
 }
 
 // NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
