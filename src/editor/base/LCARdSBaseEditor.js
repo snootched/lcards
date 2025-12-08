@@ -9,7 +9,7 @@ import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { editorStyles } from './editor-styles.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
-import { deepMerge, deepClone } from '../utils/config-merger.js';
+import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { validateAgainstSchema } from '../utils/schema-utils.js';
 
 export class LCARdSBaseEditor extends LitElement {
@@ -18,6 +18,7 @@ export class LCARdSBaseEditor extends LitElement {
         return {
             hass: { type: Object },           // HA instance (provided by HA)
             config: { type: Object },         // Card config (provided by HA)
+            cardType: { type: String },       // Card type for schema lookup
             _selectedTab: { type: Number, state: true },     // Current tab index
             _yamlValue: { type: String, state: true },       // YAML representation
             _validationErrors: { type: Array, state: true }, // Schema errors
@@ -28,6 +29,7 @@ export class LCARdSBaseEditor extends LitElement {
     constructor() {
         super();
         this.config = {};
+        this.cardType = '';
         this._selectedTab = 0;
         this._yamlValue = '';
         this._validationErrors = [];
@@ -82,7 +84,8 @@ export class LCARdSBaseEditor extends LitElement {
             throw new Error('Invalid configuration');
         }
         
-        this.config = deepClone(config);
+        // Deep clone config
+        this.config = JSON.parse(JSON.stringify(config));
         this._yamlValue = configToYaml(this.config);
         this._validateConfig();
         
@@ -232,20 +235,24 @@ export class LCARdSBaseEditor extends LitElement {
     }
     
     /**
-     * Get tab definitions for this card type
-     * @returns {Array<{label: string, content: Function}>}
-     * @abstract - Subclasses must implement
-     */
-    _getTabDefinitions() {
-        throw new Error('Subclass must implement _getTabDefinitions()');
-    }
-    
-    /**
-     * Get JSON schema for this card type
-     * @returns {Object} JSON Schema object
-     * @abstract - Subclasses must implement
+     * Get JSON schema for this card type from CoreConfigManager
+     * @returns {Object} JSON Schema object from registered card schema
      */
     _getSchema() {
-        throw new Error('Subclass must implement _getSchema()');
+        const configManager = window.lcardsCore?.configManager;
+        
+        if (!configManager) {
+            console.warn('[LCARdSBaseEditor] CoreConfigManager not available');
+            return {}; // Return empty schema as fallback
+        }
+        
+        const schema = configManager.getCardSchema(this.cardType);
+        
+        if (!schema) {
+            console.warn(`[LCARdSBaseEditor] No schema registered for card type: ${this.cardType}`);
+            return {};
+        }
+        
+        return schema;
     }
 }

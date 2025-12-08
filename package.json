@@ -34,8 +34,7 @@
     "webpack": "^5.94.0",
     "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4",
-    "yaml": "^2.8.2"
+    "webpack-dev-server": "^5.0.4"
   },
   "dependencies": {
     "animejs": "^4.0.0",

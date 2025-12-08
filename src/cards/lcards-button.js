@@ -62,6 +62,9 @@ import { getComponent } from '../core/packs/components/index.js';
 import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 
+// Import editor component for getConfigElement()
+import '../editor/cards/lcards-button-editor.js';
+
 export class LCARdSButton extends LCARdSCard {
 
     /** Card type identifier for CoreConfigManager */
@@ -4825,8 +4828,7 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {HTMLElement} Editor element
      */
     static getConfigElement() {
-        // Dynamically import the editor to avoid bloating the main bundle
-        import('../editor/cards/lcards-button-editor.js');
+        // Static import - editor bundled with card (webpack config doesn't support splitting)
         return document.createElement('lcards-button-editor');
     }
 }

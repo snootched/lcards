@@ -6,12 +6,16 @@
 
 import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
-import { BUTTON_SCHEMA } from '../schemas/button-schema.js';
 import '../components/common/lcards-card-config-section.js';
 import '../components/common/lcards-action-editor.js';
 import '../components/yaml/lcards-monaco-yaml-editor.js';
 
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
+    
+    constructor() {
+        super();
+        this.cardType = 'button'; // Set card type for schema lookup
+    }
     
     /**
      * Get tab definitions for Button editor
@@ -33,15 +37,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 content: () => this._renderYamlTab()
             }
         ];
-    }
-    
-    /**
-     * Get JSON schema for Button
-     * @returns {Object} JSON Schema
-     * @override
-     */
-    _getSchema() {
-        return BUTTON_SCHEMA;
     }
     
     /**

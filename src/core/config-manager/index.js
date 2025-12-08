@@ -234,6 +234,19 @@ export class CoreConfigManager {
   }
 
   /**
+   * Get registered schema for a card type
+   * @param {string} cardType - Card type identifier
+   * @returns {Object|null} JSON Schema object or null if not registered
+   */
+  getCardSchema(cardType) {
+    const entry = this._cardSchemas.get(cardType);
+    if (!entry) {
+      return null;
+    }
+    return entry.schema;
+  }
+
+  /**
    * Get debug information about registered cards and processing stats
    * @returns {Object} Debug information
    */

@@ -1,66 +1,60 @@
 /**
  * YAML Utilities for Editor
- * 
- * Provides YAML <-> JSON conversion utilities for the visual editor.
+ * Uses js-yaml (already in project) instead of yaml package
  */
 
-import YAML from 'yaml';
+import yaml from 'js-yaml';
 
 /**
- * Convert configuration object to YAML string
+ * Convert config object to YAML string
  * @param {Object} config - Configuration object
  * @returns {string} YAML string
  */
 export function configToYaml(config) {
-    if (!config) {
+    try {
+        return yaml.dump(config, {
+            indent: 2,
+            lineWidth: -1, // No line wrapping
+            noRefs: true,  // Disable anchors/aliases for cleaner output
+            sortKeys: false // Preserve property order
+        });
+    } catch (error) {
+        console.error('[yaml-utils] Failed to convert config to YAML:', error);
         return '';
     }
-    
-    try {
-        return YAML.stringify(config, {
-            indent: 2,
-            lineWidth: 0, // Disable line wrapping
-            minContentWidth: 0
-        });
-    } catch (err) {
-        console.error('[LCARdS Editor] Error converting config to YAML:', err);
-        return '# Error converting config to YAML\n' + JSON.stringify(config, null, 2);
-    }
 }
 
 /**
- * Convert YAML string to configuration object
+ * Convert YAML string to config object
  * @param {string} yamlStr - YAML string
  * @returns {Object} Configuration object
- * @throws {Error} If YAML parsing fails
  */
 export function yamlToConfig(yamlStr) {
-    if (!yamlStr || typeof yamlStr !== 'string') {
-        return {};
-    }
-    
     try {
-        const config = YAML.parse(yamlStr);
-        return config || {};
-    } catch (err) {
-        throw new Error(`YAML parse error: ${err.message}`);
+        return yaml.load(yamlStr, {
+            schema: yaml.DEFAULT_SCHEMA,
+            json: true // Use JSON-compatible parsing
+        }) || {};
+    } catch (error) {
+        console.error('[yaml-utils] Failed to parse YAML:', error);
+        throw error; // Re-throw for error handling in editor
     }
 }
 
 /**
- * Validate YAML syntax without parsing
- * @param {string} yamlStr - YAML string
+ * Validate YAML syntax without parsing to object
+ * @param {string} yamlStr - YAML string to validate
  * @returns {Object} { valid: boolean, error: string|null }
  */
 export function validateYaml(yamlStr) {
     try {
-        YAML.parse(yamlStr);
+        yaml.load(yamlStr);
         return { valid: true, error: null };
-    } catch (err) {
+    } catch (error) {
         return { 
             valid: false, 
-            error: err.message,
-            lineNumber: err.linePos?.[0]?.line
+            error: error.message,
+            lineNumber: error.mark?.line
         };
     }
 }
