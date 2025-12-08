@@ -6,22 +6,52 @@ Visual editor components for LCARdS cards, integrated with Home Assistant's nati
 
 ### Creating a New Card Editor
 
-1. **Create Schema** (`schemas/mycard-schema.js`):
+1. **Register Schema in Card Class** (`cards/lcards-mycard.js`):
 ```javascript
-export const MYCARD_SCHEMA = {
-    type: 'object',
-    properties: {
-        entity: { type: 'string', description: 'Entity ID' },
-        // ... other properties
+import { LCARdSCard } from '../base/LCARdSCard.js';
+
+// Import editor component for getConfigElement()
+import '../editor/cards/lcards-mycard-editor.js';
+
+export class LCARdSMyCard extends LCARdSCard {
+    static CARD_TYPE = 'mycard';
+    
+    static getStubConfig() {
+        return {
+            type: 'custom:lcards-mycard',
+            entity: 'light.example'
+        };
     }
-};
+    
+    static getConfigElement() {
+        // Static import - editor bundled with card
+        return document.createElement('lcards-mycard-editor');
+    }
+}
+
+// Register schema with CoreConfigManager singleton
+if (window.lcardsCore?.configManager) {
+    window.lcardsCore.configManager.registerCardSchema('mycard', {
+        type: 'object',
+        properties: {
+            entity: { type: 'string', description: 'Entity ID' },
+            preset: { type: 'string', enum: ['lozenge', 'bullet'] }
+        },
+        required: ['type', 'entity']
+    });
+}
 ```
 
-2. **Create Editor** (`cards/lcards-mycard-editor.js`):
+2. **Create Editor** (`editor/cards/lcards-mycard-editor.js`):
 ```javascript
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 
 export class LCARdSMyCardEditor extends LCARdSBaseEditor {
+    constructor() {
+        super();
+        this.cardType = 'mycard'; // Set card type for schema lookup
+    }
+    
     _getTabDefinitions() {
         return [
             { label: 'Config', content: () => this._renderConfigTab() },
@@ -29,19 +59,14 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
         ];
     }
     
-    _getSchema() { return MYCARD_SCHEMA; }
+    // Note: _getSchema() is NOT overridden
+    // Base class queries singleton using this.cardType
     
     _renderConfigTab() { /* ... */ }
     _renderYamlTab() { /* ... */ }
 }
-```
 
-3. **Register in Card** (`cards/lcards-mycard.js`):
-```javascript
-static getConfigElement() {
-    import('../editor/cards/lcards-mycard-editor.js');
-    return document.createElement('lcards-mycard-editor');
-}
+customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
 ```
 
 ## Directory Structure
@@ -53,8 +78,12 @@ editor/
 ├── components/              # Reusable editor components
 │   ├── common/             # Common UI components
 │   └── yaml/               # YAML editor
-├── schemas/                # JSON Schema definitions
 └── utils/                  # Utility functions
+    ├── yaml-utils.js       # YAML conversion (uses js-yaml)
+    └── schema-utils.js     # Schema validation
+
+Note: Schemas are NOT stored in editor directory.
+Cards register schemas with CoreConfigManager singleton.
 ```
 
 ## Key Components
@@ -69,9 +98,16 @@ editor/
 ✅ **Tab-based UI** - Organize editor into logical sections  
 ✅ **YAML synchronization** - Visual tabs ↔ YAML tab bidirectional sync  
 ✅ **Schema validation** - Real-time validation with helpful error messages  
-✅ **Code splitting** - Editor code only loaded when needed  
+✅ **Singleton pattern** - Schemas queried from CoreConfigManager  
 ✅ **HA integration** - Uses Home Assistant's standard components  
 ✅ **Graceful fallbacks** - Works without HA-specific components  
+
+## Architecture Patterns
+
+- **Schema Registration**: Cards register schemas with `configManager.registerCardSchema()`
+- **Schema Query**: Editors query via `configManager.getCardSchema(cardType)`
+- **Static Imports**: Editor imported statically in card file (webpack compatibility)
+- **Deep Merge**: Uses `core/config-manager/merge-helpers.js` (no duplication)
 
 ## Documentation
 
