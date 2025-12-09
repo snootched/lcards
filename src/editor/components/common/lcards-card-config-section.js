@@ -1,13 +1,13 @@
 /**
  * Card Configuration Section Component
- * 
+ *
  * Reusable component for basic card configuration (entity, ID, tags, etc.)
  */
 
 import { LitElement, html, css } from 'lit';
 
 export class LCARdSCardConfigSection extends LitElement {
-    
+
     static get properties() {
         return {
             hass: { type: Object },
@@ -15,50 +15,50 @@ export class LCARdSCardConfigSection extends LitElement {
             schema: { type: Object }
         };
     }
-    
+
     constructor() {
         super();
         this.config = {};
         this.schema = {};
     }
-    
+
     static get styles() {
         return css`
             :host {
                 display: block;
             }
-            
+
             .config-section {
                 display: flex;
                 flex-direction: column;
                 gap: 16px;
             }
-            
+
             .form-row {
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
             }
-            
+
             .form-row-group {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 16px;
             }
-            
+
             label {
                 font-weight: 500;
                 color: var(--primary-text-color, #212121);
                 font-size: 14px;
             }
-            
+
             .helper-text {
                 font-size: 12px;
                 color: var(--secondary-text-color, #727272);
                 margin-top: 4px;
                 line-height: 1.4;
             }
-            
+
             .section-header {
                 font-size: 16px;
                 font-weight: 500;
@@ -68,7 +68,7 @@ export class LCARdSCardConfigSection extends LitElement {
                 border-bottom: 1px solid var(--divider-color, #e0e0e0);
                 padding-bottom: 8px;
             }
-            
+
             input[type="text"],
             input[type="number"],
             select {
@@ -81,13 +81,13 @@ export class LCARdSCardConfigSection extends LitElement {
                 background: var(--card-background-color, #fff);
                 color: var(--primary-text-color, #212121);
             }
-            
+
             input:focus,
             select:focus {
                 outline: none;
                 border-color: var(--primary-color, #03a9f4);
             }
-            
+
             @media (max-width: 768px) {
                 .form-row-group {
                     grid-template-columns: 1fr;
@@ -95,14 +95,14 @@ export class LCARdSCardConfigSection extends LitElement {
             }
         `;
     }
-    
+
     render() {
         const hasHaEntityPicker = customElements.get('ha-entity-picker');
         const hasHaSelector = customElements.get('ha-selector');
-        
+
         return html`
             <div class="config-section">
-                
+
                 <!-- Entity Picker -->
                 <div class="form-row">
                     <label>Entity</label>
@@ -121,18 +121,18 @@ export class LCARdSCardConfigSection extends LitElement {
                     `}
                     ${this._getSchemaDescription('entity')}
                 </div>
-                
+
                 <!-- Card ID -->
                 <div class="form-row">
                     <label>Card ID (optional)</label>
                     <input
                         type="text"
                         .value=${this.config.id || ''}
-                        @input=${(e) => this._valueChanged('id', e.target.value)}
+                        @change=${(e) => this._valueChanged('id', e.target.value)}
                         placeholder="auto-generated">
                     ${this._getSchemaDescription('id')}
                 </div>
-                
+
                 <!-- Tags -->
                 <div class="form-row">
                     <label>Tags (comma-separated)</label>
@@ -143,7 +143,7 @@ export class LCARdSCardConfigSection extends LitElement {
                         placeholder="sensor, temperature, critical">
                     ${this._getSchemaDescription('tags')}
                 </div>
-                
+
                 <!-- Preset Selector (if applicable) -->
                 ${this.schema?.properties?.preset ? html`
                     <div class="form-row">
@@ -164,7 +164,7 @@ export class LCARdSCardConfigSection extends LitElement {
                                 @value-changed=${(e) => this._valueChanged('preset', e.detail.value)}>
                             </ha-selector>
                         ` : html`
-                            <select 
+                            <select
                                 .value=${this.config.preset || ''}
                                 @change=${(e) => this._valueChanged('preset', e.target.value)}>
                                 <option value="">Select preset...</option>
@@ -176,7 +176,7 @@ export class LCARdSCardConfigSection extends LitElement {
                         ${this._getSchemaDescription('preset')}
                     </div>
                 ` : ''}
-                
+
                 <!-- Grid Layout -->
                 <div class="section-header">Layout</div>
                 <div class="form-row-group">
@@ -201,11 +201,11 @@ export class LCARdSCardConfigSection extends LitElement {
                         <div class="helper-text">Number of rows to span (1-12)</div>
                     </div>
                 </div>
-                
+
             </div>
         `;
     }
-    
+
     /**
      * Handle entity selection change (ha-entity-picker)
      * @param {CustomEvent} ev - value-changed event
@@ -214,7 +214,7 @@ export class LCARdSCardConfigSection extends LitElement {
     _entityChanged(ev) {
         this._fireConfigChanged({ entity: ev.detail.value });
     }
-    
+
     /**
      * Handle entity input change (simple input fallback)
      * @param {Event} ev - input event
@@ -223,7 +223,7 @@ export class LCARdSCardConfigSection extends LitElement {
     _entityChangedSimple(ev) {
         this._fireConfigChanged({ entity: ev.target.value });
     }
-    
+
     /**
      * Handle tags input change
      * @param {Event} ev - input event
@@ -236,7 +236,7 @@ export class LCARdSCardConfigSection extends LitElement {
             .filter(t => t.length > 0);
         this._fireConfigChanged({ tags });
     }
-    
+
     /**
      * Handle generic value change
      * @param {string} key - Config key
@@ -246,7 +246,7 @@ export class LCARdSCardConfigSection extends LitElement {
     _valueChanged(key, value) {
         this._fireConfigChanged({ [key]: value });
     }
-    
+
     /**
      * Fire config-changed event
      * @param {Object} updates - Partial config updates
@@ -259,7 +259,7 @@ export class LCARdSCardConfigSection extends LitElement {
             composed: true
         }));
     }
-    
+
     /**
      * Get schema description for a property
      * @param {string} prop - Property name
@@ -270,7 +270,7 @@ export class LCARdSCardConfigSection extends LitElement {
         const desc = this.schema?.properties?.[prop]?.description;
         return desc ? html`<div class="helper-text">${desc}</div>` : '';
     }
-    
+
     /**
      * Format preset label for display
      * @param {string} preset - Preset ID

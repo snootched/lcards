@@ -170,6 +170,21 @@ initializeCustomCard()
         customElements.define('lcards-msd-card', LCARdSMSDCard);
 
         lcardsLog.info('[lcards.js] ✅ All custom elements registered after core initialization');
+
+        // Register card schemas (must be after core initialization)
+        if (window.lcards?.core?.configManager) {
+            // Import and call schema registration functions
+            if (LCARdSButton.registerSchema) LCARdSButton.registerSchema();
+            if (LCARdSElbow.registerSchema) LCARdSElbow.registerSchema();
+            if (LCARdSChart.registerSchema) LCARdSChart.registerSchema();
+            if (LCARdSSlider.registerSchema) LCARdSSlider.registerSchema();
+            if (LCARdSDataGrid.registerSchema) LCARdSDataGrid.registerSchema();
+            if (LCARdSMSDCard.registerSchema) LCARdSMSDCard.registerSchema();
+
+            lcardsLog.info('[lcards.js] ✅ Card schemas registered');
+        } else {
+            lcardsLog.error('[lcards.js] ❌ CoreConfigManager not available for schema registration');
+        }
     })
     .catch(error => {
         lcardsLog.error('[initializeCustomCard.then()] Error initializing custom card:', error);

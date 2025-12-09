@@ -71,8 +71,8 @@ src/editor/
 └── utils/
     └── yaml-utils.js             # YAML ↔ JSON conversion (uses js-yaml)
 
-Note: Schemas are NOT stored in editor directory. Cards register their schemas 
-with CoreConfigManager, and editors query them via window.lcardsCore.configManager.
+Note: Schemas are NOT stored in editor directory. Cards register their schemas
+with CoreConfigManager, and editors query them via window.lcards.core.configManager.
 Validation is performed by CoreValidationService singleton.
 ```
 
@@ -90,16 +90,16 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import '../editor/cards/lcards-mycard-editor.js';
 
 export class LCARdSMyCard extends LCARdSCard {
-    
+
     static CARD_TYPE = 'mycard';
-    
+
     static getStubConfig() {
         return {
             type: 'custom:lcards-mycard',
             entity: 'light.example'
         };
     }
-    
+
     static getConfigElement() {
         // Static import - editor bundled with card
         return document.createElement('lcards-mycard-editor');
@@ -107,14 +107,14 @@ export class LCARdSMyCard extends LCARdSCard {
 }
 
 // Register schema with CoreConfigManager
-if (window.lcardsCore?.configManager) {
-    const configManager = window.lcardsCore.configManager;
-    
+if (window.lcards?.core?.configManager) {
+    const configManager = window.lcards.core.configManager;
+
     // Register behavioral defaults
     configManager.registerCardDefaults('mycard', {
         enable_hold_action: true
     });
-    
+
     // Register JSON schema for validation
     configManager.registerCardSchema('mycard', {
         type: 'object',
@@ -147,12 +147,12 @@ import '../components/common/lcards-card-config-section.js';
 import '../components/yaml/lcards-monaco-yaml-editor.js';
 
 export class LCARdSMyCardEditor extends LCARdSBaseEditor {
-    
+
     constructor() {
         super();
         this.cardType = 'mycard'; // Set card type for schema lookup
     }
-    
+
     _getTabDefinitions() {
         return [
             {
@@ -165,10 +165,10 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
             }
         ];
     }
-    
+
     // Note: _getSchema() is NOT overridden - base class queries singleton
     // using this.cardType to call window.lcardsCore.configManager.getCardSchema()
-    
+
     _renderConfigTab() {
         return html`
             <lcards-card-config-section
@@ -177,11 +177,11 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
                 .schema=${this._getSchema()}
                 @config-changed=${(e) => this._updateConfig(e.detail.config)}>
             </lcards-card-config-section>
-            
+
             <!-- Add card-specific configuration UI here -->
         `;
     }
-    
+
     _renderYamlTab() {
         return html`
             <lcards-monaco-yaml-editor
@@ -200,7 +200,7 @@ customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
 ### Key Architecture Points
 
 1. **Schema Registration**: Cards register schemas with `CoreConfigManager` during initialization
-2. **Schema Retrieval**: Editors query schemas via `window.lcardsCore.configManager.getCardSchema(cardType)`
+2. **Schema Retrieval**: Editors query schemas via `window.lcards.core.configManager.getCardSchema(cardType)`
 3. **Single Source of Truth**: Schema lives in card file, editor consumes it
 4. **Static Imports**: Editor is imported statically at top of card file (webpack compatibility)
 5. **CardType Property**: Editor sets `this.cardType` in constructor for schema lookup
@@ -332,9 +332,9 @@ Schemas are registered by card classes, not stored in separate files:
 
 ```javascript
 // In card file (e.g., src/cards/lcards-button.js)
-if (window.lcardsCore?.configManager) {
-    const configManager = window.lcardsCore.configManager;
-    
+if (window.lcards?.core?.configManager) {
+    const configManager = window.lcards.core.configManager;
+
     configManager.registerCardSchema('button', {
         type: 'object',
         title: 'Button Card',
@@ -366,20 +366,20 @@ Editors retrieve schemas from the singleton:
 ```javascript
 // In LCARdSBaseEditor._getSchema()
 _getSchema() {
-    const configManager = window.lcardsCore?.configManager;
-    
+    const configManager = window.lcards?.core?.configManager;
+
     if (!configManager) {
         console.warn('[LCARdSBaseEditor] CoreConfigManager not available');
         return {};
     }
-    
+
     const schema = configManager.getCardSchema(this.cardType);
-    
+
     if (!schema) {
         console.warn(`[LCARdSBaseEditor] No schema registered for card type: ${this.cardType}`);
         return {};
     }
-    
+
     return schema;
 }
 ```

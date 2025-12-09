@@ -234,7 +234,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @private
      */
     async _processConfigAsync(rawConfig) {
-        const core = window.lcardsCore || window.lcards?.core;
+        const core = window.lcards?.core || window.lcardsCore;
 
         if (!core?.configManager?.initialized) {
             lcardsLog.trace(`[LCARdSCard] CoreConfigManager not available`);

@@ -4822,7 +4822,7 @@ export class LCARdSButton extends LCARdSCard {
             }
         };
     }
-    
+
     /**
      * Get config element for visual editor
      * @returns {HTMLElement} Editor element
@@ -4831,25 +4831,35 @@ export class LCARdSButton extends LCARdSCard {
         // Static import - editor bundled with card (webpack config doesn't support splitting)
         return document.createElement('lcards-button-editor');
     }
-}
 
-// NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
-// This ensures all core singletons (including StylePresetManager) are initialized
-// before cards can be instantiated, preventing race conditions.
+    /**
+     * Register schema with CoreConfigManager
+     * Called by lcards.js after core initialization
+     * @static
+     */
+    static registerSchema() {
+        const configManager = window.lcards?.core?.configManager;
 
-// Register with CoreConfigManager (behavioral defaults and schema)
-if (window.lcardsCore?.configManager) {
-    const configManager = window.lcardsCore.configManager;
+        if (!configManager) {
+            lcardsLog.error('[LCARdSButton] CoreConfigManager not available for schema registration');
+            return;
+        }
 
-    // Register behavioral defaults (NO STYLES - those come from theme/presets)
-    configManager.registerCardDefaults('button', {
-        enable_hold_action: true,   // Hold actions enabled
-        enable_double_tap: false    // Double-tap disabled by default
-    });
+        // Get available presets from StylePresetManager
+        const stylePresetManager = window.lcards?.core?.stylePresetManager;
+        const availablePresets = stylePresetManager?.getAvailablePresets('button') || [];
 
-    // Register JSON schema for validation (v1.14.18+)
-    // Based on: doc/architecture/button-schema-definition.md
-    configManager.registerCardSchema('button', {
+        lcardsLog.debug('[LCARdSButton] Registering schema with presets:', availablePresets);
+
+        // Register behavioral defaults (NO STYLES - those come from theme/presets)
+        configManager.registerCardDefaults('button', {
+            enable_hold_action: true,   // Hold actions enabled
+            enable_double_tap: false    // Double-tap disabled by default
+        });
+
+        // Register JSON schema for validation (v1.14.18+)
+        // Based on: doc/architecture/button-schema-definition.md
+        configManager.registerCardSchema('button', {
         type: 'object',
         properties: {
             // Core Properties
@@ -4870,6 +4880,7 @@ if (window.lcardsCore?.configManager) {
             // Preset
             preset: {
                 type: 'string',
+                enum: availablePresets,
                 description: 'Style preset name (e.g., "lozenge", "bullet", "capped", "barrel", "outline", "icon")'
             },
 
@@ -5382,7 +5393,8 @@ if (window.lcardsCore?.configManager) {
         // No required fields - allows decorative/static buttons without entities
     }, { version: '1.14.18' });
 
-    lcardsLog.debug('[LCARdSButton] Registered with CoreConfigManager');
+        lcardsLog.debug('[LCARdSButton] Registered with CoreConfigManager');
+    }
 }
 
 // NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js

@@ -1,6 +1,6 @@
 /**
  * LCARdS Base Editor
- * 
+ *
  * Base class for all LCARdS card editors. Handles tab management, config state,
  * YAML coordination, and Home Assistant integration.
  */
@@ -12,7 +12,7 @@ import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 
 export class LCARdSBaseEditor extends LitElement {
-    
+
     static get properties() {
         return {
             hass: { type: Object },           // HA instance (provided by HA)
@@ -21,10 +21,10 @@ export class LCARdSBaseEditor extends LitElement {
             _selectedTab: { type: Number, state: true },     // Current tab index
             _yamlValue: { type: String, state: true },       // YAML representation
             _validationErrors: { type: Array, state: true }, // Schema errors
-            _singletons: { type: Object, state: true }       // window.lcardsCore reference
+            _singletons: { type: Object, state: true }       // window.lcards.core reference
         };
     }
-    
+
     constructor() {
         super();
         this.config = {};
@@ -34,8 +34,9 @@ export class LCARdSBaseEditor extends LitElement {
         this._validationErrors = [];
         this._singletons = null;
         this._isUpdatingYaml = false;
+        this._configUpdateDebounce = null; // Debounce timer for config updates
     }
-    
+
     static get styles() {
         return [
             editorStyles,
@@ -45,7 +46,7 @@ export class LCARdSBaseEditor extends LitElement {
                     border-bottom: 2px solid var(--divider-color, #e0e0e0);
                     margin-bottom: 16px;
                 }
-                
+
                 .tab {
                     padding: 12px 24px;
                     cursor: pointer;
@@ -55,17 +56,17 @@ export class LCARdSBaseEditor extends LitElement {
                     transition: all 0.2s ease;
                     user-select: none;
                 }
-                
+
                 .tab:hover {
                     color: var(--primary-text-color, #212121);
                     background: var(--secondary-background-color, #f5f5f5);
                 }
-                
+
                 .tab.active {
                     color: var(--primary-color, #03a9f4);
                     border-bottom-color: var(--primary-color, #03a9f4);
                 }
-                
+
                 .tab-content {
                     padding: 16px 0;
                     min-height: 400px;
@@ -73,7 +74,7 @@ export class LCARdSBaseEditor extends LitElement {
             `
         ];
     }
-    
+
     /**
      * Set initial configuration (called by HA)
      * @param {Object} config - Card configuration
@@ -82,45 +83,66 @@ export class LCARdSBaseEditor extends LitElement {
         if (!config) {
             throw new Error('Invalid configuration');
         }
-        
+
+        console.debug('[LCARdSBaseEditor] setConfig called with:', config);
+
         // Deep clone config
         this.config = JSON.parse(JSON.stringify(config));
         this._yamlValue = configToYaml(this.config);
         this._validateConfig();
-        
+
+        console.debug('[LCARdSBaseEditor] Config initialized:', { config: this.config, yaml: this._yamlValue });
+
         // Try to access singletons
-        if (window.lcardsCore) {
-            this._singletons = window.lcardsCore;
+        if (window.lcards?.core) {
+            this._singletons = window.lcards.core;
         }
-        
+
         this.requestUpdate();
     }
-    
+
+    /**
+     * Handle config-changed events from child components
+     * Intercepts partial config updates and merges them before sending to HA
+     * @param {CustomEvent} ev - config-changed event from child component
+     * @protected
+     */
+    _handleChildConfigChange(ev) {
+        // Stop event from bubbling to HA until we've merged it properly
+        ev.stopPropagation();
+
+        // Extract partial config and merge into full config
+        const partialConfig = ev.detail?.config;
+        if (partialConfig) {
+            this._updateConfig(partialConfig);
+        }
+    }
+
     /**
      * Render the editor
      */
     render() {
         const tabs = this._getTabDefinitions();
-        
+
         return html`
-            <div class="editor-container">
+            <div class="editor-container" @config-changed=${this._handleChildConfigChange}>
                 <div class="tabs-container">
                     ${tabs.map((tab, index) => html`
-                        <div 
+                        <div
                             class="tab ${this._selectedTab === index ? 'active' : ''}"
                             @click=${() => this._handleTabChange(index)}>
                             ${tab.label}
                         </div>
                     `)}
                 </div>
-                
+
                 <div class="tab-content">
                     ${this._renderTabContent(tabs[this._selectedTab])}
                 </div>
             </div>
         `;
     }
-    
+
     /**
      * Render the content of the selected tab
      * @param {Object} tab - Tab definition
@@ -131,10 +153,10 @@ export class LCARdSBaseEditor extends LitElement {
         if (!tab || !tab.content) {
             return html`<div>No content available</div>`;
         }
-        
+
         return tab.content();
     }
-    
+
     /**
      * Handle tab change
      * @param {number} index - Tab index
@@ -144,34 +166,60 @@ export class LCARdSBaseEditor extends LitElement {
         this._selectedTab = index;
         this.requestUpdate();
     }
-    
+
     /**
      * Update configuration from visual or YAML editor
      * @param {Object} updates - Partial config updates (deep merged)
      * @param {string} source - 'visual' | 'yaml' (prevents circular updates)
      */
     _updateConfig(updates, source = 'visual') {
+        // Guard against invalid updates
+        if (!updates || typeof updates !== 'object') {
+            console.warn('[LCARdSBaseEditor] Invalid config updates:', updates);
+            return;
+        }
+
+        console.debug('[LCARdSBaseEditor] _updateConfig called with:', { updates, source, currentConfig: this.config });
+
         // Deep merge updates into config
         this.config = deepMerge(this.config, updates);
-        
+
+        // CRITICAL: Ensure 'type' property is always present (HA requires it)
+        if (!this.config.type) {
+            console.error('[LCARdSBaseEditor] Config is missing required "type" property after merge!');
+            // This shouldn't happen, but if it does, we need to recover
+            return;
+        }
+
+        console.debug('[LCARdSBaseEditor] Config after merge:', this.config);
+
         // Validate against schema
         this._validateConfig();
-        
+
         // Sync YAML editor if update came from visual tab
         if (source === 'visual' && !this._isUpdatingYaml) {
             this._isUpdatingYaml = true;
             this._yamlValue = configToYaml(this.config);
+            console.debug('[LCARdSBaseEditor] YAML value updated:', this._yamlValue);
             requestAnimationFrame(() => {
                 this._isUpdatingYaml = false;
             });
         }
-        
-        // Notify Home Assistant
-        fireEvent(this, 'config-changed', { config: this.config });
-        
+
+        // Notify Home Assistant with debounce to prevent rapid-fire updates
+        // This prevents issues with HA's internal processing of config changes
+        if (this._configUpdateDebounce) {
+            clearTimeout(this._configUpdateDebounce);
+        }
+
+        this._configUpdateDebounce = setTimeout(() => {
+            fireEvent(this, 'config-changed', { config: this.config });
+            this._configUpdateDebounce = null;
+        }, 50); // 50ms debounce
+
         this.requestUpdate();
     }
-    
+
     /**
      * Handle YAML editor changes
      * @param {CustomEvent} ev - value-changed event from Monaco editor
@@ -180,9 +228,9 @@ export class LCARdSBaseEditor extends LitElement {
         if (this._isUpdatingYaml) {
             return;
         }
-        
+
         this._yamlValue = ev.detail.value;
-        
+
         // Validate YAML syntax first
         const yamlValidation = validateYaml(this._yamlValue);
         if (!yamlValidation.valid) {
@@ -193,18 +241,18 @@ export class LCARdSBaseEditor extends LitElement {
             this.requestUpdate();
             return;
         }
-        
+
         try {
             // Parse YAML to config object
             const newConfig = yamlToConfig(this._yamlValue);
-            
+
             // Validate against schema using singleton
             const validationResult = this._validateConfigWithSingleton(newConfig);
             this._validationErrors = validationResult.errors.map(err => ({
                 path: err.field || '',
                 message: err.message
             }));
-            
+
             if (validationResult.valid) {
                 // Valid - update config (but don't re-sync YAML to prevent loops)
                 this._isUpdatingYaml = true;
@@ -214,7 +262,7 @@ export class LCARdSBaseEditor extends LitElement {
                     this._isUpdatingYaml = false;
                 });
             }
-            
+
             this.requestUpdate();
         } catch (err) {
             // YAML parse error (shouldn't happen as we validated above, but just in case)
@@ -222,7 +270,7 @@ export class LCARdSBaseEditor extends LitElement {
             this.requestUpdate();
         }
     }
-    
+
     /**
      * Validate configuration using singleton CoreValidationService
      * @param {Object} config - Configuration to validate
@@ -230,21 +278,21 @@ export class LCARdSBaseEditor extends LitElement {
      * @private
      */
     _validateConfigWithSingleton(config) {
-        const validationService = window.lcardsCore?.validationService;
+        const validationService = window.lcards?.core?.validationService;
         const schema = this._getSchema();
-        
+
         if (!validationService || !schema) {
             // Fallback: no validation if singleton not available
             return { valid: true, errors: [], warnings: [] };
         }
-        
+
         // Use singleton validation service
         return validationService.validate(config, schema, {
             cardType: this.cardType,
             source: 'editor'
         });
     }
-    
+
     /**
      * Validate configuration against schema
      * @private
@@ -256,26 +304,26 @@ export class LCARdSBaseEditor extends LitElement {
             message: err.message
         }));
     }
-    
+
     /**
      * Get JSON schema for this card type from CoreConfigManager
      * @returns {Object} JSON Schema object from registered card schema
      */
     _getSchema() {
-        const configManager = window.lcardsCore?.configManager;
-        
+        const configManager = window.lcards?.core?.configManager;
+
         if (!configManager) {
             console.warn('[LCARdSBaseEditor] CoreConfigManager not available');
             return {}; // Return empty schema as fallback
         }
-        
+
         const schema = configManager.getCardSchema(this.cardType);
-        
+
         if (!schema) {
             console.warn(`[LCARdSBaseEditor] No schema registered for card type: ${this.cardType}`);
             return {};
         }
-        
+
         return schema;
     }
 }

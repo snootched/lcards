@@ -1367,18 +1367,23 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             }
         }
     }
-}
 
-// NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
-// This ensures all core singletons are initialized before cards can be instantiated.
+    /**
+     * Register schema with CoreConfigManager
+     * Called by lcards.js after core initialization
+     * @static
+     */
+    static registerSchema() {
+        const configManager = window.lcards?.core?.configManager;
 
-// Register with CoreConfigManager (schema for validation)
-if (window.lcardsCore?.configManager) {
-    const configManager = window.lcardsCore.configManager;
+        if (!configManager) {
+            lcardsLog.error('[LCARdSMSDCard] CoreConfigManager not available for schema registration');
+            return;
+        }
 
-    // Register MSD card schema for validation
-    // Note: MSD has minimal card-level schema since most validation happens at overlay level
-    configManager.registerCardSchema('msd', {
+        // Register MSD card schema for validation
+        // Note: MSD has minimal card-level schema since most validation happens at overlay level
+        configManager.registerCardSchema('msd', {
         type: 'object',
         required: ['type'],
         properties: {
@@ -1418,5 +1423,6 @@ if (window.lcardsCore?.configManager) {
         }
     });
 
-    lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager');
+        lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager');
+    }
 }

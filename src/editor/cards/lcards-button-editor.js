@@ -1,6 +1,6 @@
 /**
  * LCARdS Button Editor
- * 
+ *
  * Visual editor for LCARdS Button card. Demonstrates tab structure and component integration.
  */
 
@@ -11,12 +11,12 @@ import '../components/common/lcards-action-editor.js';
 import '../components/yaml/lcards-monaco-yaml-editor.js';
 
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
-    
+
     constructor() {
         super();
         this.cardType = 'button'; // Set card type for schema lookup
     }
-    
+
     /**
      * Get tab definitions for Button editor
      * @returns {Array<Object>} Tab configuration
@@ -38,7 +38,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             }
         ];
     }
-    
+
     /**
      * Render Card Configuration tab
      * @returns {TemplateResult}
@@ -49,10 +49,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             <lcards-card-config-section
                 .hass=${this.hass}
                 .config=${this.config}
-                .schema=${this._getSchema()}
-                @config-changed=${this._handleSectionChange}>
+                .schema=${this._getSchema()}>
             </lcards-card-config-section>
-            
+
             <div class="section" style="margin-top: 24px;">
                 <div class="section-header">Text Content</div>
                 <div class="section-description">
@@ -60,7 +59,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 </div>
                 ${this._renderTextConfig()}
             </div>
-            
+
             <div class="section" style="margin-top: 24px;">
                 <div class="section-header">Icon</div>
                 <div class="section-description">
@@ -70,7 +69,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             </div>
         `;
     }
-    
+
     /**
      * Render text configuration
      * @returns {TemplateResult}
@@ -79,11 +78,11 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderTextConfig() {
         const textConfig = this.config.text || {};
         const fieldNames = Object.keys(textConfig);
-        
+
         // For now, just show the primary text field (name)
         // Future enhancement: allow adding/removing fields
         const nameField = textConfig.name || { content: '' };
-        
+
         return html`
             <div class="form-row">
                 <label>Primary Text Content</label>
@@ -96,11 +95,11 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     Supports templates like {{entity.state}}, {{entity.attributes.brightness}}
                 </div>
             </div>
-            
+
             ${nameField.position !== undefined ? html`
                 <div class="form-row">
                     <label>Text Position</label>
-                    <select 
+                    <select
                         .value=${nameField.position || 'center'}
                         @change=${(e) => this._updateTextField('name', 'position', e.target.value)}>
                         <option value="top-left">Top Left</option>
@@ -117,7 +116,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             ` : ''}
         `;
     }
-    
+
     /**
      * Update text field property
      * @param {string} fieldName - Field name (e.g., 'name')
@@ -133,7 +132,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         };
         this._updateConfig({ text });
     }
-    
+
     /**
      * Render icon configuration
      * @returns {TemplateResult}
@@ -142,7 +141,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderIconConfig() {
         const icon = this.config.icon || {};
         const iconValue = typeof icon === 'string' ? icon : icon.icon;
-        
+
         return html`
             <div class="form-row">
                 <label>Icon</label>
@@ -155,10 +154,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     Use "entity" to use the entity's icon, or specify an MDI icon like "mdi:lightbulb"
                 </div>
             </div>
-            
+
             <div class="form-row">
                 <label>Icon Area</label>
-                <select 
+                <select
                     .value=${this.config.icon_area || 'left'}
                     @change=${(e) => this._updateConfig({ icon_area: e.target.value })}>
                     <option value="left">Left</option>
@@ -173,7 +172,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             </div>
         `;
     }
-    
+
     /**
      * Update icon property
      * @param {string} property - Property name
@@ -182,7 +181,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _updateIcon(property, value) {
         const currentIcon = this.config.icon || {};
-        
+
         if (typeof currentIcon === 'string') {
             // If currently a simple string, convert to object
             this._updateConfig({
@@ -198,7 +197,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             });
         }
     }
-    
+
     /**
      * Render Actions tab
      * @returns {TemplateResult}
@@ -217,7 +216,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     @value-changed=${(e) => this._updateConfig({ tap_action: e.detail.value })}>
                 </lcards-action-editor>
             </div>
-            
+
             <div class="section">
                 <div class="section-header">Double Tap Action (Optional)</div>
                 <div class="section-description">
@@ -229,7 +228,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     @value-changed=${(e) => this._updateConfig({ double_tap_action: e.detail.value })}>
                 </lcards-action-editor>
             </div>
-            
+
             <div class="section">
                 <div class="section-header">Hold Action (Optional)</div>
                 <div class="section-description">
@@ -243,7 +242,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             </div>
         `;
     }
-    
+
     /**
      * Render YAML editor tab
      * @returns {TemplateResult}
@@ -263,15 +262,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 </lcards-monaco-yaml-editor>
             </div>
         `;
-    }
-    
-    /**
-     * Handle config change from section component
-     * @param {CustomEvent} ev - config-changed event
-     * @private
-     */
-    _handleSectionChange(ev) {
-        this._updateConfig(ev.detail.config);
     }
 }
 

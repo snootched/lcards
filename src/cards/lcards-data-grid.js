@@ -2106,14 +2106,22 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     super.disconnectedCallback();
   }
-}
 
-// Register with CoreConfigManager (schema for validation)
-if (window.lcardsCore?.configManager) {
-  const configManager = window.lcardsCore.configManager;
+  /**
+   * Register schema with CoreConfigManager
+   * Called by lcards.js after core initialization
+   * @static
+   */
+  static registerSchema() {
+    const configManager = window.lcards?.core?.configManager;
 
-  // Register JSON schema for validation
-  configManager.registerCardSchema('data-grid', {
+    if (!configManager) {
+      lcardsLog.error('[LCARdSDataGrid] CoreConfigManager not available for schema registration');
+      return;
+    }
+
+    // Register JSON schema for validation
+    configManager.registerCardSchema('data-grid', {
     type: 'object',
     required: ['type', 'data_mode'],
     properties: {
@@ -2374,5 +2382,6 @@ if (window.lcardsCore?.configManager) {
     }
   });
 
-  lcardsLog.info('[LCARdSDataGrid] Schema registered with CoreConfigManager');
+    lcardsLog.info('[LCARdSDataGrid] Schema registered with CoreConfigManager');
+  }
 }

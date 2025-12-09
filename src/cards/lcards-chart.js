@@ -786,11 +786,19 @@ export class LCARdSChart extends LCARdSCard {
       // This avoids creating data source subscriptions in preview
     };
   }
-}
 
-// Register with CoreConfigManager (behavioral defaults and schema)
-if (window.lcardsCore?.configManager) {
-    const configManager = window.lcardsCore.configManager;
+  /**
+   * Register schema with CoreConfigManager
+   * Called by lcards.js after core initialization
+   * @static
+   */
+  static registerSchema() {
+    const configManager = window.lcards?.core?.configManager;
+
+    if (!configManager) {
+      lcardsLog.error('[LCARdSChart] CoreConfigManager not available for schema registration');
+      return;
+    }
 
     // Register behavioral defaults
     configManager.registerCardDefaults('chart', {
@@ -1041,6 +1049,7 @@ if (window.lcardsCore?.configManager) {
     }, { version: '1.16.22' });
 
     lcardsLog.debug('[LCARdSChart] Registered with CoreConfigManager');
+  }
 }
 
 // NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js

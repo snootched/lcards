@@ -5,7 +5,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Requires CoreConfigManager to be initialized (part of lcards-core.js startup)
  */
 export async function processAndValidateConfig(userMsdConfig) {
-  const core = window.lcardsCore || window.lcards?.core;
+  const core = window.lcards?.core || window.lcardsCore;
 
   if (!core?.configManager?.initialized) {
     throw new Error('[ConfigProcessor] CoreConfigManager not initialized - this is a fatal error');
@@ -79,7 +79,7 @@ export async function processAndValidateConfig(userMsdConfig) {
  * Uses CoreConfigManager exclusively
  */
 export async function processMsdConfig(userMsdConfig) {
-  const core = window.lcardsCore || window.lcards?.core;
+  const core = window.lcards?.core || window.lcardsCore;
 
   if (!core?.configManager?.initialized) {
     throw new Error('[ConfigProcessor] CoreConfigManager not initialized - this is a fatal error');
