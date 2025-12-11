@@ -80,13 +80,18 @@ editor/
 │   └── lcards-button-editor.js  # Reference implementation
 ├── components/              # Reusable editor components
 │   ├── common/             # Common UI components
-│   ├── form/               # NEW: Schema-driven form components
-│   │   ├── lcards-form-field.js      # Smart auto-rendering field
-│   │   ├── lcards-form-section.js    # Collapsible sections
-│   │   ├── lcards-grid-layout.js     # Two-column responsive layout
-│   │   ├── lcards-color-selector.js  # LCARS palette + custom colors
-│   │   ├── lcards-color-section.js   # State-based color groups
-│   │   └── lcards-entity-field.js    # Entity picker wrapper
+│   ├── form/               # Schema-driven form components
+│   │   ├── lcards-form-field.js         # Smart auto-rendering field
+│   │   ├── lcards-form-section.js       # Collapsible sections
+│   │   ├── lcards-grid-layout.js        # Two-column responsive layout
+│   │   ├── lcards-color-selector.js     # LCARS palette + custom colors
+│   │   ├── lcards-color-section.js      # State-based color groups
+│   │   ├── lcards-entity-field.js       # Entity picker wrapper
+│   │   ├── lcards-multi-text-editor.js  # NEW: Multi-text field manager
+│   │   ├── lcards-icon-editor.js        # NEW: Icon config (simple/advanced)
+│   │   ├── lcards-border-editor.js      # NEW: Border config with preview
+│   │   ├── lcards-segment-list-editor.js # NEW: SVG segment manager
+│   │   └── lcards-multi-action-editor.js # NEW: Unified action editor
 │   └── yaml/               # YAML editor
 └── utils/                  # Utility functions
     └── yaml-utils.js       # YAML conversion (uses js-yaml)
@@ -108,7 +113,7 @@ Validation is performed by CoreValidationService singleton.
   - `_getSchemaForPath(path)` - Get schema for specific path
   - `_evaluateCondition(condition)` - Evaluate visibility/disabled conditions
 
-### Form Components (NEW)
+### Form Components
 - **lcards-form-field** - Smart field that auto-renders based on schema
   - Supports: entity, color, action formats
   - Handles: boolean, number, string, enum, array types
@@ -118,6 +123,32 @@ Validation is performed by CoreValidationService singleton.
 - **lcards-color-selector** - Color picker with LCARS palette presets
 - **lcards-color-section** - Specialized for state-based colors
 - **lcards-entity-field** - Entity picker with domain filtering
+
+### Enhanced Form Components (v1.17.0)
+- **lcards-multi-text-editor** - Manage multiple text fields with per-field styling
+  - Add/edit/remove text fields dynamically
+  - Per-field positioning, fonts, colors
+  - State-based color support
+  - Template toggle per field
+  - Visibility toggle
+- **lcards-icon-editor** - Icon configuration with simple/advanced modes
+  - Simple mode: icon string + basic controls
+  - Advanced mode: full styling (position, size, rotation, background)
+  - State-based icon colors
+  - Background configuration (color, radius, padding)
+- **lcards-border-editor** - Border configuration with visual preview
+  - Unified/per-side width toggle
+  - Unified/per-corner radius toggle
+  - State-based border colors
+  - Live SVG preview
+- **lcards-segment-list-editor** - SVG segment management
+  - Add/remove/edit segments
+  - Per-segment entity and actions
+  - Compact summary view with expand for details
+- **lcards-multi-action-editor** - Unified action configuration
+  - Tap, hold, and double-tap actions in one view
+  - Uses existing lcards-action-editor for each type
+  - Collapsible sections per action type
 
 ### Legacy Components
 - **LCARdSCardConfigSection** - Common card properties (entity, ID, tags, layout)
@@ -237,6 +268,114 @@ this._setConfigValue('style.color.border.default', '#ff9900');
 const schema = this._getSchemaForPath('style.color.border.default');
 ```
 
+### Enhanced Components Usage
+
+#### Multi-Text Editor
+```javascript
+import '../components/form/lcards-multi-text-editor.js';
+
+_renderTextTab() {
+    return html`
+        <lcards-multi-text-editor
+            .editor=${this}
+            .textConfig=${this.config.text || {}}
+            .presetFields=${['name', 'label', 'state']}
+            .hass=${this.hass}
+            @value-changed=${(e) => this._setConfigValue('text', e.detail.value)}>
+        </lcards-multi-text-editor>
+    `;
+}
+```
+
+#### Icon Editor
+```javascript
+import '../components/form/lcards-icon-editor.js';
+
+_renderIconTab() {
+    return html`
+        <lcards-icon-editor
+            .editor=${this}
+            path="icon"
+            label="Icon Configuration"
+            .hass=${this.hass}
+            @value-changed=${(e) => this._setConfigValue('icon', e.detail.value)}>
+        </lcards-icon-editor>
+    `;
+}
+```
+
+#### Border Editor
+```javascript
+import '../components/form/lcards-border-editor.js';
+
+_renderBorderTab() {
+    return html`
+        <lcards-border-editor
+            .editor=${this}
+            path="style.border"
+            label="Border Configuration"
+            ?showPreview=${true}
+            @value-changed=${(e) => this._setConfigValue('style.border', e.detail.value)}>
+        </lcards-border-editor>
+    `;
+}
+```
+
+#### Segment List Editor
+```javascript
+import '../components/form/lcards-segment-list-editor.js';
+
+_renderSegmentsTab() {
+    return html`
+        <lcards-segment-list-editor
+            .editor=${this}
+            .segments=${this.config.svg?.segments || []}
+            .hass=${this.hass}
+            ?expanded=${true}
+            @value-changed=${this._handleSegmentsChange}>
+        </lcards-segment-list-editor>
+    `;
+}
+
+_handleSegmentsChange(event) {
+    const segments = event.detail.value;
+    this._updateConfig({
+        svg: {
+            ...(this.config.svg || {}),
+            segments
+        }
+    });
+}
+```
+
+#### Multi-Action Editor
+```javascript
+import '../components/form/lcards-multi-action-editor.js';
+
+_renderActionsTab() {
+    return html`
+        <lcards-multi-action-editor
+            .hass=${this.hass}
+            .actions=${{
+                tap_action: this.config.tap_action || { action: 'toggle' },
+                hold_action: this.config.hold_action || { action: 'more-info' },
+                double_tap_action: this.config.double_tap_action || { action: 'none' }
+            }}
+            @value-changed=${this._handleActionsChange}>
+        </lcards-multi-action-editor>
+    `;
+}
+
+_handleActionsChange(event) {
+    const actions = event.detail.value;
+    this._updateConfig({
+        tap_action: actions.tap_action,
+        hold_action: actions.hold_action,
+        double_tap_action: actions.double_tap_action
+    });
+}
+```
+
 ### Complete Example
 
 See `src/editor/cards/lcards-button-editor.js` for a complete reference implementation using all new components.
@@ -245,9 +384,28 @@ See `src/editor/cards/lcards-button-editor.js` for a complete reference implemen
 
 See [Visual Editor Architecture](../../doc/architecture/visual-editor-architecture.md) for detailed documentation.
 
+## Test Examples
+
+See `doc/user/examples/button-visual-editor-test.yaml` for comprehensive test configurations demonstrating all features.
+
 ## Status
 
-### Phase 1: Schema-Driven Form Components ✅ (v1.17.0)
+### Phase 1: Enhanced Visual Editor ✅ (v1.17.0)
+- ✅ Horizontal tab scrolling with fade indicators
+- ✅ Multi-text field editor
+- ✅ Icon editor (simple/advanced modes)
+- ✅ Border editor with preview
+- ✅ Segment list editor
+- ✅ Multi-action editor
+- ✅ 8-tab button editor structure
+- ✅ State-based color support (existing component)
+
+### Phase 2: Advanced Features (Future)
+- 🔜 Animation editor with visual timeline
+- 🔜 SVG background editor
+- 🔜 Component/shape selector
+- 🔜 Live preview panel
+- 🔜 Enhanced color section (copy/reset/preview)
 - Enhanced base editor with path-based config access
 - Smart form field component with auto-rendering
 - Collapsible section components

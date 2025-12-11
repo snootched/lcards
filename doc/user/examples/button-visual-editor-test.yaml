@@ -1,0 +1,322 @@
+# LCARdS Button Visual Editor Test Examples
+# 
+# This file demonstrates all features of the enhanced visual editor
+# introduced in v1.17.0 Phase 1
+#
+# Features demonstrated:
+# - Multi-text field configuration
+# - Icon editor (simple and advanced modes)
+# - Border editor (unified and per-side/corner)
+# - Segment list editor (for D-pad and custom SVG)
+# - Multi-action editor (tap, hold, double-tap)
+# - State-based color configurations
+# - Enhanced tab scrolling interface
+
+# ==============================================================================
+# EXAMPLE 1: Basic Button with Multi-Text Fields
+# ==============================================================================
+type: custom:lcards-button
+entity: light.living_room
+id: test-button-1
+preset: bar-label-left
+
+text:
+  name:
+    content: "Living Room"
+    position: center
+    fontSize: 16
+    show: true
+    template: false
+    color:
+      default: "#ffffff"
+      active: "#ff9900"
+      inactive: "#666666"
+  
+  label:
+    content: "Light"
+    position: top-left
+    fontSize: 12
+    show: true
+    color:
+      default: "#cccccc"
+  
+  state:
+    content: "{{entity.state}}"
+    position: bottom-right
+    fontSize: 10
+    show: true
+    template: true
+    color:
+      default: "#99ccff"
+      active: "#00ff00"
+
+# Simple icon configuration
+icon: mdi:lightbulb
+icon_area: left
+
+# Actions using multi-action editor
+tap_action:
+  action: toggle
+hold_action:
+  action: more-info
+double_tap_action:
+  action: call-service
+  service: light.turn_on
+  data:
+    brightness: 255
+
+# ==============================================================================
+# EXAMPLE 2: Advanced Icon Configuration
+# ==============================================================================
+type: custom:lcards-button
+entity: fan.bedroom
+id: test-button-2
+
+text:
+  name:
+    content: "Bedroom Fan"
+    position: right-center
+
+# Advanced icon configuration with background
+icon:
+  icon: mdi:fan
+  position: center
+  size: 32
+  rotation: 0
+  show: true
+  color:
+    default: "#ffffff"
+    active: "#00ff00"
+    inactive: "#666666"
+    unavailable: "#999999"
+  background:
+    enabled: true
+    color: "#333333"
+    radius: 50
+    padding: 8
+
+icon_area: left
+
+# ==============================================================================
+# EXAMPLE 3: Border Configuration (Unified)
+# ==============================================================================
+type: custom:lcards-button
+entity: switch.kitchen
+id: test-button-3
+
+text:
+  name:
+    content: "Kitchen Switch"
+
+# Unified border (all sides same)
+style:
+  border:
+    width: 3
+    radius: 16
+    color:
+      default: "#0099ff"
+      active: "#ff9900"
+      inactive: "#666666"
+
+# ==============================================================================
+# EXAMPLE 4: Border Configuration (Per-Side/Corner)
+# ==============================================================================
+type: custom:lcards-button
+entity: light.hallway
+id: test-button-4
+
+text:
+  name:
+    content: "Hallway Light"
+
+# Per-side border widths
+style:
+  border:
+    width:
+      top: 2
+      right: 4
+      bottom: 2
+      left: 4
+    radius:
+      topLeft: 20
+      topRight: 8
+      bottomRight: 20
+      bottomLeft: 8
+    color:
+      default: "#0099ff"
+      active: "#ff9900"
+
+# ==============================================================================
+# EXAMPLE 5: Segment Configuration (D-Pad Component)
+# ==============================================================================
+type: custom:lcards-button
+component: dpad
+entity: media_player.living_room
+id: test-dpad
+
+svg:
+  segments:
+    - id: up
+      selector: "#arrow-up"
+      entity: media_player.living_room
+      tap_action:
+        action: call-service
+        service: media_player.volume_up
+      hold_action:
+        action: call-service
+        service: media_player.volume_up
+        data:
+          repeat: 5
+    
+    - id: down
+      selector: "#arrow-down"
+      entity: media_player.living_room
+      tap_action:
+        action: call-service
+        service: media_player.volume_down
+      hold_action:
+        action: call-service
+        service: media_player.volume_down
+        data:
+          repeat: 5
+    
+    - id: left
+      selector: "#arrow-left"
+      entity: media_player.living_room
+      tap_action:
+        action: call-service
+        service: media_player.media_previous_track
+    
+    - id: right
+      selector: "#arrow-right"
+      entity: media_player.living_room
+      tap_action:
+        action: call-service
+        service: media_player.media_next_track
+    
+    - id: center
+      selector: "#center-button"
+      entity: media_player.living_room
+      tap_action:
+        action: call-service
+        service: media_player.media_play_pause
+      double_tap_action:
+        action: call-service
+        service: media_player.media_stop
+
+# ==============================================================================
+# EXAMPLE 6: Complete Configuration (All Features)
+# ==============================================================================
+type: custom:lcards-button
+entity: climate.living_room
+id: test-button-complete
+preset: bar-label-center
+
+# Multi-text configuration
+text:
+  name:
+    content: "{{entity.attributes.friendly_name}}"
+    position: center
+    fontSize: 18
+    show: true
+    template: true
+    color:
+      default: "#ffffff"
+      active: "#ff9900"
+  
+  state:
+    content: "{{entity.state}} • {{entity.attributes.current_temperature}}°"
+    position: bottom-center
+    fontSize: 12
+    show: true
+    template: true
+    color:
+      default: "#99ccff"
+
+# Advanced icon with background
+icon:
+  icon: mdi:thermostat
+  position: center
+  size: 40
+  color:
+    default: "#ffffff"
+    active: "#ff9900"
+    unavailable: "#666666"
+  background:
+    enabled: true
+    color: "#2d2d2d"
+    radius: 50
+    padding: 12
+
+icon_area: left
+
+# Per-side border
+style:
+  border:
+    width:
+      top: 3
+      right: 3
+      bottom: 3
+      left: 6
+    radius:
+      topLeft: 24
+      topRight: 24
+      bottomRight: 24
+      bottomLeft: 24
+    color:
+      default: "#0099ff"
+      active: "#ff9900"
+  
+  # State-based colors
+  color:
+    background:
+      default: "#1a1a1a"
+      active: "#2d2d2d"
+      unavailable: "#0d0d0d"
+    text:
+      default: "#ffffff"
+      active: "#ff9900"
+      unavailable: "#666666"
+    icon:
+      default: "#ffffff"
+      active: "#ff9900"
+      unavailable: "#666666"
+
+# Multiple actions
+tap_action:
+  action: more-info
+hold_action:
+  action: call-service
+  service: climate.set_temperature
+  data:
+    temperature: 22
+double_tap_action:
+  action: call-service
+  service: climate.turn_off
+
+# Grid layout
+grid_columns: 4
+grid_rows: 2
+
+# ==============================================================================
+# NOTES FOR VISUAL EDITOR TESTING
+# ==============================================================================
+#
+# Test Scenarios:
+# 1. Tab Scrolling - Create button with all 8 tabs and verify horizontal scroll
+# 2. Multi-Text Editor - Add/edit/remove text fields, test state colors
+# 3. Icon Editor - Toggle simple/advanced modes, test background configuration
+# 4. Border Editor - Toggle unified/per-side modes, verify preview updates
+# 5. Segment Editor - Add/edit/delete segments, verify actions configuration
+# 6. Multi-Action Editor - Configure all three action types
+# 7. YAML Sync - Make changes in visual tabs and verify YAML reflects changes
+# 8. YAML to Visual - Edit YAML and verify visual tabs update correctly
+#
+# Expected Behaviors:
+# - Tabs scroll horizontally on narrow screens
+# - Fade indicators appear at edges when scrolling
+# - All form fields use schema-driven rendering
+# - State-based colors work with preset states
+# - Border preview updates in real-time
+# - Segments tab only appears when segments exist
+# - YAML bidirectional sync works without errors
