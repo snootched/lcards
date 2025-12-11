@@ -43,11 +43,43 @@ export class LCARdSBaseEditor extends LitElement {
             css`
                 .tabs-container {
                     display: flex;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    flex-wrap: nowrap;
+                    scroll-behavior: smooth;
+                    scrollbar-width: thin;
                     border-bottom: 2px solid var(--divider-color, #e0e0e0);
                     margin-bottom: 16px;
+                    
+                    /* Fade indicators for scrollable content */
+                    mask-image: linear-gradient(
+                        to right, 
+                        transparent, 
+                        black 20px, 
+                        black calc(100% - 20px), 
+                        transparent
+                    );
+                    -webkit-mask-image: linear-gradient(
+                        to right, 
+                        transparent, 
+                        black 20px, 
+                        black calc(100% - 20px), 
+                        transparent
+                    );
+                }
+
+                .tabs-container::-webkit-scrollbar {
+                    height: 4px;
+                }
+
+                .tabs-container::-webkit-scrollbar-thumb {
+                    background: var(--primary-color, #03a9f4);
+                    border-radius: 2px;
                 }
 
                 .tab {
+                    flex: 0 0 auto;
+                    white-space: nowrap;
                     padding: 12px 24px;
                     cursor: pointer;
                     border-bottom: 3px solid transparent;
