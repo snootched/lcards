@@ -1892,37 +1892,42 @@ export class LCARdSButton extends LCARdSCard {
      */
     _processIconConfiguration(resolvedStyle) {
         // Determine show_icon
-        // Priority: config.icon.show > config.show_icon > resolvedStyle.show_icon (from preset) > false (default)
-        // Special case: if icon_only is true, implicitly set show_icon to true
+        // Determine show_icon
+        // Priority: icon_only mode > config.show_icon > resolvedStyle.show_icon > false (default)
         let show_icon = false;
         const iconOnlyMode = this.config.icon_only || resolvedStyle.icon_only || false;
 
         if (iconOnlyMode) {
             // icon_only mode implicitly requires showing the icon
             show_icon = true;
-        } else if (typeof this.config.icon === 'object' && this.config.icon?.show !== undefined) {
-            // Check nested icon.show first
-            show_icon = this.config.icon.show;
         } else if (this.config.show_icon !== undefined) {
             show_icon = this.config.show_icon;
         } else if (resolvedStyle.show_icon !== undefined) {
             show_icon = resolvedStyle.show_icon;
         }
 
-        // Determine icon name
-        // Support both flat config.icon='mdi:star' and nested config.icon.icon='mdi:star'
-        let iconName;
-        if (typeof this.config.icon === 'string') {
-            // Flat format: icon: 'mdi:star' or icon: 'entity'
-            iconName = this.config.icon;
-        } else if (typeof this.config.icon === 'object' && this.config.icon?.icon) {
-            // Nested format: icon: { icon: 'mdi:star', ... }
+        // Determine icon name (always a string: 'mdi:star', 'si:github', 'entity', etc.)
+        let iconName = this.config.icon;
+
+        // Backwards compatibility: Handle old nested format { icon: 'mdi:star', ... }
+        if (typeof this.config.icon === 'object' && this.config.icon?.icon) {
             iconName = this.config.icon.icon;
+            // If old format has show property, use it (but config.show_icon takes priority)
+            if (this.config.show_icon === undefined && this.config.icon.show !== undefined) {
+                show_icon = this.config.icon.show;
+            }
         }
+
         // If no icon specified but show_icon is true and we have an entity, default to 'entity'
-        else if (show_icon && this._entity && !iconName) {
+        if (!iconName && show_icon && this._entity) {
             iconName = 'entity';
         }
+
+        // Get icon style config (new icon_style property or backwards-compat from old icon object)
+        // Priority: config.icon_style > old config.icon object (backwards compat) > resolvedStyle.icon
+        const iconStyle = this.config.icon_style ||
+                         (typeof this.config.icon === 'object' ? this.config.icon : null) ||
+                         {};
 
         // Determine icon_area (where the icon's reserved space is)
         // Priority: config.icon_area > resolvedStyle.icon_area > 'left' (default)
@@ -1941,22 +1946,20 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Determine icon position WITHIN the icon area (or absolute if icon_area is 'none')
-        // Priority: explicit x/y > explicit x_percent/y_percent > config.icon.position > resolvedStyle.icon.position > 'center' (default)
+        // Priority: explicit x/y > explicit x_percent/y_percent > iconStyle.position > resolvedStyle.icon.position > 'center' (default)
         let iconPosition = 'center'; // default - centered within area
         let explicitX = null, explicitY = null;
         let explicitXPercent = null, explicitYPercent = null;
 
         // Check for explicit coordinates first (highest priority)
-        if (typeof this.config.icon === 'object') {
-            if (this.config.icon.x !== undefined && this.config.icon.y !== undefined) {
-                explicitX = this.config.icon.x;
-                explicitY = this.config.icon.y;
-            } else if (this.config.icon.x_percent !== undefined && this.config.icon.y_percent !== undefined) {
-                explicitXPercent = this.config.icon.x_percent;
-                explicitYPercent = this.config.icon.y_percent;
-            } else if (this.config.icon.position) {
-                iconPosition = this.config.icon.position;
-            }
+        if (iconStyle.x !== undefined && iconStyle.y !== undefined) {
+            explicitX = iconStyle.x;
+            explicitY = iconStyle.y;
+        } else if (iconStyle.x_percent !== undefined && iconStyle.y_percent !== undefined) {
+            explicitXPercent = iconStyle.x_percent;
+            explicitYPercent = iconStyle.y_percent;
+        } else if (iconStyle.position) {
+            iconPosition = iconStyle.position;
         }
 
         // Check resolved style (includes preset) if no explicit positioning
@@ -1970,12 +1973,12 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Resolve icon padding (same as text fields)
-        // Priority: config > preset > 8 (default)
+        // Priority: iconStyle > preset > 8 (default)
         let iconPadding = 8; // default
-        if (typeof this.config.icon === 'object' && this.config.icon?.padding !== undefined) {
+        if (iconStyle.padding !== undefined) {
             // Check if padding is a number (simple padding) or object (directional padding)
-            if (typeof this.config.icon.padding === 'number') {
-                iconPadding = this.config.icon.padding;
+            if (typeof iconStyle.padding === 'number') {
+                iconPadding = iconStyle.padding;
             }
             // If it's an object, iconPadding stays at default; directional values extracted below
         } else if (resolvedStyle.icon?.padding !== undefined) {
@@ -1985,21 +1988,18 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Resolve directional icon padding (for area-based positioning)
-        // Priority: config > preset > 0 (default)
+        // Priority: iconStyle > preset > 0 (default)
         let iconPaddingLeft = 0;
         let iconPaddingRight = 0;
         let iconPaddingTop = 0;
         let iconPaddingBottom = 0;
 
-        // Extract from config first
-        if (typeof this.config.icon === 'object' && this.config.icon?.padding) {
-            const configPadding = this.config.icon.padding;
-            if (typeof configPadding === 'object') {
-                iconPaddingLeft = configPadding.left ?? 0;
-                iconPaddingRight = configPadding.right ?? 0;
-                iconPaddingTop = configPadding.top ?? 0;
-                iconPaddingBottom = configPadding.bottom ?? 0;
-            }
+        // Extract from iconStyle first
+        if (iconStyle.padding && typeof iconStyle.padding === 'object') {
+            iconPaddingLeft = iconStyle.padding.left ?? 0;
+            iconPaddingRight = iconStyle.padding.right ?? 0;
+            iconPaddingTop = iconStyle.padding.top ?? 0;
+            iconPaddingBottom = iconStyle.padding.bottom ?? 0;
         }
         // Fall back to preset if not in config
         else if (resolvedStyle.icon?.padding && typeof resolvedStyle.icon.padding === 'object') {
@@ -2010,10 +2010,10 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Resolve icon rotation (same as text fields)
-        // Priority: config > preset > 0 (default)
+        // Priority: iconStyle > preset > 0 (default)
         let iconRotation = 0; // default
-        if (typeof this.config.icon === 'object' && this.config.icon?.rotation !== undefined) {
-            iconRotation = this.config.icon.rotation;
+        if (iconStyle.rotation !== undefined) {
+            iconRotation = iconStyle.rotation;
         } else if (resolvedStyle.icon?.rotation !== undefined) {
             iconRotation = resolvedStyle.icon.rotation;
         }
@@ -2050,20 +2050,20 @@ export class LCARdSButton extends LCARdSCard {
             const iconTokens = this._theme?.tokens?.components?.button?.base?.icon || {};
 
             // Resolve icon color with state-based fallback chain
-            // Priority: config > preset > theme token (state-based) > text color (state-based) > hardcoded
+            // Priority: iconStyle > preset > theme token (state-based) > text color (state-based) > hardcoded
             let iconColor;
 
             lcardsLog.trace('[LCARdSButton] Resolving icon color for state:', buttonState);
 
-            // 1. Check explicit config color
-            if (typeof this.config.icon === 'object' && this.config.icon?.color) {
+            // 1. Check explicit iconStyle color
+            if (iconStyle.color) {
                 // Check if it's state-based (object with active/inactive keys)
-                if (typeof this.config.icon.color === 'object') {
-                    iconColor = this.config.icon.color[buttonState] ||
-                               this.config.icon.color.default ||
-                               this.config.icon.color.active;
+                if (typeof iconStyle.color === 'object') {
+                    iconColor = iconStyle.color[buttonState] ||
+                               iconStyle.color.default ||
+                               iconStyle.color.active;
                 } else {
-                    iconColor = this.config.icon.color;
+                    iconColor = iconStyle.color;
                 }
                 lcardsLog.trace('[LCARdSButton] Icon color from config:', iconColor);
             }
@@ -2116,10 +2116,10 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Resolve icon size
-            // Priority: config > preset > theme token > hardcoded
+            // Priority: iconStyle > preset > theme token > hardcoded
             let iconSize;
-            if (typeof this.config.icon === 'object' && this.config.icon?.size) {
-                iconSize = this.config.icon.size;
+            if (iconStyle.size) {
+                iconSize = iconStyle.size;
             } else if (resolvedStyle.icon?.size && typeof resolvedStyle.icon.size === 'number') {
                 iconSize = resolvedStyle.icon.size;
             } else if (iconTokens.size && typeof iconTokens.size === 'number') {
@@ -2211,9 +2211,9 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Resolve icon background (optional badge/indicator style)
-            // Priority: config > preset > null (no background by default)
+            // Priority: iconStyle > preset > null (no background by default)
             let iconBackground = null;
-            const configBg = typeof this.config.icon === 'object' ? this.config.icon.background : null;
+            const configBg = iconStyle.background;
             const presetBg = resolvedStyle.icon?.background;
 
             if (configBg || presetBg) {
@@ -5114,6 +5114,10 @@ export class LCARdSButton extends LCARdSCard {
             },
 
             // Icon Area Configuration
+            show_icon: {
+                type: 'boolean',
+                description: 'Show/hide icon (default: false). Required to display icon even if icon is configured.'
+            },
             icon_area: {
                 type: 'string',
                 enum: ['left', 'right', 'top', 'bottom', 'none'],
@@ -5126,25 +5130,45 @@ export class LCARdSButton extends LCARdSCard {
 
             // Icon Configuration
             icon: {
-                oneOf: [
-                    { type: 'string', format: 'icon', description: 'Simple icon: "mdi:lightbulb", "si:github", "entity", or null' },
-                    {
+                type: 'string',
+                format: 'icon',
+                description: 'Icon name: "mdi:lightbulb", "si:github", "entity", or null'
+            },
+            icon_style: {
+                type: 'object',
+                description: 'Icon styling and positioning options',
+                properties: {
+                    position: {
+                        type: 'string',
+                        enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
+                        description: 'Position within icon area (if icon_area set) or absolute on button (if icon_area: none)'
+                    },
+                    x: { type: 'number', description: 'Explicit x coordinate (within area or absolute)' },
+                    y: { type: 'number', description: 'Explicit y coordinate (within area or absolute)' },
+                    x_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage x position (0-100)' },
+                    y_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage y position (0-100)' },
+                    size: { type: 'number', description: 'Icon size in pixels (default: 24)' },
+                    color: {
+                        oneOf: [
+                            { type: 'string', description: 'Uniform color' },
+                            {
+                                type: 'object',
+                                properties: {
+                                    active: { type: 'string' },
+                                    inactive: { type: 'string' },
+                                    unavailable: { type: 'string' },
+                                    default: { type: 'string' }
+                                }
+                            }
+                        ]
+                    },
+                    background: {
                         type: 'object',
+                        description: 'Background for badge/indicator style',
                         properties: {
-                            icon: { type: 'string', format: 'icon', description: 'Icon name ("mdi:lightbulb", "si:github", "entity")' },
-                            position: {
-                                type: 'string',
-                                enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
-                                description: 'Position within icon area (if icon_area set) or absolute on button (if icon_area: none)'
-                            },
-                            x: { type: 'number', description: 'Explicit x coordinate (within area or absolute)' },
-                            y: { type: 'number', description: 'Explicit y coordinate (within area or absolute)' },
-                            x_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage x position (0-100)' },
-                            y_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage y position (0-100)' },
-                            size: { type: 'number', description: 'Icon size in pixels (default: 24)' },
                             color: {
                                 oneOf: [
-                                    { type: 'string', description: 'Uniform color' },
+                                    { type: 'string' },
                                     {
                                         type: 'object',
                                         properties: {
@@ -5156,52 +5180,31 @@ export class LCARdSButton extends LCARdSCard {
                                     }
                                 ]
                             },
-                            background: {
-                                type: 'object',
-                                description: 'Background for badge/indicator style',
-                                properties: {
-                                    color: {
-                                        oneOf: [
-                                            { type: 'string' },
-                                            {
-                                                type: 'object',
-                                                properties: {
-                                                    active: { type: 'string' },
-                                                    inactive: { type: 'string' },
-                                                    unavailable: { type: 'string' },
-                                                    default: { type: 'string' }
-                                                }
-                                            }
-                                        ]
-                                    },
-                                    radius: {
-                                        oneOf: [
-                                            { type: 'number' },
-                                            { type: 'string', description: 'Percentage (e.g., "50%" for circle)' }
-                                        ]
-                                    },
-                                    padding: { type: 'number', description: 'Space between icon and background edge' }
-                                }
-                            },
-                            padding: {
+                            radius: {
                                 oneOf: [
-                                    { type: 'number', description: 'Uniform padding' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            top: { type: 'number' },
-                                            right: { type: 'number' },
-                                            bottom: { type: 'number' },
-                                            left: { type: 'number' }
-                                        }
-                                    }
+                                    { type: 'number' },
+                                    { type: 'string', description: 'Percentage (e.g., "50%" for circle)' }
                                 ]
                             },
-                            rotation: { type: 'number', description: 'Rotation angle in degrees (positive = clockwise)' },
-                            show: { type: 'boolean', description: 'Explicitly show/hide icon' }
+                            padding: { type: 'number', description: 'Space between icon and background edge' }
                         }
-                    }
-                ]
+                    },
+                    padding: {
+                        oneOf: [
+                            { type: 'number', description: 'Uniform padding' },
+                            {
+                                type: 'object',
+                                properties: {
+                                    top: { type: 'number' },
+                                    right: { type: 'number' },
+                                    bottom: { type: 'number' },
+                                    left: { type: 'number' }
+                                }
+                            }
+                        ]
+                    },
+                    rotation: { type: 'number', description: 'Rotation angle in degrees (positive = clockwise)' }
+                }
             },
 
             // Style Properties (CB-LCARS nested schema)
