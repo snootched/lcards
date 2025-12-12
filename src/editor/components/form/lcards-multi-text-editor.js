@@ -1,21 +1,22 @@
 /**
- * LCARdS Multi-Text Editor
+ * LCARdS Multi-Text Editor v2
  *
- * Simplified multi-text field manager for button cards.
- * Manages preset text fields (name, label, state) with basic configuration.
- *
+ * Comprehensive text field manager with defaults and dynamic field management.
+ * 
+ * Structure:
+ * - text.default: Default styling for all fields (font_size, color, position, etc.)
+ * - text.{fieldName}: Individual fields that inherit from default
+ * 
  * @example
  * <lcards-multi-text-editor
  *   .editor=${this}
- *   .textConfig=${this.config.text || {}}
- *   .presetFields=${['name', 'label', 'state']}
- *   .hass=${this.hass}
- *   @value-changed=${this._handleTextChange}>
+ *   .hass=${this.hass}>
  * </lcards-multi-text-editor>
  */
 
 import { LitElement, html, css } from 'lit';
 import './lcards-form-section.js';
+import './lcards-form-field.js';
 import './lcards-color-section.js';
 
 export class LCARdSMultiTextEditor extends LitElement {
@@ -23,20 +24,14 @@ export class LCARdSMultiTextEditor extends LitElement {
     static get properties() {
         return {
             editor: { type: Object },         // Parent editor reference
-            textConfig: { type: Object },     // config.text object
-            presetFields: { type: Array },    // ['name', 'label', 'state']
-            hass: { type: Object },           // Home Assistant instance
-            _expandedField: { type: String, state: true } // Currently expanded field
+            hass: { type: Object }            // Home Assistant instance
         };
     }
 
     constructor() {
         super();
         this.editor = null;
-        this.textConfig = {};
-        this.presetFields = ['name', 'label', 'state'];
         this.hass = null;
-        this._expandedField = null;
     }
 
     static get styles() {
@@ -45,100 +40,160 @@ export class LCARdSMultiTextEditor extends LitElement {
                 display: block;
             }
 
-            .text-field-list {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .text-field-item {
-                border: 1px solid var(--divider-color, #e0e0e0);
+            .add-field-section {
+                margin-top: 16px;
+                padding: 16px;
+                background: var(--secondary-background-color, #f5f5f5);
                 border-radius: 8px;
-                padding: 12px;
-                background: var(--card-background-color, #fff);
-            }
-
-            .field-header {
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 8px;
-                cursor: pointer;
-            }
-
-            .field-title {
-                font-weight: 500;
-                color: var(--primary-text-color, #212121);
-                font-size: 14px;
-                text-transform: capitalize;
-            }
-
-            .field-details {
-                margin-top: 12px;
-                padding-top: 12px;
-                border-top: 1px solid var(--divider-color, #e0e0e0);
-            }
-
-            .form-row {
-                margin-bottom: 16px;
-            }
-
-            .form-row label {
-                display: block;
-                font-weight: 500;
-                color: var(--primary-text-color, #212121);
-                font-size: 14px;
-                margin-bottom: 8px;
-            }
-
-            .form-row .helper-text {
-                font-size: 12px;
-                color: var(--secondary-text-color, #727272);
-                margin-top: 4px;
-            }
-
-            ha-textfield,
-            ha-selector {
-                width: 100%;
-                display: block;
-            }
-
-            .checkbox-field {
-                display: flex;
-                align-items: center;
                 gap: 8px;
-                padding: 8px 0;
+                align-items: center;
             }
 
-            .checkbox-field input[type="checkbox"] {
+            .add-field-select {
+                flex: 1;
+                padding: 8px;
+                border: 1px solid var(--divider-color, #e0e0e0);
+                border-radius: 4px;
+                background: white;
+            }
+
+            .add-field-button {
+                padding: 8px 16px;
+                background: var(--primary-color, #03a9f4);
+                color: white;
+                border: none;
+                border-radius: 4px;
                 cursor: pointer;
+                font-size: 14px;
             }
 
-            .checkbox-field label {
+            .add-field-button:hover {
+                opacity: 0.9;
+            }
+
+            .add-field-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .field-actions {
+                display: flex;
+                gap: 8px;
+                margin-top: 8px;
+            }
+
+            .remove-button {
+                padding: 6px 12px;
+                background: var(--error-color, #f44336);
+                color: white;
+                border: none;
+                border-radius: 4px;
                 cursor: pointer;
-                margin: 0;
+                font-size: 12px;
             }
 
-            mwc-icon-button {
-                --mdc-icon-size: 20px;
+            .remove-button:hover {
+                opacity: 0.9;
+            }
+
+            .inherited-hint {
+                font-size: 11px;
+                color: var(--secondary-text-color, #727272);
+                font-style: italic;
+                margin-top: 4px;
             }
         `;
     }
 
     render() {
+        if (!this.editor) {
+            return html`<div>Multi-text editor requires 'editor' property</div>`;
+        }
+
+        const textConfig = this.editor.config?.text || {};
+        const configuredFields = Object.keys(textConfig).filter(key => key !== 'default');
+
         return html`
+            <!-- Text Defaults Section -->
             <lcards-form-section
-                header="Text Fields"
-                description="Configure text content for the button"
-                icon="mdi:format-textbox"
+                header="Text Defaults"
+                description="Default styling inherited by all text fields"
+                icon="mdi:format-text"
                 ?expanded=${true}
                 ?outlined=${true}
                 headerLevel="4">
 
-                <div class="text-field-list">
-                    ${this.presetFields.map(fieldName => this._renderTextField(fieldName))}
-                </div>
+                ${this._renderDefaultsConfig()}
             </lcards-form-section>
+
+            <!-- Individual Text Fields -->
+            <lcards-form-section
+                header="Text Fields"
+                description="Individual text fields (inherit from defaults)"
+                icon="mdi:format-list-text"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${configuredFields.length === 0 ? html`
+                    <div style="padding: 16px; text-align: center; color: var(--secondary-text-color);">
+                        No text fields configured. Add one below.
+                    </div>
+                ` : ''}
+
+                ${configuredFields.map(fieldName => this._renderTextField(fieldName))}
+
+                <!-- Add Field Section -->
+                ${this._renderAddFieldSection()}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render defaults configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDefaultsConfig() {
+        return html`
+            <lcards-form-field
+                .editor=${this.editor}
+                path="text.default.font_size"
+                label="Font Size (px)">
+            </lcards-form-field>
+
+            <lcards-form-field
+                .editor=${this.editor}
+                path="text.default.font_weight"
+                label="Font Weight">
+            </lcards-form-field>
+
+            <lcards-form-field
+                .editor=${this.editor}
+                path="text.default.font_family"
+                label="Font Family">
+            </lcards-form-field>
+
+            <lcards-form-field
+                .editor=${this.editor}
+                path="text.default.position"
+                label="Default Position">
+            </lcards-form-field>
+
+            <lcards-color-section
+                .editor=${this.editor}
+                basePath="text.default.color"
+                header="Default Text Colors"
+                .states=${['default', 'active', 'inactive', 'unavailable']}
+                ?expanded=${false}>
+            </lcards-color-section>
+
+            <lcards-form-field
+                .editor=${this.editor}
+                path="text.default.padding"
+                label="Default Padding">
+            </lcards-form-field>
         `;
     }
 
@@ -149,153 +204,165 @@ export class LCARdSMultiTextEditor extends LitElement {
      * @private
      */
     _renderTextField(fieldName) {
-        const fieldConfig = this.textConfig[fieldName] || {};
-        const isExpanded = this._expandedField === fieldName;
+        const textConfig = this.editor.config?.text || {};
+        const fieldConfig = textConfig[fieldName] || {};
+        const hasDefaults = textConfig.default !== undefined;
 
         return html`
-            <div class="text-field-item">
-                <div class="field-header" @click=${() => this._toggleExpanded(fieldName)}>
-                    <div class="field-title">${fieldName}</div>
-                    <mwc-icon-button
-                        icon="${isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'}"
-                        title="${isExpanded ? 'Collapse' : 'Expand'}">
-                    </mwc-icon-button>
-                </div>
+            <lcards-form-section
+                header="${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Field"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
 
-                ${isExpanded ? html`
-                    <div class="field-details">
-                        ${this._renderFieldForm(fieldName, fieldConfig)}
-                    </div>
-                ` : html`
-                    <div style="font-size: 12px; color: var(--secondary-text-color);">
-                        ${fieldConfig.content || 'No content set'}
-                    </div>
-                `}
-            </div>
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.content"
+                    label="Content"
+                    helper="Supports templates: {{entity.state}}, {{entity.attributes.brightness}}">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.show"
+                    label="Show Field">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.position"
+                    label="Position"
+                    helper="${hasDefaults && !fieldConfig.position ? 'Inherits from defaults' : ''}">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.font_size"
+                    label="Font Size (px)"
+                    helper="${hasDefaults && !fieldConfig.font_size ? 'Inherits from defaults' : ''}">
+                </lcards-form-field>
+
+                <lcards-color-section
+                    .editor=${this.editor}
+                    basePath="text.${fieldName}.color"
+                    header="Field Colors (overrides defaults)"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.rotation"
+                    label="Rotation (degrees)">
+                </lcards-form-field>
+
+                <div class="field-actions">
+                    <button class="remove-button" @click=${() => this._removeField(fieldName)}>
+                        Remove Field
+                    </button>
+                </div>
+            </lcards-form-section>
         `;
     }
 
     /**
-     * Render field configuration form
-     * @param {string} fieldName - Field name
-     * @param {Object} fieldConfig - Field configuration
+     * Render add field section
      * @returns {TemplateResult}
      * @private
      */
-    _renderFieldForm(fieldName, fieldConfig) {
+    _renderAddFieldSection() {
+        const commonFields = ['name', 'label', 'state', 'value', 'unit'];
+        const textConfig = this.editor.config?.text || {};
+        const existingFields = Object.keys(textConfig).filter(k => k !== 'default');
+        const availableFields = commonFields.filter(f => !existingFields.includes(f));
+
         return html`
-            <div class="form-row">
-                <label>Content</label>
-                <ha-textfield
-                    .value=${fieldConfig.content || ''}
-                    @input=${(e) => this._updateFieldProperty(fieldName, 'content', e.target.value)}
-                    placeholder="Enter text content (supports templates)">
-                </ha-textfield>
-                <div class="helper-text">
-                    Supports templates like {{entity.state}}, {{entity.attributes.friendly_name}}
-                </div>
+            <div class="add-field-section">
+                <select class="add-field-select" id="fieldSelect">
+                    <option value="">-- Select field to add --</option>
+                    ${availableFields.map(field => html`
+                        <option value="${field}">${field}</option>
+                    `)}
+                    <option value="custom">Custom field name...</option>
+                </select>
+                <button 
+                    class="add-field-button"
+                    @click=${this._handleAddField}>
+                    Add Field
+                </button>
             </div>
-
-            <div class="form-row">
-                <label>Position</label>
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{
-                        select: {
-                            options: [
-                                { value: 'top-left', label: 'Top Left' },
-                                { value: 'top-center', label: 'Top Center' },
-                                { value: 'top-right', label: 'Top Right' },
-                                { value: 'left-center', label: 'Left Center' },
-                                { value: 'center', label: 'Center' },
-                                { value: 'right-center', label: 'Right Center' },
-                                { value: 'bottom-left', label: 'Bottom Left' },
-                                { value: 'bottom-center', label: 'Bottom Center' },
-                                { value: 'bottom-right', label: 'Bottom Right' }
-                            ]
-                        }
-                    }}
-                    .value=${fieldConfig.position || 'center'}
-                    @value-changed=${(e) => this._updateFieldProperty(fieldName, 'position', e.detail.value)}>
-                </ha-selector>
-            </div>
-
-            <div class="form-row">
-                <label>Font Size (px)</label>
-                <ha-textfield
-                    type="number"
-                    .value=${fieldConfig.fontSize || 14}
-                    @input=${(e) => this._updateFieldProperty(fieldName, 'fontSize', Number(e.target.value))}>
-                </ha-textfield>
-            </div>
-
-            <div class="checkbox-field">
-                <input
-                    type="checkbox"
-                    id="${fieldName}-visible"
-                    .checked=${fieldConfig.show !== false}
-                    @change=${(e) => this._updateFieldProperty(fieldName, 'show', e.target.checked)}>
-                <label for="${fieldName}-visible">Visible</label>
-            </div>
-
-            <div class="checkbox-field">
-                <input
-                    type="checkbox"
-                    id="${fieldName}-template"
-                    .checked=${fieldConfig.template === true}
-                    @change=${(e) => this._updateFieldProperty(fieldName, 'template', e.target.checked)}>
-                <label for="${fieldName}-template">Enable Template Processing</label>
-            </div>
-
-            <lcards-color-section
-                .editor=${this.editor}
-                basePath="text.${fieldName}.color"
-                header="Text Colors"
-                .states=${['default', 'active', 'inactive', 'unavailable']}
-                ?expanded=${false}>
-            </lcards-color-section>
         `;
     }
 
     /**
-     * Toggle expanded state
-     * @param {string} fieldName - Field name
+     * Handle add field button click
      * @private
      */
-    _toggleExpanded(fieldName) {
-        this._expandedField = this._expandedField === fieldName ? null : fieldName;
+    _handleAddField() {
+        const select = this.shadowRoot.getElementById('fieldSelect');
+        const fieldName = select.value;
+
+        if (!fieldName) return;
+
+        if (fieldName === 'custom') {
+            const customName = prompt('Enter custom field name (alphanumeric and underscore only):');
+            if (!customName || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(customName)) {
+                alert('Invalid field name. Must start with letter or underscore, contain only alphanumeric and underscore.');
+                return;
+            }
+            this._addField(customName);
+        } else {
+            this._addField(fieldName);
+        }
+
+        // Reset select
+        select.value = '';
     }
 
     /**
-     * Update field property
-     * @param {string} fieldName - Field name
-     * @param {string} property - Property name
-     * @param {*} value - New value
+     * Add a new text field
+     * @param {string} fieldName - Name of the field to add
      * @private
      */
-    _updateFieldProperty(fieldName, property, value) {
-        const updatedTextConfig = {
-            ...this.textConfig,
-            [fieldName]: {
-                ...(this.textConfig[fieldName] || {}),
-                [property]: value
-            }
-        };
-
-        this.textConfig = updatedTextConfig;
-
-        // Update parent editor
-        if (this.editor) {
-            this.editor._setConfigValue('text', updatedTextConfig);
+    _addField(fieldName) {
+        const textConfig = this.editor.config?.text || {};
+        
+        // Check if field already exists
+        if (textConfig[fieldName]) {
+            alert(`Field "${fieldName}" already exists!`);
+            return;
         }
 
-        // Dispatch value-changed event
-        this.dispatchEvent(new CustomEvent('value-changed', {
-            detail: { value: updatedTextConfig },
-            bubbles: true,
-            composed: true
-        }));
+        // Create new field with minimal config
+        const newField = {
+            content: `{{entity.${fieldName}}}`,
+            show: true
+        };
 
+        // Update config
+        const updatedText = {
+            ...textConfig,
+            [fieldName]: newField
+        };
+
+        this.editor._setConfigValue('text', updatedText);
+        this.requestUpdate();
+    }
+
+    /**
+     * Remove a text field
+     * @param {string} fieldName - Name of the field to remove
+     * @private
+     */
+    _removeField(fieldName) {
+        if (!confirm(`Remove "${fieldName}" field?`)) {
+            return;
+        }
+
+        const textConfig = { ...(this.editor.config?.text || {}) };
+        delete textConfig[fieldName];
+
+        this.editor._setConfigValue('text', textConfig);
         this.requestUpdate();
     }
 }

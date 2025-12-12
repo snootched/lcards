@@ -2,8 +2,8 @@
  * LCARdS Color Section
  *
  * Specialized section component for organizing state-based color configurations.
- * Provides a convenient interface for configuring colors for different states
- * (default, active, hover, disabled, etc.).
+ * Intelligently handles both simple string colors and state-based object colors
+ * using oneOf schema patterns.
  *
  * @example
  * <lcards-color-section
@@ -17,6 +17,7 @@
 import { LitElement, html, css } from 'lit';
 import './lcards-form-section.js';
 import './lcards-form-field.js';
+import { getSchemaAtPath } from '../../../utils/schema-helpers.js';
 
 export class LCARdSColorSection extends LitElement {
 
@@ -46,7 +47,96 @@ export class LCARdSColorSection extends LitElement {
             :host {
                 display: block;
             }
+
+            .mode-toggle {
+                margin-bottom: 12px;
+            }
+
+            .mode-info {
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                margin-top: 8px;
+                font-style: italic;
+            }
         `;
+    }
+
+    /**
+     * Get the current value at basePath
+     * @returns {*}
+     * @private
+     */
+    _getCurrentValue() {
+        if (!this.editor?.config) return undefined;
+
+        const keys = this.basePath.split('.');
+        let value = this.editor.config;
+
+        for (const key of keys) {
+            if (value === undefined || value === null) return undefined;
+            value = value[key];
+        }
+
+        return value;
+    }
+
+    /**
+     * Check if schema at basePath is a oneOf
+     * @returns {boolean}
+     * @private
+     */
+    _isOneOfSchema() {
+        if (!this.editor?.schema) return false;
+
+        const schema = getSchemaAtPath(this.editor.schema, this.basePath);
+        return schema && Array.isArray(schema.oneOf);
+    }
+
+    /**
+     * Determine current mode based on value type
+     * @returns {'simple'|'states'}
+     * @private
+     */
+    _getCurrentMode() {
+        const value = this._getCurrentValue();
+
+        // If value is undefined or null, default to 'simple'
+        if (value === undefined || value === null) return 'simple';
+
+        // If value is a string, it's simple mode
+        if (typeof value === 'string') return 'simple';
+
+        // If value is an object, it's states mode
+        if (typeof value === 'object') return 'states';
+
+        // Default to simple
+        return 'simple';
+    }
+
+    /**
+     * Toggle between simple and states mode
+     * @private
+     */
+    _toggleMode() {
+        const currentMode = this._getCurrentMode();
+        const currentValue = this._getCurrentValue();
+
+        let newValue;
+        if (currentMode === 'simple') {
+            // Convert to states mode: create object with default state
+            newValue = {
+                default: typeof currentValue === 'string' ? currentValue : '#ffffff'
+            };
+        } else {
+            // Convert to simple mode: use default state or first available
+            if (typeof currentValue === 'object' && currentValue !== null) {
+                newValue = currentValue.default || currentValue[Object.keys(currentValue)[0]] || '#ffffff';
+            } else {
+                newValue = '#ffffff';
+            }
+        }
+
+        this.editor.updateConfig(this.basePath, newValue);
     }
 
     render() {
@@ -58,14 +148,73 @@ export class LCARdSColorSection extends LitElement {
             `;
         }
 
+        const isOneOf = this._isOneOfSchema();
+        const currentMode = this._getCurrentMode();
+
         return html`
             <lcards-form-section
                 header="${this.header}"
                 description="${this.description}"
                 ?expanded=${this.expanded}
                 outlined>
-                ${this.states.map(state => this._renderColorField(state))}
+
+                ${isOneOf ? this._renderModeToggle(currentMode) : ''}
+
+                ${currentMode === 'simple'
+                    ? this._renderSimpleColor()
+                    : this._renderStateColors()}
             </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render mode toggle button (for oneOf schemas)
+     * @param {string} currentMode
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderModeToggle(currentMode) {
+        return html`
+            <div class="mode-toggle">
+                <ha-button
+                    @click=${this._toggleMode}
+                    outlined>
+                    ${currentMode === 'simple'
+                        ? '🔄 Use State-Based Colors'
+                        : '🔄 Use Single Color'}
+                </ha-button>
+                <div class="mode-info">
+                    ${currentMode === 'simple'
+                        ? 'Currently using a single color for all states'
+                        : 'Currently using different colors per state'}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render simple single color picker
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSimpleColor() {
+        return html`
+            <lcards-form-field
+                .editor=${this.editor}
+                path="${this.basePath}"
+                label="Color">
+            </lcards-form-field>
+        `;
+    }
+
+    /**
+     * Render state-based color pickers
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderStateColors() {
+        return html`
+            ${this.states.map(state => this._renderColorField(state))}
         `;
     }
 

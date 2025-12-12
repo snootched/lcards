@@ -23,9 +23,26 @@ export function getSchemaAtPath(schema, path) {
     let currentSchema = schema;
 
     for (const key of keys) {
+        // Check if current schema has the property directly
         if (!currentSchema.properties || !currentSchema.properties[key]) {
+            // If current schema is a oneOf, try to find an object branch that has this property
+            if (Array.isArray(currentSchema.oneOf)) {
+                // Look for an object branch that has properties
+                const objectBranch = currentSchema.oneOf.find(
+                    branch => branch.type === 'object' && branch.properties && branch.properties[key]
+                );
+
+                if (objectBranch) {
+                    // Navigate into the oneOf object branch
+                    currentSchema = objectBranch.properties[key];
+                    continue;
+                }
+            }
+
+            // Property not found
             return null;
         }
+
         currentSchema = currentSchema.properties[key];
     }
 

@@ -5045,6 +5045,67 @@ export class LCARdSButton extends LCARdSCard {
             text: {
                 type: 'object',
                 description: 'Multi-text label system with flexible positioning',
+                properties: {
+                    // Explicit 'default' property for text defaults
+                    default: {
+                        type: 'object',
+                        description: 'Default styling for all text fields',
+                        properties: {
+                            position: {
+                                type: 'string',
+                                enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
+                                description: 'Default position for all text fields'
+                            },
+                            rotation: { type: 'number', description: 'Default rotation angle in degrees (positive = clockwise)' },
+                            padding: {
+                                oneOf: [
+                                    { type: 'number', description: 'Uniform padding' },
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            top: { type: 'number' },
+                                            right: { type: 'number' },
+                                            bottom: { type: 'number' },
+                                            left: { type: 'number' }
+                                        }
+                                    }
+                                ]
+                            },
+                            font_size: { type: 'number', description: 'Default font size in pixels' },
+                            color: {
+                                oneOf: [
+                                    { type: 'string', format: 'color', description: 'Uniform color' },
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            active: { type: 'string', format: 'color' },
+                                            inactive: { type: 'string', format: 'color' },
+                                            unavailable: { type: 'string', format: 'color' },
+                                            default: { type: 'string', format: 'color' }
+                                        }
+                                    }
+                                ]
+                            },
+                            font_weight: { type: 'string', description: 'Default font weight (e.g., "normal", "bold", "600")' },
+                            font_family: { type: 'string', description: 'Default font family' },
+                            text_transform: {
+                                type: 'string',
+                                enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+                                description: 'Default text transformation'
+                            },
+                            anchor: {
+                                type: 'string',
+                                enum: ['start', 'middle', 'end'],
+                                description: 'Default text anchor'
+                            },
+                            baseline: {
+                                type: 'string',
+                                enum: ['hanging', 'middle', 'central', 'alphabetic'],
+                                description: 'Default baseline alignment'
+                            }
+                        }
+                    }
+                },
                 patternProperties: {
                     '^[a-zA-Z_][a-zA-Z0-9_]*$': {
                         type: 'object',
@@ -5077,14 +5138,14 @@ export class LCARdSButton extends LCARdSCard {
                             font_size: { type: 'number', description: 'Font size in pixels' },
                             color: {
                                 oneOf: [
-                                    { type: 'string', description: 'Uniform color' },
+                                    { type: 'string', format: 'color', description: 'Uniform color' },
                                     {
                                         type: 'object',
                                         properties: {
-                                            active: { type: 'string' },
-                                            inactive: { type: 'string' },
-                                            unavailable: { type: 'string' },
-                                            default: { type: 'string' }
+                                            active: { type: 'string', format: 'color' },
+                                            inactive: { type: 'string', format: 'color' },
+                                            unavailable: { type: 'string', format: 'color' },
+                                            default: { type: 'string', format: 'color' }
                                         }
                                     }
                                 ]
@@ -5150,14 +5211,14 @@ export class LCARdSButton extends LCARdSCard {
                     size: { type: 'number', description: 'Icon size in pixels (default: 24)' },
                     color: {
                         oneOf: [
-                            { type: 'string', description: 'Uniform color' },
+                            { type: 'string', format: 'color', description: 'Uniform color' },
                             {
                                 type: 'object',
                                 properties: {
-                                    active: { type: 'string' },
-                                    inactive: { type: 'string' },
-                                    unavailable: { type: 'string' },
-                                    default: { type: 'string' }
+                                    active: { type: 'string', format: 'color' },
+                                    inactive: { type: 'string', format: 'color' },
+                                    unavailable: { type: 'string', format: 'color' },
+                                    default: { type: 'string', format: 'color' }
                                 }
                             }
                         ]
@@ -5168,14 +5229,14 @@ export class LCARdSButton extends LCARdSCard {
                         properties: {
                             color: {
                                 oneOf: [
-                                    { type: 'string' },
+                                    { type: 'string', format: 'color' },
                                     {
                                         type: 'object',
                                         properties: {
-                                            active: { type: 'string' },
-                                            inactive: { type: 'string' },
-                                            unavailable: { type: 'string' },
-                                            default: { type: 'string' }
+                                            active: { type: 'string', format: 'color' },
+                                            inactive: { type: 'string', format: 'color' },
+                                            unavailable: { type: 'string', format: 'color' },
+                                            default: { type: 'string', format: 'color' }
                                         }
                                     }
                                 ]

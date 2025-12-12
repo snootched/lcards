@@ -37,7 +37,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _getTabDefinitions() {
         const hasSegments = this.config.svg?.segments && this.config.svg.segments.length > 0;
-        
+
         const tabs = [
             {
                 label: 'Config',
@@ -161,10 +161,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             <!-- Multi-Text Editor -->
             <lcards-multi-text-editor
                 .editor=${this}
-                .textConfig=${this.config.text || {}}
-                .presetFields=${['name', 'label', 'state']}
-                .hass=${this.hass}
-                @value-changed=${(e) => this._setConfigValue('text', e.detail.value)}>
+                .hass=${this.hass}>
             </lcards-multi-text-editor>
 
             <!-- Icon Editor -->
