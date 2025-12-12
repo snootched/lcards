@@ -74,7 +74,7 @@ customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
 ```
 editor/
 ├── base/                    # Base classes and shared styles
-│   ├── LCARdSBaseEditor.js  # Enhanced with path-based config access
+│   ├── LCARdSBaseEditor.js  # Enhanced with path-based config access + helper methods
 │   └── editor-styles.js     # Shared CSS
 ├── cards/                   # Card-specific editors
 │   └── lcards-button-editor.js  # Reference implementation
@@ -85,19 +85,21 @@ editor/
 │   │   ├── lcards-form-section.js       # Collapsible sections
 │   │   ├── lcards-grid-layout.js        # Two-column responsive layout
 │   │   ├── lcards-color-selector.js     # LCARS palette + custom colors
-│   │   ├── lcards-color-section.js      # State-based color groups
+│   │   ├── lcards-color-section.js      # State-based color groups (enhanced)
+│   │   ├── lcards-color-picker.js       # NEW: Unified color picker with CSS vars
+│   │   ├── lcards-object-editor.js      # NEW: Generic object property editor
 │   │   ├── lcards-entity-field.js       # Entity picker wrapper
-│   │   ├── lcards-multi-text-editor.js  # NEW: Multi-text field manager
-│   │   ├── lcards-icon-editor.js        # NEW: Icon config (simple/advanced)
-│   │   ├── lcards-border-editor.js      # NEW: Border config with preview
-│   │   ├── lcards-segment-list-editor.js # NEW: SVG segment manager
-│   │   └── lcards-multi-action-editor.js # NEW: Unified action editor
+│   │   ├── lcards-multi-text-editor.js  # Multi-text field manager
+│   │   ├── lcards-icon-editor.js        # Icon config (simple/advanced)
+│   │   ├── lcards-border-editor.js      # Border config with preview
+│   │   ├── lcards-segment-list-editor.js # SVG segment manager
+│   │   └── lcards-multi-action-editor.js # Unified action editor
 │   └── yaml/               # YAML editor
 └── utils/                  # Utility functions
     └── yaml-utils.js       # YAML conversion (uses js-yaml)
 
 utils/                      # Shared utilities (not editor-specific)
-└── schema-helpers.js       # NEW: Schema navigation and formatting
+└── schema-helpers.js       # Schema navigation and formatting
 
 Note: Schemas are NOT stored in editor directory.
 Cards register schemas with CoreConfigManager singleton.
@@ -112,6 +114,13 @@ Validation is performed by CoreValidationService singleton.
   - `_setConfigValue(path, value)` - Set value with automatic deep merge
   - `_getSchemaForPath(path)` - Get schema for specific path
   - `_evaluateCondition(condition)` - Evaluate visibility/disabled conditions
+  - **NEW Helper Methods:**
+    - `_renderTextPadding(basePath)` - 2x2 padding grid editor
+    - `_renderFontConfig(basePath)` - Font size/weight/family section
+    - `_renderTextAlignment(basePath)` - Position/rotation/justify/align section
+    - `_renderTextColors(basePath, states)` - State-based color section
+    - `_renderTextFieldSection(fieldName, expanded)` - Complete text field editor
+    - `_renderIconSection()` - Complete icon configuration section
 
 ### Form Components
 - **lcards-form-field** - Smart field that auto-renders based on schema
@@ -121,10 +130,23 @@ Validation is performed by CoreValidationService singleton.
 - **lcards-form-section** - Collapsible section with ha-expansion-panel
 - **lcards-grid-layout** - Responsive two-column layout (stacks on mobile)
 - **lcards-color-selector** - Color picker with LCARS palette presets
-- **lcards-color-section** - Specialized for state-based colors
+- **lcards-color-section** - Specialized for state-based colors (enhanced with color-picker)
 - **lcards-entity-field** - Entity picker with domain filtering
 
-### Enhanced Form Components (v1.17.0)
+### Enhanced Form Components
+- **lcards-color-picker** (NEW v1.18.0) - Unified color picker
+  - Dynamically scans CSS variables (--lcards-*, --picard-*, --lcars-*, --cblcars-*)
+  - Dropdown with variables + special options (transparent, Match Light Colour)
+  - Custom color text input for manual hex/rgb/var() entry
+  - Live preview with computed color + luminance-based text contrast
+  - Cached variable scanning for performance
+- **lcards-object-editor** (NEW v1.18.0) - Generic object property editor
+  - Auto-generated mode: properties array + controlType
+  - Slotted mode: manual controls for mixed types
+  - Responsive grid layout (1-4 columns)
+  - Auto-generates labels from property names (snake_case → Title Case)
+  - Supports number, text, boolean, select control types
+  - Ideal for padding, margin, font configs, etc.
 - **lcards-multi-text-editor** - Manage multiple text fields with per-field styling
   - Add/edit/remove text fields dynamically
   - Per-field positioning, fonts, colors
@@ -380,6 +402,90 @@ _handleActionsChange(event) {
 
 See `src/editor/cards/lcards-button-editor.js` for a complete reference implementation using all new components.
 
+### Using New Components (v1.18.0)
+
+#### Unified Color Picker
+
+```javascript
+import '../components/form/lcards-color-picker.js';
+
+_renderColorTab() {
+    return html`
+        <!-- Unified color picker with CSS variable scanning -->
+        <lcards-color-picker
+            .hass=${this.hass}
+            .value=${this._getConfigValue('style.color.background')}
+            .variablePrefixes=${['--lcards-', '--picard-']}
+            ?showPreview=${true}
+            @value-changed=${(e) => this._setConfigValue('style.color.background', e.detail.value)}>
+        </lcards-color-picker>
+    `;
+}
+```
+
+#### Object Editor for Padding
+
+```javascript
+import '../components/form/lcards-object-editor.js';
+
+_renderPaddingSection() {
+    return html`
+        <!-- Auto-generated 2x2 padding grid -->
+        <lcards-object-editor
+            .editor=${this}
+            path="style.padding"
+            .properties=${['top', 'right', 'bottom', 'left']}
+            controlType="number"
+            .controlConfig=${{ min: 0, max: 100, mode: 'box' }}
+            columns="2">
+        </lcards-object-editor>
+    `;
+}
+```
+
+#### Using Base Editor Helper Methods
+
+```javascript
+// In your card editor extending LCARdSBaseEditor
+
+_renderTextTab() {
+    return html`
+        <!-- Complete text field with padding, font, alignment, colors -->
+        ${this._renderTextFieldSection('name', true)}
+        ${this._renderTextFieldSection('label', false)}
+        ${this._renderTextFieldSection('state', false)}
+    `;
+}
+
+_renderIconTab() {
+    return html`
+        <!-- Complete icon section -->
+        ${this._renderIconSection()}
+    `;
+}
+```
+
+#### Enhanced Color Section
+
+```javascript
+import '../components/form/lcards-color-section.js';
+
+_renderColorsTab() {
+    return html`
+        <!-- State-based colors with enhanced picker -->
+        <lcards-color-section
+            .editor=${this}
+            basePath="style.color.background"
+            header="Background Colors"
+            .states=${['default', 'active', 'inactive', 'unavailable']}
+            ?useColorPicker=${true}
+            ?showPreview=${true}
+            ?expanded=${true}>
+        </lcards-color-section>
+    `;
+}
+```
+
 ## Documentation
 
 See [Visual Editor Architecture](../../doc/architecture/visual-editor-architecture.md) for detailed documentation.
@@ -400,12 +506,21 @@ See `doc/user/examples/button-visual-editor-test.yaml` for comprehensive test co
 - ✅ 8-tab button editor structure
 - ✅ State-based color support (existing component)
 
+### Phase 1.5: Advanced Color & Object Editing ✅ (v1.18.0)
+- ✅ Unified color picker with CSS variable scanning
+- ✅ Generic object editor for padding/margins/fonts
+- ✅ Enhanced color section with color picker integration
+- ✅ Base editor helper methods for common patterns
+- ✅ Button schema with 45 font families
+- ✅ Complete alignment enums (justify, align, position)
+- ✅ Match Light Colour support (CSS variable export)
+
 ### Phase 2: Advanced Features (Future)
 - 🔜 Animation editor with visual timeline
 - 🔜 SVG background editor
 - 🔜 Component/shape selector
 - 🔜 Live preview panel
-- 🔜 Enhanced color section (copy/reset/preview)
+- 🔜 Enhanced oneOf handling with auto-toggle
 - Enhanced base editor with path-based config access
 - Smart form field component with auto-rendering
 - Collapsible section components
@@ -414,12 +529,12 @@ See `doc/user/examples/button-visual-editor-test.yaml` for comprehensive test co
 - Entity picker wrapper
 - Button card editor as reference implementation
 
-### Phase 2: DataSource Builder 🔜 (Future)
+### Phase 3: DataSource Builder 🔜 (Future)
 - Visual datasource configuration
 - Transform picker
 - Preview
 
-### Phase 3: Rules Engine Builder 🔜 (Future)
+### Phase 4: Rules Engine Builder 🔜 (Future)
 - Visual rule builder
 - Condition tree
 - Rule tester
