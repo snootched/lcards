@@ -17,6 +17,7 @@
 import { LitElement, html, css } from 'lit';
 import './lcards-form-section.js';
 import './lcards-form-field.js';
+import './lcards-color-picker.js';
 import { getSchemaAtPath } from '../../../utils/schema-helpers.js';
 
 export class LCARdSColorSection extends LitElement {
@@ -28,7 +29,10 @@ export class LCARdSColorSection extends LitElement {
             header: { type: String },         // Section header
             description: { type: String },    // Section description
             states: { type: Array },          // Array of state names (e.g., ['default', 'active'])
-            expanded: { type: Boolean }       // Expanded state
+            expanded: { type: Boolean },      // Expanded state
+            variablePrefixes: { type: Array }, // CSS variable prefixes to scan
+            showPreview: { type: Boolean },    // Show color preview
+            useColorPicker: { type: Boolean }  // Use enhanced color picker vs basic form-field
         };
     }
 
@@ -40,6 +44,9 @@ export class LCARdSColorSection extends LitElement {
         this.description = '';
         this.states = ['default', 'active', 'hover', 'disabled'];
         this.expanded = false;
+        this.variablePrefixes = ['--lcards-', '--picard-', '--lcars-', '--cblcars-'];
+        this.showPreview = true;
+        this.useColorPicker = true; // Default to enhanced picker
     }
 
     static get styles() {
@@ -198,6 +205,19 @@ export class LCARdSColorSection extends LitElement {
      * @private
      */
     _renderSimpleColor() {
+        if (this.useColorPicker) {
+            const value = this.editor._getConfigValue(this.basePath);
+            return html`
+                <lcards-color-picker
+                    .hass=${this.editor.hass}
+                    .value=${value || ''}
+                    .variablePrefixes=${this.variablePrefixes}
+                    ?showPreview=${this.showPreview}
+                    @value-changed=${(e) => this._handleColorChange(this.basePath, e)}>
+                </lcards-color-picker>
+            `;
+        }
+
         return html`
             <lcards-form-field
                 .editor=${this.editor}
@@ -228,6 +248,24 @@ export class LCARdSColorSection extends LitElement {
         const path = `${this.basePath}.${state}`;
         const label = this._formatStateLabel(state);
 
+        if (this.useColorPicker) {
+            const value = this.editor._getConfigValue(path);
+            return html`
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">
+                        ${label}
+                    </div>
+                    <lcards-color-picker
+                        .hass=${this.editor.hass}
+                        .value=${value || ''}
+                        .variablePrefixes=${this.variablePrefixes}
+                        ?showPreview=${this.showPreview}
+                        @value-changed=${(e) => this._handleColorChange(path, e)}>
+                    </lcards-color-picker>
+                </div>
+            `;
+        }
+
         return html`
             <lcards-form-field
                 .editor=${this.editor}
@@ -235,6 +273,17 @@ export class LCARdSColorSection extends LitElement {
                 label="${label}">
             </lcards-form-field>
         `;
+    }
+
+    /**
+     * Handle color change from color picker
+     * @param {string} path - Config path
+     * @param {CustomEvent} event - value-changed event
+     * @private
+     */
+    _handleColorChange(path, event) {
+        const newValue = event.detail.value;
+        this.editor._setConfigValue(path, newValue);
     }
 
     /**

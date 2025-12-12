@@ -28,6 +28,7 @@ import { LCARdSNativeCard } from './LCARdSNativeCard.js';
 import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -424,6 +425,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Update entity reference
         if (this.config.entity) {
             this._entity = newHass.states[this.config.entity];
+            
+            // Export light color CSS variable if this is a light entity
+            this._updateLightColorVariable();
         }
 
         // Set up efficient entity-based rule monitoring on first HASS (once only)
@@ -565,6 +569,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Unregister overlay and rules callback (consolidated cleanup)
         this._unregisterOverlayFromRules();
+
+        // Cleanup light color CSS variable
+        this._cleanupLightColorVariable();
 
         // Cleanup resize observer if set up
         if (this._resizeObserver) {
@@ -2008,5 +2015,114 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Action handler cleanup is handled by setupActions() cleanup function
 
         super._onDisconnected();
+    }
+
+    /**
+     * Update light color CSS variable for "Match Light Colour" feature
+     * Exports --lcards-light-color-{cardGuid} variable with entity's current color
+     * @protected
+     */
+    _updateLightColorVariable() {
+        if (!this._entity || !this.config.entity) {
+            return;
+        }
+
+        // Only process light entities
+        if (!this.config.entity.startsWith('light.')) {
+            return;
+        }
+
+        const varName = `--lcards-light-color-${this._cardGuid}`;
+
+        // Check if light is on
+        if (this._entity.state !== 'on') {
+            // Light is off, remove variable or set to default
+            document.documentElement.style.removeProperty(varName);
+            return;
+        }
+
+        // Get color from entity attributes
+        let color = null;
+
+        // Try RGB color first
+        if (this._entity.attributes.rgb_color) {
+            const [r, g, b] = this._entity.attributes.rgb_color;
+            color = `rgb(${r}, ${g}, ${b})`;
+        }
+        // Try HS color
+        else if (this._entity.attributes.hs_color) {
+            const [h, s] = this._entity.attributes.hs_color;
+            // Convert HS to RGB (simplified conversion)
+            const rgb = this._hsToRgb(h, s, this._entity.attributes.brightness || 255);
+            color = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        }
+        // Try color temp
+        else if (this._entity.attributes.color_temp) {
+            // For color temp, use a default warm white
+            // More sophisticated conversion could be added
+            color = '#ffd89b';
+        }
+
+        // Apply brightness if available
+        if (color && this._entity.attributes.brightness) {
+            const brightness = this._entity.attributes.brightness / 255;
+            // Adjust color brightness
+            color = ColorUtils.alpha(color, brightness);
+        }
+
+        // Set the CSS variable
+        if (color) {
+            document.documentElement.style.setProperty(varName, color);
+            lcardsLog.trace(`[LCARdSCard] Set light color variable ${varName} = ${color}`);
+        }
+    }
+
+    /**
+     * Cleanup light color CSS variable
+     * @protected
+     */
+    _cleanupLightColorVariable() {
+        if (this._cardGuid) {
+            const varName = `--lcards-light-color-${this._cardGuid}`;
+            document.documentElement.style.removeProperty(varName);
+            lcardsLog.trace(`[LCARdSCard] Cleaned up light color variable ${varName}`);
+        }
+    }
+
+    /**
+     * Convert HS color to RGB
+     * @param {number} h - Hue (0-360)
+     * @param {number} s - Saturation (0-100)
+     * @param {number} brightness - Brightness (0-255)
+     * @returns {Array<number>} [r, g, b]
+     * @private
+     */
+    _hsToRgb(h, s, brightness = 255) {
+        h = h / 360;
+        s = s / 100;
+        const v = brightness / 255;
+
+        let r, g, b;
+
+        const i = Math.floor(h * 6);
+        const f = h * 6 - i;
+        const p = v * (1 - s);
+        const q = v * (1 - f * s);
+        const t = v * (1 - (1 - f) * s);
+
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+
+        return [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255)
+        ];
     }
 }

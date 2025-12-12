@@ -4852,6 +4852,68 @@ export class LCARdSButton extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSButton] Registering schema with presets:', availablePresets);
 
+        // Font family options (40+ fonts with proper labels)
+        const fontFamilyEnum = [
+            "'LCARS', 'Antonio', sans-serif",
+            "'Antonio', sans-serif",
+            "'Helvetica Neue', Helvetica, Arial, sans-serif",
+            "Arial, sans-serif",
+            "Verdana, sans-serif",
+            "'Segoe UI', Tahoma, sans-serif",
+            "'Trebuchet MS', sans-serif",
+            "'Gill Sans', sans-serif",
+            "Calibri, sans-serif",
+            "'Franklin Gothic Medium', sans-serif",
+            "'Arial Black', sans-serif",
+            "Impact, sans-serif",
+            "'Lucida Sans', sans-serif",
+            "Tahoma, sans-serif",
+            "'Century Gothic', sans-serif",
+            "Georgia, serif",
+            "'Times New Roman', Times, serif",
+            "'Palatino Linotype', 'Book Antiqua', serif",
+            "Garamond, serif",
+            "'Bookman Old Style', serif",
+            "'Courier New', Courier, monospace",
+            "'Lucida Console', Monaco, monospace",
+            "Consolas, monospace",
+            "'Roboto', sans-serif",
+            "'Open Sans', sans-serif",
+            "'Lato', sans-serif",
+            "'Montserrat', sans-serif",
+            "'Oswald', sans-serif",
+            "'Raleway', sans-serif",
+            "'PT Sans', sans-serif",
+            "'Nunito', sans-serif",
+            "'Ubuntu', sans-serif",
+            "'Playfair Display', serif",
+            "'Merriweather', serif",
+            "'Noto Sans', sans-serif",
+            "'Source Sans Pro', sans-serif",
+            "'Poppins', sans-serif",
+            "'Inter', sans-serif",
+            "'Fira Sans', sans-serif",
+            "'Work Sans', sans-serif",
+            "'Rubik', sans-serif",
+            "'Barlow', sans-serif",
+            "'Titillium Web', sans-serif",
+            "'Oxygen', sans-serif",
+            "'Quicksand', sans-serif"
+        ];
+
+        // Position options with proper labels
+        const positionEnum = [
+            'top-left', 'top-center', 'top-right',
+            'left-center', 'center', 'right-center',
+            'bottom-left', 'bottom-center', 'bottom-right',
+            'top', 'bottom', 'left', 'right'
+        ];
+
+        // Alignment options
+        const justifyEnum = ['left', 'center', 'right', 'justify', 'start', 'end'];
+        const alignEnum = ['top', 'middle', 'bottom', 'baseline', 'start', 'end'];
+        const transformEnum = ['none', 'uppercase', 'lowercase', 'capitalize'];
+
         // Register behavioral defaults (NO STYLES - those come from theme/presets)
         configManager.registerCardDefaults('button', {
             enable_hold_action: true,   // Hold actions enabled
@@ -5086,11 +5148,19 @@ export class LCARdSButton extends LCARdSCard {
                                     }
                                 ]
                             },
-                            font_weight: { type: 'string', description: 'Default font weight (e.g., "normal", "bold", "600")' },
-                            font_family: { type: 'string', description: 'Default font family' },
+                            font_weight: { 
+                                type: 'string', 
+                                enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
+                                description: 'Default font weight' 
+                            },
+                            font_family: { 
+                                type: 'string', 
+                                enum: fontFamilyEnum,
+                                description: 'Default font family' 
+                            },
                             text_transform: {
                                 type: 'string',
-                                enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+                                enum: transformEnum,
                                 description: 'Default text transformation'
                             },
                             anchor: {
@@ -5111,31 +5181,32 @@ export class LCARdSButton extends LCARdSCard {
                         type: 'object',
                         properties: {
                             content: { type: 'string', description: 'Text content (supports templates like {entity.state})' },
+                            show: { type: 'boolean', description: 'Show/hide this text field' },
                             position: {
                                 type: 'string',
-                                enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
+                                enum: positionEnum,
                                 description: 'Named position (edge shortcuts: top=top-center, bottom=bottom-center, left=left-center, right=right-center)'
                             },
                             x: { type: 'number', description: 'Explicit x coordinate (overrides position)' },
                             y: { type: 'number', description: 'Explicit y coordinate (overrides position)' },
                             x_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage x position (0-100)' },
                             y_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage y position (0-100)' },
-                            rotation: { type: 'number', description: 'Rotation angle in degrees (positive = clockwise)' },
+                            rotation: { type: 'number', minimum: -360, maximum: 360, description: 'Rotation angle in degrees (positive = clockwise)' },
                             padding: {
                                 oneOf: [
-                                    { type: 'number', description: 'Uniform padding' },
+                                    { type: 'number', minimum: 0, description: 'Uniform padding in pixels' },
                                     {
                                         type: 'object',
                                         properties: {
-                                            top: { type: 'number' },
-                                            right: { type: 'number' },
-                                            bottom: { type: 'number' },
-                                            left: { type: 'number' }
+                                            top: { type: 'number', minimum: 0 },
+                                            right: { type: 'number', minimum: 0 },
+                                            bottom: { type: 'number', minimum: 0 },
+                                            left: { type: 'number', minimum: 0 }
                                         }
                                     }
                                 ]
                             },
-                            font_size: { type: 'number', description: 'Font size in pixels' },
+                            font_size: { type: 'number', minimum: 1, maximum: 200, description: 'Font size in pixels' },
                             color: {
                                 oneOf: [
                                     { type: 'string', format: 'color', description: 'Uniform color' },
@@ -5150,12 +5221,30 @@ export class LCARdSButton extends LCARdSCard {
                                     }
                                 ]
                             },
-                            font_weight: { type: 'string', description: 'Font weight (e.g., "normal", "bold", "600")' },
-                            font_family: { type: 'string', description: 'Font family' },
+                            font_weight: { 
+                                type: 'string',
+                                enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
+                                description: 'Font weight'
+                            },
+                            font_family: { 
+                                type: 'string',
+                                enum: fontFamilyEnum,
+                                description: 'Font family'
+                            },
                             text_transform: {
                                 type: 'string',
-                                enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+                                enum: transformEnum,
                                 description: 'Text transformation'
+                            },
+                            justify: {
+                                type: 'string',
+                                enum: justifyEnum,
+                                description: 'Horizontal text alignment'
+                            },
+                            align: {
+                                type: 'string',
+                                enum: alignEnum,
+                                description: 'Vertical text alignment'
                             },
                             anchor: {
                                 type: 'string',

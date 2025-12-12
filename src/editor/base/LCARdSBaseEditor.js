@@ -512,4 +512,265 @@ export class LCARdSBaseEditor extends LitElement {
             </ha-alert>
         `;
     }
+
+    /**
+     * Helper: Render text padding configuration (2x2 grid)
+     * @param {string} basePath - Path to padding config (e.g., 'text.name.padding')
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderTextPadding(basePath) {
+        // Check if this is a oneOf (simple number vs object)
+        const schema = this._getSchemaForPath(basePath);
+        const isOneOf = schema && Array.isArray(schema.oneOf);
+        
+        if (isOneOf) {
+            // For oneOf, let form-field handle it with toggle
+            return html`
+                <lcards-form-field
+                    .editor=${this}
+                    path="${basePath}"
+                    label="Padding">
+                </lcards-form-field>
+            `;
+        }
+
+        // Render as object editor
+        return html`
+            <lcards-object-editor
+                .editor=${this}
+                path="${basePath}"
+                .properties=${['top', 'right', 'bottom', 'left']}
+                controlType="number"
+                .controlConfig=${{ min: 0, max: 100, mode: 'box' }}
+                columns="2">
+            </lcards-object-editor>
+        `;
+    }
+
+    /**
+     * Helper: Render font configuration (size, weight, family)
+     * @param {string} basePath - Path to text config (e.g., 'text.name')
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderFontConfig(basePath) {
+        return html`
+            <lcards-form-section
+                header="Font Settings"
+                description="Configure font size, weight, and family"
+                icon="mdi:format-text"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
+                
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.font_size"
+                        label="Font Size">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.font_weight"
+                        label="Font Weight">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.font_family"
+                        label="Font Family">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Helper: Render text alignment configuration (2x2 grid)
+     * @param {string} basePath - Path to text config (e.g., 'text.name')
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderTextAlignment(basePath) {
+        return html`
+            <lcards-form-section
+                header="Text Alignment"
+                description="Configure text alignment and positioning"
+                icon="mdi:format-align-center"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
+                
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.position"
+                        label="Position">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.rotation"
+                        label="Rotation">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.justify"
+                        label="Horizontal Align">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="${basePath}.align"
+                        label="Vertical Align">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Helper: Render text colors section (state-based)
+     * @param {string} basePath - Path to color config (e.g., 'text.name.color')
+     * @param {Array} states - Array of state names
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderTextColors(basePath, states = ['default', 'active', 'inactive', 'unavailable']) {
+        return html`
+            <lcards-color-section
+                .editor=${this}
+                basePath="${basePath}"
+                header="Text Colors"
+                description="State-based text colors"
+                .states=${states}
+                ?expanded=${false}>
+            </lcards-color-section>
+        `;
+    }
+
+    /**
+     * Helper: Render complete text field section
+     * @param {string} fieldName - Field name (e.g., 'name', 'label', 'state')
+     * @param {boolean} expanded - Initial expanded state
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderTextFieldSection(fieldName, expanded = false) {
+        const basePath = `text.${fieldName}`;
+        const fieldLabel = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+
+        return html`
+            <lcards-form-section
+                header="${fieldLabel} Text"
+                description="Configure ${fieldLabel.toLowerCase()} text content and styling"
+                icon="mdi:text-box"
+                ?expanded=${expanded}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <!-- Content -->
+                <lcards-form-field
+                    .editor=${this}
+                    path="${basePath}.content"
+                    label="Content"
+                    helper="Text content or template (e.g., {{entity.state}})">
+                </lcards-form-field>
+
+                <!-- Show Toggle -->
+                <lcards-form-field
+                    .editor=${this}
+                    path="${basePath}.show"
+                    label="Show ${fieldLabel}">
+                </lcards-form-field>
+
+                <!-- Padding -->
+                <lcards-form-section
+                    header="Padding"
+                    description="Text padding (top, right, bottom, left)"
+                    ?expanded=${false}
+                    ?outlined=${false}
+                    headerLevel="5">
+                    ${this._renderTextPadding(`${basePath}.padding`)}
+                </lcards-form-section>
+
+                <!-- Font Settings -->
+                ${this._renderFontConfig(basePath)}
+
+                <!-- Alignment -->
+                ${this._renderTextAlignment(basePath)}
+
+                <!-- Colors -->
+                ${this._renderTextColors(`${basePath}.color`)}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Helper: Render icon section
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderIconSection() {
+        return html`
+            <lcards-form-section
+                header="Icon Configuration"
+                description="Configure icon display and styling"
+                icon="mdi:image"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <!-- Icon Picker -->
+                <lcards-form-field
+                    .editor=${this}
+                    path="icon.icon"
+                    label="Icon">
+                </lcards-form-field>
+
+                <!-- Show Toggle -->
+                <lcards-form-field
+                    .editor=${this}
+                    path="icon.show"
+                    label="Show Icon">
+                </lcards-form-field>
+
+                <!-- Icon Area -->
+                <lcards-form-field
+                    .editor=${this}
+                    path="icon_area"
+                    label="Icon Area"
+                    helper="Reserved space for icon (left, right, top, bottom)">
+                </lcards-form-field>
+
+                <!-- Icon Size -->
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="icon.size"
+                        label="Icon Size">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="icon.padding"
+                        label="Icon Padding">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+
+                <!-- Icon Colors -->
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="icon.color"
+                    header="Icon Colors"
+                    description="State-based icon colors"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+            </lcards-form-section>
+        `;
+    }
 }
