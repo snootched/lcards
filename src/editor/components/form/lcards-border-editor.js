@@ -164,7 +164,7 @@ export class LCARdSBorderEditor extends LitElement {
                 header="${this.label}"
                 description="Configure border styling and dimensions"
                 icon="mdi:border-all"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 

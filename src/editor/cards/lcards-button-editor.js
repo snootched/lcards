@@ -44,16 +44,16 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 content: () => this._renderCardConfigTab()
             },
             {
+                label: 'Card & Border',
+                content: () => this._renderCardBorderTab()
+            },
+            {
                 label: 'Text',
                 content: () => this._renderTextTab()
             },
             {
                 label: 'Icon',
                 content: () => this._renderIconTab()
-            },
-            {
-                label: 'Card & Border',
-                content: () => this._renderCardBorderTab()
             },
             {
                 label: 'Actions',
@@ -93,7 +93,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             <!-- Info Message -->
             <lcards-message
                 type="info"
-                message="Configure the basic settings for your LCARS button card. Select an entity to control or leave blank for a static button.">
+                message="Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.">
             </lcards-message>
 
             <!-- Basic Configuration Section -->
@@ -101,9 +101,16 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 header="Basic Configuration"
                 description="Core card settings"
                 icon="mdi:cog"
-                ?expanded=${false}
+                ?expanded=${true}
                 ?outlined=${true}
                 headerLevel="4">
+
+                <lcards-form-field
+                    .editor=${this}
+                    .config=${this.config}
+                    path="preset"
+                    label="Preset Style">
+                </lcards-form-field>
 
                 <lcards-form-field
                     .editor=${this}
@@ -117,41 +124,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     .config=${this.config}
                     path="id"
                     label="Card ID"
-                    helper="Optional custom ID for targeting with rules">
+                    helper="[Optional] Custom ID for targeting with rules and animations">
                 </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="preset"
-                    label="Preset Style">
-                </lcards-form-field>
-            </lcards-form-section>
-
-            <!-- Layout Section -->
-            <lcards-form-section
-                header="Layout"
-                description="Grid positioning and sizing"
-                icon="mdi:grid"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="grid_columns"
-                        label="Grid Columns">
-                    </lcards-form-field>
-
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="grid_rows"
-                        label="Grid Rows">
-                    </lcards-form-field>
-                </lcards-grid-layout>
             </lcards-form-section>
         `;
     }
@@ -229,85 +203,27 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _renderCardBorderTab() {
         return html`
-            <!-- Card Size Section -->
+            <!-- Card Background Colors -->
             <lcards-form-section
-                header="Card Size"
-                description="Configure card dimensions"
-                icon="mdi:resize"
+                header="Card Background"
+                description="Background colors by state"
+                icon="mdi:format-color-fill"
                 ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
-                <lcards-form-field
+                <lcards-color-section
                     .editor=${this}
                     .config=${this.config}
-                    path="style.height"
-                    label="Height"
-                    helper="Sets static height of the card">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="style.width"
-                    label="Width"
-                    helper="Sets static width of the card">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="style.min_height"
-                    label="Minimum Height"
-                    helper="Sets minimum height of the card">
-                </lcards-form-field>
+                    basePath="style.card.color.background"
+                    header="Background Colors"
+                    description="Card background color for each state"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
             </lcards-form-section>
 
-            <!-- Card Colors Section -->
-            <lcards-form-section
-                header="Card Colours"
-                description="Card background and border colors"
-                icon="mdi:select-color"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <!-- Border Colors -->
-                <lcards-form-section
-                    header="Border"
-                    description="Border/frame colors"
-                    ?expanded=${false}
-                    ?outlined=${true}
-                    ?noCollapse=${true}
-                    headerLevel="5">
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.color.border"
-                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                        ?expanded=${false}>
-                    </lcards-color-section>
-                </lcards-form-section>
-
-                <!-- Background Colors -->
-                <lcards-form-section
-                    header="Background"
-                    description="Card background colors"
-                    ?expanded=${false}
-                    ?outlined=${true}
-                    ?noCollapse=${true}
-                    headerLevel="5">
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.card.color.background"
-                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                        ?expanded=${false}>
-                    </lcards-color-section>
-                </lcards-form-section>
-            </lcards-form-section>
-
-            <!-- Borders Section -->
+            <!-- Borders & Corners -->
             <lcards-border-editor
                 .editor=${this}
                 path="style.border"
@@ -328,7 +244,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 .editor=${this}
                 .segments=${this.config.svg?.segments || []}
                 .hass=${this.hass}
-                ?expanded=${false}
+                ?expanded=${true}
                 @value-changed=${this._handleSegmentsChange}>
             </lcards-segment-list-editor>
         `;
@@ -365,7 +281,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 header="Advanced Options"
                 description="Additional configuration options"
                 icon="mdi:cog"
-                ?expanded=${false}
+                ?expanded=${true}
                 ?outlined=${true}
                 headerLevel="4">
 

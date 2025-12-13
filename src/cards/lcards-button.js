@@ -4779,14 +4779,21 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Get layout options for Home Assistant grid system
+     * Home Assistant manages layout through grid_options in config, which includes:
+     * - columns: number of columns to span
+     * - rows: number of rows to span
+     * This method provides defaults if not specified.
      * @returns {Object} Layout configuration
      */
     getLayoutOptions() {
+        // HA uses grid_options.columns and grid_options.rows
+        // Provide sensible defaults if not configured
+        const gridOptions = this.config.grid_options || {};
         return {
-            grid_columns: this.config.grid_columns !== undefined ? this.config.grid_columns : 'full',  // Default to full width
-            grid_rows: this.config.grid_rows || 1,        // Default span 1 row
-            grid_min_columns: this.config.grid_min_columns || 1,
-            grid_min_rows: this.config.grid_min_rows || 1
+            grid_columns: gridOptions.columns || 4,  // Default to 4 columns
+            grid_rows: gridOptions.rows || 1,        // Default to 1 row
+            grid_min_columns: 1,
+            grid_min_rows: 1
         };
     }
 
@@ -5453,27 +5460,9 @@ export class LCARdSButton extends LCARdSCard {
                 description: 'Fixed height in pixels (optional - auto-sizes to container by default)'
             },
 
-            // Grid Layout Properties
-            grid_columns: {
-                type: ['number', 'string'],
-                description: 'Number of grid columns to span or "full" for full width (default: "full")',
-                minimum: 1
-            },
-            grid_rows: {
-                type: 'number',
-                description: 'Number of grid rows to span (default: 1)',
-                minimum: 1
-            },
-            grid_min_columns: {
-                type: 'number',
-                description: 'Minimum columns required (default: 1)',
-                minimum: 1
-            },
-            grid_min_rows: {
-                type: 'number',
-                description: 'Minimum rows required (default: 1)',
-                minimum: 1
-            },
+            // Grid Layout Properties (HA native - managed by HA's layout tab)
+            // Note: grid_columns, grid_rows, grid_min_columns, grid_min_rows are
+            // automatically handled by Home Assistant's layout system via grid_options
 
             // Action Properties
             tap_action: {
