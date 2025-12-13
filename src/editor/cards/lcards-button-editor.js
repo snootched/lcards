@@ -22,12 +22,22 @@ import '../components/form/lcards-icon-editor.js';
 import '../components/form/lcards-border-editor.js';
 import '../components/form/lcards-segment-list-editor.js';
 import '../components/form/lcards-multi-action-editor.js';
+// Import dpad segment picker
+import '../components/form/lcards-dpad-segment-picker.js';
 
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
     constructor() {
         super();
         this.cardType = 'button'; // Set card type for schema lookup
+        this._selectedSegmentId = 'center'; // Default selected segment
+    }
+
+    static get properties() {
+        return {
+            ...super.properties,
+            _selectedSegmentId: { type: String, state: true }
+        };
     }
 
     /**
@@ -36,33 +46,51 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @override
      */
     _getTabDefinitions() {
+        // Detect mode: component mode if config.component exists, otherwise preset mode
+        const mode = this.config.component ? 'component' : 'preset';
         const hasSegments = this.config.svg?.segments && this.config.svg.segments.length > 0;
 
         const tabs = [
             {
                 label: 'Config',
                 content: () => this._renderCardConfigTab()
-            },
-            {
-                label: 'Card & Border',
-                content: () => this._renderCardBorderTab()
-            },
-            {
-                label: 'Text',
-                content: () => this._renderTextTab()
-            },
-            {
-                label: 'Icon',
-                content: () => this._renderIconTab()
-            },
-            {
-                label: 'Actions',
-                content: () => this._renderActionsTab()
             }
         ];
 
-        // Conditionally add Segments tab if segments exist
-        if (hasSegments) {
+        // Show preset-specific tabs only in preset mode
+        if (mode === 'preset') {
+            tabs.push(
+                {
+                    label: 'Card & Border',
+                    content: () => this._renderCardBorderTab()
+                },
+                {
+                    label: 'Text',
+                    content: () => this._renderTextTab()
+                },
+                {
+                    label: 'Icon',
+                    content: () => this._renderIconTab()
+                }
+            );
+        }
+
+        // Show component tab in component mode
+        if (mode === 'component') {
+            tabs.push({
+                label: 'Component',
+                content: () => this._renderComponentTab()
+            });
+        }
+
+        // Actions tab is shown in both modes
+        tabs.push({
+            label: 'Actions',
+            content: () => this._renderActionsTab()
+        });
+
+        // Conditionally add Segments tab if custom SVG segments exist or component mode
+        if (hasSegments || mode === 'component') {
             tabs.push({
                 label: 'Segments',
                 content: () => this._renderSegmentsTab()
@@ -89,12 +117,40 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderCardConfigTab() {
+        const mode = this.config.component ? 'component' : 'preset';
+
         return html`
             <!-- Info Message -->
             <lcards-message
                 type="info"
                 message="Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.">
             </lcards-message>
+
+            <!-- Mode Selector Section -->
+            <lcards-form-section
+                header="Configuration Mode"
+                description="Choose between preset-based buttons or component-based controls"
+                icon="mdi:cog"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <div class="form-row">
+                    <label>Mode</label>
+                    <select
+                        .value=${mode}
+                        @change=${this._handleModeChange}
+                        style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--divider-color);">
+                        <option value="preset">Preset (lozenge, bullet, etc.)</option>
+                        <option value="component">Component (dpad, sliders, etc.)</option>
+                    </select>
+                    <div style="margin-top: 8px; font-size: 12px; color: var(--secondary-text-color);">
+                        ${mode === 'preset' 
+                            ? 'Preset mode: Use shape presets with text, icons, and styling' 
+                            : 'Component mode: Use complex interactive components like dpads'}
+                    </div>
+                </div>
+            </lcards-form-section>
 
             <!-- Basic Configuration Section -->
             <lcards-form-section
@@ -105,12 +161,21 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="preset"
-                    label="Preset Style">
-                </lcards-form-field>
+                ${mode === 'preset' ? html`
+                    <lcards-form-field
+                        .editor=${this}
+                        .config=${this.config}
+                        path="preset"
+                        label="Preset Style">
+                    </lcards-form-field>
+                ` : html`
+                    <lcards-form-field
+                        .editor=${this}
+                        .config=${this.config}
+                        path="component"
+                        label="Component Type">
+                    </lcards-form-field>
+                `}
 
                 <lcards-form-field
                     .editor=${this}
@@ -128,6 +193,35 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 </lcards-form-field>
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Handle mode change (preset vs component)
+     * @param {Event} event - Change event
+     * @private
+     */
+    _handleModeChange(event) {
+        const newMode = event.target.value;
+
+        if (newMode === 'component') {
+            // Switch to component mode
+            const updates = {
+                component: 'dpad',  // Default to dpad
+                preset: undefined   // Clear preset
+            };
+            this._updateConfig(updates);
+        } else {
+            // Switch to preset mode
+            const updates = {
+                component: undefined,  // Clear component
+                dpad: undefined,       // Clear dpad config
+                preset: 'lozenge'      // Default to lozenge
+            };
+            this._updateConfig(updates);
+        }
+
+        // Force tab refresh
+        this.requestUpdate();
     }
 
     /**
@@ -261,6 +355,207 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             svg: {
                 ...(this.config.svg || {}),
                 segments
+            }
+        });
+    }
+
+    /**
+     * Render Component tab (for component mode)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentTab() {
+        const componentType = this.config.component || 'dpad';
+
+        // For dpad component
+        if (componentType === 'dpad') {
+            return this._renderDpadComponentEditor();
+        }
+
+        // Fallback for other components
+        return html`
+            <lcards-message
+                type="info"
+                message="Component editor for ${componentType} is not yet implemented.">
+            </lcards-message>
+        `;
+    }
+
+    /**
+     * Render D-pad component editor
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDpadComponentEditor() {
+        const segmentConfigs = this.config.dpad?.segments || {};
+        const activeSegmentConfig = segmentConfigs[this._selectedSegmentId] || {};
+
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure your D-pad remote control. Click a segment below to edit its configuration.">
+            </lcards-message>
+
+            <!-- Visual Segment Selector -->
+            <lcards-form-section
+                header="D-Pad Segment Selector"
+                description="Click a segment to select it for editing"
+                icon="mdi:gamepad"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-dpad-segment-picker
+                    .value=${this._selectedSegmentId}
+                    .segmentConfigs=${segmentConfigs}
+                    .label=${'Select Segment to Edit'}
+                    .helper=${'Green cells are configured. Click any cell to edit that segment.'}
+                    @value-changed=${this._handleSegmentSelect}>
+                </lcards-dpad-segment-picker>
+            </lcards-form-section>
+
+            <!-- Active Segment Configuration -->
+            <lcards-form-section
+                header="${this._formatSegmentLabel(this._selectedSegmentId)} Configuration"
+                description="Configure actions and appearance for this segment"
+                icon="mdi:cog"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <!-- Entity Override -->
+                <div class="form-row">
+                    <label>Entity (optional override)</label>
+                    <ha-entity-picker
+                        .hass=${this.hass}
+                        .value=${activeSegmentConfig.entity || ''}
+                        @value-changed=${(e) => this._updateActiveSegmentProperty('entity', e.detail.value)}
+                        allow-custom-entity>
+                    </ha-entity-picker>
+                    <div style="margin-top: 4px; font-size: 11px; color: var(--secondary-text-color);">
+                        Leave empty to inherit from card entity
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <lcards-multi-action-editor
+                    .hass=${this.hass}
+                    .actions=${{
+                        tap_action: activeSegmentConfig.tap_action || { action: 'none' },
+                        hold_action: activeSegmentConfig.hold_action || { action: 'none' },
+                        double_tap_action: activeSegmentConfig.double_tap_action || { action: 'none' }
+                    }}
+                    @value-changed=${this._handleActiveSegmentActionsChange}>
+                </lcards-multi-action-editor>
+
+                <!-- Animations (optional) -->
+                ${activeSegmentConfig.animations && activeSegmentConfig.animations.length > 0 ? html`
+                    <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px;">
+                        <div style="font-weight: 500; margin-bottom: 8px;">Animations</div>
+                        <div style="font-size: 12px; color: var(--secondary-text-color);">
+                            ${activeSegmentConfig.animations.length} animation(s) configured
+                        </div>
+                        <div style="margin-top: 8px; font-size: 11px; color: var(--secondary-text-color);">
+                            Advanced animation configuration is available in the YAML tab
+                        </div>
+                    </div>
+                ` : html`
+                    <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px;">
+                        <div style="font-size: 12px; color: var(--secondary-text-color);">
+                            No animations configured. Add animations via the YAML tab.
+                        </div>
+                    </div>
+                `}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Format segment ID for display
+     * @param {string} segmentId - Segment ID
+     * @returns {string} Formatted label
+     * @private
+     */
+    _formatSegmentLabel(segmentId) {
+        if (!segmentId) return 'Segment';
+        return segmentId
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    /**
+     * Handle segment selection change
+     * @param {CustomEvent} event - value-changed event
+     * @private
+     */
+    _handleSegmentSelect(event) {
+        this._selectedSegmentId = event.detail.value;
+        this.requestUpdate();
+    }
+
+    /**
+     * Update active segment property
+     * @param {string} property - Property name
+     * @param {*} value - New value
+     * @private
+     */
+    _updateActiveSegmentProperty(property, value) {
+        const segmentConfigs = this.config.dpad?.segments || {};
+        const updatedSegmentConfig = {
+            ...(segmentConfigs[this._selectedSegmentId] || {}),
+            [property]: value
+        };
+
+        // Remove property if value is empty/null
+        if (!value || value === '') {
+            delete updatedSegmentConfig[property];
+        }
+
+        this._updateConfig({
+            dpad: {
+                ...(this.config.dpad || {}),
+                segments: {
+                    ...segmentConfigs,
+                    [this._selectedSegmentId]: updatedSegmentConfig
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle active segment actions change
+     * @param {CustomEvent} event - value-changed event
+     * @private
+     */
+    _handleActiveSegmentActionsChange(event) {
+        const actions = event.detail.value;
+        const segmentConfigs = this.config.dpad?.segments || {};
+        const updatedSegmentConfig = {
+            ...(segmentConfigs[this._selectedSegmentId] || {}),
+            tap_action: actions.tap_action,
+            hold_action: actions.hold_action,
+            double_tap_action: actions.double_tap_action
+        };
+
+        // Remove actions if they're set to 'none'
+        if (updatedSegmentConfig.tap_action?.action === 'none') {
+            delete updatedSegmentConfig.tap_action;
+        }
+        if (updatedSegmentConfig.hold_action?.action === 'none') {
+            delete updatedSegmentConfig.hold_action;
+        }
+        if (updatedSegmentConfig.double_tap_action?.action === 'none') {
+            delete updatedSegmentConfig.double_tap_action;
+        }
+
+        this._updateConfig({
+            dpad: {
+                ...(this.config.dpad || {}),
+                segments: {
+                    ...segmentConfigs,
+                    [this._selectedSegmentId]: updatedSegmentConfig
+                }
             }
         });
     }
