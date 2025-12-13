@@ -36,33 +36,51 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @override
      */
     _getTabDefinitions() {
+        // Detect mode: component mode if config.component exists, otherwise preset mode
+        const mode = this.config.component ? 'component' : 'preset';
         const hasSegments = this.config.svg?.segments && this.config.svg.segments.length > 0;
 
         const tabs = [
             {
                 label: 'Config',
                 content: () => this._renderCardConfigTab()
-            },
-            {
-                label: 'Card & Border',
-                content: () => this._renderCardBorderTab()
-            },
-            {
-                label: 'Text',
-                content: () => this._renderTextTab()
-            },
-            {
-                label: 'Icon',
-                content: () => this._renderIconTab()
-            },
-            {
-                label: 'Actions',
-                content: () => this._renderActionsTab()
             }
         ];
 
-        // Conditionally add Segments tab if segments exist
-        if (hasSegments) {
+        // Show preset-specific tabs only in preset mode
+        if (mode === 'preset') {
+            tabs.push(
+                {
+                    label: 'Card & Border',
+                    content: () => this._renderCardBorderTab()
+                },
+                {
+                    label: 'Text',
+                    content: () => this._renderTextTab()
+                },
+                {
+                    label: 'Icon',
+                    content: () => this._renderIconTab()
+                }
+            );
+        }
+
+        // Show component tab in component mode
+        if (mode === 'component') {
+            tabs.push({
+                label: 'Component',
+                content: () => this._renderComponentTab()
+            });
+        }
+
+        // Actions tab is shown in both modes
+        tabs.push({
+            label: 'Actions',
+            content: () => this._renderActionsTab()
+        });
+
+        // Conditionally add Segments tab if custom SVG segments exist or component mode
+        if (hasSegments || mode === 'component') {
             tabs.push({
                 label: 'Segments',
                 content: () => this._renderSegmentsTab()
@@ -89,12 +107,40 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderCardConfigTab() {
+        const mode = this.config.component ? 'component' : 'preset';
+
         return html`
             <!-- Info Message -->
             <lcards-message
                 type="info"
                 message="Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.">
             </lcards-message>
+
+            <!-- Mode Selector Section -->
+            <lcards-form-section
+                header="Configuration Mode"
+                description="Choose between preset-based buttons or component-based controls"
+                icon="mdi:cog"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <div class="form-row">
+                    <label>Mode</label>
+                    <select
+                        .value=${mode}
+                        @change=${this._handleModeChange}
+                        style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--divider-color);">
+                        <option value="preset">Preset (lozenge, bullet, etc.)</option>
+                        <option value="component">Component (dpad, sliders, etc.)</option>
+                    </select>
+                    <div style="margin-top: 8px; font-size: 12px; color: var(--secondary-text-color);">
+                        ${mode === 'preset' 
+                            ? 'Preset mode: Use shape presets with text, icons, and styling' 
+                            : 'Component mode: Use complex interactive components like dpads'}
+                    </div>
+                </div>
+            </lcards-form-section>
 
             <!-- Basic Configuration Section -->
             <lcards-form-section
@@ -105,12 +151,21 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="preset"
-                    label="Preset Style">
-                </lcards-form-field>
+                ${mode === 'preset' ? html`
+                    <lcards-form-field
+                        .editor=${this}
+                        .config=${this.config}
+                        path="preset"
+                        label="Preset Style">
+                    </lcards-form-field>
+                ` : html`
+                    <lcards-form-field
+                        .editor=${this}
+                        .config=${this.config}
+                        path="component"
+                        label="Component Type">
+                    </lcards-form-field>
+                `}
 
                 <lcards-form-field
                     .editor=${this}
@@ -128,6 +183,35 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 </lcards-form-field>
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Handle mode change (preset vs component)
+     * @param {Event} event - Change event
+     * @private
+     */
+    _handleModeChange(event) {
+        const newMode = event.target.value;
+
+        if (newMode === 'component') {
+            // Switch to component mode
+            const updates = {
+                component: 'dpad',  // Default to dpad
+                preset: undefined   // Clear preset
+            };
+            this._updateConfig(updates);
+        } else {
+            // Switch to preset mode
+            const updates = {
+                component: undefined,  // Clear component
+                dpad: undefined,       // Clear dpad config
+                preset: 'lozenge'      // Default to lozenge
+            };
+            this._updateConfig(updates);
+        }
+
+        // Force tab refresh
+        this.requestUpdate();
     }
 
     /**
@@ -263,6 +347,36 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 segments
             }
         });
+    }
+
+    /**
+     * Render Component tab (for component mode)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentTab() {
+        const componentType = this.config.component || 'dpad';
+
+        return html`
+            <lcards-message
+                type="info"
+                message="Component mode allows you to configure complex interactive controls like dpads with multiple segments.">
+            </lcards-message>
+
+            <lcards-form-section
+                header="Component Configuration"
+                description="Configure the ${componentType} component"
+                icon="mdi:gamepad"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <div style="padding: 20px; text-align: center; color: var(--secondary-text-color);">
+                    <p>Component editor for <strong>${componentType}</strong></p>
+                    <p>Visual segment selector and editor will be implemented in Phase 3-4</p>
+                </div>
+            </lcards-form-section>
+        `;
     }
 
     /**
