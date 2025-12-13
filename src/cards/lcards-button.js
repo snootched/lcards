@@ -4939,7 +4939,7 @@ export class LCARdSButton extends LCARdSCard {
 
         // Merge all schemas
         const buttonSchema = {
-            ...baseSchema,
+            type: 'object',
             properties: {
                 ...baseSchema.properties,
                 ...svgSchema,
