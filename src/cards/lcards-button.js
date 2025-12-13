@@ -5125,10 +5125,10 @@ export class LCARdSButton extends LCARdSCard {
                                     {
                                         type: 'object',
                                         properties: {
-                                            top: { type: 'number' },
-                                            right: { type: 'number' },
-                                            bottom: { type: 'number' },
-                                            left: { type: 'number' }
+                                            top: { type: 'number', minimum: 0, description: 'Top padding in pixels' },
+                                            right: { type: 'number', minimum: 0, description: 'Right padding in pixels' },
+                                            bottom: { type: 'number', minimum: 0, description: 'Bottom padding in pixels' },
+                                            left: { type: 'number', minimum: 0, description: 'Left padding in pixels' }
                                         }
                                     }
                                 ]
@@ -5140,23 +5140,23 @@ export class LCARdSButton extends LCARdSCard {
                                     {
                                         type: 'object',
                                         properties: {
-                                            active: { type: 'string', format: 'color' },
-                                            inactive: { type: 'string', format: 'color' },
-                                            unavailable: { type: 'string', format: 'color' },
-                                            default: { type: 'string', format: 'color' }
+                                            default: { type: 'string', format: 'color', description: 'Default state color' },
+                                            active: { type: 'string', format: 'color', description: 'Active state color' },
+                                            inactive: { type: 'string', format: 'color', description: 'Inactive state color' },
+                                            unavailable: { type: 'string', format: 'color', description: 'Unavailable state color' }
                                         }
                                     }
                                 ]
                             },
-                            font_weight: { 
-                                type: 'string', 
+                            font_weight: {
+                                type: 'string',
                                 enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-                                description: 'Default font weight' 
+                                description: 'Default font weight'
                             },
-                            font_family: { 
-                                type: 'string', 
+                            font_family: {
+                                type: 'string',
                                 enum: fontFamilyEnum,
-                                description: 'Default font family' 
+                                description: 'Default font family'
                             },
                             text_transform: {
                                 type: 'string',
@@ -5221,12 +5221,12 @@ export class LCARdSButton extends LCARdSCard {
                                     }
                                 ]
                             },
-                            font_weight: { 
+                            font_weight: {
                                 type: 'string',
                                 enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
                                 description: 'Font weight'
                             },
-                            font_family: { 
+                            font_family: {
                                 type: 'string',
                                 enum: fontFamilyEnum,
                                 description: 'Font family'
@@ -5235,16 +5235,6 @@ export class LCARdSButton extends LCARdSCard {
                                 type: 'string',
                                 enum: transformEnum,
                                 description: 'Text transformation'
-                            },
-                            justify: {
-                                type: 'string',
-                                enum: justifyEnum,
-                                description: 'Horizontal text alignment'
-                            },
-                            align: {
-                                type: 'string',
-                                enum: alignEnum,
-                                description: 'Vertical text alignment'
                             },
                             anchor: {
                                 type: 'string',

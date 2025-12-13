@@ -21,8 +21,10 @@ import {
     hasFormat,
     isType,
     hasEnum,
+    isPositionEnum,
     getEnumOptions
 } from '../../../utils/schema-helpers.js';
+import './lcards-position-picker.js';
 
 export class LCARdSFormField extends LitElement {
 
@@ -160,18 +162,9 @@ export class LCARdSFormField extends LitElement {
 
         return html`
             <div class="form-field">
-                <label>
-                    ${this._effectiveLabel}
-                    ${this.required ? html`<span class="required">*</span>` : ''}
-                </label>
-
                 <div class="form-control">
                     ${this._renderControl(schema)}
                 </div>
-
-                ${this._effectiveHelper ? html`
-                    <div class="helper-text">${this._effectiveHelper}</div>
-                ` : ''}
             </div>
         `;
     }
@@ -198,6 +191,11 @@ export class LCARdSFormField extends LitElement {
 
         if (hasFormat(schema, 'action')) {
             return this._renderActionEditor();
+        }
+
+        // Check for position enum (graphical picker)
+        if (isPositionEnum(schema)) {
+            return this._renderPositionPicker();
         }
 
         // Standard JSON Schema types
@@ -241,7 +239,10 @@ export class LCARdSFormField extends LitElement {
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ entity: {} }}
+                .configValue=${this.path}
                 .value=${this._value || ''}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 .required=${this.required}
                 @value-changed=${this._handleValueChange}>
@@ -260,7 +261,10 @@ export class LCARdSFormField extends LitElement {
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ ui_color: {} }}
+                .configValue=${this.path}
                 .value=${this._value || ''}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </ha-selector>
@@ -278,7 +282,10 @@ export class LCARdSFormField extends LitElement {
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ icon: {} }}
+                .configValue=${this.path}
                 .value=${this._value || ''}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </ha-selector>
@@ -301,6 +308,23 @@ export class LCARdSFormField extends LitElement {
     }
 
     /**
+     * Render position picker (graphical 3x3 grid)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderPositionPicker() {
+        return html`
+            <lcards-position-picker
+                .value=${this._value}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
+                .disabled=${this.disabled}
+                @value-changed=${this._handleValueChange}>
+            </lcards-position-picker>
+        `;
+    }
+
+    /**
      * Render select dropdown
      * @param {Object} schema - Property schema
      * @returns {TemplateResult}
@@ -318,7 +342,10 @@ export class LCARdSFormField extends LitElement {
                         options
                     }
                 }}
+                .configValue=${this.path}
                 .value=${this._value}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </ha-selector>
@@ -335,11 +362,59 @@ export class LCARdSFormField extends LitElement {
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ boolean: {} }}
+                .configValue=${this.path}
                 .value=${this._value ?? false}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
-                @value-changed=${this._handleValueChange}>
+                @value-changed=${this._handleValueChange}
+                @change=${this._handleValueChange}
+                @click=${this._handleBooleanClick}>
             </ha-selector>
         `;
+    }
+
+    /**
+     * Handle click on boolean selector - workaround for ha-selector-boolean not emitting events for false
+     * @param {Event} ev - click event
+     * @private
+     */
+    _handleBooleanClick(ev) {
+        // Find the ha-switch inside the selector
+        const selector = ev.currentTarget;
+        const haSwitch = selector?.shadowRoot?.querySelector('ha-selector-boolean')?.shadowRoot?.querySelector('ha-switch');
+
+        if (haSwitch) {
+            // Use setTimeout to let the switch update its checked state after the click
+            setTimeout(() => {
+                const checked = haSwitch.checked;
+
+                // Only update if it differs from current value to avoid unnecessary updates
+                if (checked !== Boolean(this._value)) {
+                    const valueChangedEvent = new CustomEvent('value-changed', {
+                        detail: { value: checked },
+                        bubbles: false,
+                        composed: false
+                    });
+                    this._handleValueChange(valueChangedEvent);
+                }
+            }, 0);
+        }
+    }
+
+    /**
+     * Handle boolean switch change
+     * @param {Event} ev - change event
+     * @private
+     */
+    _handleBooleanChange(ev) {
+        const checked = ev.target.checked;
+        const valueChangedEvent = new CustomEvent('value-changed', {
+            detail: { value: checked },
+            bubbles: false,
+            composed: true
+        });
+        this._handleValueChange(valueChangedEvent);
     }
 
     /**
@@ -360,7 +435,10 @@ export class LCARdSFormField extends LitElement {
                         mode: 'box'
                     }
                 }}
+                .configValue=${this.path}
                 .value=${this._value}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </ha-selector>
@@ -409,7 +487,10 @@ export class LCARdSFormField extends LitElement {
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ text: {} }}
+                .configValue=${this.path}
                 .value=${this._value || ''}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </ha-selector>
@@ -426,7 +507,15 @@ export class LCARdSFormField extends LitElement {
 
         if (!this.editor || !this.path) return;
 
-        const newValue = ev.detail.value;
+        // Extract value based on event type and target
+        // For HA-SWITCH (inside ha-selector boolean), read .checked property
+        let newValue;
+        if (ev.target?.tagName === 'HA-SWITCH') {
+            newValue = ev.target.checked ?? ev.target.__checked;
+        } else {
+            newValue = ev.detail?.value;
+        }
+
         this.editor._setConfigValue(this.path, newValue);
     }
 

@@ -23,8 +23,7 @@ export class LCARdSIconEditor extends LitElement {
     static get properties() {
         return {
             editor: { type: Object },         // Parent editor reference
-            hass: { type: Object },           // Home Assistant instance
-            _showAdvanced: { type: Boolean, state: true } // Show advanced styling options
+            hass: { type: Object }            // Home Assistant instance
         };
     }
 
@@ -32,28 +31,12 @@ export class LCARdSIconEditor extends LitElement {
         super();
         this.editor = null;
         this.hass = null;
-        this._showAdvanced = false;
     }
 
     static get styles() {
         return css`
             :host {
                 display: block;
-            }
-
-            .toggle-button {
-                margin: 16px 0;
-                padding: 8px 16px;
-                background: var(--primary-color, #03a9f4);
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-            }
-
-            .toggle-button:hover {
-                opacity: 0.9;
             }
         `;
     }
@@ -62,6 +45,8 @@ export class LCARdSIconEditor extends LitElement {
         if (!this.editor) {
             return html`<div>Icon editor requires 'editor' property</div>`;
         }
+
+        const showIcon = this.editor.config?.show_icon;
 
         return html`
             <lcards-form-section
@@ -86,100 +71,127 @@ export class LCARdSIconEditor extends LitElement {
                     label="Icon">
                 </lcards-form-field>
 
-                <!-- Icon Area -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="icon_area"
-                    label="Icon Area">
-                </lcards-form-field>
-
-                <!-- Toggle Advanced Styling -->
-                <button
-                    class="toggle-button"
-                    @click=${() => this._showAdvanced = !this._showAdvanced}>
-                    ${this._showAdvanced ? 'Hide' : 'Show'} Advanced Styling
-                </button>
-
-                ${this._showAdvanced ? this._renderAdvancedStyling() : ''}
-            </lcards-form-section>
-        `;
-    }
-
-    /**
-     * Render advanced styling options
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderAdvancedStyling() {
-        return html`
-            <lcards-form-section
-                header="Icon Styling"
-                description="Advanced icon appearance options"
-                ?expanded=${true}
-                ?noCollapse=${true}
-                headerLevel="5">
-
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="icon_style.size"
-                    label="Size (px)">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="icon_style.position"
-                    label="Position">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="icon_style.rotation"
-                    label="Rotation (degrees)">
-                </lcards-form-field>
-
-                <!-- Icon Color -->
-                <lcards-color-section
-                    .editor=${this.editor}
-                    basePath="icon_style.color"
-                    header="Icon Colors"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
-
-                <!-- Background -->
-                <lcards-form-section
-                    header="Background"
-                    description="Optional background behind icon"
-                    ?expanded=${false}
-                    headerLevel="6">
-
-                    <lcards-color-section
-                        .editor=${this.editor}
-                        basePath="icon_style.background.color"
-                        header="Background Colors"
-                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                        ?expanded=${false}>
-                    </lcards-color-section>
-
+                <!-- Icon Position -->
+                ${showIcon ? html`
                     <lcards-form-field
                         .editor=${this.editor}
-                        path="icon_style.background.radius"
-                        label="Radius">
+                        path="icon_style.position"
+                        label="Position"
+                        helper="Where to display the icon on the card">
                     </lcards-form-field>
+                ` : ''}
 
+                <!-- Icon Style Section -->
+                ${showIcon ? html`
+                    <lcards-form-section
+                        header="Icon Style"
+                        description="Icon sizing and positioning"
+                        icon="mdi:format-size"
+                        ?expanded=${true}
+                        ?outlined=${true}
+                        ?noCollapse=${true}
+                        headerLevel="5">
+
+                        <lcards-form-field
+                            .editor=${this.editor}
+                            path="icon_style.size"
+                            label="Size">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this.editor}
+                            path="icon_style.justify"
+                            label="Justify"
+                            helper="Horizontal justification within the container">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this.editor}
+                            path="icon_style.rotation"
+                            label="Rotation (degrees)">
+                        </lcards-form-field>
+                    </lcards-form-section>
+
+                    <!-- Colors Section -->
+                    <lcards-form-section
+                        header="Colours"
+                        description="Icon and background colors"
+                        icon="mdi:select-color"
+                        ?expanded=${false}
+                        ?outlined=${true}
+                        headerLevel="5">
+
+                        <!-- Foreground Colors -->
+                        <lcards-form-section
+                            header="Foreground"
+                            description="Icon color"
+                            ?expanded=${true}
+                            ?outlined=${true}
+                            ?noCollapse=${true}
+                            headerLevel="6">
+
+                            <lcards-color-section
+                                .editor=${this.editor}
+                                basePath="icon_style.color"
+                                header="Default Colour (no entity/state)"
+                                .states=${['default']}
+                                ?expanded=${true}>
+                            </lcards-color-section>
+
+                            <lcards-color-section
+                                .editor=${this.editor}
+                                basePath="icon_style.color"
+                                header="State Colours"
+                                .states=${['active', 'inactive', 'unavailable']}
+                                ?expanded=${false}>
+                            </lcards-color-section>
+                        </lcards-form-section>
+
+                        <!-- Background Colors -->
+                        <lcards-form-section
+                            header="Background"
+                            description="Optional background behind icon"
+                            ?expanded=${false}
+                            ?outlined=${true}
+                            headerLevel="6">
+
+                            <lcards-color-section
+                                .editor=${this.editor}
+                                basePath="icon_style.background.color"
+                                header="Default Colour (no entity/state)"
+                                .states=${['default']}
+                                ?expanded=${true}>
+                            </lcards-color-section>
+
+                            <lcards-color-section
+                                .editor=${this.editor}
+                                basePath="icon_style.background.color"
+                                header="State Colours"
+                                .states=${['active', 'inactive', 'unavailable']}
+                                ?expanded=${false}>
+                            </lcards-color-section>
+
+                            <lcards-form-field
+                                .editor=${this.editor}
+                                path="icon_style.background.radius"
+                                label="Radius">
+                            </lcards-form-field>
+
+                            <lcards-form-field
+                                .editor=${this.editor}
+                                path="icon_style.background.padding"
+                                label="Padding">
+                            </lcards-form-field>
+                        </lcards-form-section>
+                    </lcards-form-section>
+
+                    <!-- Icon Padding -->
                     <lcards-form-field
                         .editor=${this.editor}
-                        path="icon_style.background.padding"
-                        label="Padding">
+                        path="icon_style.padding"
+                        label="Icon Padding">
                     </lcards-form-field>
-                </lcards-form-section>
-
-                <!-- Padding -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="icon_style.padding"
-                    label="Icon Padding">
-                </lcards-form-field>
+                ` : ''}
             </lcards-form-section>
         `;
     }

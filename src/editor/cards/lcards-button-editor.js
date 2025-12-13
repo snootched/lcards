@@ -48,12 +48,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 content: () => this._renderTextIconTab()
             },
             {
-                label: 'Colors',
-                content: () => this._renderColorsTab()
-            },
-            {
-                label: 'Border',
-                content: () => this._renderBorderTab()
+                label: 'Card & Border',
+                content: () => this._renderCardBorderTab()
             },
             {
                 label: 'Actions',
@@ -167,27 +163,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             <!-- Icon Editor -->
             <lcards-icon-editor
                 .editor=${this}
-                path="icon"
-                label="Icon Configuration"
-                .hass=${this.hass}
-                @value-changed=${(e) => this._setConfigValue('icon', e.detail.value)}>
+                .hass=${this.hass}>
             </lcards-icon-editor>
-
-            <!-- Icon Area -->
-            <lcards-form-section
-                header="Icon Area"
-                description="Configure the icon's reserved space location"
-                icon="mdi:image-area"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="icon_area"
-                    label="Icon Area">
-                </lcards-form-field>
-            </lcards-form-section>
         `;
     }
 
@@ -227,55 +204,174 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render Colors tab
+     * Render Card & Border tab (combining legacy card/border sections)
      * @returns {TemplateResult}
      * @private
      */
-    _renderColorsTab() {
+    _renderCardBorderTab() {
         return html`
-            <lcards-color-section
-                .editor=${this}
-                basePath="style.color.background"
-                header="Card Background Colors"
-                description="Background colors for different states"
-                .states=${['default', 'active', 'inactive', 'unavailable']}
-                ?expanded=${true}>
-            </lcards-color-section>
+            <!-- Card Size Section -->
+            <lcards-form-section
+                header="Card Size"
+                description="Configure card dimensions"
+                icon="mdi:resize"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
 
-            <lcards-color-section
-                .editor=${this}
-                basePath="style.color.text"
-                header="Text Colors"
-                description="Text colors for different states"
-                .states=${['default', 'active', 'inactive', 'unavailable']}
-                ?expanded=${false}>
-            </lcards-color-section>
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.height"
+                    label="Height"
+                    helper="Sets static height of the card">
+                </lcards-form-field>
 
-            <lcards-color-section
-                .editor=${this}
-                basePath="style.color.icon"
-                header="Icon Colors"
-                description="Icon colors for different states"
-                .states=${['default', 'active', 'inactive', 'unavailable']}
-                ?expanded=${false}>
-            </lcards-color-section>
-        `;
-    }
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.width"
+                    label="Width"
+                    helper="Sets static width of the card">
+                </lcards-form-field>
 
-    /**
-     * Render Border tab
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderBorderTab() {
-        return html`
-            <lcards-border-editor
-                .editor=${this}
-                path="style.border"
-                label="Border Configuration"
-                ?showPreview=${true}
-                @value-changed=${(e) => this._setConfigValue('style.border', e.detail.value)}>
-            </lcards-border-editor>
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.min_height"
+                    label="Minimum Height"
+                    helper="Sets minimum height of the card">
+                </lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Card Colors Section -->
+            <lcards-form-section
+                header="Card Colours"
+                description="Card background and border colors"
+                icon="mdi:select-color"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <!-- Border Colors -->
+                <lcards-form-section
+                    header="Border"
+                    description="Border/frame colors"
+                    ?expanded=${true}
+                    ?outlined=${true}
+                    headerLevel="5">
+
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.color.border"
+                        header="Default Colour (no entity/state)"
+                        .states=${['default']}
+                        ?expanded=${true}>
+                    </lcards-color-section>
+
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.color.border"
+                        header="State Colours"
+                        .states=${['active', 'inactive', 'unavailable']}
+                        ?expanded=${false}>
+                    </lcards-color-section>
+                </lcards-form-section>
+
+                <!-- Background Colors -->
+                <lcards-form-section
+                    header="Background"
+                    description="Card background colors"
+                    ?expanded=${false}
+                    ?outlined=${true}
+                    headerLevel="5">
+
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.color.background"
+                        header="Default Colour (no entity/state)"
+                        .states=${['default']}
+                        ?expanded=${true}>
+                    </lcards-color-section>
+
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.color.background"
+                        header="State Colours"
+                        .states=${['active', 'inactive', 'unavailable']}
+                        ?expanded=${false}>
+                    </lcards-color-section>
+                </lcards-form-section>
+            </lcards-form-section>
+
+            <!-- Borders Section -->
+            <lcards-form-section
+                header="Borders"
+                description="Border width for each side"
+                icon="mdi:border-style"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.left.size"
+                    label="Left Border Size"
+                    helper="The width of the left side border">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.top.size"
+                    label="Top Border Size"
+                    helper="The height of the top side border">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.right.size"
+                    label="Right Border Size"
+                    helper="The width of the right side border">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.bottom.size"
+                    label="Bottom Border Size"
+                    helper="The height of the bottom side border">
+                </lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Corners Section -->
+            <lcards-form-section
+                header="Corners"
+                description="Border radius for each corner"
+                icon="mdi:rounded-corner"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.radius.top_left"
+                    label="Top Left Radius">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.radius.top_right"
+                    label="Top Right Radius">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.radius.bottom_right"
+                    label="Bottom Right Radius">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="style.border.radius.bottom_left"
+                    label="Bottom Left Radius">
+                </lcards-form-field>
+            </lcards-form-section>
         `;
     }
 

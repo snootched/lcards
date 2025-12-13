@@ -2,11 +2,11 @@
  * LCARdS Multi-Text Editor v2
  *
  * Comprehensive text field manager with defaults and dynamic field management.
- * 
+ *
  * Structure:
  * - text.default: Default styling for all fields (font_size, color, position, etc.)
  * - text.{fieldName}: Individual fields that inherit from default
- * 
+ *
  * @example
  * <lcards-multi-text-editor
  *   .editor=${this}
@@ -151,54 +151,135 @@ export class LCARdSMultiTextEditor extends LitElement {
     }
 
     /**
-     * Render defaults configuration
+     * Render defaults configuration (legacy structure)
      * @returns {TemplateResult}
      * @private
      */
     _renderDefaultsConfig() {
         return html`
-            <lcards-form-field
-                .editor=${this.editor}
-                path="text.default.font_size"
-                label="Font Size (px)">
-            </lcards-form-field>
+            <!-- Font Section -->
+            <lcards-form-section
+                header="Font"
+                description="Default font settings for all text fields"
+                icon="mdi:format-font"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
 
-            <lcards-form-field
-                .editor=${this.editor}
-                path="text.default.font_weight"
-                label="Font Weight">
-            </lcards-form-field>
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.font_size"
+                    label="Font Size">
+                </lcards-form-field>
 
-            <lcards-form-field
-                .editor=${this.editor}
-                path="text.default.font_family"
-                label="Font Family">
-            </lcards-form-field>
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.font_weight"
+                    label="Font Weight">
+                </lcards-form-field>
 
-            <lcards-form-field
-                .editor=${this.editor}
-                path="text.default.position"
-                label="Default Position">
-            </lcards-form-field>
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.font_family"
+                    label="Font Family">
+                </lcards-form-field>
+            </lcards-form-section>
 
-            <lcards-color-section
-                .editor=${this.editor}
-                basePath="text.default.color"
-                header="Default Text Colors"
-                .states=${['default', 'active', 'inactive', 'unavailable']}
-                ?expanded=${false}>
-            </lcards-color-section>
+            <!-- Alignment Section (anchor/baseline + text_transform) -->
+            <lcards-form-section
+                header="Alignment"
+                description="Anchor, baseline and text transform settings"
+                icon="mdi:format-align-left"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
 
-            <lcards-form-field
-                .editor=${this.editor}
-                path="text.default.padding"
-                label="Default Padding">
-            </lcards-form-field>
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.anchor"
+                    label="Anchor"
+                    helper="Text anchor (start/middle/end)">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.baseline"
+                    label="Baseline"
+                    helper="Baseline alignment for text">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.text_transform"
+                    label="Text Transform"
+                    helper="Text transformation (uppercase/lowercase/capitalize)">
+                </lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Padding Section -->
+            <lcards-form-section
+                header="Padding"
+                description="Padding around text content"
+                icon="mdi:move-resize"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.padding.top"
+                    label="Padding Top">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.padding.right"
+                    label="Padding Right">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.padding.bottom"
+                    label="Padding Bottom">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.default.padding.left"
+                    label="Padding Left">
+                </lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Colors Section -->
+            <lcards-form-section
+                header="Colours"
+                description="Default text colors for different states"
+                icon="mdi:select-color"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="5">
+
+                <lcards-color-section
+                    .editor=${this.editor}
+                    basePath="text.default.color"
+                    header="Default Colors (no entity/state)"
+                    .states=${['default']}
+                    ?expanded=${true}>
+                </lcards-color-section>
+
+                <lcards-color-section
+                    .editor=${this.editor}
+                    basePath="text.default.color"
+                    header="State Colors"
+                    .states=${['active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+            </lcards-form-section>
         `;
     }
 
     /**
-     * Render individual text field
+     * Render individual text field (legacy structure)
      * @param {string} fieldName - Field name (e.g., 'name', 'label', 'state')
      * @returns {TemplateResult}
      * @private
@@ -215,47 +296,148 @@ export class LCARdSMultiTextEditor extends LitElement {
                 ?outlined=${true}
                 headerLevel="5">
 
+                <!-- Show Toggle -->
+                <lcards-form-field
+                    .editor=${this.editor}
+                    path="text.${fieldName}.show"
+                    label="Show ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}">
+                </lcards-form-field>
+
+                <!-- Content -->
                 <lcards-form-field
                     .editor=${this.editor}
                     path="text.${fieldName}.content"
                     label="Content"
-                    helper="Supports templates: {{entity.state}}, {{entity.attributes.brightness}}">
+                    helper="Text content - supports templates like {{entity.state}}">
                 </lcards-form-field>
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="text.${fieldName}.show"
-                    label="Show Field">
-                </lcards-form-field>
-
+                <!-- Position -->
                 <lcards-form-field
                     .editor=${this.editor}
                     path="text.${fieldName}.position"
                     label="Position"
-                    helper="${hasDefaults && !fieldConfig.position ? 'Inherits from defaults' : ''}">
+                    helper="Where to display this text on the card">
                 </lcards-form-field>
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="text.${fieldName}.font_size"
-                    label="Font Size (px)"
-                    helper="${hasDefaults && !fieldConfig.font_size ? 'Inherits from defaults' : ''}">
-                </lcards-form-field>
+                <!-- Font Section -->
+                <lcards-form-section
+                    header="Font"
+                    description="Override default font settings"
+                    icon="mdi:format-font"
+                    ?expanded=${false}
+                    ?outlined=${true}
+                    headerLevel="6">
 
-                <lcards-color-section
-                    .editor=${this.editor}
-                    basePath="text.${fieldName}.color"
-                    header="Field Colors (overrides defaults)"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.font_size"
+                        label="Font Size"
+                        helper="${hasDefaults && !fieldConfig.font_size ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="text.${fieldName}.rotation"
-                    label="Rotation (degrees)">
-                </lcards-form-field>
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.font_weight"
+                        label="Font Weight"
+                        helper="${hasDefaults && !fieldConfig.font_weight ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
 
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.font_family"
+                        label="Font Family"
+                        helper="${hasDefaults && !fieldConfig.font_family ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
+                </lcards-form-section>
+
+                <!-- Alignment Section (anchor/baseline + text_transform) -->
+                <lcards-form-section
+                    header="Alignment"
+                    description="Override anchor/baseline and text transform"
+                    icon="mdi:format-align-left"
+                    ?expanded=${false}
+                    ?outlined=${true}
+                    headerLevel="6">
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.anchor"
+                        label="Anchor"
+                        helper="${hasDefaults && !fieldConfig.anchor ? 'Inherits from defaults' : 'Text anchor (start/middle/end)'}">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.baseline"
+                        label="Baseline"
+                        helper="${hasDefaults && !fieldConfig.baseline ? 'Inherits from defaults' : 'Baseline alignment'}">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.text_transform"
+                        label="Text Transform"
+                        helper="${hasDefaults && !fieldConfig.text_transform ? 'Inherits from defaults' : 'Text transformation'}">
+                    </lcards-form-field>
+                </lcards-form-section>
+
+                <!-- Padding Section -->
+                <lcards-form-section
+                    header="Padding"
+                    description="Override default padding settings"
+                    icon="mdi:move-resize"
+                    ?expanded=${false}
+                    ?outlined=${true}
+                    headerLevel="6">
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.padding.top"
+                        label="Padding Top"
+                        helper="${hasDefaults && !fieldConfig.padding?.top ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.padding.right"
+                        label="Padding Right"
+                        helper="${hasDefaults && !fieldConfig.padding?.right ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.padding.bottom"
+                        label="Padding Bottom"
+                        helper="${hasDefaults && !fieldConfig.padding?.bottom ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this.editor}
+                        path="text.${fieldName}.padding.left"
+                        label="Padding Left"
+                        helper="${hasDefaults && !fieldConfig.padding?.left ? 'Inherits from defaults' : ''}">
+                    </lcards-form-field>
+                </lcards-form-section>
+
+                <!-- Colors Section -->
+                <lcards-form-section
+                    header="Colours"
+                    description="Override default color settings"
+                    icon="mdi:select-color"
+                    ?expanded=${false}
+                    ?outlined=${true}
+                    headerLevel="6">
+
+                    <lcards-color-section
+                        .editor=${this.editor}
+                        basePath="text.${fieldName}.color"
+                        header="Field Colors (overrides defaults)"
+                        .states=${['default', 'active', 'inactive', 'unavailable']}
+                        ?expanded=${false}>
+                    </lcards-color-section>
+                </lcards-form-section>
+
+                <!-- Remove Button -->
                 <div class="field-actions">
                     <button class="remove-button" @click=${() => this._removeField(fieldName)}>
                         Remove Field
@@ -285,7 +467,7 @@ export class LCARdSMultiTextEditor extends LitElement {
                     `)}
                     <option value="custom">Custom field name...</option>
                 </select>
-                <button 
+                <button
                     class="add-field-button"
                     @click=${this._handleAddField}>
                     Add Field
@@ -326,7 +508,7 @@ export class LCARdSMultiTextEditor extends LitElement {
      */
     _addField(fieldName) {
         const textConfig = this.editor.config?.text || {};
-        
+
         // Check if field already exists
         if (textConfig[fieldName]) {
             alert(`Field "${fieldName}" already exists!`);

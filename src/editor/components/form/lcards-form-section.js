@@ -174,11 +174,15 @@ export class LCARdSFormSection extends LitElement {
      * @private
      */
     _handleExpandedChange(ev) {
+        // Stop propagation to prevent nested sections from affecting parents
+        ev.stopPropagation();
+
         this.expanded = ev.detail.expanded;
+        // Emit a non-bubbling event so parent sections don't react to nested toggles
         this.dispatchEvent(new CustomEvent('expanded-changed', {
             detail: { expanded: this.expanded },
-            bubbles: true,
-            composed: true
+            bubbles: false,
+            composed: false
         }));
     }
 
@@ -186,12 +190,18 @@ export class LCARdSFormSection extends LitElement {
      * Toggle expanded state (for fallback)
      * @private
      */
-    _toggleExpanded() {
+    _toggleExpanded(ev) {
+        // Stop propagation to prevent nested sections from affecting parents
+        if (ev) {
+            ev.stopPropagation();
+        }
+
         this.expanded = !this.expanded;
+        // Emit a non-bubbling event so parent sections don't react to nested toggles
         this.dispatchEvent(new CustomEvent('expanded-changed', {
             detail: { expanded: this.expanded },
-            bubbles: true,
-            composed: true
+            bubbles: false,
+            composed: false
         }));
     }
 }

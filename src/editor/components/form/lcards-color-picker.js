@@ -151,16 +151,16 @@ export class LCARdSColorPicker extends LitElement {
 
         const variables = [];
         const styles = getComputedStyle(document.documentElement);
-        
+
         // Scan all CSS properties
         for (let i = 0; i < styles.length; i++) {
             const prop = styles[i];
-            
+
             // Check if property matches any prefix
-            const matchesPrefix = this.variablePrefixes.some(prefix => 
+            const matchesPrefix = this.variablePrefixes.some(prefix =>
                 prop.startsWith(prefix)
             );
-            
+
             if (matchesPrefix) {
                 const value = styles.getPropertyValue(prop).trim();
                 if (value) {
@@ -184,26 +184,19 @@ export class LCARdSColorPicker extends LitElement {
     /**
      * Format CSS variable name for display
      * @param {string} varName - CSS variable name (e.g., '--lcards-orange')
-     * @returns {string} Formatted label (e.g., 'Orange')
+     * @returns {string} Formatted label (e.g., 'lcards-orange')
      * @private
      */
     _formatVariableName(varName) {
-        // Remove prefix and dashes, convert to title case
+        // Remove the leading dashes but keep the prefix
         let label = varName;
-        
-        // Remove common prefixes
-        for (const prefix of this.variablePrefixes) {
-            if (label.startsWith(prefix)) {
-                label = label.substring(prefix.length);
-                break;
-            }
+
+        // Remove leading dashes
+        if (label.startsWith('--')) {
+            label = label.substring(2);
         }
-        
-        // Convert kebab-case to Title Case
-        return label
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+
+        return label;
     }
 
     /**
@@ -251,8 +244,8 @@ export class LCARdSColorPicker extends LitElement {
         // Convert to relative luminance
         const [r, g, b] = rgb.map(val => {
             val = val / 255;
-            return val <= 0.03928 
-                ? val / 12.92 
+            return val <= 0.03928
+                ? val / 12.92
                 : Math.pow((val + 0.055) / 1.055, 2.4);
         });
 
@@ -298,6 +291,27 @@ export class LCARdSColorPicker extends LitElement {
         }
 
         return null;
+    }
+
+    /**
+     * Convert RGB string to hex
+     * @param {string} rgb - RGB color string (e.g., 'rgb(255, 153, 0)')
+     * @returns {string|null} Hex color (e.g., '#ff9900')
+     * @private
+     */
+    _rgbToHex(rgb) {
+        if (!rgb) return null;
+
+        const rgbValues = this._parseColor(rgb);
+        if (!rgbValues) return null;
+
+        const [r, g, b] = rgbValues;
+        const toHex = (n) => {
+            const hex = n.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        };
+
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     }
 
     /**
@@ -363,9 +377,9 @@ export class LCARdSColorPicker extends LitElement {
         ];
 
         if (this.allowMatchLight) {
-            options.push({ 
-                value: 'match-light', 
-                label: '💡 Match Light Colour' 
+            options.push({
+                value: 'match-light',
+                label: '💡 Match Light Colour'
             });
         }
 
@@ -387,15 +401,15 @@ export class LCARdSColorPicker extends LitElement {
      */
     _getCurrentDropdownValue() {
         if (!this.value) return '';
-        
+
         // Check for special values
         if (this.value === 'transparent') return 'transparent';
         if (this.value === 'match-light') return 'match-light';
-        
+
         // Check if value matches a CSS variable
         const matchingVar = this._cssVariables.find(v => v.value === this.value);
         if (matchingVar) return matchingVar.value;
-        
+
         return '';
     }
 
@@ -409,15 +423,19 @@ export class LCARdSColorPicker extends LitElement {
 
         const bgColor = this._computedColor || this.value;
         const textColor = this._getContrastColor(bgColor);
+        const hexColor = this._rgbToHex(bgColor);
 
         return html`
-            <div 
-                class="preview" 
+            <div
+                class="preview"
                 style="background-color: ${bgColor}; color: ${textColor};">
                 <div class="preview-label">Preview</div>
                 <div class="preview-value">${this.value}</div>
                 ${this._computedColor && this._computedColor !== this.value ? html`
-                    <div class="preview-computed">Computed: ${this._computedColor}</div>
+                    <div class="preview-computed">
+                        ${hexColor ? html`Hex: ${hexColor}<br>` : ''}
+                        RGB: ${this._computedColor}
+                    </div>
                 ` : ''}
             </div>
         `;
@@ -430,7 +448,7 @@ export class LCARdSColorPicker extends LitElement {
      */
     _handleDropdownChange(ev) {
         if (this.disabled) return;
-        
+
         const newValue = ev.detail.value;
         if (newValue) {
             this._emitChange(newValue);
@@ -444,7 +462,7 @@ export class LCARdSColorPicker extends LitElement {
      */
     _handleTextChange(ev) {
         if (this.disabled) return;
-        
+
         const newValue = ev.detail.value;
         this._emitChange(newValue);
     }
@@ -457,7 +475,7 @@ export class LCARdSColorPicker extends LitElement {
     _emitChange(value) {
         this.value = value;
         this._updateComputedColor();
-        
+
         this.dispatchEvent(new CustomEvent('value-changed', {
             detail: { value },
             bubbles: true,

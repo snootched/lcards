@@ -50,20 +50,20 @@ export class LCARdSBaseEditor extends LitElement {
                     scrollbar-width: thin;
                     border-bottom: 2px solid var(--divider-color, #e0e0e0);
                     margin-bottom: 16px;
-                    
+
                     /* Fade indicators for scrollable content */
                     mask-image: linear-gradient(
-                        to right, 
-                        transparent, 
-                        black 20px, 
-                        black calc(100% - 20px), 
+                        to right,
+                        transparent,
+                        black 20px,
+                        black calc(100% - 20px),
                         transparent
                     );
                     -webkit-mask-image: linear-gradient(
-                        to right, 
-                        transparent, 
-                        black 20px, 
-                        black calc(100% - 20px), 
+                        to right,
+                        transparent,
+                        black 20px,
+                        black calc(100% - 20px),
                         transparent
                     );
                 }
@@ -109,20 +109,20 @@ export class LCARdSBaseEditor extends LitElement {
                     margin-bottom: 16px;
                     border-radius: var(--ha-card-border-radius, 12px);
                 }
-                
+
                 ha-expansion-panel[outlined] {
                     border: 2px solid var(--divider-color);
                 }
-                
+
                 ha-expansion-panel[expanded] {
                     background-color: var(--secondary-background-color);
                 }
-                
+
                 /* Form field spacing */
                 .form-field {
                     margin-bottom: 16px;
                 }
-                
+
                 /* Two-column grid */
                 .form-row-group {
                     display: grid;
@@ -130,7 +130,7 @@ export class LCARdSBaseEditor extends LitElement {
                     gap: 16px;
                     margin-bottom: 16px;
                 }
-                
+
                 @media (max-width: 768px) {
                     .form-row-group {
                         grid-template-columns: 1fr;
@@ -402,17 +402,17 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _getConfigValue(path) {
         if (!path) return undefined;
-        
+
         const keys = path.split('.');
         let value = this.config;
-        
+
         for (const key of keys) {
             if (value === null || value === undefined) {
                 return undefined;
             }
             value = value[key];
         }
-        
+
         return value;
     }
 
@@ -461,10 +461,45 @@ export class LCARdSBaseEditor extends LitElement {
         let currentSchema = schema;
 
         for (const key of keys) {
-            if (!currentSchema.properties || !currentSchema.properties[key]) {
-                return null;
+            // Direct properties
+            if (currentSchema.properties && currentSchema.properties[key]) {
+                currentSchema = currentSchema.properties[key];
+                continue;
             }
-            currentSchema = currentSchema.properties[key];
+
+            // Handle patternProperties (e.g., text.name, text.label, text.*)
+            if (currentSchema.patternProperties) {
+                let found = false;
+                for (const [pattern, patternSchema] of Object.entries(currentSchema.patternProperties)) {
+                    try {
+                        const regex = new RegExp(pattern);
+                        if (regex.test(key)) {
+                            currentSchema = patternSchema;
+                            found = true;
+                            break;
+                        }
+                    } catch (err) {
+                        console.warn('[LCARdSBaseEditor] Invalid regex in patternProperties:', pattern, err);
+                    }
+                }
+                if (found) continue;
+            }
+
+            // Handle oneOf schemas where the property may be defined inside an object option
+            if (Array.isArray(currentSchema.oneOf)) {
+                let found = false;
+                for (const option of currentSchema.oneOf) {
+                    if (option && option.properties && option.properties[key]) {
+                        currentSchema = option.properties[key];
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) continue;
+            }
+
+            // If we didn't find the property, return null
+            return null;
         }
 
         return currentSchema;
@@ -475,7 +510,7 @@ export class LCARdSBaseEditor extends LitElement {
      * Conditions can reference:
      * - config (current config)
      * - hass (Home Assistant instance)
-     * 
+     *
      * @param {string} condition - JavaScript expression to evaluate
      * @returns {boolean} Evaluation result
      * @protected
@@ -523,7 +558,7 @@ export class LCARdSBaseEditor extends LitElement {
         // Check if this is a oneOf (simple number vs object)
         const schema = this._getSchemaForPath(basePath);
         const isOneOf = schema && Array.isArray(schema.oneOf);
-        
+
         if (isOneOf) {
             // For oneOf, let form-field handle it with toggle
             return html`
@@ -563,7 +598,7 @@ export class LCARdSBaseEditor extends LitElement {
                 ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="5">
-                
+
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}
@@ -602,7 +637,7 @@ export class LCARdSBaseEditor extends LitElement {
                 ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="5">
-                
+
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}

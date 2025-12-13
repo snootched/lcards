@@ -107,6 +107,17 @@ export class LCARdSColorSection extends LitElement {
     _getCurrentMode() {
         const value = this._getCurrentValue();
 
+        // If we have multiple states defined in the states array, default to 'states' mode
+        // This ensures all state color pickers are visible even when values aren't set
+        if (this.states && this.states.length > 1) {
+            // If value is explicitly a string, use simple mode
+            if (typeof value === 'string') return 'simple';
+
+            // Otherwise use states mode (for object values or undefined values)
+            return 'states';
+        }
+
+        // Single state or legacy behavior: check value type
         // If value is undefined or null, default to 'simple'
         if (value === undefined || value === null) return 'simple';
 
