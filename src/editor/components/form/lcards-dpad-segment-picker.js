@@ -16,6 +16,11 @@
 
 import { LitElement, html, css } from 'lit';
 
+// Constants
+const GRID_SIZE = 3;
+const GRID_INDICES = [0, 1, 2];
+const EMPTY_LABEL = 'None';
+
 export class LCARdSDpadSegmentPicker extends LitElement {
 
     static get properties() {
@@ -288,7 +293,7 @@ export class LCARdSDpadSegmentPicker extends LitElement {
      * Format segment ID for display
      */
     _formatSegmentLabel(segmentId) {
-        if (!segmentId) return 'None';
+        if (!segmentId) return EMPTY_LABEL;
         
         return segmentId
             .split('-')
@@ -375,8 +380,8 @@ export class LCARdSDpadSegmentPicker extends LitElement {
 
                 <div class="grid-container">
                     <div class="segment-grid">
-                        ${[0, 1, 2].map(row => html`
-                            ${[0, 1, 2].map(col => {
+                        ${GRID_INDICES.map(row => html`
+                            ${GRID_INDICES.map(col => {
                                 const segmentId = this._getSegmentId(row, col);
                                 const isSelected = this._isSelected(row, col);
                                 const isConfigured = this._isSegmentConfigured(segmentId);

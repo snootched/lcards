@@ -4856,12 +4856,6 @@ export class LCARdSButton extends LCARdSCard {
             enable_double_tap: false    // Double-tap disabled by default
         });
 
-        // Register behavioral defaults (NO STYLES - those come from theme/presets)
-        configManager.registerCardDefaults('button', {
-            enable_hold_action: true,   // Hold actions enabled
-            enable_double_tap: false    // Double-tap disabled by default
-        });
-
         // Font family options (40+ fonts with proper labels)
         const fontFamilyEnum = [
             "'LCARS', 'Antonio', sans-serif",
