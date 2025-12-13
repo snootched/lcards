@@ -1923,11 +1923,9 @@ export class LCARdSButton extends LCARdSCard {
             iconName = 'entity';
         }
 
-        // Get icon style config (new icon_style property or backwards-compat from old icon object)
-        // Priority: config.icon_style > old config.icon object (backwards compat) > resolvedStyle.icon
-        const iconStyle = this.config.icon_style ||
-                         (typeof this.config.icon === 'object' ? this.config.icon : null) ||
-                         {};
+        // Get icon style config
+        // Priority: config.icon_style > resolvedStyle.icon
+        const iconStyle = this.config.icon_style || {};
 
         // Determine icon_area (where the icon's reserved space is)
         // Priority: config.icon_area > resolvedStyle.icon_area > 'left' (default)
@@ -2155,14 +2153,11 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Resolve icon area size (width for left/right, height for top/bottom)
-            // Priority: config.icon_area_size > config.icon.area_size > preset.icon_area_size > preset.icon.area_size > auto-calculated from size
+            // Priority: config.icon_area_size > preset.icon_area_size > preset.icon.area_size > auto-calculated from size
             let iconAreaSize;
             if (this.config.icon_area_size !== undefined) {
-                // Top-level icon_area_size (matches icon_area schema)
+                // Top-level icon_area_size
                 iconAreaSize = this.config.icon_area_size;
-            } else if (typeof this.config.icon === 'object' && this.config.icon?.area_size) {
-                // Nested icon.area_size (alternate format)
-                iconAreaSize = this.config.icon.area_size;
             } else if (resolvedStyle.icon_area_size !== undefined) {
                 // Preset top-level icon_area_size
                 iconAreaSize = resolvedStyle.icon_area_size;
@@ -2172,20 +2167,17 @@ export class LCARdSButton extends LCARdSCard {
             }
             // If not specified, will be auto-calculated in _generateIconMarkup based on size + spacing + divider
 
-            // Resolve divider settings (renamed from "interior" for clarity)
-            // Priority: config > preset > theme token > hardcoded
+            // Resolve divider settings
+            // Priority: config.divider > preset > theme token > hardcoded
             let dividerWidth, dividerColor;
 
             // Divider width
-            if (typeof this.config.icon === 'object' && this.config.icon?.divider?.width !== undefined) {
-                dividerWidth = this.config.icon.divider.width;
-            } else if (typeof this.config.icon === 'object' && this.config.icon?.interior?.width !== undefined) {
-                // Legacy support for "interior" name
-                dividerWidth = this.config.icon.interior.width;
+            if (this.config.divider?.width !== undefined) {
+                dividerWidth = this.config.divider.width;
             } else if (resolvedStyle.icon?.divider?.width !== undefined) {
                 dividerWidth = resolvedStyle.icon.divider.width;
             } else if (resolvedStyle.icon?.interior?.width !== undefined) {
-                // Legacy support for "interior" name
+                // Legacy preset support for "interior" name
                 dividerWidth = resolvedStyle.icon.interior.width;
             } else if (iconTokens.interior?.width !== undefined) {
                 dividerWidth = iconTokens.interior.width;
@@ -2194,15 +2186,12 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Divider color
-            if (typeof this.config.icon === 'object' && this.config.icon?.divider?.color) {
-                dividerColor = this.config.icon.divider.color;
-            } else if (typeof this.config.icon === 'object' && this.config.icon?.interior?.color) {
-                // Legacy support for "interior" name
-                dividerColor = this.config.icon.interior.color;
+            if (this.config.divider?.color) {
+                dividerColor = this.config.divider.color;
             } else if (resolvedStyle.icon?.divider?.color) {
                 dividerColor = resolvedStyle.icon.divider.color;
             } else if (resolvedStyle.icon?.interior?.color) {
-                // Legacy support for "interior" name
+                // Legacy preset support for "interior" name
                 dividerColor = resolvedStyle.icon.interior.color;
             } else if (iconTokens.interior?.color) {
                 dividerColor = iconTokens.interior.color;
@@ -2210,42 +2199,26 @@ export class LCARdSButton extends LCARdSCard {
                 dividerColor = 'black'; // hardcoded fallback
             }
 
-            // Resolve icon background (optional badge/indicator style)
-            // Priority: iconStyle > preset > null (no background by default)
-            let iconBackground = null;
-            const configBg = iconStyle.background;
-            const presetBg = resolvedStyle.icon?.background;
-
-            if (configBg || presetBg) {
-                const bgSource = configBg || presetBg;
-                iconBackground = {};
-
-                // Background color (state-based)
-                if (bgSource.color) {
-                    if (typeof bgSource.color === 'object') {
-                        iconBackground.color = bgSource.color[buttonState] ||
-                                             bgSource.color.default ||
-                                             bgSource.color.active ||
-                                             'transparent';
-                    } else {
-                        iconBackground.color = bgSource.color;
-                    }
+            // Resolve icon area background (colors the entire icon area section)
+            // Priority: config.icon_area_background > preset.icon_area_background > null
+            let iconAreaBackground = null;
+            if (this.config.icon_area_background) {
+                if (typeof this.config.icon_area_background === 'object') {
+                    iconAreaBackground = this.config.icon_area_background[buttonState] ||
+                                        this.config.icon_area_background.default ||
+                                        this.config.icon_area_background.active ||
+                                        null;
                 } else {
-                    iconBackground.color = 'transparent';
+                    iconAreaBackground = this.config.icon_area_background;
                 }
-
-                // Background radius
-                if (bgSource.radius !== undefined) {
-                    iconBackground.radius = bgSource.radius;
+            } else if (resolvedStyle.icon_area_background) {
+                if (typeof resolvedStyle.icon_area_background === 'object') {
+                    iconAreaBackground = resolvedStyle.icon_area_background[buttonState] ||
+                                        resolvedStyle.icon_area_background.default ||
+                                        resolvedStyle.icon_area_background.active ||
+                                        null;
                 } else {
-                    iconBackground.radius = 4; // default square with slight rounding
-                }
-
-                // Background padding (space between icon and background edge)
-                if (bgSource.padding !== undefined) {
-                    iconBackground.padding = bgSource.padding;
-                } else {
-                    iconBackground.padding = 4; // default
+                    iconAreaBackground = resolvedStyle.icon_area_background;
                 }
             }
 
@@ -2255,6 +2228,7 @@ export class LCARdSButton extends LCARdSCard {
 
                 // Icon area configuration (where reserved space is)
                 area: iconArea,      // 'left', 'right', 'top', 'bottom', or 'none'
+                areaBackground: iconAreaBackground,  // Background color for icon area section
 
                 // Position WITHIN the icon area (or absolute if area is 'none')
                 position: iconPosition,  // Named position (normalized)
@@ -2275,9 +2249,7 @@ export class LCARdSButton extends LCARdSCard {
                 layoutSpacing: layoutSpacing, // Spacing around icon area for auto-size calculation
                 areaSize: iconAreaSize, // Area size (width for left/right, height for top/bottom) - optional, auto-calculated if not set
                 color: iconColor,    // State-resolved color
-
-                // Background (badge style)
-                background: iconBackground,  // { color, radius, padding } or null
+                areaBackground: iconAreaBackground, // Icon area background color (state-resolved)
 
                 // Divider (legacy feature)
                 divider: {           // Renamed from "interior" for clarity
@@ -2653,7 +2625,6 @@ export class LCARdSButton extends LCARdSCard {
         const iconColor = iconConfig.color || 'currentColor';
         const padding = iconConfig.padding || 0;
         const rotation = iconConfig.rotation || 0;
-        const background = iconConfig.background; // { color, radius, padding } or null
 
         // Calculate icon position
         let iconX, iconY;
@@ -2689,29 +2660,6 @@ export class LCARdSButton extends LCARdSCard {
             ? (this._entity?.attributes?.icon || 'mdi:help-circle')
             : `${iconConfig.type}:${iconConfig.icon}`;
 
-        // Generate background if configured
-        let backgroundMarkup = '';
-        if (background && background.color && background.color !== 'transparent') {
-            const bgPadding = background.padding || 4;
-            const bgSize = iconSize + (bgPadding * 2);
-            const bgX = iconX - bgPadding;
-            const bgY = iconY - bgPadding;
-            const bgRadius = background.radius || 4;
-
-            // Convert percentage radius to pixels (for circular backgrounds like '50%')
-            const radiusValue = typeof bgRadius === 'string' && bgRadius.endsWith('%')
-                ? (bgSize * parseFloat(bgRadius)) / 100
-                : bgRadius;
-
-            backgroundMarkup = `
-                <rect x="${bgX}" y="${bgY}"
-                      width="${bgSize}" height="${bgSize}"
-                      rx="${radiusValue}" ry="${radiusValue}"
-                      fill="${background.color}"
-                      class="icon-background" />
-            `;
-        }
-
         // Generate icon element
         const iconElement = `
             <foreignObject x="${iconX}" y="${iconY}" width="${iconSize}" height="${iconSize}">
@@ -2730,7 +2678,6 @@ export class LCARdSButton extends LCARdSCard {
             <g class="icon-group flexible-position"
                data-position="${iconConfig.position || 'custom'}"
                ${rotationTransform}>
-                ${backgroundMarkup}
                 ${iconElement}
             </g>
         `.trim();
@@ -2843,13 +2790,29 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Position icon vertically based on area placement
-        let iconY, dividerY;
+        let iconY, dividerY, areaY;
         if (area === 'top') {
+            areaY = strokeWidth;
             iconY = strokeWidth + iconYOffset;
             dividerY = strokeWidth + iconAreaContentHeight;
         } else { // bottom
+            areaY = strokeWidth + availableHeight - iconAreaHeight;
             iconY = strokeWidth + availableHeight - iconAreaHeight + dividerWidth + iconYOffset;
             dividerY = strokeWidth + availableHeight - iconAreaHeight;
+        }
+
+        // Icon area background (colored rectangle behind entire icon area)
+        const areaBackground = iconConfig.areaBackground;
+        let areaBackgroundMarkup = '';
+        if (areaBackground && areaBackground !== 'transparent') {
+            const areaX = strokeWidth;
+            const areaWidth = availableWidth;
+            areaBackgroundMarkup = `
+                <rect x="${areaX}" y="${areaY}"
+                      width="${areaWidth}" height="${iconAreaHeight}"
+                      fill="${areaBackground}"
+                      class="icon-area-background" />
+            `;
         }
 
         // Horizontal divider positioning
@@ -2883,6 +2846,8 @@ export class LCARdSButton extends LCARdSCard {
 
         const markup = `
             <g class="icon-group" data-position="${area}">
+                <!-- Icon area background -->
+                ${areaBackgroundMarkup}
                 <!-- Horizontal divider line between icon and text -->
                 <rect
                     class="icon-divider"
@@ -3049,6 +3014,24 @@ export class LCARdSButton extends LCARdSCard {
                 ? strokeWidth + iconXOffset
                 : availableWidth + strokeWidth - iconAreaWidth + dividerWidth + iconXOffset;
 
+            // Icon area background (colored rectangle behind entire icon area)
+            const areaBackground = iconConfig.areaBackground;
+            let areaBackgroundMarkup = '';
+            if (areaBackground && areaBackground !== 'transparent') {
+                const areaX = position === 'left'
+                    ? strokeWidth
+                    : availableWidth + strokeWidth - iconAreaWidth;
+                const areaY = strokeWidth;
+                const areaWidth = iconAreaWidth;
+                const areaHeight = availableHeight;
+                areaBackgroundMarkup = `
+                    <rect x="${areaX}" y="${areaY}"
+                          width="${areaWidth}" height="${areaHeight}"
+                          fill="${areaBackground}"
+                          class="icon-area-background" />
+                `;
+            }
+
             // Divider positioning - account for border inset and stroke width
             // Borders are drawn with centered strokes, so they occupy full strokeWidth of space
             const strokeInset = strokeWidth / 2;
@@ -3095,6 +3078,8 @@ export class LCARdSButton extends LCARdSCard {
 
             const markup = `
                 <g class="icon-group" data-position="${position}">
+                    <!-- Icon area background -->
+                    ${areaBackgroundMarkup}
                     <!-- Divider line between icon and text -->
                     <rect
                         class="icon-divider"
@@ -5136,14 +5121,14 @@ export class LCARdSButton extends LCARdSCard {
                             font_size: { type: 'number', description: 'Default font size in pixels' },
                             color: {
                                 oneOf: [
-                                    { type: 'string', format: 'color', description: 'Uniform color' },
+                                    { type: 'string', description: 'Uniform color (hex, rgb, CSS variable, etc.)' },
                                     {
                                         type: 'object',
                                         properties: {
-                                            default: { type: 'string', format: 'color', description: 'Default state color' },
-                                            active: { type: 'string', format: 'color', description: 'Active state color' },
-                                            inactive: { type: 'string', format: 'color', description: 'Inactive state color' },
-                                            unavailable: { type: 'string', format: 'color', description: 'Unavailable state color' }
+                                            default: { type: 'string', description: 'Default state color' },
+                                            active: { type: 'string', description: 'Active state color' },
+                                            inactive: { type: 'string', description: 'Inactive state color' },
+                                            unavailable: { type: 'string', description: 'Unavailable state color' }
                                         }
                                     }
                                 ]
@@ -5209,14 +5194,14 @@ export class LCARdSButton extends LCARdSCard {
                             font_size: { type: 'number', minimum: 1, maximum: 200, description: 'Font size in pixels' },
                             color: {
                                 oneOf: [
-                                    { type: 'string', format: 'color', description: 'Uniform color' },
+                                    { type: 'string', description: 'Uniform color (hex, rgb, CSS variable, etc.)' },
                                     {
                                         type: 'object',
                                         properties: {
-                                            active: { type: 'string', format: 'color' },
-                                            inactive: { type: 'string', format: 'color' },
-                                            unavailable: { type: 'string', format: 'color' },
-                                            default: { type: 'string', format: 'color' }
+                                            active: { type: 'string', description: 'Active state color' },
+                                            inactive: { type: 'string', description: 'Inactive state color' },
+                                            unavailable: { type: 'string', description: 'Unavailable state color' },
+                                            default: { type: 'string', description: 'Default state color' }
                                         }
                                     }
                                 ]
@@ -5267,6 +5252,22 @@ export class LCARdSButton extends LCARdSCard {
                 type: 'number',
                 description: 'Override calculated area size (width for left/right, height for top/bottom)'
             },
+            icon_area_background: {
+                oneOf: [
+                    { type: 'string', description: 'Uniform background color for icon area' },
+                    {
+                        type: 'object',
+                        description: 'State-based background colors for icon area',
+                        properties: {
+                            default: { type: 'string', description: 'Default state color' },
+                            active: { type: 'string', description: 'Active state color' },
+                            inactive: { type: 'string', description: 'Inactive state color' },
+                            unavailable: { type: 'string', description: 'Unavailable state color' }
+                        }
+                    }
+                ],
+                description: 'Background color for the icon area (left/right/top/bottom section)'
+            },
 
             // Icon Configuration
             icon: {
@@ -5302,33 +5303,6 @@ export class LCARdSButton extends LCARdSCard {
                             }
                         ]
                     },
-                    background: {
-                        type: 'object',
-                        description: 'Background for badge/indicator style',
-                        properties: {
-                            color: {
-                                oneOf: [
-                                    { type: 'string', format: 'color' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            active: { type: 'string', format: 'color' },
-                                            inactive: { type: 'string', format: 'color' },
-                                            unavailable: { type: 'string', format: 'color' },
-                                            default: { type: 'string', format: 'color' }
-                                        }
-                                    }
-                                ]
-                            },
-                            radius: {
-                                oneOf: [
-                                    { type: 'number' },
-                                    { type: 'string', description: 'Percentage (e.g., "50%" for circle)' }
-                                ]
-                            },
-                            padding: { type: 'number', description: 'Space between icon and background edge' }
-                        }
-                    },
                     padding: {
                         oneOf: [
                             { type: 'number', description: 'Uniform padding' },
@@ -5344,6 +5318,23 @@ export class LCARdSButton extends LCARdSCard {
                         ]
                     },
                     rotation: { type: 'number', description: 'Rotation angle in degrees (positive = clockwise)' }
+                }
+            },
+
+            // Divider Configuration (line between icon area and text area)
+            divider: {
+                type: 'object',
+                description: 'Divider line between icon area and text area',
+                properties: {
+                    width: {
+                        type: 'number',
+                        minimum: 0,
+                        description: 'Divider line width in pixels (default: 6)'
+                    },
+                    color: {
+                        type: 'string',
+                        description: 'Divider line color (CSS color, hex, or theme variable)'
+                    }
                 }
             },
 

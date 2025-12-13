@@ -163,7 +163,7 @@ export class LCARdSBaseEditor extends LitElement {
             this._singletons = window.lcards.core;
         }
 
-        this.requestUpdate();
+        this.requestUpdate('config');
     }
 
     /**
@@ -246,8 +246,6 @@ export class LCARdSBaseEditor extends LitElement {
             return;
         }
 
-        console.debug('[LCARdSBaseEditor] _updateConfig called with:', { updates, source, currentConfig: this.config });
-
         // Deep merge updates into config
         this.config = deepMerge(this.config, updates);
 
@@ -258,8 +256,6 @@ export class LCARdSBaseEditor extends LitElement {
             return;
         }
 
-        console.debug('[LCARdSBaseEditor] Config after merge:', this.config);
-
         // Validate against schema
         this._validateConfig();
 
@@ -267,7 +263,6 @@ export class LCARdSBaseEditor extends LitElement {
         if (source === 'visual' && !this._isUpdatingYaml) {
             this._isUpdatingYaml = true;
             this._yamlValue = configToYaml(this.config);
-            console.debug('[LCARdSBaseEditor] YAML value updated:', this._yamlValue);
             requestAnimationFrame(() => {
                 this._isUpdatingYaml = false;
             });
@@ -564,6 +559,7 @@ export class LCARdSBaseEditor extends LitElement {
             return html`
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="${basePath}"
                     label="Padding">
                 </lcards-form-field>
@@ -574,6 +570,7 @@ export class LCARdSBaseEditor extends LitElement {
         return html`
             <lcards-object-editor
                 .editor=${this}
+                .config=${this.config}
                 path="${basePath}"
                 .properties=${['top', 'right', 'bottom', 'left']}
                 controlType="number"
@@ -602,18 +599,21 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.font_size"
                         label="Font Size">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.font_weight"
                         label="Font Weight">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.font_family"
                         label="Font Family">
                     </lcards-form-field>
@@ -641,24 +641,28 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.position"
                         label="Position">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.rotation"
                         label="Rotation">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.justify"
                         label="Horizontal Align">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="${basePath}.align"
                         label="Vertical Align">
                     </lcards-form-field>
@@ -678,6 +682,7 @@ export class LCARdSBaseEditor extends LitElement {
         return html`
             <lcards-color-section
                 .editor=${this}
+                .config=${this.config}
                 basePath="${basePath}"
                 header="Text Colors"
                 description="State-based text colors"
@@ -710,6 +715,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Content -->
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="${basePath}.content"
                     label="Content"
                     helper="Text content or template (e.g., {{entity.state}})">
@@ -718,6 +724,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Show Toggle -->
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="${basePath}.show"
                     label="Show ${fieldLabel}">
                 </lcards-form-field>
@@ -762,6 +769,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Icon Picker -->
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="icon.icon"
                     label="Icon">
                 </lcards-form-field>
@@ -769,6 +777,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Show Toggle -->
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="icon.show"
                     label="Show Icon">
                 </lcards-form-field>
@@ -776,6 +785,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Icon Area -->
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="icon_area"
                     label="Icon Area"
                     helper="Reserved space for icon (left, right, top, bottom)">
@@ -785,12 +795,14 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="icon.size"
                         label="Icon Size">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="icon.padding"
                         label="Icon Padding">
                     </lcards-form-field>
@@ -799,6 +811,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <!-- Icon Colors -->
                 <lcards-color-section
                     .editor=${this}
+                    .config=${this.config}
                     basePath="icon.color"
                     header="Icon Colors"
                     description="State-based icon colors"

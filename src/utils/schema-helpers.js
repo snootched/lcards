@@ -120,6 +120,24 @@ export function hasEnum(propertySchema) {
 }
 
 /**
+ * Check if schema property is a position enum (for graphical picker)
+ * @param {Object} propertySchema - Property schema object
+ * @returns {boolean}
+ *
+ * @example
+ * if (isPositionEnum(schema)) render position picker
+ */
+export function isPositionEnum(propertySchema) {
+    if (!hasEnum(propertySchema)) return false;
+
+    const enum_values = propertySchema.enum;
+    const position_values = ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'];
+
+    // Check if enum contains position values
+    return enum_values && enum_values.some(val => position_values.includes(val));
+}
+
+/**
  * Get enum options with labels
  * @param {Object} propertySchema - Property schema object
  * @returns {Array<{value: *, label: string}>} Array of option objects

@@ -44,8 +44,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 content: () => this._renderCardConfigTab()
             },
             {
-                label: 'Text & Icon',
-                content: () => this._renderTextIconTab()
+                label: 'Text',
+                content: () => this._renderTextTab()
+            },
+            {
+                label: 'Icon',
+                content: () => this._renderIconTab()
             },
             {
                 label: 'Card & Border',
@@ -97,18 +101,20 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 header="Basic Configuration"
                 description="Core card settings"
                 icon="mdi:cog"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="entity"
                     label="Entity">
                 </lcards-form-field>
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="id"
                     label="Card ID"
                     helper="Optional custom ID for targeting with rules">
@@ -116,6 +122,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="preset"
                     label="Preset Style">
                 </lcards-form-field>
@@ -133,12 +140,14 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout>
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="grid_columns"
                         label="Grid Columns">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
+                        .config=${this.config}
                         path="grid_rows"
                         label="Grid Rows">
                     </lcards-form-field>
@@ -148,22 +157,32 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render Text & Icon tab (using new enhanced components)
+     * Render Text tab (using new enhanced components)
      * @returns {TemplateResult}
      * @private
      */
-    _renderTextIconTab() {
+    _renderTextTab() {
         return html`
             <!-- Multi-Text Editor -->
             <lcards-multi-text-editor
                 .editor=${this}
                 .hass=${this.hass}>
             </lcards-multi-text-editor>
+        `;
+    }
 
+    /**
+     * Render Icon tab (using new enhanced components)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderIconTab() {
+        return html`
             <!-- Icon Editor -->
             <lcards-icon-editor
                 .editor=${this}
-                .hass=${this.hass}>
+                .hass=${this.hass}
+                .config=${this.config}>
             </lcards-icon-editor>
         `;
     }
@@ -221,6 +240,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="style.height"
                     label="Height"
                     helper="Sets static height of the card">
@@ -228,6 +248,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="style.width"
                     label="Width"
                     helper="Sets static width of the card">
@@ -235,6 +256,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="style.min_height"
                     label="Minimum Height"
                     helper="Sets minimum height of the card">
@@ -254,23 +276,15 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 <lcards-form-section
                     header="Border"
                     description="Border/frame colors"
-                    ?expanded=${true}
+                    ?expanded=${false}
                     ?outlined=${true}
+                    ?noCollapse=${true}
                     headerLevel="5">
 
                     <lcards-color-section
                         .editor=${this}
                         basePath="style.color.border"
-                        header="Default Colour (no entity/state)"
-                        .states=${['default']}
-                        ?expanded=${true}>
-                    </lcards-color-section>
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.color.border"
-                        header="State Colours"
-                        .states=${['active', 'inactive', 'unavailable']}
+                        .states=${['default', 'active', 'inactive', 'unavailable']}
                         ?expanded=${false}>
                     </lcards-color-section>
                 </lcards-form-section>
@@ -281,97 +295,25 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     description="Card background colors"
                     ?expanded=${false}
                     ?outlined=${true}
+                    ?noCollapse=${true}
                     headerLevel="5">
 
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.color.background"
-                        header="Default Colour (no entity/state)"
-                        .states=${['default']}
-                        ?expanded=${true}>
-                    </lcards-color-section>
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.color.background"
-                        header="State Colours"
-                        .states=${['active', 'inactive', 'unavailable']}
+                        basePath="style.card.color.background"
+                        .states=${['default', 'active', 'inactive', 'unavailable']}
                         ?expanded=${false}>
                     </lcards-color-section>
                 </lcards-form-section>
             </lcards-form-section>
 
             <!-- Borders Section -->
-            <lcards-form-section
-                header="Borders"
-                description="Border width for each side"
-                icon="mdi:border-style"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.left.size"
-                    label="Left Border Size"
-                    helper="The width of the left side border">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.top.size"
-                    label="Top Border Size"
-                    helper="The height of the top side border">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.right.size"
-                    label="Right Border Size"
-                    helper="The width of the right side border">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.bottom.size"
-                    label="Bottom Border Size"
-                    helper="The height of the bottom side border">
-                </lcards-form-field>
-            </lcards-form-section>
-
-            <!-- Corners Section -->
-            <lcards-form-section
-                header="Corners"
-                description="Border radius for each corner"
-                icon="mdi:rounded-corner"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.radius.top_left"
-                    label="Top Left Radius">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.radius.top_right"
-                    label="Top Right Radius">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.radius.bottom_right"
-                    label="Bottom Right Radius">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="style.border.radius.bottom_left"
-                    label="Bottom Left Radius">
-                </lcards-form-field>
-            </lcards-form-section>
+            <lcards-border-editor
+                .editor=${this}
+                path="style.border"
+                label="Borders & Corners"
+                ?showPreview=${true}>
+            </lcards-border-editor>
         `;
     }
 
@@ -386,7 +328,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 .editor=${this}
                 .segments=${this.config.svg?.segments || []}
                 .hass=${this.hass}
-                ?expanded=${true}
+                ?expanded=${false}
                 @value-changed=${this._handleSegmentsChange}>
             </lcards-segment-list-editor>
         `;
@@ -423,12 +365,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 header="Advanced Options"
                 description="Additional configuration options"
                 icon="mdi:cog"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
                 <lcards-form-field
                     .editor=${this}
+                    .config=${this.config}
                     path="css_class"
                     label="Custom CSS Class"
                     helper="Add custom CSS class for styling">

@@ -64,7 +64,7 @@ export class LCARdSPositionPicker extends LitElement {
                 display: grid;
                 grid-template-columns: repeat(3, 40px);
                 grid-template-rows: repeat(3, 40px);
-                gap: 4px;
+                gap: 6px;
                 background: var(--card-background-color, #fff);
                 border: 2px solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
@@ -75,8 +75,8 @@ export class LCARdSPositionPicker extends LitElement {
                 width: 40px;
                 height: 40px;
                 border: 2px solid var(--divider-color, #e0e0e0);
-                border-radius: 4px;
-                background: var(--secondary-background-color, #fafafa);
+                border-radius: 6px;
+                background: var(--disabled-text-color, #9e9e9e);
                 cursor: pointer;
                 transition: all 0.2s ease;
                 display: flex;
@@ -88,7 +88,7 @@ export class LCARdSPositionPicker extends LitElement {
             .position-cell:hover:not(.disabled) {
                 background: var(--primary-color, #03a9f4);
                 border-color: var(--primary-color, #03a9f4);
-                transform: scale(1.1);
+                transform: scale(1.05);
             }
 
             .position-cell.selected {
@@ -98,12 +98,10 @@ export class LCARdSPositionPicker extends LitElement {
             }
 
             .position-cell.selected::after {
-                content: '';
-                width: 12px;
-                height: 12px;
-                background: white;
-                border-radius: 50%;
-                position: absolute;
+                content: '✓';
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
             }
 
             .position-cell.disabled {

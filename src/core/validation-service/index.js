@@ -335,6 +335,11 @@ export class CoreValidationService {
    * @private
    */
   _validateAgainstSchema(data, schema, result, path) {
+    // Handle oneOf - try each option and succeed if any match
+    if (schema.oneOf) {
+      return this._validateOneOf(data, schema, result, path);
+    }
+
     if (schema.type === 'object') {
       this._validateObject(data, schema, result, path);
     } else if (schema.type === 'array') {
@@ -342,6 +347,52 @@ export class CoreValidationService {
     } else {
       this._validatePrimitive(data, schema, result, path);
     }
+  }
+
+  /**
+   * Validate oneOf (data must match exactly one schema)
+   * @private
+   */
+  _validateOneOf(data, schema, result, path) {
+    const matchedSchemas = [];
+
+    for (let i = 0; i < schema.oneOf.length; i++) {
+      const option = schema.oneOf[i];
+      const tempResult = { valid: true, errors: [], warnings: [] };
+
+      this._validateAgainstSchema(data, option, tempResult, path);
+
+      if (tempResult.errors.length === 0) {
+        matchedSchemas.push(i);
+      }
+    }
+
+    // oneOf requires exactly one match
+    if (matchedSchemas.length === 0) {
+      // Get expected types from oneOf options
+      const expectedTypes = schema.oneOf
+        .map(opt => opt.type || 'object')
+        .filter((v, i, a) => a.indexOf(v) === i) // unique
+        .join(' or ');
+
+      result.errors.push({
+        type: 'invalid_type',
+        field: path,
+        message: 'Type mismatch',
+        context: {
+          field: path,
+          expected: expectedTypes,
+          actual: typeof data
+        }
+      });
+    } else if (matchedSchemas.length > 1) {
+      // Multiple matches - this is technically a schema error but we'll allow it
+      // and just use the first match (common in practice)
+      if (this.config.debug) {
+        lcardsLog.debug(`[CoreValidationService] Multiple oneOf matches at ${path}:`, matchedSchemas);
+      }
+    }
+    // If exactly 1 match, validation passes (no error added)
   }
 
   /**
@@ -354,7 +405,11 @@ export class CoreValidationService {
         type: 'invalid_type',
         field: path || 'root',
         message: 'Expected object',
-        context: { expected: 'object', actual: typeof data }
+        context: {
+          field: path || 'root',
+          expected: 'object',
+          actual: typeof data
+        }
       });
       return;
     }
@@ -369,7 +424,10 @@ export class CoreValidationService {
             type: 'required_field',
             field: fieldPath,
             message: `Required property "${prop}" is missing`,
-            context: { field: prop }
+            context: {
+              field: fieldPath,
+              prop
+            }
           });
         } else if (prop in data) {
           this._validateAgainstSchema(data[prop], propSchema, result, fieldPath);
@@ -388,7 +446,11 @@ export class CoreValidationService {
         type: 'invalid_type',
         field: path,
         message: 'Expected array',
-        context: { expected: 'array', actual: typeof data }
+        context: {
+          field: path,
+          expected: 'array',
+          actual: typeof data
+        }
       });
       return;
     }
@@ -399,7 +461,11 @@ export class CoreValidationService {
         type: 'out_of_range',
         field: path,
         message: `Array too short (minimum ${schema.minItems} items)`,
-        context: { value: data.length, min: schema.minItems }
+        context: {
+          field: path,
+          value: data.length,
+          min: schema.minItems
+        }
       });
     }
 
@@ -408,7 +474,11 @@ export class CoreValidationService {
         type: 'out_of_range',
         field: path,
         message: `Array too long (maximum ${schema.maxItems} items)`,
-        context: { value: data.length, max: schema.maxItems }
+        context: {
+          field: path,
+          value: data.length,
+          max: schema.maxItems
+        }
       });
     }
 
@@ -426,16 +496,20 @@ export class CoreValidationService {
    * @private
    */
   _validatePrimitive(data, schema, result, path) {
-    // Type check
-    const expectedType = schema.type;
+    // Type check - handle both string and array of types
+    const expectedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
     const actualType = typeof data;
 
-    if (actualType !== expectedType) {
+    if (!expectedTypes.includes(actualType)) {
       result.errors.push({
         type: 'invalid_type',
         field: path,
         message: `Type mismatch`,
-        context: { expected: expectedType, actual: actualType }
+        context: {
+          field: path,
+          expected: expectedTypes.join(' or '),
+          actual: actualType
+        }
       });
       return;
     }
@@ -446,7 +520,10 @@ export class CoreValidationService {
         type: 'invalid_enum',
         field: path,
         message: 'Invalid enum value',
-        context: { field: path, validValues: schema.enum.join(', ') }
+        context: {
+          field: path,
+          validValues: schema.enum.join(', ')
+        }
       });
     }
 

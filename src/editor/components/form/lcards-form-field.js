@@ -32,6 +32,7 @@ export class LCARdSFormField extends LitElement {
         return {
             path: { type: String },           // Config path (e.g., 'style.color.border')
             editor: { type: Object },         // Parent editor reference
+            config: { type: Object },         // Editor config (for reactivity)
             label: { type: String },          // Optional label override
             helper: { type: String },         // Optional helper text override
             required: { type: Boolean },      // Required field
@@ -43,6 +44,7 @@ export class LCARdSFormField extends LitElement {
         super();
         this.path = '';
         this.editor = null;
+        this.config = null;
         this.label = '';
         this.helper = '';
         this.required = false;
@@ -358,48 +360,20 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderBoolean() {
+        const currentValue = this._value ?? false;
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${{ boolean: {} }}
-                .configValue=${this.path}
-                .value=${this._value ?? false}
+                .value=${currentValue}
                 .label=${this._effectiveLabel}
                 .helper=${this._effectiveHelper}
+                .required=${this.required}
                 .disabled=${this.disabled}
-                @value-changed=${this._handleValueChange}
-                @change=${this._handleValueChange}
-                @click=${this._handleBooleanClick}>
+                @value-changed=${this._handleValueChange}>
             </ha-selector>
         `;
-    }
-
-    /**
-     * Handle click on boolean selector - workaround for ha-selector-boolean not emitting events for false
-     * @param {Event} ev - click event
-     * @private
-     */
-    _handleBooleanClick(ev) {
-        // Find the ha-switch inside the selector
-        const selector = ev.currentTarget;
-        const haSwitch = selector?.shadowRoot?.querySelector('ha-selector-boolean')?.shadowRoot?.querySelector('ha-switch');
-
-        if (haSwitch) {
-            // Use setTimeout to let the switch update its checked state after the click
-            setTimeout(() => {
-                const checked = haSwitch.checked;
-
-                // Only update if it differs from current value to avoid unnecessary updates
-                if (checked !== Boolean(this._value)) {
-                    const valueChangedEvent = new CustomEvent('value-changed', {
-                        detail: { value: checked },
-                        bubbles: false,
-                        composed: false
-                    });
-                    this._handleValueChange(valueChangedEvent);
-                }
-            }, 0);
-        }
     }
 
     /**
@@ -407,14 +381,9 @@ export class LCARdSFormField extends LitElement {
      * @param {Event} ev - change event
      * @private
      */
-    _handleBooleanChange(ev) {
-        const checked = ev.target.checked;
-        const valueChangedEvent = new CustomEvent('value-changed', {
-            detail: { value: checked },
-            bubbles: false,
-            composed: true
-        });
-        this._handleValueChange(valueChangedEvent);
+    _handleBooleanSwitch(ev) {
+        const newValue = ev.target.checked;
+        this.editor._setConfigValue(this.path, newValue);
     }
 
     /**

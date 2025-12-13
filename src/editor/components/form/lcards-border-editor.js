@@ -51,9 +51,9 @@ export class LCARdSBorderEditor extends LitElement {
 
             .mode-toggle {
                 display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 8px;
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
                 background: var(--secondary-background-color, #f5f5f5);
                 border-radius: 8px;
                 margin-bottom: 12px;
@@ -62,11 +62,12 @@ export class LCARdSBorderEditor extends LitElement {
             .mode-toggle label {
                 font-weight: 500;
                 color: var(--primary-text-color, #212121);
+                font-size: 14px;
                 margin: 0;
             }
 
-            .mode-toggle mwc-icon-button {
-                --mdc-icon-size: 20px;
+            .mode-toggle ha-selector {
+                width: 100%;
             }
 
             .form-row {
@@ -168,11 +169,11 @@ export class LCARdSBorderEditor extends LitElement {
                 headerLevel="4">
 
                 ${this.showPreview ? this._renderPreview() : ''}
-                
+
                 ${this._renderWidthControls()}
-                
+
                 ${this._renderColorControls()}
-                
+
                 ${this._renderRadiusControls()}
             </lcards-form-section>
         `;
@@ -187,20 +188,41 @@ export class LCARdSBorderEditor extends LitElement {
         const width = this._getEffectiveWidth();
         const radius = this._getEffectiveRadius();
         const color = this._borderConfig.color?.default || '#03a9f4';
+        const strokeWidth = Math.max(width.top, width.right, width.bottom, width.left);
+
+        // Calculate the rectangle bounds
+        const x = width.left;
+        const y = width.top;
+        const w = 200 - width.left - width.right;
+        const h = 120 - width.top - width.bottom;
+
+        // Build path with individual corner radii
+        const tl = Math.min(radius.top_left || 0, w / 2, h / 2);
+        const tr = Math.min(radius.top_right || 0, w / 2, h / 2);
+        const br = Math.min(radius.bottom_right || 0, w / 2, h / 2);
+        const bl = Math.min(radius.bottom_left || 0, w / 2, h / 2);
+
+        const path = `
+            M ${x + tl} ${y}
+            L ${x + w - tr} ${y}
+            ${tr > 0 ? `A ${tr} ${tr} 0 0 1 ${x + w} ${y + tr}` : ''}
+            L ${x + w} ${y + h - br}
+            ${br > 0 ? `A ${br} ${br} 0 0 1 ${x + w - br} ${y + h}` : ''}
+            L ${x + bl} ${y + h}
+            ${bl > 0 ? `A ${bl} ${bl} 0 0 1 ${x} ${y + h - bl}` : ''}
+            L ${x} ${y + tl}
+            ${tl > 0 ? `A ${tl} ${tl} 0 0 1 ${x + tl} ${y}` : ''}
+            Z
+        `;
 
         return html`
             <div class="preview-container">
                 <svg width="200" height="120" viewBox="0 0 200 120">
-                    <rect
-                        x="${width.left}"
-                        y="${width.top}"
-                        width="${200 - width.left - width.right}"
-                        height="${120 - width.top - width.bottom}"
-                        rx="${radius.topLeft}"
-                        ry="${radius.topLeft}"
+                    <path
+                        d="${path}"
                         fill="none"
                         stroke="${color}"
-                        stroke-width="${Math.max(width.top, width.right, width.bottom, width.left)}" />
+                        stroke-width="${strokeWidth}" />
                 </svg>
             </div>
         `;
@@ -217,12 +239,18 @@ export class LCARdSBorderEditor extends LitElement {
 
         return html`
             <div class="mode-toggle">
-                <mwc-icon-button
-                    icon="${isUnified ? 'mdi:lock' : 'mdi:lock-open'}"
-                    title="${isUnified ? 'Switch to per-side' : 'Switch to unified'}"
-                    @click=${() => this._toggleWidthMode()}>
-                </mwc-icon-button>
-                <label>${isUnified ? 'Unified Width' : 'Per-Side Width'}</label>
+                <label>Per-Side Width</label>
+                <ha-selector
+                    .hass=${this.editor?.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${!isUnified}
+                    .label=${'Enable individual side widths'}
+                    @value-changed=${(e) => {
+                        if (e.detail.value !== !isUnified) {
+                            this._toggleWidthMode();
+                        }
+                    }}>
+                </ha-selector>
             </div>
 
             ${isUnified ? html`
@@ -306,12 +334,18 @@ export class LCARdSBorderEditor extends LitElement {
 
         return html`
             <div class="mode-toggle">
-                <mwc-icon-button
-                    icon="${isUnified ? 'mdi:lock' : 'mdi:lock-open'}"
-                    title="${isUnified ? 'Switch to per-corner' : 'Switch to unified'}"
-                    @click=${() => this._toggleRadiusMode()}>
-                </mwc-icon-button>
-                <label>${isUnified ? 'Unified Radius' : 'Per-Corner Radius'}</label>
+                <label>Per-Corner Radius</label>
+                <ha-selector
+                    .hass=${this.editor?.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${!isUnified}
+                    .label=${'Enable individual corner radii'}
+                    @value-changed=${(e) => {
+                        if (e.detail.value !== !isUnified) {
+                            this._toggleRadiusMode();
+                        }
+                    }}>
+                </ha-selector>
             </div>
 
             ${isUnified ? html`
@@ -330,36 +364,36 @@ export class LCARdSBorderEditor extends LitElement {
                         <label>Top-Left (px)</label>
                         <ha-textfield
                             type="number"
-                            .value=${radius?.topLeft || 12}
+                            .value=${radius?.top_left || 12}
                             min="0"
-                            @input=${(e) => this._updateBorderProperty('radius.topLeft', Number(e.target.value))}>
+                            @input=${(e) => this._updateBorderProperty('radius.top_left', Number(e.target.value))}>
                         </ha-textfield>
                     </div>
                     <div class="form-row">
                         <label>Top-Right (px)</label>
                         <ha-textfield
                             type="number"
-                            .value=${radius?.topRight || 12}
+                            .value=${radius?.top_right || 12}
                             min="0"
-                            @input=${(e) => this._updateBorderProperty('radius.topRight', Number(e.target.value))}>
+                            @input=${(e) => this._updateBorderProperty('radius.top_right', Number(e.target.value))}>
                         </ha-textfield>
                     </div>
                     <div class="form-row">
                         <label>Bottom-Right (px)</label>
                         <ha-textfield
                             type="number"
-                            .value=${radius?.bottomRight || 12}
+                            .value=${radius?.bottom_right || 12}
                             min="0"
-                            @input=${(e) => this._updateBorderProperty('radius.bottomRight', Number(e.target.value))}>
+                            @input=${(e) => this._updateBorderProperty('radius.bottom_right', Number(e.target.value))}>
                         </ha-textfield>
                     </div>
                     <div class="form-row">
                         <label>Bottom-Left (px)</label>
                         <ha-textfield
                             type="number"
-                            .value=${radius?.bottomLeft || 12}
+                            .value=${radius?.bottom_left || 12}
                             min="0"
-                            @input=${(e) => this._updateBorderProperty('radius.bottomLeft', Number(e.target.value))}>
+                            @input=${(e) => this._updateBorderProperty('radius.bottom_left', Number(e.target.value))}>
                         </ha-textfield>
                     </div>
                 </div>
@@ -373,7 +407,7 @@ export class LCARdSBorderEditor extends LitElement {
      */
     _toggleWidthMode() {
         const currentWidth = this._borderConfig.width || 2;
-        
+
         if (this._widthMode === 'unified') {
             // Convert to per-side
             const value = typeof currentWidth === 'number' ? currentWidth : 2;
@@ -386,7 +420,7 @@ export class LCARdSBorderEditor extends LitElement {
             });
         } else {
             // Convert to unified
-            const avgWidth = typeof currentWidth === 'object' 
+            const avgWidth = typeof currentWidth === 'object'
                 ? Math.round((currentWidth.top + currentWidth.right + currentWidth.bottom + currentWidth.left) / 4)
                 : 2;
             this._widthMode = 'unified';
@@ -400,21 +434,21 @@ export class LCARdSBorderEditor extends LitElement {
      */
     _toggleRadiusMode() {
         const currentRadius = this._borderConfig.radius || 12;
-        
+
         if (this._radiusMode === 'unified') {
             // Convert to per-corner
             const value = typeof currentRadius === 'number' ? currentRadius : 12;
             this._radiusMode = 'per-corner';
             this._updateBorderProperty('radius', {
-                topLeft: value,
-                topRight: value,
-                bottomRight: value,
-                bottomLeft: value
+                top_left: value,
+                top_right: value,
+                bottom_right: value,
+                bottom_left: value
             });
         } else {
             // Convert to unified
             const avgRadius = typeof currentRadius === 'object'
-                ? Math.round((currentRadius.topLeft + currentRadius.topRight + currentRadius.bottomRight + currentRadius.bottomLeft) / 4)
+                ? Math.round((currentRadius.top_left + currentRadius.top_right + currentRadius.bottom_right + currentRadius.bottom_left) / 4)
                 : 12;
             this._radiusMode = 'unified';
             this._updateBorderProperty('radius', avgRadius);
@@ -430,7 +464,7 @@ export class LCARdSBorderEditor extends LitElement {
     _updateBorderProperty(property, value) {
         const keys = property.split('.');
         const updatedConfig = { ...this._borderConfig };
-        
+
         let current = updatedConfig;
         for (let i = 0; i < keys.length - 1; i++) {
             if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
@@ -482,13 +516,13 @@ export class LCARdSBorderEditor extends LitElement {
     _getEffectiveRadius() {
         const radius = this._borderConfig.radius || 12;
         if (typeof radius === 'number') {
-            return { topLeft: radius, topRight: radius, bottomRight: radius, bottomLeft: radius };
+            return { top_left: radius, top_right: radius, bottom_right: radius, bottom_left: radius };
         }
         return {
-            topLeft: radius.topLeft || 12,
-            topRight: radius.topRight || 12,
-            bottomRight: radius.bottomRight || 12,
-            bottomLeft: radius.bottomLeft || 12
+            top_left: radius.top_left || 12,
+            top_right: radius.top_right || 12,
+            bottom_right: radius.bottom_right || 12,
+            bottom_left: radius.bottom_left || 12
         };
     }
 }

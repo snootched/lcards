@@ -232,6 +232,7 @@ export class LCARdSColorSection extends LitElement {
         return html`
             <lcards-form-field
                 .editor=${this.editor}
+                .config=${this.editor.config}
                 path="${this.basePath}"
                 label="Color">
             </lcards-form-field>
@@ -280,6 +281,7 @@ export class LCARdSColorSection extends LitElement {
         return html`
             <lcards-form-field
                 .editor=${this.editor}
+                .config=${this.editor.config}
                 path="${path}"
                 label="${label}">
             </lcards-form-field>
