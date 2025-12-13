@@ -291,9 +291,6 @@ export class CoreValidationService {
         return result;
       }
 
-      // Store root schema for $ref resolution
-      this._currentRootSchema = schemaDef;
-
       // Perform validation
       this._validateAgainstSchema(data, schemaDef, result, '');
 
@@ -334,59 +331,10 @@ export class CoreValidationService {
   }
 
   /**
-   * Resolve $ref reference to actual schema
-   * @param {string} ref - Reference path (e.g., '#/definitions/stateColor')
-   * @param {Object} result - Validation result to add errors to
-   * @returns {Object|null} Resolved schema or null if not found
-   * @private
-   */
-  _resolveRef(ref, result) {
-    // Only support local references starting with #/
-    if (!ref || !ref.startsWith('#/')) {
-      result.errors.push({
-        type: 'invalid_ref',
-        message: `Invalid $ref: ${ref}`,
-        context: { ref }
-      });
-      return null;
-    }
-
-    // Parse ref path (e.g., '#/definitions/stateColor' -> ['definitions', 'stateColor'])
-    const path = ref.substring(2).split('/'); // Remove '#/' and split
-
-    // Navigate through current schema to find definition
-    // We need access to the root schema - store it during validation
-    let target = this._currentRootSchema;
-
-    for (const segment of path) {
-      if (!target || typeof target !== 'object' || !(segment in target)) {
-        result.errors.push({
-          type: 'ref_not_found',
-          message: `Could not resolve $ref: ${ref}`,
-          context: { ref, path }
-        });
-        return null;
-      }
-      target = target[segment];
-    }
-
-    return target;
-  }
-
-  /**
    * Validate object against schema definition
    * @private
    */
   _validateAgainstSchema(data, schema, result, path) {
-    // Resolve $ref if present
-    if (schema.$ref) {
-      schema = this._resolveRef(schema.$ref, result);
-      if (!schema) {
-        // Error already added by _resolveRef
-        return;
-      }
-    }
-
     // Handle oneOf - try each option and succeed if any match
     if (schema.oneOf) {
       return this._validateOneOf(data, schema, result, path);
@@ -483,6 +431,25 @@ export class CoreValidationService {
           });
         } else if (prop in data) {
           this._validateAgainstSchema(data[prop], propSchema, result, fieldPath);
+        }
+      }
+    }
+
+    // Check for additional properties if additionalProperties is false
+    if (schema.additionalProperties === false && schema.properties) {
+      const allowedProps = Object.keys(schema.properties);
+      for (const prop of Object.keys(data)) {
+        if (!allowedProps.includes(prop)) {
+          result.errors.push({
+            type: 'invalid_property',
+            field: path ? `${path}.${prop}` : prop,
+            message: `Unexpected property "${prop}"`,
+            context: {
+              field: path ? `${path}.${prop}` : prop,
+              prop,
+              allowedProperties: allowedProps
+            }
+          });
         }
       }
     }

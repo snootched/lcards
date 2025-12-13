@@ -480,6 +480,12 @@ export class LCARdSBaseEditor extends LitElement {
                 if (found) continue;
             }
 
+            // Handle additionalProperties (e.g., text.test_field1, text.custom_name)
+            if (currentSchema.additionalProperties && typeof currentSchema.additionalProperties === 'object') {
+                currentSchema = currentSchema.additionalProperties;
+                continue;
+            }
+
             // Handle oneOf schemas where the property may be defined inside an object option
             if (Array.isArray(currentSchema.oneOf)) {
                 let found = false;
@@ -541,6 +547,159 @@ export class LCARdSBaseEditor extends LitElement {
                 </ul>
             </ha-alert>
         `;
+    }
+
+    /**
+     * Render editor UI from declarative configuration
+     *
+     * Supports nested structure:
+     * - Sections (collapsible panels with headers)
+     * - Grids (responsive 2-column layouts)
+     * - Fields (automatically rendered based on schema)
+     * - Custom components (direct render functions)
+     *
+     * Example config:
+     * {
+     *   type: 'section',
+     *   header: 'Basic Settings',
+     *   expanded: true,
+     *   children: [
+     *     { type: 'field', path: 'entity' },
+     *     { type: 'grid', children: [
+     *       { type: 'field', path: 'style.width' },
+     *       { type: 'field', path: 'style.height' }
+     *     ]}
+     *   ]
+     * }
+     *
+     * @param {Object|Array} config - Declarative UI configuration
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderFromConfig(config) {
+        if (!config) return html``;
+
+        // Handle arrays (multiple items)
+        if (Array.isArray(config)) {
+            return html`${config.map(item => this._renderFromConfig(item))}`;
+        }
+
+        // Evaluate visibility condition
+        if (config.condition && !this._evaluateCondition(config.condition)) {
+            return html``;
+        }
+
+        // Render based on type
+        switch (config.type) {
+            case 'section':
+                return this._renderConfigSection(config);
+
+            case 'grid':
+                return this._renderConfigGrid(config);
+
+            case 'field':
+                return this._renderConfigField(config);
+
+            case 'custom':
+                return this._renderConfigCustom(config);
+
+            default:
+                console.warn('[LCARdSBaseEditor] Unknown config type:', config.type);
+                return html``;
+        }
+    }
+
+    /**
+     * Render a section (collapsible panel)
+     * @param {Object} config - Section configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfigSection(config) {
+        const {
+            header = '',
+            description = '',
+            icon = '',
+            expanded = false,
+            outlined = true,
+            headerLevel = '4',
+            children = []
+        } = config;
+
+        return html`
+            <lcards-form-section
+                header="${header}"
+                description="${description}"
+                icon="${icon}"
+                ?expanded=${expanded}
+                ?outlined=${outlined}
+                headerLevel="${headerLevel}">
+                ${this._renderFromConfig(children)}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render a grid layout (2-column responsive)
+     * @param {Object} config - Grid configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfigGrid(config) {
+        const { children = [] } = config;
+
+        return html`
+            <lcards-grid-layout>
+                ${this._renderFromConfig(children)}
+            </lcards-grid-layout>
+        `;
+    }
+
+    /**
+     * Render a form field (automatically configured from schema)
+     * @param {Object} config - Field configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfigField(config) {
+        const {
+            path,
+            label = '',
+            helper = ''
+        } = config;
+
+        if (!path) {
+            console.warn('[LCARdSBaseEditor] Field config missing required "path":', config);
+            return html``;
+        }
+
+        return html`
+            <lcards-form-field
+                .editor=${this}
+                .config=${this.config}
+                path="${path}"
+                label="${label}"
+                helper="${helper}">
+            </lcards-form-field>
+        `;
+    }
+
+    /**
+     * Render custom content (direct render function)
+     * @param {Object} config - Custom configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfigCustom(config) {
+        const { render } = config;
+
+        if (typeof render !== 'function') {
+            console.warn('[LCARdSBaseEditor] Custom config missing "render" function:', config);
+            return html``;
+        }
+
+        // Call render function with editor context
+        return render.call(this);
     }
 
     /**

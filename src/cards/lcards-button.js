@@ -62,11 +62,8 @@ import { getComponent } from '../core/packs/components/index.js';
 import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 
-// Import schema modules
-import { getCommonDefinitions } from './schemas/common-definitions.js';
-import { getButtonBaseSchema } from './schemas/button-base-schema.js';
-import { getButtonSvgSchema } from './schemas/button-svg-schema.js';
-import { getButtonComponentSchemas } from './schemas/button-component-schemas.js';
+// Import unified schema
+import { getButtonSchema } from './schemas/button-schema.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-button-editor.js';
@@ -4918,35 +4915,12 @@ export class LCARdSButton extends LCARdSCard {
         const alignEnum = ['top', 'middle', 'bottom', 'baseline', 'start', 'end'];
         const transformEnum = ['none', 'uppercase', 'lowercase', 'capitalize'];
 
-        // Build schema from extracted modules
-        const commonDefinitions = getCommonDefinitions({
-            fontFamilyEnum,
-            positionEnum,
-            transformEnum
-        });
-
-        const baseSchema = getButtonBaseSchema({
+        // Build simplified schema (no $ref resolution needed)
+        const buttonSchema = getButtonSchema({
             availablePresets,
             fontFamilyEnum,
-            positionEnum,
-            transformEnum,
-            justifyEnum,
-            alignEnum
+            positionEnum
         });
-
-        const svgSchema = getButtonSvgSchema();
-        const componentSchemas = getButtonComponentSchemas();
-
-        // Merge all schemas
-        const buttonSchema = {
-            type: 'object',
-            properties: {
-                ...baseSchema.properties,
-                ...svgSchema,
-                ...componentSchemas
-            },
-            definitions: commonDefinitions
-        };
 
         // Register JSON schema for validation (v1.14.18+)
         configManager.registerCardSchema('button', buttonSchema, { version: '1.14.18' });
