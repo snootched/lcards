@@ -62,6 +62,12 @@ import { getComponent } from '../core/packs/components/index.js';
 import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 
+// Import schema modules
+import { getCommonDefinitions } from './schemas/common-definitions.js';
+import { getButtonBaseSchema } from './schemas/button-base-schema.js';
+import { getButtonSvgSchema } from './schemas/button-svg-schema.js';
+import { getButtonComponentSchemas } from './schemas/button-component-schemas.js';
+
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-button-editor.js';
 
@@ -4844,6 +4850,18 @@ export class LCARdSButton extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSButton] Registering schema with presets:', availablePresets);
 
+        // Register behavioral defaults (NO STYLES - those come from theme/presets)
+        configManager.registerCardDefaults('button', {
+            enable_hold_action: true,   // Hold actions enabled
+            enable_double_tap: false    // Double-tap disabled by default
+        });
+
+        // Register behavioral defaults (NO STYLES - those come from theme/presets)
+        configManager.registerCardDefaults('button', {
+            enable_hold_action: true,   // Hold actions enabled
+            enable_double_tap: false    // Double-tap disabled by default
+        });
+
         // Font family options (40+ fonts with proper labels)
         const fontFamilyEnum = [
             "'LCARS', 'Antonio', sans-serif",
@@ -4906,617 +4924,38 @@ export class LCARdSButton extends LCARdSCard {
         const alignEnum = ['top', 'middle', 'bottom', 'baseline', 'start', 'end'];
         const transformEnum = ['none', 'uppercase', 'lowercase', 'capitalize'];
 
-        // Register behavioral defaults (NO STYLES - those come from theme/presets)
-        configManager.registerCardDefaults('button', {
-            enable_hold_action: true,   // Hold actions enabled
-            enable_double_tap: false    // Double-tap disabled by default
+        // Build schema from extracted modules
+        const commonDefinitions = getCommonDefinitions({
+            fontFamilyEnum,
+            positionEnum,
+            transformEnum
         });
 
+        const baseSchema = getButtonBaseSchema({
+            availablePresets,
+            fontFamilyEnum,
+            positionEnum,
+            transformEnum,
+            justifyEnum,
+            alignEnum
+        });
+
+        const svgSchema = getButtonSvgSchema();
+        const componentSchemas = getButtonComponentSchemas();
+
+        // Merge all schemas
+        const buttonSchema = {
+            ...baseSchema,
+            properties: {
+                ...baseSchema.properties,
+                ...svgSchema,
+                ...componentSchemas
+            },
+            definitions: commonDefinitions
+        };
+
         // Register JSON schema for validation (v1.14.18+)
-        // Based on: doc/architecture/button-schema-definition.md
-        configManager.registerCardSchema('button', {
-        type: 'object',
-        properties: {
-            // Core Properties
-            entity: {
-                type: 'string',
-                format: 'entity',
-                description: 'Entity ID to control (optional - if omitted, always uses "active" state)'
-            },
-            id: {
-                type: 'string',
-                description: 'Custom overlay ID for rule targeting (optional - auto-generated if omitted)'
-            },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Tags for bulk rule targeting (e.g., ["controlled", "indicator"])'
-            },
-
-            // Preset
-            preset: {
-                type: 'string',
-                enum: availablePresets,
-                description: 'Style preset name (e.g., "lozenge", "bullet", "capped", "barrel", "outline", "icon")'
-            },
-
-            // SVG Background Support (Phase 1)
-            svg: {
-                type: 'object',
-                description: 'Full SVG background support with optional segmented interaction',
-                properties: {
-                    content: {
-                        type: 'string',
-                        description: 'Inline SVG content (without outer <svg> tag, or with it)'
-                    },
-                    src: {
-                        type: 'string',
-                        description: 'External SVG path ("/local/shapes/icon.svg") or data URI'
-                    },
-                    viewBox: {
-                        type: 'string',
-                        description: 'ViewBox for SVG (auto-detected if not specified)',
-                        pattern: '^-?\\d+(\\.\\d+)?\\s+-?\\d+(\\.\\d+)?\\s+\\d+(\\.\\d+)?\\s+\\d+(\\.\\d+)?$'
-                    },
-                    preserveAspectRatio: {
-                        type: 'string',
-                        description: 'Aspect ratio preservation (default: xMidYMid meet)',
-                        enum: ['none', 'xMinYMin meet', 'xMidYMin meet', 'xMaxYMin meet',
-                               'xMinYMid meet', 'xMidYMid meet', 'xMaxYMid meet',
-                               'xMinYMax meet', 'xMidYMax meet', 'xMaxYMax meet',
-                               'xMinYMin slice', 'xMidYMin slice', 'xMaxYMin slice',
-                               'xMinYMid slice', 'xMidYMid slice', 'xMaxYMid slice',
-                               'xMinYMax slice', 'xMidYMax slice', 'xMaxYMax slice']
-                    },
-                    enable_tokens: {
-                        type: 'boolean',
-                        description: 'Enable token replacement ({{entity.state}}, theme:tokens). Default: true'
-                    },
-                    allow_scripts: {
-                        type: 'boolean',
-                        description: 'Allow script elements in SVG (SECURITY RISK). Default: false'
-                    },
-                    segments: {
-                        type: 'array',
-                        description: 'Interactive segments within the SVG (Phase 2 - Entity State Awareness). Each segment can have its own entity, actions, and state-based styling. Supports BOTH style formats: state-first { active: { fill: "#ff9966" } } OR property-first { fill: { active: "#ff9966" } }. Segment entities are automatically tracked for HASS updates. Text elements have pointer-events:none for click-through.',
-                        items: {
-                            type: 'object',
-                            properties: {
-                                id: { type: 'string', description: 'Unique segment identifier' },
-                                selector: { type: 'string', description: 'CSS selector for SVG elements (e.g., "#arrow-up", "[data-segment=up]")' },
-                                entity: { type: 'string', description: 'Override entity for this segment (inherits card entity if omitted). Segment entities are automatically tracked for HASS change detection.' },
-                                tap_action: { type: 'object', description: 'Action on tap (same structure as card tap_action)' },
-                                hold_action: { type: 'object', description: 'Action on hold' },
-                                double_tap_action: { type: 'object', description: 'Action on double tap' },
-                                style: {
-                                    type: 'object',
-                                    description: 'State-based style for segment. Auto-detects format: STATE-FIRST { active: { fill: "#f90", stroke: "#fb8" } } OR PROPERTY-FIRST { fill: { active: "#f90", inactive: "#68a" }, stroke: { active: "#fb8" } }. States: default, active, inactive, unavailable, hover, pressed. Entity states (on/off/playing/etc) are automatically mapped to active/inactive. Priority: hover/pressed > entity state > default.',
-                                    properties: {
-                                        fill: {
-                                            oneOf: [
-                                                { type: 'string', description: 'Uniform fill color' },
-                                                {
-                                                    type: 'object',
-                                                    description: 'State-based fill colors',
-                                                    properties: {
-                                                        default: { type: 'string' },
-                                                        active: { type: 'string' },
-                                                        inactive: { type: 'string' },
-                                                        unavailable: { type: 'string' },
-                                                        hover: { type: 'string' },
-                                                        pressed: { type: 'string' }
-                                                    }
-                                                }
-                                            ]
-                                        },
-                                        stroke: {
-                                            oneOf: [
-                                                { type: 'string', description: 'Uniform stroke color' },
-                                                {
-                                                    type: 'object',
-                                                    description: 'State-based stroke colors',
-                                                    properties: {
-                                                        default: { type: 'string' },
-                                                        active: { type: 'string' },
-                                                        inactive: { type: 'string' },
-                                                        unavailable: { type: 'string' },
-                                                        hover: { type: 'string' },
-                                                        pressed: { type: 'string' }
-                                                    }
-                                                }
-                                            ]
-                                        },
-                                        'stroke-width': {
-                                            oneOf: [
-                                                { type: ['number', 'string'], description: 'Uniform stroke width' },
-                                                {
-                                                    type: 'object',
-                                                    description: 'State-based stroke widths',
-                                                    properties: {
-                                                        default: { type: ['number', 'string'] },
-                                                        active: { type: ['number', 'string'] },
-                                                        inactive: { type: ['number', 'string'] },
-                                                        unavailable: { type: ['number', 'string'] },
-                                                        hover: { type: ['number', 'string'] },
-                                                        pressed: { type: ['number', 'string'] }
-                                                    }
-                                                }
-                                            ]
-                                        },
-                                        opacity: {
-                                            oneOf: [
-                                                { type: 'number', description: 'Uniform opacity (0-1)' },
-                                                {
-                                                    type: 'object',
-                                                    description: 'State-based opacity values',
-                                                    properties: {
-                                                        default: { type: 'number' },
-                                                        active: { type: 'number' },
-                                                        inactive: { type: 'number' },
-                                                        unavailable: { type: 'number' },
-                                                        hover: { type: 'number' },
-                                                        pressed: { type: 'number' }
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    }
-                                },
-                                animations: {
-                                    type: 'array',
-                                    description: 'Segment animations triggered by user interactions or entity state changes',
-                                    items: {
-                                        type: 'object',
-                                        properties: {
-                                            trigger: {
-                                                type: 'string',
-                                                enum: ['on_load', 'on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change'],
-                                                description: 'Animation trigger: on_load (initial), on_tap (click), on_hold (long press), on_hover (mouse enter), on_leave (mouse exit), on_entity_change (state change)'
-                                            },
-                                            preset: {
-                                                type: 'string',
-                                                description: 'Animation preset name (pulse, glow, fade, blink, shimmer, ripple, etc.)'
-                                            },
-                                            duration: { type: 'number', description: 'Animation duration in milliseconds' },
-                                            easing: { type: 'string', description: 'Easing function (e.g., easeInOutSine, linear)' },
-                                            loop: { type: 'boolean', description: 'Loop the animation continuously' },
-                                            alternate: { type: 'boolean', description: 'Alternate direction on each loop' },
-                                            delay: { type: 'number', description: 'Delay before animation starts (ms)' },
-                                            color: { type: 'string', description: 'Color for glow/shimmer presets' },
-                                            scale: { type: 'number', description: 'Scale factor for pulse/ripple presets' }
-                                        },
-                                        required: ['trigger', 'preset']
-                                    }
-                                }
-                            },
-                            required: ['selector']
-                        }
-                    }
-                }
-            },
-
-            // Multi-Text Label System
-            text: {
-                type: 'object',
-                description: 'Multi-text label system with flexible positioning',
-                properties: {
-                    // Explicit 'default' property for text defaults
-                    default: {
-                        type: 'object',
-                        description: 'Default styling for all text fields',
-                        properties: {
-                            position: {
-                                type: 'string',
-                                enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
-                                description: 'Default position for all text fields'
-                            },
-                            rotation: { type: 'number', description: 'Default rotation angle in degrees (positive = clockwise)' },
-                            padding: {
-                                oneOf: [
-                                    { type: 'number', description: 'Uniform padding' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            top: { type: 'number', minimum: 0, description: 'Top padding in pixels' },
-                                            right: { type: 'number', minimum: 0, description: 'Right padding in pixels' },
-                                            bottom: { type: 'number', minimum: 0, description: 'Bottom padding in pixels' },
-                                            left: { type: 'number', minimum: 0, description: 'Left padding in pixels' }
-                                        }
-                                    }
-                                ]
-                            },
-                            font_size: { type: 'number', description: 'Default font size in pixels' },
-                            color: {
-                                oneOf: [
-                                    { type: 'string', description: 'Uniform color (hex, rgb, CSS variable, etc.)' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            default: { type: 'string', description: 'Default state color' },
-                                            active: { type: 'string', description: 'Active state color' },
-                                            inactive: { type: 'string', description: 'Inactive state color' },
-                                            unavailable: { type: 'string', description: 'Unavailable state color' }
-                                        }
-                                    }
-                                ]
-                            },
-                            font_weight: {
-                                type: 'string',
-                                enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-                                description: 'Default font weight'
-                            },
-                            font_family: {
-                                type: 'string',
-                                enum: fontFamilyEnum,
-                                description: 'Default font family'
-                            },
-                            text_transform: {
-                                type: 'string',
-                                enum: transformEnum,
-                                description: 'Default text transformation'
-                            },
-                            anchor: {
-                                type: 'string',
-                                enum: ['start', 'middle', 'end'],
-                                description: 'Default text anchor'
-                            },
-                            baseline: {
-                                type: 'string',
-                                enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                                description: 'Default baseline alignment'
-                            }
-                        }
-                    }
-                },
-                patternProperties: {
-                    '^[a-zA-Z_][a-zA-Z0-9_]*$': {
-                        type: 'object',
-                        properties: {
-                            content: { type: 'string', description: 'Text content (supports templates like {entity.state})' },
-                            show: { type: 'boolean', description: 'Show/hide this text field' },
-                            position: {
-                                type: 'string',
-                                enum: positionEnum,
-                                description: 'Named position (edge shortcuts: top=top-center, bottom=bottom-center, left=left-center, right=right-center)'
-                            },
-                            x: { type: 'number', description: 'Explicit x coordinate (overrides position)' },
-                            y: { type: 'number', description: 'Explicit y coordinate (overrides position)' },
-                            x_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage x position (0-100)' },
-                            y_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage y position (0-100)' },
-                            rotation: { type: 'number', minimum: -360, maximum: 360, description: 'Rotation angle in degrees (positive = clockwise)' },
-                            padding: {
-                                oneOf: [
-                                    { type: 'number', minimum: 0, description: 'Uniform padding in pixels' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            top: { type: 'number', minimum: 0 },
-                                            right: { type: 'number', minimum: 0 },
-                                            bottom: { type: 'number', minimum: 0 },
-                                            left: { type: 'number', minimum: 0 }
-                                        }
-                                    }
-                                ]
-                            },
-                            font_size: { type: 'number', minimum: 1, maximum: 200, description: 'Font size in pixels' },
-                            color: {
-                                oneOf: [
-                                    { type: 'string', description: 'Uniform color (hex, rgb, CSS variable, etc.)' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            active: { type: 'string', description: 'Active state color' },
-                                            inactive: { type: 'string', description: 'Inactive state color' },
-                                            unavailable: { type: 'string', description: 'Unavailable state color' },
-                                            default: { type: 'string', description: 'Default state color' }
-                                        }
-                                    }
-                                ]
-                            },
-                            font_weight: {
-                                type: 'string',
-                                enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-                                description: 'Font weight'
-                            },
-                            font_family: {
-                                type: 'string',
-                                enum: fontFamilyEnum,
-                                description: 'Font family'
-                            },
-                            text_transform: {
-                                type: 'string',
-                                enum: transformEnum,
-                                description: 'Text transformation'
-                            },
-                            anchor: {
-                                type: 'string',
-                                enum: ['start', 'middle', 'end'],
-                                description: 'Text anchor (default: from position)'
-                            },
-                            baseline: {
-                                type: 'string',
-                                enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                                description: 'Baseline alignment (default: from position)'
-                            },
-                            show: { type: 'boolean', description: 'Show/hide field (default: true)' },
-                            template: { type: 'boolean', description: 'Enable template processing (default: true)' }
-                        }
-                    }
-                }
-            },
-
-            // Icon Area Configuration
-            show_icon: {
-                type: 'boolean',
-                description: 'Show/hide icon (default: false). Required to display icon even if icon is configured.'
-            },
-            icon_area: {
-                type: 'string',
-                enum: ['left', 'right', 'top', 'bottom', 'none'],
-                description: 'Where icon\'s reserved space is (default: left). "none" = no divider, absolute positioning'
-            },
-            icon_area_size: {
-                type: 'number',
-                description: 'Override calculated area size (width for left/right, height for top/bottom)'
-            },
-            icon_area_background: {
-                oneOf: [
-                    { type: 'string', description: 'Uniform background color for icon area' },
-                    {
-                        type: 'object',
-                        description: 'State-based background colors for icon area',
-                        properties: {
-                            default: { type: 'string', description: 'Default state color' },
-                            active: { type: 'string', description: 'Active state color' },
-                            inactive: { type: 'string', description: 'Inactive state color' },
-                            unavailable: { type: 'string', description: 'Unavailable state color' }
-                        }
-                    }
-                ],
-                description: 'Background color for the icon area (left/right/top/bottom section)'
-            },
-
-            // Icon Configuration
-            icon: {
-                type: 'string',
-                format: 'icon',
-                description: 'Icon name: "mdi:lightbulb", "si:github", "entity", or null'
-            },
-            icon_style: {
-                type: 'object',
-                description: 'Icon styling and positioning options',
-                properties: {
-                    position: {
-                        type: 'string',
-                        enum: ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'],
-                        description: 'Position within icon area (if icon_area set) or absolute on button (if icon_area: none)'
-                    },
-                    x: { type: 'number', description: 'Explicit x coordinate (within area or absolute)' },
-                    y: { type: 'number', description: 'Explicit y coordinate (within area or absolute)' },
-                    x_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage x position (0-100)' },
-                    y_percent: { type: 'number', minimum: 0, maximum: 100, description: 'Percentage y position (0-100)' },
-                    size: { type: 'number', description: 'Icon size in pixels (default: 24)' },
-                    color: {
-                        oneOf: [
-                            { type: 'string', format: 'color', description: 'Uniform color' },
-                            {
-                                type: 'object',
-                                properties: {
-                                    active: { type: 'string', format: 'color' },
-                                    inactive: { type: 'string', format: 'color' },
-                                    unavailable: { type: 'string', format: 'color' },
-                                    default: { type: 'string', format: 'color' }
-                                }
-                            }
-                        ]
-                    },
-                    padding: {
-                        oneOf: [
-                            { type: 'number', description: 'Uniform padding' },
-                            {
-                                type: 'object',
-                                properties: {
-                                    top: { type: 'number' },
-                                    right: { type: 'number' },
-                                    bottom: { type: 'number' },
-                                    left: { type: 'number' }
-                                }
-                            }
-                        ]
-                    },
-                    rotation: { type: 'number', description: 'Rotation angle in degrees (positive = clockwise)' }
-                }
-            },
-
-            // Divider Configuration (line between icon area and text area)
-            divider: {
-                type: 'object',
-                description: 'Divider line between icon area and text area',
-                properties: {
-                    width: {
-                        type: 'number',
-                        minimum: 0,
-                        description: 'Divider line width in pixels (default: 6)'
-                    },
-                    color: {
-                        type: 'string',
-                        description: 'Divider line color (CSS color, hex, or theme variable)'
-                    }
-                }
-            },
-
-            // Style Properties (CB-LCARS nested schema)
-            style: {
-                type: 'object',
-                description: 'Style overrides following CB-LCARS nested schema',
-                properties: {
-                    card: {
-                        type: 'object',
-                        properties: {
-                            color: {
-                                type: 'object',
-                                properties: {
-                                    background: {
-                                        type: 'object',
-                                        description: 'Background colors by state',
-                                        properties: {
-                                            active: { type: 'string' },
-                                            inactive: { type: 'string' },
-                                            unavailable: { type: 'string' },
-                                            default: { type: 'string' }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    border: {
-                        type: 'object',
-                        properties: {
-                            width: {
-                                oneOf: [
-                                    { type: ['number', 'string'], description: 'Uniform width' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            top: { type: ['number', 'string'] },
-                                            right: { type: ['number', 'string'] },
-                                            bottom: { type: ['number', 'string'] },
-                                            left: { type: ['number', 'string'] }
-                                        }
-                                    }
-                                ]
-                            },
-                            radius: {
-                                oneOf: [
-                                    { type: ['number', 'string'], description: 'Uniform radius' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            top_left: { type: ['number', 'string'] },
-                                            top_right: { type: ['number', 'string'] },
-                                            bottom_left: { type: ['number', 'string'] },
-                                            bottom_right: { type: ['number', 'string'] }
-                                        }
-                                    }
-                                ]
-                            },
-                            color: {
-                                oneOf: [
-                                    { type: 'string', description: 'Uniform color' },
-                                    {
-                                        type: 'object',
-                                        properties: {
-                                            active: { type: 'string' },
-                                            inactive: { type: 'string' },
-                                            unavailable: { type: 'string' },
-                                            default: { type: 'string' }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    text: {
-                        type: 'object',
-                        properties: {
-                            default: {
-                                type: 'object',
-                                description: 'Default text styling for all fields',
-                                properties: {
-                                    font_size: { type: 'number' },
-                                    font_weight: { type: 'string' },
-                                    font_family: { type: 'string' },
-                                    text_transform: { type: 'string' },
-                                    color: {
-                                        oneOf: [
-                                            { type: 'string' },
-                                            {
-                                                type: 'object',
-                                                properties: {
-                                                    active: { type: 'string' },
-                                                    inactive: { type: 'string' },
-                                                    unavailable: { type: 'string' },
-                                                    default: { type: 'string' }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    opacity: { type: 'number', minimum: 0, maximum: 1, description: 'Opacity (0-1, applied to entire button)' }
-                }
-            },
-
-            // Sizing
-            width: {
-                type: 'number',
-                description: 'Fixed width in pixels (optional - auto-sizes to container by default)'
-            },
-            height: {
-                type: 'number',
-                description: 'Fixed height in pixels (optional - auto-sizes to container by default)'
-            },
-
-            // Grid Layout Properties (HA native - managed by HA's layout tab)
-            // Note: grid_columns, grid_rows, grid_min_columns, grid_min_rows are
-            // automatically handled by Home Assistant's layout system via grid_options
-
-            // Action Properties
-            tap_action: {
-                type: 'object',
-                description: 'Action to perform on tap',
-                properties: {
-                    action: {
-                        type: 'string',
-                        enum: ['toggle', 'call-service', 'navigate', 'more-info', 'none']
-                    },
-                    service: { type: 'string' },
-                    service_data: { type: 'object' },
-                    navigation_path: { type: 'string' }
-                }
-            },
-            hold_action: {
-                type: 'object',
-                description: 'Action to perform on hold (same structure as tap_action)'
-            },
-            double_tap_action: {
-                type: 'object',
-                description: 'Action to perform on double-tap (same structure as tap_action)'
-            },
-
-            // Rules Engine
-            rules: {
-                type: 'array',
-                description: 'Card-local rules for dynamic styling based on entity states',
-                items: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string' },
-                        when: {
-                            type: 'object',
-                            description: 'Condition object (entity, condition, all, any, not)'
-                        },
-                        apply: {
-                            type: 'object',
-                            description: 'Style patches to apply when condition is true'
-                        }
-                    },
-                    required: ['when', 'apply']
-                }
-            },
-
-            // Animations
-            animations: {
-                type: 'array',
-                description: 'Animation configurations',
-                items: { type: 'object' }
-            }
-        }
-        // No required fields - allows decorative/static buttons without entities
-    }, { version: '1.14.18' });
+        configManager.registerCardSchema('button', buttonSchema, { version: '1.14.18' });
 
         lcardsLog.debug('[LCARdSButton] Registered with CoreConfigManager');
     }
