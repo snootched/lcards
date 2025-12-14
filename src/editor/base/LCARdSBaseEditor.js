@@ -929,7 +929,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-form-field
                     .editor=${this}
                     .config=${this.config}
-                    path="icon.icon"
+                    path="icon"
                     label="Icon">
                 </lcards-form-field>
 
@@ -937,7 +937,7 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-form-field
                     .editor=${this}
                     .config=${this.config}
-                    path="icon.show"
+                    path="show_icon"
                     label="Show Icon">
                 </lcards-form-field>
 
@@ -955,14 +955,14 @@ export class LCARdSBaseEditor extends LitElement {
                     <lcards-form-field
                         .editor=${this}
                         .config=${this.config}
-                        path="icon.size"
+                        path="icon_style.size"
                         label="Icon Size">
                     </lcards-form-field>
 
                     <lcards-form-field
                         .editor=${this}
                         .config=${this.config}
-                        path="icon.padding"
+                        path="icon_style.padding"
                         label="Icon Padding">
                     </lcards-form-field>
                 </lcards-grid-layout>
@@ -971,9 +971,20 @@ export class LCARdSBaseEditor extends LitElement {
                 <lcards-color-section
                     .editor=${this}
                     .config=${this.config}
-                    basePath="icon.color"
+                    basePath="icon_style.color"
                     header="Icon Colors"
                     description="State-based icon colors"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+
+                <!-- Icon Area Background Colors -->
+                <lcards-color-section
+                    .editor=${this}
+                    .config=${this.config}
+                    basePath="icon_area_background"
+                    header="Icon Area Background"
+                    description="State-based icon area background colors"
                     .states=${['default', 'active', 'inactive', 'unavailable']}
                     ?expanded=${false}>
                 </lcards-color-section>

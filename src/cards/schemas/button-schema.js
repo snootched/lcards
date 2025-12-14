@@ -211,11 +211,34 @@ export function getButtonSchema(options = {}) {
             },
 
             icon: {
+                type: 'string',
+                description: 'Icon name (e.g., "mdi:lightbulb")'
+            },
+
+            icon_area_background: {
+                description: 'Icon area background color',
+                ...stateColorSchema
+            },
+
+            icon_area_size: {
+                type: 'number',
+                description: 'Fixed size for icon area (width for left/right, height for top/bottom)'
+            },
+
+            divider: {
                 type: 'object',
-                description: 'Icon configuration',
+                description: 'Divider line between icon area and main area',
+                properties: {
+                    width: { type: 'number', description: 'Divider width in pixels' },
+                    color: { type: 'string', description: 'Divider color' }
+                }
+            },
+
+            icon_style: {
+                type: 'object',
+                description: 'Advanced icon styling configuration',
                 properties: {
                     type: { type: 'string', enum: ['mdi', 'si', 'entity'] },
-                    icon: { type: 'string' },
                     color: stateColorSchema,
                     size: { type: 'number' },
                     rotation: { type: 'number' },
@@ -229,18 +252,7 @@ export function getButtonSchema(options = {}) {
                     padding_left: { type: 'number' },
                     padding_right: { type: 'number' },
                     padding_top: { type: 'number' },
-                    padding_bottom: { type: 'number' },
-                    areaSize: { type: 'number' },
-                    areaBackground: { type: 'string' },
-                    layoutSpacing: { type: 'number' },
-                    iconOnly: { type: 'boolean' },
-                    divider: {
-                        type: 'object',
-                        properties: {
-                            width: { type: 'number' },
-                            color: { type: 'string' }
-                        }
-                    }
+                    padding_bottom: { type: 'number' }
                 }
             },
 

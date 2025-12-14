@@ -95,14 +95,14 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         render: () => html`
                             <div class="form-row">
                                 <label>Mode</label>
-                                <select
+                                <ha-select
                                     .value=${mode}
-                                    @change=${this._handleModeChange}
-                                    style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--divider-color);">
-                                    <option value="preset">Preset (lozenge, bullet, etc.)</option>
-                                    <option value="component">Component (dpad, sliders, etc.)</option>
-                                </select>
-                                <div style="margin-top: 8px; font-size: 12px; color: var(--secondary-text-color);">
+                                    @selected=${this._handleModeChange}
+                                    @closed=${(e) => e.stopPropagation()}>
+                                    <mwc-list-item value="preset">Preset (lozenge, bullet, etc.)</mwc-list-item>
+                                    <mwc-list-item value="component">Component (dpad, sliders, etc.)</mwc-list-item>
+                                </ha-select>
+                                <div class="helper-text">
                                     ${mode === 'preset'
                                         ? 'Preset mode: Use shape presets with text, icons, and styling'
                                         : 'Component mode: Use complex interactive components like dpads'}
@@ -273,7 +273,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * D-pad tab - declarative configuration
+     * D-pad tab - declarative configuration with lazy rendering for performance
      */
     _getDpadTabConfig() {
         const segments = ['center', 'up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
@@ -354,90 +354,110 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     }
                 ]
             },
-            // Per-segment configuration
-            ...segments.map(segmentId => ({
-                type: 'section',
-                header: this._formatSegmentLabel(segmentId),
-                description: `Configure ${this._formatSegmentLabel(segmentId)} segment (overrides defaults)`,
-                icon: this._getSegmentIcon(segmentId),
-                expanded: false,
-                outlined: true,
-                children: [
-                    // Selector override (advanced)
-                    {
-                        type: 'field',
-                        path: `dpad.segments.${segmentId}.selector`,
-                        label: 'CSS Selector (Advanced)',
-                        helper: `Defaults to #${segmentId} if not specified`
-                    },
-                    // Entity override
-                    {
-                        type: 'field',
-                        path: `dpad.segments.${segmentId}.entity`,
-                        label: 'Entity Override',
-                        helper: 'Leave empty to inherit from card entity'
-                    },
-                    // Actions
-                    {
-                        type: 'custom',
-                        render: () => html`
-                            <div class="section-label">Actions</div>
-                            <div class="section-description" style="margin-bottom: 8px;">
-                                Override default actions for this segment
-                            </div>
-                            <lcards-multi-action-editor
-                                .hass=${this.hass}
-                                .actions=${this._getSegmentActions(segmentId)}
-                                @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
-                            </lcards-multi-action-editor>
-                        `
-                    },
-                    // SVG Style
-                    {
-                        type: 'section',
-                        header: 'SVG Style Override',
-                        description: 'Override default SVG styling',
-                        icon: 'mdi:palette-outline',
-                        expanded: false,
-                        outlined: false,
-                        children: [
-                            {
-                                type: 'custom',
-                                render: () => html`
-                                    <lcards-color-section
-                                        .editor=${this}
-                                        .config=${this.config}
-                                        basePath="dpad.segments.${segmentId}.style.fill"
-                                        header="Fill"
-                                        description="SVG fill color states"
-                                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                                        ?expanded=${false}>
-                                    </lcards-color-section>
-                                    <lcards-color-section
-                                        .editor=${this}
-                                        .config=${this.config}
-                                        basePath="dpad.segments.${segmentId}.style.stroke"
-                                        header="Stroke"
-                                        description="SVG stroke color states"
-                                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                                        ?expanded=${false}>
-                                    </lcards-color-section>
-                                `
-                            },
-                            {
-                                type: 'field',
-                                path: `dpad.segments.${segmentId}.style.stroke-width`,
-                                label: 'Stroke Width',
-                                helper: 'SVG stroke width (overrides default)'
-                            }
-                        ]
+            // Per-segment configuration - using custom render with true lazy loading
+            {
+                type: 'custom',
+                render: () => {
+                    // Track which segments are expanded
+                    if (!this._expandedSegments) {
+                        this._expandedSegments = new Set();
                     }
-                ]
-            }))
+
+                    return html`
+                        ${segments.map(segmentId => html`
+                            <lcards-form-section
+                                header="${this._formatSegmentLabel(segmentId)}"
+                                description="Configure ${this._formatSegmentLabel(segmentId)} segment (overrides defaults)"
+                                icon="${this._getSegmentIcon(segmentId)}"
+                                ?expanded=${this._expandedSegments.has(segmentId)}
+                                ?outlined=${true}
+                                headerLevel="4"
+                                @expanded-changed=${(e) => {
+                                    if (e.detail.expanded) {
+                                        this._expandedSegments.add(segmentId);
+                                    } else {
+                                        this._expandedSegments.delete(segmentId);
+                                    }
+                                    this.requestUpdate();
+                                }}>
+                                ${this._expandedSegments.has(segmentId) ? this._renderSegmentContent(segmentId) : html``}
+                            </lcards-form-section>
+                        `)}
+                    `;
+                }
+            }
         ];
     }
 
     /**
+     * Render individual segment content (called lazily when section expands)
+     * @param {string} segmentId - Segment identifier
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSegmentContent(segmentId) {
+        return html`
+            <div class="form-row">
+                <label>Entity Override</label>
+                <ha-entity-picker
+                    .hass=${this.hass}
+                    .value=${this._getConfigValue(`dpad.segments.${segmentId}.entity`)}
+                    @value-changed=${(e) => this._setConfigValue(`dpad.segments.${segmentId}.entity`, e.detail.value)}
+                    allow-custom-entity>
+                </ha-entity-picker>
+                <div class="helper-text">Leave empty to inherit from card entity</div>
+            </div>
+
+            <div class="section-label">Actions</div>
+            <div class="section-description" style="margin-bottom: 8px;">
+                Override default actions for this segment
+            </div>
+            <lcards-multi-action-editor
+                .hass=${this.hass}
+                .actions=${this._getSegmentActions(segmentId)}
+                @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
+            </lcards-multi-action-editor>
+
+            <lcards-form-section
+                header="SVG Style Override"
+                description="Override default SVG styling"
+                icon="mdi:palette-outline"
+                ?expanded=${false}
+                ?outlined=${false}
+                headerLevel="5">
+
+                <lcards-color-section
+                    .editor=${this}
+                    .config=${this.config}
+                    basePath="dpad.segments.${segmentId}.style.fill"
+                    header="Fill"
+                    description="SVG fill color states"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+
+                <lcards-color-section
+                    .editor=${this}
+                    .config=${this.config}
+                    basePath="dpad.segments.${segmentId}.style.stroke"
+                    header="Stroke"
+                    description="SVG stroke color states"
+                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    ?expanded=${false}>
+                </lcards-color-section>
+
+                <div class="form-row">
+                    <label>Stroke Width</label>
+                    <ha-textfield
+                        .value=${this._getConfigValue(`dpad.segments.${segmentId}.style.stroke-width`) || ''}
+                        @input=${(e) => this._setConfigValue(`dpad.segments.${segmentId}.style.stroke-width`, e.target.value)}
+                        placeholder="e.g., 1 or 0.5">
+                    </ha-textfield>
+                    <div class="helper-text">SVG stroke width (overrides default)</div>
+                </div>
+            </lcards-form-section>
+        `;
+    }    /**
      * Get icon for segment
      */
     _getSegmentIcon(segmentId) {

@@ -1942,15 +1942,6 @@ export class LCARdSButton extends LCARdSCard {
         // Determine icon name (always a string: 'mdi:star', 'si:github', 'entity', etc.)
         let iconName = this.config.icon;
 
-        // Backwards compatibility: Handle old nested format { icon: 'mdi:star', ... }
-        if (typeof this.config.icon === 'object' && this.config.icon?.icon) {
-            iconName = this.config.icon.icon;
-            // If old format has show property, use it (but config.show_icon takes priority)
-            if (this.config.show_icon === undefined && this.config.icon.show !== undefined) {
-                show_icon = this.config.icon.show;
-            }
-        }
-
         // If no icon specified but show_icon is true and we have an entity, default to 'entity'
         if (!iconName && show_icon && this._entity) {
             iconName = 'entity';
@@ -2160,10 +2151,10 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Resolve icon spacing (space around icon for clamping calculation)
-            // Priority: config > preset > theme token > hardcoded
+            // Priority: config.icon_style > preset > theme token > hardcoded
             let iconSpacing;
-            if (typeof this.config.icon === 'object' && this.config.icon?.spacing !== undefined) {
-                iconSpacing = this.config.icon.spacing;
+            if (this.config.icon_style?.spacing !== undefined) {
+                iconSpacing = this.config.icon_style.spacing;
             } else if (resolvedStyle.icon?.spacing !== undefined) {
                 iconSpacing = resolvedStyle.icon.spacing;
             } else if (iconTokens.spacing !== undefined) {
@@ -2173,10 +2164,10 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Resolve layout spacing (spacing around icon area for auto-size calculation)
-            // Priority: config > preset > theme token > hardcoded
+            // Priority: config.icon_style > preset > theme token > hardcoded
             let layoutSpacing;
-            if (typeof this.config.icon === 'object' && this.config.icon?.layout_spacing !== undefined) {
-                layoutSpacing = this.config.icon.layout_spacing;
+            if (this.config.icon_style?.layout_spacing !== undefined) {
+                layoutSpacing = this.config.icon_style.layout_spacing;
             } else if (resolvedStyle.icon?.layout_spacing !== undefined) {
                 layoutSpacing = resolvedStyle.icon.layout_spacing;
             } else if (iconTokens.layout_spacing !== undefined) {
