@@ -349,6 +349,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Merge component preset segments with user-provided segments
      * User config takes precedence, but preserves component defaults
+     * Supports dpad.default for default properties applied to all segments
      * @private
      * @param {Object} componentSegments - Resolved component preset segments
      * @param {Object} userSegments - User-provided segment overrides
@@ -357,14 +358,32 @@ export class LCARdSButton extends LCARdSCard {
     _mergeComponentSegments(componentSegments, userSegments) {
         const merged = { ...componentSegments };
 
+        // Extract default configuration (if provided)
+        // Similar to text.default pattern
+        const defaultConfig = userSegments.default || {};
+
         // Deep merge user segments into component segments
         for (const [segmentId, userConfig] of Object.entries(userSegments)) {
+            // Skip 'default' - it's configuration, not a segment to render
+            if (segmentId === 'default') continue;
+
             if (merged[segmentId]) {
-                // Merge user config into existing segment
-                merged[segmentId] = deepMerge(merged[segmentId], userConfig);
+                // Three-way merge: component preset < default config < segment-specific config
+                // This allows default to provide common properties while segment-specific overrides
+                const withDefaults = deepMerge(merged[segmentId], defaultConfig);
+                merged[segmentId] = deepMerge(withDefaults, userConfig);
             } else {
                 // User defined a new segment not in component preset
-                merged[segmentId] = userConfig;
+                // Apply defaults first, then segment-specific config
+                merged[segmentId] = deepMerge(defaultConfig, userConfig);
+            }
+        }
+
+        // If there are segments in merged that weren't in userSegments,
+        // apply default config to them as well
+        for (const segmentId of Object.keys(merged)) {
+            if (!userSegments[segmentId] && Object.keys(defaultConfig).length > 0) {
+                merged[segmentId] = deepMerge(merged[segmentId], defaultConfig);
             }
         }
 
@@ -506,11 +525,12 @@ export class LCARdSButton extends LCARdSCard {
             preserveAspectRatio: svgConfig.preserveAspectRatio || 'xMidYMid meet'
         };
 
-        lcardsLog.debug(`[LCARdSButton] SVG processed`, {
+        lcardsLog.debug(`[LCARdSButton] SVG processing complete`, {
             hasContent: !!this._processedSvg.content,
             contentLength: this._processedSvg.content?.length,
             viewBox: this._processedSvg.viewBox,
-            preserveAspectRatio: this._processedSvg.preserveAspectRatio
+            preserveAspectRatio: this._processedSvg.preserveAspectRatio,
+            tokensWereProcessed: svgConfig.enable_tokens !== false
         });
 
         // Process segments if defined (Phase 2)
@@ -596,7 +616,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Process template tokens in SVG content
-     * Supports {{entity.state}}, theme:tokens
+     * Supports {{entity.state}}, theme:tokens (including computed tokens)
      * @private
      * @param {string} svgContent - Sanitized SVG markup
      * @returns {string} SVG with tokens replaced
@@ -617,14 +637,16 @@ export class LCARdSButton extends LCARdSCard {
                 if (value === null || value === undefined) return match;
                 value = value[part];
             }
+
             return value !== undefined ? String(value) : match;
         });
 
         // Process theme tokens: theme:colors.lcars.orange, etc.
+        // ThemeManager.getToken() handles computed tokens automatically
         const themeTokenPattern = /theme:([a-zA-Z0-9._]+)/g;
         processed = processed.replace(themeTokenPattern, (match, tokenPath) => {
             const value = this.getThemeToken(tokenPath);
-            return value !== null ? String(value) : match;
+            return value !== null && value !== undefined ? String(value) : match;
         });
 
         // Process conditional expressions for fill colors: {{entity.state == 'on' ? 'color1' : 'color2'}}
@@ -1579,20 +1601,28 @@ export class LCARdSButton extends LCARdSCard {
         if (this.config.preset) {
             const hasStylePresetManager = !!this._singletons?.stylePresetManager;
 
-            lcardsLog.debug(`[LCARdSButton] Re-resolving styles after singletons initialized`, {
-                hasStylePresetManager,
-                preset: this.config.preset
-            });
-
             if (hasStylePresetManager) {
                 // StylePresetManager is available - resolve and render now
                 this._resolveButtonStyleSync();
                 this.requestUpdate();
             } else {
                 // StylePresetManager not available yet - wait for it
-                lcardsLog.debug(`[LCARdSButton] Waiting for StylePresetManager to become available`);
                 this._waitForStylePresetManager();
             }
+        }
+
+        // CRITICAL: Re-resolve segment theme tokens now that ThemeManager is available
+        // Segments are initially processed in setConfig, before singletons are initialized
+        if (this._processedSegments && this._singletons?.themeManager) {
+            // Re-process each segment to resolve theme tokens
+            for (const segment of this._processedSegments) {
+                if (segment.style) {
+                    segment.style = this._resolveSegmentThemeTokens(segment.style);
+                }
+            }
+
+            // Trigger re-render to apply resolved colors
+            this.requestUpdate();
         }
     }
 

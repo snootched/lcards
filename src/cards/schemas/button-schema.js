@@ -406,32 +406,67 @@ export function getButtonSchema(options = {}) {
             dpad: {
                 type: 'object',
                 properties: {
+                    default: {
+                        type: 'object',
+                        description: 'Default configuration applied to all segments (can be overridden per-segment)',
+                        properties: {
+                            color: stateColorSchema,
+                            tap_action: actionSchema,
+                            hold_action: actionSchema,
+                            double_tap_action: actionSchema,
+                            style: {
+                                type: 'object',
+                                description: 'Default SVG styling for all segments',
+                                properties: {
+                                    fill: stateColorSchema,
+                                    stroke: stateColorSchema,
+                                    'stroke-width': {
+                                        anyOf: [
+                                            { type: 'number' },
+                                            { type: 'string' },
+                                            stateColorSchema
+                                        ]
+                                    }
+                                }
+                            },
+                            animations: {
+                                type: 'array',
+                                items: animationSchema
+                            }
+                        }
+                    },
                     segments: {
                         type: 'object',
-                        properties: {
-                            // Directional segments
-                            up: { type: 'object' },
-                            down: { type: 'object' },
-                            left: { type: 'object' },
-                            right: { type: 'object' },
-                            'up-left': { type: 'object' },
-                            'up-right': { type: 'object' },
-                            'down-left': { type: 'object' },
-                            'down-right': { type: 'object' },
-                            center: { type: 'object' }
-                        },
+                        description: 'Per-segment configuration (supports all 9 segments: up, down, left, right, up-left, up-right, down-left, down-right, center). Segment-specific config overrides default config.',
                         additionalProperties: {
                             type: 'object',
                             properties: {
-                                entity: { type: 'string', format: 'entity' },
+                                selector: {
+                                    type: 'string',
+                                    description: 'CSS selector for SVG element (defaults to #{segment-id} if not specified)'
+                                },
+                                entity: {
+                                    type: 'string',
+                                    format: 'entity',
+                                    description: 'Entity ID for this segment (overrides card entity)'
+                                },
                                 tap_action: actionSchema,
                                 hold_action: actionSchema,
                                 double_tap_action: actionSchema,
+                                color: stateColorSchema,
                                 style: {
                                     type: 'object',
+                                    description: 'SVG styling for the segment',
                                     properties: {
                                         fill: stateColorSchema,
-                                        stroke: stateColorSchema
+                                        stroke: stateColorSchema,
+                                        'stroke-width': {
+                                            anyOf: [
+                                                { type: 'number' },
+                                                { type: 'string' },
+                                                stateColorSchema
+                                            ]
+                                        }
                                     }
                                 },
                                 animations: {

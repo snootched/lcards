@@ -27,14 +27,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'button';
-        this._selectedSegmentId = 'center';
-    }
-
-    static get properties() {
-        return {
-            ...super.properties,
-            _selectedSegmentId: { type: String, state: true }
-        };
     }
 
     /**
@@ -270,7 +262,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderComponentTab() {
         const componentType = this.config.component || 'dpad';
         if (componentType === 'dpad') {
-            return this._renderDpadComponentEditor();
+            return this._renderFromConfig(this._getDpadTabConfig());
         }
         return html`
             <lcards-message
@@ -281,83 +273,149 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * D-pad component editor
+     * D-pad tab - declarative configuration
      */
-    _renderDpadComponentEditor() {
+    _getDpadTabConfig() {
+        const segments = ['center', 'up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
+
+        return [
+            {
+                type: 'custom',
+                render: () => html`
+                    <lcards-message
+                        type="info"
+                        message="Configure your D-pad remote control. Each segment can have its own entity, actions, and colors.">
+                    </lcards-message>
+                `
+            },
+            // Default segment colors
+            {
+                type: 'section',
+                header: 'Default Segment Colors',
+                description: 'Default colors for all segments (can be overridden per segment)',
+                icon: 'mdi:palette',
+                expanded: false,
+                outlined: true,
+                children: [
+                    {
+                        type: 'custom',
+                        render: () => html`
+                            <lcards-color-section
+                                .editor=${this}
+                                .config=${this.config}
+                                basePath="dpad.default.color"
+                                header="Default Colors"
+                                description="State-based colors for all segments"
+                                .states=${['default', 'active', 'inactive', 'unavailable']}
+                                ?expanded=${true}>
+                            </lcards-color-section>
+                        `
+                    }
+                ]
+            },
+            // Per-segment configuration
+            ...segments.map(segmentId => ({
+                type: 'section',
+                header: this._formatSegmentLabel(segmentId),
+                description: `Configure ${this._formatSegmentLabel(segmentId)} segment`,
+                icon: this._getSegmentIcon(segmentId),
+                expanded: segmentId === 'center',
+                outlined: true,
+                children: [
+                    // Entity override
+                    {
+                        type: 'field',
+                        path: `dpad.segments.${segmentId}.entity`,
+                        label: 'Entity Override',
+                        helper: 'Leave empty to inherit from card entity'
+                    },
+                    // Actions
+                    {
+                        type: 'custom',
+                        render: () => html`
+                            <lcards-multi-action-editor
+                                .hass=${this.hass}
+                                .actions=${this._getSegmentActions(segmentId)}
+                                @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
+                            </lcards-multi-action-editor>
+                        `
+                    },
+                    // State colors
+                    {
+                        type: 'custom',
+                        render: () => html`
+                            <lcards-color-section
+                                .editor=${this}
+                                .config=${this.config}
+                                basePath="dpad.segments.${segmentId}.color"
+                                header="Segment Colors"
+                                description="State-based colors (overrides defaults)"
+                                .states=${['default', 'active', 'inactive', 'unavailable']}
+                                ?expanded=${false}>
+                            </lcards-color-section>
+                        `
+                    }
+                ]
+            }))
+        ];
+    }
+
+    /**
+     * Get icon for segment
+     */
+    _getSegmentIcon(segmentId) {
+        const iconMap = {
+            'center': 'mdi:gamepad-round',
+            'up': 'mdi:gamepad-up',
+            'down': 'mdi:gamepad-down',
+            'left': 'mdi:gamepad-left',
+            'right': 'mdi:gamepad-right',
+            'up-left': 'mdi:numeric-1-circle',
+            'up-right': 'mdi:numeric-2-circle',
+            'down-left': 'mdi:numeric-3-circle',
+            'down-right': 'mdi:numeric-4-circle'
+        };
+        return iconMap[segmentId] || 'mdi:gamepad';
+    }
+
+    /**
+     * Get segment actions
+     */
+    _getSegmentActions(segmentId) {
+        const segmentConfig = this.config.dpad?.segments?.[segmentId] || {};
+        return {
+            tap_action: segmentConfig.tap_action || { action: 'none' },
+            hold_action: segmentConfig.hold_action || { action: 'none' },
+            double_tap_action: segmentConfig.double_tap_action || { action: 'none' }
+        };
+    }
+
+    /**
+     * Handle segment actions change
+     */
+    _handleSegmentActionsChange(segmentId, event) {
+        const actions = event.detail.value;
         const segmentConfigs = this.config.dpad?.segments || {};
-        const activeSegmentConfig = segmentConfigs[this._selectedSegmentId] || {};
+        const updatedSegmentConfig = {
+            ...(segmentConfigs[segmentId] || {}),
+            tap_action: actions.tap_action,
+            hold_action: actions.hold_action,
+            double_tap_action: actions.double_tap_action
+        };
 
-        return html`
-            <lcards-message
-                type="info"
-                message="Configure your D-pad remote control. Click a segment below to edit its configuration.">
-            </lcards-message>
+        // Remove actions if they're set to 'none'
+        ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
+            if (updatedSegmentConfig[key]?.action === 'none') {
+                delete updatedSegmentConfig[key];
+            }
+        });
 
-            <lcards-form-section
-                header="D-Pad Segment Selector"
-                description="Click a segment to select it for editing"
-                icon="mdi:gamepad"
-                ?expanded=${true}
-                ?outlined=${true}
-                headerLevel="4">
-                <lcards-dpad-segment-picker
-                    .value=${this._selectedSegmentId}
-                    .segmentConfigs=${segmentConfigs}
-                    .label=${'Select Segment to Edit'}
-                    .helper=${'Green cells are configured. Click any cell to edit that segment.'}
-                    @value-changed=${this._handleSegmentSelect}>
-                </lcards-dpad-segment-picker>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="${this._formatSegmentLabel(this._selectedSegmentId)} Configuration"
-                description="Configure actions and appearance for this segment"
-                icon="mdi:cog"
-                ?expanded=${true}
-                ?outlined=${true}
-                headerLevel="4">
-                <div class="form-row">
-                    <label>Entity (optional override)</label>
-                    <ha-entity-picker
-                        .hass=${this.hass}
-                        .value=${activeSegmentConfig.entity || ''}
-                        @value-changed=${(e) => this._updateActiveSegmentProperty('entity', e.detail.value)}
-                        allow-custom-entity>
-                    </ha-entity-picker>
-                    <div style="margin-top: 4px; font-size: 11px; color: var(--secondary-text-color);">
-                        Leave empty to inherit from card entity
-                    </div>
-                </div>
-
-                <lcards-multi-action-editor
-                    .hass=${this.hass}
-                    .actions=${{
-                        tap_action: activeSegmentConfig.tap_action || { action: 'none' },
-                        hold_action: activeSegmentConfig.hold_action || { action: 'none' },
-                        double_tap_action: activeSegmentConfig.double_tap_action || { action: 'none' }
-                    }}
-                    @value-changed=${this._handleActiveSegmentActionsChange}>
-                </lcards-multi-action-editor>
-
-                ${activeSegmentConfig.animations && activeSegmentConfig.animations.length > 0 ? html`
-                    <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px;">
-                        <div style="font-weight: 500; margin-bottom: 8px;">Animations</div>
-                        <div style="font-size: 12px; color: var(--secondary-text-color);">
-                            ${activeSegmentConfig.animations.length} animation(s) configured
-                        </div>
-                        <div style="margin-top: 8px; font-size: 11px; color: var(--secondary-text-color);">
-                            Advanced animation configuration is available in the YAML tab
-                        </div>
-                    </div>
-                ` : html`
-                    <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px;">
-                        <div style="font-size: 12px; color: var(--secondary-text-color);">
-                            No animations configured. Add animations via the YAML tab.
-                        </div>
-                    </div>
-                `}
-            </lcards-form-section>
-        `;
+        this._updateConfig({
+            dpad: {
+                ...(this.config.dpad || {}),
+                segments: { ...segmentConfigs, [segmentId]: updatedSegmentConfig }
+            }
+        });
     }
 
     /**
@@ -403,50 +461,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _handleSegmentsChange(event) {
         this._updateConfig({
             svg: { ...(this.config.svg || {}), segments: event.detail.value }
-        });
-    }
-
-    _handleSegmentSelect(event) {
-        this._selectedSegmentId = event.detail.value;
-        this.requestUpdate();
-    }
-
-    _updateActiveSegmentProperty(property, value) {
-        const segmentConfigs = this.config.dpad?.segments || {};
-        const updatedSegmentConfig = {
-            ...(segmentConfigs[this._selectedSegmentId] || {}),
-            [property]: value
-        };
-        if (!value || value === '') {
-            delete updatedSegmentConfig[property];
-        }
-        this._updateConfig({
-            dpad: {
-                ...(this.config.dpad || {}),
-                segments: { ...segmentConfigs, [this._selectedSegmentId]: updatedSegmentConfig }
-            }
-        });
-    }
-
-    _handleActiveSegmentActionsChange(event) {
-        const actions = event.detail.value;
-        const segmentConfigs = this.config.dpad?.segments || {};
-        const updatedSegmentConfig = {
-            ...(segmentConfigs[this._selectedSegmentId] || {}),
-            tap_action: actions.tap_action,
-            hold_action: actions.hold_action,
-            double_tap_action: actions.double_tap_action
-        };
-        ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
-            if (updatedSegmentConfig[key]?.action === 'none') {
-                delete updatedSegmentConfig[key];
-            }
-        });
-        this._updateConfig({
-            dpad: {
-                ...(this.config.dpad || {}),
-                segments: { ...segmentConfigs, [this._selectedSegmentId]: updatedSegmentConfig }
-            }
         });
     }
 
