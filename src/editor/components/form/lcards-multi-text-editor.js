@@ -25,7 +25,10 @@ export class LCARdSMultiTextEditor extends LitElement {
     static get properties() {
         return {
             editor: { type: Object },         // Parent editor reference
-            hass: { type: Object }            // Home Assistant instance
+            hass: { type: Object },           // Home Assistant instance
+            _showCustomInput: { type: Boolean, state: true },
+            _customFieldName: { type: String, state: true },
+            _selectedField: { type: String, state: true }
         };
     }
 
@@ -33,6 +36,9 @@ export class LCARdSMultiTextEditor extends LitElement {
         super();
         this.editor = null;
         this.hass = null;
+        this._showCustomInput = false;
+        this._customFieldName = '';
+        this._selectedField = '';
     }
 
     static get styles() {
@@ -72,6 +78,42 @@ export class LCARdSMultiTextEditor extends LitElement {
             .add-field-button:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+            }
+
+            .custom-field-input {
+                display: flex;
+                gap: 8px;
+                align-items: flex-start;
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid var(--divider-color, #e0e0e0);
+            }
+
+            .custom-field-input ha-textfield {
+                flex: 1;
+            }
+
+            .custom-field-actions {
+                display: flex;
+                gap: 4px;
+            }
+
+            .custom-field-actions button {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .custom-field-add {
+                background: var(--primary-color, #03a9f4);
+                color: white;
+            }
+
+            .custom-field-cancel {
+                background: var(--secondary-background-color, #e0e0e0);
+                color: var(--primary-text-color);
             }
 
             .field-actions {
@@ -450,11 +492,40 @@ export class LCARdSMultiTextEditor extends LitElement {
                     `)}
                     <mwc-list-item value="custom">Custom field name...</mwc-list-item>
                 </ha-select>
-                <button
-                    class="add-field-button"
-                    @click=${this._handleAddField}>
-                    Add Field
-                </button>
+                ${!this._showCustomInput ? html`
+                    <button
+                        class="add-field-button"
+                        @click=${this._handleAddField}
+                        ?disabled=${!this._selectedField}>
+                        Add Field
+                    </button>
+                ` : ''}
+
+                ${this._showCustomInput ? html`
+                    <div class="custom-field-input">
+                        <ha-textfield
+                            label="Custom Field Name"
+                            .value=${this._customFieldName}
+                            @input=${this._handleCustomNameInput}
+                            placeholder="e.g., my_custom_field"
+                            helper-text="Alphanumeric and underscore only"
+                            validationMessage="Must start with letter/underscore, contain only alphanumeric and underscore">
+                        </ha-textfield>
+                        <div class="custom-field-actions">
+                            <button
+                                class="custom-field-add"
+                                @click=${this._handleAddCustomField}
+                                ?disabled=${!this._isValidCustomName()}>
+                                Add
+                            </button>
+                            <button
+                                class="custom-field-cancel"
+                                @click=${this._handleCancelCustom}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -464,8 +535,15 @@ export class LCARdSMultiTextEditor extends LitElement {
      * @private
      */
     _handleFieldSelected(e) {
-        // Store the selected value for the add button click
-        this._selectedField = e.target.value;
+        const value = e.target.value;
+        this._selectedField = value;
+
+        if (value === 'custom') {
+            this._showCustomInput = true;
+            this._customFieldName = '';
+        } else {
+            this._showCustomInput = false;
+        }
     }
 
     /**
@@ -477,16 +555,7 @@ export class LCARdSMultiTextEditor extends LitElement {
 
         if (!fieldName) return;
 
-        if (fieldName === 'custom') {
-            const customName = prompt('Enter custom field name (alphanumeric and underscore only):');
-            if (!customName || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(customName)) {
-                alert('Invalid field name. Must start with letter or underscore, contain only alphanumeric and underscore.');
-                return;
-            }
-            this._addField(customName);
-        } else {
-            this._addField(fieldName);
-        }
+        this._addField(fieldName);
 
         // Reset select
         const select = this.shadowRoot.getElementById('fieldSelect');
@@ -494,6 +563,56 @@ export class LCARdSMultiTextEditor extends LitElement {
             select.value = '';
             this._selectedField = '';
         }
+    }
+
+    /**
+     * Handle custom field name input
+     * @private
+     */
+    _handleCustomNameInput(e) {
+        this._customFieldName = e.target.value;
+    }
+
+    /**
+     * Validate custom field name
+     * @returns {boolean}
+     * @private
+     */
+    _isValidCustomName() {
+        return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(this._customFieldName);
+    }
+
+    /**
+     * Handle add custom field button click
+     * @private
+     */
+    _handleAddCustomField() {
+        if (!this._isValidCustomName()) return;
+
+        this._addField(this._customFieldName);
+
+        // Reset
+        const select = this.shadowRoot.getElementById('fieldSelect');
+        if (select) {
+            select.value = '';
+        }
+        this._selectedField = '';
+        this._showCustomInput = false;
+        this._customFieldName = '';
+    }
+
+    /**
+     * Handle cancel custom field
+     * @private
+     */
+    _handleCancelCustom() {
+        const select = this.shadowRoot.getElementById('fieldSelect');
+        if (select) {
+            select.value = '';
+        }
+        this._selectedField = '';
+        this._showCustomInput = false;
+        this._customFieldName = '';
     }
 
     /**
@@ -512,7 +631,7 @@ export class LCARdSMultiTextEditor extends LitElement {
 
         // Create new field with minimal config
         const newField = {
-            content: `{{entity.${fieldName}}}`,
+            content: `${fieldName}`,
             show: true
         };
 
