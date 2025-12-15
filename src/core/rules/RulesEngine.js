@@ -1293,6 +1293,14 @@ export class RulesEngine extends BaseService {
     this.traceBuffer.clear();
     perfCount('rules.trace.cleared', 1);
   }
+
+  /**
+   * Get all rules in the system
+   * @returns {Array} Array of rule objects
+   */
+  getAllRules() {
+    return this.rules || [];
+  }
 }
 
 /**

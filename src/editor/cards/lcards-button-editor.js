@@ -21,6 +21,8 @@ import '../components/form/lcards-border-editor.js';
 import '../components/form/lcards-segment-list-editor.js';
 import '../components/form/lcards-multi-action-editor.js';
 import '../components/form/lcards-dpad-segment-picker.js';
+// Import dashboard components
+import '../components/dashboard/lcards-rules-dashboard.js';
 
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
@@ -60,6 +62,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
         tabs.push(
             { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
+            { label: 'Rules', content: () => this._renderRulesTab() },
             { label: 'YAML', content: () => this._renderYamlTab() }
         );
 
@@ -269,6 +272,19 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 type="info"
                 message="Component editor for ${componentType} is not yet implemented.">
             </lcards-message>
+        `;
+    }
+
+    /**
+     * Rules tab - display-only rules dashboard
+     */
+    _renderRulesTab() {
+        return html`
+            <lcards-rules-dashboard
+                .editor=${this}
+                .cardId=${this.config.id || this.config.cardId || ''}
+                .hass=${this.hass}>
+            </lcards-rules-dashboard>
         `;
     }
 
