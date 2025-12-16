@@ -154,7 +154,7 @@ export function getButtonSchema(options = {}) {
                                 type: 'string',
                                 enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900']
                             },
-                            font_family: { type: 'string', enum: fontFamilyEnum },
+                            font_family: { type: 'string', format: 'font-family', enum: fontFamilyEnum },
                             text_transform: {
                                 type: 'string',
                                 enum: ['none', 'uppercase', 'lowercase', 'capitalize']
@@ -183,7 +183,7 @@ export function getButtonSchema(options = {}) {
                             type: 'string',
                             enum: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900']
                         },
-                        font_family: { type: 'string', enum: fontFamilyEnum },
+                        font_family: { type: 'string', format: 'font-family', enum: fontFamilyEnum },
                         text_transform: {
                             type: 'string',
                             enum: ['none', 'uppercase', 'lowercase', 'capitalize']
@@ -319,7 +319,7 @@ export function getButtonSchema(options = {}) {
                                     color: stateColorSchema,
                                     font_size: { type: 'number' },
                                     font_weight: { type: 'string' },
-                                    font_family: { type: 'string' }
+                                    font_family: { type: 'string', format: 'font-family' }
                                 }
                             }
                         }

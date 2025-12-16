@@ -25,6 +25,7 @@ import {
     getEnumOptions
 } from '../../../utils/schema-helpers.js';
 import './lcards-position-picker.js';
+import './lcards-font-selector.js';
 
 export class LCARdSFormField extends LitElement {
 
@@ -195,6 +196,10 @@ export class LCARdSFormField extends LitElement {
             return this._renderActionEditor();
         }
 
+        if (hasFormat(schema, 'font-family')) {
+            return this._renderFontSelector();
+        }
+
         // Check for position enum (graphical picker)
         if (isPositionEnum(schema)) {
             return this._renderPositionPicker();
@@ -323,6 +328,25 @@ export class LCARdSFormField extends LitElement {
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
             </lcards-position-picker>
+        `;
+    }
+
+    /**
+     * Render font selector
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderFontSelector() {
+        return html`
+            <lcards-font-selector
+                .hass=${this.editor.hass}
+                .value=${this._value || 'Antonio'}
+                .label=${this._effectiveLabel}
+                .helper=${this._effectiveHelper}
+                .disabled=${this.disabled}
+                .showPreview=${true}
+                @value-changed=${this._handleValueChange}>
+            </lcards-font-selector>
         `;
     }
 
