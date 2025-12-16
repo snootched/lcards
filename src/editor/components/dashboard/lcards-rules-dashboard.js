@@ -142,6 +142,13 @@ export class LCARdSRulesDashboard extends LitElement {
                 font-weight: 600;
             }
 
+            .rule-priority {
+                font-family: monospace;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--primary-text-color, #000);
+            }
+
             .rule-type {
                 display: inline-block;
                 padding: 2px 8px;
@@ -331,6 +338,10 @@ export class LCARdSRulesDashboard extends LitElement {
                     aVal = a.type || 'overlay';
                     bVal = b.type || 'overlay';
                     break;
+                case 'priority':
+                    aVal = a.priority || 0;
+                    bVal = b.priority || 0;
+                    break;
                 case 'enabled':
                     aVal = a.enabled !== false ? 1 : 0;
                     bVal = b.enabled !== false ? 1 : 0;
@@ -338,6 +349,10 @@ export class LCARdSRulesDashboard extends LitElement {
                 case 'target':
                     aVal = this._getRuleTargets(a);
                     bVal = this._getRuleTargets(b);
+                    break;
+                case 'source':
+                    aVal = this._getSourceCard(a);
+                    bVal = this._getSourceCard(b);
                     break;
                 case 'actions':
                     aVal = this._getActionsCount(a);
@@ -440,6 +455,37 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
+     * Get source card ID for a rule
+     * @param {Object} rule - Rule object
+     * @returns {String} Source card ID or 'Unknown'
+     * @private
+     */
+    _getSourceCard(rule) {
+        // Check for metadata added during registration
+        if (rule._sourceCardId) {
+            return rule._sourceCardId;
+        }
+
+        // Fallback: try to infer from overlay targets
+        const targets = this._getRuleTargets(rule);
+        if (targets && targets !== 'Global') {
+            return targets.split(', ')[0]; // Return first target as likely source
+        }
+
+        return 'Unknown';
+    }
+
+    /**
+     * Get source card type for a rule
+     * @param {Object} rule - Rule object
+     * @returns {String} Source card type or 'unknown'
+     * @private
+     */
+    _getSourceCardType(rule) {
+        return rule._sourceCardType || 'unknown';
+    }
+
+    /**
      * Render rules table
      * @param {Array} rules - Rules to display
      * @param {Boolean} highlight - Whether to highlight targeting rules
@@ -461,11 +507,11 @@ export class LCARdSRulesDashboard extends LitElement {
                                     (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
                             </span>
                         </th>
-                        <th @click=${() => this._handleSort('type')}
-                            class=${this._sortColumn === 'type' ? 'sorted' : ''}>
-                            Type
+                        <th @click=${() => this._handleSort('priority')}
+                            class=${this._sortColumn === 'priority' ? 'sorted' : ''}>
+                            Priority
                             <span class="sort-indicator">
-                                ${this._sortColumn === 'type' ?
+                                ${this._sortColumn === 'priority' ?
                                     (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
                             </span>
                         </th>
@@ -474,6 +520,14 @@ export class LCARdSRulesDashboard extends LitElement {
                             Status
                             <span class="sort-indicator">
                                 ${this._sortColumn === 'enabled' ?
+                                    (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
+                            </span>
+                        </th>
+                        <th @click=${() => this._handleSort('source')}
+                            class=${this._sortColumn === 'source' ? 'sorted' : ''}>
+                            Source Card
+                            <span class="sort-indicator">
+                                ${this._sortColumn === 'source' ?
                                     (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
                             </span>
                         </th>
@@ -499,17 +553,31 @@ export class LCARdSRulesDashboard extends LitElement {
                 <tbody>
                     ${sortedRules.map(rule => {
                         const isTargeting = highlight && this._isTargetingCard(rule, this.cardId);
+                        const hasStop = rule.stop === true;
+                        const cardType = this._getSourceCardType(rule);
                         return html`
                             <tr class=${isTargeting ? 'highlight' : ''}>
                                 <td><span class="rule-id">${rule.id || 'N/A'}</span></td>
                                 <td>
-                                    <span class="rule-type">${rule.type || 'overlay'}</span>
+                                    <span class="rule-priority">
+                                        ${rule.priority ?? 0}${hasStop ? ' 🛑' : ''}
+                                    </span>
                                 </td>
                                 <td>
                                     <span class="rule-enabled">
                                         <span class="status-badge ${rule.enabled !== false ? 'enabled' : 'disabled'}"></span>
                                         ${rule.enabled !== false ? 'Enabled' : 'Disabled'}
                                     </span>
+                                </td>
+                                <td>
+                                    <div class="rule-target">
+                                        <div style="font-family: monospace; font-size: 12px;">
+                                            ${this._getSourceCard(rule)}
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--secondary-text-color, #666); margin-top: 2px;">
+                                            ${cardType}
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="rule-target">
@@ -536,7 +604,6 @@ export class LCARdSRulesDashboard extends LitElement {
 
     render() {
         const myRules = this._rules.filter(r => this._isTargetingCard(r, this.cardId));
-        const otherRules = this._rules.filter(r => !this._isTargetingCard(r, this.cardId));
         const totalEnabled = this._rules.filter(r => r.enabled !== false).length;
 
         return html`
@@ -561,7 +628,7 @@ export class LCARdSRulesDashboard extends LitElement {
                 ${myRules.length > 0 ? html`
                     <lcards-form-section
                         header="Rules Targeting This Card"
-                        description="Rules that specifically affect this card"
+                        description="Rules that specifically affect this card (highlighted in table below)"
                         icon="mdi:target"
                         ?expanded=${true}>
                         ${this._renderRulesTable(myRules, true)}
@@ -576,12 +643,12 @@ export class LCARdSRulesDashboard extends LitElement {
                 <!-- All Rules in System -->
                 <lcards-form-section
                     header="All Rules in System"
-                    description="Complete list of rules registered in the rules engine"
+                    description="Complete list of all rules registered in the rules engine (rules targeting this card are highlighted)"
                     icon="mdi:code-braces"
                     ?expanded=${false}>
-                    ${otherRules.length > 0 ?
-                        this._renderRulesTable(otherRules, false) :
-                        html`<lcards-message type="info" message="No other rules found."></lcards-message>`
+                    ${this._rules.length > 0 ?
+                        this._renderRulesTable(this._rules, true) :
+                        html`<lcards-message type="info" message="No rules found in system."></lcards-message>`
                     }
                 </lcards-form-section>
 
@@ -594,8 +661,8 @@ export class LCARdSRulesDashboard extends LitElement {
                         <h4>What are Rules?</h4>
                         <p>
                             Rules enable dynamic card behavior based on entity states, time conditions,
-                            and other criteria. When a rule's conditions are met, it can modify card
-                            configuration, trigger animations, or perform other actions.
+                            and other criteria. When a rule's conditions are met, it applies configuration
+                            patches to modify any aspect of the card (text, style, icons, etc.).
                         </p>
 
                         <h4>How to Add Rules</h4>
@@ -603,30 +670,49 @@ export class LCARdSRulesDashboard extends LitElement {
                             Rules are configured in YAML. Add a <code>rules</code> section to your card configuration:
                         </p>
                         <pre><code>type: custom:lcards-button
+id: my_button
 entity: light.living_room
 rules:
-  - id: rule_night_mode
-    conditions:
-      all:
-        - entity: sun.sun
-          state: below_horizon
-    actions:
-      - type: modify_config
-        config:
+  - id: light_on_rule
+    priority: 100
+    when:
+      entity: light.living_room
+      state: "on"
+    apply:
+      overlays:
+        my_button:
+          text:
+            label: "Light ON"
           style:
-            color:
-              default: "#0099ff"</code></pre>
+            card:
+              color:
+                background:
+                  active: "var(--lcars-green)"</code></pre>
 
-                        <h4>Targeting Rules</h4>
+                        <h4>Rule Structure</h4>
                         <p>
-                            Rules can target specific cards by ID or tag. To target this card,
-                            use the card's unique ID in the rule's <code>target</code> field.
+                            <code>id</code> - Unique identifier<br>
+                            <code>priority</code> - Higher values execute first (default: 0)<br>
+                            <code>stop</code> - Stop evaluating lower priority rules (default: false)<br>
+                            <code>enabled</code> - Enable/disable rule (default: true)<br>
+                            <code>when</code> - Conditions to check (entity states, time, etc.)<br>
+                            <code>apply.overlays</code> - Configuration patches to apply (can patch any config property)
+                        </p>
+
+                        <h4>What Can Rules Patch?</h4>
+                        <p>
+                            Rules can modify <strong>any configuration property</strong>, including:<br>
+                            • <code>text</code> - Labels, values, units<br>
+                            • <code>style</code> - Colors, sizes, borders<br>
+                            • <code>icon</code> - Icon name, color, size<br>
+                            • <code>dpad</code> - D-pad configuration<br>
+                            • Any other card configuration property
                         </p>
 
                         <h4>Editing Rules</h4>
                         <p>
                             This dashboard is <strong>read-only</strong>. To add, edit, or remove rules,
-                            edit your card's YAML configuration directly using the YAML tab.
+                            edit your card's YAML configuration directly.
                         </p>
                     </div>
                 </lcards-form-section>

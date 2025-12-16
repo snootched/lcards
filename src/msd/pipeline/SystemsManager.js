@@ -237,13 +237,20 @@ export class SystemsManager extends BaseService {
     if (mergedConfig.rules && mergedConfig.rules.length > 0) {
       lcardsLog.debug(`[SystemsManager] 📋 Adding ${mergedConfig.rules.length} rules from this MSD to shared RulesEngine`);
 
+      // Get card ID for source tracking
+      const sourceCardId = this._cardGuid || mergedConfig.id || 'unknown-msd';
+
       // Add rules to the shared engine's rules array
       mergedConfig.rules.forEach(rule => {
         if (rule.id) {
           // Check if rule already exists to avoid duplicates
           if (!this.rulesEngine.rulesById.has(rule.id)) {
+            // Add metadata for tracking which card registered this rule
+            rule._sourceCardId = sourceCardId;
+            rule._sourceCardType = 'msd';
+
             this.rulesEngine.rules.push(rule);
-            lcardsLog.debug(`[SystemsManager] ➕ Added rule: ${rule.id}`);
+            lcardsLog.debug(`[SystemsManager] ➕ Added rule: ${rule.id} (from ${sourceCardId})`);
           } else {
             lcardsLog.warn(`[SystemsManager] ⚠️ Rule ${rule.id} already exists in shared RulesEngine, skipping`);
           }

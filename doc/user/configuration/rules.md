@@ -1,6 +1,6 @@
 # Rules Engine
 
-> **Dynamic overlay styling and behavior based on entity states, time, and conditions**
+> **Dynamic overlay configuration and behavior based on entity states, time, and conditions**
 > Control your card's appearance and behavior based on real-time data from Home Assistant.
 
 ---
@@ -12,7 +12,7 @@
 3. [Rule Structure](#rule-structure)
 4. [Conditions](#conditions)
 5. [Actions](#actions)
-6. [Overlay Styling](#overlay-styling)
+6. [Overlay Configuration](#overlay-configuration)
 7. [Logical Operators](#logical-operators)
 8. [Time-Based Rules](#time-based-rules)
 9. [Priority and Stop](#priority-and-stop)
@@ -27,7 +27,7 @@ The **Rules Engine** evaluates conditions and dynamically applies changes to you
 
 ### What Can Rules Do?
 
-✅ **Change overlay styles** - Modify colors, sizes, visibility
+✅ **Change overlay configuration** - Modify any config property (text, style, icons, dpad, etc.)
 ✅ **Apply base SVG filters** - Dim, blur, or colorize the background
 ✅ **Activate profiles** - Switch between configuration presets
 ✅ **Trigger animations** - Start animations based on conditions
@@ -375,11 +375,11 @@ rules:
 
 ---
 
-## Overlay Styling
+## Overlay Configuration
 
-Apply style changes to specific overlays when conditions are met.
+Apply configuration changes to specific overlays when conditions are met. Rules can patch **any configuration property** including text, style, icons, dpad settings, and more.
 
-### Single Overlay
+### Single Overlay - Style Changes
 
 ```yaml
 rules:
@@ -395,6 +395,26 @@ rules:
             font_size: 32
 ```
 
+### Single Overlay - Text Changes
+
+```yaml
+rules:
+  - id: light_on
+    when:
+      entity: light.living_room
+      state: "on"
+    apply:
+      overlays:
+        my_button:
+          text:
+            label: "Light ON"     # Change button text
+          style:
+            card:
+              color:
+                background:
+                  active: var(--lcars-green)
+```
+
 ### Multiple Overlays
 
 ```yaml
@@ -406,9 +426,10 @@ rules:
     apply:
       overlays:
         status_text:              # First overlay
+          text:
+            label: "⚠️ ALERT"    # Change text
           style:
             color: var(--lcars-red)
-            text: "⚠️ ALERT"
 
         indicator_light:          # Second overlay
           style:

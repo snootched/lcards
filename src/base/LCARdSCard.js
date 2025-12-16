@@ -729,6 +729,11 @@ export class LCARdSCard extends LCARdSNativeCard {
             const rulesEngine = this._singletons.rulesEngine;
             let addedCount = 0;
 
+            // Get source card ID for tracking
+            const sourceCardId = this.config?.id || this._cardGuid || 'unknown-card';
+            // Infer card type from config.type or constructor name
+            const sourceCardType = this.config?.type?.replace('custom:', '') || this.constructor.name || 'simple';
+
             // Add each rule to the shared engine (skip duplicates by ID)
             rules.forEach(rule => {
                 // Ensure rule has an ID
@@ -743,6 +748,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                     return;
                 }
 
+                // Add metadata for tracking which card registered this rule
+                rule._sourceCardId = sourceCardId;
+                rule._sourceCardType = sourceCardType;
+
                 // Add rule to engine
                 rulesEngine.rules.push(rule);
                 addedCount++;
@@ -755,7 +764,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                 rulesEngine._compileRules();
                 rulesEngine.markAllDirty(); // Mark all rules dirty for initial evaluation
 
-                lcardsLog.info(`[LCARdSCard] Loaded ${addedCount} rules from config. Total rules in engine: ${rulesEngine.rules.length}`);
+                lcardsLog.info(`[LCARdSCard] Loaded ${addedCount} rules from ${sourceCardId} (${sourceCardType}). Total rules in engine: ${rulesEngine.rules.length}`);
             }
 
         } catch (error) {
