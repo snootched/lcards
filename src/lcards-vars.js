@@ -6,8 +6,8 @@ export const project_url = "https://lcards.unimatrix01.ca";
 
 export const core_fonts = [
         'https://fonts.googleapis.com/css2?family=Antonio:wght@100;700&display=swap',
-        'cb-lcars_jeffries',
-        'cb-lcars_microgramma'
+        'lcards_jeffries',
+        'lcards_microgramma'
     ];
 
 

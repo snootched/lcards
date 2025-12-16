@@ -2,6 +2,61 @@ import { core_fonts } from '../lcards-vars.js';
 import { lcardsLog } from './lcards-logging.js';
 
 /**
+ * Map legacy CB-LCARS font names to new LCARdS names
+ * @type {Map<string, string>}
+ */
+const FONT_NAME_MIGRATION = new Map([
+    ['cb-lcars_antonio', 'lcards_antonio'],
+    ['cb-lcars_bajoran_ancient', 'lcards_bajoran_ancient'],
+    ['cb-lcars_bajoran_ideogram', 'lcards_bajoran_ideogram'],
+    ['cb-lcars_binar', 'lcards_binar'],
+    ['cb-lcars_borg', 'lcards_borg'],
+    ['cb-lcars_cardassian', 'lcards_cardassian'],
+    ['cb-lcars_changeling', 'lcards_changeling'],
+    ['cb-lcars_context_ultra_condensed', 'lcards_context_ultra_condensed'],
+    ['cb-lcars_crillee', 'lcards_crillee'],
+    ['cb-lcars_dominion', 'lcards_dominion'],
+    ['cb-lcars_eurostile', 'lcards_eurostile'],
+    ['cb-lcars_eurostile_oblique', 'lcards_eurostile_oblique'],
+    ['cb-lcars_fabrini', 'lcards_fabrini'],
+    ['cb-lcars_federation', 'lcards_federation'],
+    ['cb-lcars_ferengi_left', 'lcards_ferengi_left'],
+    ['cb-lcars_ferengi_right', 'lcards_ferengi_right'],
+    ['cb-lcars_galaxy', 'lcards_galaxy'],
+    ['cb-lcars_handel_gothic', 'lcards_handel_gothic'],
+    ['cb-lcars_jeffries', 'lcards_jeffries'],
+    ['cb-lcars_klingon', 'lcards_klingon'],
+    ['cb-lcars_microgramma', 'lcards_microgramma'],
+    ['cb-lcars_microgramma_regular', 'lcards_microgramma_regular'],
+    ['cb-lcars_millenium_extended_bold', 'lcards_millenium_extended_bold'],
+    ['cb-lcars_romulan', 'lcards_romulan'],
+    ['cb-lcars_sonic', 'lcards_sonic'],
+    ['cb-lcars_sqaure_721', 'lcards_sqaure_721'],
+    ['cb-lcars_stellar', 'lcards_stellar'],
+    ['cb-lcars_swiss_911', 'lcards_swiss_911'],
+    ['cb-lcars_tellarite', 'lcards_tellarite'],
+    ['cb-lcars_tholian', 'lcards_tholian'],
+    ['cb-lcars_trekarrowcaps', 'lcards_trekarrowcaps'],
+    ['cb-lcars_trill', 'lcards_trill'],
+    ['cb-lcars_tungsten', 'lcards_tungsten'],
+    ['cb-lcars_vulcan', 'lcards_vulcan']
+]);
+
+/**
+ * Migrate legacy CB-LCARS font name to new LCARdS name
+ * @param {string} fontName - Font name (may be legacy)
+ * @returns {string} Migrated font name
+ */
+function migrateLegacyFontName(fontName) {
+    if (FONT_NAME_MIGRATION.has(fontName)) {
+        const newName = FONT_NAME_MIGRATION.get(fontName);
+        lcardsLog.info(`[loadFont] Migrating legacy font name: ${fontName} → ${newName}`);
+        return newName;
+    }
+    return fontName;
+}
+
+/**
  * Process card configurations to load all fonts.
  */
 export function loadAllFontsFromConfig(config) {
@@ -24,6 +79,8 @@ export function loadAllFontsFromConfig(config) {
 /**
  * Dynamically loads a LCARdS font based on font-family name.
  * Only loads if not already injected.
+ * 
+ * Supports legacy CB-LCARS font names (auto-migrates to lcards_ prefix).
  */
 export function loadFont(fontInput) {
   window.lcards._loadedFonts = window.lcards._loadedFonts || new Set();
@@ -33,6 +90,9 @@ export function loadFont(fontInput) {
   );
 
   fontList.forEach(fontName => {
+    // Migrate legacy names
+    fontName = migrateLegacyFontName(fontName);
+
     // If it’s a URL, inject directly
     if (fontName.startsWith('http://') || fontName.startsWith('https://')) {
       const href = fontName;
@@ -50,8 +110,8 @@ export function loadFont(fontInput) {
       return;
     }
 
-    // Else assume local LCARdS font
-    if (!fontName.startsWith('cb-lcars_')) return;
+    // Else assume local LCARdS font (NEW PREFIX)
+    if (!fontName.startsWith('lcards_')) return;
 
     const href = `/hacsfiles/lcards/fonts/${fontName}.css`;
     const fontKey = fontName;
