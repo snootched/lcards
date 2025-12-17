@@ -604,9 +604,12 @@ export class LCARdSButton extends LCARdSCard {
         const userSegmentIds = Object.keys(segmentsObject).filter(id => id !== 'default');
         const allSegmentIds = new Set([...availableIds, ...userSegmentIds]);
         
+        // Convert availableIds to Set for O(1) lookup performance
+        const availableIdsSet = new Set(availableIds);
+        
         // Validate user-defined segments exist in SVG
         userSegmentIds.forEach(id => {
-            if (!availableIds.includes(id)) {
+            if (!availableIdsSet.has(id)) {
                 lcardsLog.warn(`[LCARdSButton] Segment "${id}" configured but not found in SVG (no matching id attribute)`);
             }
         });
@@ -616,13 +619,7 @@ export class LCARdSButton extends LCARdSCard {
             const userConfig = segmentsObject[id] || {};
             
             // Skip if no user config and no default (nothing to do)
-            if (!userConfig.tap_action && 
-                !userConfig.hold_action && 
-                !userConfig.double_tap_action && 
-                !userConfig.style && 
-                !userConfig.animations &&
-                !userConfig.entity &&
-                Object.keys(defaultConfig).length === 0) {
+            if (this._shouldSkipSegment(userConfig, defaultConfig)) {
                 return;
             }
             
@@ -645,6 +642,26 @@ export class LCARdSButton extends LCARdSCard {
         });
         
         return segmentsArray;
+    }
+
+    /**
+     * Check if a segment should be skipped (no config and no defaults)
+     * @private
+     * @param {Object} userConfig - User-provided segment configuration
+     * @param {Object} defaultConfig - Default configuration
+     * @returns {boolean} True if segment should be skipped
+     */
+    _shouldSkipSegment(userConfig, defaultConfig) {
+        const hasUserConfig = userConfig.tap_action || 
+                             userConfig.hold_action || 
+                             userConfig.double_tap_action || 
+                             userConfig.style || 
+                             userConfig.animations ||
+                             userConfig.entity;
+        
+        const hasDefaultConfig = Object.keys(defaultConfig).length > 0;
+        
+        return !hasUserConfig && !hasDefaultConfig;
     }
 
     /**

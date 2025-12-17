@@ -84,7 +84,7 @@
         entity: light.room_1
         tap_action:
           action: toggle
-      # btn2, btn3, btn4 inherit default (no actions, just styling)
+      # btn2, btn3, btn4 inherit default (no actions, just styling).
 
 # Test 5: SVG with only default config (no specific segments)
 - type: custom:lcards-button
