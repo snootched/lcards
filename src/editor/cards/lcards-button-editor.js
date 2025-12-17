@@ -19,6 +19,7 @@ import '../components/form/lcards-multi-text-editor.js';
 import '../components/form/lcards-icon-editor.js';
 import '../components/form/lcards-border-editor.js';
 import '../components/form/lcards-segment-list-editor.js';
+import '../components/form/lcards-unified-segment-editor.js';
 import '../components/form/lcards-multi-action-editor.js';
 import '../components/form/lcards-dpad-segment-picker.js';
 // Import dashboard components
@@ -36,7 +37,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _getTabDefinitions() {
         const mode = this.config.component ? 'component' : 'preset';
-        const hasSegments = this.config.svg?.segments && this.config.svg.segments.length > 0;
+        // Check for segments - support both array (legacy) and object format
+        const hasSegments = this.config.svg?.segments && 
+                          (Array.isArray(this.config.svg.segments) ? this.config.svg.segments.length > 0 : Object.keys(this.config.svg.segments).length > 0);
 
         const tabs = [
             { label: 'Config', content: () => this._renderFromConfig(this._getConfigTabConfig()) }
@@ -248,15 +251,69 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * Segments tab - uses segment list editor
      */
     _renderSegmentsTab() {
-        return html`
-            <lcards-segment-list-editor
-                .editor=${this}
-                .segments=${this.config.svg?.segments || []}
-                .hass=${this.hass}
-                ?expanded=${true}
-                @value-changed=${this._handleSegmentsChange}>
-            </lcards-segment-list-editor>
-        `;
+        // Check if segments are in object format (new) or array format (legacy)
+        const segments = this.config.svg?.segments;
+        const isObjectFormat = segments && typeof segments === 'object' && !Array.isArray(segments);
+        
+        if (isObjectFormat) {
+            // New unified editor for object-based segments
+            return html`
+                <lcards-message
+                    type="info"
+                    message="Configure SVG segment interactions. Segments are auto-discovered from your SVG content. Use 'Default' to set common properties for all segments.">
+                </lcards-message>
+                <lcards-unified-segment-editor
+                    .editor=${this}
+                    mode="custom"
+                    .segments=${this.config.svg?.segments || {}}
+                    .discoveredSegmentIds=${this._getDiscoveredSegmentIds()}
+                    ?showDefaults=${true}
+                    .hass=${this.hass}>
+                </lcards-unified-segment-editor>
+            `;
+        } else {
+            // Legacy array-based editor (fallback)
+            return html`
+                <lcards-message
+                    type="warning"
+                    message="You are using the legacy array-based segment format. Consider migrating to the new object-based format for better consistency.">
+                </lcards-message>
+                <lcards-segment-list-editor
+                    .editor=${this}
+                    .segments=${this.config.svg?.segments || []}
+                    .hass=${this.hass}
+                    ?expanded=${true}
+                    @value-changed=${this._handleSegmentsChange}>
+                </lcards-segment-list-editor>
+            `;
+        }
+    }
+
+    /**
+     * Get discovered segment IDs from SVG content
+     * @returns {Array<string>}
+     * @private
+     */
+    _getDiscoveredSegmentIds() {
+        const svgContent = this.config.svg?.content;
+        if (!svgContent) return [];
+        
+        // Reuse button card's extraction logic
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
+            
+            // Check for parse errors
+            const parseError = doc.querySelector('parsererror');
+            if (parseError) {
+                return [];
+            }
+            
+            const elementsWithIds = doc.querySelectorAll('[id]');
+            return Array.from(elementsWithIds).map(el => el.id);
+        } catch (error) {
+            return [];
+        }
     }
 
     /**
@@ -265,7 +322,22 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderComponentTab() {
         const componentType = this.config.component || 'dpad';
         if (componentType === 'dpad') {
-            return this._renderFromConfig(this._getDpadTabConfig());
+            // Use unified segment editor for dpad
+            const segments = ['center', 'up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
+            return html`
+                <lcards-message
+                    type="info"
+                    message="Configure your D-pad remote control. Use 'Default' to set common properties for all segments, then override per-segment as needed.">
+                </lcards-message>
+                <lcards-unified-segment-editor
+                    .editor=${this}
+                    mode="dpad"
+                    .segments=${this.config.dpad?.segments || {}}
+                    .predefinedSegmentIds=${segments}
+                    ?showDefaults=${true}
+                    .hass=${this.hass}>
+                </lcards-unified-segment-editor>
+            `;
         }
         return html`
             <lcards-message
@@ -286,295 +358,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 .hass=${this.hass}>
             </lcards-rules-dashboard>
         `;
-    }
-
-    /**
-     * D-pad tab - declarative configuration with lazy rendering for performance
-     */
-    _getDpadTabConfig() {
-        const segments = ['center', 'up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
-
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure your D-pad remote control. Use 'Default' to set common properties for all segments, then override per-segment as needed.">
-                    </lcards-message>
-                `
-            },
-            // Default segment configuration
-            {
-                type: 'section',
-                header: 'Default Configuration',
-                description: 'Default settings applied to all segments (use segments.default.* config path)',
-                icon: 'mdi:cog-outline',
-                expanded: true,
-                outlined: true,
-                children: [
-                    // Default actions
-                    {
-                        type: 'custom',
-                        render: () => html`
-                            <div class="section-label">Default Actions</div>
-                            <div class="section-description" style="margin-bottom: 8px;">
-                                Applied to all segments unless overridden (dpad.segments.default)
-                            </div>
-                            <lcards-multi-action-editor
-                                .hass=${this.hass}
-                                .actions=${this._getDefaultActions()}
-                                @value-changed=${this._handleDefaultActionsChange.bind(this)}>
-                            </lcards-multi-action-editor>
-                        `
-                    },
-                    // Default style
-                    {
-                        type: 'section',
-                        header: 'Default SVG Style',
-                        description: 'Default SVG styling properties (dpad.segments.default.style)',
-                        icon: 'mdi:palette-outline',
-                        expanded: false,
-                        outlined: false,
-                        children: [
-                            {
-                                type: 'custom',
-                                render: () => html`
-                                    <lcards-color-section
-                                        .editor=${this}
-                                        .config=${this.config}
-                                        basePath="dpad.segments.default.style.fill"
-                                        header="Fill"
-                                        description="SVG fill color states"
-                                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                                        ?expanded=${false}>
-                                    </lcards-color-section>
-                                    <lcards-color-section
-                                        .editor=${this}
-                                        .config=${this.config}
-                                        basePath="dpad.segments.default.style.stroke"
-                                        header="Stroke"
-                                        description="SVG stroke color states"
-                                        .states=${['default', 'active', 'inactive', 'unavailable']}
-                                        ?expanded=${false}>
-                                    </lcards-color-section>
-                                `
-                            },
-                            {
-                                type: 'field',
-                                path: 'dpad.segments.default.style.stroke-width',
-                                label: 'Stroke Width',
-                                helper: 'SVG stroke width (number or string)'
-                            }
-                        ]
-                    }
-                ]
-            },
-            // Per-segment configuration - using custom render with true lazy loading
-            {
-                type: 'custom',
-                render: () => {
-                    // Track which segments are expanded
-                    if (!this._expandedSegments) {
-                        this._expandedSegments = new Set();
-                    }
-
-                    return html`
-                        ${segments.map(segmentId => html`
-                            <lcards-form-section
-                                header="${this._formatSegmentLabel(segmentId)}"
-                                description="Configure ${this._formatSegmentLabel(segmentId)} segment (overrides defaults)"
-                                icon="${this._getSegmentIcon(segmentId)}"
-                                ?expanded=${this._expandedSegments.has(segmentId)}
-                                ?outlined=${true}
-                                headerLevel="4"
-                                @expanded-changed=${(e) => {
-                                    if (e.detail.expanded) {
-                                        this._expandedSegments.add(segmentId);
-                                    } else {
-                                        this._expandedSegments.delete(segmentId);
-                                    }
-                                    this.requestUpdate();
-                                }}>
-                                ${this._expandedSegments.has(segmentId) ? this._renderSegmentContent(segmentId) : html``}
-                            </lcards-form-section>
-                        `)}
-                    `;
-                }
-            }
-        ];
-    }
-
-    /**
-     * Render individual segment content (called lazily when section expands)
-     * @param {string} segmentId - Segment identifier
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderSegmentContent(segmentId) {
-        return html`
-            <div class="form-row">
-                <label>Entity Override</label>
-                <ha-entity-picker
-                    .hass=${this.hass}
-                    .value=${this._getConfigValue(`dpad.segments.${segmentId}.entity`)}
-                    @value-changed=${(e) => this._setConfigValue(`dpad.segments.${segmentId}.entity`, e.detail.value)}
-                    allow-custom-entity>
-                </ha-entity-picker>
-                <div class="helper-text">Leave empty to inherit from card entity</div>
-            </div>
-
-            <div class="section-label">Actions</div>
-            <div class="section-description" style="margin-bottom: 8px;">
-                Override default actions for this segment
-            </div>
-            <lcards-multi-action-editor
-                .hass=${this.hass}
-                .actions=${this._getSegmentActions(segmentId)}
-                @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
-            </lcards-multi-action-editor>
-
-            <lcards-form-section
-                header="SVG Style Override"
-                description="Override default SVG styling"
-                icon="mdi:palette-outline"
-                ?expanded=${false}
-                ?outlined=${false}
-                headerLevel="5">
-
-                <lcards-color-section
-                    .editor=${this}
-                    .config=${this.config}
-                    basePath="dpad.segments.${segmentId}.style.fill"
-                    header="Fill"
-                    description="SVG fill color states"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
-
-                <lcards-color-section
-                    .editor=${this}
-                    .config=${this.config}
-                    basePath="dpad.segments.${segmentId}.style.stroke"
-                    header="Stroke"
-                    description="SVG stroke color states"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
-
-                <div class="form-row">
-                    <label>Stroke Width</label>
-                    <ha-textfield
-                        .value=${this._getConfigValue(`dpad.segments.${segmentId}.style.stroke-width`) || ''}
-                        @input=${(e) => this._setConfigValue(`dpad.segments.${segmentId}.style.stroke-width`, e.target.value)}
-                        placeholder="e.g., 1 or 0.5">
-                    </ha-textfield>
-                    <div class="helper-text">SVG stroke width (overrides default)</div>
-                </div>
-            </lcards-form-section>
-        `;
-    }    /**
-     * Get icon for segment
-     */
-    _getSegmentIcon(segmentId) {
-        const iconMap = {
-            'center': 'mdi:gamepad-round',
-            'up': 'mdi:gamepad-up',
-            'down': 'mdi:gamepad-down',
-            'left': 'mdi:gamepad-left',
-            'right': 'mdi:gamepad-right',
-            'up-left': 'mdi:numeric-1-circle',
-            'up-right': 'mdi:numeric-2-circle',
-            'down-left': 'mdi:numeric-3-circle',
-            'down-right': 'mdi:numeric-4-circle'
-        };
-        return iconMap[segmentId] || 'mdi:gamepad';
-    }
-
-    /**
-     * Get default actions
-     */
-    _getDefaultActions() {
-        const defaultConfig = this.config.dpad?.segments?.default || {};
-        return {
-            tap_action: defaultConfig.tap_action || { action: 'none' },
-            hold_action: defaultConfig.hold_action || { action: 'none' },
-            double_tap_action: defaultConfig.double_tap_action || { action: 'none' }
-        };
-    }
-
-    /**
-     * Handle default actions change
-     */
-    _handleDefaultActionsChange(event) {
-        const actions = event.detail.value;
-        const defaultConfig = this.config.dpad?.segments?.default || {};
-
-        const updatedDefault = {
-            ...defaultConfig,
-            tap_action: actions.tap_action,
-            hold_action: actions.hold_action,
-            double_tap_action: actions.double_tap_action
-        };
-
-        // Remove actions if they're set to 'none'
-        ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
-            if (updatedDefault[key]?.action === 'none') {
-                delete updatedDefault[key];
-            }
-        });
-
-        const segmentConfigs = this.config.dpad?.segments || {};
-        this._updateConfig({
-            dpad: {
-                ...(this.config.dpad || {}),
-                segments: {
-                    ...segmentConfigs,
-                    default: updatedDefault
-                }
-            }
-        });
-    }
-
-    /**
-     * Get segment actions
-     */
-    _getSegmentActions(segmentId) {
-        const segmentConfig = this.config.dpad?.segments?.[segmentId] || {};
-        return {
-            tap_action: segmentConfig.tap_action || { action: 'none' },
-            hold_action: segmentConfig.hold_action || { action: 'none' },
-            double_tap_action: segmentConfig.double_tap_action || { action: 'none' }
-        };
-    }
-
-    /**
-     * Handle segment actions change
-     */
-    _handleSegmentActionsChange(segmentId, event) {
-        const actions = event.detail.value;
-        const segmentConfigs = this.config.dpad?.segments || {};
-
-        const updatedSegmentConfig = {
-            ...(segmentConfigs[segmentId] || {}),
-            tap_action: actions.tap_action,
-            hold_action: actions.hold_action,
-            double_tap_action: actions.double_tap_action
-        };
-
-        // Remove actions if they're set to 'none'
-        ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
-            if (updatedSegmentConfig[key]?.action === 'none') {
-                delete updatedSegmentConfig[key];
-            }
-        });
-
-        this._updateConfig({
-            dpad: {
-                ...(this.config.dpad || {}),
-                segments: { ...segmentConfigs, [segmentId]: updatedSegmentConfig }
-            }
-        });
     }
 
     /**
@@ -621,11 +404,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         this._updateConfig({
             svg: { ...(this.config.svg || {}), segments: event.detail.value }
         });
-    }
-
-    _formatSegmentLabel(segmentId) {
-        if (!segmentId) return 'Segment';
-        return segmentId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 }
 
