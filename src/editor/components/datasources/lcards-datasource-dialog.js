@@ -242,7 +242,6 @@ export class LCARdSDataSourceDialog extends LitElement {
 
         <!-- Transformations -->
         <lcards-transformation-list-editor
-          .editor=${this.editor}
           .transformations=${this._config.transformations || {}}
           .hass=${this.hass}
           @transformations-changed=${this._handleTransformationsChange}>
@@ -250,7 +249,6 @@ export class LCARdSDataSourceDialog extends LitElement {
 
         <!-- Aggregations -->
         <lcards-aggregation-list-editor
-          .editor=${this.editor}
           .aggregations=${this._config.aggregations || {}}
           .hass=${this.hass}
           @aggregations-changed=${this._handleAggregationsChange}>
