@@ -181,13 +181,18 @@ export class LCARdSCardDataSourcesList extends LitElement {
               </div>
             ` : ''}
             
-            <!-- Placeholder for Phase 2 -->
+            <!-- Phase 2: Edit and Remove Actions -->
             <div class="action-buttons">
-              <mwc-button outlined disabled>
-                Edit (Phase 2)
+              <mwc-button
+                outlined
+                @click=${() => this._handleEdit(name, config)}>
+                Edit
               </mwc-button>
-              <mwc-button outlined disabled>
-                Remove (Phase 2)
+              <mwc-button
+                outlined
+                style="color: var(--error-color)"
+                @click=${() => this._handleDelete(name)}>
+                Remove
               </mwc-button>
             </div>
           </div>
@@ -203,6 +208,22 @@ export class LCARdSCardDataSourcesList extends LitElement {
       this._expandedSources.delete(name);
     }
     this.requestUpdate();
+  }
+
+  _handleEdit(name, config) {
+    this.dispatchEvent(new CustomEvent('edit-datasource', {
+      detail: { name, config },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  _handleDelete(name) {
+    this.dispatchEvent(new CustomEvent('delete-datasource', {
+      detail: { name },
+      bubbles: true,
+      composed: true
+    }));
   }
 }
 

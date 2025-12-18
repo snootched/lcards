@@ -7,3 +7,4 @@
 export { LCARdSDataSourceEditorTab } from './lcards-datasource-editor-tab.js';
 export { LCARdSCardDataSourcesList } from './lcards-card-datasources-list.js';
 export { LCARdSGlobalDataSourcesPanel } from './lcards-global-datasources-panel.js';
+export { LCARdSDataSourceDialog } from './lcards-datasource-dialog.js';
