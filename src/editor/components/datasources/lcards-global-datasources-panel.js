@@ -164,8 +164,8 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._refreshStats();
-    // Auto-refresh every 2 seconds
-    this._refreshInterval = setInterval(() => this._refreshStats(), 2000);
+    // Auto-refresh every 5 seconds
+    this._refreshInterval = setInterval(() => this._refreshStats(), 5000);
   }
   
   disconnectedCallback() {
