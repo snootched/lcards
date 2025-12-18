@@ -252,6 +252,48 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
+   * Cleanup when card is removed from DOM
+   * @protected
+   */
+  disconnectedCallback() {
+    // Cleanup datasource tracking
+    if (this._singletons?.dataSourceManager && this._registeredDataSources) {
+      this._registeredDataSources.forEach(sourceName => {
+        this._singletons.dataSourceManager.removeCardFromSource(
+          sourceName,
+          this._cardGuid
+        );
+      });
+      this._registeredDataSources.clear();
+    }
+
+    // Unsubscribe from data sources
+    if (this._dataSubscriptions) {
+      this._dataSubscriptions.forEach(unsubscribe => {
+        try {
+          unsubscribe();
+        } catch (error) {
+          lcardsLog.warn('[LCARdSChart] Error unsubscribing:', error);
+        }
+      });
+      this._dataSubscriptions = [];
+    }
+
+    // Destroy chart
+    if (this._chart) {
+      try {
+        this._chart.destroy();
+      } catch (error) {
+        lcardsLog.warn('[LCARdSChart] Error destroying chart:', error);
+      }
+      this._chart = null;
+    }
+
+    // Call parent cleanup
+    super.disconnectedCallback();
+  }
+
+  /**
    * Subscribe to data sources for live updates
    * Auto-creates data sources if they don't exist (for standalone usage)
    * @private
@@ -292,18 +334,27 @@ export class LCARdSChart extends LCARdSCard {
           }
 
           // Create data source with history enabled for charts
-          dataSource = await this._singletons.dataSourceManager.createDataSource(sourceId, {
-            entity: sourceId,
-            history: {
-              enabled: true,
-              hours: this.config.history_hours || 24  // Allow config override
+          dataSource = await this._singletons.dataSourceManager.createDataSource(
+            sourceId,
+            {
+              entity: sourceId,
+              history: {
+                enabled: true,
+                hours: this.config.history_hours || 24  // Allow config override
+              },
+              windowSeconds: 3600,   // 1 hour window
+              minEmitMs: 1000,       // 1 second minimum between updates
+              coalesceMs: 200        // 200ms coalescing for chart updates
             },
-            windowSeconds: 3600,   // 1 hour window
-            minEmitMs: 1000,       // 1 second minimum between updates
-            coalesceMs: 200,       // 200ms coalescing for chart updates
-            _autoCreated: true,    // Mark as auto-created
-            _chartEntity: true     // Mark as chart entity
-          });
+            this._cardGuid,          // Pass card identifier
+            true                     // Mark as auto-created (CHART ONLY)
+          );
+
+          // Track this datasource for cleanup
+          if (!this._registeredDataSources) {
+            this._registeredDataSources = new Set();
+          }
+          this._registeredDataSources.add(sourceId);
 
           lcardsLog.info(`[LCARdSChart] ✅ Auto-created data source for entity: ${sourceId}`);
 

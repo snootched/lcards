@@ -186,6 +186,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
 
+        // DataSource tracking for cleanup
+        this._registeredDataSources = new Set(); // Track datasources registered by this card
+
         lcardsLog.trace(`[LCARdSCard] Constructor called for ${this._getDisplayId()}`);
     }
 
@@ -333,18 +336,35 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         lcardsLog.debug(`[LCARdSCard] Processing data_sources config`, {
             sourceCount: Object.keys(dataSourcesConfig).length,
-            sources: Object.keys(dataSourcesConfig)
+            sources: Object.keys(dataSourcesConfig),
+            cardId: this._cardGuid
         });
+
+        // Initialize tracking set if needed
+        if (!this._registeredDataSources) {
+            this._registeredDataSources = new Set();
+        }
 
         try {
             // Create each data source using DataSourceManager.createDataSource()
             const promises = Object.entries(dataSourcesConfig).map(async ([name, config]) => {
                 try {
-                    const source = await dataSourceManager.createDataSource(name, config);
+                    // Pass cardId and autoCreated=false for explicitly configured datasources
+                    const source = await dataSourceManager.createDataSource(
+                        name,
+                        config,
+                        this._cardGuid,  // Pass card identifier
+                        false            // Not auto-created (explicit config)
+                    );
+                    
+                    // Track this datasource for cleanup
+                    this._registeredDataSources.add(name);
+                    
                     lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
-                        windowSeconds: config.window_seconds
+                        windowSeconds: config.window_seconds,
+                        cardId: this._cardGuid
                     });
                     return source;
                 } catch (error) {
@@ -567,6 +587,17 @@ export class LCARdSCard extends LCARdSNativeCard {
      */
     disconnectedCallback() {
         super.disconnectedCallback();
+
+        // Remove this card from all datasource tracking
+        if (this._singletons?.dataSourceManager && this._registeredDataSources) {
+            this._registeredDataSources.forEach(sourceName => {
+                this._singletons.dataSourceManager.removeCardFromSource(
+                    sourceName,
+                    this._cardGuid
+                );
+            });
+            this._registeredDataSources.clear();
+        }
 
         // Unregister overlay and rules callback (consolidated cleanup)
         this._unregisterOverlayFromRules();

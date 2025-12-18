@@ -19,6 +19,9 @@ export class DataSourceManager extends BaseService {
     this.entityIndex = new Map(); // entityId -> dataSource
     this.globalEntityChangeListeners = new Set();
 
+    // NEW: Card-level dependency tracking
+    this._sourceToCards = new Map(); // sourceId -> Set<cardId>
+
     // Performance statistics
     this._stats = {
       sourcesCreated: 0,
@@ -70,27 +73,62 @@ export class DataSourceManager extends BaseService {
     return successful;
   }
 
-  async createDataSource(name, config) {
+  /**
+   * Create or retrieve a datasource and track card usage
+   * @param {string} name - Datasource identifier
+   * @param {Object} config - Datasource configuration
+   * @param {string} [cardId] - Card identifier (e.g., this._cardGuid from LCARdSCard)
+   * @param {boolean} [autoCreated=false] - Whether auto-created vs. explicitly configured
+   * @returns {Promise<DataSource>}
+   */
+  async createDataSource(name, config, cardId = null, autoCreated = false) {
+    // If datasource already exists, add cardId to tracking
     if (this.sources.has(name)) {
-      return this.sources.get(name);
+      const existing = this.sources.get(name);
+
+      if (cardId) {
+        if (!this._sourceToCards.has(name)) {
+          this._sourceToCards.set(name, new Set());
+        }
+        this._sourceToCards.get(name).add(cardId);
+
+        lcardsLog.debug(`[DataSourceManager] Card ${cardId} now uses datasource ${name} (${this._sourceToCards.get(name).size} total cards)`);
+      }
+
+      return existing;
     }
 
-    const source = new DataSource(config, this.hass);
+    // Enrich config with metadata for editor display
+    const enrichedConfig = {
+      ...config,
+      _autoCreated: autoCreated,
+      _sourceCard: cardId
+    };
+
+    const source = new DataSource(enrichedConfig, this.hass);
     this.sources.set(name, source);
 
+    // Track card usage
+    if (cardId) {
+      if (!this._sourceToCards.has(name)) {
+        this._sourceToCards.set(name, new Set());
+      }
+      this._sourceToCards.get(name).add(cardId);
+    }
+
     // NEW: Index by entity for global lookups
-    if (config.entity) {
-      this.entityIndex.set(config.entity, source);
+    if (enrichedConfig.entity) {
+      this.entityIndex.set(enrichedConfig.entity, source);
 
       // Forward entity changes to global listeners AND update hass object
       source.subscribe((data) => {
         // CRITICAL: Update our hass object with the new state from the DataSource
         if (this.hass && this.hass.states && source._lastOriginalState) {
-          this.hass.states[config.entity] = source._lastOriginalState;
-          lcardsLog.debug(`[DataSourceManager] 🔄 Updated hass.states['${config.entity}'] to: ${source._lastOriginalState.state}`);
+          this.hass.states[enrichedConfig.entity] = source._lastOriginalState;
+          lcardsLog.debug(`[DataSourceManager] 🔄 Updated hass.states['${enrichedConfig.entity}'] to: ${source._lastOriginalState.state}`);
         }
 
-        this._notifyGlobalEntityChangeListeners([config.entity]);
+        this._notifyGlobalEntityChangeListeners([enrichedConfig.entity]);
       });
     }
 
@@ -98,12 +136,12 @@ export class DataSourceManager extends BaseService {
       await source.start();
 
       // NEW: Preload initial state from HASS if available
-      if (config.entity && this.hass.states && this.hass.states[config.entity]) {
-        const hassState = this.hass.states[config.entity];
+      if (enrichedConfig.entity && this.hass.states && this.hass.states[enrichedConfig.entity]) {
+        const hassState = this.hass.states[enrichedConfig.entity];
 
         // Simulate initial state change to populate the data source
         source._handleStateChange({
-          entity_id: config.entity,
+          entity_id: enrichedConfig.entity,
           new_state: hassState,
           old_state: null
         });
@@ -112,10 +150,20 @@ export class DataSourceManager extends BaseService {
     } catch (error) {
       lcardsLog.warn(`[DataSourceManager] ⚠️ Failed to start source ${name}:`, error);
       this.sources.delete(name);
-      this.entityIndex.delete(config.entity);
+      this.entityIndex.delete(enrichedConfig.entity);
+      if (cardId) {
+        this.removeCardFromSource(name, cardId);
+      }
       this._stats.errors++;
       throw error;
     }
+
+    lcardsLog.debug(`[DataSourceManager] Created datasource ${name}`, {
+      entity: enrichedConfig.entity,
+      autoCreated,
+      sourceCard: cardId,
+      usedByCards: this._sourceToCards.get(name)?.size || 0
+    });
 
     return source;
   }
@@ -488,6 +536,36 @@ export class DataSourceManager extends BaseService {
   }
 
   /**
+   * Get list of cards using a datasource
+   * @param {string} sourceName - Datasource identifier
+   * @returns {Array<string>} Array of card IDs
+   */
+  getSourceDependents(sourceName) {
+    return Array.from(this._sourceToCards.get(sourceName) || []);
+  }
+
+  /**
+   * Remove card from datasource tracking
+   * Used when card is destroyed or datasource removed from config
+   * @param {string} sourceName - Datasource identifier
+   * @param {string} cardId - Card ID to remove
+   */
+  removeCardFromSource(sourceName, cardId) {
+    const cards = this._sourceToCards.get(sourceName);
+    if (cards) {
+      cards.delete(cardId);
+
+      lcardsLog.debug(`[DataSourceManager] Removed card ${cardId} from datasource ${sourceName} (${cards.size} cards remaining)`);
+
+      // Cleanup if no cards left
+      if (cards.size === 0) {
+        this._sourceToCards.delete(sourceName);
+        lcardsLog.debug(`[DataSourceManager] No cards using datasource ${sourceName}, eligible for cleanup`);
+      }
+    }
+  }
+
+  /**
    * Get a specific data source by ID
    * @param {string} id - Data source ID
    * @returns {DataSource|null} The data source or null if not found
@@ -499,7 +577,14 @@ export class DataSourceManager extends BaseService {
   getStats() {
     const sourceStats = {};
     for (const [name, source] of this.sources) {
-      sourceStats[name] = source.getStats ? source.getStats() : { error: 'No stats available' };
+      const baseStats = source.getStats ? source.getStats() : { error: 'No stats available' };
+      sourceStats[name] = {
+        ...baseStats,
+        usedByCards: this.getSourceDependents(name),
+        cardCount: this.getSourceDependents(name).length,
+        autoCreated: source.cfg?._autoCreated || false,
+        sourceCard: source.cfg?._sourceCard || null
+      };
     }
 
     return {
@@ -509,7 +594,8 @@ export class DataSourceManager extends BaseService {
         totalSources: this.sources.size,
         activeSubscriptions: this.overlaySubscriptions.size,
         entityCount: this.entityIndex.size,
-        destroyed: this._destroyed
+        destroyed: this._destroyed,
+        cardDependencies: this._sourceToCards.size
       }
     };
   }
