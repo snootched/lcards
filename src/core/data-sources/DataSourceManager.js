@@ -98,7 +98,7 @@ export class DataSourceManager extends BaseService {
       return existing;
     }
 
-    // Enrich config with metadata for editor display
+    // Enrich config with metadata for runtime tracking, stats, and editor display
     const enrichedConfig = {
       ...config,
       _autoCreated: autoCreated,
@@ -578,10 +578,11 @@ export class DataSourceManager extends BaseService {
     const sourceStats = {};
     for (const [name, source] of this.sources) {
       const baseStats = source.getStats ? source.getStats() : { error: 'No stats available' };
+      const dependents = this.getSourceDependents(name);
       sourceStats[name] = {
         ...baseStats,
-        usedByCards: this.getSourceDependents(name),
-        cardCount: this.getSourceDependents(name).length,
+        usedByCards: dependents,
+        cardCount: dependents.length,
         autoCreated: source.cfg?._autoCreated || false,
         sourceCard: source.cfg?._sourceCard || null
       };

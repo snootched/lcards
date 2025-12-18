@@ -126,6 +126,7 @@ export class LCARdSChart extends LCARdSCard {
     this._chartOptions = null;
     this._error = null;
     this._chartInitialized = false; // Track if we've tried to initialize
+    this._registeredDataSources = new Set(); // Track datasources for cleanup
   }
 
   /**
@@ -351,9 +352,6 @@ export class LCARdSChart extends LCARdSCard {
           );
 
           // Track this datasource for cleanup
-          if (!this._registeredDataSources) {
-            this._registeredDataSources = new Set();
-          }
           this._registeredDataSources.add(sourceId);
 
           lcardsLog.info(`[LCARdSChart] ✅ Auto-created data source for entity: ${sourceId}`);
