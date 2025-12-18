@@ -188,6 +188,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // DataSource tracking for cleanup
         this._registeredDataSources = new Set(); // Track datasources registered by this card
+        this._datasourceSubscriptions = new Map(); // Track datasource subscriptions (sourceId -> unsubscribe function)
 
         lcardsLog.trace(`[LCARdSCard] Constructor called for ${this._getDisplayId()}`);
     }
@@ -337,7 +338,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         lcardsLog.debug(`[LCARdSCard] Processing data_sources config`, {
             sourceCount: Object.keys(dataSourcesConfig).length,
             sources: Object.keys(dataSourcesConfig),
-            cardId: this._cardGuid
+            cardId: this._getDisplayId()
         });
 
         // Initialize tracking set if needed
@@ -353,18 +354,18 @@ export class LCARdSCard extends LCARdSNativeCard {
                     const source = await dataSourceManager.createDataSource(
                         name,
                         config,
-                        this._cardGuid,  // Pass card identifier
+                        this._getDisplayId(),  // Pass card identifier (uses config.id if available)
                         false            // Not auto-created (explicit config)
                     );
-                    
+
                     // Track this datasource for cleanup
                     this._registeredDataSources.add(name);
-                    
+
                     lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
                         windowSeconds: config.window_seconds,
-                        cardId: this._cardGuid
+                        cardId: this._getDisplayId()
                     });
                     return source;
                 } catch (error) {
@@ -380,6 +381,154 @@ export class LCARdSCard extends LCARdSNativeCard {
         } catch (error) {
             lcardsLog.error(`[LCARdSCard] data_sources processing failed:`, error);
         }
+    }
+
+    /**
+     * Extract datasource references from config and register card as dependent
+     * This enables tracking which cards consume which datasources via templates
+     * AND subscribes to those datasources for real-time template updates
+     * @private
+     */
+    async _registerTemplateDatasourceDependencies() {
+        const dataSourceManager = this._singletons?.dataSourceManager;
+        if (!dataSourceManager) {
+            return;
+        }
+
+        // Extract all datasource references from config
+        const datasourceRefs = this._extractDatasourceReferences(this.config);
+
+        if (datasourceRefs.size === 0) {
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSCard] Found ${datasourceRefs.size} datasource references in templates`, {
+            cardId: this._getDisplayId(),
+            datasources: Array.from(datasourceRefs)
+        });
+
+        // Register this card as a dependent for each datasource it references
+        // AND subscribe for real-time updates
+        for (const sourceId of datasourceRefs) {
+            // Try to get datasource with retry logic (datasources might be initializing)
+            const source = await this._waitForDatasource(sourceId, 5000); // 5 second timeout
+
+            if (source) {
+                // Add card to tracking (createDataSource handles both new and existing sources)
+                // Pass null config since source already exists, just tracking the dependency
+                try {
+                    await dataSourceManager.createDataSource(
+                        sourceId,
+                        source.cfg, // Use existing config
+                        this._getDisplayId(), // Card ID
+                        false // Not auto-created
+                    );
+                } catch (error) {
+                    lcardsLog.warn(`[LCARdSCard] Failed to register as dependent of datasource ${sourceId}:`, error);
+                }
+
+                // Track for cleanup
+                if (!this._registeredDataSources) {
+                    this._registeredDataSources = new Set();
+                }
+                this._registeredDataSources.add(sourceId);
+
+                // NEW: Subscribe to datasource for real-time template updates
+                if (!this._datasourceSubscriptions.has(sourceId)) {
+                    const unsubscribe = source.subscribe((data) => {
+                        lcardsLog.trace(`[LCARdSCard] Datasource ${sourceId} updated, triggering template re-evaluation`, {
+                            cardId: this._getDisplayId(),
+                            value: data.v,
+                            timestamp: data.t
+                        });
+
+                        // Trigger template re-evaluation when datasource changes
+                        this._scheduleTemplateUpdate();
+                    });
+
+                    this._datasourceSubscriptions.set(sourceId, unsubscribe);
+
+                    lcardsLog.debug(`[LCARdSCard] Subscribed to datasource ${sourceId} for real-time template updates`, {
+                        cardId: this._getDisplayId()
+                    });
+                }
+
+                lcardsLog.debug(`[LCARdSCard] Registered card ${this._getDisplayId()} as dependent of datasource ${sourceId}`);
+            } else {
+                lcardsLog.warn(`[LCARdSCard] Datasource ${sourceId} referenced in template but not found in DataSourceManager after timeout`, {
+                    cardId: this._getDisplayId()
+                });
+            }
+        }
+    }
+
+    /**
+     * Wait for a datasource to become available (with retry logic)
+     * @param {string} sourceId - Datasource ID to wait for
+     * @param {number} timeoutMs - Maximum time to wait in milliseconds
+     * @returns {Promise<Object|null>} DataSource instance or null if timeout
+     * @private
+     */
+    async _waitForDatasource(sourceId, timeoutMs = 5000) {
+        const dataSourceManager = this._singletons?.dataSourceManager;
+        if (!dataSourceManager) {
+            return null;
+        }
+
+        const startTime = Date.now();
+        const checkInterval = 100; // Check every 100ms
+
+        while (Date.now() - startTime < timeoutMs) {
+            const source = dataSourceManager.getSource(sourceId);
+            if (source) {
+                lcardsLog.trace(`[LCARdSCard] Datasource ${sourceId} found after ${Date.now() - startTime}ms`, {
+                    cardId: this._getDisplayId()
+                });
+                return source;
+            }
+
+            // Wait before next check
+            await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+
+        return null;
+    }
+
+    /**
+     * Recursively extract datasource references from config object
+     * Looks for {datasource:name}, {ds:name}, and {name} patterns in string values
+     * @param {*} obj - Config object or value to scan
+     * @param {Set<string>} refs - Accumulated datasource references
+     * @returns {Set<string>} Set of datasource IDs referenced
+     * @private
+     */
+    _extractDatasourceReferences(obj, refs = new Set()) {
+        if (!obj) return refs;
+
+        if (typeof obj === 'string') {
+            // Match {datasource:name} or {ds:name}
+            const explicitMatches = obj.matchAll(/\{(?:datasource|ds):([^}:.]+)(?:[:.][^}]*)?\}/g);
+            for (const match of explicitMatches) {
+                refs.add(match[1]);
+            }
+
+            // Match legacy {name} syntax (but avoid false positives like {entity.state})
+            // Only consider it a datasource if it doesn't have a dot (which would be a token)
+            const legacyMatches = obj.matchAll(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g);
+            for (const match of legacyMatches) {
+                const ref = match[1];
+                // Skip if it looks like a token (entity, config, variables, etc.)
+                if (!['entity', 'config', 'variables', 'hass', 'theme'].includes(ref)) {
+                    refs.add(ref);
+                }
+            }
+        } else if (Array.isArray(obj)) {
+            obj.forEach(item => this._extractDatasourceReferences(item, refs));
+        } else if (typeof obj === 'object') {
+            Object.values(obj).forEach(value => this._extractDatasourceReferences(value, refs));
+        }
+
+        return refs;
     }
 
     /**
@@ -405,6 +554,11 @@ export class LCARdSCard extends LCARdSNativeCard {
                 // Singletons not ready yet - set flag for loading in _onConnected
                 this._hasRulesToLoad = true;
             }
+        }
+
+        // Register datasource dependencies from templates if singletons ready
+        if (this._singletons?.dataSourceManager) {
+            this._registerTemplateDatasourceDependencies();
         }
 
         lcardsLog.debug(`[LCARdSCard] Config set for ${this._getDisplayId()}`, {
@@ -528,6 +682,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Initialize singleton access
         this._initializeSingletons();
 
+        // Now that singletons are initialized, register datasource dependencies from templates
+        if (this._singletons?.dataSourceManager && this.config) {
+            this._registerTemplateDatasourceDependencies();
+        }
+
         // Now that singletons are initialized, load rules from config
         if (this._hasRulesToLoad && this.config.rules) {
             this._loadRulesFromConfig(this.config.rules);
@@ -588,12 +747,27 @@ export class LCARdSCard extends LCARdSNativeCard {
     disconnectedCallback() {
         super.disconnectedCallback();
 
+        // Unsubscribe from all datasource subscriptions
+        if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
+            this._datasourceSubscriptions.forEach((unsubscribe, sourceId) => {
+                try {
+                    unsubscribe();
+                    lcardsLog.trace(`[LCARdSCard] Unsubscribed from datasource ${sourceId}`, {
+                        cardId: this._getDisplayId()
+                    });
+                } catch (error) {
+                    lcardsLog.warn(`[LCARdSCard] Error unsubscribing from datasource ${sourceId}:`, error);
+                }
+            });
+            this._datasourceSubscriptions.clear();
+        }
+
         // Remove this card from all datasource tracking
         if (this._singletons?.dataSourceManager && this._registeredDataSources) {
             this._registeredDataSources.forEach(sourceName => {
                 this._singletons.dataSourceManager.removeCardFromSource(
                     sourceName,
-                    this._cardGuid
+                    this._getDisplayId() // Use display ID consistently
                 );
             });
             this._registeredDataSources.clear();
@@ -1263,7 +1437,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             };
 
             // Get dataSourceManager from global singleton (if available)
-            const dataSourceManager = window.lcards?.debug?.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+            const dataSourceManager = window.lcards?.core?.dataSourceManager;
 
             // Check if template has datasource references but manager not available yet
             // Only match actual datasource syntax: {datasource:name} or {ds:name}
