@@ -74,8 +74,30 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         line-height: 1.4;
       }
 
-      ha-chip-set {
-        margin-bottom: 16px;
+      /* Chip styling for filter buttons */
+      .lcards-chip {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 1px solid var(--divider-color);
+        background: var(--chip-background, var(--secondary-background-color));
+        color: var(--primary-text-color, var(--primary-color));
+        padding: 6px 10px;
+        border-radius: 16px;
+        font-size: 13px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lcards-chip:hover {
+        filter: brightness(0.98);
+      }
+
+      .lcards-chip.selected {
+        background: var(--primary-color);
+        color: var(--ha-card-background, #fff);
+        border-color: var(--primary-color);
       }
 
       .templates-grid {
@@ -314,15 +336,16 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
     ];
 
     return html`
-      <ha-chip-set>
+      <div class="filter-chip-wrapper">
         ${filters.map(filter => html`
-          <ha-filter-chip
-            .label="${filter.label} (${filter.count})"
-            ?selected=${this._filterType === filter.value}
-            @click=${() => this._filterType = filter.value}>
-          </ha-filter-chip>
+          <button
+            class="lcards-chip ${this._filterType === filter.value ? 'selected' : ''}"
+            @click=${() => this._filterType = filter.value}
+            aria-pressed=${this._filterType === filter.value}>
+            ${filter.label} (${filter.count})
+          </button>
         `)}
-      </ha-chip-set>
+      </div>
     `;
   }
 
@@ -687,8 +710,26 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
         // Evaluate the template
         const result = evaluator.evaluateSync(template.fullString);
-        template.result = String(result);
-        template.status = 'status-success';
+        const resultStr = String(result);
+
+        // Use TemplateDetector to check if result still contains template syntax
+        const resultTypes = TemplateDetector.detectTemplateTypes(resultStr);
+        const stillHasTemplates = resultTypes.hasJavaScript || resultTypes.hasTokens ||
+                                  resultTypes.hasDatasources || resultTypes.hasMSD;
+        const isEmpty = resultStr === '' || resultStr.trim() === '';
+
+        if (stillHasTemplates) {
+          template.result = resultStr;
+          template.error = 'Template not resolved - check if datasource/token exists';
+          template.status = 'status-error';
+        } else if (isEmpty && template.raw.trim() !== '') {
+          template.result = '(empty)';
+          template.error = 'Evaluated to empty - token/datasource not found';
+          template.status = 'status-error';
+        } else {
+          template.result = resultStr;
+          template.status = 'status-success';
+        }
       } catch (error) {
         template.error = error.message;
         template.status = 'status-error';
@@ -714,7 +755,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   async _copyToClipboard(text, event) {
     try {
       await navigator.clipboard.writeText(text);
-      
+
       // Show success feedback on the button that was clicked
       const button = event.target.closest('ha-button');
       if (button) {
@@ -723,7 +764,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
           const originalIcon = iconElement.icon;
           iconElement.icon = 'mdi:check';
           iconElement.style.color = 'var(--success-color, #4caf50)';
-          
+
           setTimeout(() => {
             iconElement.icon = originalIcon;
             iconElement.style.color = '';
@@ -732,7 +773,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       }
     } catch (error) {
       lcardsLog.error('[TemplateEvaluationTab] Failed to copy to clipboard:', error);
-      
+
       // Show error feedback
       const button = event.target.closest('ha-button');
       if (button) {
@@ -740,7 +781,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         if (iconElement) {
           iconElement.icon = 'mdi:alert-circle';
           iconElement.style.color = 'var(--error-color, #f44336)';
-          
+
           setTimeout(() => {
             iconElement.style.color = '';
           }, 2000);
