@@ -118,6 +118,27 @@ export class LCARdSDataSourceDialog extends LitElement {
         days: 0
       }
     };
+
+    // Convert transformations array to object format for editing
+    if (this._config.transformations && Array.isArray(this._config.transformations)) {
+      const transformsObj = {};
+      this._config.transformations.forEach(transform => {
+        const { key, ...config } = transform;
+        transformsObj[key] = config;
+      });
+      this._config.transformations = transformsObj;
+    }
+
+    // Convert aggregations array to object format for editing
+    if (this._config.aggregations && Array.isArray(this._config.aggregations)) {
+      const aggsObj = {};
+      this._config.aggregations.forEach(agg => {
+        const { key, ...config } = agg;
+        aggsObj[key] = config;
+      });
+      this._config.aggregations = aggsObj;
+    }
+
     this._entityValid = false;
     this._entitySuggestions = [];
     this._showHistory = this._config.history?.preload || false;
@@ -141,7 +162,6 @@ export class LCARdSDataSourceDialog extends LitElement {
     return html`
       <ha-dialog
         .open=${this.open}
-        @closed=${this._handleCancel}
         .heading=${this.mode === 'add' ? 'Add Datasource' : `Edit Datasource: ${this.sourceName}`}
         scrimClickAction=""
         escapeKeyAction="">
@@ -153,8 +173,7 @@ export class LCARdSDataSourceDialog extends LitElement {
         <ha-button
           slot="secondaryAction"
           appearance="plain"
-          @click=${this._handleCancel}
-          dialogAction="cancel">
+          @click=${this._handleCancel}>
           Cancel
         </ha-button>
 
@@ -163,8 +182,7 @@ export class LCARdSDataSourceDialog extends LitElement {
           variant="brand"
           appearance="accent"
           @click=${this._handleSave}
-          ?disabled=${!this._isValid()}
-          dialogAction="ok">
+          ?disabled=${!this._isValid()}>
           ${this.mode === 'add' ? 'Create' : 'Save'}
         </ha-button>
       </ha-dialog>
@@ -296,7 +314,12 @@ export class LCARdSDataSourceDialog extends LitElement {
         <ha-select
           label="Attribute"
           .value=${this._config.attribute || '__state__'}
-          @selected=${this._handleAttributeChange}>
+          @click=${(e) => e.stopPropagation()}
+          @selected=${(e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this._handleAttributeChange(e);
+          }}>
           ${options.map(opt => html`
             <mwc-list-item .value=${opt.value}>${opt.label}</mwc-list-item>
           `)}
@@ -517,27 +540,27 @@ export class LCARdSDataSourceDialog extends LitElement {
 
   _handleTransformationsChange(event) {
     const transformations = event.detail.value;
-    
+
     // Remove transformations if empty, otherwise set
     if (Object.keys(transformations).length === 0) {
       delete this._config.transformations;
     } else {
       this._config.transformations = transformations;
     }
-    
+
     this.requestUpdate();
   }
 
   _handleAggregationsChange(event) {
     const aggregations = event.detail.value;
-    
+
     // Remove aggregations if empty, otherwise set
     if (Object.keys(aggregations).length === 0) {
       delete this._config.aggregations;
     } else {
       this._config.aggregations = aggregations;
     }
-    
+
     this.requestUpdate();
   }
 
@@ -562,7 +585,8 @@ export class LCARdSDataSourceDialog extends LitElement {
     if (cleanConfig.max_delay_ms === undefined) {
       delete cleanConfig.max_delay_ms;
     }
-    // Clean up empty transformations and aggregations
+
+    // Clean up empty transformations/aggregations objects
     if (cleanConfig.transformations && Object.keys(cleanConfig.transformations).length === 0) {
       delete cleanConfig.transformations;
     }

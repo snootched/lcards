@@ -388,15 +388,16 @@ data_sources:
     expression: "inputs[0] + inputs[1] + inputs[2]"
     transformations:
       # Convert watts to kilowatts
-      - type: unit_conversion
-        conversion: "w_to_kw"
-        key: "kilowatts"
+      kilowatts:
+        type: unit_conversion
+        from: w
+        to: kw
 
       # Smooth the result
-      - type: smooth
+      smoothed:
+        type: smooth
         method: "exponential"
         alpha: 0.3
-        key: "smoothed"
 ```
 
 ### Usage in Overlays
@@ -426,22 +427,22 @@ data_sources:
     expression: "(inputs[0] / inputs[1]) * 100"
     aggregations:
       # Track average efficiency
-      moving_average:
+      avg_1h:
+        type: moving_average
         window: "1h"
-        key: "avg_1h"
 
       # Track daily stats
-      min_max:
+      daily:
+        type: min_max
         min: true
         max: true
         avg: true
         window: "24h"
-        key: "daily"
 
       # Detect trends
-      recent_trend:
+      trend:
+        type: recent_trend
         samples: 10
-        key: "trend"
 ```
 
 ### Usage in Rules

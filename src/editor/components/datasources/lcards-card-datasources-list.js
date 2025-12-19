@@ -137,6 +137,12 @@ export class LCARdSCardDataSourcesList extends LitElement {
 
         ${isExpanded ? html`
           <div class="datasource-details">
+            <!-- Datasource Name (prominent) -->
+            <div class="info-row">
+              <span class="label">Name:</span>
+              <span class="value" style="font-weight: 600; color: var(--primary-color);">${name}</span>
+            </div>
+
             <!-- Basic Info -->
             <div class="info-row">
               <span class="label">Entity:</span>

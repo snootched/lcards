@@ -1,11 +1,11 @@
 /**
  * Global Datasources Panel
- * 
+ *
  * Read-only display of all datasources in the DataSourceManager singleton.
  * Shows: which cards use each source, auto-created vs configured, live stats.
- * 
- * Similar to Rules Dashboard pattern. 
- * 
+ *
+ * Similar to Rules Dashboard pattern.
+ *
  * @element lcards-global-datasources-panel
  * @property {Object} hass - Home Assistant instance
  */
@@ -20,7 +20,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       _stats: { type: Object, state: true }
     };
   }
-  
+
   constructor() {
     super();
     this._stats = null;
@@ -160,28 +160,28 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       }
     `;
   }
-  
+
   connectedCallback() {
     super.connectedCallback();
     this._refreshStats();
     // Auto-refresh every 5 seconds
     this._refreshInterval = setInterval(() => this._refreshStats(), 5000);
   }
-  
+
   disconnectedCallback() {
     if (this._refreshInterval) {
       clearInterval(this._refreshInterval);
     }
     super.disconnectedCallback();
   }
-  
+
   _refreshStats() {
     const dsManager = window.lcards?.core?.dataSourceManager;
     if (!dsManager) {
       this._stats = null;
       return;
     }
-    
+
     try {
       this._stats = dsManager.getStats();
       this.requestUpdate();
@@ -189,7 +189,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       console.error('[GlobalDataSourcesPanel] Error fetching stats:', error);
     }
   }
-  
+
   render() {
     if (!this._stats) {
       return html`
@@ -199,9 +199,9 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
         </lcards-message>
       `;
     }
-    
+
     const sources = Object.entries(this._stats.sources || {});
-    
+
     if (sources.length === 0) {
       return html`
         <div class="empty-state">
@@ -213,7 +213,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
         </div>
       `;
     }
-    
+
     return html`
       <div class="info-header">
         <lcards-message
@@ -221,18 +221,23 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
           message="These datasources exist across ALL cards in this dashboard. They are managed by the global DataSourceManager singleton.">
         </lcards-message>
       </div>
-      
+
       <div class="sources-grid">
         ${sources.map(([name, stats]) => this._renderGlobalSource(name, stats))}
       </div>
     `;
   }
-  
+
   _renderGlobalSource(name, stats) {
     const isAutoCreated = stats.autoCreated || false;
     const usedByCards = stats.usedByCards || [];
     const cardCount = usedByCards.length;
-    
+    const entity = stats.config?.entity || 'N/A';
+    const windowSeconds = stats.config?.windowSeconds || 60;
+    const bufferSize = stats.buffer?.size || 0;
+    const transformCount = stats.transformations?.size || 0;
+    const aggregationCount = stats.aggregations?.size || 0;
+
     return html`
       <div class="source-card ${isAutoCreated ? 'auto-created' : 'configured'}">
         <div class="source-header">
@@ -242,13 +247,54 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
             <span class="badge auto-created">AUTO-CREATED</span>
           ` : ''}
         </div>
-        
+
         <div class="source-details">
+          <!-- Entity Info -->
+          <div class="detail-row">
+            <span class="label">Entity:</span>
+            <span class="value" style="font-family: monospace; font-size: 0.9em;">${entity}</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="label">Window:</span>
+            <span class="value">${windowSeconds}s</span>
+          </div>
+
+          <!-- Transformations & Aggregations -->
+          ${transformCount > 0 ? html`
+            <div class="detail-row">
+              <span class="label">
+                <ha-icon icon="mdi:function-variant" style="--mdc-icon-size: 16px; vertical-align: middle;"></ha-icon>
+                Transformations:
+              </span>
+              <span class="value" style="color: var(--primary-color); font-weight: 500;">${transformCount}</span>
+            </div>
+          ` : ''}
+
+          ${aggregationCount > 0 ? html`
+            <div class="detail-row">
+              <span class="label">
+                <ha-icon icon="mdi:chart-line" style="--mdc-icon-size: 16px; vertical-align: middle;"></ha-icon>
+                Aggregations:
+              </span>
+              <span class="value" style="color: var(--primary-color); font-weight: 500;">${aggregationCount}</span>
+            </div>
+          ` : ''}
+
+          <!-- Buffer Status -->
+          ${bufferSize > 0 ? html`
+            <div class="detail-row">
+              <span class="label">Buffer:</span>
+              <span class="value">${bufferSize} points</span>
+            </div>
+          ` : ''}
+
+          <!-- Usage Info -->
           <div class="detail-row">
             <span class="label">Used by:</span>
             <span class="value">${cardCount} card${cardCount !== 1 ? 's' : ''}</span>
           </div>
-          
+
           ${usedByCards.length > 0 ? html`
             <div class="card-list">
               ${usedByCards.map(cardId => html`
@@ -256,21 +302,14 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
               `)}
             </div>
           ` : ''}
-          
+
           ${stats.sourceCard ? html`
             <div class="detail-row">
               <span class="label">Source card:</span>
               <span class="value">${stats.sourceCard}</span>
             </div>
           ` : ''}
-          
-          ${stats.buffer?.size ? html`
-            <div class="detail-row">
-              <span class="label">Buffer:</span>
-              <span class="value">${stats.buffer.size} points</span>
-            </div>
-          ` : ''}
-          
+
           ${stats.lastUpdate ? html`
             <div class="detail-row">
               <span class="label">Last update:</span>
@@ -281,7 +320,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       </div>
     `;
   }
-  
+
   _formatTimestamp(timestamp) {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
     if (seconds < 60) return `${seconds}s ago`;

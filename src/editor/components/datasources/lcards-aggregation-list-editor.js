@@ -1,12 +1,12 @@
 /**
  * LCARdS Aggregation List Editor
- * 
- * Manages list of aggregations for a datasource. 
- * Each aggregation can be edited with type-specific forms or YAML. 
- * 
+ *
+ * Manages list of aggregations for a datasource.
+ * Each aggregation can be edited with type-specific forms or YAML.
+ *
  * @element lcards-aggregation-list-editor
  * @fires aggregations-changed - When aggregations updated
- * 
+ *
  * @property {Object} editor - Parent editor instance
  * @property {Object} aggregations - Aggregations object (keyed by name)
  * @property {Object} hass - Home Assistant instance
@@ -28,14 +28,14 @@ export class LCARdSAggregationListEditor extends LitElement {
       _editingConfig: { type: Object, state: true }
     };
   }
-  
+
   constructor() {
     super();
     this.aggregations = {};
     this._dialogOpen = false;
     this._dialogMode = 'add';
   }
-  
+
   static get styles() {
     return css`
       :host {
@@ -126,10 +126,10 @@ export class LCARdSAggregationListEditor extends LitElement {
       }
     `;
   }
-  
+
   render() {
     const aggKeys = Object.keys(this.aggregations || {});
-    
+
     return html`
       <lcards-form-section
         header="Aggregations"
@@ -138,7 +138,7 @@ export class LCARdSAggregationListEditor extends LitElement {
         ?expanded=${true}
         ?outlined=${true}
         headerLevel="4">
-        
+
         ${aggKeys.length === 0 ? html`
           <div class="empty-state">
             <ha-icon icon="mdi:chart-line"></ha-icon>
@@ -152,7 +152,7 @@ export class LCARdSAggregationListEditor extends LitElement {
             ${aggKeys.map(key => this._renderAggregation(key, this.aggregations[key]))}
           </div>
         `}
-        
+
         <mwc-button
           outlined
           @click=${this._handleAdd}>
@@ -160,22 +160,60 @@ export class LCARdSAggregationListEditor extends LitElement {
           Add Aggregation
         </mwc-button>
       </lcards-form-section>
-      
-      <lcards-aggregation-dialog
-        .hass=${this.hass}
-        .mode=${this._dialogMode}
-        .aggKey=${this._editingKey}
-        .aggConfig=${this._editingConfig}
-        .open=${this._dialogOpen}
-        @save=${this._handleDialogSave}
-        @cancel=${() => this._dialogOpen = false}>
-      </lcards-aggregation-dialog>
     `;
   }
-  
+
+  // Render dialog to document.body to avoid nesting issues with ha-dialog
+  updated(changedProps) {
+    super.updated(changedProps);
+
+    if (changedProps.has('_dialogOpen')) {
+      this._renderDialogToBody();
+    }
+  }
+
+  _renderDialogToBody() {
+    // Remove existing dialog if present
+    const existingDialog = document.body.querySelector('lcards-aggregation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+
+    // Only create if dialog should be open
+    if (!this._dialogOpen) return;
+
+    // Create dialog element
+    const dialog = document.createElement('lcards-aggregation-dialog');
+    dialog.setAttribute('data-portal', '');
+    dialog.hass = this.hass;
+    dialog.mode = this._dialogMode;
+    dialog.aggKey = this._editingKey;
+    dialog.aggConfig = this._editingConfig;
+    dialog.open = true;
+
+    // Handle events
+    dialog.addEventListener('save', (e) => this._handleDialogSave(e));
+    dialog.addEventListener('cancel', () => {
+      this._dialogOpen = false;
+      dialog.remove();
+    });
+
+    // Append to body (outside the parent dialog)
+    document.body.appendChild(dialog);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up portal dialog when component is removed
+    const existingDialog = document.body.querySelector('lcards-aggregation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+  }
+
   _renderAggregation(key, config) {
     const type = config.type || 'unknown';
-    
+
     return html`
       <div class="agg-item">
         <div class="agg-header">
@@ -195,16 +233,16 @@ export class LCARdSAggregationListEditor extends LitElement {
             </mwc-icon-button>
           </div>
         </div>
-        
+
         ${this._renderAggregationSummary(config)}
       </div>
     `;
   }
-  
+
   _renderAggregationSummary(config) {
     // Show key parameters based on type
     const window = config.window_seconds || 60;
-    
+
     switch (config.type) {
       case 'avg':
         return html`
@@ -212,42 +250,42 @@ export class LCARdSAggregationListEditor extends LitElement {
             Average over ${window}s window
           </div>
         `;
-      
+
       case 'min':
         return html`
           <div class="agg-summary">
             Minimum over ${window}s window
           </div>
         `;
-      
+
       case 'max':
         return html`
           <div class="agg-summary">
             Maximum over ${window}s window
           </div>
         `;
-      
+
       case 'sum':
         return html`
           <div class="agg-summary">
             Sum over ${window}s window
           </div>
         `;
-      
+
       case 'rate':
         return html`
           <div class="agg-summary">
             Rate of change per ${config.per_unit || 'second'} (${window}s window)
           </div>
         `;
-      
+
       case 'trend':
         return html`
           <div class="agg-summary">
             Trend detection (threshold: ${config.threshold || 1}, ${window}s window)
           </div>
         `;
-      
+
       default:
         return html`
           <div class="agg-summary">
@@ -256,21 +294,21 @@ export class LCARdSAggregationListEditor extends LitElement {
         `;
     }
   }
-  
+
   _handleAdd() {
     this._dialogMode = 'add';
     this._editingKey = '';
     this._editingConfig = null;
     this._dialogOpen = true;
   }
-  
+
   _handleEdit(key, config) {
     this._dialogMode = 'edit';
     this._editingKey = key;
     this._editingConfig = { ...config };
     this._dialogOpen = true;
   }
-  
+
   _handleDelete(key) {
     if (!confirm(`Remove aggregation "${key}"?`)) {
       return;
@@ -278,29 +316,34 @@ export class LCARdSAggregationListEditor extends LitElement {
 
     const updated = { ...this.aggregations };
     delete updated[key];
-    
+
     this.dispatchEvent(new CustomEvent('aggregations-changed', {
       detail: { value: updated },
       bubbles: true,
       composed: true
     }));
   }
-  
+
   _handleDialogSave(event) {
     const { key, config } = event.detail;
-    
+
     const updated = {
       ...this.aggregations,
       [key]: config
     };
-    
+
     this.dispatchEvent(new CustomEvent('aggregations-changed', {
       detail: { value: updated },
       bubbles: true,
       composed: true
     }));
-    
+
+    // Close dialog and clean up portal
     this._dialogOpen = false;
+    const existingDialog = document.body.querySelector('lcards-aggregation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
   }
 }
 

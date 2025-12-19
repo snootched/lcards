@@ -1,12 +1,12 @@
 /**
  * LCARdS Transformation List Editor
- * 
- * Manages list of transformations for a datasource. 
- * Each transformation can be edited with type-specific forms or YAML. 
- * 
+ *
+ * Manages list of transformations for a datasource.
+ * Each transformation can be edited with type-specific forms or YAML.
+ *
  * @element lcards-transformation-list-editor
  * @fires transformations-changed - When transformations updated
- * 
+ *
  * @property {Object} editor - Parent editor instance
  * @property {Object} transformations - Transformations object (keyed by name)
  * @property {Object} hass - Home Assistant instance
@@ -28,14 +28,14 @@ export class LCARdSTransformationListEditor extends LitElement {
       _editingConfig: { type: Object, state: true }
     };
   }
-  
+
   constructor() {
     super();
     this.transformations = {};
     this._dialogOpen = false;
     this._dialogMode = 'add';
   }
-  
+
   static get styles() {
     return css`
       :host {
@@ -126,10 +126,10 @@ export class LCARdSTransformationListEditor extends LitElement {
       }
     `;
   }
-  
+
   render() {
     const transformKeys = Object.keys(this.transformations || {});
-    
+
     return html`
       <lcards-form-section
         header="Transformations"
@@ -138,7 +138,7 @@ export class LCARdSTransformationListEditor extends LitElement {
         ?expanded=${true}
         ?outlined=${true}
         headerLevel="4">
-        
+
         ${transformKeys.length === 0 ? html`
           <div class="empty-state">
             <ha-icon icon="mdi:function-variant"></ha-icon>
@@ -152,7 +152,7 @@ export class LCARdSTransformationListEditor extends LitElement {
             ${transformKeys.map(key => this._renderTransform(key, this.transformations[key]))}
           </div>
         `}
-        
+
         <mwc-button
           outlined
           @click=${this._handleAdd}>
@@ -160,22 +160,60 @@ export class LCARdSTransformationListEditor extends LitElement {
           Add Transformation
         </mwc-button>
       </lcards-form-section>
-      
-      <lcards-transformation-dialog
-        .hass=${this.hass}
-        .mode=${this._dialogMode}
-        .transformKey=${this._editingKey}
-        .transformConfig=${this._editingConfig}
-        .open=${this._dialogOpen}
-        @save=${this._handleDialogSave}
-        @cancel=${() => this._dialogOpen = false}>
-      </lcards-transformation-dialog>
     `;
   }
-  
+
+  // Render dialog to document.body to avoid nesting issues with ha-dialog
+  updated(changedProps) {
+    super.updated(changedProps);
+
+    if (changedProps.has('_dialogOpen')) {
+      this._renderDialogToBody();
+    }
+  }
+
+  _renderDialogToBody() {
+    // Remove existing dialog if present
+    const existingDialog = document.body.querySelector('lcards-transformation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+
+    // Only create if dialog should be open
+    if (!this._dialogOpen) return;
+
+    // Create dialog element
+    const dialog = document.createElement('lcards-transformation-dialog');
+    dialog.setAttribute('data-portal', '');
+    dialog.hass = this.hass;
+    dialog.mode = this._dialogMode;
+    dialog.transformKey = this._editingKey;
+    dialog.transformConfig = this._editingConfig;
+    dialog.open = true;
+
+    // Handle events
+    dialog.addEventListener('save', (e) => this._handleDialogSave(e));
+    dialog.addEventListener('cancel', () => {
+      this._dialogOpen = false;
+      dialog.remove();
+    });
+
+    // Append to body (outside the parent dialog)
+    document.body.appendChild(dialog);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up portal dialog when component is removed
+    const existingDialog = document.body.querySelector('lcards-transformation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+  }
+
   _renderTransform(key, config) {
     const type = config.type || 'unknown';
-    
+
     return html`
       <div class="transform-item">
         <div class="transform-header">
@@ -195,12 +233,12 @@ export class LCARdSTransformationListEditor extends LitElement {
             </mwc-icon-button>
           </div>
         </div>
-        
+
         ${this._renderTransformSummary(config)}
       </div>
     `;
   }
-  
+
   _renderTransformSummary(config) {
     // Show key parameters based on type
     switch (config.type) {
@@ -210,29 +248,29 @@ export class LCARdSTransformationListEditor extends LitElement {
             ${config.from_unit} → ${config.to_unit}
           </div>
         `;
-      
+
       case 'scale':
         return html`
           <div class="transform-summary">
-            [${config.input_min}, ${config.input_max}] → 
+            [${config.input_min}, ${config.input_max}] →
             [${config.output_min}, ${config.output_max}]
           </div>
         `;
-      
+
       case 'exponential_smoothing':
         return html`
           <div class="transform-summary">
             Alpha: ${config.alpha || 0.3}
           </div>
         `;
-      
+
       case 'moving_average':
         return html`
           <div class="transform-summary">
             Window: ${config.window || 5} points
           </div>
         `;
-      
+
       default:
         return html`
           <div class="transform-summary">
@@ -241,21 +279,21 @@ export class LCARdSTransformationListEditor extends LitElement {
         `;
     }
   }
-  
+
   _handleAdd() {
     this._dialogMode = 'add';
     this._editingKey = '';
     this._editingConfig = null;
     this._dialogOpen = true;
   }
-  
+
   _handleEdit(key, config) {
     this._dialogMode = 'edit';
     this._editingKey = key;
     this._editingConfig = { ...config };
     this._dialogOpen = true;
   }
-  
+
   _handleDelete(key) {
     if (!confirm(`Remove transformation "${key}"?`)) {
       return;
@@ -263,29 +301,34 @@ export class LCARdSTransformationListEditor extends LitElement {
 
     const updated = { ...this.transformations };
     delete updated[key];
-    
+
     this.dispatchEvent(new CustomEvent('transformations-changed', {
       detail: { value: updated },
       bubbles: true,
       composed: true
     }));
   }
-  
+
   _handleDialogSave(event) {
     const { key, config } = event.detail;
-    
+
     const updated = {
       ...this.transformations,
       [key]: config
     };
-    
+
     this.dispatchEvent(new CustomEvent('transformations-changed', {
       detail: { value: updated },
       bubbles: true,
       composed: true
     }));
-    
+
+    // Close dialog and clean up portal
     this._dialogOpen = false;
+    const existingDialog = document.body.querySelector('lcards-transformation-dialog[data-portal]');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
   }
 }
 

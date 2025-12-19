@@ -1,13 +1,13 @@
 /**
  * LCARdS Transformation Dialog
- * 
+ *
  * Modal dialog for adding/editing transformations with type-specific forms.
- * Supports common types with declarative forms and YAML fallback for advanced. 
- * 
+ * Supports common types with declarative forms and YAML fallback for advanced.
+ *
  * @element lcards-transformation-dialog
  * @fires save - When transformation is saved
  * @fires cancel - When dialog is cancelled
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {string} mode - 'add' | 'edit'
  * @property {string} transformKey - Existing key (edit mode)
@@ -34,14 +34,14 @@ export class LCARdSTransformationDialog extends LitElement {
       _errors: { type: Object, state: true }
     };
   }
-  
+
   constructor() {
     super();
     this.mode = 'add';
     this.open = false;
     this._resetForm();
   }
-  
+
   static get styles() {
     return css`
       :host {
@@ -94,16 +94,38 @@ export class LCARdSTransformationDialog extends LitElement {
       }
     `;
   }
-  
+
+  updated(changedProperties) {
+    if (changedProperties.has('open') && this.open) {
+      // Initialize form from props when dialog opens
+      this._initializeForm();
+    }
+  }
+
   _resetForm() {
-    this._key = this.transformKey || '';
-    this._selectedType = this.transformConfig?.type || '';
-    this._config = this.transformConfig ? { ...this.transformConfig } : {};
+    this._key = '';
+    this._selectedType = '';
+    this._config = {};
     this._useYaml = false;
     this._yamlValue = '';
     this._errors = {};
   }
-  
+
+  _initializeForm() {
+    // Load from transformConfig if in edit mode
+    if (this.mode === 'edit' && this.transformConfig) {
+      this._key = this.transformKey || '';
+      this._selectedType = this.transformConfig.type || '';
+      this._config = { ...this.transformConfig };
+      this._useYaml = false;
+      this._yamlValue = '';
+    } else {
+      // Reset for add mode
+      this._resetForm();
+    }
+    this._errors = {};
+  }
+
   // Common transform types with UI forms
   get supportedTypes() {
     return [
@@ -120,13 +142,13 @@ export class LCARdSTransformationDialog extends LitElement {
       { value: '__yaml__', label: '📝 Advanced (YAML Editor)' }
     ];
   }
-  
+
   willUpdate(changedProperties) {
     if (changedProperties.has('open') && this.open) {
       this._resetForm();
     }
   }
-  
+
   render() {
     if (!this.open) {
       return html``;
@@ -135,36 +157,33 @@ export class LCARdSTransformationDialog extends LitElement {
     return html`
       <ha-dialog
         .open=${this.open}
-        @closed=${this._handleCancel}
         .heading=${this.mode === 'add' ? 'Add Transformation' : `Edit: ${this.transformKey}`}
         scrimClickAction=""
         escapeKeyAction="">
-        
+
         <div style="padding: 0 24px 8px;">
           ${this._renderForm()}
         </div>
-        
+
         <ha-button
           slot="secondaryAction"
           appearance="plain"
-          @click=${this._handleCancel}
-          dialogAction="cancel">
+          @click=${this._handleCancel}>
           Cancel
         </ha-button>
-        
+
         <ha-button
           slot="primaryAction"
           variant="brand"
           appearance="accent"
           @click=${this._handleSave}
-          ?disabled=${!this._isValid()}
-          dialogAction="ok">
+          ?disabled=${!this._isValid()}>
           ${this.mode === 'add' ? 'Create' : 'Save'}
         </ha-button>
       </ha-dialog>
     `;
   }
-  
+
   _renderForm() {
     return html`
       <div class="form-content">
@@ -176,26 +195,31 @@ export class LCARdSTransformationDialog extends LitElement {
           ?disabled=${this.mode === 'edit'}
           placeholder="e.g., celsius, smoothed, scaled">
         </ha-textfield>
-        
+
         <!-- Type Selector -->
         <ha-select
           label="Type *"
           .value=${this._useYaml ? '__yaml__' : this._selectedType}
-          @selected=${this._handleTypeChange}>
+          @change=${(e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this._handleTypeChange(e);
+          }}
+          @click=${(e) => e.stopPropagation()}>
           ${this.supportedTypes.map(type => html`
             <mwc-list-item .value=${type.value}>${type.label}</mwc-list-item>
           `)}
         </ha-select>
-        
+
         <!-- Type-Specific Form or YAML Editor -->
-        ${this._useYaml 
+        ${this._useYaml
           ? this._renderYamlEditor()
           : this._renderTypeForm(this._selectedType)
         }
       </div>
     `;
   }
-  
+
   _renderTypeForm(type) {
     switch (type) {
       case 'unit_conversion':
@@ -226,52 +250,174 @@ export class LCARdSTransformationDialog extends LitElement {
         `;
     }
   }
-  
+
   _renderUnitConversionForm() {
-    const commonUnits = {
-      temperature: ['celsius', 'fahrenheit', 'kelvin'],
-      distance: ['meters', 'feet', 'miles', 'kilometers'],
-      speed: ['m/s', 'km/h', 'mph'],
-      pressure: ['pa', 'hpa', 'mbar', 'psi']
+    // Unit categories with display labels and actual conversion keys
+    const unitCategories = {
+      temperature: {
+        label: 'Temperature',
+        units: [
+          { value: 'c', label: 'Celsius (°C)' },
+          { value: 'f', label: 'Fahrenheit (°F)' },
+          { value: 'k', label: 'Kelvin (K)' }
+        ]
+      },
+      distance: {
+        label: 'Distance',
+        units: [
+          { value: 'mm', label: 'Millimeters (mm)' },
+          { value: 'cm', label: 'Centimeters (cm)' },
+          { value: 'm', label: 'Meters (m)' },
+          { value: 'km', label: 'Kilometers (km)' },
+          { value: 'in', label: 'Inches (in)' },
+          { value: 'ft', label: 'Feet (ft)' }
+        ]
+      },
+      speed: {
+        label: 'Speed',
+        units: [
+          { value: 'ms', label: 'Meters/Second (m/s)' },
+          { value: 'kmh', label: 'Kilometers/Hour (km/h)' },
+          { value: 'mph', label: 'Miles/Hour (mph)' }
+        ]
+      },
+      pressure: {
+        label: 'Pressure',
+        units: [
+          { value: 'hpa', label: 'Hectopascals (hPa)' },
+          { value: 'bar', label: 'Bar' },
+          { value: 'psi', label: 'PSI' },
+          { value: 'mmhg', label: 'mmHg' }
+        ]
+      },
+      power: {
+        label: 'Power',
+        units: [
+          { value: 'w', label: 'Watts (W)' },
+          { value: 'kw', label: 'Kilowatts (kW)' },
+          { value: 'mw', label: 'Megawatts (MW)' }
+        ]
+      },
+      energy: {
+        label: 'Energy',
+        units: [
+          { value: 'wh', label: 'Watt-hours (Wh)' },
+          { value: 'kwh', label: 'Kilowatt-hours (kWh)' },
+          { value: 'mwh', label: 'Megawatt-hours (MWh)' },
+          { value: 'j', label: 'Joules (J)' }
+        ]
+      },
+      data: {
+        label: 'Data Size',
+        units: [
+          { value: 'b', label: 'Bytes (B)' },
+          { value: 'kb', label: 'Kilobytes (KB)' },
+          { value: 'mb', label: 'Megabytes (MB)' },
+          { value: 'gb', label: 'Gigabytes (GB)' },
+          { value: 'tb', label: 'Terabytes (TB)' }
+        ]
+      },
+      volume: {
+        label: 'Volume',
+        units: [
+          { value: 'ml', label: 'Milliliters (mL)' },
+          { value: 'l', label: 'Liters (L)' },
+          { value: 'gal', label: 'Gallons (gal)' }
+        ]
+      }
     };
-    
+
+    // Determine which category the from belongs to
+    const fromUnit = this._config.from || '';
+    let fromCategory = null;
+    for (const [category, data] of Object.entries(unitCategories)) {
+      if (data.units.some(u => u.value === fromUnit)) {
+        fromCategory = category;
+        break;
+      }
+    }
+
     return html`
       <ha-alert alert-type="info">
-        Convert between units (temperature, distance, speed, etc.)
+        Convert between units of the same type (e.g., celsius ↔ fahrenheit)
       </ha-alert>
-      
+
       <ha-select
         label="From Unit"
-        .value=${this._config.from_unit || ''}
-        @selected=${(e) => this._updateConfig('from_unit', e.target.value)}>
-        ${Object.entries(commonUnits).map(([category, units]) => html`
-          <mwc-list-item disabled>${category.toUpperCase()}</mwc-list-item>
-          ${units.map(unit => html`
-            <mwc-list-item .value=${unit}>${unit}</mwc-list-item>
+        .value=${fromUnit}
+        @selected=${(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          const newUnit = e.target.value;
+          this._updateConfig('from', newUnit);
+          // Reset to if switching categories
+          const currentToUnit = this._config.to || '';
+          let newCategory = null;
+          for (const [category, data] of Object.entries(unitCategories)) {
+            if (data.units.some(u => u.value === newUnit)) {
+              newCategory = category;
+              break;
+            }
+          }
+          // Clear to if it's from a different category
+          let toCategory = null;
+          for (const [category, data] of Object.entries(unitCategories)) {
+            if (data.units.some(u => u.value === currentToUnit)) {
+              toCategory = category;
+              break;
+            }
+          }
+          if (newCategory !== toCategory) {
+            this._updateConfig('to', '');
+          }
+        }}
+        @click=${(e) => e.stopPropagation()}>
+        <mwc-list-item value="">Select unit...</mwc-list-item>
+        ${Object.entries(unitCategories).map(([category, data]) => html`
+          <mwc-list-item graphic="icon" disabled>
+            <span slot="graphic">━━</span>
+            ${data.label}
+          </mwc-list-item>
+          ${data.units.map(unit => html`
+            <mwc-list-item .value=${unit.value}>&nbsp;&nbsp;${unit.label}</mwc-list-item>
           `)}
         `)}
       </ha-select>
-      
+
       <ha-select
         label="To Unit"
-        .value=${this._config.to_unit || ''}
-        @selected=${(e) => this._updateConfig('to_unit', e.target.value)}>
-        ${Object.entries(commonUnits).map(([category, units]) => html`
-          <mwc-list-item disabled>${category.toUpperCase()}</mwc-list-item>
-          ${units.map(unit => html`
-            <mwc-list-item .value=${unit}>${unit}</mwc-list-item>
+        .value=${this._config.to || ''}
+        ?disabled=${!fromCategory}
+        @selected=${(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          this._updateConfig('to', e.target.value);
+        }}
+        @click=${(e) => e.stopPropagation()}>
+        <mwc-list-item value="">Select unit...</mwc-list-item>
+        ${fromCategory ? html`
+          ${unitCategories[fromCategory].units.map(unit => html`
+            <mwc-list-item .value=${unit.value}>${unit.label}</mwc-list-item>
           `)}
-        `)}
+        ` : html`
+          <mwc-list-item disabled>Select a "From Unit" first</mwc-list-item>
+        `}
       </ha-select>
+
+      ${fromCategory && this._config.from && this._config.to ? html`
+        <div style="padding: 8px; background: var(--success-color, #4caf50); color: white; border-radius: 4px; font-size: 14px;">
+          ✓ Valid ${unitCategories[fromCategory].label.toLowerCase()} conversion
+        </div>
+      ` : ''}
     `;
   }
-  
+
   _renderScaleForm() {
     return html`
       <ha-alert alert-type="info">
         Map input range to output range (e.g., 0-100 to 0-255)
       </ha-alert>
-      
+
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <ha-selector
           .hass=${this.hass}
@@ -280,7 +426,7 @@ export class LCARdSTransformationDialog extends LitElement {
           .label=${'Input Min'}
           @value-changed=${(e) => this._updateConfig('input_min', e.detail.value)}>
         </ha-selector>
-        
+
         <ha-selector
           .hass=${this.hass}
           .selector=${{ number: { mode: 'box' } }}
@@ -288,7 +434,7 @@ export class LCARdSTransformationDialog extends LitElement {
           .label=${'Input Max'}
           @value-changed=${(e) => this._updateConfig('input_max', e.detail.value)}>
         </ha-selector>
-        
+
         <ha-selector
           .hass=${this.hass}
           .selector=${{ number: { mode: 'box' } }}
@@ -296,7 +442,7 @@ export class LCARdSTransformationDialog extends LitElement {
           .label=${'Output Min'}
           @value-changed=${(e) => this._updateConfig('output_min', e.detail.value)}>
         </ha-selector>
-        
+
         <ha-selector
           .hass=${this.hass}
           .selector=${{ number: { mode: 'box' } }}
@@ -307,13 +453,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </div>
     `;
   }
-  
+
   _renderExponentialSmoothingForm() {
     return html`
       <ha-alert alert-type="info">
         Reduce noise with exponential smoothing (lower alpha = more smoothing)
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
@@ -324,13 +470,13 @@ export class LCARdSTransformationDialog extends LitElement {
       <div class="helper-text">0.1 = heavy smoothing, 0.9 = light smoothing</div>
     `;
   }
-  
+
   _renderMovingAverageForm() {
     return html`
       <ha-alert alert-type="info">
         Average over the last N data points
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 2, max: 100, mode: 'box' } }}
@@ -340,13 +486,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderClampForm() {
     return html`
       <ha-alert alert-type="info">
         Limit values to a minimum and maximum range
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { mode: 'box' } }}
@@ -354,7 +500,7 @@ export class LCARdSTransformationDialog extends LitElement {
         .label=${'Minimum Value'}
         @value-changed=${(e) => this._updateConfig('min', e.detail.value)}>
       </ha-selector>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { mode: 'box' } }}
@@ -364,13 +510,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderOffsetForm() {
     return html`
       <ha-alert alert-type="info">
         Add or subtract a constant value
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { mode: 'box', step: 0.1 } }}
@@ -380,13 +526,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderMultiplyForm() {
     return html`
       <ha-alert alert-type="info">
         Multiply values by a constant factor
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { mode: 'box', step: 0.1 } }}
@@ -396,13 +542,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderRoundForm() {
     return html`
       <ha-alert alert-type="info">
         Round to specified decimal places
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 0, max: 10, mode: 'box' } }}
@@ -412,13 +558,13 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderDeltaForm() {
     return html`
       <ha-alert alert-type="info">
         Calculate rate of change (difference from previous value)
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ boolean: {} }}
@@ -428,24 +574,24 @@ export class LCARdSTransformationDialog extends LitElement {
       </ha-selector>
     `;
   }
-  
+
   _renderExpressionForm() {
     return html`
       <ha-alert alert-type="warning">
         Advanced: JavaScript expression (has access to 'value', 'timestamp', 'buffer')
       </ha-alert>
-      
+
       <ha-textfield
         label="Expression *"
         .value=${this._config.expression || ''}
         @input=${(e) => this._updateConfig('expression', e.target.value)}
         placeholder="e.g., value * 2 + 10">
       </ha-textfield>
-      
+
       <div class="helper-text">
         Available variables: <code>value</code> (current), <code>timestamp</code>, <code>buffer</code> (history)
       </div>
-      
+
       <div class="example-code">
         Examples: <br>
         • <code>value * 1.8 + 32</code> (celsius to fahrenheit)<br>
@@ -454,14 +600,14 @@ export class LCARdSTransformationDialog extends LitElement {
       </div>
     `;
   }
-  
+
   _renderYamlEditor() {
     return html`
       <ha-alert alert-type="info">
-        Advanced YAML editor for custom transformation types. 
+        Advanced YAML editor for custom transformation types.
         See documentation for all available transformation types.
       </ha-alert>
-      
+
       <ha-textarea
         label="YAML Configuration"
         .value=${this._yamlValue}
@@ -473,10 +619,11 @@ parameter2: value2">
       </ha-textarea>
     `;
   }
-  
+
   _handleTypeChange(event) {
+    event.stopPropagation(); // Prevent bubbling to dialog
     const value = event.target.value;
-    
+
     if (value === '__yaml__') {
       this._useYaml = true;
       this._yamlValue = configToYaml(this._config);
@@ -485,10 +632,8 @@ parameter2: value2">
       this._selectedType = value;
       this._config = { type: value };
     }
-    
-    this.requestUpdate();
   }
-  
+
   _updateConfig(key, value) {
     this._config = {
       ...this._config,
@@ -496,18 +641,18 @@ parameter2: value2">
     };
     this.requestUpdate();
   }
-  
+
   _isValid() {
     // Name is required
     if (!this._key || this._key.trim().length === 0) {
       return false;
     }
-    
+
     // Check for valid identifier
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(this._key)) {
       return false;
     }
-    
+
     // Type is required
     if (this._useYaml) {
       // YAML must be valid
@@ -523,16 +668,16 @@ parameter2: value2">
       if (!this._selectedType) {
         return false;
       }
-      
+
       // Type must exist in config
       if (!this._config.type) {
         return false;
       }
-      
+
       // Validate type-specific requirements
       switch (this._selectedType) {
         case 'unit_conversion':
-          return !!this._config.from_unit && !!this._config.to_unit;
+          return !!this._config.from && !!this._config.to;
         case 'expression':
           return !!this._config.expression;
         // Other types have defaults, so they're always valid
@@ -540,15 +685,15 @@ parameter2: value2">
           return true;
       }
     }
-    
+
     return true;
   }
-  
+
   _handleSave() {
     if (!this._isValid()) return;
-    
+
     let finalConfig;
-    
+
     if (this._useYaml) {
       try {
         finalConfig = yamlToConfig(this._yamlValue);
@@ -559,7 +704,7 @@ parameter2: value2">
     } else {
       finalConfig = { ...this._config };
     }
-    
+
     this.dispatchEvent(new CustomEvent('save', {
       detail: {
         key: this._key,
@@ -569,7 +714,7 @@ parameter2: value2">
       composed: true
     }));
   }
-  
+
   _handleCancel() {
     this.dispatchEvent(new CustomEvent('cancel', {
       bubbles: true,

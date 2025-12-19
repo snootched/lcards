@@ -136,8 +136,13 @@ export class DataSource {
     const profiles = this._loadTransformationProfiles(cfg);
 
     // Initialize transformations
-    if (cfg.transformations && Array.isArray(cfg.transformations)) {
-      cfg.transformations.forEach((transformConfig, index) => {
+    if (cfg.transformations) {
+      // Support both array format (legacy) and object format (preferred)
+      const transformsArray = Array.isArray(cfg.transformations)
+        ? cfg.transformations
+        : Object.entries(cfg.transformations).map(([key, config]) => ({ key, ...config }));
+
+      transformsArray.forEach((transformConfig, index) => {
         try {
           const key = transformConfig.key || `transform_${index}`;
 
@@ -166,18 +171,14 @@ export class DataSource {
       });
     }
 
+    // Initialize aggregations
     if (cfg.aggregations) {
-      // Validate aggregations is an array
-      if (!Array.isArray(cfg.aggregations)) {
-        lcardsLog.error(
-          `[DataSource] ❌ Aggregations must be an array for ${this.cfg.entity}.\n` +
-          `  Found: ${typeof cfg.aggregations}\n` +
-          `  Use: aggregations: [{ type: "min_max", key: "daily_stats" }]`
-        );
-        return; // Skip aggregations initialization
-      }
+      // Support both array format (legacy) and object format (preferred)
+      const aggregationsArray = Array.isArray(cfg.aggregations)
+        ? cfg.aggregations
+        : Object.entries(cfg.aggregations).map(([key, config]) => ({ key, ...config }));
 
-      cfg.aggregations.forEach((config, index) => {
+      aggregationsArray.forEach((config, index) => {
         try {
           // Validate required fields
           if (!config.type) {
@@ -2264,6 +2265,14 @@ export class DataSource {
       },
       buffer: this.buffer.getStats(),
       subscribers: this.subscribers.size,
+      transformations: {
+        size: this.transformations.size,
+        keys: Array.from(this.transformations.keys())
+      },
+      aggregations: {
+        size: this.aggregations.size,
+        keys: Array.from(this.aggregations.keys())
+      },
       state: {
         started: this._started,
         pending: this._pending,

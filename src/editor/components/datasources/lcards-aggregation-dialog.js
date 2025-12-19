@@ -1,13 +1,13 @@
 /**
  * LCARdS Aggregation Dialog
- * 
+ *
  * Modal dialog for adding/editing aggregations with type-specific forms.
- * Supports common types with declarative forms and YAML fallback for advanced. 
- * 
+ * Supports common types with declarative forms and YAML fallback for advanced.
+ *
  * @element lcards-aggregation-dialog
  * @fires save - When aggregation is saved
  * @fires cancel - When dialog is cancelled
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {string} mode - 'add' | 'edit'
  * @property {string} aggKey - Existing key (edit mode)
@@ -34,14 +34,14 @@ export class LCARdSAggregationDialog extends LitElement {
       _errors: { type: Object, state: true }
     };
   }
-  
+
   constructor() {
     super();
     this.mode = 'add';
     this.open = false;
     this._resetForm();
   }
-  
+
   static get styles() {
     return css`
       :host {
@@ -78,7 +78,7 @@ export class LCARdSAggregationDialog extends LitElement {
       }
     `;
   }
-  
+
   _resetForm() {
     this._key = this.aggKey || '';
     this._selectedType = this.aggConfig?.type || '';
@@ -87,7 +87,7 @@ export class LCARdSAggregationDialog extends LitElement {
     this._yamlValue = '';
     this._errors = {};
   }
-  
+
   // Common aggregation types with UI forms
   get supportedTypes() {
     return [
@@ -100,13 +100,13 @@ export class LCARdSAggregationDialog extends LitElement {
       { value: '__yaml__', label: '📝 Advanced (YAML Editor)' }
     ];
   }
-  
+
   willUpdate(changedProperties) {
     if (changedProperties.has('open') && this.open) {
       this._resetForm();
     }
   }
-  
+
   render() {
     if (!this.open) {
       return html``;
@@ -115,36 +115,33 @@ export class LCARdSAggregationDialog extends LitElement {
     return html`
       <ha-dialog
         .open=${this.open}
-        @closed=${this._handleCancel}
         .heading=${this.mode === 'add' ? 'Add Aggregation' : `Edit: ${this.aggKey}`}
         scrimClickAction=""
         escapeKeyAction="">
-        
+
         <div style="padding: 0 24px 8px;">
           ${this._renderForm()}
         </div>
-        
+
         <ha-button
           slot="secondaryAction"
           appearance="plain"
-          @click=${this._handleCancel}
-          dialogAction="cancel">
+          @click=${this._handleCancel}>
           Cancel
         </ha-button>
-        
+
         <ha-button
           slot="primaryAction"
           variant="brand"
           appearance="accent"
           @click=${this._handleSave}
-          ?disabled=${!this._isValid()}
-          dialogAction="ok">
+          ?disabled=${!this._isValid()}>
           ${this.mode === 'add' ? 'Create' : 'Save'}
         </ha-button>
       </ha-dialog>
     `;
   }
-  
+
   _renderForm() {
     return html`
       <div class="form-content">
@@ -156,26 +153,31 @@ export class LCARdSAggregationDialog extends LitElement {
           ?disabled=${this.mode === 'edit'}
           placeholder="e.g., avg_temp, max_pressure">
         </ha-textfield>
-        
+
         <!-- Type Selector -->
         <ha-select
           label="Type *"
           .value=${this._useYaml ? '__yaml__' : this._selectedType}
-          @selected=${this._handleTypeChange}>
+          @selected=${(e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this._handleTypeChange(e);
+          }}
+          @click=${(e) => e.stopPropagation()}>
           ${this.supportedTypes.map(type => html`
             <mwc-list-item .value=${type.value}>${type.label}</mwc-list-item>
           `)}
         </ha-select>
-        
+
         <!-- Type-Specific Form or YAML Editor -->
-        ${this._useYaml 
+        ${this._useYaml
           ? this._renderYamlEditor()
           : this._renderTypeForm(this._selectedType)
         }
       </div>
     `;
   }
-  
+
   _renderTypeForm(type) {
     switch (type) {
       case 'avg':
@@ -197,13 +199,13 @@ export class LCARdSAggregationDialog extends LitElement {
         `;
     }
   }
-  
+
   _renderAvgForm() {
     return html`
       <ha-alert alert-type="info">
         Calculate moving average over a time window
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
@@ -214,15 +216,15 @@ export class LCARdSAggregationDialog extends LitElement {
       <div class="helper-text">Time window over which to calculate the average</div>
     `;
   }
-  
+
   _renderMinMaxForm(type) {
     const label = type === 'min' ? 'Minimum' : 'Maximum';
-    
+
     return html`
       <ha-alert alert-type="info">
         Track ${label.toLowerCase()} value over a time window
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
@@ -233,13 +235,13 @@ export class LCARdSAggregationDialog extends LitElement {
       <div class="helper-text">Time window over which to find the ${label.toLowerCase()}</div>
     `;
   }
-  
+
   _renderSumForm() {
     return html`
       <ha-alert alert-type="info">
         Calculate sum/total over a time window
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
@@ -250,13 +252,13 @@ export class LCARdSAggregationDialog extends LitElement {
       <div class="helper-text">Time window over which to calculate the sum</div>
     `;
   }
-  
+
   _renderRateForm() {
     return html`
       <ha-alert alert-type="info">
         Calculate rate of change per time unit
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
@@ -264,26 +266,31 @@ export class LCARdSAggregationDialog extends LitElement {
         .label=${'Window (seconds)'}
         @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
       </ha-selector>
-      
+
       <ha-select
         label="Time Unit"
         .value=${this._config.per_unit || 'second'}
-        @selected=${(e) => this._updateConfig('per_unit', e.target.value)}>
+        @selected=${(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          this._updateConfig('per_unit', e.target.value);
+        }}
+        @click=${(e) => e.stopPropagation()}>
         <mwc-list-item value="second">Per Second</mwc-list-item>
         <mwc-list-item value="minute">Per Minute</mwc-list-item>
         <mwc-list-item value="hour">Per Hour</mwc-list-item>
       </ha-select>
-      
+
       <div class="helper-text">Calculate rate of change per selected time unit</div>
     `;
   }
-  
+
   _renderTrendForm() {
     return html`
       <ha-alert alert-type="info">
         Detect if values are rising, falling, or stable
       </ha-alert>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
@@ -291,7 +298,7 @@ export class LCARdSAggregationDialog extends LitElement {
         .label=${'Window (seconds)'}
         @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
       </ha-selector>
-      
+
       <ha-selector
         .hass=${this.hass}
         .selector=${{ number: { min: 0, max: 100, step: 0.1, mode: 'box' } }}
@@ -299,21 +306,21 @@ export class LCARdSAggregationDialog extends LitElement {
         .label=${'Stability Threshold'}
         @value-changed=${(e) => this._updateConfig('threshold', e.detail.value)}>
       </ha-selector>
-      
+
       <div class="helper-text">
-        Values within ±threshold are considered stable. 
+        Values within ±threshold are considered stable.
         Returns: 'rising', 'falling', or 'stable'
       </div>
     `;
   }
-  
+
   _renderYamlEditor() {
     return html`
       <ha-alert alert-type="info">
-        Advanced YAML editor for custom aggregation types. 
+        Advanced YAML editor for custom aggregation types.
         See documentation for all available aggregation types.
       </ha-alert>
-      
+
       <ha-textarea
         label="YAML Configuration"
         .value=${this._yamlValue}
@@ -325,10 +332,11 @@ parameter1: value1">
       </ha-textarea>
     `;
   }
-  
+
   _handleTypeChange(event) {
+    event.stopPropagation(); // Prevent bubbling to dialog
     const value = event.target.value;
-    
+
     if (value === '__yaml__') {
       this._useYaml = true;
       this._yamlValue = configToYaml(this._config);
@@ -337,10 +345,10 @@ parameter1: value1">
       this._selectedType = value;
       this._config = { type: value, window_seconds: 60 };
     }
-    
-    this.requestUpdate();
+
+    // Don't call requestUpdate() - Lit's reactivity will handle it
   }
-  
+
   _updateConfig(key, value) {
     this._config = {
       ...this._config,
@@ -348,18 +356,18 @@ parameter1: value1">
     };
     this.requestUpdate();
   }
-  
+
   _isValid() {
     // Name is required
     if (!this._key || this._key.trim().length === 0) {
       return false;
     }
-    
+
     // Check for valid identifier
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(this._key)) {
       return false;
     }
-    
+
     // Type is required
     if (this._useYaml) {
       // YAML must be valid
@@ -375,21 +383,21 @@ parameter1: value1">
       if (!this._selectedType) {
         return false;
       }
-      
+
       // Type must exist in config
       if (!this._config.type) {
         return false;
       }
     }
-    
+
     return true;
   }
-  
+
   _handleSave() {
     if (!this._isValid()) return;
-    
+
     let finalConfig;
-    
+
     if (this._useYaml) {
       try {
         finalConfig = yamlToConfig(this._yamlValue);
@@ -400,7 +408,7 @@ parameter1: value1">
     } else {
       finalConfig = { ...this._config };
     }
-    
+
     this.dispatchEvent(new CustomEvent('save', {
       detail: {
         key: this._key,
@@ -410,7 +418,7 @@ parameter1: value1">
       composed: true
     }));
   }
-  
+
   _handleCancel() {
     this.dispatchEvent(new CustomEvent('cancel', {
       bubbles: true,
