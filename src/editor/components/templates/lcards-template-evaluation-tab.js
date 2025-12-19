@@ -15,7 +15,6 @@
 
 import { LitElement, html, css } from 'lit';
 import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
-import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplateEvaluator.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../common/lcards-message.js';
 import '../form/lcards-form-section.js';
@@ -143,6 +142,11 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
       .template-card.type-jinja2 {
         border-left: 4px solid #b71c1c;
+      }
+
+      .template-card.type-error {
+        border-left: 4px solid #f44336;
+        background: rgba(244, 67, 54, 0.05);
       }
 
       .template-card-header {
@@ -297,7 +301,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         <div class="syntax-list">
           <div class="syntax-item">
             <code class="syntax-code">[[[...]]]</code>
-            <span class="syntax-description">JavaScript expression — Evaluated client-side with access to entity, config, variables</span>
+            <span class="syntax-description">JavaScript expression — Evaluated client-side with access to entity, config, hass</span>
           </div>
           <div class="syntax-item">
             <code class="syntax-code">{theme:token.path}</code>
@@ -329,7 +333,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       { label: 'Theme', value: 'theme', count: counts.theme },
       { label: 'Datasource', value: 'datasource', count: counts.datasource },
       { label: 'Token', value: 'token', count: counts.token },
-      { label: 'Jinja2', value: 'jinja2', count: counts.jinja2 }
+      { label: 'Jinja2', value: 'jinja2', count: counts.jinja2 },
+      { label: 'Errors', value: 'error', count: counts.error }
     ];
 
     return html`
@@ -405,13 +410,13 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         <div class="button-row">
           <ha-button
             size="small"
-            @click=${() => this._copyToClipboard(template.result || '')}>
+            @click=${(e) => this._copyToClipboard(template.result || '', e)}>
             <ha-icon icon="mdi:content-copy" slot="icon"></ha-icon>
             Copy Result
           </ha-button>
           <ha-button
             size="small"
-            @click=${() => this._copyToClipboard(template.raw)}>
+            @click=${(e) => this._copyToClipboard(template.raw, e)}>
             <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
             Copy Template
           </ha-button>
@@ -436,7 +441,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       theme: this._templates.filter(t => t.type === 'Theme').length,
       datasource: this._templates.filter(t => t.type === 'Datasource').length,
       token: this._templates.filter(t => t.type === 'Token').length,
-      jinja2: this._templates.filter(t => t.type === 'Jinja2').length
+      jinja2: this._templates.filter(t => t.type === 'Jinja2').length,
+      error: this._templates.filter(t => t.type === 'Error').length
     };
   }
 
@@ -450,7 +456,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       'theme': 'Theme',
       'datasource': 'Datasource',
       'token': 'Token',
-      'jinja2': 'Jinja2'
+      'jinja2': 'Jinja2',
+      'error': 'Error'
     };
 
     return this._templates.filter(t => t.type === typeMap[this._filterType]);
@@ -486,6 +493,52 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   }
 
   /**
+   * Validate token syntax and provide helpful error messages
+   */
+  _validateTokenSyntax(str) {
+    const errors = [];
+
+    // Check for double braces with theme prefix (wrong: {{theme:...}})
+    if (/\{\{theme:/.test(str)) {
+      errors.push({
+        pattern: /\{\{theme:[^}]+\}\}/g,
+        message: 'Wrong syntax: {{theme:...}} should be {theme:...} (single braces)',
+        suggestion: 'Use single curly braces: {theme:token.path}'
+      });
+    }
+
+    // Check for missing colon (wrong: {theme.colors})
+    if (/\{theme\./.test(str)) {
+      errors.push({
+        pattern: /\{theme\.[^}]+\}/g,
+        message: 'Wrong syntax: {theme.colors} should be {theme:colors} (colon, not dot)',
+        suggestion: 'Use colon after prefix: {theme:colors.primary}'
+      });
+    }
+
+    // Check for datasource with dot instead of colon
+    if (/\{(?:datasource|ds)\./.test(str)) {
+      errors.push({
+        pattern: /\{(?:datasource|ds)\.[^}]+\}/g,
+        message: 'Wrong syntax: {datasource.name} should be {datasource:name} (colon, not dot)',
+        suggestion: 'Use colon after prefix: {datasource:sensor_data}'
+      });
+    }
+
+    // Check for ambiguous tokens without prefix (colors, spacing, etc.)
+    const ambiguousTokens = /\{(colors|spacing|typography|borders|effects|animations|components)\./.test(str);
+    if (ambiguousTokens) {
+      errors.push({
+        pattern: /\{(colors|spacing|typography|borders|effects|animations|components)\.[^}]+\}/g,
+        message: 'Ambiguous syntax: missing theme: prefix',
+        suggestion: 'Add theme: prefix for clarity: {theme:colors.primary}'
+      });
+    }
+
+    return errors;
+  }
+
+  /**
    * Recursively scan object for template strings
    */
   _scanObject(obj, path, templates) {
@@ -518,6 +571,25 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
    */
   _checkForTemplates(str, path, templates) {
     if (!str || typeof str !== 'string') return;
+
+    // Validate token syntax and flag errors
+    const validationErrors = this._validateTokenSyntax(str);
+    if (validationErrors.length > 0) {
+      validationErrors.forEach(errorInfo => {
+        const matches = str.matchAll(errorInfo.pattern);
+        for (const match of matches) {
+          templates.push({
+            path,
+            type: 'Error',
+            raw: match[0],
+            fullString: str,
+            result: errorInfo.message,
+            error: errorInfo.suggestion,
+            status: 'status-error'
+          });
+        }
+      });
+    }
 
     const types = TemplateDetector.detectTemplateTypes(str);
 
@@ -610,59 +682,27 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
    */
   async _evaluateTemplates(templates) {
     const entity = this._getEntity();
-    const themeManager = window.lcards?.core?.themeManager;
-    const dataSourceManager = window.lcards?.core?.dataSourceManager;
 
     for (const template of templates) {
       try {
+        // For Jinja2 templates, don't auto-evaluate (requires Home Assistant server)
+        if (template.type === 'Jinja2') {
+          template.result = '⏳ Not evaluated (use Test button)';
+          template.status = 'status-warning';
+          template.note = 'Jinja2 templates evaluate server-side. Use HA template editor to test.';
+          continue;
+        }
+
+        // Use the editor's processTemplate method which leverages the card's built-in processing
+        // This ensures consistent template handling across the LCARdS architecture
         let result = null;
 
-        if (template.type === 'Theme') {
-          // Evaluate theme token
-          const match = template.raw.match(/\{theme:([^}]+)\}/);
-          if (match && match[1]) {
-            const tokenPath = match[1];
-            result = themeManager?.getToken(tokenPath, template.raw) || '(not found)';
-          } else {
-            result = '(invalid token format)';
-          }
-        } else if (template.type === 'Datasource') {
-          // Evaluate datasource token - use full string for proper evaluation
-          if (dataSourceManager) {
-            const evaluator = new UnifiedTemplateEvaluator({
-              hass: this.hass,
-              context: {
-                entity,
-                hass: this.hass,  // Include hass in context for template evaluator
-                config: this.config,
-                variables: {},
-                theme: themeManager?.getCurrentTheme?.() || {}
-              },
-              dataSourceManager
-            });
-            result = evaluator.evaluateSync(template.fullString);
-          } else {
-            result = '(DataSourceManager not available)';
-          }
+        if (this.editor && typeof this.editor.processTemplate === 'function') {
+          // Use editor's processTemplate (which wraps the card's processTemplate method)
+          result = await this.editor.processTemplate(template.fullString);
         } else {
-          // Use UnifiedTemplateEvaluator for JavaScript, Tokens, and Jinja2
-          const evaluator = new UnifiedTemplateEvaluator({
-            hass: this.hass,
-            context: {
-              entity,
-              hass: this.hass,  // Include hass in context for template evaluator
-              config: this.config,
-              variables: {},
-              theme: themeManager?.getCurrentTheme?.() || {}
-            },
-            dataSourceManager
-          });
-
-          if (template.type === 'Jinja2') {
-            result = await evaluator.evaluateAsync(template.fullString);
-          } else {
-            result = evaluator.evaluateSync(template.fullString);
-          }
+          // Fallback: No editor or processTemplate method available
+          result = '(Editor not available)';
         }
 
         template.result = String(result);
@@ -687,14 +727,43 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   }
 
   /**
-   * Copy text to clipboard
+   * Copy text to clipboard with visual feedback
    */
-  async _copyToClipboard(text) {
+  async _copyToClipboard(text, event) {
     try {
       await navigator.clipboard.writeText(text);
-      // Could show a toast notification here
+      
+      // Show success feedback on the button that was clicked
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          const originalIcon = iconElement.icon;
+          iconElement.icon = 'mdi:check';
+          iconElement.style.color = 'var(--success-color, #4caf50)';
+          
+          setTimeout(() => {
+            iconElement.icon = originalIcon;
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     } catch (error) {
       lcardsLog.error('[TemplateEvaluationTab] Failed to copy to clipboard:', error);
+      
+      // Show error feedback
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          iconElement.icon = 'mdi:alert-circle';
+          iconElement.style.color = 'var(--error-color, #f44336)';
+          
+          setTimeout(() => {
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     }
   }
 }

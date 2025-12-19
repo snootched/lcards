@@ -283,8 +283,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     if (!this._activeTheme) {
       return html`
         <lcards-message
-          type="warning"
-          message="Theme system not available. Make sure LCARdS is properly initialized.">
+          type="info"
+          message="Loading theme information...">
         </lcards-message>
       `;
     }
@@ -390,13 +390,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="token-actions">
           <ha-button
             raised
-            @click=${() => this._copyTokenSyntax(token.path)}
+            @click=${(e) => this._copyTokenSyntax(token.path, e)}
             title="Copy token syntax to clipboard">
             <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
             Copy Token
           </ha-button>
           <ha-button
-            @click=${() => this._copyValue(token.value)}
+            @click=${(e) => this._copyValue(token.value, e)}
             title="Copy resolved value to clipboard">
             <ha-icon icon="mdi:content-copy" slot="icon"></ha-icon>
             Copy Value
@@ -503,7 +503,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       const themeManager = window.lcards?.core?.themeManager;
 
       if (!themeManager) {
-        lcardsLog.warn('[ThemeTokenBrowser] ThemeManager not available');
+        lcardsLog.error('[ThemeTokenBrowser] ThemeManager not available - this should not happen at editor load time');
         this._tokens = [];
         this._filteredTokens = [];
         this._isLoading = false;
@@ -511,11 +511,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         return;
       }
 
-      // Get active theme - the getActiveTheme() method returns tokens in the structure
+      // Get active theme - using correct API
       const activeTheme = themeManager.getActiveTheme();
 
-      if (!activeTheme) {
-        lcardsLog.warn('[ThemeTokenBrowser] No active theme');
+      if (!activeTheme || !activeTheme.tokens) {
+        lcardsLog.warn('[ThemeTokenBrowser] No active theme or tokens available');
         this._tokens = [];
         this._filteredTokens = [];
         this._isLoading = false;
@@ -529,30 +529,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         description: activeTheme.description || ''
       };
 
-      // Extract tokens - the tokens are spread at the top level now
-      // We need to look at the actual token structure
-      let tokenSource = null;
-
-      // Try multiple ways to access tokens based on ThemeManager implementation
-      if (activeTheme.tokens) {
-        tokenSource = activeTheme.tokens;
-      } else if (themeManager.activeTheme?.tokens) {
-        tokenSource = themeManager.activeTheme.tokens;
-      } else if (themeManager.resolver?.tokens) {
-        tokenSource = themeManager.resolver.tokens;
-      }
-
-      if (!tokenSource) {
-        lcardsLog.warn('[ThemeTokenBrowser] No tokens found in theme', { activeTheme });
-        this._tokens = [];
-        this._filteredTokens = [];
-        this._isLoading = false;
-        this.requestUpdate();
-        return;
-      }
-
-      // Get theme tokens from the token source
-      const tokens = this._extractTokensFromObject(tokenSource);
+      // Extract tokens - use the correct API: activeTheme.tokens
+      const tokens = this._extractTokensFromObject(activeTheme.tokens);
 
       // Find usage in current config
       tokens.forEach(token => {
@@ -564,7 +542,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       lcardsLog.debug('[ThemeTokenBrowser] Loaded tokens', {
         count: tokens.length,
-        tokenSource: Object.keys(tokenSource)
+        categories: Object.keys(activeTheme.tokens)
       });
     } catch (error) {
       lcardsLog.error('[ThemeTokenBrowser] Error loading tokens:', error);
@@ -695,29 +673,87 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
-   * Copy token syntax to clipboard
+   * Copy token syntax to clipboard with visual feedback
    */
-  async _copyTokenSyntax(tokenPath) {
+  async _copyTokenSyntax(tokenPath, event) {
     const syntax = `{theme:${tokenPath}}`;
     try {
       await navigator.clipboard.writeText(syntax);
       lcardsLog.info('[ThemeTokenBrowser] Copied token syntax:', syntax);
-      // Could show a toast notification here
+      
+      // Show success feedback
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          const originalIcon = iconElement.icon;
+          iconElement.icon = 'mdi:check';
+          iconElement.style.color = 'var(--success-color, #4caf50)';
+          
+          setTimeout(() => {
+            iconElement.icon = originalIcon;
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     } catch (error) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to copy to clipboard:', error);
+      
+      // Show error feedback
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          iconElement.icon = 'mdi:alert-circle';
+          iconElement.style.color = 'var(--error-color, #f44336)';
+          
+          setTimeout(() => {
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     }
   }
 
   /**
-   * Copy resolved value to clipboard
+   * Copy resolved value to clipboard with visual feedback
    */
-  async _copyValue(value) {
+  async _copyValue(value, event) {
     try {
       await navigator.clipboard.writeText(String(value));
       lcardsLog.info('[ThemeTokenBrowser] Copied value:', value);
-      // Could show a toast notification here
+      
+      // Show success feedback
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          const originalIcon = iconElement.icon;
+          iconElement.icon = 'mdi:check';
+          iconElement.style.color = 'var(--success-color, #4caf50)';
+          
+          setTimeout(() => {
+            iconElement.icon = originalIcon;
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     } catch (error) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to copy to clipboard:', error);
+      
+      // Show error feedback
+      const button = event.target.closest('ha-button');
+      if (button) {
+        const iconElement = button.querySelector('ha-icon');
+        if (iconElement) {
+          iconElement.icon = 'mdi:alert-circle';
+          iconElement.style.color = 'var(--error-color, #f44336)';
+          
+          setTimeout(() => {
+            iconElement.style.color = '';
+          }, 2000);
+        }
+      }
     }
   }
 }
