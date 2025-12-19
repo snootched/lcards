@@ -37,7 +37,8 @@ export class LCARdSFormField extends LitElement {
             label: { type: String },          // Optional label override
             helper: { type: String },         // Optional helper text override
             required: { type: Boolean },      // Required field
-            disabled: { type: Boolean }       // Disabled state
+            disabled: { type: Boolean },      // Disabled state
+            _selectedOneOfIndex: { type: Number, state: true }  // Selected oneOf index
         };
     }
 
@@ -50,6 +51,7 @@ export class LCARdSFormField extends LitElement {
         this.helper = '';
         this.required = false;
         this.disabled = false;
+        this._selectedOneOfIndex = 0;
     }
 
     static get styles() {
@@ -179,6 +181,11 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderControl(schema) {
+        // Handle oneOf schemas - render selector for choosing which schema to use
+        if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+            return this._renderOneOfSelector(schema);
+        }
+
         // Check for LCARdS-specific formats first
         if (hasFormat(schema, 'entity')) {
             return this._renderEntityPicker();
@@ -232,6 +239,74 @@ export class LCARdSFormField extends LitElement {
 
         // Default to text field
         return this._renderText();
+    }
+
+    /**
+     * Render oneOf selector - allows choosing between multiple schema options
+     * @param {Object} schema - Schema with oneOf array
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderOneOfSelector(schema) {
+        const DESCRIPTION_MAX_LENGTH = 30; // Maximum length for description truncation
+        
+        const options = schema.oneOf.map((option, index) => {
+            // Use option.title if available, otherwise generate label from type
+            let label = option.title || `Option ${index + 1}`;
+            if (!option.title && option.type) {
+                label = `${option.type}`;
+                if (option.description) {
+                    const desc = option.description;
+                    label += ` (${desc.length > DESCRIPTION_MAX_LENGTH ? desc.substring(0, DESCRIPTION_MAX_LENGTH) + '...' : desc})`;
+                }
+            }
+            return { value: index, label };
+        });
+
+        // Get the selected schema
+        const selectedSchema = schema.oneOf[this._selectedOneOfIndex] || schema.oneOf[0];
+
+        return html`
+            <div class="oneof-selector">
+                <label>${this._effectiveLabel}</label>
+                
+                <!-- Schema type selector -->
+                <ha-selector
+                    .hass=${this.editor.hass}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: options.map(opt => ({ value: String(opt.value), label: opt.label }))
+                        }
+                    }}
+                    .value=${String(this._selectedOneOfIndex)}
+                    @value-changed=${this._handleOneOfChange}>
+                </ha-selector>
+
+                <!-- Render sub-editor for selected schema -->
+                <div class="oneof-content" style="margin-top: 12px;">
+                    ${this._renderControl(selectedSchema)}
+                </div>
+
+                ${this._effectiveHelper ? html`
+                    <div class="helper-text">${this._effectiveHelper}</div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Handle oneOf selection change
+     * @param {CustomEvent} ev - value-changed event
+     * @private
+     */
+    _handleOneOfChange(ev) {
+        ev.stopPropagation();
+        const newIndex = parseInt(ev.detail.value, 10);
+        if (!isNaN(newIndex)) {
+            this._selectedOneOfIndex = newIndex;
+            this.requestUpdate();
+        }
     }
 
     /**

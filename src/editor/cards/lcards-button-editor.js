@@ -385,7 +385,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _getDiscoveredSegmentIds() {
         const svgContent = this.config.svg?.content;
-        if (!svgContent) return [];
+        if (!svgContent) {
+            this._svgParseError = null; // Clear error when no content
+            return [];
+        }
 
         // Reuse button card's extraction logic
         try {
@@ -400,11 +403,16 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 return [];
             }
 
-            // Clear any previous parse errors
+            // Clear any previous parse errors on successful parse
             this._svgParseError = null;
 
             const elementsWithIds = doc.querySelectorAll('[id]');
-            return Array.from(elementsWithIds).map(el => el.id);
+            const segmentIds = Array.from(elementsWithIds).map(el => el.id);
+
+            // Guarantee error is cleared when we successfully extracted IDs
+            this._svgParseError = null;
+
+            return segmentIds;
         } catch (error) {
             this._svgParseError = error.message || 'Failed to parse SVG';
             console.error('[LCARdS Button Editor] SVG parse exception:', error);
@@ -447,25 +455,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         `;
     }
 
-    /**
-     * YAML editor tab
-     */
-    _renderYamlTab() {
-        return html`
-            <div class="section">
-                <div class="section-description">
-                    Advanced YAML editor with validation. Changes made here will be reflected in the visual tabs.
-                </div>
-                <lcards-monaco-yaml-editor
-                    .value=${this._yamlValue}
-                    .schema=${this._getSchema()}
-                    .errors=${this._validationErrors}
-                    @value-changed=${this._handleYamlChange}>
-                </lcards-monaco-yaml-editor>
-            </div>
-        `;
-    }
-
     // Event Handlers
 
     _handleModeChange(event) {
@@ -474,30 +463,22 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
         if (newMode === currentMode) return; // No change
 
-        // Build new config based on mode, clearing unrelated properties
-        const newConfig = {
-            type: this.config.type, // CRITICAL: Must preserve type
-            // Keep common properties
-            entity: this.config.entity,
-            id: this.config.id,
-            tap_action: this.config.tap_action,
-            hold_action: this.config.hold_action,
-            double_tap_action: this.config.double_tap_action,
-            style: this.config.style,
-            css_class: this.config.css_class
-        };
+        // Determine valid keys for this mode
+        let validKeys = [];
+        let modeSpecificConfig = {};
 
         if (newMode === 'preset') {
-            // Preset mode: clear component and svg configs
-            newConfig.preset = 'lozenge';
-            // component, dpad, svg intentionally omitted (cleared)
+            // Preset mode: keep preset-related keys
+            validKeys = ['preset', 'text', 'icon', 'show_icon', 'icon_area', 'icon_style', 'icon_area_background'];
+            modeSpecificConfig.preset = 'lozenge';
         } else if (newMode === 'component') {
-            // Component mode: clear preset and svg configs
-            newConfig.component = 'dpad';
-            newConfig.dpad = { segments: {} }; // Initialize with empty segments
-            // preset, svg intentionally omitted (cleared)
+            // Component mode: keep component-related keys
+            validKeys = ['component', 'dpad'];
+            modeSpecificConfig.component = 'dpad';
+            modeSpecificConfig.dpad = { segments: {} }; // Initialize with empty segments
         } else if (newMode === 'svg') {
-            // SVG mode: clear preset and component configs
+            // SVG mode: keep svg-related keys
+            validKeys = ['svg'];
             // Provide example SVG if no existing content
             const exampleSvg = `<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
   <!-- Example interactive segments -->
@@ -517,19 +498,17 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
   <text x="220" y="155" text-anchor="middle" fill="white" font-size="14">Segment 5</text>
 </svg>`;
 
-            newConfig.svg = {
+            modeSpecificConfig.svg = {
                 content: this.config.svg?.content || exampleSvg,
                 segments: {} // Initialize with empty segments
             };
-            // preset, component, dpad intentionally omitted (cleared)
         }
 
-        // Clean up undefined values
-        Object.keys(newConfig).forEach(key => {
-            if (newConfig[key] === undefined) {
-                delete newConfig[key];
-            }
-        });
+        // Use base editor helper to clean config
+        const newConfig = this._cleanConfigForMode(this.config, newMode, validKeys);
+
+        // Add mode-specific configuration
+        Object.assign(newConfig, modeSpecificConfig);
 
         // Replace config and notify Home Assistant
         this.config = newConfig;
