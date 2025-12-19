@@ -15,6 +15,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
+import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplateEvaluator.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../common/lcards-message.js';
 import '../form/lcards-form-section.js';
@@ -682,6 +683,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
    */
   async _evaluateTemplates(templates) {
     const entity = this._getEntity();
+    const themeManager = window.lcards?.core?.themeManager;
+    const dataSourceManager = window.lcards?.core?.dataSourceManager;
 
     for (const template of templates) {
       try {
@@ -693,18 +696,22 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
           continue;
         }
 
-        // Use the editor's processTemplate method which leverages the card's built-in processing
-        // This ensures consistent template handling across the LCARdS architecture
-        let result = null;
+        // Use UnifiedTemplateEvaluator with proper context
+        // Note: This follows the same pattern as LCARdSCard.processTemplate() but adapted for editor context
+        const evaluator = new UnifiedTemplateEvaluator({
+          hass: this.hass,
+          context: {
+            entity,
+            config: this.config,
+            hass: this.hass,
+            theme: themeManager?.getActiveTheme?.()
+            // Note: NO 'variables' property - this was legacy custom-button-card only
+          },
+          dataSourceManager
+        });
 
-        if (this.editor && typeof this.editor.processTemplate === 'function') {
-          // Use editor's processTemplate (which wraps the card's processTemplate method)
-          result = await this.editor.processTemplate(template.fullString);
-        } else {
-          // Fallback: No editor or processTemplate method available
-          result = '(Editor not available)';
-        }
-
+        // Evaluate the template
+        const result = evaluator.evaluateSync(template.fullString);
         template.result = String(result);
         template.status = 'status-success';
       } catch (error) {
