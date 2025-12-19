@@ -144,6 +144,20 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Log a warning message using lcardsLog if available, otherwise console.warn
+     * @param {string} message - Warning message to log
+     * @private
+     */
+    _logWarning(message) {
+        const lcardsLog = window.lcards?.core?.lcardsLog;
+        if (lcardsLog?.warn) {
+            lcardsLog.warn(message);
+        } else {
+            console.warn(message);
+        }
+    }
+
+    /**
      * Set initial configuration (called by HA)
      * @param {Object} config - Card configuration
      */
@@ -156,15 +170,15 @@ export class LCARdSBaseEditor extends LitElement {
 
         // Deep clone config using structuredClone with fallback to JSON
         // structuredClone is more robust but requires modern browsers
-        this.config = (typeof structuredClone === 'function')
-            ? structuredClone(config)
+        this.config = (typeof globalThis.structuredClone === 'function')
+            ? globalThis.structuredClone(config)
             : JSON.parse(JSON.stringify(config));
 
         // CRITICAL: Ensure 'type' property is always present (HA requires it)
         if (!this.config.type && this.cardType) {
-            console.warn('[LCARdSBaseEditor] Config is missing required "type" property! Auto-restoring...');
+            this._logWarning('[LCARdSBaseEditor] Config is missing required "type" property! Auto-restoring...');
             this.config.type = `custom:lcards-${this.cardType}`;
-            console.warn(`[LCARdSBaseEditor] Auto-restored type to: ${this.config.type}`);
+            this._logWarning(`[LCARdSBaseEditor] Auto-restored type to: ${this.config.type}`);
         }
 
         this._yamlValue = configToYaml(this.config);
@@ -272,7 +286,7 @@ export class LCARdSBaseEditor extends LitElement {
     _updateConfig(updates, source = 'visual') {
         // Guard against invalid updates
         if (!updates || typeof updates !== 'object') {
-            console.warn('[LCARdSBaseEditor] Invalid config updates:', updates);
+            this._logWarning('[LCARdSBaseEditor] Invalid config updates:' + JSON.stringify(updates));
             return;
         }
 
@@ -281,10 +295,10 @@ export class LCARdSBaseEditor extends LitElement {
 
         // CRITICAL: Ensure 'type' property is always present (HA requires it)
         if (!this.config.type) {
-            console.warn('[LCARdSBaseEditor] Config is missing required "type" property after merge! Auto-restoring...');
+            this._logWarning('[LCARdSBaseEditor] Config is missing required "type" property after merge! Auto-restoring...');
             // Auto-restore the type based on cardType
             this.config.type = `custom:lcards-${this.cardType}`;
-            console.warn(`[LCARdSBaseEditor] Auto-restored type to: ${this.config.type}`);
+            this._logWarning(`[LCARdSBaseEditor] Auto-restored type to: ${this.config.type}`);
         }
 
         // Validate against schema
@@ -533,12 +547,7 @@ export class LCARdSBaseEditor extends LitElement {
 
                 // Warn if multiple patterns matched
                 if (matchCount > 1) {
-                    const lcardsLog = window.lcards?.core?.lcardsLog;
-                    if (lcardsLog?.warn) {
-                        lcardsLog.warn(`[BaseEditor] Multiple patternProperties matched key "${key}"; using first match.`);
-                    } else {
-                        console.warn(`[BaseEditor] Multiple patternProperties matched key "${key}"; using first match.`);
-                    }
+                    this._logWarning(`[BaseEditor] Multiple patternProperties matched key "${key}"; using first match.`);
                 }
 
                 if (found) continue;

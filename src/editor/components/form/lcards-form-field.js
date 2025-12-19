@@ -256,7 +256,8 @@ export class LCARdSFormField extends LitElement {
             if (!option.title && option.type) {
                 label = `${option.type}`;
                 if (option.description) {
-                    label += ` (${option.description.substring(0, DESCRIPTION_MAX_LENGTH)}...)`;
+                    const desc = option.description;
+                    label += ` (${desc.length > DESCRIPTION_MAX_LENGTH ? desc.substring(0, DESCRIPTION_MAX_LENGTH) + '...' : desc})`;
                 }
             }
             return { value: index, label };
