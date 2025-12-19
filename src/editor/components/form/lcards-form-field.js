@@ -248,13 +248,15 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderOneOfSelector(schema) {
+        const DESCRIPTION_MAX_LENGTH = 30; // Maximum length for description truncation
+        
         const options = schema.oneOf.map((option, index) => {
             // Use option.title if available, otherwise generate label from type
             let label = option.title || `Option ${index + 1}`;
             if (!option.title && option.type) {
                 label = `${option.type}`;
                 if (option.description) {
-                    label += ` (${option.description.substring(0, 30)}...)`;
+                    label += ` (${option.description.substring(0, DESCRIPTION_MAX_LENGTH)}...)`;
                 }
             }
             return { value: index, label };

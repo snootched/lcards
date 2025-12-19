@@ -1027,13 +1027,6 @@ export class LCARdSBaseEditor extends LitElement {
             }
         });
 
-        // Clean up undefined values
-        Object.keys(newConfig).forEach(key => {
-            if (newConfig[key] === undefined) {
-                delete newConfig[key];
-            }
-        });
-
         return newConfig;
     }
 
