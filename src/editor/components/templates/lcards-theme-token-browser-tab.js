@@ -297,7 +297,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             ${this._tokens.length} tokens available
           </p>
           <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Browse and copy theme tokens in the format: <code>{theme:token.path}</code>
+            Browse and copy theme tokens for <strong>style configuration</strong>: <code>theme:token.path</code>
           </p>
           <ha-button
             class="open-browser-button"
@@ -433,7 +433,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     return html`
       <tr>
-        <td class="token-path-cell">{theme:${token.path}}</td>
+        <td class="token-path-cell">theme:${token.path}</td>
         <td class="token-value-cell" title="${displayValue}">${displayValue}</td>
         <td class="token-preview-cell">
           ${this._renderTokenPreview(token)}
@@ -760,7 +760,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    */
   _findTokenUsage(tokenPath) {
     const usage = [];
-    const tokenSyntax = `{theme:${tokenPath}}`;
+    const tokenSyntax = `theme:${tokenPath}`;
 
     this._findTokenUsageRecursive(this.config, '', tokenSyntax, usage);
 
@@ -834,10 +834,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
-   * Copy token syntax to clipboard with visual feedback
+   * Copy token syntax to clipboard with visual feedback (style config format - no braces)
    */
   async _copyTokenSyntax(tokenPath, event) {
-    const syntax = `{theme:${tokenPath}}`;
+    const syntax = `theme:${tokenPath}`;
     const button = event.target.closest('ha-icon-button');
     if (!button) return;
 
