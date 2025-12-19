@@ -94,33 +94,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         min-width: 200px;
       }
 
-      .category-filter {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
+      ha-chip-set {
         margin-bottom: 16px;
-      }
-
-      .filter-chip {
-        padding: 6px 16px;
-        border-radius: 16px;
-        border: 1px solid var(--divider-color);
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        cursor: pointer;
-        font-size: 14px;
-        font-family: var(--mdc-typography-body1-font-family, var(--mdc-typography-font-family, Roboto, sans-serif));
-        transition: all 0.2s;
-      }
-
-      .filter-chip:hover {
-        background: var(--secondary-background-color);
-      }
-
-      .filter-chip.selected {
-        background: rgba(var(--rgb-primary-color), 0.15);
-        border-color: var(--primary-color);
-        color: var(--primary-color);
       }
 
       .tokens-grid {
@@ -309,15 +284,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </ha-textfield>
       </div>
 
-      <div class="category-filter">
+      <ha-chip-set>
         ${filters.map(filter => html`
-          <button
-            class="filter-chip ${this._selectedCategory === filter.value ? 'selected' : ''}"
+          <ha-filter-chip
+            .label="${filter.label} (${filter.count})"
+            ?selected=${this._selectedCategory === filter.value}
             @click=${() => this._selectedCategory = filter.value}>
-            ${filter.label} (${filter.count})
-          </button>
+          </ha-filter-chip>
         `)}
-      </div>
+      </ha-chip-set>
     `;
   }
 
