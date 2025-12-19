@@ -12,6 +12,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import '../common/lcards-message.js';
 
 export class LCARdSThemeTokenBrowserTab extends LitElement {
@@ -26,8 +27,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _selectedCategory: { type: String, state: true },
       _isLoading: { type: Boolean, state: true },
       _activeTheme: { type: Object, state: true },
-      _expandedCategories: { type: Set, state: true },
-      _expandedPaths: { type: Set, state: true }
+      _dialogOpen: { type: Boolean, state: true },
+      _sortColumn: { type: String, state: true },
+      _sortDirection: { type: String, state: true }
     };
   }
 
@@ -39,8 +41,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._selectedCategory = 'all';
     this._isLoading = false;
     this._activeTheme = null;
-    this._expandedCategories = new Set(['colors']); // Default expand colors
-    this._expandedPaths = new Set();
+    this._dialogOpen = false;
+    this._sortColumn = 'path';
+    this._sortDirection = 'asc';
   }
 
   static get styles() {
@@ -50,158 +53,204 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 16px;
       }
 
-      .theme-info {
-        background: var(--secondary-background-color, #f5f5f5);
-        border: 1px solid var(--divider-color, #e0e0e0);
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+      /* Tab content - simplified */
+      .tab-content {
+        text-align: center;
+        padding: 0;
       }
 
-      .theme-name {
-        font-size: 18px;
-        font-weight: 500;
+      .info-card {
+        background: var(--secondary-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .info-card h3 {
+        margin: 0 0 8px 0;
         color: var(--primary-text-color);
       }
 
-      .theme-description {
-        font-size: 14px;
+      .info-card p {
+        margin: 8px 0;
         color: var(--secondary-text-color);
-        margin-top: 4px;
       }
 
-      .syntax-reminder {
-        background: var(--info-color, #2196f3);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 13px;
-        font-family: 'Courier New', monospace;
+      .open-browser-button {
+        margin-top: 16px;
       }
 
-      .controls {
+      /* Dialog styles */
+      ha-dialog {
+        --mdc-dialog-min-width: 90vw;
+        --mdc-dialog-max-width: 1400px;
+      }
+
+      .dialog-content {
         display: flex;
-        gap: 12px;
-        margin-bottom: 16px;
+        flex-direction: column;
+        min-height: 60vh;
+        max-height: 80vh;
+      }
+
+      .dialog-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--divider-color);
+        display: flex;
+        gap: 16px;
+        align-items: center;
         flex-wrap: wrap;
       }
 
-      .search-box {
+      .dialog-search {
         flex: 1;
         min-width: 200px;
       }
 
-      ha-chip-set {
-        margin-bottom: 16px;
-      }
-
-      .tokens-grid {
-        display: block;
-      }
-
-      .tokens-tree {
-        display: block;
-      }
-
-      .tree-category {
-        margin-bottom: 16px;
-      }
-
-      .tree-node {
-        padding-left: 20px;
-      }
-
-      .tree-leaf {
+      .category-filters {
         display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 12px;
-        background: var(--card-background-color);
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+
+      .category-chip {
+        appearance: none;
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
-        margin: 4px 0;
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 13px;
+        cursor: pointer;
         transition: all 0.2s;
       }
 
-      .tree-leaf:hover {
-        background: var(--secondary-background-color);
+      .category-chip:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+      }
+
+      .category-chip.selected {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+      }
+
+      .dialog-body {
+        flex: 1;
+        overflow: auto;
+        padding: 0;
+      }
+
+      .token-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .token-table thead {
+        position: sticky;
+        top: 0;
+        background: var(--card-background-color);
+        z-index: 1;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
 
-      .tree-leaf .token-path {
-        flex: 1;
-        font-family: 'Courier New', monospace;
-        font-size: 13px;
-        color: var(--primary-color);
-        min-width: 200px;
+      .token-table th {
+        text-align: left;
+        padding: 12px 16px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+        border-bottom: 2px solid var(--divider-color);
+        cursor: pointer;
+        user-select: none;
       }
 
-      .tree-leaf .token-value {
-        flex: 1;
+      .token-table th:hover {
+        background: var(--secondary-background-color);
+      }
+
+      .token-table th .sort-indicator {
+        margin-left: 4px;
+        font-size: 10px;
+        color: var(--secondary-text-color);
+      }
+
+      .token-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--divider-color);
+        vertical-align: middle;
+      }
+
+      .token-table tbody tr:hover {
+        background: var(--secondary-background-color);
+      }
+
+      .token-path-cell {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: var(--primary-color);
+        word-break: break-all;
+        max-width: 300px;
+      }
+
+      .token-value-cell {
         font-family: 'Courier New', monospace;
         font-size: 12px;
         color: var(--secondary-text-color);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 200px;
+        word-break: break-all;
+        max-width: 300px;
       }
 
-      .tree-leaf .token-preview {
-        flex-shrink: 0;
-      }
-
-      .tree-leaf .token-actions {
-        display: flex;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-
-      details {
-        margin-left: 12px;
-      }
-
-      summary {
-        cursor: pointer;
-        padding: 8px;
-        font-weight: 500;
-        color: var(--primary-text-color);
-        user-select: none;
-        list-style: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      summary::-webkit-details-marker {
-        display: none;
-      }
-
-      summary::before {
-        content: '▶';
-        display: inline-block;
-        width: 12px;
-        transition: transform 0.2s;
-        color: var(--secondary-text-color);
-      }
-
-      details[open] > summary::before {
-        transform: rotate(90deg);
-      }
-
-      summary:hover {
-        background: var(--secondary-background-color);
-        border-radius: 4px;
+      .token-preview-cell {
+        width: 60px;
+        text-align: center;
       }
 
       .color-preview {
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         border-radius: 4px;
-        border: 2px solid var(--divider-color);
+        border: 1px solid var(--divider-color);
+        display: inline-block;
+      }
+
+      .token-actions-cell {
+        width: 100px;
+        text-align: right;
+      }
+
+      .token-actions {
+        display: flex;
+        gap: 4px;
+        justify-content: flex-end;
+      }
+
+      .token-actions ha-icon-button {
+        --mdc-icon-button-size: 36px;
+        --mdc-icon-size: 20px;
+        color: var(--primary-text-color);
+      }
+
+      .token-actions ha-icon-button:hover {
+        color: var(--primary-color);
+      }
+
+      .text-preview {
+        font-family: var(--token-font-family, inherit);
+        font-size: var(--token-font-size, 14px);
+        font-weight: var(--token-font-weight, normal);
+        line-height: 1.5;
+        padding: 4px 8px;
+        background: var(--secondary-background-color);
+        border-radius: 4px;
+        display: inline-block;
       }
 
       .empty-state {
@@ -221,82 +270,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._loadTokens();
   }
 
-  updated(changedProperties) {
-    if (changedProperties.has('_selectedCategory')) {
-      this._applyFilters();
-    }
-  }
-
   render() {
     return html`
-      ${this._renderThemeInfo()}
-      ${this._renderControls()}
-      ${this._renderTokensGrid()}
+      ${this._renderTabContent()}
+      ${this._renderDialog()}
     `;
   }
 
-  _renderThemeInfo() {
-    if (!this._activeTheme) {
-      return html`
-        <lcards-message
-          type="info"
-          message="Loading theme information...">
-        </lcards-message>
-      `;
-    }
-
-    return html`
-      <div class="theme-info">
-        <div>
-          <div class="theme-name">${this._activeTheme.name || 'Unknown Theme'}</div>
-          <div class="theme-description">
-            ${this._tokens.length} tokens available
-          </div>
-        </div>
-        <div class="syntax-reminder">
-          Copy format: {theme:token.path}
-        </div>
-      </div>
-    `;
-  }
-
-  _renderControls() {
-    const categories = this._getCategories();
-
-    const filters = [
-      { label: 'All', value: 'all', count: this._tokens.length },
-      ...categories.map(cat => ({
-        label: cat.label,
-        value: cat.key,
-        count: cat.count
-      }))
-    ];
-
-    return html`
-      <div class="controls">
-        <ha-textfield
-          class="search-box"
-          .value=${this._searchQuery}
-          @input=${this._handleSearchInput}
-          placeholder="Search tokens..."
-          .label=${'Search'}>
-          <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-        </ha-textfield>
-      </div>
-
-      <ha-chip-set>
-        ${filters.map(filter => html`
-          <ha-filter-chip
-            .label="${filter.label} (${filter.count})"
-            ?selected=${this._selectedCategory === filter.value}
-            @click=${() => this._selectedCategory = filter.value}>
-          </ha-filter-chip>
-        `)}
-      </ha-chip-set>
-    `;
-  }
-
-  _renderTokensGrid() {
+  _renderTabContent() {
     if (this._isLoading) {
       return html`
         <div class="loading-state">
@@ -306,206 +287,247 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       `;
     }
 
-    if (this._filteredTokens.length === 0) {
-      return html`
-        <div class="empty-state">
-          <ha-icon icon="mdi:palette"></ha-icon>
-          <p>No tokens found</p>
-          <p style="font-size: 12px;">
-            ${this._searchQuery || this._selectedCategory !== 'all'
-              ? 'Try adjusting your filters'
-              : 'No theme tokens are available'}
+    return html`
+      <div class="tab-content">
+        <div class="info-card">
+          <h3>Theme Token Browser</h3>
+          <p>
+            <strong>${this._activeTheme?.name || 'Active Theme'}</strong>
+            <br />
+            ${this._tokens.length} tokens available
           </p>
+          <p style="font-size: 13px; color: var(--secondary-text-color);">
+            Browse and copy theme tokens in the format: <code>{theme:token.path}</code>
+          </p>
+          <ha-button
+            class="open-browser-button"
+            raised
+            @click=${this._openDialog}>
+            <ha-icon icon="mdi:palette" slot="icon"></ha-icon>
+            Open Token Browser
+          </ha-button>
         </div>
-      `;
-    }
-
-    // Build tree structure from flat tokens
-    return this._renderTokensTree();
+      </div>
+    `;
   }
 
-  /**
-   * Render tokens as a tree structure grouped by category
-   */
-  _renderTokensTree() {
-    const tokensByCategory = this._groupTokensByCategory();
+  _renderDialog() {
+    if (!this._dialogOpen) return '';
+
+    lcardsLog.debug('[ThemeTokenBrowser] Rendering dialog');
 
     return html`
-      <div class="tokens-tree">
-        ${Object.entries(tokensByCategory).map(([category, tokens]) => html`
-          <lcards-form-section
-            class="tree-category"
-            header="${this._formatCategoryName(category)} (${tokens.length})"
-            icon="mdi:palette"
-            ?expanded=${this._expandedCategories.has(category)}
-            @expanded-changed=${() => this._toggleCategory(category)}>
-            ${this._renderTokenTree(tokens, category)}
-          </lcards-form-section>
+      <ha-dialog
+        open
+        @closed=${this._closeDialog}
+        .heading=${'Theme Token Browser'}>
+        <div class="dialog-content">
+          ${this._renderDialogHeader()}
+          ${this._renderCategoryFilters()}
+          ${this._renderDialogBody()}
+        </div>
+        <ha-button
+          slot="primaryAction"
+          @click=${this._closeDialog}
+          dialogAction="close">
+          Close
+        </ha-button>
+      </ha-dialog>
+    `;
+  }
+
+  _renderDialogHeader() {
+    return html`
+      <div class="dialog-header">
+        <ha-textfield
+          class="dialog-search"
+          .value=${this._searchQuery}
+          @input=${this._handleSearchInput}
+          placeholder="Search tokens..."
+          .label=${'Search'}>
+          <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+        </ha-textfield>
+      </div>
+    `;
+  }
+
+  _renderCategoryFilters() {
+    const categories = this._getCategories();
+    const filters = [
+      { label: 'All', value: 'all', count: this._tokens.length },
+      ...categories
+    ];
+
+    return html`
+      <div class="category-filters">
+        ${filters.map(filter => html`
+          <button
+            class="category-chip ${this._selectedCategory === filter.value ? 'selected' : ''}"
+            @click=${() => this._selectCategory(filter.value)}>
+            ${filter.label} (${filter.count})
+          </button>
         `)}
       </div>
     `;
   }
 
-  /**
-   * Group tokens by their top-level category
-   */
-  _groupTokensByCategory() {
-    const grouped = {};
-    
-    this._filteredTokens.forEach(token => {
-      const category = token.category || 'other';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(token);
-    });
-
-    return grouped;
-  }
-
-  /**
-   * Format category name for display
-   */
-  _formatCategoryName(category) {
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  }
-
-  /**
-   * Toggle category expansion
-   */
-  _toggleCategory(category) {
-    if (this._expandedCategories.has(category)) {
-      this._expandedCategories.delete(category);
-    } else {
-      this._expandedCategories.add(category);
-    }
-    this.requestUpdate();
-  }
-
-  /**
-   * Render token tree for a category
-   */
-  _renderTokenTree(tokens, category) {
-    // Build nested structure from flat token paths
-    const tree = this._buildTokenTree(tokens);
-    return this._renderTreeNodes(tree, '');
-  }
-
-  /**
-   * Build hierarchical tree structure from flat token list
-   */
-  _buildTokenTree(tokens) {
-    const tree = {};
-
-    tokens.forEach(token => {
-      const parts = token.path.split('.');
-      let current = tree;
-
-      parts.forEach((part, index) => {
-        if (index === parts.length - 1) {
-          // Leaf node
-          current[part] = {
-            _leaf: true,
-            token: token
-          };
-        } else {
-          // Branch node
-          if (!current[part]) {
-            current[part] = {};
-          }
-          current = current[part];
-        }
+  _renderDialogBody() {
+    try {
+      lcardsLog.debug('[ThemeTokenBrowser] Rendering dialog body', {
+        filteredTokens: this._filteredTokens?.length
       });
-    });
 
-    return tree;
-  }
+      if (!this._filteredTokens || this._filteredTokens.length === 0) {
+        return html`
+          <div class="empty-state">
+            <ha-icon icon="mdi:palette"></ha-icon>
+            <p>No tokens found</p>
+            <p style="font-size: 12px;">
+              ${this._searchQuery || this._selectedCategory !== 'all'
+                ? 'Try adjusting your filters'
+                : 'No theme tokens are available'}
+            </p>
+          </div>
+        `;
+      }
 
-  /**
-   * Recursively render tree nodes
-   */
-  _renderTreeNodes(node, path) {
-    const entries = Object.entries(node);
-    
-    return html`
-      ${entries.map(([key, value]) => {
-        if (value._leaf) {
-          // Render leaf node (actual token)
-          return this._renderTreeLeaf(value.token, path);
-        } else {
-          // Render branch node (nested tokens)
-          const newPath = path ? `${path}.${key}` : key;
-          const hasChildren = Object.keys(value).length > 0;
-          
-          if (!hasChildren) return '';
-          
-          return html`
-            <details 
-              ?open=${this._expandedPaths.has(newPath)}
-              @toggle=${(e) => this._handleDetailsToggle(newPath, e)}>
-              <summary>${key}</summary>
-              <div class="tree-node">
-                ${this._renderTreeNodes(value, newPath)}
-              </div>
-            </details>
-          `;
-        }
-      })}
-    `;
-  }
-
-  /**
-   * Render a leaf token in the tree
-   */
-  _renderTreeLeaf(token) {
-    return html`
-      <div class="tree-leaf">
-        <div class="token-path">{theme:${token.path}}</div>
-        <div class="token-value">${token.value}</div>
-        ${this._renderTokenPreviewCompact(token)}
-        <div class="token-actions">
-          <ha-icon-button
-            icon="mdi:code-braces"
-            @click=${(e) => this._copyTokenSyntax(token.path, e)}
-            title="Copy token syntax">
-          </ha-icon-button>
-          <ha-icon-button
-            icon="mdi:content-copy"
-            @click=${(e) => this._copyValue(token.value, e)}
-            title="Copy value">
-          </ha-icon-button>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Render compact token preview for tree view
-   */
-  _renderTokenPreviewCompact(token) {
-    const valueStr = String(token.value);
-
-    // Color preview
-    if (token.category === 'colors' || this._isColorValue(valueStr)) {
       return html`
-        <div class="token-preview">
-          <div class="color-preview" style="background-color: ${valueStr}; width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--divider-color);"></div>
+        <div class="dialog-body">
+          <table class="token-table">
+            <thead>
+              <tr>
+                <th @click=${() => this._sortBy('path')}>
+                  Token Path
+                  ${this._sortColumn === 'path' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+                </th>
+                <th @click=${() => this._sortBy('value')}>
+                  Value
+                  ${this._sortColumn === 'value' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+                </th>
+                <th>Preview</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this._getSortedTokens().map(token => this._renderTokenRow(token))}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (error) {
+      lcardsLog.error('[ThemeTokenBrowser] Error rendering dialog body:', error);
+      return html`
+        <div class="empty-state">
+          <ha-icon icon="mdi:alert-circle"></ha-icon>
+          <p>Error loading tokens</p>
+          <p style="font-size: 12px;">Check console for details</p>
         </div>
       `;
     }
+  }
 
-    return html``;
+  _renderTokenRow(token) {
+    const displayValue = token.value !== undefined && token.value !== null
+      ? String(token.value)
+      : '(no value)';
+
+    return html`
+      <tr>
+        <td class="token-path-cell">{theme:${token.path}}</td>
+        <td class="token-value-cell" title="${displayValue}">${displayValue}</td>
+        <td class="token-preview-cell">
+          ${this._renderTokenPreview(token)}
+        </td>
+        <td class="token-actions-cell">
+          <div class="token-actions">
+            <ha-icon-button
+              @click=${(e) => this._copyTokenSyntax(token.path, e)}
+              .label=${'Copy token syntax'}
+              .path=${"M8 3C9.66 3 11 4.34 11 6S9.66 9 8 9 5 7.66 5 6 6.34 3 8 3M8 11C10.76 11 16 12.36 16 15V17H0V15C0 12.36 5.24 11 8 11M6 8C6 9.11 6.9 10 8 10 9.11 10 10 9.11 10 8V7H12V8C12 10.21 10.21 12 8 12S4 10.21 4 8V7H6V8M13.54 5.29C13.54 6.31 13.08 7.2 12.38 7.83L13.5 8.95L14.91 7.54C16.18 6.27 16.95 4.55 16.95 2.67V1H15.28V2.67C15.28 4.03 14.77 5.3 13.91 6.24L12.5 7.65C12.13 7.28 11.85 6.82 11.68 6.31L10 6.31C10.15 7.19 10.6 7.97 11.26 8.55L9.85 9.96C9.11 9.32 8.54 8.47 8.22 7.5H6.5C6.82 8.93 7.65 10.2 8.85 11.09L10.26 9.68C9.6 9.09 9.08 8.32 8.75 7.45L10.43 7.45C10.77 8.31 11.37 9.05 12.15 9.55L13.56 8.14C14.63 7.07 15.21 5.63 15.21 4.04V2.37H13.54V4.04C13.54 4.47 13.54 4.88 13.54 5.29Z"}>
+            </ha-icon-button>
+            <ha-icon-button
+              @click=${(e) => this._copyValue(token.value, e)}
+              .label=${'Copy value'}
+              .path=${"M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"}>
+            </ha-icon-button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  _renderTokenPreview(token) {
+    try {
+      const valueStr = String(token.value || '');
+
+      // Color preview - only show for actual CSS colors (not computed functions)
+      if (token.category === 'colors' || this._isColorValue(valueStr)) {
+        return html`
+          <div
+            class="color-preview"
+            style="background-color: ${valueStr};"
+            title="${valueStr}">
+          </div>
+        `;
+      }
+
+      // Text/font preview
+      if (token.category === 'fonts' || token.category === 'typography') {
+        return this._renderTextPreview(token);
+      }
+
+      return html``;
+    } catch (error) {
+      lcardsLog.warn('[ThemeTokenBrowser] Error rendering preview:', error);
+      return html``;
+    }
   }
 
   /**
-   * Handle details toggle event in tree
+   * Render text preview for typography tokens
    */
-  _handleDetailsToggle(path, event) {
-    if (event.target.open) {
-      this._expandedPaths.add(path);
-    } else {
-      this._expandedPaths.delete(path);
+  _renderTextPreview(token) {
+    try {
+      const path = token.path.toLowerCase();
+      const value = token.value;
+
+      // Build inline style based on token type
+      let style = '';
+
+      if (path.includes('family') && typeof value === 'string') {
+        style = `font-family: ${value};`;
+      } else if (path.includes('size') && typeof value === 'string') {
+        style = `font-size: ${value};`;
+      } else if (path.includes('weight') && (typeof value === 'string' || typeof value === 'number')) {
+        style = `font-weight: ${value};`;
+      } else if (path.includes('line-height') && typeof value === 'string') {
+        style = `line-height: ${value};`;
+      } else {
+        return html``;
+      }
+
+      return html`
+        <div class="text-preview" style="${style}">Aa</div>
+      `;
+    } catch (error) {
+      lcardsLog.warn('[ThemeTokenBrowser] Error rendering text preview:', error);
+      return html``;
     }
+  }
+
+  // Dialog control methods
+  _openDialog() {
+    lcardsLog.debug('[ThemeTokenBrowser] Opening dialog', {
+      tokensCount: this._tokens.length,
+      filteredCount: this._filteredTokens.length
+    });
+    this._dialogOpen = true;
+    this._applyFilters(); // Apply initial filters when opening
+  }
+
+  _closeDialog() {
+    lcardsLog.debug('[ThemeTokenBrowser] Closing dialog');
+    this._dialogOpen = false;
   }
 
   _handleSearchInput(e) {
@@ -516,6 +538,61 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _selectCategory(category) {
     this._selectedCategory = category;
     this._applyFilters();
+  }
+
+  _sortBy(column) {
+    if (this._sortColumn === column) {
+      // Toggle direction
+      this._sortDirection = this._sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this._sortColumn = column;
+      this._sortDirection = 'asc';
+    }
+    this.requestUpdate();
+  }
+
+  _getSortedTokens() {
+    try {
+      if (!this._filteredTokens || !Array.isArray(this._filteredTokens)) {
+        lcardsLog.warn('[ThemeTokenBrowser] Invalid filtered tokens:', this._filteredTokens);
+        return [];
+      }
+
+      const tokens = [...this._filteredTokens];
+
+      tokens.sort((a, b) => {
+        let aVal, bVal;
+
+        if (this._sortColumn === 'path') {
+          aVal = a.path || '';
+          bVal = b.path || '';
+        } else if (this._sortColumn === 'value') {
+          aVal = String(a.value || '');
+          bVal = String(b.value || '');
+        }
+
+        const comparison = aVal.localeCompare(bVal);
+        return this._sortDirection === 'asc' ? comparison : -comparison;
+      });
+
+      return tokens;
+    } catch (error) {
+      lcardsLog.error('[ThemeTokenBrowser] Error sorting tokens:', error);
+      return this._filteredTokens || [];
+    }
+  }
+
+  _getCategories() {
+    const categoryCounts = {};
+    this._tokens.forEach(token => {
+      categoryCounts[token.category] = (categoryCounts[token.category] || 0) + 1;
+    });
+
+    return Object.entries(categoryCounts).map(([key, count]) => ({
+      value: key,
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      count
+    }));
   }
 
   _applyFilters() {
@@ -536,19 +613,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     this._filteredTokens = filtered;
     this.requestUpdate();
-  }
-
-  _getCategories() {
-    const categoryCounts = {};
-    this._tokens.forEach(token => {
-      categoryCounts[token.category] = (categoryCounts[token.category] || 0) + 1;
-    });
-
-    return Object.entries(categoryCounts).map(([key, count]) => ({
-      key,
-      label: key.charAt(0).toUpperCase() + key.slice(1),
-      count
-    }));
   }
 
   async _loadTokens() {
@@ -640,10 +704,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         // Recurse into nested objects
         this._extractTokensRecursive(value, currentPath, tokens, currentCategory);
       } else {
-        // This is a leaf token
+        // This is a leaf token - resolve it if it's a computed token
+        const resolvedValue = this._resolveTokenValue(currentPath, value);
+
         tokens.push({
           path: currentPath,
-          value: value,
+          value: resolvedValue,
+          rawValue: value, // Keep original for reference
           category: currentCategory
         });
       }
@@ -651,6 +718,44 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
+   * Resolve a token value (handles computed tokens like darken(), alpha(), etc.)
+   * Uses the existing resolveThemeTokensRecursive utility for consistency
+   */
+  _resolveTokenValue(tokenPath, rawValue) {
+    try {
+      const themeManager = window.lcards?.core?.themeManager;
+
+      // If no theme manager, return raw value
+      if (!themeManager) {
+        return rawValue;
+      }
+
+      // Wrap in object and resolve recursively
+      // This handles computed tokens like darken(colors.primary, 20%)
+      const wrapped = { value: rawValue };
+      const resolved = resolveThemeTokensRecursive(wrapped, themeManager);
+
+      if (resolved.value !== rawValue) {
+        lcardsLog.trace('[ThemeTokenBrowser] Resolved token:', tokenPath, rawValue, '->', resolved.value);
+      }
+
+      return resolved.value;
+    } catch (error) {
+      lcardsLog.warn('[ThemeTokenBrowser] Error resolving token:', tokenPath, error);
+      return rawValue;
+    }
+  }
+
+  /**
+   * Check if a value looks like a computed token
+   * (kept for potential future use, but resolution now handled by resolveThemeTokensRecursive)
+   */
+  _looksLikeComputedToken(value) {
+    if (typeof value !== 'string') return false;
+
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'shade', 'tint'];
+    return computedFunctions.some(fn => value.includes(`${fn}(`));
+  }  /**
    * Find where a token is used in the current config
    */
   _findTokenUsage(tokenPath) {
@@ -735,28 +840,28 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     const syntax = `{theme:${tokenPath}}`;
     const button = event.target.closest('ha-icon-button');
     if (!button) return;
-    
+
     const originalIcon = button.icon;
-    
+
     try {
       await navigator.clipboard.writeText(syntax);
       lcardsLog.info('[ThemeTokenBrowser] Copied token syntax:', syntax);
-      
+
       // Show success feedback
       button.icon = 'mdi:check';
       button.style.color = 'var(--success-color, #4caf50)';
-      
+
       setTimeout(() => {
         button.icon = originalIcon;
         button.style.color = '';
       }, 2000);
     } catch (error) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to copy to clipboard:', error);
-      
+
       // Show error feedback
       button.icon = 'mdi:alert-circle';
       button.style.color = 'var(--error-color, #f44336)';
-      
+
       setTimeout(() => {
         button.icon = originalIcon;
         button.style.color = '';
@@ -770,28 +875,28 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   async _copyValue(value, event) {
     const button = event.target.closest('ha-icon-button');
     if (!button) return;
-    
+
     const originalIcon = button.icon;
-    
+
     try {
       await navigator.clipboard.writeText(String(value));
       lcardsLog.info('[ThemeTokenBrowser] Copied value:', value);
-      
+
       // Show success feedback
       button.icon = 'mdi:check';
       button.style.color = 'var(--success-color, #4caf50)';
-      
+
       setTimeout(() => {
         button.icon = originalIcon;
         button.style.color = '';
       }, 2000);
     } catch (error) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to copy to clipboard:', error);
-      
+
       // Show error feedback
       button.icon = 'mdi:alert-circle';
       button.style.color = 'var(--error-color, #f44336)';
-      
+
       setTimeout(() => {
         button.icon = originalIcon;
         button.style.color = '';
