@@ -863,6 +863,13 @@ export class LCARdSChart extends LCARdSCard {
     configManager.registerCardSchema('chart', {
         type: 'object',
         properties: {
+            // Home Assistant Required Properties
+            type: {
+                type: 'string',
+                const: 'custom:lcards-chart',
+                description: 'Home Assistant card type identifier (required)'
+            },
+
             // Core Properties
             id: {
                 type: 'string',

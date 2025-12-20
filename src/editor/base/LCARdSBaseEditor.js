@@ -216,12 +216,12 @@ export class LCARdSBaseEditor extends LitElement {
                             <code>core.configManager.registerCardSchema('${this.cardType}', schema)</code>
                         </p>
                         <p>
-                            See the <a href="https://github.com/snootched/LCARdS#schema-registration" target="_blank">documentation</a> 
+                            See the <a href="https://github.com/snootched/LCARdS#schema-registration" target="_blank">documentation</a>
                             for more information on schema registration.
                         </p>
                     </ha-alert>
                 ` : ''}
-                
+
                 <div class="tabs-container">
                     ${tabs.map((tab, index) => html`
                         <div
@@ -393,7 +393,7 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _validateConfig() {
         const validationResult = this._validateConfigWithSingleton(this.config);
-        
+
         // Map errors with severity
         const errors = (validationResult.errors || []).map(err => ({
             path: err.field || '',
@@ -547,7 +547,7 @@ export class LCARdSBaseEditor extends LitElement {
                     continue;
                 } else if (currentSchema.additionalProperties === true) {
                     // Return a generic schema object for any type
-                    return { 
+                    return {
                         type: ['string', 'number', 'boolean', 'object', 'array'],
                         description: 'Additional property (no specific schema defined)'
                     };
@@ -997,7 +997,7 @@ export class LCARdSBaseEditor extends LitElement {
     /**
      * Clean config when switching modes (preset, component, svg)
      * Creates a new config with only the common properties and mode-specific properties
-     * 
+     *
      * @param {Object} baseConfig - Current configuration
      * @param {string} mode - Target mode ('preset', 'component', 'svg')
      * @param {Array<string>} validKeys - Keys to keep in the cleaned config (in addition to common keys)
@@ -1007,7 +1007,7 @@ export class LCARdSBaseEditor extends LitElement {
     _cleanConfigForMode(baseConfig, mode, validKeys = []) {
         // Common properties to always preserve
         const commonKeys = ['type', 'entity', 'id', 'tap_action', 'hold_action', 'double_tap_action', 'style', 'css_class'];
-        
+
         // Start with common properties
         const newConfig = {};
         commonKeys.forEach(key => {
@@ -1110,7 +1110,7 @@ export class LCARdSBaseEditor extends LitElement {
 
     /**
      * Render YAML editor tab
-     * Advanced YAML editor with Monaco editor and validation.
+     * Advanced YAML editor with schema-based validation and autocomplete.
      * Changes made here will be reflected in the visual tabs.
      * @returns {TemplateResult}
      * @protected
@@ -1119,14 +1119,16 @@ export class LCARdSBaseEditor extends LitElement {
         return html`
             <div class="section">
                 <div class="section-description">
-                    Advanced YAML editor with validation. Changes made here will be reflected in the visual tabs.
+                    Advanced YAML editor with schema-based autocomplete and inline validation.
+                    Changes made here will be reflected in the visual tabs.
                 </div>
-                <lcards-monaco-yaml-editor
+
+                <lcards-yaml-editor
                     .value=${this._yamlValue}
                     .schema=${this._getSchema()}
-                    .errors=${this._validationErrors}
+                    .hass=${this.hass}
                     @value-changed=${this._handleYamlChange}>
-                </lcards-monaco-yaml-editor>
+                </lcards-yaml-editor>
             </div>
         `;
     }

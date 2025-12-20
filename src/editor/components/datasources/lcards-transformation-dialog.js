@@ -17,6 +17,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
+import '../common/lcards-dialog.js';
 
 export class LCARdSTransformationDialog extends LitElement {
   static get properties() {
@@ -48,7 +49,7 @@ export class LCARdSTransformationDialog extends LitElement {
         display: block;
       }
 
-      ha-dialog {
+      lcards-dialog {
         --mdc-dialog-min-width: 600px;
         --mdc-dialog-max-width: 800px;
       }
@@ -155,7 +156,7 @@ export class LCARdSTransformationDialog extends LitElement {
     }
 
     return html`
-      <ha-dialog
+      <lcards-dialog
         .open=${this.open}
         .heading=${this.mode === 'add' ? 'Add Transformation' : `Edit: ${this.transformKey}`}
         scrimClickAction=""
@@ -180,7 +181,7 @@ export class LCARdSTransformationDialog extends LitElement {
           ?disabled=${!this._isValid()}>
           ${this.mode === 'add' ? 'Create' : 'Save'}
         </ha-button>
-      </ha-dialog>
+      </lcards-dialog>
     `;
   }
 

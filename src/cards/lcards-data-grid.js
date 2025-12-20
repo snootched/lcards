@@ -2131,6 +2131,28 @@ export class LCARdSDataGrid extends LCARdSCard {
         description: 'Card type identifier'
       },
 
+      // Shared LCARdS Properties
+      data_sources: {
+        type: 'object',
+        description: 'Named data source definitions (shared across all lcards)',
+        additionalProperties: {
+          type: 'object',
+          properties: {
+            entity: {
+              type: 'string',
+              format: 'entity',
+              description: 'Entity ID to fetch data from'
+            },
+            windowSeconds: {
+              type: 'number',
+              minimum: 1,
+              description: 'Time window in seconds for historical data'
+            }
+          },
+          required: ['entity']
+        }
+      },
+
       // Data Mode (Required)
       data_mode: {
         type: 'string',

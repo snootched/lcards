@@ -181,6 +181,18 @@ export const editorStyles = css`
         margin: 16px auto;
     }
 
+    /* YAML Editor Validation Errors */
+    .validation-errors {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .validation-errors ha-alert {
+        margin: 0;
+    }
+
     /* Responsive design */
     @media (max-width: 768px) {
         :host {
@@ -190,10 +202,6 @@ export const editorStyles = css`
         .form-row-group,
         .form-row.two-controls {
             grid-template-columns: 1fr;
-        }
-
-        .monaco-container {
-            height: 400px;
         }
     }
 `;

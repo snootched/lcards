@@ -95,6 +95,41 @@ export function getButtonSchema(options = {}) {
         type: 'object',
         properties: {
             // ============================================================================
+            // HOME ASSISTANT REQUIRED PROPERTIES
+            // ============================================================================
+
+            type: {
+                type: 'string',
+                const: 'custom:lcards-button',
+                description: 'Home Assistant card type identifier (required)'
+            },
+
+            // ============================================================================
+            // SHARED LCARDS PROPERTIES
+            // ============================================================================
+
+            data_sources: {
+                type: 'object',
+                description: 'Named data source definitions (shared across all lcards)',
+                additionalProperties: {
+                    type: 'object',
+                    properties: {
+                        entity: {
+                            type: 'string',
+                            format: 'entity',
+                            description: 'Entity ID to fetch data from'
+                        },
+                        windowSeconds: {
+                            type: 'number',
+                            minimum: 1,
+                            description: 'Time window in seconds for historical data'
+                        }
+                    },
+                    required: ['entity']
+                }
+            },
+
+            // ============================================================================
             // CORE PROPERTIES
             // ============================================================================
 

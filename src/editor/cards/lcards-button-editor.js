@@ -9,7 +9,7 @@ import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import '../components/common/lcards-message.js';
-import '../components/yaml/lcards-monaco-yaml-editor.js';
+import '../components/yaml/lcards-yaml-editor.js';
 // Import form components
 import '../components/form/lcards-form-field.js';
 import '../components/form/lcards-form-section.js';

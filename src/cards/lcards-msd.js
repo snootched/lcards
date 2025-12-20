@@ -1389,12 +1389,58 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
         properties: {
             type: {
                 type: 'string',
-                enum: ['custom:lcards-msd-card', 'custom:cb-lcars-card'],
+                enum: ['custom:lcards-msd', 'custom:lcards-msd-card', 'custom:cb-lcars-card'],
                 description: 'Card type identifier'
+            },
+            data_sources: {
+                type: 'object',
+                description: 'Named data source definitions for overlays',
+                additionalProperties: {
+                    type: 'object',
+                    properties: {
+                        entity: {
+                            type: 'string',
+                            format: 'entity',
+                            description: 'Entity ID to fetch data from'
+                        },
+                        windowSeconds: {
+                            type: 'number',
+                            minimum: 1,
+                            description: 'Time window in seconds for historical data'
+                        }
+                    },
+                    required: ['entity']
+                }
             },
             base_svg: {
                 type: 'string',
                 description: 'Path to base SVG file'
+            },
+            msd: {
+                type: 'object',
+                description: 'MSD configuration section',
+                properties: {
+                    overlays: {
+                        type: 'array',
+                        description: 'Array of overlay configurations (validated separately via CoreValidationService)'
+                    },
+                    anchors: {
+                        type: 'object',
+                        description: 'Named anchor points for overlay positioning'
+                    },
+                    routing: {
+                        type: 'object',
+                        description: 'Screen routing configuration'
+                    },
+                    rules: {
+                        type: 'array',
+                        description: 'Dynamic styling rules'
+                    },
+                    packs: {
+                        type: 'array',
+                        description: 'Configuration packs to merge'
+                    }
+                }
             },
             overlays: {
                 type: 'array',

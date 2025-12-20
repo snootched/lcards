@@ -17,6 +17,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
+import '../common/lcards-dialog.js';
 import '../form/lcards-form-section.js';
 import './lcards-transformation-list-editor.js';
 import './lcards-aggregation-list-editor.js';
@@ -51,7 +52,7 @@ export class LCARdSDataSourceDialog extends LitElement {
         display: block;
       }
 
-      ha-dialog {
+      lcards-dialog {
         --mdc-dialog-min-width: 600px;
         --mdc-dialog-max-width: 800px;
       }
@@ -160,13 +161,13 @@ export class LCARdSDataSourceDialog extends LitElement {
     }
 
     return html`
-      <ha-dialog
+      <lcards-dialog
         .open=${this.open}
         .heading=${this.mode === 'add' ? 'Add Datasource' : `Edit Datasource: ${this.sourceName}`}
         scrimClickAction=""
         escapeKeyAction="">
 
-        <div style="padding: 0 24px 8px;">
+        <div style="padding: 0 24px 8px;" @keydown=${this._ignoreKeydown}>
           ${this._renderForm()}
         </div>
 
@@ -185,7 +186,7 @@ export class LCARdSDataSourceDialog extends LitElement {
           ?disabled=${!this._isValid()}>
           ${this.mode === 'add' ? 'Create' : 'Save'}
         </ha-button>
-      </ha-dialog>
+      </lcards-dialog>
     `;
   }
 
@@ -314,14 +315,11 @@ export class LCARdSDataSourceDialog extends LitElement {
         <ha-select
           label="Attribute"
           .value=${this._config.attribute || '__state__'}
-          @click=${(e) => e.stopPropagation()}
-          @selected=${(e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this._handleAttributeChange(e);
-          }}>
+          @selected=${this._handleAttributeChange}>
           ${options.map(opt => html`
-            <mwc-list-item .value=${opt.value}>${opt.label}</mwc-list-item>
+            <mwc-list-item .value=${opt.value}>
+              ${opt.label}
+            </mwc-list-item>
           `)}
         </ha-select>
       `;
@@ -612,6 +610,10 @@ export class LCARdSDataSourceDialog extends LitElement {
       bubbles: true,
       composed: true
     }));
+  }
+
+  _ignoreKeydown(ev) {
+    ev.stopPropagation();
   }
 }
 
