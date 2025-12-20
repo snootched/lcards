@@ -103,13 +103,16 @@ export class LCARdSYamlEditor extends LitElement {
                 border-radius: 4px;
                 overflow: hidden;
                 min-height: 400px;
+                max-height: 600px;
                 background: #282c34;
+                position: relative;
             }
 
             :host([maximized]) .editor-container {
                 border: none;
                 border-radius: 0;
                 min-height: 0;
+                max-height: none;
                 height: 100%;
             }
 
@@ -126,7 +129,28 @@ export class LCARdSYamlEditor extends LitElement {
             }
 
             .editor-container :global(.cm-scroller) {
-                overflow: auto;
+                overflow: auto !important;
+                scrollbar-width: thin;
+                scrollbar-color: #5c6370 #282c34;
+            }
+
+            /* Webkit scrollbar styling */
+            .editor-container :global(.cm-scroller::-webkit-scrollbar) {
+                width: 10px;
+                height: 10px;
+            }
+
+            .editor-container :global(.cm-scroller::-webkit-scrollbar-track) {
+                background: #282c34;
+            }
+
+            .editor-container :global(.cm-scroller::-webkit-scrollbar-thumb) {
+                background: #5c6370;
+                border-radius: 5px;
+            }
+
+            .editor-container :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
+                background: #6c7380;
             }
 
             .editor-container :global(.cm-focused) {
@@ -264,6 +288,18 @@ export class LCARdSYamlEditor extends LitElement {
             // VSCode Dark theme
             vsCodeDark,
 
+            // Editor height and scrolling
+            EditorView.theme({
+                "&": {
+                    height: "100%",
+                    maxHeight: "600px"
+                },
+                ".cm-scroller": {
+                    overflow: "auto",
+                    maxHeight: "600px"
+                }
+            }),
+
             // Autocomplete
             autocompletion({
                 override: [
@@ -398,37 +434,44 @@ export class LCARdSYamlEditor extends LitElement {
         // Determine if we're at a property name position (start of line or after whitespace)
         const isPropertyPosition = /^\s*\w*$/.test(beforeCursor);
 
-        if (isPropertyPosition && this.schema.properties) {
-            // Suggest property names
-            const options = Object.keys(this.schema.properties).map(key => {
-                const prop = this.schema.properties[key];
-                return {
-                    label: key,
-                    type: 'property',
-                    detail: prop.description || prop.type || '',
-                    boost: prop.required ? 10 : 0
-                };
-            });
+        if (isPropertyPosition) {
+            // Determine the current path by analyzing indentation and previous lines
+            const currentPath = this._getCurrentYamlPath(context);
+            const currentSchema = this._getSchemaAtPath(this.schema, currentPath);
 
-            return {
-                from: word.from,
-                options,
-                validFor: /^\w*$/
-            };
-        }
+            if (currentSchema?.properties) {
+                // Suggest property names with enhanced details
+                const options = Object.keys(currentSchema.properties).map(key => {
+                    const prop = currentSchema.properties[key];
 
-        // Check if we're at a value position for an enum property
-        const propertyMatch = beforeCursor.match(/(\w+):\s*\w*$/);
-        if (propertyMatch) {
-            const propertyName = propertyMatch[1];
-            const propSchema = this.schema.properties?.[propertyName];
+                    // Build detail string from schema metadata
+                    let detail = '';
+                    if (prop.default !== undefined) {
+                        detail = `default: ${JSON.stringify(prop.default)}`;
+                    } else if (prop.type) {
+                        detail = prop.type;
+                    }
 
-            if (propSchema?.enum) {
-                const options = propSchema.enum.map(val => ({
-                    label: String(val),
-                    type: 'enum',
-                    detail: 'enum value'
-                }));
+                    // Add pattern hint if available
+                    if (prop.pattern) {
+                        detail += ' (pattern)';
+                    }
+
+                    // Add range hint for numbers
+                    if (prop.type === 'number' && (prop.minimum !== undefined || prop.maximum !== undefined)) {
+                        const min = prop.minimum !== undefined ? prop.minimum : '?';
+                        const max = prop.maximum !== undefined ? prop.maximum : '?';
+                        detail += ` (${min}-${max})`;
+                    }
+
+                    return {
+                        label: key,
+                        type: 'property',
+                        detail: detail || prop.description || '',
+                        info: prop.description || '',
+                        boost: prop.required ? 10 : 0
+                    };
+                });
 
                 return {
                     from: word.from,
@@ -436,9 +479,163 @@ export class LCARdSYamlEditor extends LitElement {
                     validFor: /^\w*$/
                 };
             }
+
+            // Check for additionalProperties (for dynamic keys like text.label1, text.label2)
+            if (currentSchema?.additionalProperties && typeof currentSchema.additionalProperties === 'object') {
+                const additionalProps = currentSchema.additionalProperties.properties;
+                if (additionalProps) {
+                    const options = Object.keys(additionalProps).map(key => {
+                        const prop = additionalProps[key];
+                        let detail = prop.type || '';
+                        if (prop.default !== undefined) {
+                            detail = `default: ${JSON.stringify(prop.default)}`;
+                        }
+                        return {
+                            label: key,
+                            type: 'property',
+                            detail: detail || prop.description || '',
+                            info: prop.description || ''
+                        };
+                    });
+                    return {
+                        from: word.from,
+                        options,
+                        validFor: /^\w*$/
+                    };
+                }
+            }
+        }
+
+        // Check if we're at a value position for an enum property
+        const propertyMatch = beforeCursor.match(/(\w+):\s*\w*$/);
+        if (propertyMatch) {
+            const propertyName = propertyMatch[1];
+            const currentPath = this._getCurrentYamlPath(context);
+            const currentSchema = this._getSchemaAtPath(this.schema, currentPath);
+            const propSchema = currentSchema?.properties?.[propertyName];
+
+            if (propSchema?.enum) {
+                const options = propSchema.enum.map((val, index) => {
+                    // Use enumDescriptions if available
+                    const description = propSchema.enumDescriptions?.[index] || '';
+
+                    return {
+                        label: String(val),
+                        type: 'enum',
+                        detail: description || 'enum value',
+                        info: description
+                    };
+                });
+
+                return {
+                    from: word.from,
+                    options,
+                    validFor: /^\w*$/
+                };
+            }
+
+            // Check for examples in the schema
+            if (propSchema?.examples && Array.isArray(propSchema.examples)) {
+                const options = propSchema.examples.map(example => ({
+                    label: typeof example === 'string' ? example : JSON.stringify(example),
+                    type: 'example',
+                    detail: 'example value',
+                    apply: typeof example === 'string' ? example : JSON.stringify(example, null, 2)
+                }));
+
+                if (options.length > 0) {
+                    return {
+                        from: word.from,
+                        options,
+                        validFor: /^[\w.:]*$/
+                    };
+                }
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Get the current YAML path based on indentation
+     * @private
+     */
+    _getCurrentYamlPath(context) {
+        const doc = context.state.doc;
+        const currentLine = doc.lineAt(context.pos);
+        const currentIndent = currentLine.text.match(/^\s*/)[0].length;
+
+        const path = [];
+
+        // Walk backwards through lines to build the path
+        for (let lineNum = currentLine.number - 1; lineNum >= 1; lineNum--) {
+            const line = doc.line(lineNum);
+            const lineIndent = line.text.match(/^\s*/)[0].length;
+
+            // Skip empty lines and comments
+            if (!line.text.trim() || line.text.trim().startsWith('#')) {
+                continue;
+            }
+
+            // If this line is less indented, it's a parent key
+            if (lineIndent < currentIndent) {
+                const match = line.text.match(/^\s*(\w+):/);
+                if (match) {
+                    path.unshift(match[1]);
+                    // Update current indent to continue looking for parents
+                    if (lineIndent === 0) break; // Reached top level
+                    const currentIndentToFind = lineIndent;
+                    // Continue looking for parents of this line
+                    for (let parentNum = lineNum - 1; parentNum >= 1; parentNum--) {
+                        const parentLine = doc.line(parentNum);
+                        const parentIndent = parentLine.text.match(/^\s*/)[0].length;
+                        if (!parentLine.text.trim() || parentLine.text.trim().startsWith('#')) {
+                            continue;
+                        }
+                        if (parentIndent < currentIndentToFind) {
+                            const parentMatch = parentLine.text.match(/^\s*(\w+):/);
+                            if (parentMatch) {
+                                path.unshift(parentMatch[1]);
+                                if (parentIndent === 0) break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        return path;
+    }
+
+    /**
+     * Get schema at a specific path
+     * @private
+     */
+    _getSchemaAtPath(schema, path) {
+        let current = schema;
+
+        for (const key of path) {
+            if (!current) return null;
+
+            // Check regular properties
+            if (current.properties?.[key]) {
+                current = current.properties[key];
+            }
+            // Check additionalProperties for dynamic keys
+            else if (current.additionalProperties && typeof current.additionalProperties === 'object') {
+                current = current.additionalProperties;
+            }
+            // Check items for arrays
+            else if (current.items) {
+                current = current.items;
+            }
+            else {
+                return null;
+            }
+        }
+
+        return current;
     }
 
     /**
@@ -599,10 +796,47 @@ export class LCARdSYamlEditor extends LitElement {
 
             // Enum checking
             if (propSchema.enum && !propSchema.enum.includes(value)) {
+                const enumList = propSchema.enum.join(', ');
                 errors.push({
                     field: key,
-                    message: `Property '${key}' must be one of: ${propSchema.enum.join(', ')}`
+                    message: `Property '${key}' must be one of: ${enumList}`
                 });
+            }
+
+            // Pattern validation for strings
+            if (propSchema.pattern && typeof value === 'string') {
+                const pattern = new RegExp(propSchema.pattern);
+                if (!pattern.test(value)) {
+                    let message = `Property '${key}' does not match required pattern`;
+                    // Add helpful hints for common patterns
+                    if (propSchema.format === 'entity') {
+                        message += ' (expected format: domain.object_id, e.g., light.living_room)';
+                    } else if (key === 'icon') {
+                        message += ' (expected format: mdi:icon-name or si:icon-name)';
+                    } else if (propSchema.examples && propSchema.examples.length > 0) {
+                        message += ` (e.g., ${propSchema.examples[0]})`;
+                    }
+                    errors.push({
+                        field: key,
+                        message
+                    });
+                }
+            }
+
+            // Range validation for numbers
+            if (propSchema.type === 'number' && typeof value === 'number') {
+                if (propSchema.minimum !== undefined && value < propSchema.minimum) {
+                    errors.push({
+                        field: key,
+                        message: `Property '${key}' must be at least ${propSchema.minimum} (got ${value})`
+                    });
+                }
+                if (propSchema.maximum !== undefined && value > propSchema.maximum) {
+                    errors.push({
+                        field: key,
+                        message: `Property '${key}' must be at most ${propSchema.maximum} (got ${value})`
+                    });
+                }
             }
         });
 

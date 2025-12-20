@@ -372,19 +372,26 @@ export class CoreValidationService {
       // Get expected types from oneOf options
       const expectedTypes = schema.oneOf
         .map(opt => opt.type || 'object')
-        .filter((v, i, a) => a.indexOf(v) === i) // unique
-        .join(' or ');
+        .filter((v, i, a) => a.indexOf(v) === i); // unique
 
-      result.errors.push({
-        type: 'invalid_type',
-        field: path,
-        message: 'Type mismatch',
-        context: {
+      const actualType = typeof data;
+
+      // Don't report as type error if the actual type is one of the expected types
+      // (the real issue is likely a property/format validation failure)
+      if (!expectedTypes.includes(actualType)) {
+        result.errors.push({
+          type: 'invalid_type',
           field: path,
-          expected: expectedTypes,
-          actual: typeof data
-        }
-      });
+          message: 'Type mismatch',
+          context: {
+            field: path,
+            expected: expectedTypes.join(' or '),
+            actual: actualType
+          }
+        });
+      }
+      // If type matches but validation failed, the specific errors were already added
+      // by the temp validation runs above, so don't add a generic type error
     } else if (matchedSchemas.length > 1) {
       // Multiple matches - this is technically a schema error but we'll allow it
       // and just use the first match (common in practice)
@@ -547,13 +554,20 @@ export class CoreValidationService {
     }
 
     // Pattern validation for strings
-    if (schema.pattern && typeof data === 'string' && !schema.pattern.test(data)) {
-      result.errors.push({
-        type: 'invalid_format',
-        field: path,
-        message: 'Format validation failed',
-        context: { field: path }
-      });
+    if (schema.pattern && typeof data === 'string') {
+      try {
+        const pattern = typeof schema.pattern === 'string' ? new RegExp(schema.pattern) : schema.pattern;
+        if (!pattern.test(data)) {
+          result.errors.push({
+            type: 'invalid_format',
+            field: path,
+            message: 'Format validation failed',
+            context: { field: path, pattern: schema.pattern }
+          });
+        }
+      } catch (error) {
+        lcardsLog.warn(`[CoreValidationService] Invalid regex pattern at ${path}:`, schema.pattern, error);
+      }
     }
 
     // Range validation for numbers
