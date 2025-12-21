@@ -35,7 +35,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _filteredCssVars: { type: Array, state: true },
       _haThemeName: { type: String, state: true },
       _allCssVariables: { type: Array, state: true },
-      _filteredAllVars: { type: Array, state: true }
+      _filteredAllVars: { type: Array, state: true },
+      _selectedAllVarsCategory: { type: String, state: true }
     };
   }
 
@@ -56,6 +57,43 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._haThemeName = 'Unknown';
     this._allCssVariables = [];
     this._filteredAllVars = [];
+    this._selectedAllVarsCategory = 'all';
+    this._handleKeydown = this._handleKeydown.bind(this);
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    // Use capture phase to intercept before browser's find
+    document.addEventListener('keydown', this._handleKeydown, true);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this._handleKeydown, true);
+  }
+
+  _handleKeydown(e) {
+    // Only handle keyboard shortcuts when dialog is open
+    if (!this._dialogOpen) return;
+
+    // Ctrl/Cmd+F to focus search - must prevent BEFORE browser sees it
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      e.stopPropagation();
+      const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+      if (searchInput) {
+        searchInput.focus();
+      }
+      return;
+    }
+
+    // ESC to close dialog
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this._closeDialog();
+      return;
+    }
   }
 
   static get styles() {
@@ -197,11 +235,34 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .search-container {
         padding: 12px 24px;
         border-bottom: 1px solid var(--divider-color);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .search-wrapper {
+        flex: 1;
+        position: relative;
+        min-width: 400px;
       }
 
       .dialog-search {
         width: 100%;
-        min-width: 400px;
+      }
+
+      .search-clear {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        --mdc-icon-button-size: 32px;
+      }
+
+      .search-result-count {
+        color: var(--secondary-text-color);
+        font-size: 13px;
+        white-space: nowrap;
+        padding: 0 8px;
       }
 
       .category-filters {
@@ -293,7 +354,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .var-category-header:hover {
-        background: var(--primary-background-color);
+        background: var(--divider-color);
         border-bottom-color: var(--primary-color);
       }
 
@@ -321,8 +382,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .var-category-count {
         font-size: 12px;
-        color: var(--text-primary-color, var(--primary-text-color));
-        background: var(--primary-color);
+        color: var(--primary-text-color);
+        background: var(--secondary-background-color);
+        border: 1px solid var(--primary-color);
         padding: 2px 8px;
         border-radius: 12px;
         font-weight: 500;
@@ -539,6 +601,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="dialog-content">
           ${this._renderDialogHeader()}
           ${this._activeView === 'tokens' ? this._renderCategoryFilters() : ''}
+          ${this._activeView === 'all-vars' ? this._renderAllVarsCategoryFilters() : ''}
           ${this._renderDialogBody()}
         </div>
         <ha-button
@@ -582,21 +645,70 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           </div>
         </div>
         <div class="search-container">
-          <ha-textfield
-            class="dialog-search"
-            .value=${this._searchQuery}
-            @input=${this._handleSearchInput}
-            placeholder="${
-              this._activeView === 'tokens' ? 'Search tokens...' :
-              this._activeView === 'all-vars' ? 'Search all variables...' :
-              'Search CSS variables...'
-            }"
-            .label=${'Search'}>
-            <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-          </ha-textfield>
+          <div class="search-wrapper">
+            <ha-textfield
+              class="dialog-search"
+              .value=${this._searchQuery}
+              @input=${this._handleSearchInput}
+              placeholder="${
+                this._activeView === 'tokens' ? 'Search tokens... (Ctrl+F)' :
+                this._activeView === 'all-vars' ? 'Search all variables... (Ctrl+F)' :
+                'Search CSS variables... (Ctrl+F)'
+              }"
+              .label=${'Search'}>
+              <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+            </ha-textfield>
+            ${this._searchQuery ? html`
+              <ha-icon-button
+                class="search-clear"
+                @click=${this._clearSearch}
+                .label=${'Clear search'}
+                .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}>
+              </ha-icon-button>
+            ` : ''}
+          </div>
+          ${this._renderResultCount()}
         </div>
       </div>
     `;
+  }
+
+  _renderResultCount() {
+    if (!this._searchQuery) return '';
+
+    let totalCount, filteredCount;
+    if (this._activeView === 'tokens') {
+      totalCount = this._tokens.length;
+      filteredCount = this._filteredTokens.length;
+    } else if (this._activeView === 'css-vars') {
+      totalCount = this._cssVariables.length;
+      filteredCount = this._filteredCssVars.length;
+    } else {
+      totalCount = this._allCssVariables.length;
+      filteredCount = this._filteredAllVars.length;
+    }
+
+    return html`
+      <div class="search-result-count">
+        Showing ${filteredCount} of ${totalCount}
+      </div>
+    `;
+  }
+
+  _clearSearch() {
+    this._searchQuery = '';
+    if (this._activeView === 'tokens') {
+      this._applyFilters();
+    } else if (this._activeView === 'css-vars') {
+      this._applyCssVarFilters();
+    } else if (this._activeView === 'all-vars') {
+      this._applyAllVarsFilters();
+    }
+    // Focus back on search input
+    const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+    if (searchInput) {
+      searchInput.focus();
+    }
   }
 
   _renderCategoryFilters() {
@@ -612,6 +724,48 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <button
             class="category-chip ${this._selectedCategory === filter.value ? 'selected' : ''}"
             @click=${() => this._selectCategory(filter.value)}>
+            ${filter.label} (${filter.count})
+          </button>
+        `)}
+      </div>
+    `;
+  }
+
+  _renderAllVarsCategoryFilters() {
+    const allVars = this._allCssVariables || [];
+
+    // Count variables by category
+    const categoryCounts = {
+      'ha-core': { label: 'HA Core', count: 0 },
+      'material': { label: 'Material', count: 0 },
+      'ha-specific': { label: 'HA-Specific', count: 0 },
+      'states': { label: 'States', count: 0 },
+      'card-mod': { label: 'Card-Mod', count: 0 },
+      'lcars': { label: 'LCARS', count: 0 },
+      'lcards': { label: 'LCARdS', count: 0 },
+      'app': { label: 'App', count: 0 },
+      'other': { label: 'Other', count: 0 }
+    };
+
+    allVars.forEach(v => {
+      if (categoryCounts[v.category]) {
+        categoryCounts[v.category].count++;
+      }
+    });
+
+    const filters = [
+      { label: 'All', value: 'all', count: allVars.length },
+      ...Object.entries(categoryCounts)
+        .filter(([_, data]) => data.count > 0)
+        .map(([key, data]) => ({ label: data.label, value: key, count: data.count }))
+    ];
+
+    return html`
+      <div class="category-filters">
+        ${filters.map(filter => html`
+          <button
+            class="category-chip ${this._selectedAllVarsCategory === filter.value ? 'selected' : ''}"
+            @click=${() => this._selectAllVarsCategory(filter.value)}>
             ${filter.label} (${filter.count})
           </button>
         `)}
@@ -638,38 +792,53 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       if (!this._filteredTokens || this._filteredTokens.length === 0) {
         return html`
           <div class="empty-state">
-            <ha-icon icon="mdi:palette"></ha-icon>
-            <p>No tokens found</p>
-            <p style="font-size: 12px;">
-              ${this._searchQuery || this._selectedCategory !== 'all'
-                ? 'Try adjusting your filters'
-                : 'No theme tokens are available'}
+            <ha-icon icon="mdi:${this._searchQuery ? 'magnify-remove-outline' : 'palette'}"></ha-icon>
+            <p>${this._searchQuery ? `No tokens found matching "${this._searchQuery}"` : 'No tokens found'}</p>
+            <p style="font-size: 13px; color: var(--secondary-text-color); max-width: 400px;">
+              ${this._searchQuery
+                ? 'Try a different search term, or clear the search to see all tokens.'
+                : this._selectedCategory !== 'all'
+                  ? 'Try selecting a different category or "All" to see more tokens.'
+                  : 'No theme tokens are available in the current theme.'}
             </p>
           </div>
         `;
       }
 
+      // Group tokens by top-level category
+      const groupedTokens = this._groupTokensByCategory(this._getSortedTokens());
+
       return html`
         <div class="dialog-body">
-          <table class="token-table">
-            <thead>
-              <tr>
-                <th @click=${() => this._sortBy('path')}>
-                  Token Path
-                  ${this._sortColumn === 'path' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
-                </th>
-                <th @click=${() => this._sortBy('value')}>
-                  Value
-                  ${this._sortColumn === 'value' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
-                </th>
-                <th>Preview</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${this._getSortedTokens().map(token => this._renderTokenRow(token))}
-            </tbody>
-          </table>
+          ${Object.entries(groupedTokens).map(([category, tokens]) => html`
+            <div class="var-category-section">
+              <div class="var-category-header" @click=${() => this._toggleTokenCategory(category)}>
+                <span class="var-category-title">${this._formatCategoryName(category)}</span>
+                <span class="var-category-count">${tokens.length} tokens</span>
+              </div>
+              <div class="var-category-content" data-category="token-${category}">
+                <table class="token-table">
+                  <thead>
+                    <tr>
+                      <th @click=${() => this._sortBy('path')}>
+                        Token Path
+                        ${this._sortColumn === 'path' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+                      </th>
+                      <th @click=${() => this._sortBy('value')}>
+                        Value
+                        ${this._sortColumn === 'value' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+                      </th>
+                      <th>Preview</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tokens.map(token => this._renderTokenRow(token))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `)}
         </div>
       `;
     } catch (error) {
@@ -766,8 +935,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         return html`
           <div
             class="color-preview"
-            style="background-color: ${valueStr};"
-            title="${valueStr}">
+            style="background-color: ${valueStr}; cursor: pointer;"
+            title="${valueStr} (click to copy hex value)"
+            @click=${(e) => this._copyResolvedColor(valueStr, e)}>
           </div>
         `;
       }
@@ -924,10 +1094,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
     });
 
+    // Filter categories based on selection
+    const filteredCategories = this._selectedAllVarsCategory === 'all'
+      ? categories
+      : { [this._selectedAllVarsCategory]: categories[this._selectedAllVarsCategory] };
+
     return html`
       <div class="dialog-body">
-        ${Object.entries(categories).map(([key, cat]) =>
-          cat.vars.length > 0 ? html`
+        ${Object.entries(filteredCategories).map(([key, cat]) =>
+          cat && cat.vars.length > 0 ? html`
             <div class="var-category-section">
               <div class="var-category-header" @click=${() => this._toggleCategory(key)}>
                 <span class="var-category-title">${cat.title}</span>
@@ -965,6 +1140,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     }
   }
 
+  _toggleTokenCategory(categoryKey) {
+    const content = this.shadowRoot.querySelector(`.var-category-content[data-category="token-${categoryKey}"]`);
+    if (content) {
+      content.classList.toggle('expanded');
+    }
+  }
+
   /**
    * Render a single CSS variable row
    */
@@ -992,7 +1174,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               @click=${(e) => this._copyCssVar(cssVar.name, e)}
               .label=${'Copy CSS variable syntax'}
               title="Copy var(${cssVar.name})"
-              .path=${"M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"}>
+              .path=${"M12,2A2,2 0 0,1 14,4V8H20A2,2 0 0,1 22,10V20A2,2 0 0,1 20,22H4A2,2 0 0,1 2,20V10A2,2 0 0,1 4,10H10V4A2,2 0 0,1 12,2M12,4V8H14V4H12M4,10V20H20V10H4M7,12H9V18H7V12M11,12H13V18H11V12M15,12H17V18H15V12Z"}>
             </ha-icon-button>
             <ha-icon-button
               @click=${(e) => this._copyValue(cssVar.value, e)}
@@ -1026,6 +1208,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _switchView(view) {
     this._activeView = view;
     this._searchQuery = ''; // Reset search when switching views
+    if (view === 'all-vars') {
+      this._selectedAllVarsCategory = 'all'; // Reset category filter
+    }
     if (view === 'tokens') {
       this._applyFilters();
     } else if (view === 'css-vars') {
@@ -1050,6 +1235,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _selectCategory(category) {
     this._selectedCategory = category;
     this._applyFilters();
+  }
+
+  _selectAllVarsCategory(category) {
+    this._selectedAllVarsCategory = category;
+    this.requestUpdate();
   }
 
   _sortBy(column) {
@@ -1092,6 +1282,36 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       lcardsLog.error('[ThemeTokenBrowser] Error sorting tokens:', error);
       return this._filteredTokens || [];
     }
+  }
+
+  _groupTokensByCategory(tokens) {
+    const grouped = {};
+
+    tokens.forEach(token => {
+      // Extract top-level category from path (e.g., "colors" from "colors.card.background")
+      const topCategory = token.path.split('.')[0] || 'other';
+
+      if (!grouped[topCategory]) {
+        grouped[topCategory] = [];
+      }
+      grouped[topCategory].push(token);
+    });
+
+    // Sort categories alphabetically
+    const sortedGrouped = {};
+    Object.keys(grouped).sort().forEach(key => {
+      sortedGrouped[key] = grouped[key];
+    });
+
+    return sortedGrouped;
+  }
+
+  _formatCategoryName(category) {
+    // Convert category names to title case with proper spacing
+    return category
+      .split(/[_-]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   _getCategories() {
@@ -1793,6 +2013,65 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         button.style.color = '';
       }, 2000);
     }
+  }
+
+  async _copyResolvedColor(colorValue, event) {
+    const preview = event.target;
+    if (!preview) return;
+
+    try {
+      // Convert the color to hex if possible
+      const hexColor = this._getHexColor(colorValue);
+      await navigator.clipboard.writeText(hexColor);
+      lcardsLog.info('[ThemeTokenBrowser] Copied hex color:', hexColor);
+
+      // Show success feedback on the preview
+      const originalBorder = preview.style.border;
+      preview.style.border = '3px solid var(--success-color, #4caf50)';
+      preview.style.boxShadow = '0 0 8px var(--success-color, #4caf50)';
+
+      setTimeout(() => {
+        preview.style.border = originalBorder;
+        preview.style.boxShadow = '';
+      }, 1000);
+    } catch (error) {
+      lcardsLog.error('[ThemeTokenBrowser] Failed to copy color:', error);
+
+      // Show error feedback
+      const originalBorder = preview.style.border;
+      preview.style.border = '3px solid var(--error-color, #f44336)';
+
+      setTimeout(() => {
+        preview.style.border = originalBorder;
+      }, 1000);
+    }
+  }
+
+  _getHexColor(colorValue) {
+    // If it's already a hex color, return it
+    if (/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(colorValue)) {
+      return colorValue;
+    }
+
+    // Create a temporary element to let the browser compute the color
+    const temp = document.createElement('div');
+    temp.style.color = colorValue;
+    document.body.appendChild(temp);
+
+    const computed = window.getComputedStyle(temp).color;
+    document.body.removeChild(temp);
+
+    // Convert rgb/rgba to hex
+    const match = computed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
+    if (match) {
+      const r = parseInt(match[1]).toString(16).padStart(2, '0');
+      const g = parseInt(match[2]).toString(16).padStart(2, '0');
+      const b = parseInt(match[3]).toString(16).padStart(2, '0');
+      return `#${r}${g}${b}`;
+    }
+
+    // Fallback to original value if conversion fails
+    return colorValue;
   }
 }
 
