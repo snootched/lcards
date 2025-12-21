@@ -15,6 +15,13 @@
  * - Primary: var(--lcars-*, var(--lcards-*))  // HA-LCARS with CB-LCARS fallback
  * - Fallback: --lcards-* variables injected by paletteInjector.js
  *
+ * Computed tokens:
+ * - darken(color, amount), lighten(color, amount), alpha(color, opacity), etc.
+ * - These are NOT CSS functions - they are processed at runtime by ThemeTokenResolver
+ * - ThemeTokenResolver converts them to valid CSS color-mix() or rgba() expressions
+ * - Example: darken(colors.card.button, 0.35) → color-mix(in srgb, <resolved-color> 65%, black 35%)
+ *
+ * @see ThemeTokenResolver for computed token processing
  * @module core/themes/tokens/lcarsClassicTokens
  */
 
