@@ -32,6 +32,7 @@ import { loadBuiltinPacks } from './packs/loadBuiltinPacks.js';  // ✅ Moved to
 import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Moved to Core
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
 import { CoreConfigManager } from './config-manager/index.js';  // ✅ Unified config processing
+import { injectPalette } from './themes/paletteInjector.js';  // ✅ CB-LCARS palette injection
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -114,6 +115,11 @@ class LCARdSCore {
         try {
             // Store HASS reference
             this._currentHass = hass;
+
+            // ✅ PHASE 1: Inject CB-LCARS palette as --lcards-* CSS variables
+            // This must happen BEFORE ThemeManager initialization so fallback colors are available
+            injectPalette();
+            lcardsLog.debug('[LCARdSCore] ✅ CB-LCARS palette injected as --lcards-* CSS variables');
 
             // Initialize SystemsManager (Phase 1a)
             this.systemsManager = new CoreSystemsManager();
