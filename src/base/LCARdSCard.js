@@ -30,6 +30,7 @@ import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvalu
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { deepMerge } from '../core/config-manager/merge-helpers.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -177,6 +178,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Config provenance tracking (from CoreConfigManager)
         this._provenance = null;
 
+        // Unified provenance tracker
+        this._provenanceTracker = new ProvenanceTracker(this._cardGuid);
+
         // Rules integration state
         this._overlayId = null;           // Unique overlay ID for this card
         this._overlayTags = [];           // Tags for rule targeting
@@ -271,6 +275,11 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Store provenance for debugging
             this._provenance = result.provenance;
+
+            // Track provenance in unified tracker
+            if (this._provenanceTracker && result.provenance) {
+                this._provenanceTracker.trackConfig(result.provenance);
+            }
 
             lcardsLog.trace(`[LCARdSCard] Config processed`, {
                 valid: result.valid,
@@ -1185,6 +1194,34 @@ export class LCARdSCard extends LCARdSNativeCard {
             patchKeys: Object.keys(mergedPatch)
         });
 
+        // Track rule patches in provenance tracker
+        if (this._provenanceTracker && mergedPatch.style) {
+            const rulesEngine = this._singletons?.rulesManager;
+            
+            // Track each patched style field
+            for (const [key, value] of Object.entries(mergedPatch.style)) {
+                const fieldPath = `style.${key}`;
+                const originalValue = this.config?.style?.[key];
+                
+                // Get rule info from patches (first patch that has this field)
+                const rulePatch = myPatches.find(p => p.style && key in p.style);
+                const ruleId = rulePatch?.ruleId || 'unknown';
+                const ruleCondition = rulePatch?.ruleCondition || 'unknown condition';
+                
+                // Track the patch
+                if (rulesEngine && rulesEngine.trackRulePatch) {
+                    rulesEngine.trackRulePatch(
+                        fieldPath,
+                        originalValue,
+                        value,
+                        ruleId,
+                        ruleCondition,
+                        this._provenanceTracker
+                    );
+                }
+            }
+        }
+
         // Deep merge patches into config (for non-style properties like text, dpad, etc.)
         // This ensures rules can patch any config property, not just style
         this.config = deepMerge({ ...this.config }, this._lastRulePatches);
@@ -1462,6 +1499,36 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Use async evaluation to support all template types (JavaScript, Tokens, Datasources, Jinja2)
             const result = await evaluator.evaluateAsync(template);
+            
+            // Track template provenance
+            if (this._provenanceTracker) {
+                // Extract dependencies from evaluator if available
+                const dependencies = [];
+                if (this._entity?.entity_id) {
+                    dependencies.push(this._entity.entity_id);
+                }
+                
+                // Determine processor type
+                let processor = 'unknown';
+                if (template.includes('{%') || template.includes('{{')) {
+                    processor = 'jinja2';
+                } else if (template.includes('[[[')) {
+                    processor = 'javascript';
+                } else if (template.includes('{datasource:') || template.includes('{ds:')) {
+                    processor = 'datasource';
+                }
+                
+                // Track in provenance tracker (use a hash or truncated template as field ID)
+                const fieldId = template.substring(0, 50);
+                this._provenanceTracker.trackTemplate(
+                    fieldId,
+                    template,
+                    result,
+                    dependencies,
+                    processor
+                );
+            }
+            
             return result;
 
         } catch (error) {
@@ -2346,5 +2413,75 @@ export class LCARdSCard extends LCARdSNativeCard {
             Math.round(g * 255),
             Math.round(b * 255)
         ];
+    }
+
+    // ============================================================================
+    // PROVENANCE API - Public methods for debugging and troubleshooting
+    // ============================================================================
+
+    /**
+     * Get provenance data for debugging
+     *
+     * Returns information about where configuration values, styles, and
+     * resolved settings originated from (defaults, presets, user overrides,
+     * rules, theme tokens, etc.)
+     *
+     * @param {string} [path] - Optional path to specific provenance data
+     * @returns {any} Provenance data (full or at path)
+     *
+     * @example
+     * // From browser console:
+     * const card = document.querySelector('lcards-button');
+     *
+     * // Get all provenance
+     * card.getProvenance();
+     *
+     * // Get config provenance
+     * card.getProvenance('config');
+     *
+     * // Get specific field source
+     * card.getProvenance('config.field_sources.style.color');
+     */
+    getProvenance(path = null) {
+        if (!this._provenanceTracker) {
+            lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
+            return null;
+        }
+        return this._provenanceTracker.getProvenance(path);
+    }
+
+    /**
+     * Get pretty-printed debug output of provenance information
+     *
+     * Prints formatted provenance data to console for easy troubleshooting.
+     * Shows config merge order, field sources, theme tokens, rule patches,
+     * and template processing information.
+     *
+     * @returns {string} Formatted provenance information
+     *
+     * @example
+     * // From browser console:
+     * const card = document.querySelector('lcards-button');
+     * console.log(card.debugProvenance());
+     *
+     * // Output:
+     * // 🔍 Provenance for button-abc123
+     * //   📦 Config Merge Order
+     * //     ['card_defaults', 'theme_defaults', 'preset_lozenge', 'user_config']
+     * //   📋 Field Sources (Sample)
+     * //     style.color: user_config
+     * //     style.borderRadius: preset_lozenge
+     * //     show_label: card_defaults
+     * //   🎨 Theme Tokens (12)
+     * //     colors.accent.primary: #ff9966
+     * //   ⚙️ Rule Patches (3)
+     * //     style.opacity: 1.0 → 0.5
+     */
+    debugProvenance() {
+        if (!this._provenanceTracker) {
+            lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
+            return 'Provenance tracker not initialized';
+        }
+        return this._provenanceTracker.debugProvenance();
     }
 }

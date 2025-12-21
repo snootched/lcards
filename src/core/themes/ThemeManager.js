@@ -464,6 +464,53 @@ export class ThemeManager extends BaseService {
   }
 
   /**
+   * Track theme token resolution (for provenance tracking)
+   *
+   * Records token resolution chains for debugging and troubleshooting.
+   * Called by cards when they resolve theme tokens through getToken() or getDefault().
+   *
+   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
+   * @param {string} originalRef - Original reference (e.g., 'theme:colors.accent.primary')
+   * @param {any} resolvedValue - Final resolved value
+   * @param {Array<Object>} resolutionChain - Resolution steps
+   * @param {Object} cardTracker - Card's ProvenanceTracker instance
+   * @param {string[]} usedByFields - Fields using this token
+   *
+   * @example
+   * themeManager.trackTokenResolution(
+   *   'colors.accent.primary',
+   *   'theme:colors.accent.primary',
+   *   '#ff9966',
+   *   [{ step: 'token_lookup', value: '#ff9966', source: 'theme.tokens' }],
+   *   card._provenanceTracker,
+   *   ['style.background']
+   * );
+   */
+  trackTokenResolution(tokenPath, originalRef, resolvedValue, resolutionChain = [], cardTracker = null, usedByFields = []) {
+    if (!cardTracker) {
+      lcardsLog.trace('[ThemeManager] No card tracker provided for token resolution tracking');
+      return;
+    }
+
+    // Build resolution chain if not provided
+    if (resolutionChain.length === 0) {
+      resolutionChain = [{
+        step: 'token_lookup',
+        value: resolvedValue,
+        source: 'theme.tokens'
+      }];
+    }
+
+    // Track in card's provenance tracker
+    cardTracker.trackThemeToken(tokenPath, originalRef, resolvedValue, resolutionChain, usedByFields);
+
+    lcardsLog.trace(`[ThemeManager] Tracked token resolution: ${tokenPath}`, {
+      resolvedValue,
+      usedByFields
+    });
+  }
+
+  /**
    * Destroy theme manager and clean up resources
    */
   destroy() {
