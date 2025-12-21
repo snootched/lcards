@@ -31,8 +31,8 @@ export const lcarsDs9Tokens = {
 
       alert1: 'var(--lcars-amber, #CC9966)',
       alert2: 'colors.status.warning',
-      alert3: 'darken(colors.status.danger, 0.15)',
-      alert4: 'saturate(colors.status.danger, 0.4)'
+      alert3: 'darken(colors.status.error, 0.15)',
+      alert4: 'saturate(colors.status.error, 0.4)'
     },
 
     ui: {
@@ -257,7 +257,7 @@ export const lcarsDs9Tokens = {
 
       statusOnColor: 'colors.status.success',
       statusOffColor: 'colors.status.unknown',
-      statusUnavailableColor: 'colors.status.danger'
+      statusUnavailableColor: 'colors.status.error'
     },
 
     button: {

@@ -1995,12 +1995,12 @@ export class LCARdSButton extends LCARdSCard {
         // Use CB-LCARS nested schema: card.color.background.{state}
         if (!this._hasNestedValue(style, 'card.color.background', buttonState)) {
 
-            let bgToken = `components.button.base.background.${buttonState}`;
+            let bgToken = `components.button.background.${buttonState}`;
             let backgroundColor = this.getThemeToken(bgToken);
 
             // If 'default' state not found in theme, fall back to 'active'
             if (!backgroundColor && buttonState === 'default') {
-                bgToken = `components.button.base.background.active`;
+                bgToken = `components.button.background.active`;
                 backgroundColor = this.getThemeToken(bgToken);
             }
 
@@ -2020,12 +2020,12 @@ export class LCARdSButton extends LCARdSCard {
         // Apply text color defaults using text.default.color.{state}
         if (!this._hasNestedValue(style, 'text.default.color', buttonState)) {
 
-            let textToken = `components.button.base.text.default.color.${buttonState}`;
+            let textToken = `components.button.text.color.${buttonState}`;
             let textColor = this.getThemeToken(textToken);
 
             // If 'default' state not found in theme, fall back to 'active'
             if (!textColor && buttonState === 'default') {
-                textToken = `components.button.base.text.default.color.active`;
+                textToken = `components.button.text.color.active`;
                 textColor = this.getThemeToken(textToken);
             }
 
@@ -3479,7 +3479,7 @@ export class LCARdSButton extends LCARdSCard {
 
             const stringValue = String(value);
 
-            // Resolve theme tokens (e.g., "theme:components.button.base.radius.full")
+            // Resolve theme tokens (e.g., "theme:components.button.border.radius")
             let resolved = stringValue;
             if (stringValue.startsWith('theme:')) {
                 if (this._singletons?.themeManager?.resolver) {

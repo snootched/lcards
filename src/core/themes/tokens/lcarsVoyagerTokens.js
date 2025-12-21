@@ -31,8 +31,8 @@ export const lcarsVoyagerTokens = {
 
       alert1: 'var(--lcars-yellow, #FFDD00)',
       alert2: 'colors.status.warning',
-      alert3: 'darken(colors.status.danger, 0.1)',
-      alert4: 'saturate(colors.status.danger, 0.5)'
+      alert3: 'darken(colors.status.error, 0.1)',
+      alert4: 'saturate(colors.status.error, 0.5)'
     },
 
     ui: {
@@ -257,7 +257,7 @@ export const lcarsVoyagerTokens = {
 
       statusOnColor: 'colors.status.success',
       statusOffColor: 'colors.status.unknown',
-      statusUnavailableColor: 'colors.status.danger'
+      statusUnavailableColor: 'colors.status.error'
     },
 
     button: {

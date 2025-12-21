@@ -1051,7 +1051,7 @@ export class ApexChartsAdapter {
                   {
                     from: 75,
                     to: 100,
-                    color: resolveToken('colors.status.danger', 'var(--lcars-red, #CC6666)')
+                    color: resolveToken('colors.status.error', 'var(--lcars-red, #CC6666)')
                   }
                 ]
               }
@@ -1136,7 +1136,7 @@ export class ApexChartsAdapter {
             candlestick: {
               colors: {
                 upward: resolveToken('colors.status.success', 'var(--lcars-green, #99CC99)'),
-                downward: resolveToken('colors.status.danger', 'var(--lcars-red, #CC6666)')
+                downward: resolveToken('colors.status.error', 'var(--lcars-red, #CC6666)')
               },
               wick: {
                 useFillColor: true

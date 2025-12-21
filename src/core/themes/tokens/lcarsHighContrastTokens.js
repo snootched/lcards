@@ -31,8 +31,8 @@ export const lcarsHighContrastTokens = {
 
       alert1: 'var(--lcars-bright-yellow, #FFFF00)',
       alert2: 'colors.status.warning',
-      alert3: 'lighten(colors.status.danger, 0.2)',
-      alert4: 'saturate(colors.status.danger, 1.0)'
+      alert3: 'lighten(colors.status.error, 0.2)',
+      alert4: 'saturate(colors.status.error, 1.0)'
     },
 
     ui: {
@@ -257,7 +257,7 @@ export const lcarsHighContrastTokens = {
 
       statusOnColor: 'colors.status.success',
       statusOffColor: 'colors.status.unknown',
-      statusUnavailableColor: 'colors.status.danger'
+      statusUnavailableColor: 'colors.status.error'
     },
 
     button: {
