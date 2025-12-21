@@ -153,8 +153,8 @@ export const lcarsClassicTokens = {
           inactive: 'colors.text.onLight',
           unavailable: 'colors.status.error'
         },
-        font_size: 'typography.fontSize.base',
-        font_weight: 'typography.fontWeight.bold',
+        font_size: 'typography.fontSize.lg',
+        font_weight: 'typography.fontWeight.normal',
         font_family: 'typography.fontFamily.primary',
         text_transform: 'typography.textTransform.uppercase'
       },
@@ -241,6 +241,7 @@ export const lcarsClassicTokens = {
       segment: {
         directional: {
           fill: {
+            default: 'var(--lcars-green, var(--lcards-green-medium))',
             active: 'var(--lcars-orange, var(--lcards-orange-medium))',
             inactive: 'darken(colors.card.button, 0.35)',
             hover: 'var(--lcars-yellow, var(--lcards-yellow-medium))',
