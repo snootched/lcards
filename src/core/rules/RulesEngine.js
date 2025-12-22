@@ -1302,6 +1302,45 @@ export class RulesEngine extends BaseService {
   getAllRules() {
     return this.rules || [];
   }
+
+  /**
+   * Track rule patch application (for provenance tracking)
+   *
+   * Records which rule applied which patch to which field for debugging.
+   * Called by cards when they apply rule patches.
+   *
+   * @param {string} fieldPath - Field path (e.g., 'style.opacity')
+   * @param {any} originalValue - Value before patch
+   * @param {any} patchedValue - Value after patch
+   * @param {string} ruleId - Rule ID that applied the patch
+   * @param {string} ruleCondition - Human-readable rule condition
+   * @param {Object} cardTracker - Card's ProvenanceTracker instance
+   *
+   * @example
+   * rulesEngine.trackRulePatch(
+   *   'style.opacity',
+   *   1.0,
+   *   0.5,
+   *   'dim-inactive',
+   *   'entity.state != "on"',
+   *   card._provenanceTracker
+   * );
+   */
+  trackRulePatch(fieldPath, originalValue, patchedValue, ruleId, ruleCondition, cardTracker = null) {
+    if (!cardTracker) {
+      lcardsLog.trace('[RulesEngine] No card tracker provided for rule patch tracking');
+      return;
+    }
+
+    // Track in card's provenance tracker
+    cardTracker.trackRulePatch(fieldPath, originalValue, patchedValue, ruleId, ruleCondition);
+
+    lcardsLog.trace(`[RulesEngine] Tracked rule patch: ${fieldPath}`, {
+      ruleId,
+      originalValue,
+      patchedValue
+    });
+  }
 }
 
 /**
