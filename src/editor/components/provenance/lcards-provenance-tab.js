@@ -11,6 +11,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import '../shared/lcards-collapsible-section.js';
 
 /**
  * Provenance Inspector Tab Component
@@ -97,7 +98,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .info-card {
         background: var(--primary-background-color);
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: 16px;
         padding: 24px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
@@ -140,6 +141,12 @@ export class LCARdSProvenanceTab extends LitElement {
       .loading-state p {
         color: var(--secondary-text-color);
         margin: 0;
+      }
+
+      /* Dialog Sizing */
+      ha-dialog {
+        --mdc-dialog-min-width: 90vw;
+        --mdc-dialog-max-width: 1400px;
       }
 
       /* Dialog Content */
@@ -306,91 +313,6 @@ export class LCARdSProvenanceTab extends LitElement {
         flex: 1;
         overflow-y: auto;
         padding: 8px;
-      }
-
-      /* Layer Section */
-      .layer-section {
-        margin-bottom: 16px;
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
-        overflow: hidden;
-      }
-
-      .layer-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        background: var(--secondary-background-color);
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      .layer-header:hover {
-        background: var(--primary-background-color);
-      }
-
-      .layer-header-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .layer-title {
-        font-weight: 500;
-        font-size: 15px;
-        color: var(--primary-text-color);
-      }
-
-      .layer-count {
-        padding: 2px 8px;
-        background: var(--primary-background-color);
-        border-radius: 12px;
-        font-size: 12px;
-        color: var(--secondary-text-color);
-      }
-
-      .layer-badge {
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-      }
-
-      .layer-badge.defaults {
-        background: #9e9e9e22;
-        color: #9e9e9e;
-      }
-
-      .layer-badge.theme {
-        background: #2196f322;
-        color: #2196f3;
-      }
-
-      .layer-badge.user {
-        background: #4caf5022;
-        color: #4caf50;
-      }
-
-      .layer-badge.presets {
-        background: #ff980022;
-        color: #ff9800;
-      }
-
-      .layer-badge.rules {
-        background: #f4433622;
-        color: #f44336;
-      }
-
-      .layer-content {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-out;
-      }
-
-      .layer-content.expanded {
-        max-height: 2000px;
       }
 
       /* Field Table */
@@ -911,37 +833,34 @@ export class LCARdSProvenanceTab extends LitElement {
     const sortedFields = this._sortFields(fields);
 
     return html`
-      <div class="layer-section">
-        <div class="layer-header" @click=${() => this._toggleSection(layer)}>
-          <div class="layer-header-left">
-            <span>${isExpanded ? '▼' : '▶'}</span>
-            <span class="layer-title">${this._formatLayerName(layer)}</span>
-            <span class="layer-badge ${layer}">${layer}</span>
-            <span class="layer-count">${fields.length} fields</span>
-          </div>
-        </div>
-        <div class="layer-content ${isExpanded ? 'expanded' : ''}">
-          <table class="field-table">
-            <thead>
-              <tr>
-                <th @click=${() => this._sortBy('path')}>
-                  Field Path
-                  ${this._sortColumn === 'path' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
-                </th>
-                <th @click=${() => this._sortBy('value')}>
-                  Value
-                  ${this._sortColumn === 'value' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
-                </th>
-                <th>Source</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedFields.map(field => this._renderFieldRow(field))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <lcards-collapsible-section
+        .title=${this._formatLayerName(layer)}
+        .badge=${layer}
+        .badgeType=${layer}
+        .count=${fields.length}
+        .countLabel=${'fields'}
+        ?expanded=${isExpanded}
+        @toggle=${() => this._toggleSection(layer)}>
+        <table class="field-table">
+          <thead>
+            <tr>
+              <th @click=${() => this._sortBy('path')}>
+                Field Path
+                ${this._sortColumn === 'path' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+              </th>
+              <th @click=${() => this._sortBy('value')}>
+                Value
+                ${this._sortColumn === 'value' ? html`<span class="sort-indicator">${this._sortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+              </th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedFields.map(field => this._renderFieldRow(field))}
+          </tbody>
+        </table>
+      </lcards-collapsible-section>
     `;
   }
 

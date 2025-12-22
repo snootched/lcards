@@ -11,7 +11,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSCardDataSourcesList extends LitElement {
   static get properties() {

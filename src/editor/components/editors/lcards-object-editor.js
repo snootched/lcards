@@ -34,7 +34,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import './lcards-form-field.js';
+import '../shared/lcards-form-field.js';
 
 export class LCARdSObjectEditor extends LitElement {
 
@@ -154,7 +154,7 @@ export class LCARdSObjectEditor extends LitElement {
         }
 
         return html`
-            <div 
+            <div
                 class="object-editor cols-${this.columns}"
                 style="--grid-gap: ${this.gap}">
                 ${this.properties.map(prop => this._renderProperty(prop))}
@@ -169,7 +169,7 @@ export class LCARdSObjectEditor extends LitElement {
      */
     _renderSlottedMode() {
         return html`
-            <div 
+            <div
                 class="object-editor cols-${this.columns}"
                 style="--grid-gap: ${this.gap}">
                 <slot></slot>
@@ -317,7 +317,7 @@ export class LCARdSObjectEditor extends LitElement {
 
         const newValue = event.detail.value;
         this.editor._setConfigValue(path, newValue);
-        
+
         // Emit event for parent components
         this.dispatchEvent(new CustomEvent('property-changed', {
             detail: { path, value: newValue },

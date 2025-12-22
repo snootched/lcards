@@ -17,7 +17,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
-import '../common/lcards-dialog.js';
+import '../shared/lcards-dialog.js';
 
 export class LCARdSTransformationDialog extends LitElement {
   static get properties() {

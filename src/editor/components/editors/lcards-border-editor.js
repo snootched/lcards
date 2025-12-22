@@ -15,7 +15,7 @@
  */
 
 import { LitElement, html, css, svg } from 'lit';
-import './lcards-form-section.js';
+import '../shared/lcards-form-section.js';
 import './lcards-color-section.js';
 
 export class LCARdSBorderEditor extends LitElement {

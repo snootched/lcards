@@ -15,9 +15,9 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import './lcards-form-section.js';
-import './lcards-form-field.js';
-import './lcards-color-picker.js';
+import '../shared/lcards-form-section.js';
+import '../shared/lcards-form-field.js';
+import '../shared/lcards-color-picker.js';
 import { getSchemaAtPath } from '../../../utils/schema-helpers.js';
 
 export class LCARdSColorSection extends LitElement {

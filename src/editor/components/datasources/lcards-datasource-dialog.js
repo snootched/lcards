@@ -17,8 +17,8 @@
 
 import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
-import '../common/lcards-dialog.js';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-dialog.js';
+import '../shared/lcards-form-section.js';
 import './lcards-transformation-list-editor.js';
 import './lcards-aggregation-list-editor.js';
 

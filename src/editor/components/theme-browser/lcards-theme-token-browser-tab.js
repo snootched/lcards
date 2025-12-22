@@ -13,7 +13,8 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
-import '../common/lcards-message.js';
+import '../shared/lcards-collapsible-section.js';
+import '../shared/lcards-message.js';
 
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
@@ -58,6 +59,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._allCssVariables = [];
     this._filteredAllVars = [];
     this._selectedAllVarsCategory = 'all';
+    this._expandedCategories = new Set();
+    this._expandedTokenCategories = new Set();
     this._handleKeydown = this._handleKeydown.bind(this);
   }
 
@@ -105,29 +108,36 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       /* Tab content - simplified */
       .tab-content {
-        text-align: center;
         padding: 0;
       }
 
       .info-card {
-        background: var(--secondary-background-color);
+        background: var(--primary-background-color);
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: 16px;
         padding: 24px;
-        margin-bottom: 24px;
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
 
       .info-card h3 {
-        margin: 0 0 8px 0;
+        margin: 0 0 12px 0;
         color: var(--primary-text-color);
+        font-size: 18px;
+        font-weight: 500;
       }
 
       .info-card p {
         margin: 8px 0;
         color: var(--secondary-text-color);
+        line-height: 1.5;
+      }
+
+      .info-card code {
+        background: var(--secondary-background-color);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 13px;
       }
 
       .open-browser-button {
@@ -328,76 +338,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         color: var(--primary-text-color);
         border-bottom: 2px solid var(--divider-color);
         z-index: 1;
-      }
-
-      .var-category-section {
-        margin-bottom: 16px;
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
-        overflow: hidden;
-        background: var(--card-background-color);
-      }
-
-      .var-category-header {
-        position: sticky;
-        top: 0;
-        background: var(--secondary-background-color);
-        padding: 12px 24px;
-        border-bottom: 2px solid var(--divider-color);
-        z-index: 1;
-        cursor: pointer;
-        user-select: none;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s;
-      }
-
-      .var-category-header:hover {
-        background: var(--divider-color);
-        border-bottom-color: var(--primary-color);
-      }
-
-      .var-category-header::before {
-        content: '▶';
-        margin-right: 8px;
-        font-size: 10px;
-        color: var(--primary-color);
-        transition: transform 0.2s;
-      }
-
-      .var-category-content.expanded + .var-category-header::before,
-      .var-category-section:has(.var-category-content.expanded) .var-category-header::before {
-        transform: rotate(90deg);
-      }
-
-      .var-category-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--primary-text-color);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .var-category-count {
-        font-size: 12px;
-        color: var(--primary-text-color);
-        background: var(--secondary-background-color);
-        border: 1px solid var(--primary-color);
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-weight: 500;
-        opacity: 0.9;
-      }
-
-      .var-category-content {
-        display: none;
-        border-top: 1px solid var(--divider-color);
-      }
-
-      .var-category-content.expanded {
-        display: block;
       }
 
       .token-table {
@@ -810,13 +750,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       return html`
         <div class="dialog-body">
-          ${Object.entries(groupedTokens).map(([category, tokens]) => html`
-            <div class="var-category-section">
-              <div class="var-category-header" @click=${() => this._toggleTokenCategory(category)}>
-                <span class="var-category-title">${this._formatCategoryName(category)}</span>
-                <span class="var-category-count">${tokens.length} tokens</span>
-              </div>
-              <div class="var-category-content" data-category="token-${category}">
+          ${Object.entries(groupedTokens).map(([category, tokens]) => {
+            const isExpanded = this._expandedTokenCategories.has(`token-${category}`);
+            return html`
+              <lcards-collapsible-section
+                .title=${this._formatCategoryName(category)}
+                .count=${tokens.length}
+                .countLabel=${'tokens'}
+                ?expanded=${isExpanded}
+                @toggle=${() => this._toggleTokenCategory(category)}>
                 <table class="token-table">
                   <thead>
                     <tr>
@@ -836,9 +778,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                     ${tokens.map(token => this._renderTokenRow(token))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          `)}
+              </lcards-collapsible-section>
+            `;
+          })}
         </div>
       `;
     } catch (error) {
@@ -1101,31 +1043,32 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     return html`
       <div class="dialog-body">
-        ${Object.entries(filteredCategories).map(([key, cat]) =>
-          cat && cat.vars.length > 0 ? html`
-            <div class="var-category-section">
-              <div class="var-category-header" @click=${() => this._toggleCategory(key)}>
-                <span class="var-category-title">${cat.title}</span>
-                <span class="var-category-count">${cat.vars.length} variables</span>
-              </div>
-              <div class="var-category-content" data-category="${key}">
-                <table class="token-table">
-                  <thead>
-                    <tr>
-                      <th>Variable Name</th>
-                      <th>Value</th>
-                      <th>Preview</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${cat.vars.map(v => this._renderCssVarRow(v))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ` : ''
-        )}
+        ${Object.entries(filteredCategories).map(([key, cat]) => {
+          if (!cat || cat.vars.length === 0) return '';
+          const isExpanded = this._expandedCategories.has(key);
+          return html`
+            <lcards-collapsible-section
+              .title=${cat.title}
+              .count=${cat.vars.length}
+              .countLabel=${'variables'}
+              ?expanded=${isExpanded}
+              @toggle=${() => this._toggleCategory(key)}>
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Variable Name</th>
+                    <th>Value</th>
+                    <th>Preview</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${cat.vars.map(v => this._renderCssVarRow(v))}
+                </tbody>
+              </table>
+            </lcards-collapsible-section>
+          `;
+        })}
       </div>
     `;
   }
@@ -1134,17 +1077,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Toggle category expansion in all-vars view
    */
   _toggleCategory(categoryKey) {
-    const content = this.shadowRoot.querySelector(`.var-category-content[data-category="${categoryKey}"]`);
-    if (content) {
-      content.classList.toggle('expanded');
+    if (this._expandedCategories.has(categoryKey)) {
+      this._expandedCategories.delete(categoryKey);
+    } else {
+      this._expandedCategories.add(categoryKey);
     }
+    this.requestUpdate();
   }
 
   _toggleTokenCategory(categoryKey) {
-    const content = this.shadowRoot.querySelector(`.var-category-content[data-category="token-${categoryKey}"]`);
-    if (content) {
-      content.classList.toggle('expanded');
+    const key = `token-${categoryKey}`;
+    if (this._expandedTokenCategories.has(key)) {
+      this._expandedTokenCategories.delete(key);
+    } else {
+      this._expandedTokenCategories.add(key);
     }
+    this.requestUpdate();
   }
 
   /**

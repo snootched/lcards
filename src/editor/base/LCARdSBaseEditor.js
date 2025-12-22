@@ -52,7 +52,7 @@ export class LCARdSBaseEditor extends LitElement {
                     scroll-behavior: smooth;
                     scrollbar-width: thin;
                     border-bottom: 2px solid var(--divider-color, #e0e0e0);
-                    margin-bottom: 16px;
+                    margin-bottom: 4px;
 
                     /* Fade indicators for scrollable content */
                     mask-image: linear-gradient(
@@ -104,7 +104,7 @@ export class LCARdSBaseEditor extends LitElement {
                 }
 
                 .tab-content {
-                    padding: 16px 0;
+                    padding: 8px 0;
                     min-height: 400px;
                 }
 
@@ -222,6 +222,8 @@ export class LCARdSBaseEditor extends LitElement {
                     </ha-alert>
                 ` : ''}
 
+                ${this._renderValidationErrors()}
+
                 <div class="tabs-container">
                     ${tabs.map((tab, index) => html`
                         <div
@@ -235,8 +237,6 @@ export class LCARdSBaseEditor extends LitElement {
                 <div class="tab-content">
                     ${this._renderTabContent(tabs[this._selectedTab])}
                 </div>
-
-                ${this._renderValidationErrors()}
             </div>
         `;
     }

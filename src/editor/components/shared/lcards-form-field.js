@@ -24,8 +24,8 @@ import {
     isPositionEnum,
     getEnumOptions
 } from '../../../utils/schema-helpers.js';
-import './lcards-position-picker.js';
-import './lcards-font-selector.js';
+import '../editors/lcards-position-picker.js';
+import '../editors/lcards-font-selector.js';
 
 export class LCARdSFormField extends LitElement {
 
@@ -249,7 +249,7 @@ export class LCARdSFormField extends LitElement {
      */
     _renderOneOfSelector(schema) {
         const DESCRIPTION_MAX_LENGTH = 30; // Maximum length for description truncation
-        
+
         const options = schema.oneOf.map((option, index) => {
             // Use option.title if available, otherwise generate label from type
             let label = option.title || `Option ${index + 1}`;
@@ -269,7 +269,7 @@ export class LCARdSFormField extends LitElement {
         return html`
             <div class="oneof-selector">
                 <label>${this._effectiveLabel}</label>
-                
+
                 <!-- Schema type selector -->
                 <ha-selector
                     .hass=${this.editor.hass}

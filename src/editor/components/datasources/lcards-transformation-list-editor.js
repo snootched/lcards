@@ -14,7 +14,7 @@
 
 import { LitElement, html, css } from 'lit';
 import './lcards-transformation-dialog.js';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSTransformationListEditor extends LitElement {
   static get properties() {

@@ -11,7 +11,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import '../common/lcards-message.js';
+import '../shared/lcards-message.js';
 
 export class LCARdSGlobalDataSourcesPanel extends LitElement {
   static get properties() {

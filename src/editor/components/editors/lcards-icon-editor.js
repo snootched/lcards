@@ -14,10 +14,10 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import './lcards-form-section.js';
-import './lcards-form-field.js';
+import '../shared/lcards-form-section.js';
+import '../shared/lcards-form-field.js';
 import './lcards-color-section.js';
-import './lcards-color-picker.js';
+import '../shared/lcards-color-picker.js';
 import './lcards-icon-area-picker.js';
 import './lcards-padding-editor.js';
 

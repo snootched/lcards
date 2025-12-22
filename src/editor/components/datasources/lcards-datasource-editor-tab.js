@@ -17,7 +17,7 @@ import { fireEvent } from 'custom-card-helpers';
 import './lcards-card-datasources-list.js';
 import './lcards-global-datasources-panel.js';
 import './lcards-datasource-dialog.js';
-import '../common/lcards-message.js';
+import '../shared/lcards-message.js';
 
 export class LCARdSDataSourceEditorTab extends LitElement {
   static get properties() {

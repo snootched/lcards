@@ -8,27 +8,27 @@
 import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { configToYaml } from '../utils/yaml-utils.js';
-import '../components/common/lcards-message.js';
+import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
-// Import form components
-import '../components/form/lcards-form-field.js';
-import '../components/form/lcards-form-section.js';
-import '../components/form/lcards-grid-layout.js';
-import '../components/form/lcards-color-section.js';
-// Import enhanced components
-import '../components/form/lcards-multi-text-editor.js';
-import '../components/form/lcards-icon-editor.js';
-import '../components/form/lcards-border-editor.js';
-import '../components/form/lcards-unified-segment-editor.js';
-import '../components/form/lcards-multi-action-editor.js';
+// Import shared form components
+import '../components/shared/lcards-form-field.js';
+import '../components/shared/lcards-form-section.js';
+// Import specialized editor components
+import '../components/editors/lcards-grid-layout.js';
+import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-multi-text-editor.js';
+import '../components/editors/lcards-icon-editor.js';
+import '../components/editors/lcards-border-editor.js';
+import '../components/editors/lcards-unified-segment-editor.js';
+import '../components/editors/lcards-multi-action-editor.js';
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
 // Import datasource components
 import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/templates/lcards-theme-token-browser-tab.js';
-import '../components/templates/lcards-provenance-tab.js';
+import '../components/theme-browser/lcards-theme-token-browser-tab.js';
+import '../components/provenance/lcards-provenance-tab.js';
 
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
 

@@ -13,8 +13,8 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import '../common/lcards-message.js';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-message.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSRulesDashboard extends LitElement {
     static get properties() {

@@ -14,8 +14,8 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import './lcards-form-section.js';
-import '../common/lcards-action-editor.js';
+import '../shared/lcards-form-section.js';
+import '../shared/lcards-action-editor.js';
 
 export class LCARdSMultiActionEditor extends LitElement {
 

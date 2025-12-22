@@ -17,8 +17,8 @@ import { LitElement, html, css } from 'lit';
 import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
 import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplateEvaluator.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import '../common/lcards-message.js';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-message.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSTemplateEvaluationTab extends LitElement {
   static get properties() {

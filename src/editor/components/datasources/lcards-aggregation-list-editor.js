@@ -14,7 +14,7 @@
 
 import { LitElement, html, css } from 'lit';
 import './lcards-aggregation-dialog.js';
-import '../form/lcards-form-section.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSAggregationListEditor extends LitElement {
   static get properties() {
