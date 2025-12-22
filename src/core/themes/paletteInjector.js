@@ -157,6 +157,9 @@ export function isPaletteInjected(rootElement = null) {
 
 import { transformColorToAlertMode, ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
 
+// Re-export ALERT_MODE_TRANSFORMS for external use
+export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+
 /**
  * Reload Home Assistant theme to restore original CSS variables
  * 
