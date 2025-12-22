@@ -168,7 +168,7 @@ export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
  */
 export async function reloadHATheme(hass) {
   if (!hass) {
-    lcardsLog.warn('[PaletteInjector] Cannot reload theme - HASS not available');
+    lcardsLog.warn('[PaletteInjector] Cannot reload theme - Home Assistant instance not available. Theme restoration will fail. Alert mode changes may not revert properly.');
     return;
   }
   

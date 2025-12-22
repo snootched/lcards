@@ -67,6 +67,10 @@ export const ALERT_MODE_TRANSFORMS = {
 /**
  * Transform a single color to alert mode
  * 
+ * Uses ColorUtils internal APIs (_parseColor, _rgbToHsl, _hslToRgbHex) for
+ * low-level color manipulation. This is intentional as alert mode transformation
+ * requires direct HSL manipulation not available in the public ColorUtils API.
+ * 
  * @param {string} color - Original color (hex, rgb, rgba)
  * @param {string} alertMode - Target alert mode
  * @returns {string} Transformed color (hex)
@@ -83,14 +87,14 @@ export function transformColorToAlertMode(color, alertMode) {
     return color;
   }
   
-  // Parse to RGB
+  // Parse to RGB (using ColorUtils internal API)
   const rgb = ColorUtils._parseColor(color);
   if (!rgb) {
     // Not parseable, return as-is
     return color;
   }
   
-  // Convert to HSL
+  // Convert to HSL (using ColorUtils internal API)
   const hsl = ColorUtils._rgbToHsl(rgb);
   if (!hsl) return color;
   
@@ -111,7 +115,7 @@ export function transformColorToAlertMode(color, alertMode) {
   // Apply lightness multiplier
   l = Math.max(0, Math.min(100, l * transform.lightnessMultiplier));
   
-  // Convert back to hex
+  // Convert back to hex (using ColorUtils internal API)
   return ColorUtils._hslToRgbHex([h, s, l]);
 }
 
