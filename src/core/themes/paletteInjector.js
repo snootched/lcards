@@ -484,6 +484,7 @@ export function captureOriginalColors(root = null) {
   const colors = {};
   let colorCount = 0;
 
+  // Capture LCARS variables (--lcars-*)
   for (let i = 0; i < computedStyle.length; i++) {
     const varName = computedStyle[i];
 
@@ -498,10 +499,20 @@ export function captureOriginalColors(root = null) {
     }
   }
 
+  // Also capture Home Assistant state colors (used in LCARS theme)
+  const stateColors = ['--success-color', '--warning-color', '--error-color'];
+  for (const varName of stateColors) {
+    const value = computedStyle.getPropertyValue(varName).trim();
+    if (value && value.match(/^#|^rgb|^hsl/i)) {
+      colors[varName] = value;
+      colorCount++;
+    }
+  }
+
   // Store internally for alert mode system
   originalLcarsColors = colors;
 
-  lcardsLog.debug(`[PaletteInjector] Captured ${colorCount} original --lcars-* color values`);
+  lcardsLog.debug(`[PaletteInjector] Captured ${colorCount} original color values (--lcars-* + HA state colors)`);
   return colors;
 }
 

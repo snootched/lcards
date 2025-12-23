@@ -13,7 +13,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
-import { ALERT_MODE_PALETTES } from '../../../core/themes/paletteInjector.js';
+import { ALERT_MODE_PALETTES, captureOriginalColors } from '../../../core/themes/paletteInjector.js';
 import {
   transformColorToAlertMode,
   getAlertModeTransform,
@@ -22,7 +22,10 @@ import {
 } from '../../../core/themes/alertModeTransform.js';
 import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-form-section.js';
-import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab extends LitElement {
+import '../shared/lcards-message.js';
+import './alert-mode-color-wheel.js';
+
+export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
     return {
       editor: { type: Object },
@@ -48,7 +51,10 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
       // Alert Mode Lab properties
       _selectedAlertMode: { type: String, state: true },
       _alertLabParams: { type: Object, state: true },
-      _livePreviewEnabled: { type: Boolean, state: true }
+      _livePreviewEnabled: { type: Boolean, state: true },
+      _originalLcarsColors: { type: Object, state: true }, // Store baseline colors
+      _showFullPreview: { type: Boolean, state: true }, // Toggle for full color grid
+      _activeVizTab: { type: String, state: true } // Active visualization tab (preview/wheel/comparison)
     };
   }
 
@@ -76,7 +82,10 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
     // Alert Mode Lab defaults
     this._selectedAlertMode = 'red_alert';
     this._alertLabParams = {};
-    this._livePreviewEnabled = true; // Auto-apply changes by default
+    this._livePreviewEnabled = false; // User controls when to apply changes
+    this._originalLcarsColors = null; // Will be captured when dialog opens
+    this._showFullPreview = false; // Full color grid collapsed by default
+    this._activeVizTab = 'preview'; // Default to live preview tab
     this._handleKeydown = this._handleKeydown.bind(this);
   }
 
@@ -662,23 +671,82 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
       /* Alert Mode Lab Styles */
       .alert-lab-container {
         padding: 20px;
-        max-width: 900px;
-        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 450px 1fr;
+        gap: 32px;
+        align-items: start;
+      }
+
+      @media (max-width: 1200px) {
+        .alert-lab-container {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .alert-lab-left-column {
+        position: sticky;
+        top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .alert-lab-right-column {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Visualization Tabs */
+      .viz-tabs-container {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid var(--divider-color);
+        margin-bottom: 8px;
+      }
+
+      .viz-tab {
+        flex: 0 0 auto;
+        padding: 8px 16px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: var(--secondary-text-color);
+        font-weight: 500;
+        font-size: 13px;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+
+      .viz-tab:hover {
+        color: var(--primary-text-color);
+        background: var(--secondary-background-color);
+      }
+
+      .viz-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
       }
 
       .alert-lab-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
+        flex-direction: column;
+        gap: 16px;
         padding-bottom: 16px;
         border-bottom: 2px solid var(--divider-color);
+      }
+
+      .mode-selection-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
 
       .mode-selector-row {
         display: flex;
         align-items: center;
         gap: 12px;
+        width: 100%;
       }
 
       .mode-selector-row label {
@@ -693,7 +761,7 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
         background: var(--card-background-color);
         color: var(--primary-text-color);
         font-size: 14px;
-        min-width: 180px;
+        flex: 1;
         cursor: pointer;
       }
 
@@ -826,9 +894,30 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
         font-size: 13px;
       }
 
+      .preview-swatches-container {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .preview-swatch-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .swatch-group-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+
       .preview-swatches-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 16px;
       }
 
@@ -856,6 +945,187 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
         font-size: 12px;
         color: var(--secondary-text-color);
         text-align: center;
+      }
+
+      /* Color Comparison Grid Styles */
+      .comparison-grid-container {
+        display: flex;
+        flex-direction: column;
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+      }
+
+      .comparison-grid-header {
+        display: grid;
+        grid-template-columns: 200px 1fr 1fr;
+        gap: 16px;
+        padding: 12px 16px;
+        background: var(--secondary-background-color);
+        border-bottom: 2px solid var(--divider-color);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      .comparison-column-label {
+        color: var(--primary-text-color);
+      }
+
+      .comparison-grid-body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .comparison-row {
+        display: grid;
+        grid-template-columns: 200px 1fr 1fr;
+        gap: 16px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--divider-color);
+        transition: background-color 0.2s;
+      }
+
+      .comparison-row:hover {
+        background-color: var(--secondary-background-color);
+      }
+
+      .comparison-var-name {
+        display: flex;
+        align-items: center;
+      }
+
+      .comparison-var-name code {
+        font-size: 11px;
+        color: var(--primary-text-color);
+        word-break: break-all;
+      }
+
+      .comparison-color-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .comparison-swatch {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        border: 1px solid var(--divider-color);
+        flex-shrink: 0;
+      }
+
+      .comparison-hex {
+        font-size: 12px;
+        color: var(--secondary-text-color);
+        font-family: monospace;
+      }
+
+      .comparison-grid-empty {
+        padding: 24px;
+        text-align: center;
+        color: var(--secondary-text-color);
+      }
+
+      /* Color Wheel Visualization Styles */
+      .visualization-section {
+        margin-top: 24px;
+        padding: 20px;
+        border-radius: 8px;
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+      }
+
+      .visualization-section h4 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .visualization-section .preview-hint {
+        margin: 0 0 16px 0;
+        font-size: 13px;
+        color: var(--secondary-text-color);
+      }
+
+      .color-wheel-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: start;
+      }
+
+      .color-wheel-visual {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .color-wheel-explanation {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .color-wheel-explanation h5 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .color-wheel-explanation h6 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .explanation-section {
+        padding: 12px 16px;
+        background: var(--secondary-background-color);
+        border-radius: 4px;
+        border-left: 3px solid var(--primary-color);
+      }
+
+      .explanation-section p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--secondary-text-color);
+      }
+
+      .explanation-section ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .explanation-section li {
+        margin-bottom: 6px;
+        color: var(--secondary-text-color);
+      }
+
+      .explanation-tip {
+        padding: 12px 16px;
+        background: rgba(33, 150, 243, 0.1);
+        border-radius: 4px;
+        border-left: 3px solid var(--info-color, #2196f3);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--secondary-text-color);
+      }
+
+      /* Responsive: stack on smaller screens */
+      @media (max-width: 900px) {
+        .color-wheel-layout {
+          grid-template-columns: 1fr;
+        }
       }
     `;
   }
@@ -914,7 +1184,7 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
       <ha-dialog
         open
         @closed=${this._closeDialog}
-        .heading=${'Theme Browser'}>
+        .heading=${this._renderDialogTitle()}>
         <div class="dialog-content">
           ${this._renderDialogHeader()}
           ${this._activeView === 'tokens' ? this._renderCategoryFilters() : ''}
@@ -929,6 +1199,10 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
         </ha-button>
       </ha-dialog>
     `;
+  }
+
+  _renderDialogTitle() {
+    return `Theme Browser  •  HA: ${this._haThemeName}  •  LCARdS: ${this._activeTheme?.name || 'Unknown'}`;
   }
 
   _renderDialogHeader() {
@@ -956,121 +1230,113 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
             Alert Mode Lab
           </button>
         </div>
-        <div class="theme-info">
-          <div class="theme-info-badge">
-            <strong>HA Theme:</strong>
-            <span class="theme-name">${this._haThemeName}</span>
-          </div>
-          <div class="theme-info-badge">
-            <strong>LCARdS Theme:</strong>
-            <span class="theme-name">${this._activeTheme?.name || 'Unknown'}</span>
-          </div>
-          ${this._activeView === 'css-vars' ? html`
-            <div class="alert-mode-info">
-              <div
-                class="alert-mode-toggle ${this._alertModePreview ? 'active' : ''}"
-                @click=${this._toggleAlertModePreview}
-                title="Toggle alert mode color previews">
-                <ha-icon icon="mdi:${this._alertModePreview ? 'eye' : 'eye-off'}"></ha-icon>
-                <span class="alert-mode-toggle-label">Alert Mode Preview</span>
-              </div>
-              ${this._alertModePreview ? html`
-                <div class="hsl-formula-info">
-                  <strong>--lcars-*:</strong>
-                  <span>HSL transform</span>
-                </div>
-                <div class="hsl-formula-info">
-                  <strong>--lcards-*:</strong>
-                  <span>Pre-defined palettes</span>
-                </div>
-              ` : ''}
+        ${this._activeView === 'css-vars' ? html`
+          <div class="alert-mode-info">
+            <div
+              class="alert-mode-toggle ${this._alertModePreview ? 'active' : ''}"
+              @click=${this._toggleAlertModePreview}
+              title="Toggle alert mode color previews">
+              <ha-icon icon="mdi:${this._alertModePreview ? 'eye' : 'eye-off'}"></ha-icon>
+              <span class="alert-mode-toggle-label">Alert Mode Preview</span>
             </div>
             ${this._alertModePreview ? html`
-              <div class="hsl-formula-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mode</th>
-                      <th>Hue Shift</th>
-                      <th>Hue Strength</th>
-                      <th>Saturation ×</th>
-                      <th>Lightness ×</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><span class="mode-icon">🟢</span><span class="mode-name">Green (Normal)</span></td>
-                      <td>0°</td>
-                      <td>0</td>
-                      <td>1.0</td>
-                      <td>1.0</td>
-                    </tr>
-                    <tr>
-                      <td><span class="mode-icon">🔴</span><span class="mode-name">Red Alert</span></td>
-                      <td>0°</td>
-                      <td>0.8</td>
-                      <td>1.2</td>
-                      <td>0.9</td>
-                    </tr>
-                    <tr>
-                      <td><span class="mode-icon">🔵</span><span class="mode-name">Blue Alert</span></td>
-                      <td>240°</td>
-                      <td>0.8</td>
-                      <td>1.0</td>
-                      <td>1.0</td>
-                    </tr>
-                    <tr>
-                      <td><span class="mode-icon">🟡</span><span class="mode-name">Yellow Alert</span></td>
-                      <td>45°</td>
-                      <td>0.7</td>
-                      <td>1.1</td>
-                      <td>1.05</td>
-                    </tr>
-                    <tr>
-                      <td><span class="mode-icon">⚫</span><span class="mode-name">Gray Alert</span></td>
-                      <td>0°</td>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>1.0</td>
-                    </tr>
-                    <tr>
-                      <td><span class="mode-icon">⚪</span><span class="mode-name">Black Alert</span></td>
-                      <td>0°</td>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0.3</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="hsl-formula-info">
+                <strong>--lcars-*:</strong>
+                <span>HSL transform</span>
+              </div>
+              <div class="hsl-formula-info">
+                <strong>--lcards-*:</strong>
+                <span>Pre-defined palettes</span>
               </div>
             ` : ''}
-          ` : ''}
-        </div>
-        <div class="search-container">
-          <div class="search-wrapper">
-            <ha-textfield
-              class="dialog-search"
-              .value=${this._searchQuery}
-              @input=${this._handleSearchInput}
-              placeholder="${
-                this._activeView === 'tokens' ? 'Search tokens... (Ctrl+F)' :
-                this._activeView === 'all-vars' ? 'Search all variables... (Ctrl+F)' :
-                'Search CSS variables... (Ctrl+F)'
-              }"
-              .label=${'Search'}>
-              <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-            </ha-textfield>
-            ${this._searchQuery ? html`
-              <ha-icon-button
-                class="search-clear"
-                @click=${this._clearSearch}
-                .label=${'Clear search'}
-                .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}>
-              </ha-icon-button>
-            ` : ''}
           </div>
-          ${this._renderResultCount()}
-        </div>
+          ${this._alertModePreview ? html`
+            <div class="hsl-formula-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mode</th>
+                    <th>Hue Shift</th>
+                    <th>Hue Strength</th>
+                    <th>Saturation ×</th>
+                    <th>Lightness ×</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mode-icon">🟢</span><span class="mode-name">Green (Normal)</span></td>
+                    <td>0°</td>
+                    <td>0</td>
+                    <td>1.0</td>
+                    <td>1.0</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mode-icon">🔴</span><span class="mode-name">Red Alert</span></td>
+                    <td>0°</td>
+                    <td>0.8</td>
+                    <td>1.2</td>
+                    <td>0.9</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mode-icon">🔵</span><span class="mode-name">Blue Alert</span></td>
+                    <td>240°</td>
+                    <td>0.8</td>
+                    <td>1.0</td>
+                    <td>1.0</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mode-icon">🟡</span><span class="mode-name">Yellow Alert</span></td>
+                    <td>45°</td>
+                    <td>0.7</td>
+                    <td>1.1</td>
+                    <td>1.05</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mode-icon">⚫</span><span class="mode-name">Gray Alert</span></td>
+                    <td>0°</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>1.0</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mode-icon">⚪</span><span class="mode-name">Black Alert</span></td>
+                    <td>0°</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.3</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+        ` : ''}
+        ${this._activeView !== 'alert-lab' ? html`
+          <div class="search-container">
+            <div class="search-wrapper">
+              <ha-textfield
+                class="dialog-search"
+                .value=${this._searchQuery}
+                @input=${this._handleSearchInput}
+                placeholder="${
+                  this._activeView === 'tokens' ? 'Search tokens... (Ctrl+F)' :
+                  this._activeView === 'all-vars' ? 'Search all variables... (Ctrl+F)' :
+                  'Search CSS variables... (Ctrl+F)'
+                }"
+                .label=${'Search'}>
+                <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+              </ha-textfield>
+              ${this._searchQuery ? html`
+                <ha-icon-button
+                  class="search-clear"
+                  @click=${this._clearSearch}
+                  .label=${'Clear search'}
+                  .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}>
+                </ha-icon-button>
+              ` : ''}
+            </div>
+            ${this._renderResultCount()}
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -1391,13 +1657,16 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
       ? pathOrVarName
       : `--lcards-${pathOrVarName.split('.').pop()}`;
 
+    // Use captured original color if available (prevents drift)
+    const originalColor = this._originalLcarsColors?.[varName] || baseColor;
+
     return html`
       <div>
         <div class="alert-mode-swatches">
           ${alertModes.map(mode => {
             const color = mode.name === 'green_alert'
-              ? baseColor
-              : this._getAlertModeColor(baseColor, varName, mode.name);
+              ? originalColor
+              : this._getAlertModeColor(originalColor, varName, mode.name);
 
             const isActive = mode.name === currentMode;
 
@@ -1671,91 +1940,157 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
 
     return html`
       <div class="alert-lab-container">
-        <!-- Mode Selector and Live Preview Toggle -->
-        <div class="alert-lab-header">
-          <div class="mode-selector-row">
-            <label>Alert Mode:</label>
-            <select
-              .value="${this._selectedAlertMode}"
-              @change="${this._handleModeChange}"
-              class="alert-mode-select"
-            >
-              <option value="green_alert">🟢 Green Alert (Normal)</option>
-              <option value="red_alert">🔴 Red Alert</option>
-              <option value="blue_alert">🔵 Blue Alert</option>
-              <option value="yellow_alert">🟡 Yellow Alert</option>
-              <option value="gray_alert">⚪ Gray Alert</option>
-              <option value="black_alert">⚫ Black Alert</option>
-            </select>
-          </div>          <div class="live-preview-toggle">
-            <label>
-              <input
-                type="checkbox"
-                ?checked="${this._livePreviewEnabled}"
-                @change="${e => this._livePreviewEnabled = e.target.checked}"
-              />
-              Auto-apply changes
-            </label>
+        <!-- LEFT COLUMN: Controls -->
+        <div class="alert-lab-left-column">
+          <!-- Mode Selection Section -->
+          <lcards-form-section
+            .header=${'Alert Mode Selection'}
+            .description=${'Choose mode and control settings'}
+            ?expanded=${true}
+            .collapsible=${false}
+          >
+            <div class="mode-selection-controls">
+              <div class="mode-selector-row">
+                <label>Alert Mode:</label>
+                <select
+                  .value="${this._selectedAlertMode}"
+                  @change="${this._handleModeChange}"
+                  class="alert-mode-select"
+                >
+                  <option value="green_alert">🟢 Green Alert (Normal)</option>
+                  <option value="red_alert">🔴 Red Alert</option>
+                  <option value="blue_alert">🔵 Blue Alert</option>
+                  <option value="yellow_alert">🟡 Yellow Alert</option>
+                  <option value="gray_alert">⚪ Gray Alert</option>
+                  <option value="black_alert">⚫ Black Alert</option>
+                </select>
+              </div>
+
+              <ha-selector
+                .hass="${this.hass}"
+                .label="${'Auto-apply changes'}"
+                .value="${this._livePreviewEnabled}"
+                .selector=${{
+                  boolean: {}
+                }}
+                @value-changed="${(e) => this._livePreviewEnabled = e.detail.value}"
+              ></ha-selector>
+            </div>
+          </lcards-form-section>
+
+          <!-- Parameter Controls -->
+          ${this._selectedAlertMode !== 'green_alert' ? html`
+            <div class="parameter-controls">
+              <lcards-form-section
+                .header=${'Core Transform Parameters'}
+                .description=${'Fundamental HSL transformation settings'}
+                ?expanded=${true}
+              >
+                ${this._renderParameterSlider('hueShift', 'Hue Target', 0, 360, 1, '°', transform.hueShift)}
+                ${this._renderParameterSlider('hueStrength', 'Hue Strength', 0, 1, 0.05, '', transform.hueStrength)}
+                ${this._renderParameterSlider('saturationMultiplier', 'Saturation', 0, 3, 0.05, '×', transform.saturationMultiplier)}
+                ${this._renderParameterSlider('lightnessMultiplier', 'Lightness', 0, 2, 0.05, '×', transform.lightnessMultiplier)}
+              </lcards-form-section>
+
+              ${transform.hueAnchor ? html`
+                <lcards-form-section
+                  .header=${'Hue Anchoring'}
+                  .description=${'Pull colors toward a target hue range'}
+                  ?expanded=${false}
+                >
+                  ${this._renderParameterSlider('hueAnchor.centerHue', 'Center Hue', 0, 360, 1, '°', transform.hueAnchor.centerHue)}
+                  ${this._renderParameterSlider('hueAnchor.range', 'Range', 0, 180, 5, '°', transform.hueAnchor.range)}
+                  ${this._renderParameterSlider('hueAnchor.strength', 'Pull Strength', 0, 1, 0.05, '', transform.hueAnchor.strength)}
+                </lcards-form-section>
+              ` : ''}
+
+              ${transform.contrastEnhancement?.enabled ? html`
+                <lcards-form-section
+                  .header=${'Contrast Enhancement'}
+                  .description=${'Improve readability in dark modes'}
+                  ?expanded=${false}
+                >
+                  ${this._renderParameterSlider('contrastEnhancement.threshold', 'Threshold', 0, 100, 1, '%', transform.contrastEnhancement.threshold)}
+                  ${this._renderParameterSlider('contrastEnhancement.darkMultiplier', 'Dark Multiplier', 0, 1, 0.05, '', transform.contrastEnhancement.darkMultiplier)}
+                  ${this._renderParameterSlider('contrastEnhancement.lightMultiplier', 'Light Multiplier', 1, 2, 0.05, '', transform.contrastEnhancement.lightMultiplier)}
+                </lcards-form-section>
+              ` : ''}
+            </div>
+          ` : html`
+            <div class="parameter-controls">
+              <p style="padding: 20px; text-align: center; color: var(--secondary-text-color);">
+                Green Alert is the baseline state. Parameters cannot be edited.
+              </p>
+            </div>
+          `}
+
+          <!-- Action Buttons -->
+          <div class="alert-lab-actions">
+            <ha-button @click="${this._applyAlertMode}">
+              <ha-icon icon="mdi:play" slot="icon"></ha-icon>
+              Apply Live
+            </ha-button>
+            <ha-button @click="${this._resetToDefaults}">
+              <ha-icon icon="mdi:restore" slot="icon"></ha-icon>
+              Reset to Defaults
+            </ha-button>
+            <ha-button @click="${this._exportAlertConfig}">
+              <ha-icon icon="mdi:export" slot="icon"></ha-icon>
+              Export Config
+            </ha-button>
           </div>
         </div>
 
-        <!-- Parameter Controls -->
-        <div class="parameter-controls">
-          <lcards-form-section
-            .header=${'Core Transform Parameters'}
-            .description=${'Fundamental HSL transformation settings'}
-            ?expanded=${true}
-          >
-            ${this._renderParameterSlider('hueShift', 'Hue Target', 0, 360, 1, '°', transform.hueShift)}
-            ${this._renderParameterSlider('hueStrength', 'Hue Strength', 0, 1, 0.05, '', transform.hueStrength)}
-            ${this._renderParameterSlider('saturationMultiplier', 'Saturation', 0, 3, 0.05, '×', transform.saturationMultiplier)}
-            ${this._renderParameterSlider('lightnessMultiplier', 'Lightness', 0, 2, 0.05, '×', transform.lightnessMultiplier)}
-          </lcards-form-section>
+        <!-- RIGHT COLUMN: Visualizations -->
+        <div class="alert-lab-right-column">
+          <!-- Visualization Tabs -->
+          <div class="viz-tabs-container">
+            <button
+              class="viz-tab ${this._activeVizTab === 'preview' ? 'active' : ''}"
+              @click=${() => this._activeVizTab = 'preview'}>
+              Live Preview
+            </button>
+            <button
+              class="viz-tab ${this._activeVizTab === 'wheel' ? 'active' : ''}"
+              @click=${() => this._activeVizTab = 'wheel'}>
+              HSL Wheel
+            </button>
+            <button
+              class="viz-tab ${this._activeVizTab === 'comparison' ? 'active' : ''}"
+              @click=${() => this._activeVizTab = 'comparison'}>
+              Full Comparison
+            </button>
+          </div>
 
-          ${transform.hueAnchor ? html`
-            <lcards-form-section
-              .header=${'Hue Anchoring'}
-              .description=${'Pull colors toward a target hue range'}
-              ?expanded=${false}
-            >
-              ${this._renderParameterSlider('hueAnchor.centerHue', 'Center Hue', 0, 360, 1, '°', transform.hueAnchor.centerHue)}
-              ${this._renderParameterSlider('hueAnchor.range', 'Range', 0, 180, 5, '°', transform.hueAnchor.range)}
-              ${this._renderParameterSlider('hueAnchor.strength', 'Pull Strength', 0, 1, 0.05, '', transform.hueAnchor.strength)}
-            </lcards-form-section>
+          <!-- Tab Content -->
+          ${this._activeVizTab === 'preview' ? html`
+            <div class="preview-section">
+              <h4>Live Preview</h4>
+              <p class="preview-hint">Key LCARS colors in selected alert mode:</p>
+              ${this._renderAlertModePreviewSwatches()}
+            </div>
           ` : ''}
 
-          ${transform.contrastEnhancement?.enabled ? html`
+          ${this._activeVizTab === 'wheel' ? html`
+            <div class="visualization-section">
+              <h4>🎨 HSL Color Wheel Transformation</h4>
+              <p class="preview-hint">Visual representation of how colors shift in HSL space.</p>
+              <p class="preview-hint" style="font-size: 12px; margin-top: -8px; color: var(--secondary-text-color);">
+                <em>Showing the same 12 variables as above. Click legend items to toggle visibility.</em>
+              </p>
+              ${this._renderColorWheel()}
+            </div>
+          ` : ''}
+
+          ${this._activeVizTab === 'comparison' ? html`
             <lcards-form-section
-              .header=${'Contrast Enhancement'}
-              .description=${'Improve readability in dark modes'}
-              ?expanded=${false}
+              .header=${'Full Color Comparison'}
+              .description=${'Side-by-side comparison of all LCARS color variables'}
+              ?expanded=${true}
             >
-              ${this._renderParameterSlider('contrastEnhancement.threshold', 'Threshold', 0, 100, 1, '%', transform.contrastEnhancement.threshold)}
-              ${this._renderParameterSlider('contrastEnhancement.darkMultiplier', 'Dark Multiplier', 0, 1, 0.05, '', transform.contrastEnhancement.darkMultiplier)}
-              ${this._renderParameterSlider('contrastEnhancement.lightMultiplier', 'Light Multiplier', 1, 2, 0.05, '', transform.contrastEnhancement.lightMultiplier)}
+              ${this._renderColorComparisonGrid()}
             </lcards-form-section>
           ` : ''}
-        </div>        <!-- Action Buttons -->
-        <div class="alert-lab-actions">
-          <ha-button @click="${this._applyAlertMode}">
-            <ha-icon icon="mdi:play" slot="icon"></ha-icon>
-            Apply Live
-          </ha-button>
-          <ha-button @click="${this._resetToDefaults}">
-            <ha-icon icon="mdi:restore" slot="icon"></ha-icon>
-            Reset to Defaults
-          </ha-button>
-          <ha-button @click="${this._exportAlertConfig}">
-            <ha-icon icon="mdi:export" slot="icon"></ha-icon>
-            Export Config
-          </ha-button>
-        </div>
-
-        <!-- Live Preview Swatches -->
-        <div class="preview-section">
-          <h4>Live Preview</h4>
-          <p class="preview-hint">Key LCARS colors in selected alert mode:</p>
-          ${this._renderAlertModePreviewSwatches()}
         </div>
       </div>
     `;
@@ -1814,38 +2149,249 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
    * Render alert mode preview swatches
    */
   _renderAlertModePreviewSwatches() {
-    // Key LCARS colors to show in preview
-    const keyColors = [
-      { name: 'Primary', cssVar: '--lcars-card-top-color' },
-      { name: 'Secondary', cssVar: '--lcars-ui-secondary' },
-      { name: 'Tertiary', cssVar: '--lcars-ui-tertiary' },
-      { name: 'Quaternary', cssVar: '--lcars-ui-quaternary' },
-      { name: 'Accent', cssVar: '--lcars-ui-primary' },
-      { name: 'Elbow', cssVar: '--lcars-card-elbow-color' },
+    // Key LCARS colors to show in preview - organized in 3 groups (4x3 grid)
+    const colorGroups = [
+      {
+        title: 'UI Colors',
+        colors: [
+          { name: 'Primary', cssVar: '--lcars-ui-primary' },
+          { name: 'Secondary', cssVar: '--lcars-ui-secondary' },
+          { name: 'Tertiary', cssVar: '--lcars-ui-tertiary' },
+          { name: 'Quaternary', cssVar: '--lcars-ui-quaternary' },
+        ]
+      },
+      {
+        title: 'Card Colors',
+        colors: [
+          { name: 'Top', cssVar: '--lcars-card-top-color' },
+          { name: 'Mid-Left', cssVar: '--lcars-card-mid-left-color' },
+          { name: 'Button', cssVar: '--lcars-card-button' },
+          { name: 'Bottom', cssVar: '--lcars-card-bottom-color' },
+        ]
+      },
+      {
+        title: 'State & Alert Colors',
+        colors: [
+          { name: 'Success', cssVar: '--success-color' },
+          { name: 'Warning', cssVar: '--warning-color' },
+          { name: 'Error', cssVar: '--error-color' },
+          { name: 'Alert', cssVar: '--lcars-alert-color' },
+        ]
+      }
     ];
 
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-
     return html`
-      <div class="preview-swatches-grid">
-        ${keyColors.map(c => {
-          const originalColor = computedStyle.getPropertyValue(c.cssVar).trim();
-          const transformedColor = transformColorToAlertMode(originalColor, this._selectedAlertMode);
+      <div class="preview-swatches-container">
+        ${colorGroups.map(group => html`
+          <div class="preview-swatch-group">
+            <h5 class="swatch-group-title">${group.title}</h5>
+            <div class="preview-swatches-grid">
+              ${group.colors.map(c => {
+                // Use captured original colors if available, fallback to current computed style
+                const originalColor = this._originalLcarsColors?.[c.cssVar] ||
+                                     getComputedStyle(document.documentElement).getPropertyValue(c.cssVar).trim();
+                const transformedColor = transformColorToAlertMode(originalColor, this._selectedAlertMode);
 
-          return html`
-            <div class="preview-swatch-item">
-              <div
-                class="preview-swatch"
-                style="background-color: ${transformedColor}"
-                title="${c.name}: ${transformedColor}"
-              ></div>
-              <span class="swatch-label">${c.name}</span>
+                return html`
+                  <div class="preview-swatch-item">
+                    <div
+                      class="preview-swatch"
+                      style="background-color: ${transformedColor}"
+                      title="${c.name}: ${transformedColor}"
+                    ></div>
+                    <span class="swatch-label">${c.name}</span>
+                  </div>
+                `;
+              })}
             </div>
-          `;
-        })}
+          </div>
+        `)}
       </div>
     `;
+  }
+
+  /**
+   * Render full color comparison grid (original vs transformed)
+   */
+  _renderColorComparisonGrid() {
+    if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
+      return html`
+        <div class="comparison-grid-empty">
+          <p>⚠️ Original colors not captured. Close and reopen dialog to enable comparison view.</p>
+        </div>
+      `;
+    }
+
+    // Sort variables alphabetically
+    const sortedVars = Object.keys(this._originalLcarsColors).sort();
+
+    return html`
+      <div class="comparison-grid-container">
+        <div class="comparison-grid-header">
+          <div class="comparison-column-label">Variable Name</div>
+          <div class="comparison-column-label">Original (Green Alert)</div>
+          <div class="comparison-column-label">Transformed (${this._selectedAlertMode.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())})</div>
+        </div>
+        <div class="comparison-grid-body">
+          ${sortedVars.map(varName => {
+            const originalColor = this._originalLcarsColors[varName];
+            const transformedColor = transformColorToAlertMode(originalColor, this._selectedAlertMode);
+
+            return html`
+              <div class="comparison-row">
+                <div class="comparison-var-name">
+                  <code>${varName}</code>
+                </div>
+                <div class="comparison-color-cell">
+                  <div class="comparison-swatch" style="background-color: ${originalColor}"></div>
+                  <code class="comparison-hex">${originalColor}</code>
+                </div>
+                <div class="comparison-color-cell">
+                  <div class="comparison-swatch" style="background-color: ${transformedColor}"></div>
+                  <code class="comparison-hex">${transformedColor}</code>
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render color wheel visualization
+   */
+  _renderColorWheel() {
+    if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
+      return html`
+        <div class="comparison-grid-empty">
+          <p>⚠️ Original colors not captured. Close and reopen dialog to enable color wheel.</p>
+        </div>
+      `;
+    }
+
+    // Get the same 12 key colors that are shown in the preview swatches above
+    const keyVars = [
+      // UI Colors (4)
+      '--lcars-ui-primary',
+      '--lcars-ui-secondary',
+      '--lcars-ui-tertiary',
+      '--lcars-ui-quaternary',
+      // Card Colors (4)
+      '--lcars-card-top-color',
+      '--lcars-card-mid-left-color',
+      '--lcars-card-button',
+      '--lcars-card-bottom-color',
+      // HA State Colors (3)
+      '--success-color',
+      '--warning-color',
+      '--error-color',
+      // Alert Color (1)
+      '--lcars-alert-color'
+    ];
+
+    const originalColors = keyVars
+      .filter(varName => this._originalLcarsColors[varName])
+      .map(varName => ({
+        color: this._originalLcarsColors[varName],
+        varName: varName,
+        name: varName.replace('--lcars-', '').replace(/-/g, ' ')
+      }));
+
+    const transformedColors = originalColors.map(orig => ({
+      color: transformColorToAlertMode(orig.color, this._selectedAlertMode),
+      name: orig.name
+    }));
+
+    // Get current transform config for visualization
+    const transform = getAlertModeTransform(this._selectedAlertMode);
+
+    return html`
+      <div class="color-wheel-layout">
+        <div class="color-wheel-visual">
+          <alert-mode-color-wheel
+            .originalColors=${originalColors}
+            .transformedColors=${transformedColors}
+            .anchorConfig=${transform.hueAnchor || null}
+            .hueShift=${transform.hueShift}
+            .showArrows=${true}
+          ></alert-mode-color-wheel>
+        </div>
+
+        <div class="color-wheel-explanation">
+          <h5>📖 Understanding the Visualization</h5>
+
+          <div class="explanation-section">
+            <h6>What You're Seeing:</h6>
+            <ul>
+              <li><strong>⭕ Circles (black border):</strong> Original colors from Green Alert baseline</li>
+              <li><strong>◼️ Squares (white border):</strong> Transformed colors in ${this._getModeName(this._selectedAlertMode)}</li>
+              <li><strong>🎨 Filled with actual colors:</strong> See the real color values at each position</li>
+              <li><strong>🔍 Hover to zoom:</strong> Mouse over any shape to enlarge it for better visibility</li>
+              <li><strong>➡️ Gray arrows:</strong> Show how each color shifts from source to target</li>
+              <li><strong>📏 Radial position:</strong> Saturation level (center = gray, edge = vibrant)</li>
+              <li><strong>🔄 Angular position:</strong> Hue angle (0° = red, 120° = green, 240° = blue)</li>
+            </ul>
+          </div>
+
+          ${transform.hueAnchor ? html`
+            <div class="explanation-section">
+              <h6>🎯 Hue Anchor:</h6>
+              <p>The <strong>shaded arc</strong> shows the target hue range (${transform.hueAnchor.centerHue - transform.hueAnchor.range}° - ${transform.hueAnchor.centerHue + transform.hueAnchor.range}°). Colors are "pulled" toward this range with ${Math.round(transform.hueAnchor.strength * 100)}% strength.</p>
+            </div>
+          ` : ''}
+
+          ${transform.hueShift !== undefined ? html`
+            <div class="explanation-section">
+              <h6>🎨 Hue Shift:</h6>
+              <p>Primary target: <strong>${transform.hueShift}°</strong> (${this._getHueName(transform.hueShift)})</p>
+              <p>Colors shift toward this hue with ${Math.round(transform.hueStrength * 100)}% strength.</p>
+            </div>
+          ` : ''}
+
+          <div class="explanation-section">
+            <h6>💡 Transform Parameters:</h6>
+            <ul>
+              <li><strong>Saturation:</strong> ${transform.saturationMultiplier}× (${transform.saturationMultiplier > 1 ? 'more vivid' : 'more muted'})</li>
+              <li><strong>Lightness:</strong> ${transform.lightnessMultiplier}× (${transform.lightnessMultiplier > 1 ? 'brighter' : 'darker'})</li>
+            </ul>
+          </div>
+
+          <div class="explanation-tip">
+            <strong>💡 Tip:</strong> Adjust the sliders above and watch the blue dots move in real-time to see how parameters affect the transformation!
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Get friendly mode name
+   */
+  _getModeName(mode) {
+    const names = {
+      'green_alert': 'Green Alert',
+      'red_alert': 'Red Alert',
+      'blue_alert': 'Blue Alert',
+      'yellow_alert': 'Yellow Alert',
+      'gray_alert': 'Gray Alert',
+      'black_alert': 'Black Alert'
+    };
+    return names[mode] || mode;
+  }
+
+  /**
+   * Get friendly hue name from degree
+   */
+  _getHueName(degree) {
+    if (degree < 30 || degree >= 330) return 'Red';
+    if (degree < 60) return 'Orange';
+    if (degree < 90) return 'Yellow';
+    if (degree < 150) return 'Green';
+    if (degree < 210) return 'Cyan';
+    if (degree < 270) return 'Blue';
+    if (degree < 330) return 'Magenta';
+    return 'Red';
   }
 
   // Dialog control methods
@@ -1859,6 +2405,10 @@ import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab ext
     this._scanAllCssVariables(); // Scan all CSS variables
     this._detectHaTheme(); // Detect active HA theme
     this._applyFilters(); // Apply initial filters when opening
+
+    // Capture original LCARS colors for side-by-side comparison
+    this._originalLcarsColors = captureOriginalColors(document.documentElement);
+    lcardsLog.debug('[AlertLab] Captured original colors:', Object.keys(this._originalLcarsColors || {}).length);
 
     // Initialize Alert Lab with current running alert mode
     if (window.lcards?.getAlertMode) {
