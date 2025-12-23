@@ -13,12 +13,12 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 /**
  * Alert mode transformation parameters
  * Each mode defines how to shift hue, saturation, and lightness
- * 
+ *
  * Hue Anchoring:
  * - centerHue: Target hue to anchor toward (0-360°)
  * - range: Allowed hue variance in degrees (e.g., ±60°)
  * - strength: Pull strength (0.0 = no anchoring, 1.0 = strong pull)
- * 
+ *
  * Colors outside the range are pulled back toward the range edge.
  * This creates a cohesive color personality for each alert mode.
  */
@@ -92,13 +92,13 @@ export const ALERT_MODE_TRANSFORMS = {
 
 /**
  * Calculate shortest distance between two hues on circular color wheel
- * 
+ *
  * Handles 360°→0° wrapping to always return the shortest path.
- * 
+ *
  * @param {number} fromHue - Starting hue (0-360°)
  * @param {number} toHue - Target hue (0-360°)
  * @returns {number} Signed distance (-180 to +180°)
- * 
+ *
  * @example
  * calculateCircularDistance(350, 10)  // Returns: 20 (not 340)
  * calculateCircularDistance(10, 350)  // Returns: -20 (not 340)
@@ -106,32 +106,32 @@ export const ALERT_MODE_TRANSFORMS = {
  */
 function calculateCircularDistance(fromHue, toHue) {
   let distance = toHue - fromHue;
-  
+
   // Normalize to shortest path (-180 to +180)
   if (distance > 180) distance -= 360;
   if (distance < -180) distance += 360;
-  
+
   return distance;
 }
 
 /**
  * Apply hue anchoring to pull colors toward a target hue range
- * 
+ *
  * This creates cohesive alert modes by constraining colors to a specific
  * hue range while preserving their relative distinctiveness.
- * 
+ *
  * Algorithm:
  * 1. Calculate shortest distance on circular color wheel (handles 360°→0° wrap)
  * 2. If outside allowed range, interpolate toward range edge
  * 3. Apply strength factor to control pull intensity
- * 
+ *
  * @param {number} hue - Current hue (0-360°)
  * @param {Object} anchor - Anchoring parameters
  * @param {number} anchor.centerHue - Target center hue (0-360°)
  * @param {number} anchor.range - Allowed variance in degrees (e.g., ±60°)
  * @param {number} anchor.strength - Pull strength (0.0-1.0)
  * @returns {number} Anchored hue (0-360°)
- * 
+ *
  * @example
  * // Red alert: pull cyan (180°) toward red range (300°-60°)
  * applyHueAnchor(180, {centerHue: 0, range: 60, strength: 0.6})
@@ -139,27 +139,27 @@ function calculateCircularDistance(fromHue, toHue) {
  */
 function applyHueAnchor(hue, anchor) {
   if (!anchor) return hue;
-  
+
   const { centerHue, range, strength } = anchor;
-  
+
   // Validate anchor configuration
   if (centerHue === undefined || range === undefined || strength === undefined) {
     return hue;
   }
-  
+
   // Calculate shortest distance on circular color wheel
   let distance = calculateCircularDistance(centerHue, hue);
-  
+
   // If outside allowed range, pull toward range edge
   const absDistance = Math.abs(distance);
   if (absDistance > range) {
     // Target is the edge of the range in the same direction
     const targetDistance = Math.sign(distance) * range;
-    
+
     // Interpolate between current distance and target distance
     distance = distance + (targetDistance - distance) * strength;
   }
-  
+
   // Convert back to absolute hue and normalize to 0-360
   const newHue = (centerHue + distance + 360) % 360;
   return newHue;
@@ -171,7 +171,7 @@ function applyHueAnchor(hue, anchor) {
  * Uses ColorUtils internal APIs (_parseColor, _rgbToHsl, _hslToRgbHex) for
  * low-level color manipulation. This is intentional as alert mode transformation
  * requires direct HSL manipulation not available in the public ColorUtils API.
- * 
+ *
  * Transformation Steps:
  * 1. Parse color to RGB, then convert to HSL
  * 2. Apply hue shift (rotation toward target)
@@ -196,6 +196,12 @@ export function transformColorToAlertMode(color, alertMode) {
     return color;
   }
 
+  // Extract alpha channel if present in 8-char hex (#RRGGBBAA)
+  let alphaChannel = null;
+  if (color.startsWith('#') && color.length === 9) {
+    alphaChannel = color.slice(7, 9); // Extract AA
+  }
+
   // Parse to RGB (using ColorUtils internal API)
   const rgb = ColorUtils._parseColor(color);
   if (!rgb) {
@@ -212,13 +218,13 @@ export function transformColorToAlertMode(color, alertMode) {
   // Step 1: Apply hue shift (blend toward target hue)
   if (transform.hueStrength > 0) {
     const targetHue = transform.hueShift;
-    
+
     // Calculate shortest distance on circular color wheel
     const distance = calculateCircularDistance(h, targetHue);
-    
+
     // Interpolate using shortest path
     h = h + distance * transform.hueStrength;
-    
+
     // Normalize to 0-360
     h = ((h % 360) + 360) % 360;
   }
@@ -235,7 +241,14 @@ export function transformColorToAlertMode(color, alertMode) {
   l = Math.max(0, Math.min(100, l * transform.lightnessMultiplier));
 
   // Convert back to hex (using ColorUtils internal API)
-  return ColorUtils._hslToRgbHex([h, s, l]);
+  let result = ColorUtils._hslToRgbHex([h, s, l]);
+
+  // Re-append alpha channel if it was present
+  if (alphaChannel) {
+    result = result + alphaChannel;
+  }
+
+  return result;
 }
 
 /**

@@ -255,11 +255,27 @@ window.lcards.getAlertMode = () => {
 };
 
 // Convenience shortcuts (all async to match setAlertMode)
-window.lcards.redAlert = async () => window.lcards.setAlertMode('red_alert');
-window.lcards.blueAlert = async () => window.lcards.setAlertMode('blue_alert');
-window.lcards.yellowAlert = async () => window.lcards.setAlertMode('yellow_alert');
-window.lcards.grayAlert = async () => window.lcards.setAlertMode('gray_alert');
-window.lcards.blackAlert = async () => window.lcards.setAlertMode('black_alert');
+// These automatically reset to green first to avoid compound transformations
+window.lcards.redAlert = async () => {
+  await window.lcards.setAlertMode('green_alert');
+  return window.lcards.setAlertMode('red_alert');
+};
+window.lcards.blueAlert = async () => {
+  await window.lcards.setAlertMode('green_alert');
+  return window.lcards.setAlertMode('blue_alert');
+};
+window.lcards.yellowAlert = async () => {
+  await window.lcards.setAlertMode('green_alert');
+  return window.lcards.setAlertMode('yellow_alert');
+};
+window.lcards.grayAlert = async () => {
+  await window.lcards.setAlertMode('green_alert');
+  return window.lcards.setAlertMode('gray_alert');
+};
+window.lcards.blackAlert = async () => {
+  await window.lcards.setAlertMode('green_alert');
+  return window.lcards.setAlertMode('black_alert');
+};
 window.lcards.normalAlert = async () => window.lcards.setAlertMode('green_alert');
 window.lcards.greenAlert = async () => window.lcards.setAlertMode('green_alert');
 

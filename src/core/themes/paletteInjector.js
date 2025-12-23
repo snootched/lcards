@@ -486,7 +486,7 @@ export async function setAlertMode(mode, hass, rootElement = null) {
 
   // Handle green_alert (normal mode) - restore original theme
   if (mode === 'green_alert') {
-    // Restore HA-LCARS theme variables (--lcars-*)
+    // Restore HA-LCARS theme variables (--lcars-*) by reloading theme
     await reloadHATheme(hass);
 
     // Restore LCARdS fallback palette variables (--lcards-*)
@@ -494,25 +494,22 @@ export async function setAlertMode(mode, hass, rootElement = null) {
 
     lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
   } else {
-    // CRITICAL: Always restore HA-LCARS theme to green_alert FIRST
-    // This prevents compound transformations when switching between alert modes
-    lcardsLog.debug(`[PaletteInjector] Restoring to green_alert before applying ${mode}`);
-    await reloadHATheme(hass);
+    // CRITICAL FIX: Don't reload theme before transforming!
+    // Reloading causes Home Assistant to inline/resolve all var() references,
+    // which means variables like --lcars-ui-quaternary: var(--lcars-gray)
+    // become --lcars-ui-quaternary: #666688 (the resolved value).
+    // If we then transform --lcars-gray, --lcars-ui-quaternary stays the old value.
+    //
+    // Solution: Transform directly from current state without reloading.
+    // To switch between alert modes, user should call green_alert first to reset.
 
-    // Now transform HA-LCARS theme variables (--lcars-*) using HSL
+    // Transform HA-LCARS theme variables (--lcars-*) using HSL
     await transformAndApplyAlertMode(mode, root);
 
     // Inject alert mode palette for LCARdS variables (--lcards-*)
     injectPalette(targetPalette, root);
 
     lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
-  }
-
-  // Dispatch event for cards to react
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('lcards-alert-mode-changed', {
-      detail: { mode }
-    }));
   }
 }
 
@@ -522,6 +519,11 @@ export async function setAlertMode(mode, hass, rootElement = null) {
  * Uses HSL transformation to shift HA-LCARS theme colors to match alert mode.
  * LCARdS fallback variables (--lcards-*) use pre-defined palettes instead.
  *
+ * CRITICAL: Home Assistant's theme system resolves all var() references at load time,
+ * converting them to static hex values. So --lcars-ui-quaternary: var(--lcars-mittelgrau)
+ * becomes --lcars-ui-quaternary: #656B83FF. This means we MUST transform ALL variables,
+ * because there are no var() references left to resolve dynamically.
+ *
  * @param {string} mode - Alert mode
  * @param {Element} root - Root element
  * @private
@@ -530,6 +532,7 @@ async function transformAndApplyAlertMode(mode, root) {
   const computedStyle = getComputedStyle(root);
   const lcarsVars = {};
   let transformCount = 0;
+  let skippedCount = 0;
 
   // Enumerate only HA-LCARS theme variables (--lcars-*, not --lcards-*)
   for (let i = 0; i < computedStyle.length; i++) {
@@ -538,14 +541,19 @@ async function transformAndApplyAlertMode(mode, root) {
     if (varName.startsWith('--lcars-') && !varName.startsWith('--lcards-')) {
       const value = computedStyle.getPropertyValue(varName).trim();
       if (value) {
+        // Skip non-color values (dimensions, numbers, etc.)
+        if (!value.match(/^#|^rgb|^hsl|^var\(/i)) {
+          skippedCount++;
+          continue;
+        }
         lcarsVars[varName] = value;
       }
     }
   }
 
-  lcardsLog.debug(`[PaletteInjector] Found ${Object.keys(lcarsVars).length} --lcars-* theme variables`);
+  lcardsLog.debug(`[PaletteInjector] Found ${Object.keys(lcarsVars).length} --lcars-* color variables (skipped ${skippedCount} non-color values)`);
 
-  // Transform and apply using HSL
+  // Transform and apply using HSL - transform ALL color values since var() refs are already resolved
   Object.entries(lcarsVars).forEach(([varName, color]) => {
     const transformed = transformColorToAlertMode(color, mode);
     if (transformed !== color) {
@@ -554,5 +562,5 @@ async function transformAndApplyAlertMode(mode, root) {
     }
   });
 
-  lcardsLog.debug(`[PaletteInjector] Transformed ${transformCount} theme variables using HSL`);
+  lcardsLog.info(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
 }

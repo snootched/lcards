@@ -220,7 +220,7 @@ export class ColorUtils {
     // Remove whitespace
     color = color.trim();
 
-    // Hex format: #RRGGBB or #RGB
+    // Hex format: #RRGGBB, #RRGGBBAA, #RGB, or #RGBA
     if (color.startsWith('#')) {
       const hex = color.slice(1);
 
@@ -233,6 +233,16 @@ export class ColorUtils {
         ];
       }
 
+      // #RGBA format (4 chars)
+      if (hex.length === 4) {
+        return [
+          parseInt(hex[0] + hex[0], 16),
+          parseInt(hex[1] + hex[1], 16),
+          parseInt(hex[2] + hex[2], 16)
+        ];
+        // Alpha channel (hex[3]) is ignored for HSL transformation
+      }
+
       // #RRGGBB format
       if (hex.length === 6) {
         return [
@@ -240,6 +250,16 @@ export class ColorUtils {
           parseInt(hex.slice(2, 4), 16),
           parseInt(hex.slice(4, 6), 16)
         ];
+      }
+
+      // #RRGGBBAA format (8 chars) - ignore alpha channel
+      if (hex.length === 8) {
+        return [
+          parseInt(hex.slice(0, 2), 16),
+          parseInt(hex.slice(2, 4), 16),
+          parseInt(hex.slice(4, 6), 16)
+        ];
+        // Alpha channel (hex.slice(6, 8)) is ignored for HSL transformation
       }
     }
 
