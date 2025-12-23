@@ -49,6 +49,124 @@ overlays:
 
 ---
 
+## 📐 Config Architecture Pattern
+
+LCARdS uses a clear architectural pattern to separate **what to show** from **how it looks**:
+
+### The Pattern
+
+```mermaid
+graph TD
+    Config[Card Config] --> Content[Top-Level Properties<br>Content & Behavior]
+    Config --> Styling[Nested style.*<br>Visual Styling]
+    
+    Content --> Text[text.*<br>Text content & fields]
+    Content --> Icon[icon.*<br>Icon config & visibility]
+    Content --> Control[control.*<br>Slider/control behavior]
+    Content --> Elbow[elbow.*<br>Geometric structure]
+    Content --> Actions[tap_action, etc.<br>User interactions]
+    
+    Styling --> Card[style.card.*<br>Background, borders]
+    Styling --> TextStyle[style.text.*<br>Fonts, colors]
+    Styling --> Track[style.track.*<br>Visual appearance]
+    Styling --> Border[style.border.*<br>Border properties]
+    
+    style Content fill:#266239,stroke:#083717,color:#f3f4f7
+    style Styling fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+```
+
+### Top-Level Properties (Content/Behavior)
+
+These define **what to display** and **how it behaves**:
+
+| Property | Purpose | Example |
+|----------|---------|---------|
+| `text.*` | Text content and positioning | `text.label.content: "Kitchen"` |
+| `icon.*` | Icon configuration | `icon.icon: "mdi:lightbulb"` |
+| `control.*` | Control behavior (sliders) | `control.min: 0, control.max: 100` |
+| `elbow.*` | Geometric structure (elbows) | `elbow.segment.bar_width: 40` |
+| `tap_action`, `hold_action` | User interactions | `tap_action.action: toggle` |
+| `entity` | Entity binding | `entity: light.kitchen` |
+
+### Nested style.* Properties (Visual Styling)
+
+These define **how it looks**:
+
+| Property | Purpose | Example |
+|----------|---------|---------|
+| `style.card.*` | Card appearance | `style.card.color.background: "#ff6600"` |
+| `style.text.*` | Text styling | `style.text.default.font_size: 16` |
+| `style.track.*` | Track appearance (sliders) | `style.track.type: "segments"` |
+| `style.border.*` | Border styling | `style.border.width: 2` |
+
+### Example: Button Card
+
+```yaml
+type: custom:lcards-button
+entity: light.kitchen              # ← Top-level (behavior)
+
+text:                               # ← Top-level (content)
+  label:
+    content: "Kitchen Light"        # What to show
+    position: left                  # Where to show it
+
+icon:                               # ← Top-level (content)
+  icon: "mdi:lightbulb"            # Which icon
+  show: true                        # Whether to show
+
+tap_action:                         # ← Top-level (behavior)
+  action: toggle                    # What happens on tap
+
+style:                              # ← Nested (visual styling)
+  card:
+    color:
+      background:
+        active: "#ff6600"           # How it looks when active
+  text:
+    default:
+      font_size: 16                 # Font styling
+      color:
+        active: "#ffffff"
+```
+
+### Rules and This Pattern
+
+When writing rules, you patch **top-level properties** (both content and style):
+
+```yaml
+rules:
+  - id: light_on_rule
+    when:
+      entity: light.kitchen
+      state: "on"
+    apply:
+      overlays:
+        kitchen_button:
+          text:                     # ✅ Correct: top-level text config
+            label:
+              content: "LIGHT ON"
+          style:                    # ✅ Correct: top-level style config
+            card:
+              color:
+                background: "#00ff00"
+```
+
+**Common mistake:**
+```yaml
+apply:
+  overlays:
+    kitchen_button:
+      styles.text.*               # ❌ WRONG: No "styles" property exists
+```
+
+**Why this pattern?**
+- ✅ Clear separation of concerns
+- ✅ Content decisions separate from visual decisions
+- ✅ Easier to maintain and understand
+- ✅ Consistent with Lit/web component best practices
+
+---
+
 ## 1. Configuration Sources & Priority
 
 The MSD system uses a **unified theme-based approach** with clear priority ordering:
