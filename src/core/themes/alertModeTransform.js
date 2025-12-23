@@ -35,39 +35,39 @@ export const ALERT_MODE_TRANSFORMS = {
   red_alert: {
     // Shift toward red (0°), boost saturation, darken slightly
     hueShift: 0,                    // Target red
-    hueStrength: 0.6,               // Moderate-strong rotation
-    saturationMultiplier: 1.2,      // More vibrant
-    lightnessMultiplier: 0.9,       // Slightly darker
+    hueStrength: 0.8,               // Strong rotation for vivid reds
+    saturationMultiplier: 1.4,      // High saturation for dramatic red palette
+    lightnessMultiplier: 0.9,       // Slightly darker for intensity
     hueAnchor: {
       centerHue: 0,                 // Red
       range: 60,                    // ±60° (magenta to orange: 300°-60°)
-      strength: 0.85                // Very strong pull for cohesive personality
+      strength: 0.9                 // Very strong pull for cohesive personality
     }
   },
 
   blue_alert: {
     // Shift toward blue (210°), maintain balance
     hueShift: 210,                  // Target deep blue
-    hueStrength: 0.6,               // Moderate-strong rotation
-    saturationMultiplier: 1.0,
+    hueStrength: 0.85,              // Strong rotation for vivid blues
+    saturationMultiplier: 1.5,      // High saturation (especially for grays)
     lightnessMultiplier: 1.0,
     hueAnchor: {
       centerHue: 210,               // Deep blue (not cyan)
       range: 60,                    // Cyan to purple (150°-270°)
-      strength: 0.85                // Very strong pull for cohesive personality
+      strength: 0.9                 // Very strong pull for cohesive personality
     }
   },
 
   yellow_alert: {
     // Shift toward amber/yellow (45°), brighten
     hueShift: 45,                   // Target amber
-    hueStrength: 0.6,               // Moderate-strong rotation
-    saturationMultiplier: 1.1,
+    hueStrength: 0.9,               // Very strong rotation for vivid yellows
+    saturationMultiplier: 1.5,      // High saturation for dramatic amber palette
     lightnessMultiplier: 1.05,
     hueAnchor: {
       centerHue: 45,                // Amber
-      range: 45,                    // Orange to yellow (0°-90°)
-      strength: 0.8                 // Strong pull
+      range: 50,                    // Slightly wider range (orange to yellow)
+      strength: 0.9                 // Very strong pull for cohesive personality
     }
   },
 
@@ -86,7 +86,14 @@ export const ALERT_MODE_TRANSFORMS = {
     hueStrength: 0,
     saturationMultiplier: 0,
     lightnessMultiplier: 0.3,       // Very dark
-    hueAnchor: null  // No anchoring for black alert
+    hueAnchor: null,                // No anchoring for black alert
+    // Contrast enhancement to maintain readability
+    contrastEnhancement: {
+      enabled: true,
+      threshold: 50,                // Split point: colors below go darker, above go lighter
+      darkMultiplier: 0.6,          // Make dark colors even darker (below threshold)
+      lightMultiplier: 1.4          // Make light colors lighter (above threshold)
+    }
   }
 };
 
@@ -175,10 +182,11 @@ function applyHueAnchor(hue, anchor) {
  * Transformation Steps:
  * 1. Parse color to RGB, then convert to HSL
  * 2. Apply hue shift (rotation toward target)
- * 3. Apply hue anchoring (pull into target range) - NEW
+ * 3. Apply hue anchoring (pull into target range)
  * 4. Apply saturation multiplier
  * 5. Apply lightness multiplier
- * 6. Convert back to hex
+ * 6. Apply contrast enhancement (for black_alert readability)
+ * 7. Convert back to hex
  *
  * @param {string} color - Original color (hex, rgb, rgba)
  * @param {string} alertMode - Target alert mode
@@ -239,6 +247,20 @@ export function transformColorToAlertMode(color, alertMode) {
 
   // Step 4: Apply lightness multiplier
   l = Math.max(0, Math.min(100, l * transform.lightnessMultiplier));
+
+  // Step 5: Apply contrast enhancement (for black_alert readability)
+  if (transform.contrastEnhancement?.enabled) {
+    const { threshold, darkMultiplier, lightMultiplier } = transform.contrastEnhancement;
+
+    // Split colors at threshold and push them apart for better contrast
+    if (l < threshold) {
+      // Dark colors: make them darker
+      l = Math.max(0, l * darkMultiplier);
+    } else {
+      // Light colors: make them lighter
+      l = Math.min(100, l * lightMultiplier);
+    }
+  }
 
   // Convert back to hex (using ColorUtils internal API)
   let result = ColorUtils._hslToRgbHex([h, s, l]);

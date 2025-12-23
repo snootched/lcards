@@ -463,7 +463,49 @@ export async function reloadHATheme(hass) {
     lcardsLog.error('[PaletteInjector] ❌ Theme reload failed:', error);
     throw error;
   }
-}/**
+}
+
+/**
+ * Storage for original (green_alert) color values
+ * This prevents color drift when switching between alert modes
+ */
+let originalLcarsColors = null;
+
+/**
+ * Capture and store original --lcars-* color values from current theme
+ * Should be called after theme is loaded to capture baseline colors
+ *
+ * @param {Element} root - Root element
+ * @returns {Object} Map of --lcars-* variable names to color values
+ */
+export function captureOriginalColors(root = null) {
+  const element = root || document.documentElement;
+  const computedStyle = getComputedStyle(element);
+  const colors = {};
+  let colorCount = 0;
+
+  for (let i = 0; i < computedStyle.length; i++) {
+    const varName = computedStyle[i];
+
+    if (varName.startsWith('--lcars-') && !varName.startsWith('--lcards-')) {
+      const value = computedStyle.getPropertyValue(varName).trim();
+
+      // Only store color values (skip dimensions, etc.)
+      if (value && value.match(/^#|^rgb|^hsl/i)) {
+        colors[varName] = value;
+        colorCount++;
+      }
+    }
+  }
+
+  // Store internally for alert mode system
+  originalLcarsColors = colors;
+
+  lcardsLog.debug(`[PaletteInjector] Captured ${colorCount} original --lcars-* color values`);
+  return colors;
+}
+
+/**
  * Set alert mode by injecting appropriate palette
  *
  * @param {string} mode - Alert mode ('green_alert', 'red_alert', etc.)
@@ -484,32 +526,56 @@ export async function setAlertMode(mode, hass, rootElement = null) {
   // Get the appropriate palette
   const targetPalette = ALERT_MODE_PALETTES[mode];
 
-  // Handle green_alert (normal mode) - restore original theme
-  if (mode === 'green_alert') {
-    // Restore HA-LCARS theme variables (--lcars-*) by reloading theme
-    await reloadHATheme(hass);
+  // Apply blur transition effect during mode switch
+  const mainView = document.querySelector('home-assistant')?.shadowRoot?.querySelector('home-assistant-main');
+  if (mainView) {
+    mainView.style.transition = 'filter 0.3s ease, opacity 0.3s ease';
+    mainView.style.filter = 'blur(8px)';
+    mainView.style.opacity = '0.6';
+  }
 
-    // Restore LCARdS fallback palette variables (--lcards-*)
-    injectPalette(targetPalette, root);
+  try {
+    // Handle green_alert (normal mode) - restore original theme
+    if (mode === 'green_alert') {
+      // Restore HA-LCARS theme variables (--lcars-*) by reloading theme
+      await reloadHATheme(hass);
 
-    lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
-  } else {
-    // CRITICAL FIX: Don't reload theme before transforming!
-    // Reloading causes Home Assistant to inline/resolve all var() references,
-    // which means variables like --lcars-ui-quaternary: var(--lcars-gray)
-    // become --lcars-ui-quaternary: #666688 (the resolved value).
-    // If we then transform --lcars-gray, --lcars-ui-quaternary stays the old value.
-    //
-    // Solution: Transform directly from current state without reloading.
-    // To switch between alert modes, user should call green_alert first to reset.
+      // Capture original colors for future transformations
+      originalLcarsColors = captureOriginalColors(root);
 
-    // Transform HA-LCARS theme variables (--lcars-*) using HSL
-    await transformAndApplyAlertMode(mode, root);
+      // Restore LCARdS fallback palette variables (--lcards-*)
+      injectPalette(targetPalette, root);
 
-    // Inject alert mode palette for LCARdS variables (--lcards-*)
-    injectPalette(targetPalette, root);
+      lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
+    } else {
+      // Transform from ORIGINAL colors (prevents drift when switching modes)
+      // Colors are captured at theme init, so no need to reload here
+      await transformAndApplyAlertMode(mode, root, originalLcarsColors);
 
-    lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
+      // Inject alert mode palette for LCARdS variables (--lcards-*)
+      injectPalette(targetPalette, root);
+
+      lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
+    }
+
+    // Wait for next animation frame to ensure styles are applied
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+  } finally {
+    // Clear blur transition effect
+    if (mainView) {
+      // Trigger reflow to ensure transition animates back
+      void mainView.offsetHeight;
+      mainView.style.filter = '';
+      mainView.style.opacity = '';
+
+      // Clean up transition after animation completes
+      setTimeout(() => {
+        if (mainView) {
+          mainView.style.transition = '';
+        }
+      }, 300);
+    }
   }
 }
 
@@ -521,42 +587,30 @@ export async function setAlertMode(mode, hass, rootElement = null) {
  *
  * CRITICAL: Home Assistant's theme system resolves all var() references at load time,
  * converting them to static hex values. So --lcars-ui-quaternary: var(--lcars-mittelgrau)
- * becomes --lcars-ui-quaternary: #656B83FF. This means we MUST transform ALL variables,
- * because there are no var() references left to resolve dynamically.
+ * becomes --lcars-ui-quaternary: #656B83FF. This means we MUST transform ALL variables.
+ *
+ * By transforming from stored original colors (not current colors), we prevent color drift
+ * when switching between modes (e.g., red→blue→yellow always uses green as baseline).
  *
  * @param {string} mode - Alert mode
  * @param {Element} root - Root element
+ * @param {Object} originalColors - Map of original --lcars-* color values from green_alert
  * @private
  */
-async function transformAndApplyAlertMode(mode, root) {
-  const computedStyle = getComputedStyle(root);
-  const lcarsVars = {};
+async function transformAndApplyAlertMode(mode, root, originalColors) {
   let transformCount = 0;
-  let skippedCount = 0;
 
-  // Enumerate only HA-LCARS theme variables (--lcars-*, not --lcards-*)
-  for (let i = 0; i < computedStyle.length; i++) {
-    const varName = computedStyle[i];
-
-    if (varName.startsWith('--lcars-') && !varName.startsWith('--lcards-')) {
-      const value = computedStyle.getPropertyValue(varName).trim();
-      if (value) {
-        // Skip non-color values (dimensions, numbers, etc.)
-        if (!value.match(/^#|^rgb|^hsl|^var\(/i)) {
-          skippedCount++;
-          continue;
-        }
-        lcarsVars[varName] = value;
-      }
-    }
+  if (!originalColors || Object.keys(originalColors).length === 0) {
+    lcardsLog.warn('[PaletteInjector] No original colors provided for transformation');
+    return;
   }
 
-  lcardsLog.debug(`[PaletteInjector] Found ${Object.keys(lcarsVars).length} --lcars-* color variables (skipped ${skippedCount} non-color values)`);
+  lcardsLog.debug(`[PaletteInjector] Transforming ${Object.keys(originalColors).length} --lcars-* variables from original values`);
 
-  // Transform and apply using HSL - transform ALL color values since var() refs are already resolved
-  Object.entries(lcarsVars).forEach(([varName, color]) => {
-    const transformed = transformColorToAlertMode(color, mode);
-    if (transformed !== color) {
+  // Transform from ORIGINAL colors (prevents drift)
+  Object.entries(originalColors).forEach(([varName, originalColor]) => {
+    const transformed = transformColorToAlertMode(originalColor, mode);
+    if (transformed !== originalColor) {
       root.style.setProperty(varName, transformed);
       transformCount++;
     }

@@ -17,7 +17,7 @@
 import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from './ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
-import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS } from './paletteInjector.js';
+import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS, captureOriginalColors } from './paletteInjector.js';
 
 /**
  * Built-in filter presets for base SVG
@@ -180,6 +180,13 @@ export class ThemeManager extends BaseService {
 
     this.activeThemeId = themeId;
     this.activeTheme = theme;
+
+    // Capture original --lcars-* colors for alert mode system
+    // This ensures we always have baseline colors to transform from
+    setTimeout(() => {
+      captureOriginalColors(rootElement);
+      lcardsLog.debug('[ThemeManager] Alert mode baseline colors captured');
+    }, 100); // Small delay to ensure theme CSS is applied
 
     lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
       id: themeId,
