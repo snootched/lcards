@@ -227,23 +227,163 @@ The components rely on:
 
 Possible future additions (not in current implementation):
 
-1. **Template Sandbox Modal**:
-   - Edit templates in a sandbox environment
-   - Override entity data for testing
-   - Live preview of results
-   - Copy working templates back to config
-
-2. **Token Override Editor**:
+1. **Token Override Editor**:
    - Visual editor for card-level token overrides
    - Preview token changes in real-time
 
-3. **Template Suggestions**:
+2. **Template Suggestions**:
    - AI-powered template suggestions based on context
    - Common template patterns library
 
-4. **Performance Monitoring**:
+3. **Performance Monitoring**:
    - Track template evaluation performance
    - Identify slow templates
+
+## Template Sandbox Modal ✨
+
+The Template Sandbox is an interactive testing environment for templates, integrated into the Template Evaluation Tab.
+
+### Key Features
+
+**Three-Panel Interactive UI:**
+
+1. **Input Panel (Left)**:
+   - Monaco-style code editor for template input
+   - Example templates dropdown with pre-configured scenarios
+   - Syntax highlighting and type detection badges
+   - Character and line count display
+
+2. **Context Panel (Middle)**:
+   - **Mock Entity Configuration**:
+     - Entity ID input field
+     - Quick state picker buttons for common domains (light: on/off, sensor: numeric values)
+     - YAML editor for full entity state/attributes customization
+   - **Live DataSource Selector**:
+     - Dropdown of available DataSources from `window.lcards.core.dataSourceManager`
+     - Real-time value display with timestamp
+     - Subscription status indicator (⚡ for live)
+     - Automatic re-evaluation on DataSource updates
+   - **Active Theme Display**: Shows currently active theme name
+
+3. **Output Panel (Right)**:
+   - Evaluated result display with status indicator (✅/❌/⚠️)
+   - Execution time measurement
+   - **Dependency Tree Visualization**:
+     - Entity dependencies (with availability status)
+     - DataSource dependencies (live vs mock indicator)
+     - Theme token dependencies (resolution status)
+   - **Action Buttons**:
+     - Copy Result
+     - Copy Template
+     - Insert into Card (future enhancement)
+
+### Live DataSource Integration
+
+The sandbox provides real-time integration with DataSources:
+
+**Waterfall Resolution Strategy:**
+1. Try real DataSource first (from `dataSourceManager`)
+2. Fall back to mock DataSource from YAML input
+3. Show warning if not found
+
+**Live Subscriptions:**
+- Automatically subscribes to referenced DataSources
+- Re-evaluates template when DataSource updates
+- Shows live indicator (⚡) for connected sources
+- Cleans up subscriptions when modal closes
+
+### Example Templates Library
+
+The sandbox includes 14 pre-configured example templates:
+
+- **Simple Entity State**: `{entity.state}`
+- **Entity Attribute**: `Brightness: {entity.attributes.brightness}`
+- **Live DataSource**: `Temperature: {datasource:sensor.temp:.1f}°C`
+- **DataSource (Short Syntax)**: `Value: {ds:sensor.value}`
+- **JavaScript Conditional**: `[[[return entity.state === "on" ? "Active" : "Idle"]]]`
+- **JavaScript Calculation**: Temperature conversion with Math operations
+- **Jinja2 Template**: `{{states("sensor.temperature") | float | round(1)}}°C`
+- **Jinja2 Conditional**: `{% if is_state("light.kitchen", "on") %}Active{% else %}Idle{% endif %}`
+- **Theme Token**: `Color: {theme:colors.accent.primary}`
+- **Multiple Theme Tokens**: Multiple tokens in one template
+- **Mixed: JS + DataSource**: Combining JavaScript and DataSource templates
+- **Mixed: Entity + Theme**: Combining entity tokens and theme tokens
+- **Complex Dashboard**: Multi-type template with emojis and formatting
+
+### Usage
+
+**From Template Evaluation Tab:**
+
+1. Click "🧪 Open Template Sandbox" button in the tab header
+2. Or click "🧪 Test in Sandbox" on any discovered template card
+
+**Testing Workflow:**
+
+1. **Select an Example** (optional):
+   - Choose from dropdown to auto-populate template, entity, and mock data
+
+2. **Enter Template**:
+   - Type or paste your template
+   - See detected types badge (JS, Token, DataSource, Jinja2)
+
+3. **Configure Context**:
+   - Set mock entity ID
+   - Use quick state buttons or edit YAML directly
+   - Select live DataSources if available
+
+4. **Evaluate**:
+   - Click "Evaluate Now" or wait for auto-evaluation (500ms debounce)
+   - View result with execution time
+   - Inspect dependency tree for availability status
+
+5. **Use Results**:
+   - Copy evaluated result for use elsewhere
+   - Copy template back to card configuration
+   - Iterate and refine based on output
+
+### Technical Details
+
+**Template Evaluation:**
+- Uses `UnifiedTemplateEvaluator` directly (not via LCARdSCard)
+- Supports all template types: JavaScript, Tokens, DataSource, Jinja2
+- Measures execution time with `performance.now()`
+- Handles async evaluation for Jinja2 templates
+
+**Dependency Extraction:**
+- Entity references: `{entity.*}` patterns
+- DataSource references: `{datasource:*}` or `{ds:*}` patterns
+- Theme token references: `{theme:*}` patterns
+- Shows availability status for each dependency
+
+**Mock Entity System:**
+- Domain-specific quick state pickers (light, switch, sensor, climate)
+- YAML editor for complex attribute structures
+- Falls back to real entity from HASS if available
+
+**DataSource Subscriptions:**
+- Subscribes to all referenced DataSources on open
+- Automatically re-evaluates on updates
+- Cleans up subscriptions on close
+- Shows live value with timestamp
+
+### Integration Pattern
+
+The sandbox is integrated into any card editor with Template Evaluation Tab:
+
+```javascript
+// Already included in lcards-template-evaluation-tab.js
+import './lcards-template-sandbox.js';
+
+// Rendered automatically in evaluation tab
+${this._renderSandbox()}
+```
+
+### Limitations
+
+- Jinja2 templates require Home Assistant connection (server-side evaluation)
+- Mock entities don't trigger state change events
+- Theme token resolution requires active theme manager
+- DataSource subscriptions limited to global singleton sources
 
 ## Related Documentation
 

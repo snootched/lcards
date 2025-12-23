@@ -2,20 +2,49 @@
  * LCARdS Template Sandbox
  * 
  * Interactive modal for testing templates in isolation with:
- * - Live DataSource integration
- * - Mock entity configuration
- * - Real-time evaluation feedback
- * - Dependency visualization
- * - Example templates library
+ * - Live DataSource integration with real-time subscriptions
+ * - Mock entity configuration with quick state pickers
+ * - Real-time evaluation feedback with execution time
+ * - Dependency visualization with availability status
+ * - Example templates library with 14 pre-configured scenarios
+ * 
+ * ## Features
+ * 
+ * **Three-Panel Layout:**
+ * 1. Input Panel: Template editor with examples dropdown and type detection
+ * 2. Context Panel: Mock entity config, live DataSource selector, theme info
+ * 3. Output Panel: Evaluated result, execution time, dependency tree, actions
+ * 
+ * **Live DataSource Integration:**
+ * - Waterfall resolution: live → mock → warning
+ * - Automatic subscription to referenced DataSources
+ * - Real-time re-evaluation on DataSource updates
+ * - Cleanup subscriptions on close
+ * 
+ * **Template Evaluation:**
+ * - Uses `UnifiedTemplateEvaluator` for all types (JS, Token, DataSource, Jinja2)
+ * - Extracts dependencies using pattern matching
+ * - Measures execution time with performance.now()
+ * - Comprehensive error handling with helpful messages
  * 
  * @element lcards-template-sandbox
- * @fires sandbox-closed - When sandbox is closed
- * @fires insert-template - When user requests to insert template into card
+ * @fires sandbox-closed - When sandbox is closed by user
+ * @fires insert-template - When user requests to insert template (future enhancement)
  * 
- * @property {Object} hass - Home Assistant instance
- * @property {Object} config - Card configuration
- * @property {Boolean} open - Whether sandbox is open
- * @property {Object} initialData - Initial data for pre-populating sandbox
+ * @property {Object} hass - Home Assistant instance for entity state access
+ * @property {Object} config - Card configuration for context
+ * @property {Boolean} open - Whether sandbox modal is open
+ * @property {Object} initialData - Initial data for pre-populating sandbox (template, mockEntity, mockState)
+ * 
+ * @example
+ * // Open sandbox from Template Evaluation Tab
+ * <lcards-template-sandbox
+ *   .hass=${this.hass}
+ *   .config=${this.config}
+ *   .open=${this._sandboxOpen}
+ *   .initialData=${{ template: '{entity.state}', mockEntity: 'light.kitchen' }}
+ *   @sandbox-closed=${this._handleSandboxClosed}>
+ * </lcards-template-sandbox>
  */
 
 import { LitElement, html, css } from 'lit';
