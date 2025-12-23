@@ -14,11 +14,15 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import { ALERT_MODE_PALETTES } from '../../../core/themes/paletteInjector.js';
-import { transformColorToAlertMode } from '../../../core/themes/alertModeTransform.js';
+import {
+  transformColorToAlertMode,
+  getAlertModeTransform,
+  setAlertModeTransformParameter,
+  resetAlertModeTransform
+} from '../../../core/themes/alertModeTransform.js';
 import '../shared/lcards-collapsible-section.js';
-import '../shared/lcards-message.js';
-
-export class LCARdSThemeTokenBrowserTab extends LitElement {
+import '../shared/lcards-form-section.js';
+import '../shared/lcards-message.js';export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
     return {
       editor: { type: Object },
@@ -40,7 +44,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _allCssVariables: { type: Array, state: true },
       _filteredAllVars: { type: Array, state: true },
       _selectedAllVarsCategory: { type: String, state: true },
-      _alertModePreview: { type: Boolean, state: true } // NEW: Toggle for alert mode previews
+      _alertModePreview: { type: Boolean, state: true }, // Toggle for alert mode previews
+      // Alert Mode Lab properties
+      _selectedAlertMode: { type: String, state: true },
+      _alertLabParams: { type: Object, state: true },
+      _livePreviewEnabled: { type: Boolean, state: true }
     };
   }
 
@@ -64,7 +72,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._selectedAllVarsCategory = 'all';
     this._expandedCategories = new Set();
     this._expandedTokenCategories = new Set();
-    this._alertModePreview = false; // NEW: Default to off
+    this._alertModePreview = false; // Default to off
+    // Alert Mode Lab defaults
+    this._selectedAlertMode = 'red_alert';
+    this._alertLabParams = {};
+    this._livePreviewEnabled = true; // Auto-apply changes by default
     this._handleKeydown = this._handleKeydown.bind(this);
   }
 
@@ -646,6 +658,205 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         text-align: center;
         padding: 48px 24px;
       }
+
+      /* Alert Mode Lab Styles */
+      .alert-lab-container {
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .alert-lab-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--divider-color);
+      }
+
+      .mode-selector-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .mode-selector-row label {
+        font-weight: 500;
+        color: var(--primary-text-color);
+      }
+
+      .alert-mode-select {
+        padding: 8px 12px;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+        font-size: 14px;
+        min-width: 180px;
+        cursor: pointer;
+      }
+
+      .alert-mode-select:focus {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+
+      .live-preview-toggle {
+        display: flex;
+        align-items: center;
+      }
+
+      .live-preview-toggle label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--secondary-text-color);
+        font-size: 13px;
+      }
+
+      .live-preview-toggle input[type="checkbox"] {
+        cursor: pointer;
+      }
+
+      .parameter-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .slider-control {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 0;
+      }
+
+      .slider-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .slider-label-row label {
+        font-size: 14px;
+        color: var(--primary-text-color);
+        font-weight: 500;
+      }
+
+      .slider-value {
+        font-size: 13px;
+        color: var(--primary-color);
+        font-weight: 600;
+        font-family: 'Roboto Mono', monospace;
+        min-width: 60px;
+        text-align: right;
+      }
+
+      .parameter-slider {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--divider-color);
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .parameter-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .parameter-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .parameter-slider:focus::-webkit-slider-thumb {
+        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+      }
+
+      .parameter-slider:focus::-moz-range-thumb {
+        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+      }
+
+      .alert-lab-actions {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+
+      .alert-lab-actions ha-button {
+        flex: 1;
+        min-width: 140px;
+      }
+
+      .preview-section {
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .preview-section h4 {
+        margin: 0 0 8px 0;
+        color: var(--primary-text-color);
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .preview-hint {
+        margin: 0 0 16px 0;
+        color: var(--secondary-text-color);
+        font-size: 13px;
+      }
+
+      .preview-swatches-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 16px;
+      }
+
+      .preview-swatch-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .preview-swatch {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        border: 2px solid var(--divider-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+      }
+
+      .preview-swatch:hover {
+        transform: scale(1.1);
+      }
+
+      .swatch-label {
+        font-size: 12px;
+        color: var(--secondary-text-color);
+        text-align: center;
+      }
     `;
   }
 
@@ -738,6 +949,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             class="view-tab ${this._activeView === 'all-vars' ? 'active' : ''}"
             @click=${() => this._switchView('all-vars')}>
             All CSS Variables (${this._allCssVariables.length})
+          </button>
+          <button
+            class="view-tab ${this._activeView === 'alert-lab' ? 'active' : ''}"
+            @click=${() => this._switchView('alert-lab')}>
+            Alert Mode Lab
           </button>
         </div>
         <div class="theme-info">
@@ -967,6 +1183,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     if (this._activeView === 'all-vars') {
       return this._renderAllVarsView();
+    }
+
+    if (this._activeView === 'alert-lab') {
+      return this._renderAlertLab();
     }
 
     // Default: tokens view
@@ -1443,6 +1663,191 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     `;
   }
 
+  /**
+   * Render Alert Mode Lab view
+   */
+  _renderAlertLab() {
+    const transform = getAlertModeTransform(this._selectedAlertMode);
+
+    return html`
+      <div class="alert-lab-container">
+        <!-- Mode Selector and Live Preview Toggle -->
+        <div class="alert-lab-header">
+          <div class="mode-selector-row">
+            <label>Alert Mode:</label>
+            <select
+              .value="${this._selectedAlertMode}"
+              @change="${this._handleModeChange}"
+              class="alert-mode-select"
+            >
+              <option value="green_alert">🟢 Green Alert (Normal)</option>
+              <option value="red_alert">🔴 Red Alert</option>
+              <option value="blue_alert">🔵 Blue Alert</option>
+              <option value="yellow_alert">🟡 Yellow Alert</option>
+              <option value="gray_alert">⚪ Gray Alert</option>
+              <option value="black_alert">⚫ Black Alert</option>
+            </select>
+          </div>          <div class="live-preview-toggle">
+            <label>
+              <input
+                type="checkbox"
+                ?checked="${this._livePreviewEnabled}"
+                @change="${e => this._livePreviewEnabled = e.target.checked}"
+              />
+              Auto-apply changes
+            </label>
+          </div>
+        </div>
+
+        <!-- Parameter Controls -->
+        <div class="parameter-controls">
+          <lcards-form-section
+            .header=${'Core Transform Parameters'}
+            .description=${'Fundamental HSL transformation settings'}
+            ?expanded=${true}
+          >
+            ${this._renderParameterSlider('hueShift', 'Hue Target', 0, 360, 1, '°', transform.hueShift)}
+            ${this._renderParameterSlider('hueStrength', 'Hue Strength', 0, 1, 0.05, '', transform.hueStrength)}
+            ${this._renderParameterSlider('saturationMultiplier', 'Saturation', 0, 3, 0.05, '×', transform.saturationMultiplier)}
+            ${this._renderParameterSlider('lightnessMultiplier', 'Lightness', 0, 2, 0.05, '×', transform.lightnessMultiplier)}
+          </lcards-form-section>
+
+          ${transform.hueAnchor ? html`
+            <lcards-form-section
+              .header=${'Hue Anchoring'}
+              .description=${'Pull colors toward a target hue range'}
+              ?expanded=${false}
+            >
+              ${this._renderParameterSlider('hueAnchor.centerHue', 'Center Hue', 0, 360, 1, '°', transform.hueAnchor.centerHue)}
+              ${this._renderParameterSlider('hueAnchor.range', 'Range', 0, 180, 5, '°', transform.hueAnchor.range)}
+              ${this._renderParameterSlider('hueAnchor.strength', 'Pull Strength', 0, 1, 0.05, '', transform.hueAnchor.strength)}
+            </lcards-form-section>
+          ` : ''}
+
+          ${transform.contrastEnhancement?.enabled ? html`
+            <lcards-form-section
+              .header=${'Contrast Enhancement'}
+              .description=${'Improve readability in dark modes'}
+              ?expanded=${false}
+            >
+              ${this._renderParameterSlider('contrastEnhancement.threshold', 'Threshold', 0, 100, 1, '%', transform.contrastEnhancement.threshold)}
+              ${this._renderParameterSlider('contrastEnhancement.darkMultiplier', 'Dark Multiplier', 0, 1, 0.05, '', transform.contrastEnhancement.darkMultiplier)}
+              ${this._renderParameterSlider('contrastEnhancement.lightMultiplier', 'Light Multiplier', 1, 2, 0.05, '', transform.contrastEnhancement.lightMultiplier)}
+            </lcards-form-section>
+          ` : ''}
+        </div>        <!-- Action Buttons -->
+        <div class="alert-lab-actions">
+          <ha-button @click="${this._applyAlertMode}">
+            <ha-icon icon="mdi:play" slot="icon"></ha-icon>
+            Apply Live
+          </ha-button>
+          <ha-button @click="${this._resetToDefaults}">
+            <ha-icon icon="mdi:restore" slot="icon"></ha-icon>
+            Reset to Defaults
+          </ha-button>
+          <ha-button @click="${this._exportAlertConfig}">
+            <ha-icon icon="mdi:export" slot="icon"></ha-icon>
+            Export Config
+          </ha-button>
+        </div>
+
+        <!-- Live Preview Swatches -->
+        <div class="preview-section">
+          <h4>Live Preview</h4>
+          <p class="preview-hint">Key LCARS colors in selected alert mode:</p>
+          ${this._renderAlertModePreviewSwatches()}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render a parameter slider control using ha-selector
+   */
+  _renderParameterSlider(paramPath, label, min, max, step, unit, value) {
+    const displayValue = value !== undefined ?
+      (step < 1 ? value.toFixed(2) : value.toFixed(0)) :
+      '—';
+
+    // Check if ha-selector is available
+    const hasHaSelector = customElements.get('ha-selector');
+
+    if (hasHaSelector) {
+      return html`
+        <ha-selector
+          .hass="${this.hass}"
+          .label="${label}"
+          .value="${value || min}"
+          .selector=${{
+            number: {
+              min: min,
+              max: max,
+              step: step,
+              mode: 'slider',
+              unit_of_measurement: unit
+            }
+          }}
+          @value-changed="${(e) => this._handleParamChange(paramPath, e.detail.value)}"
+        ></ha-selector>
+      `;
+    }
+
+    // Fallback to custom slider
+    return html`
+      <div class="slider-control">
+        <div class="slider-label-row">
+          <label>${label}</label>
+          <span class="slider-value">${displayValue}${unit}</span>
+        </div>
+        <input
+          type="range"
+          min="${min}"
+          max="${max}"
+          step="${step}"
+          .value="${value || min}"
+          @input="${(e) => this._handleParamChange(paramPath, parseFloat(e.target.value))}"
+          class="parameter-slider"
+        />
+      </div>
+    `;
+  }  /**
+   * Render alert mode preview swatches
+   */
+  _renderAlertModePreviewSwatches() {
+    // Key LCARS colors to show in preview
+    const keyColors = [
+      { name: 'Primary', cssVar: '--lcars-card-top-color' },
+      { name: 'Secondary', cssVar: '--lcars-ui-secondary' },
+      { name: 'Tertiary', cssVar: '--lcars-ui-tertiary' },
+      { name: 'Quaternary', cssVar: '--lcars-ui-quaternary' },
+      { name: 'Accent', cssVar: '--lcars-ui-primary' },
+      { name: 'Elbow', cssVar: '--lcars-card-elbow-color' },
+    ];
+
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+
+    return html`
+      <div class="preview-swatches-grid">
+        ${keyColors.map(c => {
+          const originalColor = computedStyle.getPropertyValue(c.cssVar).trim();
+          const transformedColor = transformColorToAlertMode(originalColor, this._selectedAlertMode);
+
+          return html`
+            <div class="preview-swatch-item">
+              <div
+                class="preview-swatch"
+                style="background-color: ${transformedColor}"
+                title="${c.name}: ${transformedColor}"
+              ></div>
+              <span class="swatch-label">${c.name}</span>
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
   // Dialog control methods
   _openDialog() {
     lcardsLog.debug('[ThemeTokenBrowser] Opening dialog', {
@@ -1454,6 +1859,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._scanAllCssVariables(); // Scan all CSS variables
     this._detectHaTheme(); // Detect active HA theme
     this._applyFilters(); // Apply initial filters when opening
+
+    // Initialize Alert Lab with current running alert mode
+    if (window.lcards?.getAlertMode) {
+      this._selectedAlertMode = window.lcards.getAlertMode();
+      lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
+    }
   }
 
   _closeDialog() {
@@ -2368,6 +2779,106 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Fallback to original value if conversion fails
     return colorValue;
+  }
+
+  /**
+   * Alert Mode Lab Event Handlers
+   */
+
+  async _handleModeChange(e) {
+    this._selectedAlertMode = e.target.value;
+    lcardsLog.debug('[AlertLab] Mode changed to:', this._selectedAlertMode);
+
+    // If auto-apply is enabled, switch to the new alert mode immediately
+    if (this._livePreviewEnabled) {
+      await this._applyAlertMode();
+    }
+
+    // Force re-render to show new parameters
+    this.requestUpdate();
+  }
+
+  _handleParamChange(paramPath, value) {
+    lcardsLog.debug('[AlertLab] Parameter changed:', paramPath, value);
+
+    // Handle nested parameters (e.g., hueAnchor.centerHue)
+    if (paramPath.includes('.')) {
+      const [parent, child] = paramPath.split('.');
+      const currentTransform = getAlertModeTransform(this._selectedAlertMode);
+      const parentObj = { ...currentTransform[parent], [child]: value };
+      setAlertModeTransformParameter(this._selectedAlertMode, parent, parentObj);
+    } else {
+      setAlertModeTransformParameter(this._selectedAlertMode, paramPath, value);
+    }
+
+    // Force re-render to update slider value display
+    this.requestUpdate();
+
+    // Auto-apply if enabled
+    if (this._livePreviewEnabled) {
+      // Debounce the apply
+      clearTimeout(this._applyDebounceTimeout);
+      this._applyDebounceTimeout = setTimeout(() => {
+        this._applyAlertMode();
+      }, 150);
+    }
+  }
+
+  async _applyAlertMode() {
+    lcardsLog.info('[AlertLab] Applying alert mode:', this._selectedAlertMode);
+
+    if (!this.hass) {
+      lcardsLog.warn('[AlertLab] No hass instance available');
+      return;
+    }
+
+    try {
+      // Use the window.lcards API to apply
+      if (window.lcards?.setAlertMode) {
+        await window.lcards.setAlertMode(this._selectedAlertMode);
+        lcardsLog.info('[AlertLab] Alert mode applied successfully');
+        // Force preview update
+        this.requestUpdate();
+      }
+    } catch (error) {
+      lcardsLog.error('[AlertLab] Error applying alert mode:', error);
+    }
+  }
+
+  async _resetToDefaults() {
+    lcardsLog.info('[AlertLab] Resetting to defaults:', this._selectedAlertMode);
+
+    resetAlertModeTransform(this._selectedAlertMode);
+
+    // Force re-render
+    this.requestUpdate();
+
+    // Auto-apply if enabled
+    if (this._livePreviewEnabled) {
+      await this._applyAlertMode();
+    }
+  }
+
+  async _exportAlertConfig() {
+    try {
+      const config = await window.lcards.alertConfig.export();
+      const json = JSON.stringify(config, null, 2);
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(json);
+
+      lcardsLog.info('[AlertLab] Configuration copied to clipboard');
+
+      // Show notification (if available)
+      if (this.hass?.callService) {
+        this.hass.callService('persistent_notification', 'create', {
+          message: `Alert mode configuration copied to clipboard!\n\n\`\`\`json\n${json}\n\`\`\``,
+          title: 'LCARdS Alert Config Exported'
+        });
+      }
+    } catch (error) {
+      lcardsLog.error('[AlertLab] Error exporting config:', error);
+    }
   }
 }
 
