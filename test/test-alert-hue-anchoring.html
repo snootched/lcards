@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCARdS Alert Mode Hue Anchoring Test</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #ff9900;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #9999ff;
+            font-size: 1.2em;
+            font-style: italic;
+        }
+
+        .alert-section {
+            margin: 30px 0;
+            padding: 30px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            background: #1a1a1a;
+        }
+
+        .alert-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .red-alert { color: #ff4444; border-color: #ff4444; }
+        .blue-alert { color: #6666ff; border-color: #6666ff; }
+        .yellow-alert { color: #ffcc44; border-color: #ffcc44; }
+        .green-alert { color: #66ff66; border-color: #66ff66; }
+
+        .config-info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .color-swatch {
+            text-align: center;
+            padding: 20px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .color-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .color-code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .explanation {
+            background: #252525;
+            padding: 20px;
+            border-left: 4px solid #ff9900;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .explanation h3 {
+            margin-top: 0;
+            color: #ff9900;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-panel {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .comparison-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .old-style { border-color: #666; }
+        .new-style { border-color: #ff9900; }
+
+        .success-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #2d5016;
+            color: #66ff66;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .hue-range {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #333;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 LCARdS Alert Mode Hue Anchoring</h1>
+        <div class="subtitle">Creating Cohesive Color Personalities for Modern LCARS Alert Modes</div>
+    </div>
+
+    <div class="explanation">
+        <h3>What is Hue Anchoring?</h3>
+        <p>
+            Hue anchoring is a color transformation technique that pulls all colors toward a specific hue range,
+            creating a cohesive "color personality" for each alert mode. This matches the polished aesthetic of
+            modern Star Trek interfaces (Discovery, Picard, Lower Decks) where alert modes have a distinct, 
+            unified color scheme.
+        </p>
+        <p>
+            <strong>How it works:</strong>
+            <br>1. Colors are first rotated toward the alert mode's target hue
+            <br>2. Hue anchoring then pulls colors outside the target range back toward the range boundaries
+            <br>3. Colors remain distinguishable while feeling cohesively themed
+        </p>
+    </div>
+
+    <div class="comparison">
+        <div class="comparison-panel old-style">
+            <div class="comparison-title">❌ Old: Pure Rotation</div>
+            <div class="config-info">
+                Colors spread across<br>
+                entire color wheel<br>
+                <br>
+                Result: Less cohesive<br>
+                "scattered" appearance
+            </div>
+        </div>
+        <div class="comparison-panel new-style">
+            <div class="comparison-title">✅ New: Hue Anchoring</div>
+            <div class="config-info">
+                Colors concentrated in<br>
+                target hue range<br>
+                <br>
+                Result: Cohesive<br>
+                alert personality
+            </div>
+        </div>
+    </div>
+
+    <!-- RED ALERT -->
+    <div class="alert-section red-alert">
+        <div class="alert-title">
+            ⚠️ Red Alert
+            <span class="success-indicator">✓ ANCHORED</span>
+        </div>
+        <div class="config-info">
+            centerHue: 0° (Red)
+            range: ±60° (magenta to orange)
+            strength: 0.85 (very strong pull)
+            <br><br>
+            Target Range: <span class="hue-range">300° - 60°</span>
+            <br>
+            Result: All colors biased toward red-orange-magenta zone
+        </div>
+        <div class="color-palette">
+            <div class="color-swatch" style="background: #e63700;">
+                <div class="color-name">LCARS Orange</div>
+                <div class="color-code">#e63700<br>14° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #f2ff70;">
+                <div class="color-name">LCARS Blue</div>
+                <div class="color-code">#f2ff70<br>65° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #bbc67b;">
+                <div class="color-name">LCARS Violet</div>
+                <div class="color-code">#bbc67b<br>69° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #c6b77b;">
+                <div class="color-name">LCARS Green</div>
+                <div class="color-code">#c6b77b<br>48° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #d05f43;">
+                <div class="color-name">LCARS Tan</div>
+                <div class="color-code">#d05f43<br>12° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #d04343;">
+                <div class="color-name">LCARS Red</div>
+                <div class="color-code">#d04343<br>0° hue</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLUE ALERT -->
+    <div class="alert-section blue-alert">
+        <div class="alert-title">
+            🔷 Blue Alert
+            <span class="success-indicator">✓ ANCHORED</span>
+        </div>
+        <div class="config-info">
+            centerHue: 210° (Deep Blue)
+            range: ±60° (cyan to purple)
+            strength: 0.85 (very strong pull)
+            <br><br>
+            Target Range: <span class="hue-range">150° - 270°</span>
+            <br>
+            Result: All colors biased toward cyan-blue-purple zone
+        </div>
+        <div class="color-palette">
+            <div class="color-swatch" style="background: #00ff79;">
+                <div class="color-name">LCARS Orange</div>
+                <div class="color-code">#00ff79<br>149° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #99b8ff;">
+                <div class="color-name">LCARS Blue</div>
+                <div class="color-code">#99b8ff<br>222° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #9e99cc;">
+                <div class="color-name">LCARS Violet</div>
+                <div class="color-code">#9e99cc<br>246° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #99ccc7;">
+                <div class="color-name">LCARS Green</div>
+                <div class="color-code">#99ccc7<br>174° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #66cc96;">
+                <div class="color-name">LCARS Tan</div>
+                <div class="color-code">#66cc96<br>148° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #66cc93;">
+                <div class="color-name">LCARS Red</div>
+                <div class="color-code">#66cc93<br>146° hue</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YELLOW ALERT -->
+    <div class="alert-section yellow-alert">
+        <div class="alert-title">
+            ⚡ Yellow Alert
+            <span class="success-indicator">✓ ANCHORED</span>
+        </div>
+        <div class="config-info">
+            centerHue: 45° (Amber)
+            range: ±45° (orange to yellow)
+            strength: 0.8 (strong pull)
+            <br><br>
+            Target Range: <span class="hue-range">0° - 90°</span>
+            <br>
+            Result: All colors biased toward orange-yellow-amber zone
+        </div>
+        <div class="color-palette">
+            <div class="color-swatch" style="background: #ff9900; color: #000;">
+                <div class="color-name">LCARS Orange</div>
+                <div class="color-code">#ff9900<br>~36° hue (in range)</div>
+            </div>
+            <div class="color-swatch" style="background: #ffd666; color: #000;">
+                <div class="color-name">LCARS Blue</div>
+                <div class="color-code">~55° hue (yellow-gold)</div>
+            </div>
+            <div class="color-swatch" style="background: #ffaa44; color: #000;">
+                <div class="color-name">LCARS Violet</div>
+                <div class="color-code">~35° hue (warm orange)</div>
+            </div>
+            <div class="color-swatch" style="background: #ccb366; color: #000;">
+                <div class="color-name">LCARS Green</div>
+                <div class="color-code">~45° hue (amber)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GREEN ALERT (Normal Mode) -->
+    <div class="alert-section green-alert">
+        <div class="alert-title">
+            ✓ Green Alert (Normal Mode)
+        </div>
+        <div class="config-info">
+            hueAnchor: null (no transformation)
+            <br><br>
+            Result: Original LCARS colors unchanged
+        </div>
+        <div class="color-palette">
+            <div class="color-swatch" style="background: #FF9900; color: #000;">
+                <div class="color-name">LCARS Orange</div>
+                <div class="color-code">#FF9900<br>36° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #9999FF;">
+                <div class="color-name">LCARS Blue</div>
+                <div class="color-code">#9999FF<br>240° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #CC99CC;">
+                <div class="color-name">LCARS Violet</div>
+                <div class="color-code">#CC99CC<br>300° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #99CC99;">
+                <div class="color-name">LCARS Green</div>
+                <div class="color-code">#99CC99<br>120° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #CC9966;">
+                <div class="color-name">LCARS Tan</div>
+                <div class="color-code">#CC9966<br>30° hue</div>
+            </div>
+            <div class="color-swatch" style="background: #CC6666;">
+                <div class="color-name">LCARS Red</div>
+                <div class="color-code">#CC6666<br>0° hue</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="explanation">
+        <h3>Benefits of Hue Anchoring</h3>
+        <ul>
+            <li><strong>Cohesive Visual Identity:</strong> Each alert mode has a distinct "color personality"</li>
+            <li><strong>Modern LCARS Aesthetic:</strong> Matches polished look of Discovery/Picard interfaces</li>
+            <li><strong>Preserved Distinctiveness:</strong> Colors remain distinguishable within range</li>
+            <li><strong>Fine-Tunable:</strong> Adjust centerHue, range, and strength per alert mode</li>
+            <li><strong>Backward Compatible:</strong> Green/gray/black alerts unchanged</li>
+        </ul>
+    </div>
+
+    <div class="explanation">
+        <h3>Technical Implementation</h3>
+        <p>
+            The hue anchoring algorithm calculates the shortest distance on the circular color wheel 
+            (handling 360°→0° wrapping correctly), then interpolates colors outside the target range 
+            back toward the range edge using a configurable strength parameter.
+        </p>
+        <p>
+            <strong>File:</strong> <code>src/core/themes/alertModeTransform.js</code><br>
+            <strong>Function:</strong> <code>applyHueAnchor(hue, anchor)</code><br>
+            <strong>Applied:</strong> After hue shift, before saturation/lightness adjustments
+        </p>
+    </div>
+
+</body>
+</html>

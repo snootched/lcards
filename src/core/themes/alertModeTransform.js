@@ -118,6 +118,11 @@ function applyHueAnchor(hue, anchor) {
   
   const { centerHue, range, strength } = anchor;
   
+  // Validate anchor configuration
+  if (centerHue === undefined || range === undefined || strength === undefined) {
+    return hue;
+  }
+  
   // Calculate shortest distance on circular color wheel
   let distance = hue - centerHue;
   
@@ -187,8 +192,15 @@ export function transformColorToAlertMode(color, alertMode) {
   // Step 1: Apply hue shift (blend toward target hue)
   if (transform.hueStrength > 0) {
     const targetHue = transform.hueShift;
-    // Interpolate between current and target hue
-    h = h + (targetHue - h) * transform.hueStrength;
+    
+    // Calculate shortest distance on circular color wheel
+    let distance = targetHue - h;
+    if (distance > 180) distance -= 360;
+    if (distance < -180) distance += 360;
+    
+    // Interpolate using shortest path
+    h = h + distance * transform.hueStrength;
+    
     // Normalize to 0-360
     h = ((h % 360) + 360) % 360;
   }
