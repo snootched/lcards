@@ -11,7 +11,7 @@ import { ColorUtils } from './ColorUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
- * Alert mode transformation parameters
+ * Default alert mode transformation parameters (immutable)
  * Each mode defines how to shift hue, saturation, and lightness
  *
  * Hue Anchoring:
@@ -22,7 +22,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Colors outside the range are pulled back toward the range edge.
  * This creates a cohesive color personality for each alert mode.
  */
-export const ALERT_MODE_TRANSFORMS = {
+const DEFAULT_ALERT_MODE_TRANSFORMS = {
   green_alert: {
     // Normal mode — no transformation
     hueShift: 0,
@@ -96,6 +96,116 @@ export const ALERT_MODE_TRANSFORMS = {
     }
   }
 };
+
+// Runtime transform overrides (mutable - starts empty)
+let runtimeTransformOverrides = {};
+
+/**
+ * Get alert mode transform configuration
+ * Merges default transforms with runtime overrides
+ *
+ * @param {string} mode - Alert mode name (e.g., 'red_alert')
+ * @returns {Object} Transform configuration
+ */
+export function getAlertModeTransform(mode) {
+  const defaultTransform = DEFAULT_ALERT_MODE_TRANSFORMS[mode];
+  const runtimeOverride = runtimeTransformOverrides[mode];
+
+  if (!defaultTransform) {
+    lcardsLog.warn(`[AlertModeTransform] Unknown mode: ${mode}`);
+    return null;
+  }
+
+  // No overrides - return default
+  if (!runtimeOverride) {
+    return { ...defaultTransform };
+  }
+
+  // Merge default + override (deep merge for nested objects like hueAnchor)
+  return {
+    ...defaultTransform,
+    ...runtimeOverride,
+    // Deep merge hueAnchor if present in both
+    hueAnchor: runtimeOverride.hueAnchor
+      ? { ...defaultTransform.hueAnchor, ...runtimeOverride.hueAnchor }
+      : defaultTransform.hueAnchor,
+    // Deep merge contrastEnhancement if present in both
+    contrastEnhancement: runtimeOverride.contrastEnhancement
+      ? { ...defaultTransform.contrastEnhancement, ...runtimeOverride.contrastEnhancement }
+      : defaultTransform.contrastEnhancement
+  };
+}
+
+/**
+ * Set a single parameter for an alert mode at runtime
+ *
+ * @param {string} mode - Alert mode name
+ * @param {string} parameter - Parameter name (e.g., 'hueShift', 'saturationMultiplier')
+ * @param {*} value - New value
+ */
+export function setAlertModeTransformParameter(mode, parameter, value) {
+  if (!DEFAULT_ALERT_MODE_TRANSFORMS[mode]) {
+    lcardsLog.warn(`[AlertModeTransform] Cannot set param for unknown mode: ${mode}`);
+    return;
+  }
+
+  if (!runtimeTransformOverrides[mode]) {
+    runtimeTransformOverrides[mode] = {};
+  }
+
+  runtimeTransformOverrides[mode][parameter] = value;
+  lcardsLog.debug(`[AlertModeTransform] Set ${mode}.${parameter} = ${JSON.stringify(value)}`);
+}
+
+/**
+ * Reset a specific alert mode to default configuration
+ *
+ * @param {string} mode - Alert mode name
+ */
+export function resetAlertModeTransform(mode) {
+  delete runtimeTransformOverrides[mode];
+  lcardsLog.info(`[AlertModeTransform] Reset ${mode} to defaults`);
+}
+
+/**
+ * Reset all alert modes to default configuration
+ */
+export function resetAllAlertModeTransforms() {
+  runtimeTransformOverrides = {};
+  lcardsLog.info('[AlertModeTransform] Reset all modes to defaults');
+}
+
+/**
+ * Get current runtime overrides (for export/persistence)
+ *
+ * @returns {Object} Copy of runtime overrides
+ */
+export function getRuntimeTransformOverrides() {
+  return JSON.parse(JSON.stringify(runtimeTransformOverrides));
+}
+
+/**
+ * Load runtime overrides (from import/persistence)
+ *
+ * @param {Object} overrides - Transform overrides to load
+ */
+export function loadRuntimeTransformOverrides(overrides) {
+  runtimeTransformOverrides = JSON.parse(JSON.stringify(overrides));
+  lcardsLog.info('[AlertModeTransform] Loaded runtime overrides', overrides);
+}
+
+/**
+ * Get default transform for a mode (without runtime overrides)
+ *
+ * @param {string} mode - Alert mode name
+ * @returns {Object} Default transform configuration
+ */
+export function getDefaultAlertModeTransform(mode) {
+  return DEFAULT_ALERT_MODE_TRANSFORMS[mode] ? { ...DEFAULT_ALERT_MODE_TRANSFORMS[mode] } : null;
+}
+
+// Backwards compatibility: export defaults as ALERT_MODE_TRANSFORMS
+export const ALERT_MODE_TRANSFORMS = DEFAULT_ALERT_MODE_TRANSFORMS;
 
 /**
  * Calculate shortest distance between two hues on circular color wheel
@@ -193,7 +303,8 @@ function applyHueAnchor(hue, anchor) {
  * @returns {string} Transformed color (hex)
  */
 export function transformColorToAlertMode(color, alertMode) {
-  const transform = ALERT_MODE_TRANSFORMS[alertMode];
+  // Use getter that merges defaults + runtime overrides
+  const transform = getAlertModeTransform(alertMode);
   if (!transform) {
     lcardsLog.warn(`[AlertModeTransform] Unknown mode: ${alertMode}`);
     return color;

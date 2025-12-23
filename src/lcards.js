@@ -264,4 +264,83 @@ window.lcards.blackAlert = async () => window.lcards.setAlertMode('black_alert')
 window.lcards.normalAlert = async () => window.lcards.setAlertMode('green_alert');
 window.lcards.greenAlert = async () => window.lcards.setAlertMode('green_alert');
 
+/**
+ * Runtime Alert Mode Configuration API
+ * Allows live adjustment of transformation parameters without rebuild
+ */
+window.lcards.alertConfig = {
+  /**
+   * Set a single parameter for an alert mode
+   * @param {string} mode - Alert mode name (e.g., 'red_alert')
+   * @param {string} parameter - Parameter name (e.g., 'saturationMultiplier')
+   * @param {*} value - New value
+   * @param {boolean} applyNow - If true, re-apply the current alert mode immediately
+   */
+  setParam: async (mode, parameter, value, applyNow = false) => {
+    const { setAlertModeTransformParameter } = await import('./core/themes/alertModeTransform.js');
+    setAlertModeTransformParameter(mode, parameter, value);
+
+    if (applyNow && window.lcards.getAlertMode() === mode) {
+      await window.lcards.setAlertMode(mode);
+    }
+  },
+
+  /**
+   * Get current transform configuration for a mode
+   * @param {string} mode - Alert mode name
+   * @returns {Object} Transform configuration
+   */
+  getTransform: async (mode) => {
+    const { getAlertModeTransform } = await import('./core/themes/alertModeTransform.js');
+    return getAlertModeTransform(mode);
+  },
+
+  /**
+   * Reset a mode to default configuration
+   * @param {string} mode - Alert mode name
+   * @param {boolean} applyNow - If true, re-apply if this is the current mode
+   */
+  reset: async (mode, applyNow = false) => {
+    const { resetAlertModeTransform } = await import('./core/themes/alertModeTransform.js');
+    resetAlertModeTransform(mode);
+
+    if (applyNow && window.lcards.getAlertMode() === mode) {
+      await window.lcards.setAlertMode(mode);
+    }
+  },
+
+  /**
+   * Reset all modes to defaults
+   * @param {boolean} applyNow - If true, re-apply the current alert mode
+   */
+  resetAll: async (applyNow = true) => {
+    const { resetAllAlertModeTransforms } = await import('./core/themes/alertModeTransform.js');
+    resetAllAlertModeTransforms();
+
+    // Re-apply current mode to update CSS variables
+    if (applyNow) {
+      const currentMode = window.lcards.getAlertMode();
+      await window.lcards.setAlertMode(currentMode);
+    }
+  },
+
+  /**
+   * Export current runtime overrides as JSON
+   * @returns {Object} Runtime overrides
+   */
+  export: async () => {
+    const { getRuntimeTransformOverrides } = await import('./core/themes/alertModeTransform.js');
+    return getRuntimeTransformOverrides();
+  },
+
+  /**
+   * Import runtime overrides from JSON
+   * @param {Object} overrides - Transform overrides to load
+   */
+  import: async (overrides) => {
+    const { loadRuntimeTransformOverrides } = await import('./core/themes/alertModeTransform.js');
+    loadRuntimeTransformOverrides(overrides);
+  }
+};
+
 lcardsLog.info('[lcards.js] ✅ Alert mode console API attached');
