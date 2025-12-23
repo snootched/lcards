@@ -17,6 +17,7 @@
 import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from './ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
+import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS } from './paletteInjector.js';
 
 /**
  * Built-in filter presets for base SVG
@@ -91,6 +92,9 @@ export class ThemeManager extends BaseService {
 
     /** @type {boolean} Initialization state */
     this.initialized = false;
+
+    // Alert mode tracking
+    this.currentAlertMode = 'green_alert';
   }
 
   /**
@@ -508,6 +512,50 @@ export class ThemeManager extends BaseService {
       resolvedValue,
       usedByFields
     });
+  }
+
+  /**
+   * Set alert mode
+   * 
+   * @param {string} mode - Alert mode ('red_alert', 'blue_alert', etc.)
+   * @returns {Promise<void>}
+   */
+  async setAlertMode(mode) {
+    if (!ALERT_MODE_TRANSFORMS[mode]) {
+      lcardsLog.warn(`[ThemeManager] Unknown alert mode: ${mode}`);
+      return;
+    }
+    
+    // Get HASS instance
+    const hass = this._hass || window.lcards?.core?._currentHass;
+    if (!hass) {
+      lcardsLog.error('[ThemeManager] Cannot set alert mode - HASS not available');
+      return;
+    }
+    
+    // Apply alert mode
+    await injectAlertMode(mode, hass);
+    
+    // Update state
+    this.currentAlertMode = mode;
+    
+    // Clear token cache (colors have changed)
+    if (this.resolver) {
+      this.resolver.clearCache();
+    }
+    
+    // Notify subscribers
+    this._notifyThemeChange('alert_mode', { mode });
+    
+    lcardsLog.info(`[ThemeManager] ✅ Alert mode: ${mode}`);
+  }
+
+  /**
+   * Get current alert mode
+   * @returns {string}
+   */
+  getAlertMode() {
+    return this.currentAlertMode;
   }
 
   /**

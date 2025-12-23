@@ -42,9 +42,6 @@ import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
 // Ensure global namespace
 window.lcards = window.lcards || {};
 
-// Promises for loading the templates and stub configuration
-let themeColorsPromise;
-
 window.lcards.loadFont = loadFont;
 
 
@@ -142,19 +139,12 @@ async function initializeCustomCard() {
         // This is okay - singletons will initialize when first card loads with real HASS
     }
 
-    ///load yaml configs
-    // Await YAML configs
-    //themeColorsPromise = loadThemeColors(LCARdS.theme_colors_uri);
-
     // Await SVG preload
     await preloadSVGs(LCARdS.builtin_svg_keys, LCARdS.builtin_svg_basepath)
         .catch(error => lcardsLog.error('[initializeCustomCard] Error preloading built-in SVGs:', error));
 
     // Await font loading if loadCoreFonts is async
     await loadCoreFonts();
-
-    // Await YAML config loading
-    //await Promise.all([themeColorsPromise]);
 }
 
 
@@ -189,60 +179,6 @@ initializeCustomCard()
     .catch(error => {
         lcardsLog.error('[initializeCustomCard.then()] Error initializing custom card:', error);
     });
-
-
-async function loadThemeColors(filePath) {
-    try {
-        const yamlContent = await readYamlFile(filePath);
-
-        // Merge the lcards stanza with the existing window.lcards object
-        if (yamlContent.lcards) {
-            window.lcards = {
-                ...window.lcards,
-                ...yamlContent.lcards
-            };
-        }
-        lcardsLog.info(`[loadThemeColors] LCARdS theme colors loaded from source file [${filePath}]`, yamlContent);
-        setThemeColors(window.lcards.themes, 'green');
-    } catch (error) {
-        lcardsLog.error('[loadThemeColors] Failed to get the LCARdS theme colors from source file.', error);
-    }
-}
-
-function setThemeColors(themes, alertCondition = 'green', clobber = false) {
-    const selectedTheme = themes[`${alertCondition}_alert`];
-    if (!selectedTheme) {
-        lcardsLog.error(`[setThemeColors] Theme for alert condition ${alertCondition} is not defined.`, '', lcardsGetGlobalLogLevel());
-        return;
-    }
-
-    const colors = selectedTheme.colors;
-    const skippedColors = [];
-
-    for (const [colorGroup, colorValues] of Object.entries(colors)) {
-        for (const [colorName, colorValue] of Object.entries(colorValues)) {
-            const cssVarName = `--${colorName}`;
-            const existingValue = getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim();
-
-            if (clobber || !existingValue) {
-                lcardsLog.warn(`[setThemeColors] Color undefined or overridden - Setting ${cssVarName}=${colorValue}`, '', lcardsGetGlobalLogLevel());
-                document.documentElement.style.setProperty(cssVarName, colorValue);
-            } else {
-                // Track skipped colors instead of logging each one
-                skippedColors.push(cssVarName);
-            }
-        }
-    }
-
-    // Log summary of skipped colors (if any)
-    if (skippedColors.length > 0) {
-        lcardsLog.debug(`[setThemeColors] Preserved ${skippedColors.length} theme colors already defined by HA theme`, '', lcardsGetGlobalLogLevel());
-    }
-}
-function setAlertCondition(alertCondition) {
-    setThemeColors(window.lcards.themes, alertCondition,true);
-}
-window.lcards.setAlertCondition = setAlertCondition;
 
 
 // Register the cards to be available in the GUI editor
@@ -293,3 +229,37 @@ const LCARdSCardClasses = [
 ];
 
 window.customCards.push(...LCARdSCardClasses);
+
+// ============================================================================
+// ALERT MODE CONSOLE API
+// ============================================================================
+
+/**
+ * Set alert mode (console/testing API)
+ * @param {string} mode - Alert mode name
+ */
+window.lcards.setAlertMode = async (mode) => {
+  if (!window.lcards?.core?.themeManager) {
+    console.warn('[LCARdS] ThemeManager not initialized');
+    return;
+  }
+  await window.lcards.core.themeManager.setAlertMode(mode);
+};
+
+/**
+ * Get current alert mode
+ * @returns {string}
+ */
+window.lcards.getAlertMode = () => {
+  return window.lcards?.core?.themeManager?.getAlertMode() || 'green_alert';
+};
+
+// Convenience shortcuts
+window.lcards.redAlert = () => window.lcards.setAlertMode('red_alert');
+window.lcards.blueAlert = () => window.lcards.setAlertMode('blue_alert');
+window.lcards.yellowAlert = () => window.lcards.setAlertMode('yellow_alert');
+window.lcards.greyAlert = () => window.lcards.setAlertMode('grey_alert');
+window.lcards.blackAlert = () => window.lcards.setAlertMode('black_alert');
+window.lcards.normalAlert = () => window.lcards.setAlertMode('green_alert');
+
+lcardsLog.info('[lcards.js] ✅ Alert mode console API attached');

@@ -150,3 +150,107 @@ export function isPaletteInjected(rootElement = null) {
   const testVar = getComputedStyle(root).getPropertyValue('--lcards-orange-medium');
   return !!testVar && testVar.trim().length > 0;
 }
+
+// ============================================================================
+// ALERT MODE SYSTEM
+// ============================================================================
+
+import { transformColorToAlertMode, ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+
+// Re-export ALERT_MODE_TRANSFORMS for external use
+export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+
+/**
+ * Reload Home Assistant theme to restore original CSS variables
+ * 
+ * @param {Object} hass - Home Assistant instance
+ * @returns {Promise<void>}
+ */
+export async function reloadHATheme(hass) {
+  if (!hass) {
+    lcardsLog.warn('[PaletteInjector] Cannot reload theme - Home Assistant instance not available. Theme restoration will fail. Alert mode changes may not revert properly.');
+    return;
+  }
+  
+  try {
+    lcardsLog.info('[PaletteInjector] Reloading HA theme...');
+    await hass.callService('frontend', 'reload_themes');
+    lcardsLog.info('[PaletteInjector] ✅ Theme reloaded');
+  } catch (error) {
+    lcardsLog.error('[PaletteInjector] ❌ Theme reload failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Set alert mode by transforming all --lcars-* variables
+ * 
+ * @param {string} mode - Alert mode ('green_alert', 'red_alert', etc.)
+ * @param {Object} hass - Home Assistant instance (required for reload)
+ * @param {Element} [rootElement] - Target element (default: document.documentElement)
+ * @returns {Promise<void>}
+ */
+export async function setAlertMode(mode, hass, rootElement = null) {
+  const root = rootElement || document.documentElement;
+  
+  // Validate mode
+  if (!ALERT_MODE_TRANSFORMS[mode]) {
+    lcardsLog.warn(`[PaletteInjector] Unknown alert mode: ${mode}, using green_alert`);
+    mode = 'green_alert';
+  }
+  
+  // Handle green_alert (normal mode) - restore original theme
+  if (mode === 'green_alert') {
+    await reloadHATheme(hass);
+    lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
+  } else {
+    // Transform ALL --lcars-* variables
+    await transformAndApplyAlertMode(mode, root);
+    lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
+  }
+  
+  // Dispatch event for cards to react
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('lcards-alert-mode-changed', {
+      detail: { mode }
+    }));
+  }
+}
+
+/**
+ * Transform and apply alert mode to all --lcars-* variables
+ * 
+ * @param {string} mode - Alert mode
+ * @param {Element} root - Root element
+ * @private
+ */
+async function transformAndApplyAlertMode(mode, root) {
+  const computedStyle = getComputedStyle(root);
+  const lcarsVars = {};
+  let transformCount = 0;
+  
+  // Enumerate ALL --lcars-* variables (but not --lcards-*)
+  for (let i = 0; i < computedStyle.length; i++) {
+    const varName = computedStyle[i];
+    
+    if (varName.startsWith('--lcars-') && !varName.startsWith('--lcards-')) {
+      const value = computedStyle.getPropertyValue(varName).trim();
+      if (value) {
+        lcarsVars[varName] = value;
+      }
+    }
+  }
+  
+  lcardsLog.debug(`[PaletteInjector] Found ${Object.keys(lcarsVars).length} --lcars-* variables`);
+  
+  // Transform and apply
+  Object.entries(lcarsVars).forEach(([varName, color]) => {
+    const transformed = transformColorToAlertMode(color, mode);
+    if (transformed !== color) {
+      root.style.setProperty(varName, transformed);
+      transformCount++;
+    }
+  });
+  
+  lcardsLog.debug(`[PaletteInjector] Transformed ${transformCount} variables`);
+}
