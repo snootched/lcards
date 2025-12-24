@@ -24,7 +24,9 @@ export class LCARdSRulesDashboard extends LitElement {
             hass: { type: Object },
             _rules: { type: Array, state: true },
             _sortColumn: { type: String, state: true },
-            _sortDirection: { type: String, state: true } // 'asc' | 'desc'
+            _sortDirection: { type: String, state: true }, // 'asc' | 'desc'
+            _previewDialogOpen: { type: Boolean, state: true },
+            _previewRule: { type: Object, state: true }
         };
     }
 
@@ -34,6 +36,8 @@ export class LCARdSRulesDashboard extends LitElement {
         this._sortColumn = 'id';
         this._sortDirection = 'asc';
         this.cardId = '';
+        this._previewDialogOpen = false;
+        this._previewRule = null;
     }
 
     static get styles() {
@@ -128,23 +132,7 @@ export class LCARdSRulesDashboard extends LitElement {
                 white-space: nowrap;
             }
 
-            .rules-table th:first-child,
-            .rules-table td:first-child {
-                position: sticky;
-                left: 0;
-                background: var(--card-background-color, #fff);
-                z-index: 1;
-            }
-
-            .rules-table th:first-child {
-                background: var(--secondary-background-color, #f5f5f5);
-            }
-
             .rules-table th:hover {
-                background: var(--divider-color, #e0e0e0);
-            }
-
-            .rules-table th:first-child:hover {
                 background: var(--divider-color, #e0e0e0);
             }
 
@@ -238,36 +226,73 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             .rule-row-actions {
-                display: none;
-                gap: 4px;
+                display: flex;
+                gap: 8px;
                 align-items: center;
                 justify-content: flex-end;
-            }
-
-            .rules-table tr:hover .rule-row-actions {
-                display: flex;
             }
 
             .action-button {
                 background: none;
                 border: none;
                 cursor: pointer;
-                padding: 4px 8px;
+                padding: 4px;
                 border-radius: 4px;
                 display: inline-flex;
                 align-items: center;
-                gap: 4px;
-                font-size: 11px;
+                justify-content: center;
                 color: var(--primary-color, #03a9f4);
-                transition: background 0.2s ease;
+                transition: all 0.2s ease;
+                width: 32px;
+                height: 32px;
             }
 
             .action-button:hover {
-                background: var(--secondary-background-color, #f5f5f5);
+                background: var(--primary-color, #03a9f4);
+                color: white;
             }
 
             .action-button ha-icon {
-                --mdc-icon-size: 16px;
+                --mdc-icon-size: 20px;
+            }
+
+            ha-dialog {
+                --mdc-dialog-max-width: 600px;
+            }
+
+            .rule-preview-dialog {
+                padding: 16px;
+            }
+
+            .rule-preview-dialog h3 {
+                margin: 0 0 16px 0;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .rule-preview-dialog .detail-row {
+                display: grid;
+                grid-template-columns: 120px 1fr;
+                gap: 12px;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid var(--divider-color, #e0e0e0);
+            }
+
+            .rule-preview-dialog .detail-row:last-child {
+                border-bottom: none;
+                margin-bottom: 0;
+                padding-bottom: 0;
+            }
+
+            .rule-preview-dialog .detail-label {
+                font-weight: 600;
+                color: var(--secondary-text-color, #666);
+            }
+
+            .rule-preview-dialog .detail-value {
+                font-family: monospace;
+                font-size: 13px;
             }
 
             .help-content {
@@ -567,7 +592,7 @@ export class LCARdSRulesDashboard extends LitElement {
         try {
             // Convert rule object to YAML-like string
             const yaml = this._ruleToYAML(rule);
-            
+
             // Copy to clipboard
             navigator.clipboard.writeText(yaml).then(() => {
                 console.log('[RulesDashboard] Copied rule YAML to clipboard:', rule.id);
@@ -672,7 +697,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
         for (const [key, value] of Object.entries(obj)) {
             if (value === null || value === undefined) continue;
-            
+
             if (typeof value === 'object' && !Array.isArray(value)) {
                 yaml += `${indent(level)}${key}:\n`;
                 yaml += this._objectToYAML(value, level + 1);
@@ -701,20 +726,17 @@ export class LCARdSRulesDashboard extends LitElement {
      */
     _handlePreview(rule) {
         console.log('[RulesDashboard] Preview rule:', rule.id);
-        
-        // Create a simple alert dialog showing rule details
-        const targets = this._getRuleTargets(rule);
-        const conditions = this._getConditionSummary(rule);
-        const actions = this._getActionsCount(rule);
-        
-        const message = `Rule: ${rule.id}\n\n` +
-                       `Target: ${targets}\n` +
-                       `Conditions: ${conditions}\n` +
-                       `Actions: ${actions}\n` +
-                       `Priority: ${rule.priority ?? 0}\n` +
-                       `Enabled: ${rule.enabled !== false ? 'Yes' : 'No'}`;
-        
-        alert(message);
+        this._previewRule = rule;
+        this._previewDialogOpen = true;
+    }
+
+    /**
+     * Close preview dialog
+     * @private
+     */
+    _closePreviewDialog() {
+        this._previewDialogOpen = false;
+        this._previewRule = null;
     }
 
     /**
@@ -836,13 +858,13 @@ export class LCARdSRulesDashboard extends LitElement {
                                                 class="action-button"
                                                 @click=${() => this._handlePreview(rule)}
                                                 title="Preview rule details">
-                                                👁️
+                                                <ha-icon icon="mdi:eye"></ha-icon>
                                             </button>
                                             <button
                                                 class="action-button"
                                                 @click=${() => this._handleCopyYAML(rule)}
                                                 title="Copy rule YAML to clipboard">
-                                                📋
+                                                <ha-icon icon="mdi:content-copy"></ha-icon>
                                             </button>
                                         </div>
                                     </td>
@@ -852,6 +874,72 @@ export class LCARdSRulesDashboard extends LitElement {
                     </tbody>
                 </table>
             </div>
+        `;
+    }
+
+    /**
+     * Render preview dialog
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderPreviewDialog() {
+        if (!this._previewRule) return '';
+
+        const rule = this._previewRule;
+        const targets = this._getRuleTargets(rule);
+        const conditions = this._getConditionSummary(rule);
+        const actions = this._getActionsCount(rule);
+
+        return html`
+            <ha-dialog
+                .open=${this._previewDialogOpen}
+                @closed=${this._closePreviewDialog}
+                .heading=${'Rule Details'}>
+                <div class="rule-preview-dialog">
+                    <h3>${rule.id || 'Unnamed Rule'}</h3>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Rule ID:</div>
+                        <div class="detail-value">${rule.id || 'N/A'}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Priority:</div>
+                        <div class="detail-value">${rule.priority ?? 0}${rule.stop ? ' (stops execution)' : ''}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value">${rule.enabled !== false ? 'Enabled' : 'Disabled'}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Source Card:</div>
+                        <div class="detail-value">${this._getSourceCard(rule)} (${this._getSourceCardType(rule)})</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Target:</div>
+                        <div class="detail-value">${targets}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Conditions:</div>
+                        <div class="detail-value">${conditions}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Actions:</div>
+                        <div class="detail-value">${actions} action${actions !== 1 ? 's' : ''}</div>
+                    </div>
+                </div>
+                <ha-button
+                    slot="primaryAction"
+                    @click=${this._closePreviewDialog}
+                    dialogAction="close">
+                    Close
+                </ha-button>
+            </ha-dialog>
         `;
     }
 
@@ -970,6 +1058,8 @@ rules:
                     </div>
                 </lcards-form-section>
             </div>
+
+            ${this._renderPreviewDialog()}
         `;
     }
 }
