@@ -676,6 +676,10 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--secondary-background-color);
       }
 
+      .tree-node-content:active {
+        transform: scale(0.98);
+      }
+
       .tree-node-content.selected {
         background: var(--primary-color);
         color: white;
@@ -1137,19 +1141,44 @@ export class LCARdSProvenanceTab extends LitElement {
       .chain-separator {
         align-self: center;
         color: var(--primary-color);
-        --mdc-icon-size: 24px;
-        margin: 4px 0;
+        --mdc-icon-size: 28px;
+        margin: 2px 0;
+        opacity: 0.6;
+      }
+
+      /* Border colors for different source types */
+      .resolution-step-card[data-source="defaults"],
+      .resolution-step-card[data-source="card_defaults"] {
+        border-left-color: #2196f3;
+      }
+
+      .resolution-step-card[data-source="theme"] {
+        border-left-color: #9c27b0;
+      }
+
+      .resolution-step-card[data-source="user"],
+      .resolution-step-card[data-source="user_config"] {
+        border-left-color: #4caf50;
+      }
+
+      .resolution-step-card[data-source="presets"] {
+        border-left-color: #ff9800;
+      }
+
+      .resolution-step-card[data-source="rules"] {
+        border-left-color: #f44336;
       }
 
       .resolution-final {
         margin-top: 16px;
-        padding: 12px;
+        padding: 16px;
         background: var(--primary-color);
         color: white;
         border-radius: 8px;
         display: flex;
         flex-direction: column;
         gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
 
       .resolution-final-label {
@@ -1157,30 +1186,33 @@ export class LCARdSProvenanceTab extends LitElement {
         font-weight: 600;
         text-transform: uppercase;
         opacity: 0.9;
+        letter-spacing: 0.5px;
       }
 
       .resolution-final-value {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         font-family: 'Roboto Mono', monospace;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 500;
       }
 
       .resolution-final-value code {
         color: white;
-        background: rgba(255, 255, 255, 0.15);
-        padding: 6px 10px;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 12px;
+        border-radius: 6px;
+        flex: 1;
       }
 
       .color-preview-inline {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 4px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
       }
 
       /* Before/After comparison */
@@ -2179,7 +2211,7 @@ export class LCARdSProvenanceTab extends LitElement {
           const sourceIcon = getSourceIcon(step.layer);
           
           return html`
-            <div class="resolution-step-card">
+            <div class="resolution-step-card" data-source="${step.layer || 'unknown'}">
               <div class="resolution-step-icon">
                 <ha-icon icon="${sourceIcon}"></ha-icon>
               </div>
