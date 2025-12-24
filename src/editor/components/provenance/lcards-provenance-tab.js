@@ -11,7 +11,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import '../shared/lcards-collapsible-section.js';
+import '../shared/lcards-form-section.js';
 
 /**
  * Provenance Inspector Tab Component
@@ -737,7 +737,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .node-source-badge {
         font-size: 11px;
         padding: 2px 8px;
-        border-radius: 10px;
+        border-radius: 12px;
         background: var(--secondary-background-color);
         color: var(--secondary-text-color);
         font-weight: 500;
@@ -817,7 +817,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .breadcrumb-sep {
-        color: var(--divider-color);
+        color: var(--primary-text-color);
       }
 
       .detail-section {
@@ -1792,7 +1792,7 @@ export class LCARdSProvenanceTab extends LitElement {
         </div>
         <div class="detail-breadcrumb">
           ${pathParts.map((part, i) => html`
-            ${i > 0 ? html`<span class="breadcrumb-sep">›</span>` : ''}
+            ${i > 0 ? html`<span class="breadcrumb-sep">>></span>` : ''}
             <span>${part}</span>
           `)}
         </div>
@@ -1820,9 +1820,9 @@ export class LCARdSProvenanceTab extends LitElement {
 
       <!-- Theme Token Resolution Section (expandable) -->
       ${themeTokenInfo ? html`
-        <lcards-collapsible-section
-          .title=${'Token Resolution'}
-          .icon=${'mdi:palette'}
+        <lcards-form-section
+          header="Token Resolution"
+          icon="mdi:palette"
           ?expanded=${!this._collapsedDetailSections.has('token')}>
           <div class="detail-section-content">
             ${this._renderResolutionChain(themeTokenInfo)}
@@ -1843,14 +1843,14 @@ export class LCARdSProvenanceTab extends LitElement {
               </div>
             ` : ''}
           </div>
-        </lcards-collapsible-section>
+        </lcards-form-section>
       ` : ''}
 
       <!-- Rule Patch Section (expandable with before/after) -->
       ${rulePatchInfo ? html`
-        <lcards-collapsible-section
-          .title=${'Rule Override'}
-          .icon=${'mdi:gavel'}
+        <lcards-form-section
+          header="Rule Override"
+          icon="mdi:gavel"
           ?expanded=${!this._collapsedDetailSections.has('patch')}>
           <div class="detail-section-content">
             ${this._renderBeforeAfter(
@@ -1872,14 +1872,14 @@ export class LCARdSProvenanceTab extends LitElement {
               </div>
             </div>
           </div>
-        </lcards-collapsible-section>
+        </lcards-form-section>
       ` : ''}
 
       <!-- Template Processing Section (expandable with before/after) -->
       ${templateInfo ? html`
-        <lcards-collapsible-section
-          .title=${'Template Processing'}
-          .icon=${'mdi:code-tags'}
+        <lcards-form-section
+          header="Template Processing"
+          icon="mdi:code-tags"
           ?expanded=${!this._collapsedDetailSections.has('template')}>
           <div class="detail-section-content">
             ${this._renderBeforeAfter(
@@ -1905,15 +1905,15 @@ export class LCARdSProvenanceTab extends LitElement {
               ` : ''}
             </div>
           </div>
-        </lcards-collapsible-section>
+        </lcards-form-section>
       ` : ''}
 
       <!-- Used By Tokens Section (if other tokens reference this field) -->
       ${usedByTokens.length > 0 ? html`
-        <lcards-collapsible-section
-          .title=${'Referenced By Tokens'}
-          .icon=${'mdi:link'}
-          .badge=${String(usedByTokens.length)}
+        <lcards-form-section
+          header="Referenced By Tokens"
+          icon="mdi:link"
+          secondary="${usedByTokens.length} token${usedByTokens.length !== 1 ? 's' : ''}"
           ?expanded=${!this._collapsedDetailSections.has('usedby')}>
           <div class="detail-section-content">
             <div class="used-by-list">
@@ -1926,15 +1926,15 @@ export class LCARdSProvenanceTab extends LitElement {
               `)}
             </div>
           </div>
-        </lcards-collapsible-section>
+        </lcards-form-section>
       ` : ''}
 
       <!-- Related Fields Section (expandable) -->
       ${relatedFields && (relatedFields.parent || relatedFields.children.length > 0) ? html`
-        <lcards-collapsible-section
-          .title=${'Related Fields'}
-          .icon=${'mdi:file-tree'}
-          .badge=${String(relatedFields.children.length)}
+        <lcards-form-section
+          header="Related Fields"
+          icon="mdi:file-tree"
+          secondary="${relatedFields.children.length} child${relatedFields.children.length !== 1 ? 'ren' : ''}"
           ?expanded=${!this._collapsedDetailSections.has('related')}>
           <div class="detail-section-content">
             ${relatedFields.parent ? html`
@@ -1966,7 +1966,7 @@ export class LCARdSProvenanceTab extends LitElement {
               </div>
             ` : ''}
           </div>
-        </lcards-collapsible-section>
+        </lcards-form-section>
       ` : ''}
 
       <!-- Fallback if no additional info -->
@@ -2209,7 +2209,7 @@ export class LCARdSProvenanceTab extends LitElement {
         ${themeTokenInfo.resolution_chain.map((step, index) => {
           const isLast = index === themeTokenInfo.resolution_chain.length - 1;
           const sourceIcon = getSourceIcon(step.layer);
-          
+
           return html`
             <div class="resolution-step-card" data-source="${step.layer || 'unknown'}">
               <div class="resolution-step-icon">
@@ -2308,14 +2308,11 @@ export class LCARdSProvenanceTab extends LitElement {
     const sortedFields = this._sortFields(fields);
 
     return html`
-      <lcards-collapsible-section
-        .title=${this._formatLayerName(layer)}
-        .badge=${layer}
-        .badgeType=${layer}
-        .count=${fields.length}
-        .countLabel=${'fields'}
-        ?expanded=${isExpanded}
-        @toggle=${() => this._toggleSection(layer)}>
+      <lcards-form-section
+        header="${this._formatLayerName(layer)}"
+        secondary="${fields.length} field${fields.length !== 1 ? 's' : ''}"
+        icon="mdi:source-branch"
+        ?expanded=${isExpanded}>
         <table class="field-table">
           <thead>
             <tr>
@@ -2335,7 +2332,7 @@ export class LCARdSProvenanceTab extends LitElement {
             ${sortedFields.map(field => this._renderFieldRow(field))}
           </tbody>
         </table>
-      </lcards-collapsible-section>
+      </lcards-form-section>
     `;
   }
 
