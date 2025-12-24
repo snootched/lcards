@@ -645,7 +645,9 @@ export class LCARdSProvenanceTab extends LitElement {
       .tree-container {
         flex: 1;
         overflow-y: auto;
-        padding: 8px 16px 8px 8px;
+        padding: 12px;
+        background: var(--code-background-color, #1e1e1e);
+        border-radius: 8px;
       }
 
       .detail-pane {
@@ -674,9 +676,14 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--secondary-background-color);
       }
 
+      .tree-node-content:active {
+        transform: scale(0.98);
+      }
+
       .tree-node-content.selected {
         background: var(--primary-color);
         color: white;
+        font-weight: 500;
       }
 
       .tree-node-content.selected .node-label {
@@ -689,13 +696,17 @@ export class LCARdSProvenanceTab extends LitElement {
         color: white;
       }
 
+      .tree-node-content.selected ha-icon {
+        color: white;
+      }
+
       .tree-expander {
         width: 16px;
         height: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: 14px;
         color: var(--secondary-text-color);
         transition: transform 0.2s;
       }
@@ -705,7 +716,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .tree-expander.leaf {
-        opacity: 0;
+        visibility: hidden;
       }
 
       .node-icon {
@@ -1019,19 +1030,48 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .resolution-step-card {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
         border-radius: 8px;
+        border-left: 4px solid var(--mdc-theme-primary, #03a9f4);
         padding: 12px;
         display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s;
+      }
+
+      .resolution-step-card:hover {
+        background: var(--card-background-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .resolution-step-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-background-color);
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .resolution-step-icon ha-icon {
+        --mdc-icon-size: 24px;
+        color: var(--primary-color);
+      }
+
+      .resolution-step-body {
+        flex: 1;
+        display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 4px;
       }
 
       .resolution-step-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
+        gap: 8px;
+        margin-bottom: 8px;
       }
 
       .resolution-step-label {
@@ -1050,7 +1090,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .resolution-step-content {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
 
       .resolution-from,
@@ -1062,10 +1102,10 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .token-label {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--secondary-text-color);
         font-weight: 500;
-        min-width: 80px;
+        min-width: 90px;
       }
 
       .token-value {
@@ -1077,6 +1117,19 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-value code {
         flex: 1;
+        background: var(--primary-background-color);
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      .token-ref {
+        font-family: 'Roboto Mono', monospace;
+        color: var(--primary-color);
+        background: var(--primary-background-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
       }
 
       .resolution-arrow-down {
@@ -1088,19 +1141,44 @@ export class LCARdSProvenanceTab extends LitElement {
       .chain-separator {
         align-self: center;
         color: var(--primary-color);
-        --mdc-icon-size: 24px;
-        margin: 4px 0;
+        --mdc-icon-size: 28px;
+        margin: 2px 0;
+        opacity: 0.6;
+      }
+
+      /* Border colors for different source types */
+      .resolution-step-card[data-source="defaults"],
+      .resolution-step-card[data-source="card_defaults"] {
+        border-left-color: #2196f3;
+      }
+
+      .resolution-step-card[data-source="theme"] {
+        border-left-color: #9c27b0;
+      }
+
+      .resolution-step-card[data-source="user"],
+      .resolution-step-card[data-source="user_config"] {
+        border-left-color: #4caf50;
+      }
+
+      .resolution-step-card[data-source="presets"] {
+        border-left-color: #ff9800;
+      }
+
+      .resolution-step-card[data-source="rules"] {
+        border-left-color: #f44336;
       }
 
       .resolution-final {
         margin-top: 16px;
-        padding: 12px;
+        padding: 16px;
         background: var(--primary-color);
         color: white;
         border-radius: 8px;
         display: flex;
         flex-direction: column;
         gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
 
       .resolution-final-label {
@@ -1108,30 +1186,33 @@ export class LCARdSProvenanceTab extends LitElement {
         font-weight: 600;
         text-transform: uppercase;
         opacity: 0.9;
+        letter-spacing: 0.5px;
       }
 
       .resolution-final-value {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         font-family: 'Roboto Mono', monospace;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 500;
       }
 
       .resolution-final-value code {
         color: white;
-        background: rgba(255, 255, 255, 0.15);
-        padding: 6px 10px;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 12px;
+        border-radius: 6px;
+        flex: 1;
       }
 
       .color-preview-inline {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 4px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
       }
 
       /* Before/After comparison */
@@ -1657,9 +1738,11 @@ export class LCARdSProvenanceTab extends LitElement {
                 ${themeTokenInfo?.resolution_chain && themeTokenInfo.resolution_chain.length > 1 ? html`<span class="tree-badge" title="Has resolution chain">🔀</span>` : ''}
                 ${usedByTokens.length > 0 ? html`<span class="tree-badge" title="Referenced by ${usedByTokens.length} token(s)">🔖${usedByTokens.length}</span>` : ''}
               </span>
-              <span class="node-source-badge" data-source="${source}">
-                ${this._formatLayerName(source)}
-              </span>
+              ${!hasChildren ? html`
+                <span class="node-source-badge" data-source="${source}">
+                  ${this._formatLayerName(source)}
+                </span>
+              ` : ''}
             </div>
             ${hasChildren && isExpanded ? html`
               <div class="tree-children">
@@ -2091,7 +2174,7 @@ export class LCARdSProvenanceTab extends LitElement {
   }
 
   /**
-   * Render resolution chain as breadcrumb flow
+   * Render resolution chain as vertical timeline flow
    */
   _renderResolutionChain(themeTokenInfo) {
     if (!themeTokenInfo.resolution_chain || themeTokenInfo.resolution_chain.length === 0) {
@@ -2107,42 +2190,65 @@ export class LCARdSProvenanceTab extends LitElement {
       `;
     }
 
+    // Map source layers to icons
+    const getSourceIcon = (layer) => {
+      const iconMap = {
+        'defaults': 'mdi:cog',
+        'card_defaults': 'mdi:cog',
+        'theme': 'mdi:palette',
+        'user': 'mdi:account',
+        'user_config': 'mdi:account',
+        'presets': 'mdi:package-variant',
+        'rules': 'mdi:gavel'
+      };
+      return iconMap[layer] || 'mdi:arrow-right-circle';
+    };
+
     return html`
       <div class="resolution-chain-flow">
-        ${themeTokenInfo.resolution_chain.map((step, index) => html`
-          <div class="resolution-step-card">
-            <div class="resolution-step-header">
-              <span class="resolution-step-label">Step ${index + 1}</span>
-              ${step.layer ? html`<span class="source-layer-badge small" data-source="${step.layer}">${this._formatLayerName(step.layer)}</span>` : ''}
-            </div>
-            <div class="resolution-step-content">
-              ${step.from ? html`
-                <div class="resolution-from">
-                  <span class="token-label">From:</span>
-                  <code class="token-ref">theme:${step.from}</code>
+        ${themeTokenInfo.resolution_chain.map((step, index) => {
+          const isLast = index === themeTokenInfo.resolution_chain.length - 1;
+          const sourceIcon = getSourceIcon(step.layer);
+          
+          return html`
+            <div class="resolution-step-card" data-source="${step.layer || 'unknown'}">
+              <div class="resolution-step-icon">
+                <ha-icon icon="${sourceIcon}"></ha-icon>
+              </div>
+              <div class="resolution-step-body">
+                <div class="resolution-step-header">
+                  <span class="resolution-step-label">Step ${index + 1}</span>
+                  ${step.layer ? html`<span class="source-layer-badge small" data-source="${step.layer}">${this._formatLayerName(step.layer)}</span>` : ''}
                 </div>
-              ` : html`
-                <div class="resolution-token">
-                  <span class="token-label">Token:</span>
-                  <code class="token-ref">theme:${step.token || themeTokenInfo.path}</code>
-                </div>
-              `}
-              <ha-icon icon="mdi:arrow-down" class="resolution-arrow-down"></ha-icon>
-              <div class="resolution-to">
-                <span class="token-label">Resolves to:</span>
-                <div class="token-value">
-                  ${this._isColorValue(step.to || step.value) ? html`
-                    <div class="color-preview-inline" style="background-color: ${step.to || step.value};"></div>
-                  ` : ''}
-                  <code>${this._formatValue(step.to || step.value)}</code>
+                <div class="resolution-step-content">
+                  ${step.from ? html`
+                    <div class="resolution-from">
+                      <span class="token-label">From:</span>
+                      <code class="token-ref">theme:${step.from}</code>
+                    </div>
+                  ` : html`
+                    <div class="resolution-token">
+                      <span class="token-label">Token:</span>
+                      <code class="token-ref">theme:${step.token || themeTokenInfo.path}</code>
+                    </div>
+                  `}
+                  <div class="resolution-to">
+                    <span class="token-label">Resolves to:</span>
+                    <div class="token-value">
+                      ${this._isColorValue(step.to || step.value) ? html`
+                        <div class="color-preview-inline" style="background-color: ${step.to || step.value};"></div>
+                      ` : ''}
+                      <code>${this._formatValue(step.to || step.value)}</code>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          ${index < themeTokenInfo.resolution_chain.length - 1 ? html`
-            <ha-icon icon="mdi:chevron-double-down" class="chain-separator"></ha-icon>
-          ` : ''}
-        `)}
+            ${!isLast ? html`
+              <ha-icon icon="mdi:chevron-double-down" class="chain-separator"></ha-icon>
+            ` : ''}
+          `;
+        })}
       </div>
       <div class="resolution-final">
         <div class="resolution-final-label">Final Resolved Value:</div>
