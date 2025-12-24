@@ -1,9 +1,9 @@
 /**
  * Template Examples Library
- * 
+ *
  * Pre-configured template examples for the Template Sandbox.
  * Each example demonstrates a specific template type with realistic use cases.
- * 
+ *
  * @module template-examples
  */
 
@@ -19,34 +19,34 @@ export const EXAMPLE_TEMPLATES = {
     mockEntity: 'light.kitchen',
     mockState: { state: 'on', attributes: {} }
   },
-  
+
   'entity-attribute': {
     name: 'Entity Attribute',
     template: 'Brightness: {entity.attributes.brightness}',
     description: 'Access entity attributes like brightness, temperature, etc.',
     mockEntity: 'light.living_room',
-    mockState: { 
-      state: 'on', 
-      attributes: { brightness: 200, color_temp: 300 } 
+    mockState: {
+      state: 'on',
+      attributes: { brightness: 200, color_temp: 300 }
     }
   },
-  
+
   'datasource-live': {
     name: 'Live DataSource',
-    template: 'Temperature: {datasource:sensor.temp:.1f}°C',
+    template: 'Temperature: {datasource:sensor_temp:.1f}°C',
     description: 'Access a live DataSource with formatting',
     mockEntity: 'sensor.temperature',
-    mockDataSources: { 'sensor.temp': 23.5 }
+    mockDataSources: { 'sensor_temp': 23.5 }
   },
-  
+
   'datasource-short': {
     name: 'DataSource (Short Syntax)',
-    template: 'Value: {ds:sensor.value}',
+    template: 'Value: {ds:sensor_value}',
     description: 'Use the short "ds:" prefix for datasources',
     mockEntity: 'sensor.example',
-    mockDataSources: { 'sensor.value': 42 }
+    mockDataSources: { 'sensor_value': 42 }
   },
-  
+
   'javascript-conditional': {
     name: 'JavaScript Conditional',
     template: '[[[return entity.state === "on" ? "Active" : "Idle"]]]',
@@ -54,55 +54,55 @@ export const EXAMPLE_TEMPLATES = {
     mockEntity: 'light.kitchen',
     mockState: { state: 'on', attributes: {} }
   },
-  
+
   'javascript-calculation': {
     name: 'JavaScript Calculation',
     template: '[[[return Math.round(entity.attributes.temperature * 1.8 + 32) + "°F"]]]',
     description: 'Perform calculations with JavaScript',
     mockEntity: 'sensor.temperature',
-    mockState: { 
-      state: '20', 
-      attributes: { temperature: 20, unit_of_measurement: '°C' } 
+    mockState: {
+      state: '20',
+      attributes: { temperature: 20, unit_of_measurement: '°C' }
     }
   },
-  
+
   'jinja2-basic': {
     name: 'Jinja2 Template',
     template: '{{states("sensor.temperature") | float | round(1)}}°C',
     description: 'Server-side Jinja2 evaluation with filters',
     mockEntity: 'sensor.temperature'
   },
-  
+
   'jinja2-conditional': {
     name: 'Jinja2 Conditional',
     template: '{% if is_state("light.kitchen", "on") %}Active{% else %}Idle{% endif %}',
     description: 'Conditional logic using Jinja2',
     mockEntity: 'light.kitchen'
   },
-  
+
   'theme-token': {
     name: 'Theme Token',
     template: 'Color: {theme:colors.accent.primary}',
     description: 'Access theme tokens for styling',
     mockEntity: 'light.kitchen'
   },
-  
+
   'theme-multiple': {
     name: 'Multiple Theme Tokens',
     template: 'Primary: {theme:colors.primary}, Accent: {theme:colors.accent.primary}',
     description: 'Use multiple theme tokens in one template',
     mockEntity: 'light.kitchen'
   },
-  
+
   'mixed-js-datasource': {
     name: 'Mixed: JS + DataSource',
-    template: '[[[return entity.state === "on"]]] ? {datasource:sensor.temp:.1f}°C : Off',
+    template: '[[[return entity.state === "on"]]] ? {datasource:sensor_temp:.1f}°C : Off',
     description: 'Combine JavaScript and DataSource templates',
     mockEntity: 'light.kitchen',
     mockState: { state: 'on', attributes: {} },
-    mockDataSources: { 'sensor.temp': 23.5 }
+    mockDataSources: { 'sensor_temp': 23.5 }
   },
-  
+
   'mixed-entity-theme': {
     name: 'Mixed: Entity + Theme',
     template: 'Status: {entity.state} (Color: {theme:colors.primary})',
@@ -110,21 +110,21 @@ export const EXAMPLE_TEMPLATES = {
     mockEntity: 'light.kitchen',
     mockState: { state: 'on', attributes: {} }
   },
-  
+
   'complex-dashboard': {
     name: 'Complex Dashboard',
-    template: '[[[return entity.state === "on" ? "🟢" : "🔴"]]] {entity.attributes.friendly_name}: {datasource:sensor.temp:.1f}°C',
+    template: '[[[return entity.state === "on" ? "🟢" : "🔴"]]] {entity.attributes.friendly_name}: {datasource:sensor_temp:.1f}°C',
     description: 'Complex template combining multiple types',
     mockEntity: 'climate.living_room',
-    mockState: { 
-      state: 'heat', 
-      attributes: { 
+    mockState: {
+      state: 'heat',
+      attributes: {
         friendly_name: 'Living Room',
         temperature: 22,
         target_temp_high: 24
-      } 
+      }
     },
-    mockDataSources: { 'sensor.temp': 22.3 }
+    mockDataSources: { 'sensor_temp': 22.3 }
   }
 };
 
@@ -152,10 +152,10 @@ export function getExample(id) {
  */
 export function getExamplesByCategory(category) {
   const filtered = {};
-  
+
   for (const [id, example] of Object.entries(EXAMPLE_TEMPLATES)) {
     const template = example.template.toLowerCase();
-    
+
     switch (category) {
       case 'javascript':
         if (template.includes('[[[')) filtered[id] = example;
@@ -188,6 +188,6 @@ export function getExamplesByCategory(category) {
         break;
     }
   }
-  
+
   return filtered;
 }

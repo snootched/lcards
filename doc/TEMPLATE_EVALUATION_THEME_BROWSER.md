@@ -17,7 +17,7 @@ The Template Evaluation Tab helps users discover, debug, and understand all temp
 - **Multiple Template Types Supported**:
   - JavaScript expressions: `[[[...]]]`
   - LCARdS theme tokens: `{theme:colors.primary}`
-  - LCARdS datasource tokens: `{datasource:sensor.temp}` or `{ds:sensor.temp}`
+  - LCARdS datasource tokens: `{datasource:sensor_temp}` or `{ds:sensor_temp}`
   - LCARdS simple tokens: `{entity.state}`, `{config.entity}`, `{variables.color}`
   - Jinja2 templates: `{{states('sensor.temp')}}`
 
@@ -160,11 +160,11 @@ color: {{theme:colors.accent.primary}}
 **Datasource Tokens:**
 ```yaml
 # Explicit syntax (recommended):
-content: {datasource:sensor.temperature}
-content: {ds:sensor.temperature}
+content: {datasource:sensor_temperature}
+content: {ds:sensor_temperature}
 
 # Legacy syntax (still supported):
-content: {sensor.temperature}
+content: {sensor_temperature}
 ```
 
 **Simple Tokens:**
@@ -298,8 +298,8 @@ The sandbox includes 14 pre-configured example templates:
 
 - **Simple Entity State**: `{entity.state}`
 - **Entity Attribute**: `Brightness: {entity.attributes.brightness}`
-- **Live DataSource**: `Temperature: {datasource:sensor.temp:.1f}°C`
-- **DataSource (Short Syntax)**: `Value: {ds:sensor.value}`
+- **Live DataSource**: `Temperature: {datasource:sensor_temp:.1f}°C`
+- **DataSource (Short Syntax)**: `Value: {ds:sensor_value}`
 - **JavaScript Conditional**: `[[[return entity.state === "on" ? "Active" : "Idle"]]]`
 - **JavaScript Calculation**: Temperature conversion with Math operations
 - **Jinja2 Template**: `{{states("sensor.temperature") | float | round(1)}}°C`

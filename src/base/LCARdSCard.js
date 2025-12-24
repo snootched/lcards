@@ -1550,7 +1550,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
 
             // Use UnifiedTemplateEvaluator for consistent template processing
-            // This enables datasource access: {datasource:sensor.temp}
+            // This enables datasource access: {datasource:sensor_temp}
             const evaluator = new UnifiedTemplateEvaluator({
                 hass: this.hass,
                 context: context,
