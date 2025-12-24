@@ -5,8 +5,12 @@
  * Features:
  * - Left-justified title with optional badge
  * - Right-justified count chip
- * - Animated triangle indicator
- * - Hover effects
+ * - Animated chevron indicator (always visible)
+ * - Smooth expand/collapse transitions
+ * - Enhanced hover effects with shadow and border highlighting
+ * - Dashed border when collapsed for visual distinction
+ * - Keyboard accessibility (Enter/Space to toggle)
+ * - Sticky header positioning
  */
 
 import { LitElement, html, css } from 'lit';
@@ -56,6 +60,12 @@ export class LCARdSCollapsibleSection extends LitElement {
         border-radius: 8px;
         overflow: hidden;
         background: var(--card-background-color);
+        transition: border 0.2s ease;
+      }
+
+      /* Dashed border when collapsed */
+      :host(:not([expanded])) .section-wrapper {
+        border: 2px dashed var(--divider-color);
       }
 
       .section-header {
@@ -64,36 +74,47 @@ export class LCARdSCollapsibleSection extends LitElement {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 24px;
+        padding: 12px 16px;
         background: var(--secondary-background-color);
-        border-bottom: 2px solid var(--divider-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
         z-index: 1;
         cursor: pointer;
         user-select: none;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
       }
 
       .section-header:hover {
         background: var(--divider-color);
-        border-bottom-color: var(--primary-color);
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
 
-      .section-header::before {
-        content: '▶';
-        margin-right: 8px;
-        font-size: 10px;
-        color: var(--primary-color);
-        transition: transform 0.2s;
-      }
-
-      :host([expanded]) .section-header::before {
-        transform: rotate(90deg);
+      .section-header:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
       }
 
       .header-left {
         display: flex;
         align-items: center;
         gap: 8px;
+      }
+
+      .section-chevron {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        color: var(--primary-color);
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      :host([expanded]) .section-chevron {
+        transform: rotate(90deg);
       }
 
       .section-title {
@@ -158,12 +179,17 @@ export class LCARdSCollapsibleSection extends LitElement {
       }
 
       .section-content {
-        display: none;
-        border-top: 1px solid var(--divider-color);
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.3s ease, opacity 0.2s ease;
+        border-top: 1px solid transparent;
       }
 
       :host([expanded]) .section-content {
-        display: block;
+        max-height: 100000px; /* Large enough for any content */
+        opacity: 1;
+        border-top-color: var(--divider-color);
       }
     `;
   }
@@ -171,8 +197,16 @@ export class LCARdSCollapsibleSection extends LitElement {
   render() {
     return html`
       <div class="section-wrapper">
-        <div class="section-header" @click=${this._toggleExpanded}>
+        <div 
+          class="section-header" 
+          @click=${this._toggleExpanded}
+          @keydown=${this._handleKeyDown}
+          tabindex="0"
+          role="button"
+          aria-expanded=${this.expanded}
+          aria-controls="section-content">
           <div class="header-left">
+            <span class="section-chevron" aria-hidden="true">▶</span>
             <span class="section-title">${this.title}</span>
             ${this.badge ? html`
               <span class="section-badge ${this.badgeType || this.badge}">${this.badge}</span>
@@ -180,7 +214,7 @@ export class LCARdSCollapsibleSection extends LitElement {
           </div>
           <span class="section-count">${this.count} ${this.countLabel}</span>
         </div>
-        <div class="section-content">
+        <div class="section-content" id="section-content" role="region">
           <slot></slot>
         </div>
       </div>
@@ -194,6 +228,14 @@ export class LCARdSCollapsibleSection extends LitElement {
       bubbles: true,
       composed: true
     }));
+  }
+
+  _handleKeyDown(e) {
+    // Allow keyboard activation with Enter or Space
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this._toggleExpanded();
+    }
   }
 }
 
