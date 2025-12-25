@@ -120,23 +120,24 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
       .templates-grid {
         display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 10px;
+        grid-template-columns: 1fr;
       }
 
       .template-card {
-        background: var(--card-background-color);
-        border: 2px solid var(--divider-color);
-        border-radius: 12px;
-        padding: 16px;
+        background: var(--chip-background-color, var(--card-background-color));
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        transition: all 0.2s;
+        gap: 8px;
+        transition: box-shadow 0.2s, background 0.2s, border-color 0.2s;
       }
 
       .template-card:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
       }
 
       /* Color-coded left borders by template type */
@@ -167,9 +168,9 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
       .template-card-header {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
+        margin-bottom: 4px;
       }
 
       .template-path {
@@ -193,6 +194,18 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         color: var(--secondary-text-color);
       }
 
+      .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .card-actions ha-icon-button {
+        --mdc-icon-button-size: 32px;
+        --mdc-icon-size: 18px;
+      }
+
       .template-section {
         display: flex;
         flex-direction: column;
@@ -213,55 +226,12 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         color: var(--code-text-color, #abb2bf);
         padding: 12px;
         border-radius: 4px;
-        font-size: 13px;
-        overflow-x: auto;
+        font-size: 12px;
+        overflow: auto;
         white-space: pre-wrap;
         word-break: break-all;
         line-height: 1.5;
-      }
-
-      .result-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-      }
-
-      .status-icon {
-        font-size: 20px;
-        display: inline-block;
-        flex-shrink: 0;
-        margin-top: 12px;
-      }
-
-      .template-result {
-        font-family: 'Courier New', monospace;
-        padding: 12px;
-        border-radius: 4px;
-        font-size: 13px;
-        background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
-        overflow-x: auto;
-        word-break: break-word;
-        line-height: 1.5;
-        flex: 1;
-      }
-
-      .template-result.success {
-        border-color: #4caf50;
-        background: rgba(76, 175, 80, 0.05);
-      }
-
-      .template-result.error {
-        border-color: #f44336;
-        background: rgba(244, 67, 54, 0.05);
-      }
-
-      .button-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 8px;
+        max-height: 120px;
       }
 
       .status-success { color: #4caf50; }
@@ -411,8 +381,6 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   }
 
   _renderTemplateCard(template) {
-    const hasError = template.status === 'status-error';
-    const isSuccess = template.status === 'status-success';
     const typeClass = `type-${template.type.toLowerCase()}`;
 
     return html`
@@ -420,55 +388,26 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         <div class="template-card-header">
           <div class="template-path">${template.path}</div>
           <span class="template-type ${typeClass}">${template.type}</span>
+          <div class="card-actions">
+            <ha-icon-button
+              .label=${'Copy Template'}
+              @click=${(e) => this._copyToClipboard(template.raw, e)}>
+              <ha-icon icon="mdi:content-copy"></ha-icon>
+            </ha-icon-button>
+            <ha-icon-button
+              .label=${'Test in Sandbox'}
+              @click=${() => this._testInSandbox(template)}>
+              <ha-icon icon="mdi:flask-outline"></ha-icon>
+            </ha-icon-button>
+          </div>
         </div>
 
         <div class="template-section">
           <div class="template-section-label">Template</div>
           <div class="template-raw">${template.raw}</div>
         </div>
-
-        <div class="template-section">
-          <div class="template-section-label">Result</div>
-          <div class="result-row">
-            <span class="status-icon ${template.status}">${this._getStatusIcon(template.status)}</span>
-            <div class="template-result ${isSuccess ? 'success' : ''} ${hasError ? 'error' : ''}">
-              ${template.result || '(empty)'}
-            </div>
-          </div>
-          ${template.error ? html`<div class="error-message">${template.error}</div>` : ''}
-        </div>
-
-        <div class="button-row">
-          <ha-button
-            size="small"
-            @click=${(e) => this._copyToClipboard(template.result || '', e)}>
-            <ha-icon icon="mdi:content-copy" slot="icon"></ha-icon>
-            Copy Result
-          </ha-button>
-          <ha-button
-            size="small"
-            @click=${(e) => this._copyToClipboard(template.raw, e)}>
-            <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
-            Copy Template
-          </ha-button>
-          <ha-button
-            size="small"
-            @click=${() => this._testInSandbox(template)}>
-            <ha-icon icon="mdi:flask-outline" slot="icon"></ha-icon>
-            🧪 Test in Sandbox
-          </ha-button>
-        </div>
       </div>
     `;
-  }
-
-  _getStatusIcon(status) {
-    switch (status) {
-      case 'status-success': return '✅';
-      case 'status-error': return '❌';
-      case 'status-warning': return '⚠️';
-      default: return '❓';
-    }
   }
 
   _getTypeCounts() {
@@ -794,8 +733,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
     try {
       await navigator.clipboard.writeText(text);
 
-      // Show success feedback on the button that was clicked
-      const button = event.target.closest('ha-button');
+      // Show success feedback on the icon button that was clicked
+      const button = event.target.closest('ha-icon-button');
       if (button) {
         const iconElement = button.querySelector('ha-icon');
         if (iconElement) {
@@ -813,14 +752,16 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       lcardsLog.error('[TemplateEvaluationTab] Failed to copy to clipboard:', error);
 
       // Show error feedback
-      const button = event.target.closest('ha-button');
+      const button = event.target.closest('ha-icon-button');
       if (button) {
         const iconElement = button.querySelector('ha-icon');
         if (iconElement) {
+          const originalIcon = iconElement.icon;
           iconElement.icon = 'mdi:alert-circle';
           iconElement.style.color = 'var(--error-color, #f44336)';
 
           setTimeout(() => {
+            iconElement.icon = originalIcon;
             iconElement.style.color = '';
           }, 2000);
         }

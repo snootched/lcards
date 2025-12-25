@@ -73,7 +73,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       _liveDataSources: { type: Array, state: true },
       _selectedLiveDataSource: { type: String, state: true },
       _useMockEntity: { type: Boolean, state: true },
-      _activeTab: { type: String, state: true } // Right column tab: help, examples, entity, datasources, output
+      _activeMainTab: { type: String, state: true } // Main tabs: input, context, output, help
     };
   }
 
@@ -90,7 +90,7 @@ export class LCARdSTemplateSandbox extends LitElement {
     this._liveDataSources = [];
     this._selectedLiveDataSource = '';
     this._useMockEntity = false;  // Toggle for mock vs live entity
-    this._activeTab = 'help'; // Default to showing help in right column
+    this._activeMainTab = 'output'; // Right pane tabs: output, context, examples, help
 
     // DataSource subscriptions tracking
     this._dataSourceSubscriptions = new Map();
@@ -105,81 +105,200 @@ export class LCARdSTemplateSandbox extends LitElement {
         display: contents;
       }
 
+      /* Dialog sizing (matching DataSource Browser) */
+      ha-dialog {
+        --mdc-dialog-min-width: 90vw;
+        --mdc-dialog-max-width: 90vw;
+        --mdc-dialog-min-height: 600px;
+      }
+
       /* Dialog structure */
       .dialog-content {
         display: flex;
         flex-direction: column;
-        height: 70vh;
-        max-height: 800px;
-        min-height: 500px;
-        width: 90vw;
-        max-width: 1400px;
-      }
-
-      /* Sub-tabs */
-      .sub-tabs-container {
-        display: flex;
-        gap: 0;
-        border-bottom: 1px solid var(--divider-color);
-        background: var(--card-background-color);
-        padding: 0 24px;
-      }
-
-      .sub-tab-button {
-        flex: 0 0 auto;
-        padding: 8px 16px;
-        cursor: pointer;
-        border: none;
-        background: none;
-        border-bottom: 2px solid transparent;
-        font-weight: 500;
-        font-size: 13px;
-        color: var(--secondary-text-color);
-        transition: all 0.2s ease;
-        user-select: none;
-      }
-
-      .sub-tab-button:hover {
-        color: var(--primary-text-color);
-        background: var(--secondary-background-color);
-      }
-
-      .sub-tab-button.active {
-        color: var(--primary-color);
-        border-bottom-color: var(--primary-color);
-      }
-
-      /* Main two-column layout - persistent editor on left, tab content on right */
-      .tab-body {
-        flex: 1;
+        height: 75vh;
+        max-height: 75vh;
         overflow: hidden;
+      }
+
+      /* Split pane layout (matching DataSource Browser) */
+      .split-pane-container {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 40% 60%;
+        grid-template-rows: minmax(0, 1fr);
         gap: 0;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
 
-      .persistent-editor-column {
-        overflow-y: auto;
-        padding: 24px;
-        border-right: 2px solid var(--divider-color);
-      }
-
-      .tab-content-column {
-        overflow-y: auto;
-        padding: 24px;
+      /* Left pane: Template editor */
+      .editor-pane {
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        border-right: 2px solid var(--divider-color);
+        background: var(--card-background-color);
       }
 
-      @media (max-width: 1200px) {
-        .tab-body {
-          grid-template-columns: 1fr;
-        }
+      .editor-pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--divider-color);
+        background: var(--secondary-background-color);
+        flex-shrink: 0;
+      }
 
-        .persistent-editor-column {
-          border-right: none;
-          border-bottom: 2px solid var(--divider-color);
-        }
+      .editor-pane-header h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--primary-text-color);
+      }
+
+      .editor-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      /* Right pane: Tabbed content */
+      .content-pane {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--card-background-color);
+      }
+
+      /* Tabs for right pane */
+      .content-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--divider-color);
+        background: var(--secondary-background-color);
+        flex-shrink: 0;
+      }
+
+      .content-tab {
+        padding: 10px 20px;
+        border: none;
+        background: transparent;
+        color: var(--secondary-text-color);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-bottom: 3px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .content-tab:hover {
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+      }
+
+      .content-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: var(--card-background-color);
+      }
+
+      .content-tab ha-icon {
+        --mdc-icon-size: 16px;
+      }
+
+      /* Tab content area */
+      .content-tab-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* Loading and empty states */
+      .loading-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px;
+        gap: 16px;
+        color: var(--secondary-text-color);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--secondary-text-color);
+      }
+
+      .empty-state ha-icon {
+        --mdc-icon-size: 48px;
+        color: var(--divider-color);
+        margin-bottom: 16px;
+      }
+
+      .empty-state p {
+        margin: 8px 0;
+      }
+
+      /* Template Builder buttons */
+      .builder-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        width: 100%;
+      }
+
+      .builder-button:hover {
+        border-color: var(--primary-color);
+        background: var(--secondary-background-color);
+        transform: translateX(2px);
+      }
+
+      .builder-button ha-icon {
+        --mdc-icon-size: 18px;
+        color: var(--primary-color);
+        flex-shrink: 0;
+      }
+
+      .builder-button-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .builder-button-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--primary-text-color);
+        margin-bottom: 4px;
+      }
+
+      .builder-button-template {
+        font-size: 11px;
+        font-family: 'Courier New', monospace;
+        color: var(--secondary-text-color);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .template-type-badge {
@@ -720,7 +839,10 @@ export class LCARdSTemplateSandbox extends LitElement {
         @closed=${this._handleClose}
         .heading=${'🧪 Template Sandbox'}>
         <div class="dialog-content">
-          ${this._renderTabBody()}
+          <div class="split-pane-container">
+            ${this._renderEditorPane()}
+            ${this._renderContentPane()}
+          </div>
         </div>
         <ha-button
           slot="primaryAction"
@@ -732,75 +854,180 @@ export class LCARdSTemplateSandbox extends LitElement {
     `;
   }
 
-  _renderTabBody() {
-    return html`
-      <div class="tab-body">
-        <!-- Left column: persistent template editor -->
-        <div class="persistent-editor-column">
-          ${this._renderTemplateEditor()}
-        </div>
+  /**
+   * Left pane: Template editor with evaluate button
+   */
+  _renderEditorPane() {
+    const types = TemplateDetector.detectTemplateTypes(this._templateInput);
+    const typeLabels = [];
+    if (types.hasJavaScript) typeLabels.push('JS');
+    if (types.hasTokens) typeLabels.push('Token');
+    if (types.hasDatasources) typeLabels.push('DataSource');
+    if (types.hasJinja2) typeLabels.push('Jinja2');
 
-        <!-- Right column: unified navigation with all content options -->
-        <div class="tab-content-column">
-          ${this._renderRightColumnTabs()}
-          ${this._renderRightColumnContent()}
+    return html`
+      <div class="editor-pane">
+        <div class="editor-pane-header">
+          <h3>Template Input</h3>
+          ${typeLabels.length > 0 ? html`
+            <div style="display: flex; gap: 4px;">
+              ${typeLabels.map(type => html`
+                <span class="template-type-badge">${type}</span>
+              `)}
+            </div>
+          ` : ''}
+        </div>
+        <div class="editor-content">
+          ${this._renderTemplateEditorContent()}
+          ${this._renderTemplateBuilder()}
         </div>
       </div>
     `;
   }
 
-  _renderRightColumnTabs() {
+  /**
+   * Right pane: Tabbed content (Output, Context, Help)
+   */
+  _renderContentPane() {
+    const getStatusIcon = () => {
+      if (!this._evaluationResult) return 'mdi:play-circle-outline';
+      if (this._evaluationResult.success && !this._detectUnresolvedTokens(String(this._evaluationResult.result || '')).length) {
+        return 'mdi:check-circle';
+      }
+      if (this._evaluationResult.error) return 'mdi:close-circle';
+      return 'mdi:alert-circle';
+    };
+
     return html`
-      <div class="sub-tabs-container">
-        <button
-          class="sub-tab-button ${this._activeTab === 'help' ? 'active' : ''}"
-          @click=${() => this._activeTab = 'help'}>
-          <ha-icon icon="mdi:help-circle" style="--mdc-icon-size: 16px;"></ha-icon>
-          Syntax Help
-        </button>
-        <button
-          class="sub-tab-button ${this._activeTab === 'examples' ? 'active' : ''}"
-          @click=${() => this._activeTab = 'examples'}>
-          <ha-icon icon="mdi:code-braces" style="--mdc-icon-size: 16px;"></ha-icon>
-          Examples
-        </button>
-        <button
-          class="sub-tab-button ${this._activeTab === 'entity' ? 'active' : ''}"
-          @click=${() => this._activeTab = 'entity'}>
-          <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 16px;"></ha-icon>
-          Entity
-        </button>
-        <button
-          class="sub-tab-button ${this._activeTab === 'datasources' ? 'active' : ''}"
-          @click=${() => this._activeTab = 'datasources'}>
-          <ha-icon icon="mdi:database" style="--mdc-icon-size: 16px;"></ha-icon>
-          DataSources
-        </button>
-        <button
-          class="sub-tab-button ${this._activeTab === 'output' ? 'active' : ''}"
-          @click=${() => this._activeTab = 'output'}>
-          <ha-icon icon="mdi:${this._evaluationResult?.success ? 'check-circle' : 'alert-circle'}" style="--mdc-icon-size: 16px;"></ha-icon>
-          Result
-        </button>
+      <div class="content-pane">
+        <div class="content-tabs">
+          <button
+            class="content-tab ${this._activeMainTab === 'output' ? 'active' : ''}"
+            @click=${() => this._activeMainTab = 'output'}>
+            <ha-icon icon="${getStatusIcon()}"></ha-icon>
+            Output
+          </button>
+          <button
+            class="content-tab ${this._activeMainTab === 'context' ? 'active' : ''}"
+            @click=${() => this._activeMainTab = 'context'}>
+            <ha-icon icon="mdi:tune"></ha-icon>
+            Context
+          </button>
+          <button
+            class="content-tab ${this._activeMainTab === 'help' ? 'active' : ''}"
+            @click=${() => this._activeMainTab = 'help'}>
+            <ha-icon icon="mdi:help-circle"></ha-icon>
+            Help
+          </button>
+        </div>
+        <div class="content-tab-area">
+          <div class="tab-panel ${this._activeMainTab === 'output' ? 'active' : ''}">
+            ${this._renderOutputTabNew()}
+          </div>
+          <div class="tab-panel ${this._activeMainTab === 'context' ? 'active' : ''}">
+            ${this._renderContextTab()}
+          </div>
+          <div class="tab-panel ${this._activeMainTab === 'help' ? 'active' : ''}">
+            ${this._renderHelpTab()}
+          </div>
+        </div>
       </div>
     `;
   }
 
-  _renderRightColumnContent() {
-    switch (this._activeTab) {
-      case 'help':
-        return this._renderTemplateSyntaxHelp();
-      case 'examples':
-        return this._renderTemplateExamples();
-      case 'entity':
-        return this._renderEntityContext();
-      case 'datasources':
-        return this._renderDataSourcesContext();
-      case 'output':
-        return this._renderOutputTab();
-      default:
-        return this._renderTemplateSyntaxHelp();
-    }
+  /**
+   * Template editor content (in left pane)
+   */
+  _renderTemplateEditorContent() {
+    return html`
+      <div class="form-row">
+        <label class="form-label">Template</label>
+        <div class="template-input-wrapper">
+          ${customElements.get('ha-code-editor') ? html`
+            <ha-code-editor
+              mode="jinja2"
+              .value=${this._templateInput}
+              @value-changed=${(e) => this._handleTemplateInput(e)}
+              autofocus>
+            </ha-code-editor>
+          ` : html`
+            <textarea
+              class="template-input"
+              .value=${this._templateInput}
+              @input=${this._handleTemplateInput}
+              placeholder="Enter template... e.g. {entity.state}"
+              autofocus>
+            </textarea>
+          `}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">
+          Stats: ${this._templateInput.length} chars, ${this._templateInput.split('\n').length} lines
+        </label>
+      </div>
+
+      <div class="form-row">
+        <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="width: 100%; --mdc-typography-button-font-size: 14px;">
+          <ha-icon icon="mdi:play" slot="icon"></ha-icon>
+          ${this._isEvaluating ? 'Evaluating...' : 'Evaluate Now'}
+        </ha-button>
+      </div>
+    `;
+  }
+
+  /**
+   * Context Tab: Entity and DataSource configuration
+   */
+  _renderContextTab() {
+    return html`
+      <div style="display: grid; gap: 20px;">
+        ${this._renderEntityContext()}
+        ${this._renderDataSourcesContext()}
+      </div>
+    `;
+  }
+
+  /**
+   * Template Builder: Quick insert buttons for common template patterns
+   */
+  _renderTemplateBuilder() {
+    const examples = getExampleIds().map(id => ({
+      id,
+      ...EXAMPLE_TEMPLATES[id]
+    }));
+
+    return html`
+      <div style="margin-top: 20px;">
+        <lcards-collapsible-section
+          header="Template Builder"
+          description="Click to load example templates"
+          ?expanded=${true}>
+          <div style="display: grid; gap: 8px; max-height: 300px; overflow-y: auto; padding: 8px;">
+            ${examples.map(example => html`
+              <button
+                class="builder-button"
+                @click=${() => this._loadExample(example.id)}
+                title="${example.description}">
+                <ha-icon icon="mdi:code-braces"></ha-icon>
+                <div class="builder-button-content">
+                  <div class="builder-button-title">${example.name}</div>
+                  <div class="builder-button-template">${example.template}</div>
+                </div>
+              </button>
+            `)}
+          </div>
+        </lcards-collapsible-section>
+      </div>
+    `;
+  }
+
+  /**
+   * Help Tab: Syntax reference and documentation
+   */
+  _renderHelpTab() {
+    return this._renderTemplateSyntaxHelp();
   }
 
   _renderTemplateEditor() {
@@ -1323,6 +1550,231 @@ export class LCARdSTemplateSandbox extends LitElement {
         </lcards-form-section>
       ` : ''}
     `;
+  }
+
+  /**
+   * Enhanced Output Tab with better validation for unresolved tokens
+   * (New tab-based layout for Issue #79)
+   */
+  _renderOutputTabNew() {
+    if (this._isEvaluating) {
+      return html`
+        <div class="loading-indicator">
+          <ha-circular-progress active></ha-circular-progress>
+          <span>Evaluating template...</span>
+        </div>
+      `;
+    }
+
+    if (!this._evaluationResult) {
+      return html`
+        <div class="empty-state">
+          <ha-icon icon="mdi:play-circle-outline"></ha-icon>
+          <p>No evaluation yet</p>
+          <p style="font-size: 13px; color: var(--secondary-text-color);">
+            Click "Evaluate Now" in the Input tab to test your template
+          </p>
+        </div>
+      `;
+    }
+
+    const result = this._evaluationResult;
+    const resultStr = String(result.result || '');
+
+    // Enhanced validation: check if output still contains unresolved template syntax
+    const unresolvedTokens = this._detectUnresolvedTokens(resultStr);
+    const hasUnresolved = unresolvedTokens.length > 0;
+
+    // Determine status: full success, partial (unresolved), or error
+    let status, statusIcon, statusColor, statusText;
+    if (result.error) {
+      status = 'error';
+      statusIcon = '❌';
+      statusColor = '#f44336';
+      statusText = 'Evaluation Failed';
+    } else if (hasUnresolved) {
+      status = 'partial';
+      statusIcon = '⚠️';
+      statusColor = '#ff9800';
+      statusText = 'Partial Evaluation';
+    } else if (result.success) {
+      status = 'success';
+      statusIcon = '✅';
+      statusColor = '#4caf50';
+      statusText = 'Evaluation Successful';
+    } else {
+      status = 'warning';
+      statusIcon = '⚠️';
+      statusColor = '#ff9800';
+      statusText = 'Evaluation Warning';
+    }
+
+    return html`
+      <div style="display: grid; gap: 24px;">
+        <!-- Result Status Card -->
+        <lcards-form-section
+          header="Evaluation Result"
+          .secondary=${statusText}
+          ?expanded=${true}
+          .collapsible=${false}>
+
+          <div class="result-display ${status}">
+            <div class="result-header">
+              <span class="status-icon">${statusIcon}</span>
+              <span style="color: ${statusColor};">${statusText}</span>
+              ${result.evalTime ? html`
+                <span class="eval-time">${result.evalTime}ms</span>
+              ` : ''}
+            </div>
+
+            <div class="result-value">
+              ${resultStr || '(empty result)'}
+            </div>
+
+            ${status === 'success' ? html`
+              <div class="action-buttons">
+                <ha-button @click=${() => this._copyToClipboard(resultStr)}>
+                  <ha-icon icon="mdi:content-copy" slot="icon"></ha-icon>
+                  Copy Result
+                </ha-button>
+                <ha-button @click=${() => this._copyToClipboard(this._templateInput)}>
+                  <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
+                  Copy Template
+                </ha-button>
+              </div>
+            ` : ''}
+          </div>
+        </lcards-form-section>
+
+        <!-- Unresolved Tokens (Partial Evaluation) -->
+        ${hasUnresolved ? html`
+          <lcards-form-section
+            header="⚠️ Unresolved Tokens"
+            description="These tokens were not resolved during evaluation"
+            ?expanded=${true}>
+            <div class="diagnostics-panel">
+              ${unresolvedTokens.map(token => html`
+                <div class="diagnostic-item warning">
+                  <ha-icon icon="mdi:alert-circle"></ha-icon>
+                  <div>
+                    <code style="background: var(--code-background-color); padding: 2px 6px; border-radius: 3px;">${token.raw}</code>
+                    <div style="font-size: 12px; margin-top: 4px; color: var(--secondary-text-color);">
+                      Type: ${token.type}
+                      ${token.suggestion ? html` — <em>${token.suggestion}</em>` : ''}
+                    </div>
+                  </div>
+                </div>
+              `)}
+            </div>
+          </lcards-form-section>
+        ` : ''}
+
+        <!-- Error Details -->
+        ${result.error ? html`
+          <lcards-form-section
+            header="❌ Error Details"
+            ?expanded=${true}>
+            <div class="diagnostics-panel">
+              <div class="diagnostic-item error">
+                <ha-icon icon="mdi:close-circle"></ha-icon>
+                <div>
+                  <strong>Error Message:</strong><br>
+                  ${result.error}
+                </div>
+              </div>
+
+              ${result.diagnostics?.suggestion ? html`
+                <div class="diagnostic-item info">
+                  <ha-icon icon="mdi:lightbulb-on"></ha-icon>
+                  <div>
+                    <strong>Suggestion:</strong><br>
+                    ${result.diagnostics.suggestion}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </lcards-form-section>
+        ` : ''}
+
+        <!-- Dependencies -->
+        ${result.dependencies ? html`
+          <lcards-form-section
+            header="Dependencies"
+            description="Resources referenced by this template"
+            ?expanded=${status !== 'success'}>
+            ${this._renderDependencyTree(result.dependencies)}
+          </lcards-form-section>
+        ` : ''}
+
+        <!-- Mock DataSources Warning -->
+        ${result.usingMockDataSources ? html`
+          <div class="info-banner mock">
+            <ha-icon icon="mdi:test-tube"></ha-icon>
+            <span>Using mock DataSources for evaluation (no live sources configured)</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Detect unresolved tokens in evaluation result
+   * Returns array of {raw, type, suggestion} objects
+   */
+  _detectUnresolvedTokens(resultStr) {
+    const tokens = [];
+
+    // Check for JavaScript templates
+    const jsMatches = resultStr.matchAll(/\[\[\[([\s\S]*?)\]\]\]/g);
+    for (const match of jsMatches) {
+      tokens.push({
+        raw: match[0],
+        type: 'JavaScript',
+        suggestion: 'Check if expression syntax is valid'
+      });
+    }
+
+    // Check for theme tokens
+    const themeMatches = resultStr.matchAll(/\{theme:([^}]+)\}/g);
+    for (const match of themeMatches) {
+      tokens.push({
+        raw: match[0],
+        type: 'Theme Token',
+        suggestion: `Theme token '${match[1]}' not found in current theme`
+      });
+    }
+
+    // Check for datasource tokens
+    const dsMatches = resultStr.matchAll(/\{(?:datasource|ds):([^}:]+)/g);
+    for (const match of dsMatches) {
+      tokens.push({
+        raw: match[0],
+        type: 'DataSource',
+        suggestion: `DataSource '${match[1]}' not configured or not available`
+      });
+    }
+
+    // Check for simple tokens (entity, config, etc.)
+    const tokenMatches = resultStr.matchAll(/\{(?!theme:)(?!datasource:)(?!ds:)(?!\{)([^{}]+)\}/g);
+    for (const match of tokenMatches) {
+      tokens.push({
+        raw: match[0],
+        type: 'Token',
+        suggestion: `Token '${match[1]}' could not be resolved from context`
+      });
+    }
+
+    // Check for Jinja2 templates
+    const jinjaMatches = resultStr.matchAll(/\{\{([^}]+)\}\}/g);
+    for (const match of jinjaMatches) {
+      tokens.push({
+        raw: match[0],
+        type: 'Jinja2',
+        suggestion: 'Jinja2 templates require Home Assistant backend evaluation'
+      });
+    }
+
+    return tokens;
   }
 
   _loadExample(exampleId) {
