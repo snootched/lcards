@@ -1133,6 +1133,209 @@ export class LCARdSElbow extends LCARdSButton {
             }
         };
     }
+
+    /**
+     * Get config element for HA editor
+     * @returns {HTMLElement}
+     */
+    static getConfigElement() {
+        // Import editor component
+        import('../editor/cards/lcards-elbow-editor.js');
+        return document.createElement('lcards-elbow-editor');
+    }
+
+    /**
+     * Register schema with CoreConfigManager
+     * Called by lcards.js after core initialization
+     * @static
+     */
+    static registerSchema() {
+        const configManager = window.lcards?.core?.configManager;
+
+        if (!configManager) {
+            lcardsLog.error('[LCARdSElbow] CoreConfigManager not available');
+            return;
+        }
+
+        // Elbow extends button schema, so reference button presets
+        const buttonPresets = window.lcards?.core?.stylePresetManager?.getPresetNamesForCard('button') || [];
+
+        // Register elbow-specific schema
+        configManager.registerCardSchema('elbow', {
+            type: 'object',
+            required: ['type'],
+            properties: {
+                type: {
+                    type: 'string',
+                    const: 'custom:lcards-elbow'
+                },
+                entity: {
+                    type: 'string',
+                    description: 'Entity ID to control'
+                },
+                id: {
+                    type: 'string',
+                    description: 'Custom card ID for targeting with rules and animations'
+                },
+                preset: {
+                    type: 'string',
+                    enum: buttonPresets, // Inherits button presets
+                    description: 'Button style preset'
+                },
+                elbow: {
+                    type: 'object',
+                    required: ['type'],
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: ['header-left', 'header-right', 'footer-left', 'footer-right'],
+                            description: 'Position of the elbow corner'
+                        },
+                        style: {
+                            type: 'string',
+                            enum: ['simple', 'segmented'],
+                            default: 'simple',
+                            description: 'Elbow style: simple (single) or segmented (double concentric)'
+                        },
+                        // Simple style segment
+                        segment: {
+                            type: 'object',
+                            description: 'Configuration for simple style single segment',
+                            properties: {
+                                bar_width: {
+                                    type: 'number',
+                                    description: 'Vertical sidebar thickness (pixels)'
+                                },
+                                bar_height: {
+                                    type: 'number',
+                                    description: 'Horizontal bar thickness (pixels)'
+                                },
+                                outer_curve: {
+                                    oneOf: [
+                                        { type: 'number' },
+                                        { type: 'string', const: 'auto' }
+                                    ],
+                                    description: 'Outer corner radius (pixels or "auto" for bar_width / 2)'
+                                },
+                                inner_curve: {
+                                    type: 'number',
+                                    description: 'Inner corner radius (pixels, defaults to outer_curve / 2)'
+                                },
+                                color: {
+                                    oneOf: [
+                                        { type: 'string' },
+                                        {
+                                            type: 'object',
+                                            properties: {
+                                                default: { type: 'string' },
+                                                active: { type: 'string' },
+                                                inactive: { type: 'string' },
+                                                unavailable: { type: 'string' }
+                                            }
+                                        }
+                                    ],
+                                    description: 'Segment color (string or state-based object)'
+                                }
+                            }
+                        },
+                        // Segmented style segments
+                        segments: {
+                            type: 'object',
+                            description: 'Configuration for segmented style (double concentric)',
+                            properties: {
+                                gap: {
+                                    type: 'number',
+                                    default: 4,
+                                    description: 'Gap between outer and inner segments (pixels)'
+                                },
+                                outer_segment: {
+                                    type: 'object',
+                                    description: 'Outer segment (frame) configuration',
+                                    required: ['bar_width'],
+                                    properties: {
+                                        bar_width: {
+                                            type: 'number',
+                                            description: 'Vertical bar thickness (pixels)'
+                                        },
+                                        bar_height: {
+                                            type: 'number',
+                                            description: 'Horizontal bar thickness (pixels)'
+                                        },
+                                        outer_curve: {
+                                            type: 'number',
+                                            description: 'Outer corner radius (pixels)'
+                                        },
+                                        inner_curve: {
+                                            type: 'number',
+                                            description: 'Inner corner radius (pixels)'
+                                        },
+                                        color: {
+                                            type: 'string',
+                                            description: 'Solid color for outer segment'
+                                        }
+                                    }
+                                },
+                                inner_segment: {
+                                    type: 'object',
+                                    description: 'Inner segment (content area) configuration',
+                                    required: ['bar_width'],
+                                    properties: {
+                                        bar_width: {
+                                            type: 'number',
+                                            description: 'Vertical bar thickness (pixels)'
+                                        },
+                                        bar_height: {
+                                            type: 'number',
+                                            description: 'Horizontal bar thickness (pixels)'
+                                        },
+                                        outer_curve: {
+                                            type: 'number',
+                                            description: 'Outer corner radius (pixels, auto-calculated if not specified)'
+                                        },
+                                        inner_curve: {
+                                            type: 'number',
+                                            description: 'Inner corner radius (pixels)'
+                                        },
+                                        color: {
+                                            type: 'string',
+                                            description: 'Solid color for inner segment'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                // Inherits all button properties
+                text: {
+                    type: 'object',
+                    description: 'Text field configurations'
+                },
+                tap_action: {
+                    type: 'object',
+                    description: 'Action to perform on tap'
+                },
+                hold_action: {
+                    type: 'object',
+                    description: 'Action to perform on hold'
+                },
+                double_tap_action: {
+                    type: 'object',
+                    description: 'Action to perform on double tap'
+                },
+                css_class: {
+                    type: 'string',
+                    description: 'Custom CSS class for styling'
+                },
+                data_sources: {
+                    type: 'object',
+                    description: 'Data source configurations'
+                }
+            }
+        }, { version: '1.24.0' });
+
+        lcardsLog.debug('[LCARdSElbow] Schema registered');
+    }
 }
 
 // NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
