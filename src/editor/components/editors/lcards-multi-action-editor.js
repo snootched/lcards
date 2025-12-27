@@ -15,7 +15,6 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
-import '../shared/lcards-action-editor.js';
 
 export class LCARdSMultiActionEditor extends LitElement {
 
@@ -54,49 +53,55 @@ export class LCARdSMultiActionEditor extends LitElement {
         return html`
             <div class="action-section">
                 <lcards-form-section
-                    header="👆 Tap Action"
+                    header="Tap Action"
+                    icon="mdi:gesture-tap"
                     description="Action to perform when tapped (default: none)"
                     ?expanded=${true}
                     ?outlined=${true}
                     headerLevel="5">
 
-                    <lcards-action-editor
+                    <ha-selector
                         .hass=${this.hass}
-                        .action=${tapAction}
+                        .selector=${{ ui_action: {} }}
+                        .value=${tapAction}
                         @value-changed=${(e) => this._handleActionChange('tap_action', e)}>
-                    </lcards-action-editor>
+                    </ha-selector>
                 </lcards-form-section>
             </div>
 
             <div class="action-section">
                 <lcards-form-section
-                    header="✋ Hold Action"
+                    header="Hold Action"
+                    icon="mdi:gesture-tap-hold"
                     description="Action to perform when held (default: none)"
                     ?expanded=${false}
                     ?outlined=${true}
                     headerLevel="5">
 
-                    <lcards-action-editor
+                    <ha-selector
                         .hass=${this.hass}
-                        .action=${holdAction}
+                        .selector=${{ ui_action: {} }}
+                        .value=${holdAction}
                         @value-changed=${(e) => this._handleActionChange('hold_action', e)}>
-                    </lcards-action-editor>
+                    </ha-selector>
                 </lcards-form-section>
             </div>
 
             <div class="action-section">
                 <lcards-form-section
-                    header="👆👆 Double-Tap Action"
+                    header="Double-Tap Action"
+                    icon="mdi:gesture-double-tap"
                     description="Action to perform when double-tapped (default: none)"
                     ?expanded=${false}
                     ?outlined=${true}
                     headerLevel="5">
 
-                    <lcards-action-editor
+                    <ha-selector
                         .hass=${this.hass}
-                        .action=${doubleTapAction}
+                        .selector=${{ ui_action: {} }}
+                        .value=${doubleTapAction}
                         @value-changed=${(e) => this._handleActionChange('double_tap_action', e)}>
-                    </lcards-action-editor>
+                    </ha-selector>
                 </lcards-form-section>
             </div>
         `;

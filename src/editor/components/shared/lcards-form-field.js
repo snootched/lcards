@@ -381,11 +381,12 @@ export class LCARdSFormField extends LitElement {
      */
     _renderActionEditor() {
         return html`
-            <lcards-action-editor
+            <ha-selector
                 .hass=${this.editor.hass}
-                .action=${this._value || { action: 'none' }}
+                .selector=${{ ui_action: {} }}
+                .value=${this._value || { action: 'none' }}
                 @value-changed=${this._handleValueChange}>
-            </lcards-action-editor>
+            </ha-selector>
         `;
     }
 
