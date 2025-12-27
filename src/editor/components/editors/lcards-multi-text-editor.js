@@ -461,17 +461,22 @@ export class LCARdSMultiTextEditor extends LitElement {
 
         return html`
             <div class="add-field-section">
-                <ha-select
+                <ha-selector
                     class="add-field-select"
-                    id="fieldSelect"
-                    @selected=${this._handleFieldSelected}
-                    @closed=${(e) => e.stopPropagation()}>
-                    <mwc-list-item value="">-- Select field to add --</mwc-list-item>
-                    ${availableFields.map(field => html`
-                        <mwc-list-item value="${field}">${field}</mwc-list-item>
-                    `)}
-                    <mwc-list-item value="custom">Custom field name...</mwc-list-item>
-                </ha-select>
+                    .hass=${this.hass}
+                    .label=${'Select field to add'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                ...availableFields.map(field => ({ value: field, label: field })),
+                                { value: 'custom', label: 'Custom field name...' }
+                            ]
+                        }
+                    }}
+                    .value=${this._selectedField || ''}
+                    @value-changed=${(e) => this._handleFieldSelected(e)}>
+                </ha-selector>
                 ${!this._showCustomInput ? html`
                     <ha-button
                         @click=${this._handleAddField}
@@ -485,14 +490,14 @@ export class LCARdSMultiTextEditor extends LitElement {
             ${this._showCustomInput ? html`
                 <lcards-form-section header="Custom Field Name" ?expanded=${true}>
                     <div class="custom-field-form">
-                        <ha-textfield
-                            label="Field Name"
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Field Name'}
+                            .helper=${'Alphanumeric and underscore only'}
+                            .selector=${{ text: {} }}
                             .value=${this._customFieldName}
-                            @input=${this._handleCustomNameInput}
-                            placeholder="e.g., my_custom_field"
-                            helper-text="Alphanumeric and underscore only"
-                            validationMessage="Must start with letter/underscore">
-                        </ha-textfield>
+                            @value-changed=${(e) => this._handleCustomNameInput(e)}>
+                        </ha-selector>
 
                         <div class="custom-field-actions">
                             <ha-button
@@ -520,7 +525,7 @@ export class LCARdSMultiTextEditor extends LitElement {
      * @private
      */
     _handleFieldSelected(e) {
-        const value = e.target.value;
+        const value = e.detail.value;
         this._selectedField = value;
 
         if (value === 'custom') {
@@ -555,7 +560,7 @@ export class LCARdSMultiTextEditor extends LitElement {
      * @private
      */
     _handleCustomNameInput(e) {
-        this._customFieldName = e.target.value;
+        this._customFieldName = e.detail.value;
     }
 
     /**

@@ -148,28 +148,32 @@ export class LCARdSAggregationDialog extends LitElement {
     return html`
       <div class="form-content">
         <!-- Key -->
-        <ha-textfield
-          label="Name *"
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Name'}
+          .helper=${this.mode === 'edit' ? 'Name cannot be changed after creation' : 'Unique aggregation identifier (e.g., avg_temp, max_pressure)'}
+          .selector=${{ text: {} }}
           .value=${this._key}
-          @input=${(e) => { this._key = e.target.value; }}
-          ?disabled=${this.mode === 'edit'}
-          placeholder="e.g., avg_temp, max_pressure">
-        </ha-textfield>
+          .disabled=${this.mode === 'edit'}
+          @value-changed=${(e) => { this._key = e.detail.value; }}>
+        </ha-selector>
 
         <!-- Type Selector -->
-        <ha-select
-          label="Type *"
-          .value=${this._useYaml ? '__yaml__' : this._selectedType}
-          @selected=${(e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this._handleTypeChange(e);
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Type'}
+          .selector=${{
+            select: {
+              mode: 'dropdown',
+              options: this.supportedTypes.map(type => ({
+                value: type.value,
+                label: type.label
+              }))
+            }
           }}
-          @click=${(e) => e.stopPropagation()}>
-          ${this.supportedTypes.map(type => html`
-            <mwc-list-item .value=${type.value}>${type.label}</mwc-list-item>
-          `)}
-        </ha-select>
+          .value=${this._useYaml ? '__yaml__' : this._selectedType}
+          @value-changed=${(e) => this._handleTypeChange(e)}>
+        </ha-selector>
 
         <!-- Type-Specific Form or YAML Editor -->
         ${this._useYaml
@@ -269,21 +273,23 @@ export class LCARdSAggregationDialog extends LitElement {
         @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
       </ha-selector>
 
-      <ha-select
-        label="Time Unit"
-        .value=${this._config.per_unit || 'second'}
-        @selected=${(e) => {
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          this._updateConfig('per_unit', e.target.value);
+      <ha-selector
+        .hass=${this.hass}
+        .label=${'Time Unit'}
+        .helper=${'Calculate rate of change per selected time unit'}
+        .selector=${{
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: 'second', label: 'Per Second' },
+              { value: 'minute', label: 'Per Minute' },
+              { value: 'hour', label: 'Per Hour' }
+            ]
+          }
         }}
-        @click=${(e) => e.stopPropagation()}>
-        <mwc-list-item value="second">Per Second</mwc-list-item>
-        <mwc-list-item value="minute">Per Minute</mwc-list-item>
-        <mwc-list-item value="hour">Per Hour</mwc-list-item>
-      </ha-select>
-
-      <div class="helper-text">Calculate rate of change per selected time unit</div>
+        .value=${this._config.per_unit || 'second'}
+        @value-changed=${(e) => this._updateConfig('per_unit', e.detail.value)}>
+      </ha-selector>
     `;
   }
 
@@ -336,8 +342,7 @@ parameter1: value1">
   }
 
   _handleTypeChange(event) {
-    event.stopPropagation(); // Prevent bubbling to dialog
-    const value = event.target.value;
+    const value = event.detail.value;
 
     if (value === '__yaml__') {
       this._useYaml = true;

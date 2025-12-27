@@ -116,37 +116,43 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <div class="form-row">
-                    <label>Elbow Position</label>
-                    <ha-select
-                        .value=${elbowType}
-                        @selected=${this._handleElbowTypeChange}
-                        @closed=${(e) => e.stopPropagation()}>
-                        <mwc-list-item value="header-left">Header Left</mwc-list-item>
-                        <mwc-list-item value="header-right">Header Right</mwc-list-item>
-                        <mwc-list-item value="footer-left">Footer Left</mwc-list-item>
-                        <mwc-list-item value="footer-right">Footer Right</mwc-list-item>
-                    </ha-select>
-                    <div class="helper-text">
-                        Position of the elbow corner on the card
-                    </div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Elbow Position'}
+                    .helper=${'Position of the elbow corner on the card'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'header-left', label: 'Header Left' },
+                                { value: 'header-right', label: 'Header Right' },
+                                { value: 'footer-left', label: 'Footer Left' },
+                                { value: 'footer-right', label: 'Footer Right' }
+                            ]
+                        }
+                    }}
+                    .value=${elbowType}
+                    @value-changed=${(e) => this._setConfigValue('elbow.type', e.detail.value)}>
+                </ha-selector>
 
-                <div class="form-row">
-                    <label>Elbow Style</label>
-                    <ha-select
-                        .value=${elbowStyle}
-                        @selected=${this._handleStyleChange}
-                        @closed=${(e) => e.stopPropagation()}>
-                        <mwc-list-item value="simple">Simple (single elbow)</mwc-list-item>
-                        <mwc-list-item value="segmented">Segmented (Picard-style double)</mwc-list-item>
-                    </ha-select>
-                    <div class="helper-text">
-                        ${elbowStyle === 'simple'
-                            ? 'Simple: Single elbow with one curve'
-                            : 'Segmented: Double concentric elbows with gap (TNG aesthetic)'}
-                    </div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Elbow Style'}
+                    .helper=${elbowStyle === 'simple'
+                        ? 'Simple: Single elbow with one curve'
+                        : 'Segmented: Double concentric elbows with gap (TNG aesthetic)'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'simple', label: 'Simple (single elbow)' },
+                                { value: 'segmented', label: 'Segmented (Picard-style double)' }
+                            ]
+                        }
+                    }}
+                    .value=${elbowStyle}
+                    @value-changed=${this._handleStyleChange}>
+                </ha-selector>
             </lcards-form-section>
 
             <lcards-form-section
@@ -294,21 +300,24 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <div class="form-row">
-                    <label>Bar Width Mode (Vertical)</label>
-                    <ha-select
-                        .value=${barWidth === 'theme' ? 'theme' : 'static'}
-                        @selected=${(e) => this._handleBarWidthModeChange(e)}
-                        @closed=${(e) => e.stopPropagation()}>
-                        <mwc-list-item value="static">Static Value</mwc-list-item>
-                        <mwc-list-item value="theme">Theme Binding (input_number.lcars_vertical)</mwc-list-item>
-                    </ha-select>
-                    <div class="helper-text">
-                        ${barWidth === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_vertical helper'
-                            : '📏 Static: Fixed pixel value'}
-                    </div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Bar Width Mode (Vertical)'}
+                    .helper=${barWidth === 'theme'
+                        ? '🎨 Dynamic: Binds to input_number.lcars_vertical helper'
+                        : '📏 Static: Fixed pixel value'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'theme', label: 'Theme Binding (input_number.lcars_vertical)' }
+                            ]
+                        }
+                    }}
+                    .value=${barWidth === 'theme' ? 'theme' : 'static'}
+                    @value-changed=${(e) => this._handleBarWidthModeChange(e)}>
+                </ha-selector>
 
                 ${barWidth !== 'theme' ? html`
                     <ha-selector
@@ -336,21 +345,24 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     </div>
                 `}
 
-                <div class="form-row">
-                    <label>Bar Height Mode (Horizontal)</label>
-                    <ha-select
-                        .value=${barHeight === 'theme' ? 'theme' : 'static'}
-                        @selected=${(e) => this._handleBarHeightModeChange(e)}
-                        @closed=${(e) => e.stopPropagation()}>
-                        <mwc-list-item value="static">Static Value</mwc-list-item>
-                        <mwc-list-item value="theme">Theme Binding (input_number.lcars_horizontal)</mwc-list-item>
-                    </ha-select>
-                    <div class="helper-text">
-                        ${barHeight === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_horizontal helper'
-                            : '📏 Static: Fixed pixel value'}
-                    </div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Bar Height Mode (Horizontal)'}
+                    .helper=${barHeight === 'theme'
+                        ? '🎨 Dynamic: Binds to input_number.lcars_horizontal helper'
+                        : '📏 Static: Fixed pixel value'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'theme', label: 'Theme Binding (input_number.lcars_horizontal)' }
+                            ]
+                        }
+                    }}
+                    .value=${barHeight === 'theme' ? 'theme' : 'static'}
+                    @value-changed=${(e) => this._handleBarHeightModeChange(e)}>
+                </ha-selector>
 
                 ${barHeight !== 'theme' ? html`
                     <ha-selector
@@ -859,7 +871,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleElbowTypeChange(event) {
-        const newType = event.target.value;
+        const newType = event.detail.value;
         this._setConfigValue('elbow.type', newType);
     }
 
@@ -869,7 +881,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleStyleChange(event) {
-        const newStyle = event.target.value;
+        const newStyle = event.detail.value;
         const currentStyle = this._getElbowStyle();
 
         if (newStyle === currentStyle) return;
@@ -945,7 +957,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleBarWidthModeChange(event) {
-        const newMode = event.target.value;
+        const newMode = event.detail.value;
 
         if (newMode === 'theme') {
             // Switch to theme mode
@@ -966,7 +978,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleBarHeightModeChange(event) {
-        const newMode = event.target.value;
+        const newMode = event.detail.value;
 
         if (newMode === 'theme') {
             // Switch to theme mode

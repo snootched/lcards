@@ -116,23 +116,27 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     {
                         type: 'custom',
                         render: () => html`
-                            <div class="form-row">
-                                <label>Mode</label>
-                                <ha-select
-                                    .value=${mode}
-                                    @selected=${this._handleModeChange}
-                                    @closed=${(e) => e.stopPropagation()}>
-                                    <mwc-list-item value="preset">Buttons (preset: lozenge, bullet, etc.)</mwc-list-item>
-                                    <mwc-list-item value="component">SVG Components (component: dpad, etc.)</mwc-list-item>
-                                    <mwc-list-item value="svg">Custom SVG with Segments (svg: )</mwc-list-item>
-                                </ha-select>
-                                <div class="helper-text">
-                                    ${mode === 'preset'
-                                        ? 'Preset mode: Use shape presets with text, icons, and styling'
-                                        : mode === 'svg'
-                                        ? 'Custom SVG mode: Use your own SVG with interactive segments'
-                                        : 'Component mode: Use complex interactive components like dpads'}
-                                </div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Mode'}
+                                .helper=${mode === 'preset'
+                                    ? 'Preset mode: Use shape presets with text, icons, and styling'
+                                    : mode === 'svg'
+                                    ? 'Custom SVG mode: Use your own SVG with interactive segments'
+                                    : 'Component mode: Use complex interactive components like dpads'}
+                                .selector=${{
+                                    select: {
+                                        mode: 'dropdown',
+                                        options: [
+                                            { value: 'preset', label: 'Buttons (preset: lozenge, bullet, etc.)' },
+                                            { value: 'component', label: 'SVG Components (component: dpad, etc.)' },
+                                            { value: 'svg', label: 'Custom SVG with Segments (svg: )' }
+                                        ]
+                                    }
+                                }}
+                                .value=${mode}
+                                @value-changed=${this._handleModeChange}>
+                            </ha-selector>
                             </div>
                         `
                     },
@@ -504,7 +508,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     // Event Handlers
 
     _handleModeChange(event) {
-        const newMode = event.target.value;
+        const newMode = event.detail.value;
         const currentMode = this._getMode();
 
         if (newMode === currentMode) return; // No change

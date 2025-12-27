@@ -208,18 +208,18 @@ export class LCARdSDataSourceDialog extends LitElement {
     return html`
       <div class="form-content">
         <!-- Name -->
-        <ha-textfield
-          label="Name *"
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Name *'}
+          .helper=${this.mode === 'edit' ? 'Name cannot be changed after creation' : 'DataSource identifier (e.g., temperature, humidity)'}
+          .selector=${{ text: {} }}
           .value=${this._name}
-          @input=${(e) => { this._name = e.target.value; this._validateName(); }}
-          .validationMessage=${this._errors.name || ''}
-          ?invalid=${!!this._errors.name}
-          ?disabled=${this.mode === 'edit'}
-          placeholder="e.g., temperature, humidity">
-        </ha-textfield>
-        ${this.mode === 'edit' ? html`
-          <div class="helper-text">Name cannot be changed after creation</div>
-        ` : ''}
+          .disabled=${this.mode === 'edit'}
+          @value-changed=${(e) => {
+            this._name = e.detail.value;
+            this._validateName();
+          }}>
+        </ha-selector>
 
         <!-- Entity -->
         ${this._renderEntityPicker()}
@@ -306,16 +306,22 @@ export class LCARdSDataSourceDialog extends LitElement {
     const options = this._getAttributeOptions(this._config.entity);
 
     return html`
-      <ha-select
-        label="Attribute"
+      <ha-selector
+        .hass=${this.hass}
+        .label=${'Attribute'}
+        .helper=${'Entity attribute to track'}
+        .selector=${{
+          select: {
+            mode: 'dropdown',
+            options: options.map(opt => ({
+              value: opt.value,
+              label: opt.label
+            }))
+          }
+        }}
         .value=${this._config.attribute || '__state__'}
-        @selected=${this._handleAttributeChange}>
-        ${options.map(opt => html`
-          <mwc-list-item .value=${opt.value}>
-            ${opt.label}
-          </mwc-list-item>
-        `)}
-      </ha-select>
+        @value-changed=${(e) => this._handleAttributeChange(e)}>
+      </ha-selector>
     `;
   }
 

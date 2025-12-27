@@ -1174,22 +1174,27 @@ export class LCARdSTemplateSandbox extends LitElement {
               </div>
 
               ${Object.keys(entityState.attributes || {}).length > 0 ? html`
-                <div class="form-row">
-                  <label class="form-label">Quick Insert Attribute</label>
-                  <ha-select
-                    .label=${'Select attribute to insert'}
-                    @selected=${(e) => {
-                      const value = e.target.value;
-                      if (value) {
-                        this._insertAttributeToken({ target: { value } });
-                      }
-                    }}
-                    @closed=${(e) => e.stopPropagation()}>
-                    ${Object.keys(entityState.attributes).map(key => html`
-                      <mwc-list-item value=${key}>${key}</mwc-list-item>
-                    `)}
-                  </ha-select>
-                </div>
+                <ha-selector
+                  .hass=${this.hass}
+                  .label=${'Quick Insert Attribute'}
+                  .helper=${'Select attribute to insert into template'}
+                  .selector=${{
+                    select: {
+                      mode: 'dropdown',
+                      options: Object.keys(entityState.attributes).map(key => ({
+                        value: key,
+                        label: key
+                      }))
+                    }
+                  }}
+                  .value=${''}
+                  @value-changed=${(e) => {
+                    const value = e.detail.value;
+                    if (value) {
+                      this._insertAttributeToken({ target: { value } });
+                    }
+                  }}>
+                </ha-selector>
               ` : ''}
             ` : ''}
           ` : html`
@@ -1265,20 +1270,24 @@ export class LCARdSTemplateSandbox extends LitElement {
             .count=${liveDataSources.length}
             ?expanded=${true}>
 
-            <div class="form-row">
-              <label class="form-label">Available DataSources</label>
-              <ha-select
-                .label=${'Select DataSource to view details'}
-                .value=${this._selectedLiveDataSource}
-                @selected=${(e) => {
-                  this._selectedLiveDataSource = e.target.value;
-                }}
-                @closed=${(e) => e.stopPropagation()}>
-                ${liveDataSources.map(ds => html`
-                  <mwc-list-item value=${ds.id}>${ds.id}</mwc-list-item>
-                `)}
-              </ha-select>
-            </div>
+            <ha-selector
+              .hass=${this.hass}
+              .label=${'Available DataSources'}
+              .helper=${'Select DataSource to view details'}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: liveDataSources.map(ds => ({
+                    value: ds.id,
+                    label: ds.id
+                  }))
+                }
+              }}
+              .value=${this._selectedLiveDataSource || ''}
+              @value-changed=${(e) => {
+                this._selectedLiveDataSource = e.detail.value;
+              }}>
+            </ha-selector>
 
             ${this._selectedLiveDataSource ? html`
               <div class="form-row">

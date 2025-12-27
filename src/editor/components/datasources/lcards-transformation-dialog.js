@@ -184,28 +184,32 @@ export class LCARdSTransformationDialog extends LitElement {
     return html`
       <div class="form-content">
         <!-- Key -->
-        <ha-textfield
-          label="Name *"
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Name *'}
+          .helper=${this.mode === 'edit' ? 'Name cannot be changed after creation' : 'Unique transformation identifier (e.g., celsius, smoothed, scaled)'}
+          .selector=${{ text: {} }}
           .value=${this._key}
-          @input=${(e) => { this._key = e.target.value; }}
-          ?disabled=${this.mode === 'edit'}
-          placeholder="e.g., celsius, smoothed, scaled">
-        </ha-textfield>
+          .disabled=${this.mode === 'edit'}
+          @value-changed=${(e) => { this._key = e.detail.value; }}>
+        </ha-selector>
 
         <!-- Type Selector -->
-        <ha-select
-          label="Type *"
-          .value=${this._useYaml ? '__yaml__' : this._selectedType}
-          @change=${(e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this._handleTypeChange(e);
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Type *'}
+          .selector=${{
+            select: {
+              mode: 'dropdown',
+              options: this.supportedTypes.map(type => ({
+                value: type.value,
+                label: type.label
+              }))
+            }
           }}
-          @click=${(e) => e.stopPropagation()}>
-          ${this.supportedTypes.map(type => html`
-            <mwc-list-item .value=${type.value}>${type.label}</mwc-list-item>
-          `)}
-        </ha-select>
+          .value=${this._useYaml ? '__yaml__' : this._selectedType}
+          @value-changed=${(e) => this._handleTypeChange(e)}>
+        </ha-selector>
 
         <!-- Type-Specific Form or YAML Editor -->
         ${this._useYaml
@@ -343,13 +347,25 @@ export class LCARdSTransformationDialog extends LitElement {
         Convert between units of the same type (e.g., celsius ↔ fahrenheit)
       </ha-alert>
 
-      <ha-select
-        label="From Unit"
+      <ha-selector
+        .hass=${this.hass}
+        .label=${'From Unit'}
+        .selector=${{
+          select: {
+            mode: 'dropdown',
+            options: [
+              ...Object.entries(unitCategories).flatMap(([category, data]) => [
+                ...data.units.map(unit => ({
+                  value: unit.value,
+                  label: `${data.label}: ${unit.label}`
+                }))
+              ])
+            ]
+          }
+        }}
         .value=${fromUnit}
-        @selected=${(e) => {
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          const newUnit = e.target.value;
+        @value-changed=${(e) => {
+          const newUnit = e.detail.value;
           this._updateConfig('from', newUnit);
           // Reset to if switching categories
           const currentToUnit = this._config.to || '';
@@ -371,39 +387,27 @@ export class LCARdSTransformationDialog extends LitElement {
           if (newCategory !== toCategory) {
             this._updateConfig('to', '');
           }
-        }}
-        @click=${(e) => e.stopPropagation()}>
-        <mwc-list-item value="">Select unit...</mwc-list-item>
-        ${Object.entries(unitCategories).map(([category, data]) => html`
-          <mwc-list-item graphic="icon" disabled>
-            <span slot="graphic">━━</span>
-            ${data.label}
-          </mwc-list-item>
-          ${data.units.map(unit => html`
-            <mwc-list-item .value=${unit.value}>&nbsp;&nbsp;${unit.label}</mwc-list-item>
-          `)}
-        `)}
-      </ha-select>
+        }}>
+      </ha-selector>
 
-      <ha-select
-        label="To Unit"
-        .value=${this._config.to || ''}
-        ?disabled=${!fromCategory}
-        @selected=${(e) => {
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          this._updateConfig('to', e.target.value);
+      <ha-selector
+        .hass=${this.hass}
+        .label=${'To Unit'}
+        .disabled=${!fromCategory}
+        .selector=${{
+          select: {
+            mode: 'dropdown',
+            options: fromCategory
+              ? unitCategories[fromCategory].units.map(unit => ({
+                  value: unit.value,
+                  label: unit.label
+                }))
+              : [{ value: '', label: 'Select a "From Unit" first' }]
+          }
         }}
-        @click=${(e) => e.stopPropagation()}>
-        <mwc-list-item value="">Select unit...</mwc-list-item>
-        ${fromCategory ? html`
-          ${unitCategories[fromCategory].units.map(unit => html`
-            <mwc-list-item .value=${unit.value}>${unit.label}</mwc-list-item>
-          `)}
-        ` : html`
-          <mwc-list-item disabled>Select a "From Unit" first</mwc-list-item>
-        `}
-      </ha-select>
+        .value=${this._config.to || ''}
+        @value-changed=${(e) => this._updateConfig('to', e.detail.value)}>
+      </ha-selector>
 
       ${fromCategory && this._config.from && this._config.to ? html`
         <div style="padding: 8px; background: var(--success-color, #4caf50); color: white; border-radius: 4px; font-size: 14px;">
@@ -672,16 +676,14 @@ export class LCARdSTransformationDialog extends LitElement {
         Advanced: JavaScript expression (has access to 'value', 'timestamp', 'buffer')
       </ha-alert>
 
-      <ha-textfield
-        label="Expression *"
+      <ha-selector
+        .hass=${this.hass}
+        .label=${'Expression *'}
+        .helper=${'Available variables: value (current), timestamp, buffer (history)'}
+        .selector=${{ text: {} }}
         .value=${this._config.expression || ''}
-        @input=${(e) => this._updateConfig('expression', e.target.value)}
-        placeholder="e.g., value * 2 + 10">
-      </ha-textfield>
-
-      <div class="helper-text">
-        Available variables: <code>value</code> (current), <code>timestamp</code>, <code>buffer</code> (history)
-      </div>
+        @value-changed=${(e) => this._updateConfig('expression', e.detail.value)}>
+      </ha-selector>
 
       <div class="example-code">
         Examples: <br>
@@ -712,8 +714,7 @@ parameter2: value2">
   }
 
   _handleTypeChange(event) {
-    event.stopPropagation(); // Prevent bubbling to dialog
-    const value = event.target.value;
+    const value = event.detail.value;
 
     if (value === '__yaml__') {
       this._useYaml = true;

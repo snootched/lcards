@@ -270,15 +270,14 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         ?expanded=${false}>
                     </lcards-color-section>
 
-                    <div class="form-row">
-                        <label>Stroke Width</label>
-                        <ha-textfield
-                            .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                            @input=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.target.value)}
-                            placeholder="e.g., 1 or 0.5">
-                        </ha-textfield>
-                        <div class="helper-text">SVG stroke width (number or string)</div>
-                    </div>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Stroke Width'}
+                        .helper=${'SVG stroke width (number or string)'}
+                        .selector=${{ text: {} }}
+                        .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
+                        @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
+                    </ha-selector>
                 </lcards-form-section>
             </lcards-form-section>
         `;
@@ -348,15 +347,14 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 ${isExpanded ? html`
                     <!-- Show manual selector field for custom mode if not auto-discovered -->
                     ${!isPredefined && !isDiscovered ? html`
-                        <div class="form-row">
-                            <label>CSS Selector</label>
-                            <ha-textfield
-                                .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.selector`) || ''}
-                                @input=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.selector`, e.target.value)}
-                                placeholder="#id, .class, [data-segment='name']">
-                            </ha-textfield>
-                            <div class="helper-text">Element selector (e.g., #id, .class, [data-segment='name'])</div>
-                        </div>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'CSS Selector'}
+                            .helper=${'Element selector (e.g., #id, .class, [data-segment=\'name\'])'}
+                            .selector=${{ text: {} }}
+                            .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.selector`) || ''}
+                            @value-changed=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.selector`, e.detail.value)}>
+                        </ha-selector>
                     ` : ''}
 
                     <!-- Entity Override -->
@@ -491,29 +489,30 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     ?expanded=${false}>
                 </lcards-color-section>
 
-                <div class="form-row">
-                    <label>Stroke Width</label>
-                    <ha-textfield
-                        .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                        @input=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.target.value)}
-                        placeholder="e.g., 1 or 0.5">
-                    </ha-textfield>
-                    <div class="helper-text">SVG stroke width (overrides default)</div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Stroke Width'}
+                    .helper=${'SVG stroke width (overrides default)'}
+                    .selector=${{ text: {} }}
+                    .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
+                    @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
+                </ha-selector>
 
-                <div class="form-row">
-                    <label>Opacity</label>
-                    <ha-textfield
-                        .value=${this.editor._getConfigValue(`${basePath}.style.opacity`) || ''}
-                        @input=${(e) => this.editor._setConfigValue(`${basePath}.style.opacity`, e.target.value)}
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        placeholder="0.0 - 1.0">
-                    </ha-textfield>
-                    <div class="helper-text">SVG opacity (0.0 = transparent, 1.0 = opaque)</div>
-                </div>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Opacity'}
+                    .helper=${'SVG opacity (0.0 = transparent, 1.0 = opaque)'}
+                    .selector=${{
+                        number: {
+                            min: 0,
+                            max: 1,
+                            step: 0.1,
+                            mode: 'box'
+                        }
+                    }}
+                    .value=${this.editor._getConfigValue(`${basePath}.style.opacity`) || ''}
+                    @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.opacity`, e.detail.value)}>
+                </ha-selector>
             </lcards-form-section>
         `;
     }
