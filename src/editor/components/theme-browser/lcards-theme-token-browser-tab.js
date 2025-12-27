@@ -14,6 +14,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import { ALERT_MODE_PALETTES, captureOriginalColors } from '../../../core/themes/paletteInjector.js';
+import { editorStyles } from '../../base/editor-styles.js';
 import {
   transformColorToAlertMode,
   getAlertModeTransform,
@@ -125,55 +126,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host {
-        display: block;
-        padding: 16px;
-      }
-
-      /* Tab content - simplified */
-      .tab-content {
-        padding: 0;
-      }
-
-      .info-card {
-        background: var(--primary-background-color);
-        border: 1px solid var(--divider-color);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      .info-card h3 {
-        margin: 0 0 12px 0;
-        color: var(--primary-text-color);
-        font-size: 18px;
-        font-weight: 500;
-      }
-
-      .info-card p {
-        margin: 8px 0;
-        color: var(--secondary-text-color);
-        line-height: 1.5;
-      }
-
-      .info-card code {
-        background: var(--secondary-background-color);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-family: 'Roboto Mono', monospace;
-        font-size: 13px;
-      }
-
-      .open-browser-button {
-        margin-top: 16px;
-      }
-
-      /* Dialog styles */
-      ha-dialog {
-        --mdc-dialog-min-width: 90vw;
-        --mdc-dialog-max-width: 1400px;
-      }
+    return [
+      editorStyles,
+      css`
+        /* Dialog styles */
+        ha-dialog {
+          --mdc-dialog-min-width: 90vw;
+          --mdc-dialog-max-width: 1400px;
+        }
 
       .dialog-content {
         display: flex;
@@ -1081,7 +1041,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           grid-template-columns: 1fr;
         }
       }
-    `;
+      `
+    ];
   }
 
   firstUpdated() {
@@ -1108,22 +1069,26 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     return html`
       <div class="tab-content">
         <div class="info-card">
-          <h3>Theme Browser</h3>
-          <p>
-            <strong>${this._activeTheme?.name || 'Active Theme'}</strong>
-            <br />
-            ${this._tokens.length} tokens available
-          </p>
-          <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Browse and copy theme tokens for <strong>style configuration</strong>: <code>theme:token.path</code>
-          </p>
-          <ha-button
-            class="open-browser-button"
-            raised
-            @click=${this._openDialog}>
-            <ha-icon icon="mdi:palette" slot="icon"></ha-icon>
-            Open Theme Browser
-          </ha-button>
+          <div class="info-card-content">
+            <h3>Theme Browser</h3>
+            <p>
+              <strong>${this._activeTheme?.name || 'Active Theme'}</strong>
+              <br />
+              ${this._tokens.length} tokens available
+            </p>
+            <p style="font-size: 13px; color: var(--secondary-text-color);">
+              Browse and copy theme tokens for <strong>style configuration</strong>: <code>theme:token.path</code>
+            </p>
+          </div>
+          <div class="info-card-actions">
+            <ha-button
+              class="open-browser-button"
+              raised
+              @click=${this._openDialog}>
+              <ha-icon icon="mdi:palette" slot="icon"></ha-icon>
+              Open Theme Browser
+            </ha-button>
+          </div>
         </div>
       </div>
     `;

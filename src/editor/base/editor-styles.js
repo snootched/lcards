@@ -125,6 +125,47 @@ export const editorStyles = css`
         font-size: 14px;
     }
 
+    /* Info card - standardized launcher card for tabs (Theme Browser, Provenance, Templates) */
+    .info-card {
+        background: var(--primary-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-card h3 {
+        margin: 0 0 12px 0;
+        color: var(--primary-text-color);
+        font-size: 18px;
+        font-weight: 500;
+    }
+
+    .info-card p {
+        margin: 8px 0;
+        color: var(--secondary-text-color);
+        line-height: 1.5;
+    }
+
+    .info-card code {
+        background: var(--secondary-background-color);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 13px;
+    }
+
+    .info-card-content {
+        margin-bottom: 16px;
+    }
+
+    .info-card-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid var(--divider-color);
+    }
+
     ha-textfield,
     ha-selector,
     ha-entity-picker {

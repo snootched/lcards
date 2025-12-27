@@ -11,6 +11,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { editorStyles } from '../../base/editor-styles.js';
 import '../shared/lcards-form-section.js';
 
 /**
@@ -93,59 +94,18 @@ export class LCARdSProvenanceTab extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host {
-        display: block;
-        width: 100%;
-      }
-
-      /* Tab Content - Small card with "Open Inspector" button */
-      .tab-content {
-        padding: 16px;
-      }
-
-      .info-card {
-        background: var(--primary-background-color);
-        border: 1px solid var(--divider-color);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      .info-card h3 {
-        margin: 0 0 12px 0;
-        color: var(--primary-text-color);
-        font-size: 18px;
-        font-weight: 500;
-      }
-
-      .info-card p {
-        margin: 8px 0;
-        color: var(--secondary-text-color);
-        line-height: 1.5;
-      }
-
-      .info-card code {
-        background: var(--secondary-background-color);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-family: 'Roboto Mono', monospace;
-        font-size: 13px;
-      }
-
-      .open-inspector-button {
-        margin-top: 16px;
-      }
-
-      /* Loading State */
-      .loading-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 48px;
-        gap: 12px;
-      }
+    return [
+      editorStyles,
+      css`
+        /* Loading State */
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 48px;
+          gap: 12px;
+        }
 
       .loading-state p {
         color: var(--secondary-text-color);
@@ -1975,7 +1935,8 @@ export class LCARdSProvenanceTab extends LitElement {
         color: var(--success-color, #4caf50);
         font-weight: 700;
       }
-    `;
+      `
+    ];
   }
 
   render() {
@@ -2000,21 +1961,25 @@ export class LCARdSProvenanceTab extends LitElement {
     return html`
       <div class="tab-content">
         <div class="info-card">
-          <h3>🔍 Provenance Inspector</h3>
-          <p>
-            <strong>${stats.totalFields} fields</strong> tracked across <strong>${stats.layerCount} layers</strong>
-            ${stats.tokenCount > 0 ? html`<br /><strong>${stats.tokenCount} theme tokens</strong> resolved` : ''}
-          </p>
-          <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Explore where each configuration value comes from: defaults, theme, user config, presets, or dynamic rules.
-          </p>
-          <ha-button
-            class="open-inspector-button"
-            raised
-            @click=${this._openDialog}>
-            <ha-icon icon="mdi:file-tree" slot="icon"></ha-icon>
-            Open Provenance Inspector
-          </ha-button>
+          <div class="info-card-content">
+            <h3>🔍 Provenance Inspector</h3>
+            <p>
+              <strong>${stats.totalFields} fields</strong> tracked across <strong>${stats.layerCount} layers</strong>
+              ${stats.tokenCount > 0 ? html`<br /><strong>${stats.tokenCount} theme tokens</strong> resolved` : ''}
+            </p>
+            <p style="font-size: 13px; color: var(--secondary-text-color);">
+              Explore where each configuration value comes from: defaults, theme, user config, presets, or dynamic rules.
+            </p>
+          </div>
+          <div class="info-card-actions">
+            <ha-button
+              class="open-inspector-button"
+              raised
+              @click=${this._openDialog}>
+              <ha-icon icon="mdi:file-tree" slot="icon"></ha-icon>
+              Open Provenance Inspector
+            </ha-button>
+          </div>
         </div>
       </div>
     `;

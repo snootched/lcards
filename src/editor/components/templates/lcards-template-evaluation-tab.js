@@ -17,6 +17,7 @@ import { LitElement, html, css } from 'lit';
 import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
 import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplateEvaluator.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { editorStyles } from '../../base/editor-styles.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-form-section.js';
 import './lcards-template-sandbox.js';
@@ -45,78 +46,13 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host {
-        display: block;
-        padding: 16px;
-      }
-
-      .syntax-list {
-        display: grid;
-        gap: 12px;
-      }
-
-      .syntax-item {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 12px;
-        align-items: start;
-      }
-
-      .syntax-code {
-        font-family: 'Courier New', monospace;
-        background: var(--code-background-color, #282c34);
-        color: var(--code-text-color, #abb2bf);
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        white-space: nowrap;
-      }
-
-      .syntax-description {
-        color: var(--secondary-text-color);
-        font-size: 13px;
-        line-height: 1.4;
-      }
-
-      /* Chip styling for filter buttons */
-      .lcards-chip {
-        appearance: none;
-        -webkit-appearance: none;
-        border: 1px solid var(--divider-color);
-        background: var(--chip-background, var(--secondary-background-color));
-        color: var(--primary-text-color, var(--primary-color));
-        padding: 6px 10px;
-        border-radius: 16px;
-        font-size: 13px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .lcards-chip:hover {
-        filter: brightness(0.98);
-      }
-
-      .lcards-chip.selected {
-        background: var(--primary-color);
-        color: var(--ha-card-background, #fff);
-        border-color: var(--primary-color);
-      }
-
-      .header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-
-      .header-row h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
+    return [
+      editorStyles,
+      css`
+        /* Templates list section */
+        .templates-section {
+          margin-top: 16px;
+        }
 
       .templates-grid {
         display: grid;
@@ -257,7 +193,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         background: rgba(244, 67, 54, 0.1);
         border-radius: 4px;
       }
-    `;
+      `
+    ];
   }
 
   firstUpdated() {
@@ -272,11 +209,59 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
   render() {
     return html`
-      ${this._renderHeader()}
-      ${this._renderSyntaxReference()}
-      ${this._renderFilterBar()}
-      ${this._renderTemplatesTable()}
+      <div class="tab-content">
+        ${this._renderLauncherCard()}
+        ${this._renderTemplatesSection()}
+      </div>
       ${this._renderSandbox()}
+    `;
+  }
+
+  _renderLauncherCard() {
+    const templateCount = this._templates.length;
+    const syntaxTypes = [...new Set(this._templates.map(t => t.type))].length;
+
+    return html`
+      <div class="info-card">
+        <div class="info-card-content">
+          <h3>🧪 Template Sandbox</h3>
+          <p>
+            <strong>${templateCount} templates</strong> detected
+            ${syntaxTypes > 0 ? html`<br /><strong>${syntaxTypes} syntax types</strong> in use` : ''}
+          </p>
+          <p style="font-size: 13px; color: var(--secondary-text-color);">
+            Test and debug templates with live evaluation. Supports JavaScript <code>[[[...]]]</code>,
+            Token <code>{...}</code>, and Jinja2 <code>{{...}}</code> syntax.
+          </p>
+        </div>
+        <div class="info-card-actions">
+          <ha-button
+            class="open-sandbox-button"
+            raised
+            @click=${this._openSandbox}>
+            <ha-icon icon="mdi:flask-outline" slot="icon"></ha-icon>
+            Open Sandbox
+          </ha-button>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderTemplatesSection() {
+    if (this._templates.length === 0) {
+      return html`
+        <div class="empty-state">
+          <ha-icon icon="mdi:text-search" style="font-size: 48px; opacity: 0.3;"></ha-icon>
+          <p>No templates detected in card configuration</p>
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="templates-section">
+        <h3>Templates in Config</h3>
+        ${this._renderTemplatesTable()}
+      </div>
     `;
   }
 
