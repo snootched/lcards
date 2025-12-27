@@ -15,6 +15,7 @@
 import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { fireEvent } from 'custom-card-helpers';
+import { editorStyles } from '../../base/editor-styles.js';
 import './lcards-card-datasources-list.js';
 import './lcards-global-datasources-panel.js';
 import './lcards-datasource-dialog.js';
@@ -45,10 +46,12 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host {
-        display: block;
-      }
+    return [
+      editorStyles,
+      css`
+        :host {
+          display: block;
+        }
 
       .tabs-container {
         display: flex;
@@ -99,56 +102,63 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         cursor: pointer;
       }
 
-      .browse-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 24px;
-        background: var(--primary-color);
-        color: var(--text-primary-color, white);
-        border: none;
-        border-radius: 8px;
-        font-family: inherit;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      }
-
-      .browse-button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      }
-
-      .browse-button ha-icon {
-        --mdc-icon-size: 20px;
-      }
-
       mwc-button {
         cursor: pointer;
       }
-    `;
+      `
+    ];
   }
 
   render() {
-    return html`
-      <!-- Using HA native tab components (Issue #82) -->
-      <ha-tab-group @wa-tab-show=${this._handleTabChange}>
-        <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
-          Card Sources
-        </ha-tab-group-tab>
-        <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
-          Global Sources
-        </ha-tab-group-tab>
+    const cardSources = this.editor?.config?.data_sources || {};
+    const cardSourceCount = Object.keys(cardSources).length;
 
-        <ha-tab-panel value="card" ?hidden=${this._activeSubTab !== 'card'}>
-          ${this._activeSubTab === 'card' ? this._renderCardSources() : ''}
-        </ha-tab-panel>
-        <ha-tab-panel value="global" ?hidden=${this._activeSubTab !== 'global'}>
-          ${this._activeSubTab === 'global' ? this._renderGlobalSources() : ''}
-        </ha-tab-panel>
-      </ha-tab-group>
+    // Get global datasource count
+    const dsManager = window.lcards?.core?.dataSourceManager;
+    const globalSourceCount = dsManager?.sources?.size || 0;
+
+    return html`
+      <!-- Launcher Card (above tabs) -->
+      <div class="info-card">
+        <div class="info-card-content">
+          <h3>📊 Data Sources Browser</h3>
+          <p>
+            <strong>${cardSourceCount} card sources</strong> configured
+            <br />
+            <strong>${globalSourceCount} global sources</strong> active
+          </p>
+          <p style="font-size: 13px; color: var(--secondary-text-color);">
+            Browse and manage data sources. View entity subscriptions, transformations, and real-time data.
+          </p>
+        </div>
+        <div class="info-card-actions">
+          <ha-button
+            raised
+            @click=${this._openBrowser}>
+            <ha-icon icon="mdi:database-search" slot="icon"></ha-icon>
+            Browse Sources
+          </ha-button>
+        </div>
+      </div>
+
+      <!-- Tabbed Section -->
+      <div style="margin-top: 16px;">
+        <ha-tab-group @wa-tab-show=${this._handleTabChange}>
+          <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
+            Card Sources
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
+            Global Sources
+          </ha-tab-group-tab>
+
+          <ha-tab-panel value="card" ?hidden=${this._activeSubTab !== 'card'}>
+            ${this._activeSubTab === 'card' ? this._renderCardSources() : ''}
+          </ha-tab-panel>
+          <ha-tab-panel value="global" ?hidden=${this._activeSubTab !== 'global'}>
+            ${this._activeSubTab === 'global' ? this._renderGlobalSources() : ''}
+          </ha-tab-panel>
+        </ha-tab-group>
+      </div>
 
       <lcards-datasource-dialog
         .hass=${this.hass}
@@ -176,14 +186,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       <div class="card-sources-header">
         <div></div>
         <div class="header-actions">
-          <button
-            class="browse-button"
-            @click=${this._openBrowser}
-            title="Browse all data sources"
-          >
-            <ha-icon icon="mdi:database-search"></ha-icon>
-            <span>Browse Sources</span>
-          </button>
           <ha-button
             class="add-source-button"
             variant="brand"
