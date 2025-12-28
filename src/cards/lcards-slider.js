@@ -85,8 +85,12 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMerge } from '../utils/deepMerge.js';
+import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { getSliderComponent } from '../core/packs/components/sliders/index.js';
+
+// Import unified schema
+import { getSliderSchema } from './schemas/slider-schema.js';
 
 export class LCARdSSlider extends LCARdSButton {
 
@@ -262,11 +266,11 @@ export class LCARdSSlider extends LCARdSButton {
     _onConfigSet(config) {
         super._onConfigSet(config);
 
-        // Determine entity domain and mode
-        this._updateEntityContext();
+        // Resolve style FIRST (synchronously)
+        this._resolveSliderStyleSync();
 
-        // Resolve slider style
-        this._resolveSliderStyle();
+        // Update entity context (reads style.track.type from merged style)
+        this._updateEntityContext();
 
         // Load SVG component if specified
         if (config.component) {
@@ -381,15 +385,11 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         // Determine track visual style (pills vs gauge ruler)
-        // Priority: 1. style.track.type, 2. deprecated config.mode, 3. default based on domain
-        if (this.config.style?.track?.type) {
-            // New config path - style.track.type: 'pills' | 'gauge'
-            this._mode = this.config.style.track.type;
-        } else if (this.config.mode) {
-            // Legacy config - config.mode: 'slider' → 'pills', 'gauge' → 'gauge'
-            this._mode = this.config.mode === 'slider' ? 'pills' : 'gauge';
+        // ✅ ONLY use style.track.type (never config.mode)
+        if (this._sliderStyle?.style?.track?.type) {
+            this._mode = this._sliderStyle.style.track.type; // 'pills' or 'gauge'
         } else {
-            // Default: pills for interactive entities, gauge for display-only
+            // Default based on domain (fallback if no preset or style.track.type)
             const interactiveDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
             this._mode = interactiveDomains.includes(this._domain) ? 'pills' : 'gauge';
         }
@@ -463,6 +463,24 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Get resolved orientation from config, component, or default
+     * @private
+     * @returns {'horizontal'|'vertical'}
+     */
+    _getOrientation() {
+        // Priority: 1. Root config.orientation, 2. Component metadata, 3. Default
+        if (this.config.orientation) {
+            return this.config.orientation;
+        }
+        
+        if (this._componentMetadata?.orientation) {
+            return this._componentMetadata.orientation;
+        }
+        
+        return 'horizontal';
+    }
+
+    /**
      * Get value from entity state and convert to control config range
      * @private
      */
@@ -493,154 +511,39 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Resolve slider style from config, preset, and theme tokens
+     * Resolve slider style from preset, config, and theme
+     * Mirrors button card's _resolveButtonStyleSync() pattern
      * @private
      */
-    _resolveSliderStyle() {
-        // Default margin depends on mode: gauge = 0 (seamless), slider = 10
-        const defaultMargin = this._mode === 'gauge' ? 0 : 10;
-
-        // Start with defaults
-        let style = {
-            // Border/frame colors
-            border: {
-                enabled: false, // CSS borders disabled by default
-                left: {
-                    enabled: false,
-                    width: 0,
-                    color: 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
-                },
-                top: {
-                    enabled: false,
-                    width: 0,
-                    color: 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
-                },
-                right: {
-                    enabled: false,
-                    width: 0,
-                    color: 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
-                },
-                bottom: {
-                    enabled: false,
-                    width: 0,
-                    color: 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
-                },
-                color: {
-                    active: 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
-                    inactive: 'var(--lcars-gray, var(--lcards-gray-medium, #666688))'
-                }
-            },
-            // Track configuration
-            track: {
-                orientation: 'horizontal', // or 'vertical'
-                margin: defaultMargin, // Margin around track zone (can be number or {top, right, bottom, left})
-                segments: {
-                    enabled: true,
-                    count: undefined, // undefined = auto-calculate based on container size
-                    gap: 4,
-                    shape: {
-                        radius: 4
-                    },
-                    size: {
-                        height: 12,
-                        width: null // Auto-calculated
-                    },
-                    gradient: {
-                        interpolated: false,
-                        start: 'var(--error-color, #f44336)',
-                        end: 'var(--success-color, #4caf50)'
-                    },
-                    appearance: {
-                        unfilled: {
-                            opacity: 0.2
-                        },
-                        filled: {
-                            opacity: 1.0
-                        }
-                    }
-                }
-            },
-            // Gauge configuration (ruler style)
-            gauge: {
-                progress_bar: {
-                    color: 'var(--lcards-blue-light, #aaccff)',
-                    height: 12,
-                    radius: 2
-                },
-                scale: {
-                    tick_marks: {
-                        major: {
-                            enabled: true,
-                            interval: 10, // Value units (e.g., every 10 degrees, every 10 percent)
-                            color: 'var(--lcars-card-button, #ff9966)',
-                            width: 2
-                        },
-                        minor: {
-                            enabled: true,
-                            interval: 2, // Value units (e.g., every 2 degrees, every 2 percent)
-                            color: 'var(--lcars-card-button, #ff9966)',
-                            height: 10,
-                            width: 1
-                        }
-                    },
-                    labels: {
-                        enabled: true,
-                        unit: '', // Appended to numbers (e.g., '%', '°C')
-                        color: 'var(--lcars-card-button, #ff9966)',
-                        font_size: 14,
-                        padding: 3 // Space between tick and label
-                    }
-                },
-                indicator: {
-                    enabled: false, // Disabled by default
-                    type: 'line', // 'line' or 'thumb'
-                    color: 'var(--lcars-white, #ffffff)',
-                    size: {
-                        width: 4,
-                        height: 25
-                    },
-                    border: {
-                        enabled: false,
-                        color: 'var(--lcars-black, #000000)',
-                        width: 1
-                    }
-                }
-            },
-            // Text labels
-            text: {
-                value: {
-                    enabled: this._mode !== 'gauge', // Gauge mode hides value text by default
-                    template: '{entity.state}',
-                    color: 'var(--lcars-white, #ffffff)',
-                    font_size: 14,
-                    position: 'right'
-                },
-                label: {
-                    enabled: false,
-                    template: '{entity.attributes.friendly_name}',
-                    color: 'var(--lcars-gray, #999999)',
-                    font_size: 12,
-                    position: 'left'
-                }
-            }
-        };
-
-        // Apply preset if specified
+    _resolveSliderStyleSync() {
+        // 1. Start with preset (if specified)
+        let style = {};
+        
+        const core = window.lcards?.core;
+        const stylePresetManager = this._singletons?.stylePresetManager || 
+                                   core?.getStylePresetManager?.();
+        
         if (this.config.preset) {
             const preset = this.getStylePreset('slider', this.config.preset);
             if (preset) {
-                style = deepMerge(style, preset);
+                style = deepMerge({}, preset);
+                lcardsLog.debug(`[LCARdSSlider] Applied preset '${this.config.preset}'`);
             }
         }
-
-        // Apply config overrides
+        
+        // 2. Deep merge config.style (user config wins)
         if (this.config.style) {
-            style = deepMerge(style, this.config.style);
+            const configStyleCopy = JSON.parse(JSON.stringify(this.config.style));
+            const configWithTokens = resolveThemeTokensRecursive(
+                configStyleCopy,
+                this._singletons?.themeManager
+            );
+            style = deepMerge(style, configWithTokens);
         }
-
-        // Apply rule patches
+        
+        // 3. Apply rule patches (highest priority)
         style = this._getMergedStyleWithRules(style);
-
+        
         this._sliderStyle = style;
     }
 
@@ -2177,6 +2080,43 @@ export class LCARdSSlider extends LCARdSButton {
                 }
             }
         };
+    }
+
+    /**
+     * Register slider card with CoreConfigManager
+     * Called by lcards.js after core initialization
+     * @static
+     */
+    static registerSchema() {
+        const configManager = window.lcards?.core?.configManager;
+        if (!configManager) {
+            lcardsLog.error('[LCARdSSlider] CoreConfigManager not available for schema registration');
+            return;
+        }
+        
+        // Get available presets
+        const stylePresetManager = window.lcards?.core?.stylePresetManager;
+        const availablePresets = stylePresetManager?.getAvailablePresets('slider') || [];
+        
+        // Get available components
+        const availableComponents = ['horizontal', 'vertical', 'picard-vertical'];
+        
+        lcardsLog.debug('[LCARdSSlider] Registering schema with presets:', availablePresets);
+        
+        // Register schema
+        const sliderSchema = getSliderSchema({ 
+            availablePresets,
+            availableComponents 
+        });
+        configManager.registerCardSchema('slider', sliderSchema, { version: '1.22.0' });
+        
+        // Register behavioral defaults ONLY (no styles)
+        configManager.registerCardDefaults('slider', {
+            orientation: 'horizontal'  // Simple default
+            // NO preset, NO style, NO mode
+        });
+        
+        lcardsLog.debug('[LCARdSSlider] Registered with CoreConfigManager');
     }
 }
 
