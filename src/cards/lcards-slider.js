@@ -552,77 +552,20 @@ export class LCARdSSlider extends LCARdSButton {
 
     /**
      * Resolve slider style synchronously
-     * Merges preset + config.style
-     *
-     * Pattern matches button card: ALWAYS do manual preset lookup
-     * CoreConfigManager runs separately for provenance tracking
-     *
+     * NOTE: CoreConfigManager has already merged: behavioral → theme → preset → component → user
+     * This method only needs to apply dynamic rule patches
      * @private
      */
     _resolveSliderStyleSync() {
-        // 1. Start with preset (if specified)
-        let style = {};
+        // Start with config.style (already has preset + component merged by CoreConfigManager)
+        let style = this.config.style ? deepMerge({}, this.config.style) : {};
 
-        // Check StylePresetManager availability - try singletons first, then global core
-        const core = window.lcards?.core;
-        const stylePresetManager = this._singletons?.stylePresetManager || core?.getStylePresetManager?.();
-
-        lcardsLog.debug(`[LCARdSSlider] _resolveSliderStyleSync starting`, {
-            hasPreset: !!this.config.preset,
-            presetName: this.config.preset,
-            hasGetStylePreset: typeof this.getStylePreset === 'function',
-            hasSingletons: !!this._singletons,
-            hasStylePresetManager: !!stylePresetManager,
-            source: this._singletons?.stylePresetManager ? 'singletons' : (stylePresetManager ? 'core' : 'none')
+        lcardsLog.debug(`[LCARdSSlider] Resolving slider style`, {
+            hasStyle: !!this.config.style,
+            styleKeys: Object.keys(style)
         });
 
-        if (this.config.preset) {
-            // Check if StylePresetManager is available (either via singletons or core)
-            if (!stylePresetManager) {
-                lcardsLog.warn(`[LCARdSSlider] StylePresetManager not available yet, preset '${this.config.preset}' will be deferred`);
-                // Return early - don't process anything until StylePresetManager is ready
-                // This prevents rendering with incomplete/default values
-                return;
-            } else {
-                const preset = this.getStylePreset('slider', this.config.preset);
-                lcardsLog.debug(`[LCARdSSlider] Preset lookup result`, {
-                    presetName: this.config.preset,
-                    presetFound: !!preset,
-                    presetKeys: preset ? Object.keys(preset) : [],
-                    hasPills: preset?.pills,
-                    pillsBorderRadius: preset?.pills?.border?.radius
-                });
-                if (preset) {
-                    // Deep copy preset to avoid mutation issues
-                    style = deepMerge({}, preset);
-                    lcardsLog.debug(`[LCARdSSlider] Applied preset '${this.config.preset}'`, {
-                        pillsBorderRadius: preset.pills?.border?.radius,
-                        pillsBorderWidth: preset.pills?.border?.width,
-                        styleKeys: Object.keys(style)
-                    });
-                }
-            }
-        } else {
-            lcardsLog.debug(`[LCARdSSlider] No preset specified, starting with empty style`);
-        }
-
-        // 2. DEEP merge config styles (config wins over preset)
-        if (this.config.style) {
-            lcardsLog.debug(`[LCARdSSlider] Merging config.style`, {
-                hasPills: !!this.config.style.pills,
-                pillsBorderRadius: this.config.style.pills?.border?.radius,
-                pillsBorderWidth: this.config.style.pills?.border?.width
-            });
-            // First create a deep copy to avoid mutating the original config
-            const configStyleCopy = JSON.parse(JSON.stringify(this.config.style));
-            // Then resolve ALL tokens recursively (theme: and computed)
-            const configWithTokens = resolveThemeTokensRecursive(configStyleCopy, this._singletons?.themeManager);
-            // Then deep merge (handles nested objects)
-            style = deepMerge(style, configWithTokens);
-            lcardsLog.trace(`[LCARdSSlider] Config styles merged`);
-        }
-
-        // 3. Apply rule patches (dynamic, happens at render time)
+        // Apply rule patches (dynamic, happens at render time)
         style = this._getMergedStyleWithRules(style);
 
         this._sliderStyle = style;

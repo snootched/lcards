@@ -327,25 +327,12 @@ export class CoreConfigManager {
     let presetConfig = {};
     let componentConfig = {};
 
-    lcardsLog.debug('[CoreConfigManager] Checking preset/component:', {
-      hasComponent: !!userConfig.component,
-      hasPreset: !!userConfig.preset,
-      component: userConfig.component,
-      preset: userConfig.preset
-    });
-
     if (userConfig.preset) {
-      lcardsLog.debug('[CoreConfigManager] Loading PRESET');
       presetConfig = await this._getPresetConfig(cardType, userConfig);
     }
 
     if (userConfig.component) {
-      lcardsLog.debug('[CoreConfigManager] Loading COMPONENT');
       componentConfig = await this._getComponentDefaults(cardType, userConfig);
-    }
-
-    if (!userConfig.preset && !userConfig.component) {
-      lcardsLog.debug('[CoreConfigManager] No preset or component specified');
     }
 
     // STEP 4: Five-layer deep merge when both preset and component exist
@@ -354,9 +341,7 @@ export class CoreConfigManager {
     mergedConfig = deepMerge(mergedConfig, themeDefaults);
     mergedConfig = deepMerge(mergedConfig, presetConfig);
     mergedConfig = deepMerge(mergedConfig, componentConfig);
-    mergedConfig = deepMerge(mergedConfig, userConfig);
-
-    // STEP 5: Resolve theme tokens
+    mergedConfig = deepMerge(mergedConfig, userConfig);    // STEP 5: Resolve theme tokens
     this._resolveThemeTokens(mergedConfig, cardType);
 
     // STEP 6: Create provenance tracking (now supports both preset and component)
@@ -453,12 +438,6 @@ export class CoreConfigManager {
     }
 
     this.stats.presetsResolved++;
-
-    lcardsLog.debug(`[CoreConfigManager] Resolved preset '${userConfig.preset}' for ${overlayType}`, {
-      presetKeys: Object.keys(preset),
-      hasStyle: !!preset.style,
-      presetKeyCount: Object.keys(preset).length
-    });
 
     // Presets can have nested 'style' or be flat
     return preset.style ? preset : { style: preset };
