@@ -505,11 +505,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: 0,
                                         description: 'Border width in pixels'
                                     },
-                                    color: {
-                                        type: 'string',
-                                        description: 'Border color (hex, theme token, or CSS variable)',
-                                        examples: ['#FF9900', 'theme:color.ui.active', 'var(--lcars-orange)']
-                                    }
+                                    color: stateColorSchema
                                 }
                             },
                             top: {
@@ -525,11 +521,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: 0,
                                         description: 'Border height in pixels'
                                     },
-                                    color: {
-                                        type: 'string',
-                                        description: 'Border color (hex, theme token, or CSS variable)',
-                                        examples: ['#FF9900', 'theme:color.ui.active', 'var(--lcars-orange)']
-                                    }
+                                    color: stateColorSchema
                                 }
                             },
                             right: {
@@ -545,11 +537,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: 0,
                                         description: 'Border width in pixels'
                                     },
-                                    color: {
-                                        type: 'string',
-                                        description: 'Border color (hex, theme token, or CSS variable)',
-                                        examples: ['#FF9900', 'theme:color.ui.active', 'var(--lcars-orange)']
-                                    }
+                                    color: stateColorSchema
                                 }
                             },
                             bottom: {
@@ -565,11 +553,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: 0,
                                         description: 'Border height in pixels'
                                     },
-                                    color: {
-                                        type: 'string',
-                                        description: 'Border color (hex, theme token, or CSS variable)',
-                                        examples: ['#FF9900', 'theme:color.ui.active', 'var(--lcars-orange)']
-                                    }
+                                    color: stateColorSchema
                                 }
                             }
                         }

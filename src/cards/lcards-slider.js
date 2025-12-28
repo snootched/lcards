@@ -536,6 +536,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._sliderStyle = style;
     }
 
+
     /**
      * Load and parse SVG component
      * @private
@@ -706,6 +707,58 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Resolve state-based border color
+     * Supports: border.color[state], border.color.default, border.color (plain string), theme fallback
+     * @param {Object|string} colorConfig - Color configuration (state object or string)
+     * @returns {string} Resolved color
+     * @private
+     */
+    _resolveStateBorderColor(colorConfig) {
+        // If no color configured, get default from theme tokens
+        if (!colorConfig) {
+            const themeManager = this._singletons?.themeManager;
+            if (themeManager) {
+                const themeColor = themeManager.getToken('components.slider.border.color');
+                if (themeColor) {
+                    // If theme token is a state object, resolve based on current state
+                    if (typeof themeColor === 'object' && !Array.isArray(themeColor)) {
+                        const sliderState = this._getButtonState();
+                        const tokenValue = themeColor[sliderState] || themeColor.default || themeColor;
+                        // Resolve any nested theme tokens (e.g., 'colors.card.button' -> actual value)
+                        const resolved = themeManager.resolver?.resolve(tokenValue, tokenValue) || tokenValue;
+                        lcardsLog.debug(`[LCARdSSlider] Using theme border color for state '${sliderState}':`, resolved);
+                        return resolved;
+                    }
+                    // Plain string theme token - resolve any nested tokens
+                    const resolved = themeManager.resolver?.resolve(themeColor, themeColor) || themeColor;
+                    lcardsLog.debug(`[LCARdSSlider] Using theme border color:`, resolved);
+                    return resolved;
+                }
+            }
+            lcardsLog.debug(`[LCARdSSlider] No color config or theme token, using fallback`);
+            return 'var(--lcars-color-secondary, #000000)'; // Ultimate fallback
+        }
+
+        // If it's a plain string, return it directly
+        if (typeof colorConfig === 'string') {
+            lcardsLog.debug(`[LCARdSSlider] Border color is plain string:`, colorConfig);
+            return colorConfig;
+        }
+
+        // State-based color resolution (matches button pattern)
+        const sliderState = this._getButtonState(); // Inherited from LCARdSButton
+        lcardsLog.debug(`[LCARdSSlider] Resolving border color for state '${sliderState}':`, colorConfig);
+
+        const resolvedColor = colorConfig[sliderState] ||
+                             colorConfig.default ||
+                             colorConfig ||
+                             'var(--lcars-color-secondary, #000000)';
+
+        lcardsLog.debug(`[LCARdSSlider] Resolved border color:`, resolvedColor);
+        return resolvedColor;
+    }
+
+    /**
      * Inject SVG border elements from config
      * Generates rect elements for left/top/right/bottom borders
      * @private
@@ -749,7 +802,8 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', leftSize);
             rect.setAttribute('height', height);
-            rect.setAttribute('fill', this._resolveCssVariable(borderConfig.left.color));
+            const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
+            rect.setAttribute('fill', this._resolveCssVariable(leftColor));
             borderZone.appendChild(rect);
         }
 
@@ -762,7 +816,8 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', width);
             rect.setAttribute('height', topSize);
-            rect.setAttribute('fill', this._resolveCssVariable(borderConfig.top.color));
+            const topColor = this._resolveStateBorderColor(borderConfig.top.color);
+            rect.setAttribute('fill', this._resolveCssVariable(topColor));
             borderZone.appendChild(rect);
         }
 
@@ -775,7 +830,8 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', rightSize);
             rect.setAttribute('height', height);
-            rect.setAttribute('fill', this._resolveCssVariable(borderConfig.right.color));
+            const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
+            rect.setAttribute('fill', this._resolveCssVariable(rightColor));
             borderZone.appendChild(rect);
         }
 
@@ -788,7 +844,8 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', height - bottomSize);
             rect.setAttribute('width', width);
             rect.setAttribute('height', bottomSize);
-            rect.setAttribute('fill', this._resolveCssVariable(borderConfig.bottom.color));
+            const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
+            rect.setAttribute('fill', this._resolveCssVariable(bottomColor));
             borderZone.appendChild(rect);
         }
 
