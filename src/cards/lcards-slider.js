@@ -389,10 +389,10 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         // Determine track visual style (pills vs gauge ruler)
-        // ✅ ONLY use style.track.type (never config.mode)
-        const trackType = this._sliderStyle?.style?.track?.type;
+        // ✅ ONLY use track.type (never config.mode)
+        const trackType = this._sliderStyle?.track?.type;
         const validTypes = ['pills', 'gauge'];
-        
+
         if (trackType && validTypes.includes(trackType)) {
             this._mode = trackType;
         } else {
@@ -479,11 +479,11 @@ export class LCARdSSlider extends LCARdSButton {
         if (this.config.orientation) {
             return this.config.orientation;
         }
-        
+
         if (this._componentMetadata?.orientation) {
             return this._componentMetadata.orientation;
         }
-        
+
         return 'horizontal';
     }
 
@@ -525,11 +525,11 @@ export class LCARdSSlider extends LCARdSButton {
     _resolveSliderStyleSync() {
         // 1. Start with preset (if specified)
         let style = {};
-        
+
         const core = window.lcards?.core;
-        const stylePresetManager = this._singletons?.stylePresetManager || 
+        const stylePresetManager = this._singletons?.stylePresetManager ||
                                    core?.getStylePresetManager?.();
-        
+
         if (this.config.preset && typeof this.config.preset === 'string') {
             const preset = this.getStylePreset('slider', this.config.preset);
             if (preset) {
@@ -537,7 +537,7 @@ export class LCARdSSlider extends LCARdSButton {
                 lcardsLog.debug(`[LCARdSSlider] Applied preset '${this.config.preset}'`);
             }
         }
-        
+
         // 2. Deep merge config.style (user config wins)
         if (this.config.style) {
             const configStyleCopy = JSON.parse(JSON.stringify(this.config.style));
@@ -547,10 +547,10 @@ export class LCARdSSlider extends LCARdSButton {
             );
             style = deepMerge(style, configWithTokens);
         }
-        
+
         // 3. Apply rule patches (highest priority)
         style = this._getMergedStyleWithRules(style);
-        
+
         this._sliderStyle = style;
     }
 
@@ -2100,29 +2100,29 @@ export class LCARdSSlider extends LCARdSButton {
             lcardsLog.error('[LCARdSSlider] CoreConfigManager not available for schema registration');
             return;
         }
-        
+
         // Get available presets
         const stylePresetManager = window.lcards?.core?.stylePresetManager;
         const availablePresets = stylePresetManager?.getAvailablePresets('slider') || [];
-        
+
         // Get available components
         const availableComponents = ['horizontal', 'vertical', 'picard-vertical'];
-        
+
         lcardsLog.debug('[LCARdSSlider] Registering schema with presets:', availablePresets);
-        
+
         // Register schema
-        const sliderSchema = getSliderSchema({ 
+        const sliderSchema = getSliderSchema({
             availablePresets,
-            availableComponents 
+            availableComponents
         });
         configManager.registerCardSchema('slider', sliderSchema, { version: '1.22.0' });
-        
+
         // Register behavioral defaults ONLY (no styles)
         configManager.registerCardDefaults('slider', {
             orientation: 'horizontal'  // Simple default
             // NO preset, NO style, NO mode
         });
-        
+
         lcardsLog.debug('[LCARdSSlider] Registered with CoreConfigManager');
     }
 }

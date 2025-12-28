@@ -835,29 +835,31 @@ const LCARDS_SLIDERS_PACK = {
         // Root-level defaults
         orientation: 'horizontal',
 
-        // Style configuration
-        style: {
-          track: {
-            height: 'theme:components.slider.track.height',
-            background: 'theme:components.slider.track.background',
-            margin: 10  // Default margin (not for gauge)
-          },
-          text: {
-            default: {
-              font_family: 'theme:typography.fontFamily.primary',
-              font_size: 'theme:typography.fontSize.base',
-              color: {
-                default: 'theme:components.button.text.color.active',
-                active: 'theme:components.button.text.color.active',
-                inactive: 'theme:components.button.text.color.inactive',
-                unavailable: 'theme:components.button.text.color.unavailable'
-              }
+        // Track configuration (directly at root, no 'style' wrapper)
+        track: {
+          height: 'theme:components.slider.track.height',
+          background: 'theme:components.slider.track.background',
+          margin: 10  // Default margin (not for gauge)
+        },
+
+        // Text configuration (directly at root)
+        text: {
+          default: {
+            font_family: 'theme:typography.fontFamily.primary',
+            font_size: 'theme:typography.fontSize.base',
+            color: {
+              default: 'theme:components.button.text.color.active',
+              active: 'theme:components.button.text.color.active',
+              inactive: 'theme:components.button.text.color.inactive',
+              unavailable: 'theme:components.button.text.color.unavailable'
             }
-          },
-          border: {
-            width: 0,
-            radius: 0
           }
+        },
+
+        // Border configuration (directly at root)
+        border: {
+          width: 0,
+          radius: 0
         }
       },
 
@@ -868,25 +870,24 @@ const LCARDS_SLIDERS_PACK = {
         extends: 'slider.base',
         description: 'Segmented pill slider for interactive controls',
 
-        style: {
-          track: {
-            type: 'pills',  // ✅ THIS determines pills mode
-            segments: {
-              enabled: true,
-              count: 15,
-              gap: 'theme:components.slider.pills.gap',
-              shape: {
-                radius: 'theme:components.slider.pills.radius'
-              },
-              gradient: {
-                interpolated: true,
-                start: 'theme:components.slider.pills.gradient.start',
-                end: 'theme:components.slider.pills.gradient.end'
-              },
-              appearance: {
-                unfilled: { opacity: 0.2 },
-                filled: { opacity: 1.0 }
-              }
+        // Track configuration overrides (directly at root)
+        track: {
+          type: 'pills',  // ✅ THIS determines pills mode
+          segments: {
+            enabled: true,
+            count: 15,
+            gap: 'theme:components.slider.pills.gap',
+            shape: {
+              radius: 'theme:components.slider.pills.radius'
+            },
+            gradient: {
+              interpolated: true,
+              start: 'theme:components.slider.pills.gradient.start',
+              end: 'theme:components.slider.pills.gradient.end'
+            },
+            appearance: {
+              unfilled: { opacity: 0.2 },
+              filled: { opacity: 1.0 }
             }
           }
         }
@@ -899,41 +900,42 @@ const LCARDS_SLIDERS_PACK = {
         extends: 'slider.base',
         description: 'Ruler-style gauge for displays and controls',
 
-        style: {
-          track: {
-            type: 'gauge',  // ✅ THIS determines gauge mode
-            margin: 0  // Override base margin for seamless ruler
+        // Track configuration overrides (directly at root)
+        track: {
+          type: 'gauge',  // ✅ THIS determines gauge mode
+          margin: 0  // Override base margin for seamless ruler
+        },
+
+        // Gauge configuration (directly at root)
+        gauge: {
+          progress_bar: {
+            color: 'theme:components.slider.gauge.progress.color',
+            height: 'theme:components.slider.gauge.progress.height',
+            radius: 2
           },
-          gauge: {
-            progress_bar: {
-              color: 'theme:components.slider.gauge.progress.color',
-              height: 'theme:components.slider.gauge.progress.height',
-              radius: 2
-            },
-            scale: {
-              tick_marks: {
-                major: {
-                  enabled: true,
-                  interval: 10,
-                  color: 'theme:components.slider.gauge.tick.color',
-                  height: 20,
-                  width: 2
-                },
-                minor: {
-                  enabled: true,
-                  interval: 2,
-                  color: 'theme:components.slider.gauge.tick.color',
-                  height: 10,
-                  width: 1
-                }
-              },
-              labels: {
+          scale: {
+            tick_marks: {
+              major: {
                 enabled: true,
-                unit: '',
+                interval: 10,
                 color: 'theme:components.slider.gauge.tick.color',
-                font_size: 14,
-                padding: 3
+                height: 20,
+                width: 2
+              },
+              minor: {
+                enabled: true,
+                interval: 2,
+                color: 'theme:components.slider.gauge.tick.color',
+                height: 10,
+                width: 1
               }
+            },
+            labels: {
+              enabled: true,
+              unit: '',
+              color: 'theme:components.slider.gauge.tick.color',
+              font_size: 14,
+              padding: 3
             }
           }
         }
