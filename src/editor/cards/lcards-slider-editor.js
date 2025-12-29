@@ -108,17 +108,9 @@ class SliderConfigState {
 
 export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
-    static get properties() {
-        return {
-            ...super.properties,
-            _developerSubTab: { type: Number, state: true }
-        };
-    }
-
     constructor() {
         super();
         this.cardType = 'slider';
-        this._developerSubTab = 0;
         lcardsLog.debug('[LCARdSSliderEditor] Refactored editor initialized with cardType: slider (6 tabs)');
     }
 
@@ -803,50 +795,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </lcards-multi-action-editor>
             </lcards-form-section>
         `;
-    }
-
-    /**
-     * Developer Tab - Sub-tabs for 5 developer tools
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderDeveloperTab() {
-        return html`
-            <lcards-message
-                type="info"
-                message="Developer tools: Data sources, rules, templates, theme tokens, and provenance tracking.">
-            </lcards-message>
-
-            <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
-                <ha-tab-group-tab value="0" ?active=${(this._developerSubTab || 0) === 0}>Data Sources</ha-tab-group-tab>
-                <ha-tab-group-tab value="1" ?active=${(this._developerSubTab || 0) === 1}>Rules</ha-tab-group-tab>
-                <ha-tab-group-tab value="2" ?active=${(this._developerSubTab || 0) === 2}>Templates</ha-tab-group-tab>
-                <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Theme Browser</ha-tab-group-tab>
-                <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Provenance</ha-tab-group-tab>
-
-                <ha-tab-panel value="0" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</ha-tab-panel>
-                <ha-tab-panel value="1" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</ha-tab-panel>
-                <ha-tab-panel value="2" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderTemplatesTab()}</ha-tab-panel>
-                <ha-tab-panel value="3" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderThemeTokensTab()}</ha-tab-panel>
-                <ha-tab-panel value="4" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderProvenanceTab()}</ha-tab-panel>
-            </ha-tab-group>
-        `;
-    }
-
-    /**
-     * Handle developer sub-tab change
-     * @param {CustomEvent} event - wa-tab-show event
-     * @private
-     */
-    _handleDeveloperSubTabChange(event) {
-        // CRITICAL: Stop propagation to prevent bubbling to main tab handler
-        event.stopPropagation();
-
-        const value = event.target.activeTab?.getAttribute('value');
-        if (value !== null) {
-            this._developerSubTab = parseInt(value, 10);
-            this.requestUpdate();
-        }
     }
 
     /**

@@ -23,7 +23,8 @@ export class LCARdSBaseEditor extends LitElement {
             _yamlValue: { type: String, state: true },       // YAML representation
             _validationErrors: { type: Array, state: true }, // Schema errors
             _singletons: { type: Object, state: true },      // window.lcards.core reference
-            _schemaMissing: { type: Boolean, state: true }   // Schema missing flag
+            _schemaMissing: { type: Boolean, state: true },  // Schema missing flag
+            _developerSubTab: { type: Number, state: true }  // Developer sub-tab index
         };
     }
 
@@ -38,6 +39,7 @@ export class LCARdSBaseEditor extends LitElement {
         this._isUpdatingYaml = false;
         this._configUpdateDebounce = null; // Debounce timer for config updates
         this._schemaMissing = false;
+        this._developerSubTab = 0;
     }
 
     static get styles() {
@@ -1235,6 +1237,52 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Render Developer Tab with sub-tabs for developer tools
+     * Consolidates Data Sources, Rules, Templates, Theme Browser, and Provenance
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderDeveloperTab() {
+        return html`
+            <lcards-message
+                type="info"
+                message="Developer tools: Data sources, rules, templates, theme tokens, and provenance tracking.">
+            </lcards-message>
+
+            <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
+                <ha-tab-group-tab value="0" ?active=${(this._developerSubTab || 0) === 0}>Data Sources</ha-tab-group-tab>
+                <ha-tab-group-tab value="1" ?active=${(this._developerSubTab || 0) === 1}>Rules</ha-tab-group-tab>
+                <ha-tab-group-tab value="2" ?active=${(this._developerSubTab || 0) === 2}>Templates</ha-tab-group-tab>
+                <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Theme Browser</ha-tab-group-tab>
+                <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Provenance</ha-tab-group-tab>
+
+                <ha-tab-panel value="0" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</ha-tab-panel>
+                <ha-tab-panel value="1" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</ha-tab-panel>
+                <ha-tab-panel value="2" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderTemplatesTab()}</ha-tab-panel>
+                <ha-tab-panel value="3" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderThemeTokensTab()}</ha-tab-panel>
+                <ha-tab-panel value="4" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderProvenanceTab()}</ha-tab-panel>
+            </ha-tab-group>
+        `;
+    }
+
+    /**
+     * Handle developer sub-tab change
+     * CRITICAL: Stops event propagation to prevent bubbling to main tab handler
+     * @param {CustomEvent} event - wa-tab-show event from nested ha-tab-group
+     * @private
+     */
+    _handleDeveloperSubTabChange(event) {
+        // CRITICAL: Stop propagation to prevent bubbling to main tab handler
+        event.stopPropagation();
+
+        const value = event.target.activeTab?.getAttribute('value');
+        if (value !== null) {
+            this._developerSubTab = parseInt(value, 10);
+            this.requestUpdate();
+        }
+    }
+
+    /**
      * Get standard utility tabs (Data Sources, Rules, Templates, Theme Browser, Provenance, YAML)
      * Child editors should call this and append to their card-specific tabs
      * 
@@ -1253,11 +1301,7 @@ export class LCARdSBaseEditor extends LitElement {
     _getUtilityTabs() {
         return [
             { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
-            { label: 'Data Sources', content: () => this._renderDataSourcesTab() },
-            { label: 'Rules', content: () => this._renderRulesTab() },
-            { label: 'Templates', content: () => this._renderTemplatesTab() },
-            { label: 'Theme Browser', content: () => this._renderThemeTokensTab() },
-            { label: 'Provenance', content: () => this._renderProvenanceTab() },
+            { label: 'Developer', content: () => this._renderDeveloperTab() },
             { label: 'YAML', content: () => this._renderYamlTab() }
         ];
     }
