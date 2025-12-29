@@ -2,7 +2,7 @@
  * LCARdS Slider Editor
  *
  * Visual configuration editor for slider cards.
- * Standalone editor extending LCARdSBaseEditor directly.
+ * Refactored from 11 tabs to 6 tabs with inline colors for better UX.
  *
  * @extends {LCARdSBaseEditor}
  */
@@ -15,7 +15,11 @@ import { deepMerge } from '../../utils/deepMerge.js';
 // Import shared form components
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-border-editor.js';
+import '../components/editors/lcards-object-editor.js';
+import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-message.js';
+import '../components/shared/lcards-form-field.js';
+import '../components/shared/lcards-form-section.js';
 
 // Import specialized editor components
 import '../components/editors/lcards-multi-text-editor.js';
@@ -36,602 +40,827 @@ import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
 
-export class LCARdSSliderEditor extends LCARdSBaseEditor {
-    constructor() {
-        super();
-        this.cardType = 'slider';
-        lcardsLog.debug('[LCARdSSliderEditor] Standalone editor initialized with cardType: slider');
+/**
+ * Slider configuration state manager
+ * Clarifies relationships between component, preset, and track configuration
+ * @private
+ */
+class SliderConfigState {
+    constructor(config) {
+        this.config = config;
     }
 
-    /**
-     * Get current slider mode (pills or gauge)
-     * Based on track type, not preset vs component
-     * @returns {'pills'|'gauge'}
-     * @private
-     */
-    _getMode() {
+    // Component: Provides shell SVG (horizontal, vertical, picard)
+    get component() {
+        return this.config.component || null;
+    }
+
+    // Preset: Provides style defaults (pills-basic, gauge-basic, etc.)
+    get preset() {
+        return this.config.preset || null;
+    }
+
+    // Track type: Visual rendering style (pills or gauge)
+    get trackType() {
         return this.config.style?.track?.type || 'pills';
     }
 
-    /**
-     * Clean config when switching modes or making incompatible changes
-     * Removes mode-specific config when switching between pills and gauge
-     * @param {string} changeType - Type of change: 'mode', 'preset', 'component'
-     * @param {*} newValue - New value being set
-     * @private
-     */
-    _cleanConfigForChange(changeType, newValue) {
-        const newConfig = { ...this.config };
-
-        if (changeType === 'mode') {
-            // Switching between pills and gauge - clean mode-specific config
-            if (newValue === 'pills') {
-                // Switching to pills - remove gauge config
-                if (newConfig.style?.gauge) {
-                    delete newConfig.style.gauge;
-                }
-            } else if (newValue === 'gauge') {
-                // Switching to gauge - remove pills-specific segment config
-                if (newConfig.style?.track?.segments) {
-                    delete newConfig.style.track.segments;
-                }
-            }
-        } else if (changeType === 'preset') {
-            // Changing preset - keep only user overrides
-            // The new preset will provide base config via CoreConfigManager
-            lcardsLog.debug('[LCARdSSliderEditor] Preset changed, keeping user overrides');
-        }
-
-        this._updateConfig(newConfig);
+    // Orientation: Layout direction (horizontal or vertical)
+    get orientation() {
+        return this.config.style?.track?.orientation || 'horizontal';
     }
 
     /**
-     * Define editor tabs - dynamically show/hide mode-specific tabs
+     * Get configuration source priority
+     * @returns {'preset' | 'component' | 'manual'}
+     */
+    getConfigSource() {
+        if (this.preset) return 'preset';
+        if (this.component) return 'component';
+        return 'manual';
+    }
+
+    /**
+     * Check if component is compatible with current orientation
+     * @returns {boolean}
+     */
+    isComponentCompatible() {
+        if (!this.component) return true;
+        
+        // Component name implies orientation
+        if (this.component.includes('horizontal') && this.orientation !== 'horizontal') return false;
+        if (this.component.includes('vertical') && this.orientation !== 'vertical') return false;
+        
+        return true;
+    }
+
+    /**
+     * Get recommended orientation for selected component
+     * @returns {string|null}
+     */
+    getRecommendedOrientation() {
+        if (!this.component) return null;
+        if (this.component.includes('horizontal')) return 'horizontal';
+        if (this.component.includes('vertical')) return 'vertical';
+        return null;
+    }
+}
+
+export class LCARdSSliderEditor extends LCARdSBaseEditor {
+    
+    static get properties() {
+        return {
+            ...super.properties,
+            _developerSubTab: { type: Number, state: true }
+        };
+    }
+
+    constructor() {
+        super();
+        this.cardType = 'slider';
+        this._developerSubTab = 0;
+        lcardsLog.debug('[LCARdSSliderEditor] Refactored editor initialized with cardType: slider (6 tabs)');
+    }
+
+    /**
+     * Get slider configuration state manager
+     * @returns {SliderConfigState}
+     * @private
+     */
+    _getSliderState() {
+        return new SliderConfigState(this.config);
+    }
+
+    /**
+     * Define editor tabs - NEW: 6 tabs with inline colors
      * @returns {Array} Tab definitions
      * @protected
      */
     _getTabDefinitions() {
-        const mode = this._getMode();
-
-        const tabs = [
-            {
-                label: 'Config',
-                content: () => this._renderFromConfig(this._getConfigTabConfig())
-            },
-            {
-                label: 'Control',
-                content: () => this._renderFromConfig(this._getControlTabConfig())
-            }
+        return [
+            { label: 'Setup', content: () => this._renderSetupTab() },
+            { label: 'Configuration', content: () => this._renderConfigurationTab() },
+            { label: 'Text & Styling', content: () => this._renderTextStylingTab() },
+            { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
+            { label: 'Developer', content: () => this._renderDeveloperTab() },
+            { label: 'YAML', content: () => this._renderYamlTab() }
         ];
+    }
 
-        // Mode-specific tabs
-        if (mode === 'pills') {
-            tabs.push({
-                label: 'Track',
-                content: () => this._renderFromConfig(this._getTrackTabConfig())
-            });
-        } else {
-            tabs.push({
-                label: 'Gauge',
-                content: () => this._renderFromConfig(this._getGaugeTabConfig())
-            });
-        }
+    // ============================================================================
+    // TAB RENDERERS - NEW 6-TAB STRUCTURE
+    // ============================================================================
 
-        // Common tabs
-        tabs.push(
-            {
-                label: 'Colors',
-                content: () => this._renderColorsTab()
-            },
-            {
-                label: 'Text',
-                content: () => this._renderTextTab()
-            },
-            {
-                label: 'Borders',
-                content: () => this._renderBordersTab()
-            },
-            {
-                label: 'Actions',
-                content: () => this._renderActionsTab()
-            },
-            ...this._getUtilityTabs()
-        );
+    /**
+     * Setup Tab - Preset selection and component/orientation configuration
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSetupTab() {
+        const state = this._getSliderState();
+        const hasPreset = !!state.preset;
 
-        return tabs;
+        return html`
+            <lcards-message
+                type="info"
+                message="Start with a preset for quick setup, or manually configure your slider component and orientation.">
+            </lcards-message>
+
+            <!-- Quick Start Section -->
+            <lcards-form-section
+                header="Quick Start"
+                description="Choose a preset for instant configuration"
+                icon="mdi:flash"
+                ?expanded=${!hasPreset}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="preset"
+                    label="Style Preset"
+                    helper="pills-basic, gauge-basic, etc.">
+                </lcards-form-field>
+
+                ${hasPreset ? html`
+                    <lcards-message
+                        type="success"
+                        message="✓ Preset '${state.preset}' applied! Track style, colors, and spacing configured automatically. Override below if needed.">
+                    </lcards-message>
+                ` : ''}
+            </lcards-form-section>
+
+            <!-- Component & Orientation Section -->
+            <lcards-form-section
+                header="Component & Orientation"
+                description="Shell SVG component and layout direction"
+                icon="mdi:cube-outline"
+                ?expanded=${!hasPreset}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="component"
+                        label="Component"
+                        helper="Shell SVG template (horizontal, vertical, picard)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.track.orientation"
+                        label="Orientation"
+                        helper="Layout direction (should match component)">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+
+                ${!state.isComponentCompatible() ? html`
+                    <lcards-message
+                        type="warning"
+                        message="⚠️ Component '${state.component}' expects ${state.getRecommendedOrientation()} orientation. Current: ${state.orientation}">
+                    </lcards-message>
+                ` : ''}
+
+                <lcards-message
+                    type="info"
+                    message="💡 Component provides the shell SVG. Orientation controls layout direction. These should match.">
+                </lcards-message>
+            </lcards-form-section>
+
+            <!-- Card Identification -->
+            <lcards-form-section
+                header="Card Identification"
+                description="ID and tags for rule targeting"
+                icon="mdi:tag"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="id"
+                        label="Card ID"
+                        helper="[Optional] Custom ID for targeting with rules and animations">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="tags"
+                        label="Tags"
+                        helper="Select existing tags or type new ones for rule targeting">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+            </lcards-form-section>
+        `;
     }
 
     /**
-     * Config tab - Layout, mode, and card identification
-     * Note: Entity field is in Control tab for sliders
-     * @returns {Array} Config tab definition
+     * Configuration Tab - Entity + Track style (pills/gauge) with INLINE COLORS
+     * @returns {TemplateResult}
+     * @private
      */
-    _getConfigTabConfig() {
-        const mode = this._getMode();
-        const hasPreset = !!this.config.preset;
-        const hasComponent = !!this.config.component;
+    _renderConfigurationTab() {
+        const state = this._getSliderState();
 
-        return this._buildConfigTab({
-            infoMessage: 'Configure your LCARdS slider card. Start with a preset for quick setup, or manually configure orientation and track style.',
-            modeSections: [
-                {
-                    type: 'section',
-                    header: 'Quick Setup',
-                    description: 'Use presets for common slider configurations',
-                    icon: 'mdi:palette',
-                    expanded: true,
-                    outlined: true,
-                    children: [
-                        {
-                            type: 'field',
-                            path: 'preset',
-                            label: 'Style Preset',
-                            helper: 'Choose a preset: pills-basic, gauge-basic'
-                        },
-                        ...(hasPreset ? [
-                            {
-                                type: 'custom',
-                                render: () => html`
-                                    <lcards-message
-                                        type="success"
-                                        message="Preset applied! Track style, colors, and spacing are configured automatically. Override any settings below if needed.">
-                                    </lcards-message>
-                                `
-                            }
-                        ] : [])
-                    ]
-                },
-                {
-                    type: 'section',
-                    header: 'Layout & Visual Mode',
-                    description: 'Component orientation and track style',
-                    icon: 'mdi:tune-variant',
-                    expanded: !hasPreset,
-                    outlined: true,
-                    children: [
-                        {
-                            type: 'field',
-                            path: 'style.track.orientation',
-                            label: 'Orientation',
-                            helper: 'Slider direction: horizontal or vertical (default: horizontal)'
-                        },
-                        ...(hasComponent ? [
-                            {
-                                type: 'field',
-                                path: 'component',
-                                label: 'Advanced Component',
-                                helper: 'Advanced SVG component (e.g., horizontal, vertical, picard-vertical)'
-                            }
-                        ] : []),
-                        {
-                            type: 'custom',
-                            render: () => html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Track Style'}
-                                    .helper=${mode === 'pills'
-                                        ? 'Pills: Segmented bar slider with color gradient support'
-                                        : 'Gauge: Ruler-style display with tick marks and scale labels'}
-                                    .selector=${{
-                                        select: {
-                                            mode: 'dropdown',
-                                            options: [
-                                                { value: 'pills', label: 'Pills (Segmented Bar)' },
-                                                { value: 'gauge', label: 'Gauge (Ruler)' }
-                                            ]
-                                        }
-                                    }}
-                                    .value=${mode}
-                                    @value-changed=${this._handleTrackTypeChange}>
-                                </ha-selector>
-                            `
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure the entity to control and track style (pills or gauge). Colors appear inline with relevant settings.">
+            </lcards-message>
+
+            <!-- Entity Configuration -->
+            <lcards-form-section
+                header="Entity"
+                description="Entity to control or display"
+                icon="mdi:home-automation"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="entity"
+                    label="Entity"
+                    helper="Entity to control/display (light, cover, fan, sensor, etc.)">
+                </lcards-form-field>
+
+                <lcards-form-field
+                    .editor=${this}
+                    path="control.attribute"
+                    label="Attribute"
+                    helper="Entity attribute to control (e.g., brightness for lights)">
+                </lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Value Range -->
+            <lcards-form-section
+                header="Value Range"
+                description="Minimum, maximum, and step size"
+                icon="mdi:tune"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="control.min"
+                        label="Minimum Value"
+                        helper="Minimum slider value (default: 0 or entity min)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="control.max"
+                        label="Maximum Value"
+                        helper="Maximum slider value (default: 100 or entity max)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="control.step"
+                        label="Step Size"
+                        helper="Increment/decrement amount (default: 1 or entity step)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="control.locked"
+                        label="Locked (Display Only)"
+                        helper="Disable interaction (auto-locked for sensors)">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <!-- Track Style Selector -->
+            <lcards-form-section
+                header="Track Style"
+                description="Choose between pills (segmented bar) or gauge (ruler)"
+                icon="mdi:tune-variant"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Track Type'}
+                    .helper=${state.trackType === 'pills'
+                        ? 'Pills: Segmented bar slider with color gradient support'
+                        : 'Gauge: Ruler-style display with tick marks and scale labels'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'pills', label: 'Pills (Segmented Bar)' },
+                                { value: 'gauge', label: 'Gauge (Ruler)' }
+                            ]
                         }
-                    ]
-                }
-            ],
-            basicFields: [
-                // Entity field moved to Control tab
-                { path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
-                { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
-            ],
-            basicSectionHeader: 'Card Identification',
-            basicSectionDescription: 'ID and tags for targeting with rules'
-        });
+                    }}
+                    .value=${state.trackType}
+                    @value-changed=${this._handleTrackTypeChange}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <!-- Dynamic: Pills or Gauge Configuration with INLINE COLORS -->
+            ${state.trackType === 'pills' ? this._renderPillsConfiguration() : this._renderGaugeConfiguration()}
+        `;
     }
 
     /**
-     * Control tab - Entity, range, and interaction settings
-     * @returns {Array} Control tab definition
+     * Pills Configuration - Pills settings with INLINE gradient colors
+     * @returns {TemplateResult}
+     * @private
      */
-    _getControlTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure the entity to control and its value range and behavior.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Entity',
-                description: 'Entity to control or display',
-                icon: 'mdi:home-automation',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'entity',
-                        label: 'Entity',
-                        helper: 'Entity to control/display (light, cover, fan, sensor, etc.)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Entity Attribute',
-                description: 'Specific attribute to control',
-                icon: 'mdi:database',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'control.attribute',
-                        label: 'Attribute',
-                        helper: 'Entity attribute to control (e.g., brightness for lights, current_position for covers)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Value Range',
-                description: 'Minimum, maximum, and step size',
-                icon: 'mdi:tune',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'control.min',
-                        label: 'Minimum Value',
-                        helper: 'Minimum slider value (default: 0 or entity min)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'control.max',
-                        label: 'Maximum Value',
-                        helper: 'Maximum slider value (default: 100 or entity max)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'control.step',
-                        label: 'Step Size',
-                        helper: 'Increment/decrement amount (default: 1 or entity step)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Interaction',
-                description: 'Control interaction behavior',
-                icon: 'mdi:gesture-tap',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'control.locked',
-                        label: 'Locked (Display Only)',
-                        helper: 'Disable interaction (auto-locked for sensors)'
-                    }
-                ]
-            }
-        ];
+    _renderPillsConfiguration() {
+        return html`
+            <lcards-form-section
+                header="Pills Settings"
+                description="Segment configuration and appearance"
+                icon="mdi:view-sequential"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field .editor=${this} path="style.track.segments.count" label="Segment Count" helper="Number of pill segments"></lcards-form-field>
+                    <lcards-form-field .editor=${this} path="style.track.segments.gap" label="Gap Size (px)" helper="Space between segments"></lcards-form-field>
+                    <lcards-form-field .editor=${this} path="style.track.segments.shape.radius" label="Border Radius (px)" helper="Roundness of pill corners"></lcards-form-field>
+                    <lcards-form-field .editor=${this} path="style.track.segments.size.height" label="Pill Height (px)" helper="Height of each pill"></lcards-form-field>
+                </lcards-grid-layout>
+
+                <!-- INLINE COLORS: Gradient colors appear right here with pills settings -->
+                <lcards-color-section
+                    .editor=${this}
+                    header="Gradient Colors"
+                    description="Start and end colors for pill gradient"
+                    .colorPaths=${[
+                        { path: 'style.track.segments.gradient.start', label: 'Gradient Start', helper: 'Color at minimum value (left/bottom)' },
+                        { path: 'style.track.segments.gradient.end', label: 'Gradient End', helper: 'Color at maximum value (right/top)' }
+                    ]}
+                    ?expanded=${true}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+
+                <lcards-form-field .editor=${this} path="style.track.segments.gradient.interpolated" label="Interpolate Colors" helper="Blend colors smoothly across segments"></lcards-form-field>
+            </lcards-form-section>
+
+            <!-- Track background color also inline -->
+            <lcards-color-section
+                .editor=${this}
+                basePath="style.track.background"
+                header="Track Background"
+                description="Background color behind pills"
+                ?singleColor=${true}
+                ?expanded=${false}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
+
+            <!-- Opacity Settings -->
+            <lcards-form-section
+                header="Appearance"
+                description="Opacity for filled and unfilled pills"
+                icon="mdi:opacity"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.track.segments.appearance.unfilled.opacity"
+                        label="Unfilled Opacity"
+                        helper="Opacity for unfilled pills (0-1, default: 0.2)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.track.segments.appearance.filled.opacity"
+                        label="Filled Opacity"
+                        helper="Opacity for filled pills (0-1, default: 1.0)">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+            </lcards-form-section>
+        `;
     }
 
     /**
-     * Track tab - Pills mode configuration (segmented bar)
-     * Only shown when mode is 'pills'
-     * @returns {Array} Track tab definition
+     * Gauge Configuration - Gauge settings with INLINE colors per section
+     * @returns {TemplateResult}
+     * @private
      */
-    _getTrackTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure the segmented pill display. Pills show filled/unfilled based on the current value.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Track Layout',
-                description: 'Margin and spacing around track',
-                icon: 'mdi:page-layout-sidebar-left',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.track.margin',
-                        label: 'Track Margin',
-                        helper: 'Margin around track in pixels (default: 10)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Pill Segments',
-                description: 'Number, size, and shape of segments',
-                icon: 'mdi:view-sequential',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.count',
-                        label: 'Segment Count',
-                        helper: 'Number of pill segments (leave empty for auto-calculation)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.gap',
-                        label: 'Gap Size (px)',
-                        helper: 'Space between segments in pixels'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.shape.radius',
-                        label: 'Border Radius (px)',
-                        helper: 'Roundness of pill corners in pixels'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.size.height',
-                        label: 'Pill Height (px)',
-                        helper: 'Height of each pill in pixels'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.size.width',
-                        label: 'Pill Width (px)',
-                        helper: 'Width of each pill in pixels (leave empty for auto-calculation)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Gradient Behavior',
-                description: 'Color interpolation behavior',
-                icon: 'mdi:transition',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.gradient.interpolated',
-                        label: 'Interpolate Colors',
-                        helper: 'Blend colors smoothly across segments (vs. solid start/end colors)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Appearance',
-                description: 'Opacity for filled and unfilled pills',
-                icon: 'mdi:opacity',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.appearance.unfilled.opacity',
-                        label: 'Unfilled Opacity',
-                        helper: 'Opacity for unfilled pills (0-1, default: 0.2)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.track.segments.appearance.filled.opacity',
-                        label: 'Filled Opacity',
-                        helper: 'Opacity for filled pills (0-1, default: 1.0)'
-                    }
-                ]
-            }
-        ];
+    _renderGaugeConfiguration() {
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure the gauge/ruler display with progress bar, tick marks, and scale labels. Colors appear inline with each section.">
+            </lcards-message>
+
+            <!-- Progress Bar with INLINE COLOR -->
+            <lcards-form-section
+                header="Progress Bar"
+                description="Current value indicator bar"
+                icon="mdi:progress-check"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.progress_bar.height"
+                        label="Height"
+                        helper="Progress bar height in pixels (default: 12)">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.progress_bar.radius"
+                        label="Border Radius"
+                        helper="Progress bar border radius in pixels (default: 2)">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+
+                <!-- INLINE: Progress bar color -->
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.gauge.progress_bar.color"
+                    header="Progress Bar Color"
+                    description="Color of the filled progress bar"
+                    ?singleColor=${true}
+                    ?expanded=${true}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+
+            <!-- Tick Marks & Scale with INLINE COLOR -->
+            <lcards-form-section
+                header="Tick Marks & Scale"
+                description="Major and minor tick marks"
+                icon="mdi:ruler"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <!-- Major Ticks Subsection -->
+                <lcards-form-section
+                    header="Major Tick Marks"
+                    description="Primary scale marks"
+                    icon="mdi:format-list-bulleted"
+                    ?expanded=${true}
+                    ?outlined=${false}
+                    headerLevel="5">
+
+                    <lcards-grid-layout>
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.major.enabled"
+                            label="Show Major Ticks">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.major.interval"
+                            label="Interval"
+                            helper="Value interval between major ticks">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.major.width"
+                            label="Line Width"
+                            helper="Major tick line width in pixels">
+                        </lcards-form-field>
+                    </lcards-grid-layout>
+                </lcards-form-section>
+
+                <!-- Minor Ticks Subsection -->
+                <lcards-form-section
+                    header="Minor Tick Marks"
+                    description="Secondary scale marks"
+                    icon="mdi:format-list-bulleted-square"
+                    ?expanded=${false}
+                    ?outlined=${false}
+                    headerLevel="5">
+
+                    <lcards-grid-layout>
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.minor.enabled"
+                            label="Show Minor Ticks">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.minor.interval"
+                            label="Interval"
+                            helper="Value interval between minor ticks">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.minor.height"
+                            label="Height"
+                            helper="Minor tick height in pixels">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.tick_marks.minor.width"
+                            label="Line Width"
+                            helper="Minor tick line width in pixels">
+                        </lcards-form-field>
+                    </lcards-grid-layout>
+                </lcards-form-section>
+
+                <!-- INLINE: Tick mark color -->
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.gauge.scale.tick_marks.major.color"
+                    header="Tick Mark Color"
+                    description="Color for scale tick marks (both major and minor)"
+                    ?singleColor=${true}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+
+                <!-- Scale Labels Subsection with INLINE COLOR -->
+                <lcards-form-section
+                    header="Scale Labels"
+                    description="Numeric labels on scale"
+                    icon="mdi:format-text"
+                    ?expanded=${false}
+                    ?outlined=${false}
+                    headerLevel="5">
+
+                    <lcards-grid-layout>
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.labels.enabled"
+                            label="Show Scale Labels">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.labels.unit"
+                            label="Unit"
+                            helper="Unit to append to values (%, °C, °F, W, etc.)">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.labels.font_size"
+                            label="Font Size"
+                            helper="Label font size in pixels">
+                        </lcards-form-field>
+
+                        <lcards-form-field
+                            .editor=${this}
+                            path="style.gauge.scale.labels.padding"
+                            label="Padding"
+                            helper="Space between tick and label in pixels">
+                        </lcards-form-field>
+                    </lcards-grid-layout>
+
+                    <!-- INLINE: Label color -->
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.gauge.scale.labels.color"
+                        header="Label Color"
+                        description="Color for scale numeric labels"
+                        ?singleColor=${true}
+                        ?expanded=${true}
+                        ?useColorPicker=${true}>
+                    </lcards-color-section>
+                </lcards-form-section>
+            </lcards-form-section>
+
+            <!-- Value Indicator with INLINE COLORS -->
+            <lcards-form-section
+                header="Value Indicator"
+                description="Current value marker (optional)"
+                icon="mdi:arrow-up-bold"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout>
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.enabled"
+                        label="Show Indicator"
+                        helper="Display a marker at the current value">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.type"
+                        label="Indicator Type"
+                        helper="line: vertical/horizontal line, thumb: circular marker">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.size.width"
+                        label="Width"
+                        helper="Indicator width in pixels">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.size.height"
+                        label="Height"
+                        helper="Indicator height in pixels">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.border.enabled"
+                        label="Show Border"
+                        helper="Add border around indicator">
+                    </lcards-form-field>
+
+                    <lcards-form-field
+                        .editor=${this}
+                        path="style.gauge.indicator.border.width"
+                        label="Border Width"
+                        helper="Border width in pixels">
+                    </lcards-form-field>
+                </lcards-grid-layout>
+
+                <!-- INLINE: Indicator colors -->
+                <lcards-color-section
+                    .editor=${this}
+                    header="Indicator Colors"
+                    description="Colors for value indicator marker"
+                    .colorPaths=${[
+                        { 
+                            path: 'style.gauge.indicator.color',
+                            label: 'Indicator Color',
+                            helper: 'Color of value indicator'
+                        },
+                        { 
+                            path: 'style.gauge.indicator.border.color',
+                            label: 'Border Color',
+                            helper: 'Color of indicator border'
+                        }
+                    ]}
+                    ?expanded=${true}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+        `;
     }
 
     /**
-     * Gauge tab - Gauge/ruler mode configuration
-     * Only shown when mode is 'gauge'
-     * @returns {Array} Gauge tab definition
+     * Text & Styling Tab - Text fields, borders, margins, actions
+     * @returns {TemplateResult}
+     * @private
      */
-    _getGaugeTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure the gauge/ruler display with progress bar, tick marks, and scale labels. Colors are configured in the Colors tab.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Progress Bar',
-                description: 'Current value indicator bar',
-                icon: 'mdi:progress-check',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.gauge.progress_bar.height',
-                        label: 'Height',
-                        helper: 'Progress bar height in pixels (default: 12)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.progress_bar.radius',
-                        label: 'Border Radius',
-                        helper: 'Progress bar border radius in pixels (default: 2)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Major Tick Marks',
-                description: 'Primary scale marks',
-                icon: 'mdi:ruler',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.major.enabled',
-                        label: 'Show Major Ticks'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.major.interval',
-                        label: 'Interval',
-                        helper: 'Value interval between major ticks (e.g., 10 for every 10 units)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.major.width',
-                        label: 'Line Width',
-                        helper: 'Major tick line width in pixels (default: 2)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Minor Tick Marks',
-                description: 'Secondary scale marks',
-                icon: 'mdi:ruler',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.minor.enabled',
-                        label: 'Show Minor Ticks'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.minor.interval',
-                        label: 'Interval',
-                        helper: 'Value interval between minor ticks (e.g., 2 for every 2 units)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.minor.height',
-                        label: 'Height',
-                        helper: 'Minor tick height in pixels (default: 10)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.tick_marks.minor.width',
-                        label: 'Line Width',
-                        helper: 'Minor tick line width in pixels (default: 1)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Scale Labels',
-                description: 'Numeric labels on scale',
-                icon: 'mdi:format-text',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.labels.enabled',
-                        label: 'Show Scale Labels'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.labels.unit',
-                        label: 'Unit',
-                        helper: 'Unit to append to values (%, °C, °F, W, etc.)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.labels.font_size',
-                        label: 'Font Size',
-                        helper: 'Label font size in pixels (default: 14)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.scale.labels.padding',
-                        label: 'Padding',
-                        helper: 'Space between tick and label in pixels (default: 3)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Value Indicator',
-                description: 'Current value marker (optional)',
-                icon: 'mdi:arrow-up-bold',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.enabled',
-                        label: 'Show Indicator',
-                        helper: 'Display a marker at the current value'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.type',
-                        label: 'Indicator Type',
-                        helper: 'line: vertical/horizontal line, thumb: circular marker'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.size.width',
-                        label: 'Width',
-                        helper: 'Indicator width in pixels (default: 4)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.size.height',
-                        label: 'Height',
-                        helper: 'Indicator height in pixels (default: 25)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.border.enabled',
-                        label: 'Show Border',
-                        helper: 'Add border around indicator'
-                    },
-                    {
-                        type: 'field',
-                        path: 'style.gauge.indicator.border.width',
-                        label: 'Border Width',
-                        helper: 'Border width in pixels (default: 1)'
-                    }
-                ]
-            }
-        ];
+    _renderTextStylingTab() {
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure text fields, borders, margins, and actions. Text is positioned in border caps (left/top/right/bottom) or the track area.">
+            </lcards-message>
+
+            <!-- Text Fields -->
+            <lcards-multi-text-editor
+                .editor=${this}
+                .config=${this.config}
+                .hass=${this.hass}>
+            </lcards-multi-text-editor>
+
+            <!-- Borders with inline colors -->
+            <lcards-form-section 
+                header="Borders" 
+                description="SVG borders with visual preview"
+                icon="mdi:border-all" 
+                ?expanded=${true} 
+                ?outlined=${true}
+                headerLevel="4">
+                
+                <lcards-border-editor
+                    .editor=${this}
+                    path="style.border"
+                    label="Border Configuration"
+                    mode="svg"
+                    ?showPreview=${true}
+                    .supportedSides=${['top', 'right', 'bottom', 'left']}>
+                </lcards-border-editor>
+                
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.border.color"
+                    header="State-Based Border Colors"
+                    description="Override border colors based on entity state"
+                    .colorPaths=${[
+                        { path: 'active', label: 'Active State', helper: 'Border color when entity is active' },
+                        { path: 'inactive', label: 'Inactive State', helper: 'Border color when entity is inactive' }
+                    ]}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+
+            <!-- Track Margins (using object editor) -->
+            <lcards-form-section 
+                header="Track Margins" 
+                description="Spacing around slider track"
+                icon="mdi:arrow-expand-all" 
+                ?expanded=${false} 
+                ?outlined=${true}
+                headerLevel="4">
+                
+                <lcards-object-editor
+                    .editor=${this}
+                    path="style.track.margin"
+                    .properties=${['top', 'right', 'bottom', 'left']}
+                    controlType="number"
+                    .controlConfig=${{ min: 0, max: 100, mode: 'box', unit_of_measurement: 'px' }}
+                    columns="2">
+                </lcards-object-editor>
+            </lcards-form-section>
+
+            <!-- Actions -->
+            <lcards-form-section 
+                header="Actions" 
+                description="Tap, hold, and double-tap actions"
+                icon="mdi:gesture-tap" 
+                ?expanded=${false} 
+                ?outlined=${true}
+                headerLevel="4">
+                
+                <lcards-multi-action-editor
+                    .hass=${this.hass}
+                    .actions=${{
+                        tap_action: this.config.tap_action,
+                        hold_action: this.config.hold_action,
+                        double_tap_action: this.config.double_tap_action
+                    }}
+                    @value-changed=${this._handleActionsChange}>
+                </lcards-multi-action-editor>
+            </lcards-form-section>
+        `;
     }
 
     /**
-     * Advanced tab - Grid layout and other settings
+     * Developer Tab - Sub-tabs for 5 developer tools
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDeveloperTab() {
+        return html`
+            <lcards-message 
+                type="info" 
+                message="Developer tools: Data sources, rules, templates, theme tokens, and provenance tracking.">
+            </lcards-message>
+
+            <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
+                <ha-tab-group-tab value="0" ?active=${(this._developerSubTab || 0) === 0}>Data Sources</ha-tab-group-tab>
+                <ha-tab-group-tab value="1" ?active=${(this._developerSubTab || 0) === 1}>Rules</ha-tab-group-tab>
+                <ha-tab-group-tab value="2" ?active=${(this._developerSubTab || 0) === 2}>Templates</ha-tab-group-tab>
+                <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Theme Browser</ha-tab-group-tab>
+                <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Provenance</ha-tab-group-tab>
+
+                <ha-tab-panel value="0" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</ha-tab-panel>
+                <ha-tab-panel value="1" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</ha-tab-panel>
+                <ha-tab-panel value="2" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderTemplatesTab()}</ha-tab-panel>
+                <ha-tab-panel value="3" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderThemeTokensTab()}</ha-tab-panel>
+                <ha-tab-panel value="4" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderProvenanceTab()}</ha-tab-panel>
+            </ha-tab-group>
+        `;
+    }
+
+    /**
+     * Handle developer sub-tab change
+     * @param {CustomEvent} event - wa-tab-show event
+     * @private
+     */
+    _handleDeveloperSubTabChange(event) {
+        const value = event.target.activeTab?.getAttribute('value');
+        if (value !== null) {
+            this._developerSubTab = parseInt(value, 10);
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * Advanced tab - Grid layout, CSS class, and animations
      * @returns {Array} Advanced tab definition
      */
     _getAdvancedTabConfig() {
         return [
+            {
+                type: 'custom',
+                render: () => html`
+                    <lcards-message
+                        type="info"
+                        message="Advanced configuration: Grid layout, custom CSS classes, and animation settings.">
+                    </lcards-message>
+                `
+            },
             {
                 type: 'section',
                 header: 'Grid Layout',
@@ -653,203 +882,26 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         helper: 'Number of grid rows to span (1-12, default: 1)'
                     }
                 ]
+            },
+            {
+                type: 'section',
+                header: 'Custom Styling',
+                description: 'CSS classes and advanced styling options',
+                icon: 'mdi:code-braces',
+                expanded: false,
+                outlined: true,
+                children: [
+                    {
+                        type: 'field',
+                        path: 'css_class',
+                        label: 'Custom CSS Class',
+                        helper: 'Add custom CSS class for styling'
+                    }
+                ]
             }
         ];
     }
 
-    // ============================================================================
-    // TAB RENDERERS - Use specialized components for complex UIs
-    // ============================================================================
-
-    /**
-     * Text tab - Text field configuration (button-style)
-     * Uses multi-text editor for full button compatibility
-     */
-    _renderTextTab() {
-        return html`
-            <div class="section-container">
-                <lcards-message
-                    type="info"
-                    message="Configure text fields using the button card's text system. Text is positioned in border caps (left/top/right/bottom) or the track area.">
-                </lcards-message>
-
-                <lcards-multi-text-editor
-                    .editor=${this}
-                    .config=${this.config}
-                    .hass=${this.hass}>
-                </lcards-multi-text-editor>
-            </div>
-        `;
-    }
-
-    /**
-     * Colors tab - All color configuration consolidated
-     * Dynamically shows pills or gauge colors based on mode
-     */
-    _renderColorsTab() {
-        const mode = this._getMode();
-
-        if (mode === 'pills') {
-            return html`
-                <div class="section-container">
-                    <lcards-message
-                        type="info"
-                        message="Configure pill gradient colors. Pills interpolate smoothly between start and end colors.">
-                    </lcards-message>
-
-                    <!-- NEW: Use colorPaths for gradient colors -->
-                    <lcards-color-section
-                        .editor=${this}
-                        header="Pill Gradient Colors"
-                        description="Start and end colors for pill gradient"
-                        .colorPaths=${[
-                            { 
-                                path: 'style.track.segments.gradient.start',
-                                label: 'Gradient Start',
-                                helper: 'Color at minimum value (left/bottom)'
-                            },
-                            { 
-                                path: 'style.track.segments.gradient.end',
-                                label: 'Gradient End',
-                                helper: 'Color at maximum value (right/top)'
-                            }
-                        ]}
-                        ?expanded=${true}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-
-                    <!-- NEW: Use singleColor mode for track background -->
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.track.background"
-                        header="Track Background"
-                        description="Background color behind pills"
-                        ?singleColor=${true}
-                        ?expanded=${false}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-                </div>
-            `;
-        } else {
-            return html`
-                <div class="section-container">
-                    <lcards-message
-                        type="info"
-                        message="Configure gauge colors for progress bar, ticks, labels, and value indicator.">
-                    </lcards-message>
-
-                    <!-- NEW: All gauge colors use singleColor mode -->
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.gauge.progress_bar.color"
-                        header="Progress Bar Color"
-                        description="Color of the filled progress bar"
-                        ?singleColor=${true}
-                        ?expanded=${true}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.gauge.scale.tick_marks.major.color"
-                        header="Tick Mark Color"
-                        description="Color for scale tick marks (both major and minor)"
-                        ?singleColor=${true}
-                        ?expanded=${false}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-
-                    <lcards-color-section
-                        .editor=${this}
-                        basePath="style.gauge.scale.labels.color"
-                        header="Label Color"
-                        description="Color for scale numeric labels"
-                        ?singleColor=${true}
-                        ?expanded=${false}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-
-                    <!-- NEW: Use colorPaths for indicator colors (multiple single colors) -->
-                    <lcards-color-section
-                        .editor=${this}
-                        header="Indicator Colors"
-                        description="Colors for value indicator marker"
-                        .colorPaths=${[
-                            { 
-                                path: 'style.gauge.indicator.color',
-                                label: 'Indicator Color',
-                                helper: 'Color of value indicator'
-                            },
-                            { 
-                                path: 'style.gauge.indicator.border.color',
-                                label: 'Border Color',
-                                helper: 'Color of indicator border'
-                            }
-                        ]}
-                        ?expanded=${false}
-                        ?useColorPicker=${true}>
-                    </lcards-color-section>
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Borders tab - Border editor with visual preview
-     */
-    _renderBordersTab() {
-        return html`
-            <div class="section-container">
-                <lcards-message
-                    type="info"
-                    message="Configure SVG borders rendered as part of the component. Use the unified mode for equal borders on all sides, or per-side mode for individual control.">
-                </lcards-message>
-
-                <lcards-border-editor
-                    .editor=${this}
-                    path="style.border"
-                    label="Border Configuration"
-                    mode="svg"
-                    ?showPreview=${true}
-                    .supportedSides=${['top', 'right', 'bottom', 'left']}>
-                </lcards-border-editor>
-
-                <lcards-color-section
-                    .editor=${this}
-                    basePath="style.border.color"
-                    header="State-Based Border Colors"
-                    description="Override border colors based on entity state"
-                    .colorPaths=${[
-                        { path: 'active', label: 'Active State', helper: 'Border color when entity is active' },
-                        { path: 'inactive', label: 'Inactive State', helper: 'Border color when entity is inactive' }
-                    ]}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
-            </div>
-        `;
-    }
-
-    /**
-     * Actions tab - multi-action editor
-     */
-    _renderActionsTab() {
-        return html`
-            <lcards-multi-action-editor
-                .hass=${this.hass}
-                .actions=${{
-                    tap_action: this.config.tap_action,
-                    hold_action: this.config.hold_action,
-                    double_tap_action: this.config.double_tap_action
-                }}
-                @value-changed=${this._handleActionsChange}>
-            </lcards-multi-action-editor>
-        `;
-    }
-
-    /**
-     * Rules tab - display-only rules dashboard
-     */
     // ============================================================================
     // HELPER METHODS
     // ============================================================================
@@ -862,14 +914,26 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _handleTrackTypeChange(e) {
         const newMode = e.detail.value; // 'pills' or 'gauge'
-        const oldMode = this._getMode();
+        const state = this._getSliderState();
+        const oldMode = state.trackType;
 
         if (newMode === oldMode) return;
 
         lcardsLog.info(`[LCARdSSliderEditor] Mode switch: ${oldMode} → ${newMode}`);
 
         // Clean incompatible config
-        this._cleanConfigForChange(oldMode, newMode);
+        const newConfig = { ...this.config };
+        if (newMode === 'pills') {
+            // Switching to pills - remove gauge config
+            if (newConfig.style?.gauge) {
+                delete newConfig.style.gauge;
+            }
+        } else if (newMode === 'gauge') {
+            // Switching to gauge - remove pills-specific segment config
+            if (newConfig.style?.track?.segments) {
+                delete newConfig.style.track.segments;
+            }
+        }
 
         // Apply mode defaults
         let modeDefaults = {};
@@ -882,22 +946,28 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             count: 20,
                             gap: 2,
                             size: { width: 10, height: 40 },
-                            radius: 2,
+                            shape: { radius: 2 },
                             gradient: {
                                 start: '{theme:palette.moonlight}',
                                 end: '{theme:palette.alert-red}',
-                                interpolation: 'smooth'
+                                interpolated: true
+                            },
+                            appearance: {
+                                unfilled: { opacity: 0.2 },
+                                filled: { opacity: 1.0 }
                             }
                         },
-                        margin: { left: 0, right: 0 },
-                        background: 'transparent',
-                        opacity: { inactive: 0.2 }
+                        margin: { left: 0, right: 0, top: 0, bottom: 0 },
+                        background: 'transparent'
                     }
                 }
             };
         } else if (newMode === 'gauge') {
             modeDefaults = {
                 style: {
+                    track: {
+                        type: 'gauge'
+                    },
                     gauge: {
                         progress_bar: {
                             height: 10,
@@ -906,21 +976,39 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         },
                         scale: {
                             tick_marks: {
-                                major: { interval: 10, width: 2, height: 12, color: '{theme:palette.moonlight}' },
-                                minor: { interval: 5, width: 1, height: 6, color: '{theme:palette.text-dim}' }
+                                major: { 
+                                    enabled: true,
+                                    interval: 10, 
+                                    width: 2, 
+                                    height: 12, 
+                                    color: '{theme:palette.moonlight}' 
+                                },
+                                minor: { 
+                                    enabled: true,
+                                    interval: 5, 
+                                    width: 1, 
+                                    height: 6, 
+                                    color: '{theme:palette.text-dim}' 
+                                }
                             },
                             labels: {
+                                enabled: true,
                                 font_size: 12,
-                                padding: { top: 8 },
+                                padding: 8,
                                 unit: '',
                                 color: '{theme:palette.text-primary}'
                             }
                         },
                         indicator: {
-                            type: 'triangle',
-                            size: { width: 12, height: 12 },
+                            enabled: false,
+                            type: 'line',
+                            size: { width: 4, height: 25 },
                             color: '{theme:palette.alert-red}',
-                            border: { width: 1, color: '{theme:palette.moonlight}' }
+                            border: { 
+                                enabled: false,
+                                width: 1, 
+                                color: '{theme:palette.moonlight}' 
+                            }
                         }
                     }
                 }
@@ -928,7 +1016,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         }
 
         // Deep merge defaults with existing config
-        const updatedConfig = deepMerge({}, this.config, modeDefaults);
+        const updatedConfig = deepMerge({}, newConfig, modeDefaults);
 
         // Set track.type explicitly
         if (!updatedConfig.style) updatedConfig.style = {};
@@ -955,34 +1043,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             double_tap_action: actions.double_tap_action
         };
         this._updateConfig(updatedConfig);
-    }
-
-    // ============================================================================
-    // HELPER METHODS
-    // ============================================================================
-
-    /**
-     * Get preset options for dropdown
-     * @private
-     */
-    _getPresetOptions() {
-        const stylePresetManager = window.lcards?.core?.stylePresetManager;
-        if (!stylePresetManager) return [];
-
-        const presets = stylePresetManager.getAvailablePresets('slider');
-        return presets.map(name => ({ value: name, label: name }));
-    }
-
-    /**
-     * Get component options for dropdown
-     * @private
-     */
-    _getComponentOptions() {
-        return [
-            { value: 'horizontal', label: 'Horizontal' },
-            { value: 'vertical', label: 'Vertical' },
-            { value: 'picard-vertical', label: 'Picard Vertical' }
-        ];
     }
 }
 
