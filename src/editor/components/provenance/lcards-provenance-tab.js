@@ -3337,6 +3337,9 @@ export class LCARdSProvenanceTab extends LitElement {
    * @param {CustomEvent} event - wa-tab-show event
    */
   _handleTabChange(event) {
+    // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
+    event.stopPropagation();
+
     const view = event.target.activeTab?.getAttribute('value');
     if (view) {
       this._switchView(view);

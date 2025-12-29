@@ -856,6 +856,9 @@ export class LCARdSTemplateSandbox extends LitElement {
     return html`
       <div class="content-pane">
         <ha-tab-group @wa-tab-show=${(e) => {
+          // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
+          e.stopPropagation();
+
           const value = e.target.activeTab?.getAttribute('value');
           if (value !== null && value !== undefined) {
             this._activeMainTab = value;

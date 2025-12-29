@@ -2307,6 +2307,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * @param {CustomEvent} event - wa-tab-show event
    */
   _handleTabChange(event) {
+    // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
+    event.stopPropagation();
+
     const view = event.target.activeTab?.getAttribute('value');
     if (view) {
       this._switchView(view);
@@ -2350,6 +2353,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * @param {CustomEvent} event - wa-tab-show event
    */
   _handleVizTabChange(event) {
+    // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
+    event.stopPropagation();
+
     const tab = event.target.activeTab?.getAttribute('value');
     if (tab) {
       this._activeVizTab = tab;

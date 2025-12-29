@@ -86,11 +86,11 @@ class SliderConfigState {
      */
     isComponentCompatible() {
         if (!this.component) return true;
-        
+
         // Component name implies orientation
         if (this.component.includes('horizontal') && this.orientation !== 'horizontal') return false;
         if (this.component.includes('vertical') && this.orientation !== 'vertical') return false;
-        
+
         return true;
     }
 
@@ -107,7 +107,7 @@ class SliderConfigState {
 }
 
 export class LCARdSSliderEditor extends LCARdSBaseEditor {
-    
+
     static get properties() {
         return {
             ...super.properties,
@@ -695,12 +695,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     header="Indicator Colors"
                     description="Colors for value indicator marker"
                     .colorPaths=${[
-                        { 
+                        {
                             path: 'style.gauge.indicator.color',
                             label: 'Indicator Color',
                             helper: 'Color of value indicator'
                         },
-                        { 
+                        {
                             path: 'style.gauge.indicator.border.color',
                             label: 'Border Color',
                             helper: 'Color of indicator border'
@@ -733,14 +733,14 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             </lcards-multi-text-editor>
 
             <!-- Borders with inline colors -->
-            <lcards-form-section 
-                header="Borders" 
+            <lcards-form-section
+                header="Borders"
                 description="SVG borders with visual preview"
-                icon="mdi:border-all" 
-                ?expanded=${true} 
+                icon="mdi:border-all"
+                ?expanded=${true}
                 ?outlined=${true}
                 headerLevel="4">
-                
+
                 <lcards-border-editor
                     .editor=${this}
                     path="style.border"
@@ -749,7 +749,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?showPreview=${true}
                     .supportedSides=${['top', 'right', 'bottom', 'left']}>
                 </lcards-border-editor>
-                
+
                 <lcards-color-section
                     .editor=${this}
                     basePath="style.border.color"
@@ -765,14 +765,14 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             </lcards-form-section>
 
             <!-- Track Margins (using object editor) -->
-            <lcards-form-section 
-                header="Track Margins" 
+            <lcards-form-section
+                header="Track Margins"
                 description="Spacing around slider track"
-                icon="mdi:arrow-expand-all" 
-                ?expanded=${false} 
+                icon="mdi:arrow-expand-all"
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
-                
+
                 <lcards-object-editor
                     .editor=${this}
                     path="style.track.margin"
@@ -784,14 +784,14 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             </lcards-form-section>
 
             <!-- Actions -->
-            <lcards-form-section 
-                header="Actions" 
+            <lcards-form-section
+                header="Actions"
                 description="Tap, hold, and double-tap actions"
-                icon="mdi:gesture-tap" 
-                ?expanded=${false} 
+                icon="mdi:gesture-tap"
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
-                
+
                 <lcards-multi-action-editor
                     .hass=${this.hass}
                     .actions=${{
@@ -812,8 +812,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderDeveloperTab() {
         return html`
-            <lcards-message 
-                type="info" 
+            <lcards-message
+                type="info"
                 message="Developer tools: Data sources, rules, templates, theme tokens, and provenance tracking.">
             </lcards-message>
 
@@ -839,6 +839,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleDeveloperSubTabChange(event) {
+        // CRITICAL: Stop propagation to prevent bubbling to main tab handler
+        event.stopPropagation();
+
         const value = event.target.activeTab?.getAttribute('value');
         if (value !== null) {
             this._developerSubTab = parseInt(value, 10);
@@ -976,19 +979,19 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         },
                         scale: {
                             tick_marks: {
-                                major: { 
+                                major: {
                                     enabled: true,
-                                    interval: 10, 
-                                    width: 2, 
-                                    height: 12, 
-                                    color: '{theme:palette.moonlight}' 
+                                    interval: 10,
+                                    width: 2,
+                                    height: 12,
+                                    color: '{theme:palette.moonlight}'
                                 },
-                                minor: { 
+                                minor: {
                                     enabled: true,
-                                    interval: 5, 
-                                    width: 1, 
-                                    height: 6, 
-                                    color: '{theme:palette.text-dim}' 
+                                    interval: 5,
+                                    width: 1,
+                                    height: 6,
+                                    color: '{theme:palette.text-dim}'
                                 }
                             },
                             labels: {
@@ -1004,10 +1007,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             type: 'line',
                             size: { width: 4, height: 25 },
                             color: '{theme:palette.alert-red}',
-                            border: { 
+                            border: {
                                 enabled: false,
-                                width: 1, 
-                                color: '{theme:palette.moonlight}' 
+                                width: 1,
+                                color: '{theme:palette.moonlight}'
                             }
                         }
                     }
