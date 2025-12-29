@@ -688,6 +688,47 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Resolve theme tokens in a color value
+     * Handles both simple strings and state-based color objects
+     * @param {string|Object} colorValue - Color value (string or state object)
+     * @param {string} [currentState] - Current button/entity state for state-based colors
+     * @returns {string} Resolved CSS color value
+     * @private
+     */
+    _resolveColorValue(colorValue, currentState = 'default') {
+        if (!colorValue) return null;
+
+        // Handle state-based color object
+        if (typeof colorValue === 'object') {
+            const stateColor = colorValue[currentState] || colorValue.default;
+            if (!stateColor) return null;
+            // Recursively resolve the state-specific color
+            return this._resolveColorValue(stateColor, currentState);
+        }
+
+        // Handle simple string color
+        if (typeof colorValue === 'string') {
+            // Check if it's a theme token (theme:path.to.token)
+            if (colorValue.startsWith('theme:')) {
+                const tokenPath = colorValue.replace('theme:', '');
+                const resolvedValue = this.getThemeToken(tokenPath, colorValue);
+
+                // If resolved value is still a theme token or computed token, resolve it again
+                if (resolvedValue && resolvedValue !== colorValue) {
+                    return this._resolveColorValue(resolvedValue, currentState);
+                }
+
+                return resolvedValue || colorValue;
+            }
+
+            // Return as-is (CSS color, var(), rgb(), etc.)
+            return colorValue;
+        }
+
+        return null;
+    }
+
+    /**
      * Get the background color for the elbow (or a specific segment)
      * Uses state-aware color resolution with rule patch support
      * @param {string} [segmentType] - Optional segment type ('outer' or 'inner' for segmented mode)
@@ -696,41 +737,53 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _getElbowColor(segmentType = null, segmentConfig = null) {
+        // Get current button state for state-aware color resolution
+        const state = this._getButtonState();
+
         // For segmented mode with segment-specific entity
         if (segmentType && segmentConfig?.entity_id) {
             const entity = this.hass.states[segmentConfig.entity_id];
             if (entity) {
-                const state = this._getEntityState(entity);
+                const entityState = this._getEntityState(entity);
                 const backgroundColors = this._buttonStyle?.card?.color?.background;
 
                 // Try state-specific color first
-                const stateColor = backgroundColors?.[state] || backgroundColors?.default;
+                const stateColor = backgroundColors?.[entityState] || backgroundColors?.default;
                 if (stateColor) {
-                    return stateColor;
+                    return this._resolveColorValue(stateColor, entityState);
                 }
             }
         }
 
-        // For segmented mode with static color in config
+        // For segmented mode with static/state-based color in segment config
         if (segmentType && segmentConfig?.color) {
-            return segmentConfig.color;
+            const resolved = this._resolveColorValue(segmentConfig.color, state);
+            if (resolved) return resolved;
         }
 
-        // Priority 1: Explicit color override in elbow config
+        // Priority 1: Simple elbow - check segment.color from elbow config
+        if (this._elbowConfig?.segment?.color) {
+            const resolved = this._resolveColorValue(this._elbowConfig.segment.color, state);
+            if (resolved) return resolved;
+        }
+
+        // Priority 2: Explicit color override in elbow.colors.background (legacy support)
         if (this._elbowConfig?.colors?.background) {
-            return this._elbowConfig.colors.background;
+            const resolved = this._resolveColorValue(this._elbowConfig.colors.background, state);
+            if (resolved) return resolved;
         }
 
-        // Priority 2: Use button state color from _buttonStyle (includes rule patches)
-        const state = this._getButtonState();
+        // Priority 3: Use button state color from _buttonStyle (includes rule patches and config.style)
         const backgroundColors = this._buttonStyle?.card?.color?.background;
-        const stateColor = backgroundColors?.[state] || backgroundColors?.default;
-
-        if (stateColor) {
-            return stateColor;
+        if (backgroundColors) {
+            const stateColor = backgroundColors[state] || backgroundColors.default;
+            if (stateColor) {
+                const resolved = this._resolveColorValue(stateColor, state);
+                if (resolved) return resolved;
+            }
         }
 
-        // Priority 3: Theme token fallback
+        // Priority 4: Theme token fallback
         const themeColor = this.getThemeToken('colors.accent.primary', 'var(--lcars-orange, #FF9900)');
         return themeColor;
     }
