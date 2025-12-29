@@ -80,89 +80,72 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Config tab - declarative configuration
+     * Config tab - Mode selection and basic settings
+     * @returns {Array} Config tab definition
+     * @private
      */
     _getConfigTabConfig() {
         const mode = this._getMode();
 
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Configuration Mode',
-                description: 'Choose between preset buttons, custom SVG, or interactive components',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'custom',
-                        render: () => html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Mode'}
-                                .helper=${mode === 'preset'
-                                    ? 'Preset mode: Use shape presets with text, icons, and styling'
-                                    : mode === 'svg'
-                                    ? 'Custom SVG mode: Use your own SVG with interactive segments'
-                                    : 'Component mode: Use complex interactive components like dpads'}
-                                .selector=${{
-                                    select: {
-                                        mode: 'dropdown',
-                                        options: [
-                                            { value: 'preset', label: 'Buttons (preset: lozenge, bullet, etc.)' },
-                                            { value: 'component', label: 'SVG Components (component: dpad, etc.)' },
-                                            { value: 'svg', label: 'Custom SVG with Segments (svg: )' }
-                                        ]
-                                    }
-                                }}
-                                .value=${mode}
-                                @value-changed=${this._handleModeChange}>
-                            </ha-selector>
-                            </div>
-                        `
-                    },
-                    ...(mode === 'preset' ? [
-                        { type: 'field', path: 'preset', label: 'Preset Style' }
-                    ] : []),
-                    ...(mode === 'component' ? [
-                        { type: 'field', path: 'component', label: 'Component Type' }
-                    ] : []),
-                    ...(mode === 'svg' ? [
+        return this._buildConfigTab({
+            infoMessage: 'Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.',
+            modeSections: [
+                {
+                    type: 'section',
+                    header: 'Configuration Mode',
+                    description: 'Choose between preset buttons, custom SVG, or interactive components',
+                    icon: 'mdi:cog',
+                    expanded: true,
+                    outlined: true,
+                    children: [
                         {
                             type: 'custom',
                             render: () => html`
-                                <lcards-message
-                                    type="info"
-                                    message="Use the Segments tab to configure your custom SVG content and segment interactions.">
-                                </lcards-message>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Mode'}
+                                    .helper=${mode === 'preset'
+                                        ? 'Preset mode: Use shape presets with text, icons, and styling'
+                                        : mode === 'svg'
+                                        ? 'Custom SVG mode: Use your own SVG with interactive segments'
+                                        : 'Component mode: Use complex interactive components like dpads'}
+                                    .selector=${{
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'preset', label: 'Buttons (preset: lozenge, bullet, etc.)' },
+                                                { value: 'component', label: 'SVG Components (component: dpad, etc.)' },
+                                                { value: 'svg', label: 'Custom SVG with Segments (svg: )' }
+                                            ]
+                                        }
+                                    }}
+                                    .value=${mode}
+                                    @value-changed=${this._handleModeChange}>
+                                </ha-selector>
                             `
-                        }
-                    ] : [])
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Basic Configuration',
-                description: 'Core card settings',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    { type: 'field', path: 'entity', label: 'Entity' },
-                    { type: 'field', path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
-                    { type: 'field', path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
-                ]
-            }
-        ];
+                        },
+                        ...(mode === 'preset' ? [
+                            { type: 'field', path: 'preset', label: 'Preset Style' }
+                        ] : []),
+                        ...(mode === 'component' ? [
+                            { type: 'field', path: 'component', label: 'Component Type' }
+                        ] : []),
+                        ...(mode === 'svg' ? [
+                            {
+                                type: 'custom',
+                                render: () => html`
+                                    <lcards-message
+                                        type="info"
+                                        message="Use the Segments tab to configure your custom SVG content and segment interactions.">
+                                    </lcards-message>
+                                `
+                            }
+                        ] : [])
+                    ]
+                }
+            ]
+            // basicFields uses default: entity, id, tags
+        });
     }
 
     /**

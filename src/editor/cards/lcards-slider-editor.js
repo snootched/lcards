@@ -142,7 +142,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Config tab - Layout and card identification
+     * Config tab - Layout, mode, and card identification
+     * Note: Entity field is in Control tab for sliders
      * @returns {Array} Config tab definition
      */
     _getConfigTabConfig() {
@@ -150,113 +151,92 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const hasPreset = !!this.config.preset;
         const hasComponent = !!this.config.component;
 
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure your LCARdS slider card. Start with a preset for quick setup, or manually configure orientation and track style.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Quick Setup',
-                description: 'Use presets for common slider configurations',
-                icon: 'mdi:palette',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'preset',
-                        label: 'Style Preset',
-                        helper: 'Choose a preset: pills-basic, gauge-basic'
-                    },
-                    ...(hasPreset ? [
+        return this._buildConfigTab({
+            infoMessage: 'Configure your LCARdS slider card. Start with a preset for quick setup, or manually configure orientation and track style.',
+            modeSections: [
+                {
+                    type: 'section',
+                    header: 'Quick Setup',
+                    description: 'Use presets for common slider configurations',
+                    icon: 'mdi:palette',
+                    expanded: true,
+                    outlined: true,
+                    children: [
+                        {
+                            type: 'field',
+                            path: 'preset',
+                            label: 'Style Preset',
+                            helper: 'Choose a preset: pills-basic, gauge-basic'
+                        },
+                        ...(hasPreset ? [
+                            {
+                                type: 'custom',
+                                render: () => html`
+                                    <lcards-message
+                                        type="success"
+                                        message="Preset applied! Track style, colors, and spacing are configured automatically. Override any settings below if needed.">
+                                    </lcards-message>
+                                `
+                            }
+                        ] : [])
+                    ]
+                },
+                {
+                    type: 'section',
+                    header: 'Layout & Visual Mode',
+                    description: 'Component orientation and track style',
+                    icon: 'mdi:tune-variant',
+                    expanded: !hasPreset,
+                    outlined: true,
+                    children: [
+                        {
+                            type: 'field',
+                            path: 'style.track.orientation',
+                            label: 'Orientation',
+                            helper: 'Slider direction: horizontal or vertical (default: horizontal)'
+                        },
+                        ...(hasComponent ? [
+                            {
+                                type: 'field',
+                                path: 'component',
+                                label: 'Advanced Component',
+                                helper: 'Advanced SVG component (e.g., horizontal, vertical, picard-vertical)'
+                            }
+                        ] : []),
                         {
                             type: 'custom',
                             render: () => html`
-                                <lcards-message
-                                    type="success"
-                                    message="Preset applied! Track style, colors, and spacing are configured automatically. Override any settings below if needed.">
-                                </lcards-message>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Track Style'}
+                                    .helper=${mode === 'pills'
+                                        ? 'Pills: Segmented bar slider with color gradient support'
+                                        : 'Gauge: Ruler-style display with tick marks and scale labels'}
+                                    .selector=${{
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'pills', label: 'Pills (Segmented Bar)' },
+                                                { value: 'gauge', label: 'Gauge (Ruler)' }
+                                            ]
+                                        }
+                                    }}
+                                    .value=${mode}
+                                    @value-changed=${this._handleTrackTypeChange}>
+                                </ha-selector>
                             `
                         }
-                    ] : [])
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Layout & Visual Mode',
-                description: 'Component orientation and track style',
-                icon: 'mdi:tune-variant',
-                expanded: !hasPreset,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'style.track.orientation',
-                        label: 'Orientation',
-                        helper: 'Slider direction: horizontal or vertical (default: horizontal)'
-                    },
-                    ...(hasComponent ? [
-                        {
-                            type: 'field',
-                            path: 'component',
-                            label: 'Advanced Component',
-                            helper: 'Advanced SVG component (e.g., horizontal, vertical, picard-vertical)'
-                        }
-                    ] : []),
-                    {
-                        type: 'custom',
-                        render: () => html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Track Style'}
-                                .helper=${mode === 'pills'
-                                    ? 'Pills: Segmented bar slider with color gradient support'
-                                    : 'Gauge: Ruler-style display with tick marks and scale labels'}
-                                .selector=${{
-                                    select: {
-                                        mode: 'dropdown',
-                                        options: [
-                                            { value: 'pills', label: 'Pills (Segmented Bar)' },
-                                            { value: 'gauge', label: 'Gauge (Ruler)' }
-                                        ]
-                                    }
-                                }}
-                                .value=${mode}
-                                @value-changed=${this._handleTrackTypeChange}>
-                            </ha-selector>
-                        `
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Card Identification',
-                description: 'ID and tags for targeting with rules',
-                icon: 'mdi:tag',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'id',
-                        label: 'Card ID',
-                        helper: '[Optional] Custom ID for targeting with rules and animations'
-                    },
-                    {
-                        type: 'field',
-                        path: 'tags',
-                        label: 'Tags',
-                        helper: 'Select existing tags or type new ones for rule targeting'
-                    }
-                ]
-            }
-        ];
+                    ]
+                }
+            ],
+            basicFields: [
+                // Entity field moved to Control tab
+                { path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
+                { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
+            ],
+            basicSectionHeader: 'Card Identification',
+            basicSectionDescription: 'ID and tags for targeting with rules'
+        });
     }
 
     /**

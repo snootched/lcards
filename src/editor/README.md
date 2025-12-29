@@ -746,6 +746,62 @@ customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
 
 ---
 
+### Using `_buildConfigTab()` Helper
+
+The base editor provides a flexible helper for building standardized config tabs with per-card field control.
+
+**Default usage (all fields):**
+```javascript
+_getConfigTabConfig() {
+    return this._buildConfigTab({
+        infoMessage: 'Configure your button card.',
+        modeSections: [
+            // Your mode-specific sections (preset/component/etc.)
+        ]
+    });
+}
+// Includes: entity, id, tags in "Basic Configuration" section
+```
+
+**Custom field subset:**
+```javascript
+_getConfigTabConfig() {
+    return this._buildConfigTab({
+        infoMessage: 'Configure your slider card.',
+        modeSections: [...],
+        basicFields: [
+            // Only id and tags (entity moved to Control tab)
+            { path: 'id', label: 'Card ID', helper: 'Custom ID for rules' },
+            { path: 'tags', label: 'Tags', helper: 'Tags for rule targeting' }
+        ],
+        basicSectionHeader: 'Card Identification'
+    });
+}
+```
+
+**Hide basic section entirely:**
+```javascript
+_getConfigTabConfig() {
+    return this._buildConfigTab({
+        infoMessage: 'Configure your card.',
+        modeSections: [...],
+        showBasicSection: false
+    });
+}
+```
+
+**Available options:**
+- `infoMessage` - Top info banner text
+- `modeSections` - Array of mode-specific section configs
+- `basicFields` - Array of basic fields (default: entity, id, tags)
+- `showBasicSection` - Show/hide basic section (default: true)
+- `basicSectionHeader` - Custom section header
+- `basicSectionDescription` - Custom section description
+- `basicSectionIcon` - Custom section icon (default: 'mdi:cog')
+- `basicSectionExpanded` - Expand/collapse section (default: true)
+
+---
+
 ## 🎯 Editor Development Best Practices
 
 ### ✅ DO: Use Declarative Config Pattern

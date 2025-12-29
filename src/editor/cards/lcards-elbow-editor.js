@@ -89,181 +89,76 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Config tab - declarative configuration
+     * Config tab - Elbow configuration and basic settings
+     * @returns {Array} Config tab definition
+     * @private
      */
     _getConfigTabConfig() {
         const elbowType = this.config.elbow?.type || 'header-left';
         const elbowStyle = this._getElbowStyle();
 
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Configure your LCARS elbow card. Elbows are positioned borders with rounded corners that create the iconic LCARS interface aesthetic.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Elbow Configuration',
-                description: 'Choose elbow position and style',
-                icon: 'mdi:vector-polyline',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'custom',
-                        render: () => html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Elbow Position'}
-                                .helper=${'Position of the elbow corner on the card'}
-                                .selector=${{
-                                    select: {
-                                        mode: 'dropdown',
-                                        options: [
-                                            { value: 'header-left', label: 'Header Left' },
-                                            { value: 'header-right', label: 'Header Right' },
-                                            { value: 'footer-left', label: 'Footer Left' },
-                                            { value: 'footer-right', label: 'Footer Right' }
-                                        ]
-                                    }
-                                }}
-                                .value=${elbowType}
-                                @value-changed=${(e) => this._setConfigValue('elbow.type', e.detail.value)}>
-                            </ha-selector>
+        return this._buildConfigTab({
+            infoMessage: 'Configure your LCARS elbow card. Elbows are positioned borders with rounded corners that create the iconic LCARS interface aesthetic.',
+            modeSections: [
+                {
+                    type: 'section',
+                    header: 'Elbow Configuration',
+                    description: 'Choose elbow position and style',
+                    icon: 'mdi:vector-polyline',
+                    expanded: true,
+                    outlined: true,
+                    children: [
+                        {
+                            type: 'custom',
+                            render: () => html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Elbow Position'}
+                                    .helper=${'Position of the elbow corner on the card'}
+                                    .selector=${{
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'header-left', label: 'Header Left' },
+                                                { value: 'header-right', label: 'Header Right' },
+                                                { value: 'footer-left', label: 'Footer Left' },
+                                                { value: 'footer-right', label: 'Footer Right' }
+                                            ]
+                                        }
+                                    }}
+                                    .value=${elbowType}
+                                    @value-changed=${(e) => this._setConfigValue('elbow.type', e.detail.value)}>
+                                </ha-selector>
 
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Elbow Style'}
-                                .helper=${elbowStyle === 'simple'
-                                    ? 'Simple: Single elbow with one curve'
-                                    : 'Segmented: Double concentric elbows with gap (TNG aesthetic)'}
-                                .selector=${{
-                                    select: {
-                                        mode: 'dropdown',
-                                        options: [
-                                            { value: 'simple', label: 'Simple (single elbow)' },
-                                            { value: 'segmented', label: 'Segmented (Picard-style double)' }
-                                        ]
-                                    }
-                                }}
-                                .value=${elbowStyle}
-                                @value-changed=${this._handleStyleChange}>
-                            </ha-selector>
-                        `
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Basic Configuration',
-                description: 'Core card settings',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    { type: 'field', path: 'entity', label: 'Entity', helper: '[Optional] Entity to control' },
-                    { type: 'field', path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
-                    { type: 'field', path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
-                ]
-            }
-        ];
-    }
-
-    /**
-     * Old direct rendering method - replaced by declarative config above
-     * Keeping for reference during migration
-     * @deprecated Use _getConfigTabConfig() instead
-     * @private
-     */
-    _renderConfigTab_OLD() {
-        const elbowType = this.config.elbow?.type || 'header-left';
-        const elbowStyle = this._getElbowStyle();
-
-        return html`
-            <lcards-message
-                type="info"
-                message="Configure your LCARS elbow card. Elbows are positioned borders with rounded corners that create the iconic LCARS interface aesthetic.">
-            </lcards-message>
-
-            <lcards-form-section
-                header="Elbow Configuration"
-                description="Choose elbow position and style"
-                icon="mdi:vector-polyline"
-                ?expanded=${true}
-                ?outlined=${true}>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Elbow Position'}
-                    .helper=${'Position of the elbow corner on the card'}
-                    .selector=${{
-                        select: {
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'header-left', label: 'Header Left' },
-                                { value: 'header-right', label: 'Header Right' },
-                                { value: 'footer-left', label: 'Footer Left' },
-                                { value: 'footer-right', label: 'Footer Right' }
-                            ]
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Elbow Style'}
+                                    .helper=${elbowStyle === 'simple'
+                                        ? 'Simple: Single elbow with one curve'
+                                        : 'Segmented: Double concentric elbows with gap (TNG aesthetic)'}
+                                    .selector=${{
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'simple', label: 'Simple (single elbow)' },
+                                                { value: 'segmented', label: 'Segmented (Picard-style double)' }
+                                            ]
+                                        }
+                                    }}
+                                    .value=${elbowStyle}
+                                    @value-changed=${this._handleStyleChange}>
+                                </ha-selector>
+                            `
                         }
-                    }}
-                    .value=${elbowType}
-                    @value-changed=${(e) => this._setConfigValue('elbow.type', e.detail.value)}>
-                </ha-selector>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Elbow Style'}
-                    .helper=${elbowStyle === 'simple'
-                        ? 'Simple: Single elbow with one curve'
-                        : 'Segmented: Double concentric elbows with gap (TNG aesthetic)'}
-                    .selector=${{
-                        select: {
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'simple', label: 'Simple (single elbow)' },
-                                { value: 'segmented', label: 'Segmented (Picard-style double)' }
-                            ]
-                        }
-                    }}
-                    .value=${elbowStyle}
-                    @value-changed=${this._handleStyleChange}>
-                </ha-selector>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Basic Configuration"
-                description="Core card settings"
-                icon="mdi:cog"
-                ?expanded=${true}
-                ?outlined=${true}>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="entity"
-                    label="Entity"
-                    helper="[Optional] Entity to control">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="id"
-                    label="Card ID"
-                    helper="[Optional] Custom ID for targeting with rules and animations">
-                </lcards-form-field>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="tags"
-                    label="Tags"
-                    helper="Select existing tags or type new ones for rule targeting">
-                </lcards-form-field>
-            </lcards-form-section>
-        `;
+                    ]
+                }
+            ],
+            basicFields: [
+                { path: 'entity', label: 'Entity', helper: '[Optional] Entity to control' },
+                { path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
+                { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
+            ]
+        });
     }
 
     /**

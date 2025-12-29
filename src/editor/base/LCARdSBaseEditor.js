@@ -947,6 +947,99 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Build standard config tab structure with flexible field control
+     * 
+     * @param {Object} options - Config tab options
+     * @param {string} options.infoMessage - Info message at top of tab
+     * @param {Array} options.modeSections - Mode-specific sections (preset/component/svg)
+     * @param {Array} options.basicFields - Basic config fields (default: entity, id, tags)
+     * @param {boolean} options.showBasicSection - Show Basic Configuration section (default: true)
+     * @param {string} options.basicSectionHeader - Header for basic section (default: 'Basic Configuration')
+     * @param {string} options.basicSectionDescription - Description for basic section
+     * @param {string} options.basicSectionIcon - Icon for basic section (default: 'mdi:cog')
+     * @param {boolean} options.basicSectionExpanded - Expand basic section (default: true)
+     * 
+     * @returns {Array} Config tab definition
+     * 
+     * @example Default usage (all fields)
+     * _getConfigTabConfig() {
+     *     return this._buildConfigTab({
+     *         infoMessage: 'Configure your button card.',
+     *         modeSections: [...]
+     *     });
+     * }
+     * 
+     * @example Custom field subset (slider: no entity, appears in Control tab)
+     * _getConfigTabConfig() {
+     *     return this._buildConfigTab({
+     *         infoMessage: 'Configure your slider card.',
+     *         modeSections: [...],
+     *         basicFields: [
+     *             { path: 'id', label: 'Card ID', helper: 'Custom ID for rules' },
+     *             { path: 'tags', label: 'Tags', helper: 'Tags for rule targeting' }
+     *         ]
+     *     });
+     * }
+     * 
+     * @example Hide basic section entirely
+     * _getConfigTabConfig() {
+     *     return this._buildConfigTab({
+     *         infoMessage: 'Configure your card.',
+     *         modeSections: [...],
+     *         showBasicSection: false
+     *     });
+     * }
+     * 
+     * @protected
+     */
+    _buildConfigTab(options = {}) {
+        const {
+            infoMessage = 'Configure your LCARdS card settings.',
+            modeSections = [],
+            basicFields = [
+                { path: 'entity', label: 'Entity', helper: 'Entity to control or display' },
+                { path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
+                { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
+            ],
+            showBasicSection = true,
+            basicSectionHeader = 'Basic Configuration',
+            basicSectionDescription = 'Core card settings',
+            basicSectionIcon = 'mdi:cog',
+            basicSectionExpanded = true
+        } = options;
+
+        const config = [
+            {
+                type: 'custom',
+                render: () => html`
+                    <lcards-message type="info" message="${infoMessage}"></lcards-message>
+                `
+            },
+            ...modeSections
+        ];
+
+        // Add basic section if enabled and has fields
+        if (showBasicSection && basicFields.length > 0) {
+            config.push({
+                type: 'section',
+                header: basicSectionHeader,
+                description: basicSectionDescription,
+                icon: basicSectionIcon,
+                expanded: basicSectionExpanded,
+                outlined: true,
+                children: basicFields.map(field => ({
+                    type: 'field',
+                    path: field.path,
+                    label: field.label || '',
+                    helper: field.helper || ''
+                }))
+            });
+        }
+
+        return config;
+    }
+
+    /**
      * Clean config when switching modes (preset, component, svg)
      * Creates a new config with only the common properties and mode-specific properties
      *
