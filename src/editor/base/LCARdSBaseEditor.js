@@ -1061,6 +1061,137 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Standard utility tab renderers
+     * Override in child classes if customization needed
+     * @protected
+     */
+
+    /**
+     * Render Data Sources tab
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderDataSourcesTab() {
+        return html`
+            <lcards-datasource-editor-tab
+                .editor=${this}
+                .config=${this.config}
+                .hass=${this.hass}>
+            </lcards-datasource-editor-tab>
+        `;
+    }
+
+    /**
+     * Render Rules dashboard tab
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderRulesTab() {
+        return html`
+            <lcards-rules-dashboard
+                .editor=${this}
+                .cardId=${this.config.id || this.config.cardId || ''}
+                .hass=${this.hass}>
+            </lcards-rules-dashboard>
+        `;
+    }
+
+    /**
+     * Render Templates evaluation tab
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderTemplatesTab() {
+        return html`
+            <lcards-template-evaluation-tab
+                .editor=${this}
+                .config=${this.config}
+                .hass=${this.hass}>
+            </lcards-template-evaluation-tab>
+        `;
+    }
+
+    /**
+     * Render Theme Token Browser tab
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderThemeTokensTab() {
+        return html`
+            <lcards-theme-token-browser-tab
+                .editor=${this}
+                .config=${this.config}
+                .hass=${this.hass}>
+            </lcards-theme-token-browser-tab>
+        `;
+    }
+
+    /**
+     * Render Provenance inspector tab
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderProvenanceTab() {
+        return html`
+            <lcards-provenance-tab
+                .editor=${this}
+                .config=${this.config}
+                .hass=${this.hass}>
+            </lcards-provenance-tab>
+        `;
+    }
+
+    /**
+     * Get standard utility tabs (Data Sources, Rules, Templates, Theme Browser, Provenance, YAML)
+     * Child editors should call this and append to their card-specific tabs
+     * 
+     * @example
+     * _getTabDefinitions() {
+     *     const cardTabs = [
+     *         { label: 'Config', content: () => this._renderConfigTab() },
+     *         { label: 'Style', content: () => this._renderStyleTab() }
+     *     ];
+     *     return [...cardTabs, ...this._getUtilityTabs()];
+     * }
+     * 
+     * @returns {Array<{label: string, content: Function}>}
+     * @protected
+     */
+    _getUtilityTabs() {
+        return [
+            { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
+            { label: 'Data Sources', content: () => this._renderDataSourcesTab() },
+            { label: 'Rules', content: () => this._renderRulesTab() },
+            { label: 'Templates', content: () => this._renderTemplatesTab() },
+            { label: 'Theme Browser', content: () => this._renderThemeTokensTab() },
+            { label: 'Provenance', content: () => this._renderProvenanceTab() },
+            { label: 'YAML', content: () => this._renderYamlTab() }
+        ];
+    }
+
+    /**
+     * Get Advanced tab configuration (override in child classes)
+     * Default includes CSS class configuration
+     * @returns {Array} Advanced tab config
+     * @protected
+     */
+    _getAdvancedTabConfig() {
+        return [
+            {
+                type: 'section',
+                header: 'Advanced Options',
+                description: 'Additional configuration options',
+                icon: 'mdi:cog',
+                expanded: true,
+                outlined: true,
+                children: [
+                    { type: 'field', path: 'css_class', label: 'Custom CSS Class', helper: 'Add custom CSS class for styling' }
+                ]
+            }
+        ];
+    }
+
+    /**
      * Render YAML editor tab
      * Advanced YAML editor with schema-based validation and autocomplete.
      * Changes made here will be reflected in the visual tabs.

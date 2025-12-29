@@ -135,34 +135,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 label: 'Actions',
                 content: () => this._renderActionsTab()
             },
-            {
-                label: 'Advanced',
-                content: () => this._renderFromConfig(this._getAdvancedTabConfig())
-            },
-            {
-                label: 'Rules',
-                content: () => this._renderRulesTab()
-            },
-            {
-                label: 'Theme Browser',
-                content: () => this._renderThemeBrowserTab()
-            },
-            {
-                label: 'DataSources',
-                content: () => this._renderDataSourcesTab()
-            },
-            {
-                label: 'Provenance',
-                content: () => this._renderProvenanceTab()
-            },
-            {
-                label: 'Templates',
-                content: () => this._renderTemplateSandboxTab()
-            },
-            {
-                label: 'YAML',
-                content: () => this._renderYamlTab()
-            }
+            ...this._getUtilityTabs()
         );
 
         return tabs;
@@ -912,71 +885,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     /**
      * Rules tab - display-only rules dashboard
      */
-    _renderRulesTab() {
-        return html`
-            <lcards-rules-dashboard
-                .editor=${this}
-                .cardId=${this.config.id || this.config.cardId || ''}
-                .hass=${this.hass}>
-            </lcards-rules-dashboard>
-        `;
-    }
-
-    /**
-     * Theme Browser tab - theme token browser
-     */
-    _renderThemeBrowserTab() {
-        return html`
-            <lcards-theme-token-browser-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-theme-token-browser-tab>
-        `;
-    }
-
-    /**
-     * Data Sources tab - datasource editor with ribbon navigation
-     */
-    _renderDataSourcesTab() {
-        return html`
-            <lcards-datasource-editor-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-datasource-editor-tab>
-        `;
-    }
-
-    /**
-     * Template Sandbox tab - template evaluation and debugging
-     */
-    _renderTemplateSandboxTab() {
-        return html`
-            <lcards-template-sandbox
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-template-sandbox>
-        `;
-    }
-
-    /**
-     * Provenance tab
-     * @private
-     */
-    _renderProvenanceTab() {
-        return html`
-            <lcards-provenance-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-provenance-tab>
-        `;
-    }
-
     // ============================================================================
-    // EVENT HANDLERS
+    // HELPER METHODS
     // ============================================================================
 
     /**

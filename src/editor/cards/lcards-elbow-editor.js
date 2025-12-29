@@ -84,13 +84,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Elbow Design', content: () => this._renderElbowDesignTab() },
             { label: 'Text', content: () => this._renderTextTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
-            { label: 'Advanced', content: () => this._renderAdvancedTab() },
-            { label: 'Data Sources', content: () => this._renderDataSourcesTab() },
-            { label: 'Rules', content: () => this._renderRulesTab() },
-            { label: 'Templates', content: () => this._renderTemplatesTab() },
-            { label: 'Theme Browser', content: () => this._renderThemeTokensTab() },
-            { label: 'Provenance', content: () => this._renderProvenanceTab() },
-            { label: 'YAML', content: () => this._renderYamlTab() }
+            ...this._getUtilityTabs()
         ];
     }
 
@@ -832,103 +826,34 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @returns {TemplateResult}
      * @private
      */
-    _renderAdvancedTab() {
-        return html`
-            <lcards-message
-                type="info"
-                message="Advanced features for custom styling and animations.">
-            </lcards-message>
-
-            <lcards-form-section
-                header="Advanced Options"
-                description="Additional configuration options"
-                icon="mdi:cog"
-                ?expanded=${true}
-                ?outlined=${true}>
-
-                <lcards-form-field
-                    .editor=${this}
-                    path="css_class"
-                    label="Custom CSS Class"
-                    helper="Add custom CSS class for styling">
-                </lcards-form-field>
-            </lcards-form-section>
-        `;
-    }
-
     /**
-     * Data Sources tab - datasource editor with ribbon navigation
-     * @returns {TemplateResult}
-     * @private
+     * Get Advanced tab configuration
+     * @returns {Array} Advanced tab config
+     * @protected
      */
-    _renderDataSourcesTab() {
-        return html`
-            <lcards-datasource-editor-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-datasource-editor-tab>
-        `;
-    }
-
-    /**
-     * Rules tab - display-only rules dashboard
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderRulesTab() {
-        return html`
-            <lcards-rules-dashboard
-                .editor=${this}
-                .cardId=${this.config.id || this.config.cardId || ''}
-                .hass=${this.hass}>
-            </lcards-rules-dashboard>
-        `;
-    }
-
-    /**
-     * Templates tab - template evaluation and debugging
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderTemplatesTab() {
-        return html`
-            <lcards-template-evaluation-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-template-evaluation-tab>
-        `;
-    }
-
-    /**
-     * Theme Tokens tab - theme token browser
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderThemeTokensTab() {
-        return html`
-            <lcards-theme-token-browser-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-theme-token-browser-tab>
-        `;
-    }
-
-    /**
-     * Provenance tab - provenance inspector
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderProvenanceTab() {
-        return html`
-            <lcards-provenance-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-provenance-tab>
-        `;
+    _getAdvancedTabConfig() {
+        return [
+            {
+                type: 'custom',
+                render: () => html`
+                    <lcards-message
+                        type="info"
+                        message="Advanced features for custom styling and animations.">
+                    </lcards-message>
+                `
+            },
+            {
+                type: 'section',
+                header: 'Advanced Options',
+                description: 'Additional configuration options',
+                icon: 'mdi:cog',
+                expanded: true,
+                outlined: true,
+                children: [
+                    { type: 'field', path: 'css_class', label: 'Custom CSS Class', helper: 'Add custom CSS class for styling' }
+                ]
+            }
+        ];
     }
 
     // ==================== Helper Methods ====================

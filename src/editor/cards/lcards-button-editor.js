@@ -76,17 +76,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             tabs.push({ label: 'Segments', content: () => this._renderSegmentsTab() });
         }
 
-        tabs.push(
-            { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
-            { label: 'Data Sources', content: () => this._renderDataSourcesTab() },
-            { label: 'Rules', content: () => this._renderRulesTab() },
-            { label: 'Templates', content: () => this._renderTemplatesTab() },
-            { label: 'Theme Browser', content: () => this._renderThemeTokensTab() },
-            { label: 'Provenance', content: () => this._renderProvenanceTab() },
-            { label: 'YAML', content: () => this._renderYamlTab() }
-        );
-
-        return tabs;
+        return [...tabs, ...this._getUtilityTabs()];
     }
 
     /**
@@ -439,71 +429,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _getSvgParseError() {
         return this._svgParseError || null;
-    }
-
-    /**
-     * Data Sources tab - datasource editor with ribbon navigation
-     */
-    _renderDataSourcesTab() {
-        return html`
-            <lcards-datasource-editor-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-datasource-editor-tab>
-        `;
-    }
-
-    /**
-     * Rules tab - display-only rules dashboard
-     */
-    _renderRulesTab() {
-        return html`
-            <lcards-rules-dashboard
-                .editor=${this}
-                .cardId=${this.config.id || this.config.cardId || ''}
-                .hass=${this.hass}>
-            </lcards-rules-dashboard>
-        `;
-    }
-
-    /**
-     * Templates tab - template evaluation and debugging
-     */
-    _renderTemplatesTab() {
-        return html`
-            <lcards-template-evaluation-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-template-evaluation-tab>
-        `;
-    }
-
-    /**
-     * Theme Tokens tab - theme token browser
-     */
-    _renderThemeTokensTab() {
-        return html`
-            <lcards-theme-token-browser-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-theme-token-browser-tab>
-        `;
-    }
-
-    /**
-     * Provenance tab - provenance inspector
-     */
-    _renderProvenanceTab() {
-        return html`
-            <lcards-provenance-tab
-                .editor=${this}
-                .config=${this.config}
-                .hass=${this.hass}>
-            </lcards-provenance-tab>
-        `;
     }
 
     // Event Handlers
