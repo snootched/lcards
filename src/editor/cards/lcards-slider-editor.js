@@ -697,52 +697,34 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         message="Configure pill gradient colors. Pills interpolate smoothly between start and end colors.">
                     </lcards-message>
 
-                    <lcards-form-section
-                        header="Pill Gradient Colors"
-                        description="Start and end colors for pill gradient"
-                        ?expanded=${true}
-                        outlined>
-
-                        <div style="margin-bottom: 12px;">
-                            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">
-                                Gradient Start
-                            </div>
-                            <lcards-color-picker
-                                .hass=${this.hass}
-                                .value=${this._getConfigValue('style.track.segments.gradient.start') || ''}
-                                ?showPreview=${true}
-                                @value-changed=${(e) => this._handleGradientColorChange('start', e)}>
-                            </lcards-color-picker>
-                            <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">
-                                Color at minimum value (left/bottom)
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 12px;">
-                            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">
-                                Gradient End
-                            </div>
-                            <lcards-color-picker
-                                .hass=${this.hass}
-                                .value=${this._getConfigValue('style.track.segments.gradient.end') || ''}
-                                ?showPreview=${true}
-                                @value-changed=${(e) => this._handleGradientColorChange('end', e)}>
-                            </lcards-color-picker>
-                            <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">
-                                Color at maximum value (right/top)
-                            </div>
-                        </div>
-
-                    </lcards-form-section>
-
+                    <!-- NEW: Use colorPaths for gradient colors -->
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.track"
+                        header="Pill Gradient Colors"
+                        description="Start and end colors for pill gradient"
+                        .colorPaths=${[
+                            { 
+                                path: 'style.track.segments.gradient.start',
+                                label: 'Gradient Start',
+                                helper: 'Color at minimum value (left/bottom)'
+                            },
+                            { 
+                                path: 'style.track.segments.gradient.end',
+                                label: 'Gradient End',
+                                helper: 'Color at maximum value (right/top)'
+                            }
+                        ]}
+                        ?expanded=${true}
+                        ?useColorPicker=${true}>
+                    </lcards-color-section>
+
+                    <!-- NEW: Use singleColor mode for track background -->
+                    <lcards-color-section
+                        .editor=${this}
+                        basePath="style.track.background"
                         header="Track Background"
                         description="Background color behind pills"
-                        .colorPaths=${[
-                            { path: 'background', label: 'Background', helper: 'Track background color' }
-                        ]}
+                        ?singleColor=${true}
                         ?expanded=${false}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
@@ -756,50 +738,53 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         message="Configure gauge colors for progress bar, ticks, labels, and value indicator.">
                     </lcards-message>
 
+                    <!-- NEW: All gauge colors use singleColor mode -->
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.gauge.progress_bar"
+                        basePath="style.gauge.progress_bar.color"
                         header="Progress Bar Color"
                         description="Color of the filled progress bar"
-                        .colorPaths=${[
-                            { path: 'color', label: 'Progress Color', helper: 'Color of progress bar fill' }
-                        ]}
+                        ?singleColor=${true}
                         ?expanded=${true}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
 
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.gauge.scale.tick_marks.major"
-                        header="Tick Mark Colors"
-                        description="Colors for scale tick marks"
-                        .colorPaths=${[
-                            { path: 'color', label: 'Tick Color', helper: 'Color of tick marks (both major and minor)' }
-                        ]}
+                        basePath="style.gauge.scale.tick_marks.major.color"
+                        header="Tick Mark Color"
+                        description="Color for scale tick marks (both major and minor)"
+                        ?singleColor=${true}
                         ?expanded=${false}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
 
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.gauge.scale.labels"
-                        header="Label Colors"
+                        basePath="style.gauge.scale.labels.color"
+                        header="Label Color"
                         description="Color for scale numeric labels"
-                        .colorPaths=${[
-                            { path: 'color', label: 'Label Color', helper: 'Color of numeric scale labels' }
-                        ]}
+                        ?singleColor=${true}
                         ?expanded=${false}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
 
+                    <!-- NEW: Use colorPaths for indicator colors (multiple single colors) -->
                     <lcards-color-section
                         .editor=${this}
-                        basePath="style.gauge.indicator"
                         header="Indicator Colors"
                         description="Colors for value indicator marker"
                         .colorPaths=${[
-                            { path: 'color', label: 'Indicator Color', helper: 'Color of value indicator' },
-                            { path: 'border.color', label: 'Border Color', helper: 'Color of indicator border' }
+                            { 
+                                path: 'style.gauge.indicator.color',
+                                label: 'Indicator Color',
+                                helper: 'Color of value indicator'
+                            },
+                            { 
+                                path: 'style.gauge.indicator.border.color',
+                                label: 'Border Color',
+                                helper: 'Color of indicator border'
+                            }
                         ]}
                         ?expanded=${false}
                         ?useColorPicker=${true}>
@@ -970,17 +955,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             double_tap_action: actions.double_tap_action
         };
         this._updateConfig(updatedConfig);
-    }
-
-    /**
-     * Handle gradient color change
-     * @param {string} type - 'start' or 'end'
-     * @param {CustomEvent} e - Color change event
-     * @private
-     */
-    _handleGradientColorChange(type, e) {
-        const path = `style.track.segments.gradient.${type}`;
-        this._setConfigValue(path, e.detail.value);
     }
 
     // ============================================================================

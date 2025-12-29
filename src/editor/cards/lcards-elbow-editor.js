@@ -570,14 +570,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value)}>
                 </ha-selector>
 
-                <div class="form-row">
-                    <label>Outer Segment Color</label>
-                    <lcards-color-picker
-                        .value=${typeof outerSegment.color === 'string' ? outerSegment.color : outerSegment.color?.default || ''}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.color', e.detail.value)}
-                        .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-', '--picard-']}>
-                    </lcards-color-picker>
-                </div>
+                <!-- NEW: Use colorPaths for both segment colors -->
+                <lcards-color-section
+                    .editor=${this}
+                    header="Segment Colors"
+                    description="Colors for outer and inner elbow segments"
+                    .colorPaths=${[
+                        { 
+                            path: 'elbow.segments.outer_segment.color',
+                            label: 'Outer Segment Color',
+                            helper: 'Color of outer frame segment'
+                        },
+                        { 
+                            path: 'elbow.segments.inner_segment.color',
+                            label: 'Inner Segment Color',
+                            helper: 'Color of inner content segment'
+                        }
+                    ]}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
             </lcards-form-section>
 
             <lcards-form-section
@@ -670,15 +682,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .value=${innerSegment.inner_curve ?? (innerSegment.outer_curve ?? this._calculateInnerOuterCurveAuto()) / 2}
                     @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value)}>
                 </ha-selector>
-
-                <div class="form-row">
-                    <label>Inner Segment Color</label>
-                    <lcards-color-picker
-                        .value=${typeof innerSegment.color === 'string' ? innerSegment.color : innerSegment.color?.default || ''}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.color', e.detail.value)}
-                        .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-', '--picard-']}>
-                    </lcards-color-picker>
-                </div>
             </lcards-form-section>
         `;
     }

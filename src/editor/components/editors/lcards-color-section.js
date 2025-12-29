@@ -32,7 +32,9 @@ export class LCARdSColorSection extends LitElement {
             expanded: { type: Boolean },      // Expanded state
             variablePrefixes: { type: Array }, // CSS variable prefixes to scan
             showPreview: { type: Boolean },    // Show color preview
-            useColorPicker: { type: Boolean }  // Use enhanced color picker vs basic form-field
+            useColorPicker: { type: Boolean }, // Use enhanced color picker vs basic form-field
+            singleColor: { type: Boolean },    // NEW: Treat as single color (not state-based)
+            colorPaths: { type: Array }        // NEW: Array of {path, label, helper} for multiple single colors
         };
     }
 
@@ -47,6 +49,8 @@ export class LCARdSColorSection extends LitElement {
         this.variablePrefixes = ['--lcards-', '--lcars-', '--cblcars-'];
         this.showPreview = true;
         this.useColorPicker = true; // Default to enhanced picker
+        this.singleColor = false;   // NEW
+        this.colorPaths = [];        // NEW
     }
 
     static get styles() {
@@ -64,6 +68,15 @@ export class LCARdSColorSection extends LitElement {
                 color: var(--secondary-text-color);
                 margin-top: 8px;
                 font-style: italic;
+            }
+
+            /* Helper text for color fields */
+            .helper-text {
+                font-size: 12px;
+                color: var(--secondary-text-color, #727272);
+                margin-top: 4px;
+                line-height: 1.4;
+                padding: 0 8px;
             }
         `;
     }
@@ -158,14 +171,19 @@ export class LCARdSColorSection extends LitElement {
     }
 
     render() {
-        if (!this.editor || !this.basePath) {
+        if (!this.editor) {
             return html`
                 <ha-alert alert-type="error">
-                    Color section requires 'editor' and 'basePath' properties
+                    Color section requires 'editor' property
                 </ha-alert>
             `;
         }
 
+        // Determine mode: single color, multiple single colors, or state-based
+        const isSingle = this.singleColor || (!this.states || this.states.length === 0);
+        const isMultipleSingle = this.colorPaths && this.colorPaths.length > 0;
+
+        // For backward compatibility with oneOf schemas
         const isOneOf = this._isOneOfSchema();
         const currentMode = this._getCurrentMode();
 
@@ -176,11 +194,11 @@ export class LCARdSColorSection extends LitElement {
                 ?expanded=${this.expanded}
                 outlined>
 
-                ${isOneOf ? this._renderModeToggle(currentMode) : ''}
+                ${isOneOf && !isMultipleSingle && !this.singleColor ? this._renderModeToggle(currentMode) : ''}
 
-                ${currentMode === 'simple'
-                    ? this._renderSimpleColor()
-                    : this._renderStateColors()}
+                ${isMultipleSingle ? this._renderMultipleSingleColors() : 
+                  isSingle ? this._renderSingleColor() : 
+                  this._renderStateColors()}
             </lcards-form-section>
         `;
     }
@@ -211,21 +229,32 @@ export class LCARdSColorSection extends LitElement {
     }
 
     /**
-     * Render simple single color picker
+     * Render simple single color picker (legacy, for backward compatibility)
      * @returns {TemplateResult}
      * @private
      */
     _renderSimpleColor() {
+        return this._renderSingleColor();
+    }
+
+    /**
+     * Render single color picker
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSingleColor() {
         if (this.useColorPicker) {
             const value = this.editor._getConfigValue(this.basePath);
             return html`
-                <lcards-color-picker
-                    .hass=${this.editor.hass}
-                    .value=${value || ''}
-                    .variablePrefixes=${this.variablePrefixes}
-                    ?showPreview=${this.showPreview}
-                    @value-changed=${(e) => this._handleColorChange(this.basePath, e)}>
-                </lcards-color-picker>
+                <div style="margin-bottom: 12px;">
+                    <lcards-color-picker
+                        .hass=${this.editor.hass}
+                        .value=${value || ''}
+                        .variablePrefixes=${this.variablePrefixes}
+                        ?showPreview=${this.showPreview}
+                        @value-changed=${(e) => this._handleColorChange(this.basePath, e)}>
+                    </lcards-color-picker>
+                </div>
             `;
         }
 
@@ -236,6 +265,33 @@ export class LCARdSColorSection extends LitElement {
                 path="${this.basePath}"
                 label="Color">
             </lcards-form-field>
+        `;
+    }
+
+    /**
+     * Render multiple single colors (for sections with multiple color fields)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMultipleSingleColors() {
+        return html`
+            ${this.colorPaths.map(colorPath => html`
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">
+                        ${colorPath.label}
+                    </div>
+                    <lcards-color-picker
+                        .hass=${this.editor?.hass}
+                        .value=${this._getValueAtPath(colorPath.path) || ''}
+                        ?showPreview=${this.showPreview}
+                        .variablePrefixes=${this.variablePrefixes}
+                        @value-changed=${(e) => this._handleColorPathChange(colorPath.path, e)}>
+                    </lcards-color-picker>
+                    ${colorPath.helper ? html`
+                        <div class="helper-text">${colorPath.helper}</div>
+                    ` : ''}
+                </div>
+            `)}
         `;
     }
 
@@ -310,6 +366,46 @@ export class LCARdSColorSection extends LitElement {
             .split(/[-_]/)
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
+    }
+
+    /**
+     * Get value at a specific path (for colorPaths mode)
+     * @param {string} path - Config path
+     * @returns {*} Value at path
+     * @private
+     */
+    _getValueAtPath(path) {
+        if (!this.editor?.config) return undefined;
+
+        const keys = path.split('.');
+        let value = this.editor.config;
+
+        for (const key of keys) {
+            if (value === undefined || value === null) return undefined;
+            value = value[key];
+        }
+
+        return value;
+    }
+
+    /**
+     * Handle color change for a specific path (colorPaths mode)
+     * @param {string} path - Config path
+     * @param {CustomEvent} event - value-changed event
+     * @private
+     */
+    _handleColorPathChange(path, event) {
+        this.editor._setConfigValue(path, event.detail.value);
+    }
+
+    /**
+     * Capitalize first letter (utility)
+     * @param {string} str - String to capitalize
+     * @returns {string} Capitalized string
+     * @private
+     */
+    _capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
     }
 }
 

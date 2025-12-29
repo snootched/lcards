@@ -1793,8 +1793,13 @@ _renderIconTab() {
 
 #### Enhanced Color Section
 
+The `lcards-color-section` component now supports three modes for flexible color configuration:
+
+##### 1. State-Based Colors (default)
+For colors that change based on entity state:
+
 ```javascript
-import '../components/form/lcards-color-section.js';
+import '../components/editors/lcards-color-section.js';
 
 _renderColorsTab() {
     return html`
@@ -1811,6 +1816,68 @@ _renderColorsTab() {
     `;
 }
 ```
+
+##### 2. Single Color Mode
+For simple single-color configuration:
+
+```javascript
+_renderColorsTab() {
+    return html`
+        <!-- Single color picker -->
+        <lcards-color-section
+            .editor=${this}
+            basePath="style.track.background"
+            header="Track Background"
+            description="Background color behind pills"
+            ?singleColor=${true}
+            ?expanded=${false}
+            ?useColorPicker=${true}>
+        </lcards-color-section>
+    `;
+}
+```
+
+##### 3. Multiple Single Colors Mode
+For sections with multiple independent color fields:
+
+```javascript
+_renderColorsTab() {
+    return html`
+        <!-- Multiple related color fields in one section -->
+        <lcards-color-section
+            .editor=${this}
+            header="Gradient Colors"
+            description="Start and end colors for gradient"
+            .colorPaths=${[
+                { 
+                    path: 'style.gradient.start',
+                    label: 'Gradient Start',
+                    helper: 'Color at minimum value'
+                },
+                { 
+                    path: 'style.gradient.end',
+                    label: 'Gradient End',
+                    helper: 'Color at maximum value'
+                }
+            ]}
+            ?expanded=${true}
+            ?useColorPicker=${true}>
+        </lcards-color-section>
+    `;
+}
+```
+
+**Benefits:**
+- ✅ Consistent color configuration across all editors
+- ✅ Single component handles all color use cases
+- ✅ Automatic theme token support with variable prefixes
+- ✅ Built-in color preview
+- ✅ Proper helper text support
+
+**Migration:**
+- Replace direct `lcards-color-picker` usage with `lcards-color-section`
+- Use `singleColor=${true}` for non-state-based colors
+- Use `colorPaths` array for multiple related colors in one section
 
 #### Template Evaluation Tab (v1.19.0)
 ```javascript
