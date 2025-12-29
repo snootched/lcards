@@ -228,7 +228,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                     }
                                 }}
                                 .value=${mode}
-                                @value-changed=${this._handleModeChange}>
+                                @value-changed=${this._handleTrackTypeChange}>
                             </ha-selector>
                         `
                     }
@@ -895,7 +895,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @param {CustomEvent} e - Mode change event
      * @private
      */
-    _handleModeChange(e) {
+    _handleTrackTypeChange(e) {
         const newMode = e.detail.value; // 'pills' or 'gauge'
         const oldMode = this._getMode();
 

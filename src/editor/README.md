@@ -350,6 +350,45 @@ _handleSelect(event) {
 }}
 ```
 
+#### Event Handler Naming Convention
+
+Follow this convention for consistent, self-documenting code:
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `_handle*` | DOM event handlers from UI components | `_handleModeChange(e)`, `_handleActionsChange(e)` |
+| `_on*` | Lifecycle/internal hooks | `_onConfigSet(config)`, `_onTemplatesChanged()` |
+| `_validate*` | Validation methods | `_validateConfig()`, `_validateField(path)` |
+| `_render*` | Render methods (return html/TemplateResult) | `_renderTextTab()`, `_renderFromConfig()` |
+| `_get*` | Getters (return computed values) | `_getMode()`, `_getConfigValue(path)` |
+| `_set*` | Setters (update state) | `_setConfigValue(path, value)` |
+| `_build*` | Factory methods (construct objects) | `_buildConfigTab()`, `_buildTabDefinitions()` |
+
+**Examples:**
+
+```javascript
+// ✅ GOOD: Clear distinction between handler types
+_handleModeChange(event) {  // DOM event from ha-selector
+    const newMode = event.detail.value;
+    this._setConfigValue('mode', newMode);
+}
+
+_onConfigUpdated() {  // Lifecycle hook from CoreConfigManager
+    this._validateConfig();
+    this.requestUpdate();
+}
+
+// ❌ BAD: Ambiguous naming
+_modeChange(event) { }  // Is this a handler? A callback? A setter?
+_updateConfig() { }     // Does this handle an event? Update state? Both?
+```
+
+**Benefits:**
+- 🔍 Instantly understand method purpose from name
+- 🤖 Easier for AI agents to understand code flow
+- 📚 Self-documenting code reduces need for comments
+- 🧪 Clear test naming: `test_handleModeChange_updatesConfigValue()`
+
 ### 📝 Common Anti-Patterns to Avoid
 
 #### ❌ DON'T: Custom tab CSS
