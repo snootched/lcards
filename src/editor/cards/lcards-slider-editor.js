@@ -32,7 +32,7 @@ import '../components/dashboard/lcards-rules-dashboard.js';
 import '../components/datasources/lcards-datasource-editor-tab.js';
 
 // Import template components
-import '../components/templates/lcards-template-sandbox.js';
+import '../components/templates/lcards-template-evaluation-tab.js';
 
 // Import theme browser
 import '../components/theme-browser/lcards-theme-token-browser-tab.js';
