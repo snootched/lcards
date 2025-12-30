@@ -141,7 +141,16 @@ export function getSliderSchema(options = {}) {
                 format: 'entity',
                 pattern: '^[a-z_]+\\.[a-z0-9_]+$',
                 description: 'Primary entity ID to control (format: domain.object_id)',
-                examples: ['light.bedroom', 'cover.garage', 'sensor.temperature']
+                examples: ['light.bedroom', 'cover.garage', 'sensor.temperature'],
+                'x-ui-hints': {
+                    label: 'Entity',
+                    helper: 'Select the entity this slider controls or displays',
+                    selector: {
+                        entity: {
+                            // Domain filtering can be added if needed
+                        }
+                    }
+                }
             },
 
             id: {
@@ -169,7 +178,16 @@ export function getSliderSchema(options = {}) {
                 type: 'string',
                 enum: availablePresets,
                 description: 'Style preset name (mutually exclusive with advanced component)',
-                examples: ['pills-basic', 'gauge-basic']
+                examples: ['pills-basic', 'gauge-basic'],
+                'x-ui-hints': {
+                    label: 'Style Preset',
+                    helper: 'Choose a pre-configured slider style',
+                    selector: {
+                        select: {
+                            mode: 'dropdown'
+                        }
+                    }
+                }
             },
 
             component: {
@@ -190,18 +208,48 @@ export function getSliderSchema(options = {}) {
                     min: {
                         type: 'number',
                         description: 'Minimum value',
-                        examples: [0, -100, 16]
+                        examples: [0, -100, 16],
+                        'x-ui-hints': {
+                            label: 'Minimum Value',
+                            helper: 'Lowest value the slider can reach',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    step: 1
+                                }
+                            }
+                        }
                     },
                     max: {
                         type: 'number',
                         description: 'Maximum value',
-                        examples: [100, 255, 30]
+                        examples: [100, 255, 30],
+                        'x-ui-hints': {
+                            label: 'Maximum Value',
+                            helper: 'Highest value the slider can reach',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    step: 1
+                                }
+                            }
+                        }
                     },
                     step: {
                         type: 'number',
                         minimum: 0.01,
                         description: 'Step increment',
-                        examples: [1, 0.5, 5]
+                        examples: [1, 0.5, 5],
+                        'x-ui-hints': {
+                            label: 'Step',
+                            helper: 'Value increment/decrement step',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    step: 0.01
+                                }
+                            }
+                        }
                     },
                     attribute: {
                         type: 'string',

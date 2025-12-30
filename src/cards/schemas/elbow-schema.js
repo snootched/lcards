@@ -230,7 +230,14 @@ export function getElbowSchema(options = {}) {
                 format: 'entity',
                 pattern: '^[a-z_]+\\.[a-z0-9_]+$',
                 description: 'Primary entity ID to control (format: domain.object_id)',
-                examples: ['light.living_room', 'switch.fan', 'sensor.temperature']
+                examples: ['light.living_room', 'switch.fan', 'sensor.temperature'],
+                'x-ui-hints': {
+                    label: 'Entity',
+                    helper: 'Select the entity this elbow card controls',
+                    selector: {
+                        entity: {}
+                    }
+                }
             },
 
             id: {
@@ -337,7 +344,19 @@ export function getElbowSchema(options = {}) {
                                 ],
                                 default: 90,
                                 description: 'Width of vertical sidebar. Use number for static value or "theme" for dynamic binding to HA-LCARS input_number.lcars_vertical',
-                                examples: [90, 120, 150, 'theme']
+                                examples: [90, 120, 150, 'theme'],
+                                'x-ui-hints': {
+                                    label: 'Bar Width',
+                                    helper: 'Width of the vertical elbow bar in pixels (or "theme" for dynamic binding)',
+                                    defaultOneOfBranch: 0,
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            step: 1,
+                                            unit_of_measurement: 'px'
+                                        }
+                                    }
+                                }
                             },
                             bar_height: {
                                 oneOf: [
@@ -356,7 +375,19 @@ export function getElbowSchema(options = {}) {
                                     }
                                 ],
                                 description: 'Height of horizontal bar. Use number for static value or "theme" for dynamic binding to HA-LCARS input_number.lcars_horizontal. Defaults to bar_width if not specified.',
-                                examples: [20, 30, 90, 'theme']
+                                examples: [20, 30, 90, 'theme'],
+                                'x-ui-hints': {
+                                    label: 'Bar Height',
+                                    helper: 'Height of the horizontal elbow bar in pixels (or "theme" for dynamic binding)',
+                                    defaultOneOfBranch: 0,
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            step: 1,
+                                            unit_of_measurement: 'px'
+                                        }
+                                    }
+                                }
                             },
                             outer_curve: {
                                 oneOf: [
@@ -375,7 +406,19 @@ export function getElbowSchema(options = {}) {
                                 ],
                                 default: 'auto',
                                 description: 'Outer corner radius (pixels or "auto" for LCARS formula: bar_width / 2)',
-                                $comment: 'LCARS Arc Formula: outer_curve = bar_width / 2 creates authentic tangent geometry'
+                                $comment: 'LCARS Arc Formula: outer_curve = bar_width / 2 creates authentic tangent geometry',
+                                'x-ui-hints': {
+                                    label: 'Outer Curve',
+                                    helper: 'Radius of outer corner (use "auto" for authentic LCARS geometry)',
+                                    defaultOneOfBranch: 0,
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            step: 1,
+                                            unit_of_measurement: 'px'
+                                        }
+                                    }
+                                }
                             },
                             inner_curve: {
                                 type: 'number',
@@ -383,7 +426,18 @@ export function getElbowSchema(options = {}) {
                                 maximum: 500,
                                 description: 'Inner corner radius (pixels, defaults to outer_curve / 2 using LCARS formula)',
                                 examples: [22.5, 37.5, 50],
-                                $comment: 'LCARS formula: inner_curve = outer_curve / 2 for authentic concentric geometry'
+                                $comment: 'LCARS formula: inner_curve = outer_curve / 2 for authentic concentric geometry',
+                                'x-ui-hints': {
+                                    label: 'Inner Curve',
+                                    helper: 'Radius of inner corner (defaults to outer_curve / 2 for LCARS geometry)',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            step: 0.5,
+                                            unit_of_measurement: 'px'
+                                        }
+                                    }
+                                }
                             },
                             color: {
                                 ...stateColorSchema,

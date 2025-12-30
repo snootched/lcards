@@ -109,7 +109,19 @@ export function getButtonSchema(options = {}) {
                     left: { type: 'number', minimum: 0, maximum: 200, description: 'Left padding in pixels' }
                 }
             }
-        ]
+        ],
+        'x-ui-hints': {
+            label: 'Padding',
+            helper: 'Use number for uniform padding, or object for per-side control',
+            defaultOneOfBranch: 0,
+            selector: {
+                number: {
+                    mode: 'slider',
+                    step: 1,
+                    unit_of_measurement: 'px'
+                }
+            }
+        }
     };
 
     const actionSchema = {
@@ -343,7 +355,16 @@ export function getButtonSchema(options = {}) {
                 format: 'entity',
                 pattern: '^[a-z_]+\\.[a-z0-9_]+$',
                 description: 'Primary entity ID to control (format: domain.object_id)',
-                examples: ['light.living_room', 'switch.fan', 'sensor.temperature']
+                examples: ['light.living_room', 'switch.fan', 'sensor.temperature'],
+                'x-ui-hints': {
+                    label: 'Entity',
+                    helper: 'Select the Home Assistant entity this button controls',
+                    selector: {
+                        entity: {
+                            // Can specify domains if needed: domain: ['light', 'switch']
+                        }
+                    }
+                }
             },
 
             id: {
@@ -371,7 +392,16 @@ export function getButtonSchema(options = {}) {
                 type: 'string',
                 enum: availablePresets,
                 description: 'Style preset name (mutually exclusive with component)',
-                examples: ['lozenge', 'bullet', 'outline', 'pill']
+                examples: ['lozenge', 'bullet', 'outline', 'pill'],
+                'x-ui-hints': {
+                    label: 'Style Preset',
+                    helper: 'Choose a pre-configured button style. Use "component" instead for advanced layouts like D-pad.',
+                    selector: {
+                        select: {
+                            mode: 'dropdown'
+                        }
+                    }
+                }
             },
 
             component: {
@@ -553,7 +583,18 @@ export function getButtonSchema(options = {}) {
                             minimum: -360,
                             maximum: 360,
                             default: 0,
-                            description: 'Text rotation in degrees (-360 to 360)'
+                            description: 'Text rotation in degrees (-360 to 360)',
+                            'x-ui-hints': {
+                                label: 'Rotation',
+                                helper: 'Rotate text in degrees (negative = counter-clockwise)',
+                                selector: {
+                                    number: {
+                                        mode: 'slider',
+                                        step: 1,
+                                        unit_of_measurement: '°'
+                                    }
+                                }
+                            }
                         },
                         padding: paddingSchema,
                         font_size: {
@@ -570,7 +611,19 @@ export function getButtonSchema(options = {}) {
                                     description: 'CSS value or theme token',
                                     examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
                                 }
-                            ]
+                            ],
+                            'x-ui-hints': {
+                                label: 'Font Size',
+                                helper: 'Size in pixels (recommended) or CSS units',
+                                defaultOneOfBranch: 0,
+                                selector: {
+                                    number: {
+                                        mode: 'slider',
+                                        step: 1,
+                                        unit_of_measurement: 'px'
+                                    }
+                                }
+                            }
                         },
                         color: stateColorSchema,
                         font_weight: {
@@ -850,7 +903,7 @@ export function getButtonSchema(options = {}) {
                             color: stateColorSchema,
                             radius: {
                                 oneOf: [
-                                    { type: 'number' },
+                                    { type: 'number', minimum: 0, maximum: 100 },
                                     { type: 'string', description: 'Theme token reference' },
                                     {
                                         type: 'object',
@@ -861,7 +914,19 @@ export function getButtonSchema(options = {}) {
                                             bottom_left: { oneOf: [{ type: 'number' }, { type: 'string' }] }
                                         }
                                     }
-                                ]
+                                ],
+                                'x-ui-hints': {
+                                    label: 'Border Radius',
+                                    helper: 'Use number for uniform corners, or object for per-corner control',
+                                    defaultOneOfBranch: 0,
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            step: 1,
+                                            unit_of_measurement: 'px'
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
@@ -1179,14 +1244,36 @@ export function getButtonSchema(options = {}) {
                 minimum: 1,
                 maximum: 24,
                 default: 4,
-                description: 'Card width in grid columns (1-24, default: 4)'
+                description: 'Card width in grid columns (1-24, default: 4)',
+                'x-ui-hints': {
+                    label: 'Width (Grid Columns)',
+                    helper: 'Card width in HA grid columns (1-24)',
+                    selector: {
+                        number: {
+                            mode: 'slider',
+                            step: 1,
+                            unit_of_measurement: 'cols'
+                        }
+                    }
+                }
             },
             height: {
                 type: 'number',
                 minimum: 1,
                 maximum: 100,
                 default: 4,
-                description: 'Card height in grid rows (1-100, default: 4)'
+                description: 'Card height in grid rows (1-100, default: 4)',
+                'x-ui-hints': {
+                    label: 'Height (Grid Rows)',
+                    helper: 'Card height in HA grid rows (1-100)',
+                    selector: {
+                        number: {
+                            mode: 'slider',
+                            step: 1,
+                            unit_of_measurement: 'rows'
+                        }
+                    }
+                }
             },
             grid_options: {
                 type: 'object',
