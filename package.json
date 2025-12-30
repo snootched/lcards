@@ -1,6 +1,7 @@
 {
   "name": "lcards",
   "version": "1.9.30",
+  "type": "module",
   "description": "LCARdS - Modern LCARS card system for Home Assistant",
   "main": "index.js",
   "author": "Jason Weyermars",
@@ -20,12 +21,14 @@
     "clean": "rimraf dist",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
+    "create-editor": "node tools/create-editor.js",
     "generate-editor-json": "node src/editor/cb-lcars_generate_editor_forms.js",
     "verify-editor": "node scripts/verify-editor-imports.js",
     "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",
+    "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^27.1.0",
     "rimraf": "^6.0.1",
