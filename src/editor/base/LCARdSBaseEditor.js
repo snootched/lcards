@@ -73,7 +73,7 @@ export class LCARdSBaseEditor extends LitElement {
 
                 /* Form field spacing */
                 .form-field {
-                    margin-bottom: 12px;
+                    margin-bottom: var(--lcards-section-spacing, 16px);
                 }
 
                 /* Two-column grid */
@@ -81,7 +81,7 @@ export class LCARdSBaseEditor extends LitElement {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 12px;
-                    margin-bottom: 12px;
+                    margin-bottom: var(--lcards-section-spacing, 16px);
                 }
 
                 @media (max-width: 768px) {

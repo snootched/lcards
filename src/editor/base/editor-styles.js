@@ -29,8 +29,9 @@ export const editorStyles = css`
         min-height: 400px;
     }
 
+    /* Section spacing with CSS variables for density control */
     .section {
-        margin-bottom: 12px; /* Reduced from 16px for consistency */
+        margin-bottom: var(--lcards-section-spacing, 16px);
     }
 
     .section-header {
@@ -45,12 +46,12 @@ export const editorStyles = css`
     .section-description {
         font-size: 14px;
         color: var(--secondary-text-color, #727272);
-        margin-bottom: 12px; /* Reduced from 16px for consistency */
+        margin-bottom: 12px;
         line-height: 1.5;
     }
 
     .form-row {
-        margin-bottom: 12px; /* Reduced from 16px for consistency */
+        margin-bottom: var(--lcards-section-spacing, 16px);
         display: grid;
         grid-template-columns: 100%;
         grid-gap: 8px;
@@ -63,8 +64,8 @@ export const editorStyles = css`
     .form-row-group {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px; /* Increased from 8px to 12px for consistency with grid-layout */
-        margin-bottom: 12px; /* Reduced from 16px for consistency */
+        gap: 12px;
+        margin-bottom: var(--lcards-section-spacing, 16px);
     }
 
     .form-row label {
@@ -186,14 +187,14 @@ export const editorStyles = css`
         background-color: var(--chip-background-color, #f5f5f5);
     }
 
-    /* Icon spacing in headers */
+    /* Icon spacing in headers - increased padding */
     h1 ha-icon,
     h2 ha-icon,
     h3 ha-icon,
     h4 ha-icon,
     h5 ha-icon,
     h6 ha-icon {
-        margin-right: 8px;
+        margin-right: var(--lcards-icon-spacing, 12px);
         vertical-align: middle;
     }
 

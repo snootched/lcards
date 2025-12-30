@@ -38,6 +38,8 @@ export class LCARdSFormField extends LitElement {
             helper: { type: String },         // Optional helper text override
             required: { type: Boolean },      // Required field
             disabled: { type: Boolean },      // Disabled state
+            selectorOverride: { type: Object }, // Override selector config (highest priority)
+            oneOfBranch: { type: Number },    // Force specific oneOf branch (0-indexed)
             _selectedOneOfIndex: { type: Number, state: true }  // Selected oneOf index
         };
     }
@@ -51,6 +53,8 @@ export class LCARdSFormField extends LitElement {
         this.helper = '';
         this.required = false;
         this.disabled = false;
+        this.selectorOverride = null;
+        this.oneOfBranch = null;
         this._selectedOneOfIndex = 0;
     }
 
@@ -64,7 +68,7 @@ export class LCARdSFormField extends LitElement {
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
-                margin-bottom: 12px; /* Reduced from 16px for consistency */
+                margin-bottom: var(--lcards-section-spacing, 16px);
             }
 
             label {
@@ -131,7 +135,16 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     get _effectiveLabel() {
-        return getEffectiveLabel(this._schema, this.path, this.label);
+        return this._effectiveLabelWithHints;
+    }
+
+    /**
+     * Get effective helper text
+     * @returns {string}
+     * @private
+     */
+    get _effectiveHelper() {
+        return this._effectiveHelperWithHints;
     }
 
     /**
@@ -141,6 +154,100 @@ export class LCARdSFormField extends LitElement {
      */
     get _effectiveHelper() {
         return getEffectiveHelper(this._schema, this.helper);
+    }
+
+    /**
+     * Get selector configuration with priority handling
+     * Priority: selectorOverride > x-ui-hints.selector > auto-generated
+     * 
+     * @param {string} selectorType - Type of selector (e.g., 'number', 'entity', 'select')
+     * @param {Object} autoConfig - Auto-generated selector config
+     * @returns {Object} Merged selector configuration
+     * @private
+     */
+    _getSelectorConfig(selectorType, autoConfig = {}) {
+        // Priority 1: Field-level selectorOverride (highest priority)
+        if (this.selectorOverride && this.selectorOverride[selectorType]) {
+            return this._mergeWithSchemaConstraints(
+                selectorType,
+                this.selectorOverride[selectorType],
+                autoConfig
+            );
+        }
+
+        // Priority 2: Schema x-ui-hints.selector
+        const xUiHints = this._schema?.['x-ui-hints'];
+        if (xUiHints?.selector && xUiHints.selector[selectorType]) {
+            return this._mergeWithSchemaConstraints(
+                selectorType,
+                xUiHints.selector[selectorType],
+                autoConfig
+            );
+        }
+
+        // Priority 3: Auto-generated (fallback)
+        return autoConfig;
+    }
+
+    /**
+     * Merge selector config with schema constraints
+     * Ensures min/max/step from schema are respected even with overrides
+     * 
+     * @param {string} selectorType - Type of selector
+     * @param {Object} override - Override configuration
+     * @param {Object} schemaConstraints - Auto-generated constraints from schema
+     * @returns {Object} Merged configuration
+     * @private
+     */
+    _mergeWithSchemaConstraints(selectorType, override, schemaConstraints) {
+        // For number selectors, schema constraints should be preserved
+        if (selectorType === 'number') {
+            return {
+                ...schemaConstraints,
+                ...override,
+                // Ensure schema min/max are respected if not overridden
+                min: override.min !== undefined ? override.min : schemaConstraints.min,
+                max: override.max !== undefined ? override.max : schemaConstraints.max,
+                step: override.step !== undefined ? override.step : schemaConstraints.step
+            };
+        }
+
+        // For other selectors, simple merge
+        return { ...schemaConstraints, ...override };
+    }
+
+    /**
+     * Get effective label from x-ui-hints or fallback
+     * @returns {string}
+     * @private
+     */
+    get _effectiveLabelWithHints() {
+        // Explicit prop takes precedence
+        if (this.label) return this.label;
+
+        // Check x-ui-hints.label
+        const xUiHints = this._schema?.['x-ui-hints'];
+        if (xUiHints?.label) return xUiHints.label;
+
+        // Fallback to schema title or formatted path
+        return getEffectiveLabel(this._schema, this.path, '');
+    }
+
+    /**
+     * Get effective helper from x-ui-hints or fallback
+     * @returns {string}
+     * @private
+     */
+    get _effectiveHelperWithHints() {
+        // Explicit prop takes precedence
+        if (this.helper) return this.helper;
+
+        // Check x-ui-hints.helper
+        const xUiHints = this._schema?.['x-ui-hints'];
+        if (xUiHints?.helper) return xUiHints.helper;
+
+        // Fallback to schema description
+        return this._schema?.description || '';
     }
 
     render() {
@@ -248,12 +355,29 @@ export class LCARdSFormField extends LitElement {
 
     /**
      * Render oneOf selector - allows choosing between multiple schema options
+     * Supports x-ui-hints.defaultOneOfBranch and oneOfBranch property
      * @param {Object} schema - Schema with oneOf array
      * @returns {TemplateResult}
      * @private
      */
     _renderOneOfSelector(schema) {
         const DESCRIPTION_MAX_LENGTH = 30; // Maximum length for description truncation
+
+        // Determine default branch: oneOfBranch prop > x-ui-hints.defaultOneOfBranch > 0
+        let defaultBranch = 0;
+        if (this.oneOfBranch !== null && this.oneOfBranch !== undefined) {
+            defaultBranch = this.oneOfBranch;
+        } else {
+            const xUiHints = schema['x-ui-hints'];
+            if (xUiHints?.defaultOneOfBranch !== undefined) {
+                defaultBranch = xUiHints.defaultOneOfBranch;
+            }
+        }
+
+        // Initialize _selectedOneOfIndex if needed
+        if (this._selectedOneOfIndex === undefined || this._selectedOneOfIndex === null) {
+            this._selectedOneOfIndex = defaultBranch;
+        }
 
         const options = schema.oneOf.map((option, index) => {
             // Use option.title if available, otherwise generate label from type
@@ -271,27 +395,35 @@ export class LCARdSFormField extends LitElement {
         // Get the selected schema
         const selectedSchema = schema.oneOf[this._selectedOneOfIndex] || schema.oneOf[0];
 
+        // If oneOfBranch is set (forced branch), skip the type selector UI
+        const skipSelector = this.oneOfBranch !== null && this.oneOfBranch !== undefined;
+
         return html`
             <div class="oneof-selector">
-                <label>${this._effectiveLabel}</label>
+                ${!skipSelector ? html`
+                    <label>${this._effectiveLabel}</label>
 
-                <!-- Schema type selector -->
-                <ha-selector
-                    .hass=${this.editor.hass}
-                    .selector=${{
-                        select: {
-                            mode: 'dropdown',
-                            options: options.map(opt => ({ value: String(opt.value), label: opt.label }))
-                        }
-                    }}
-                    .value=${String(this._selectedOneOfIndex)}
-                    @value-changed=${this._handleOneOfChange}>
-                </ha-selector>
+                    <!-- Schema type selector -->
+                    <ha-selector
+                        .hass=${this.editor.hass}
+                        .selector=${{
+                            select: {
+                                mode: 'dropdown',
+                                options: options.map(opt => ({ value: String(opt.value), label: opt.label }))
+                            }
+                        }}
+                        .value=${String(this._selectedOneOfIndex)}
+                        @value-changed=${this._handleOneOfChange}>
+                    </ha-selector>
 
-                <!-- Render sub-editor for selected schema -->
-                <div class="oneof-content" style="margin-top: 12px;">
+                    <!-- Render sub-editor for selected schema -->
+                    <div class="oneof-content" style="margin-top: 12px;">
+                        ${this._renderControl(selectedSchema)}
+                    </div>
+                ` : html`
+                    <!-- Direct rendering without type selector -->
                     ${this._renderControl(selectedSchema)}
-                </div>
+                `}
 
                 ${this._effectiveHelper ? html`
                     <div class="helper-text">${this._effectiveHelper}</div>
@@ -320,12 +452,13 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderEntityPicker() {
-        // Use ha-selector with entity selector (modern approach)
-        // This is more consistent and better supported than ha-entity-picker
+        // Get effective config with priority handling
+        const selectorConfig = this._getSelectorConfig('entity', {});
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
-                .selector=${{ entity: {} }}
+                .selector=${{ entity: selectorConfig }}
                 .configValue=${this.path}
                 .value=${this._value || ''}
                 .label=${this._effectiveLabel}
@@ -343,11 +476,13 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderColorSelector() {
-        // Use HA's ui-color selector for color picking
+        // Get effective config with priority handling
+        const selectorConfig = this._getSelectorConfig('ui_color', {});
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
-                .selector=${{ ui_color: {} }}
+                .selector=${{ ui_color: selectorConfig }}
                 .configValue=${this.path}
                 .value=${this._value || ''}
                 .label=${this._effectiveLabel}
@@ -364,11 +499,13 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderIconSelector() {
-        // Use HA's icon selector for icon picking
+        // Get effective config with priority handling
+        const selectorConfig = this._getSelectorConfig('icon', {});
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
-                .selector=${{ icon: {} }}
+                .selector=${{ icon: selectorConfig }}
                 .configValue=${this.path}
                 .value=${this._value || ''}
                 .label=${this._effectiveLabel}
@@ -472,15 +609,19 @@ export class LCARdSFormField extends LitElement {
     _renderSelect(schema) {
         const options = getEnumOptions(schema);
 
+        // Auto-generate config from schema
+        const autoConfig = {
+            mode: 'dropdown',
+            options
+        };
+
+        // Get effective config with priority handling
+        const selectorConfig = this._getSelectorConfig('select', autoConfig);
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
-                .selector=${{
-                    select: {
-                        mode: 'dropdown',
-                        options
-                    }
-                }}
+                .selector=${{ select: selectorConfig }}
                 .value=${this._value}
                 .disabled=${this.disabled}
                 @value-changed=${this._handleValueChange}>
@@ -527,17 +668,21 @@ export class LCARdSFormField extends LitElement {
      * @private
      */
     _renderNumber(schema) {
+        // Auto-generate config from schema
+        const autoConfig = {
+            min: schema.minimum,
+            max: schema.maximum,
+            step: schema.type === 'integer' ? 1 : (schema.multipleOf || 0.1),
+            mode: 'box'
+        };
+
+        // Get effective config with priority handling
+        const selectorConfig = this._getSelectorConfig('number', autoConfig);
+
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
-                .selector=${{
-                    number: {
-                        min: schema.minimum,
-                        max: schema.maximum,
-                        step: schema.type === 'integer' ? 1 : (schema.multipleOf || 0.1),
-                        mode: 'box'
-                    }
-                }}
+                .selector=${{ number: selectorConfig }}
                 .configValue=${this.path}
                 .value=${this._value}
                 .label=${this._effectiveLabel}
