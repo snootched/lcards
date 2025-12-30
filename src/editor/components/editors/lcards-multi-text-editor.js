@@ -16,7 +16,7 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
-import '../shared/lcards-form-field.js';
+import { LCARdSFormFieldHelper as FormField } from '../shared/lcards-form-field.js';
 import './lcards-color-section.js';
 import './lcards-padding-editor.js';
 
@@ -181,26 +181,17 @@ export class LCARdSMultiTextEditor extends LitElement {
                 ?outlined=${true}
                 headerLevel="5">
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.font_size"
-                    label="Font Size">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.font_size', {
+                    label: 'Font Size'
+                })}
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.font_weight"
-                    label="Font Weight">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.font_weight', {
+                    label: 'Font Weight'
+                })}
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.font_family"
-                    label="Font Family">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.font_family', {
+                    label: 'Font Family'
+                })}
             </lcards-form-section>
 
             <!-- Alignment Section (anchor/baseline + text_transform) -->
@@ -212,29 +203,20 @@ export class LCARdSMultiTextEditor extends LitElement {
                 ?outlined=${true}
                 headerLevel="5">
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.anchor"
-                    label="Anchor"
-                    helper="Text anchor (start/middle/end)">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.anchor', {
+                    label: 'Anchor',
+                    helper: 'Text anchor (start/middle/end)'
+                })}
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.baseline"
-                    label="Baseline"
-                    helper="Baseline alignment for text">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.baseline', {
+                    label: 'Baseline',
+                    helper: 'Baseline alignment for text'
+                })}
 
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.default.text_transform"
-                    label="Text Transform"
-                    helper="Text transformation (uppercase/lowercase/capitalize)">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'text.default.text_transform', {
+                    label: 'Text Transform',
+                    helper: 'Text transformation (uppercase/lowercase/capitalize)'
+                })}
             </lcards-form-section>
 
             <!-- Padding Section -->
@@ -304,30 +286,21 @@ export class LCARdSMultiTextEditor extends LitElement {
                 headerLevel="5">
 
                 <!-- Show Toggle -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.${fieldName}.show"
-                    label="Show ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, `text.${fieldName}.show`, {
+                    label: `Show ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`
+                })}
 
                 <!-- Content -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.${fieldName}.content"
-                    label="Content"
-                    helper="Text content - supports templates like {{entity.state}}">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, `text.${fieldName}.content`, {
+                    label: 'Content',
+                    helper: 'Text content - supports templates like {{entity.state}}'
+                })}
 
                 <!-- Position -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.${fieldName}.position"
-                    label="Position"
-                    helper="Where to display this text on the card">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, `text.${fieldName}.position`, {
+                    label: 'Position',
+                    helper: 'Where to display this text on the card'
+                })}
 
                 <!-- Font Section -->
                 <lcards-form-section
@@ -338,29 +311,20 @@ export class LCARdSMultiTextEditor extends LitElement {
                     ?outlined=${true}
                     headerLevel="6">
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.font_size"
-                        label="Font Size"
-                        helper="${hasDefaults && !fieldConfig.font_size ? 'Inherits from defaults' : ''}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.font_size`, {
+                        label: 'Font Size',
+                        helper: hasDefaults && !fieldConfig.font_size ? 'Inherits from defaults' : ''
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.font_weight"
-                        label="Font Weight"
-                        helper="${hasDefaults && !fieldConfig.font_weight ? 'Inherits from defaults' : ''}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.font_weight`, {
+                        label: 'Font Weight',
+                        helper: hasDefaults && !fieldConfig.font_weight ? 'Inherits from defaults' : ''
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.font_family"
-                        label="Font Family"
-                        helper="${hasDefaults && !fieldConfig.font_family ? 'Inherits from defaults' : ''}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.font_family`, {
+                        label: 'Font Family',
+                        helper: hasDefaults && !fieldConfig.font_family ? 'Inherits from defaults' : ''
+                    })}
                 </lcards-form-section>
 
                 <!-- Alignment Section (anchor/baseline + text_transform) -->
@@ -372,29 +336,20 @@ export class LCARdSMultiTextEditor extends LitElement {
                     ?outlined=${true}
                     headerLevel="6">
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.anchor"
-                        label="Anchor"
-                        helper="${hasDefaults && !fieldConfig.anchor ? 'Inherits from defaults' : 'Text anchor (start/middle/end)'}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.anchor`, {
+                        label: 'Anchor',
+                        helper: hasDefaults && !fieldConfig.anchor ? 'Inherits from defaults' : 'Text anchor (start/middle/end)'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.baseline"
-                        label="Baseline"
-                        helper="${hasDefaults && !fieldConfig.baseline ? 'Inherits from defaults' : 'Baseline alignment'}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.baseline`, {
+                        label: 'Baseline',
+                        helper: hasDefaults && !fieldConfig.baseline ? 'Inherits from defaults' : 'Baseline alignment'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                    .config=${this.editor.config}
-                        path="text.${fieldName}.text_transform"
-                        label="Text Transform"
-                        helper="${hasDefaults && !fieldConfig.text_transform ? 'Inherits from defaults' : 'Text transformation'}">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, `text.${fieldName}.text_transform`, {
+                        label: 'Text Transform',
+                        helper: hasDefaults && !fieldConfig.text_transform ? 'Inherits from defaults' : 'Text transformation'
+                    })}
                 </lcards-form-section>
 
                 <!-- Padding Section -->
