@@ -418,6 +418,195 @@ html`
 
 ---
 
+## Using ha-selector-choose for oneOf
+
+For fields with multiple type options (number vs string, simple vs object), you can use Home Assistant's native `ha-selector-choose` for better UX.
+
+### Correct Structure (choices object)
+
+The `ha-selector-choose` requires a `choices` **object** with named keys, not an array:
+
+```javascript
+{
+  "gap": {
+    "oneOf": [
+      { 
+        "type": "number",
+        "minimum": 0,
+        "maximum": 50
+      },
+      { 
+        "type": "string",
+        "pattern": "^(\\d+px|theme:|\\{theme:)"
+      }
+    ],
+    "x-ui-hints": {
+      "label": "Segment Gap",
+      "helper": "Space between segments (pixels or theme token)",
+      "selector": {
+        "choose": {
+          "choices": {  // ← Object with named keys (REQUIRED)
+            "pixels": {
+              "selector": {
+                "number": {
+                  "mode": "slider",
+                  "min": 0,
+                  "max": 50,
+                  "step": 1,
+                  "unit_of_measurement": "px"
+                }
+              }
+            },
+            "theme": {
+              "selector": {
+                "text": {
+                  "placeholder": "{theme:spacing.sm}"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### How It Works
+
+The `ha-selector-choose` component automatically detects which choice to display based on the value type:
+
+- **If value is a number** → Shows the `pixels` selector (number input/slider)
+- **If value is a string** → Shows the `theme` selector (text input)
+- **If value is an object** → Shows the object selector
+- **User can switch** between choices using a segmented button control
+
+### Complex Example: Per-Corner Radius
+
+```javascript
+{
+  "radius": {
+    "oneOf": [
+      { "type": "number" },
+      { "type": "string" },
+      { 
+        "type": "object",
+        "properties": {
+          "top_left": { "type": "number" },
+          "top_right": { "type": "number" },
+          "bottom_right": { "type": "number" },
+          "bottom_left": { "type": "number" }
+        }
+      }
+    ],
+    "x-ui-hints": {
+      "selector": {
+        "choose": {
+          "choices": {
+            "pixels": {
+              "selector": {
+                "number": {
+                  "mode": "slider",
+                  "min": 0,
+                  "max": 100,
+                  "step": 1,
+                  "unit_of_measurement": "px"
+                }
+              }
+            },
+            "theme": {
+              "selector": {
+                "text": {
+                  "placeholder": "{theme:borders.radius.md}"
+                }
+              }
+            },
+            "per_corner": {
+              "selector": {
+                "object": {
+                  "properties": {
+                    "top_left": { 
+                      "title": "Top Left",
+                      "number": { "min": 0, "max": 100 }
+                    },
+                    "top_right": { 
+                      "title": "Top Right",
+                      "number": { "min": 0, "max": 100 }
+                    },
+                    "bottom_right": { 
+                      "title": "Bottom Right",
+                      "number": { "min": 0, "max": 100 }
+                    },
+                    "bottom_left": { 
+                      "title": "Bottom Left",
+                      "number": { "min": 0, "max": 100 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Auto-Generation Behavior
+
+When `lcards-form-field` encounters a `oneOf` schema **without** explicit `x-ui-hints.selector.choose`, it automatically generates a `choose` selector:
+
+1. **Analyzes each oneOf branch** to determine the type (Number, Text, Object, etc.)
+2. **Generates choice keys** from the type labels (lowercase with underscores)
+3. **Creates appropriate selectors** for each branch type
+4. **Returns a `choices` object** (not an array)
+
+**Example auto-generated keys:**
+- `"Number"` → `"number"`
+- `"Theme Token"` → `"theme_token"`
+- `"Per Corner"` → `"per_corner"`
+- `"Theme Binding"` → `"theme_binding"`
+
+### User Experience
+
+```
+Segment Gap: [ Pixels | Theme Token ]  ← Segmented button control
+[====●======] 4px  ← Active selector (slider in this case)
+```
+
+When the user:
+1. **Switches between choices** using the segmented button
+2. **The appropriate input appears** (slider, text, object editor, etc.)
+3. **Value is preserved** when switching between compatible types
+4. **Value is cleared** when switching to an incompatible type
+
+### Important Notes
+
+⚠️ **Common Mistake**: Using `"options": [...]` (array) instead of `"choices": {}` (object)
+
+```javascript
+// ❌ WRONG - Will render with 0 height
+"choose": {
+  "options": [
+    { "value": "pixels", "label": "Pixels", "selector": {...} }
+  ]
+}
+
+// ✅ CORRECT - Will render properly
+"choose": {
+  "choices": {
+    "pixels": { "selector": {...} }
+  }
+}
+```
+
+⚠️ **Key Names Matter**: Choice keys must be valid JavaScript identifiers (lowercase letters, numbers, underscores)
+
+⚠️ **No Manual Detection Needed**: Home Assistant's choose selector handles value type detection automatically
+
+---
+
 ## Complete Example: Button Schema
 
 ```javascript
