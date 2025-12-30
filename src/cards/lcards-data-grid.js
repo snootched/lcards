@@ -130,6 +130,10 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
+import { dataGridSchema } from './schemas/data-grid-schema.js';
+
+// Import editor component for getConfigElement()
+import '../editor/cards/lcards-data-grid-editor.js';
 
 export class LCARdSDataGrid extends LCARdSCard {
   /** Card type identifier for CoreConfigManager */
@@ -2108,6 +2112,15 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
+   * Get configuration element for Home Assistant UI editor
+   * @static
+   * @returns {string} Element tag name
+   */
+  static getConfigElement() {
+    return 'lcards-data-grid-editor';
+  }
+
+  /**
    * Register schema with CoreConfigManager
    * Called by lcards.js after core initialization
    * @static
@@ -2120,289 +2133,8 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
-    // Register JSON schema for validation
-    configManager.registerCardSchema('data-grid', {
-    type: 'object',
-    required: ['type', 'data_mode'],
-    properties: {
-      type: {
-        type: 'string',
-        enum: ['custom:lcards-data-grid'],
-        description: 'Card type identifier'
-      },
-
-      // Shared LCARdS Properties
-      data_sources: {
-        type: 'object',
-        description: 'Named data source definitions (shared across all lcards)',
-        additionalProperties: {
-          type: 'object',
-          properties: {
-            entity: {
-              type: 'string',
-              format: 'entity',
-              description: 'Entity ID to fetch data from'
-            },
-            windowSeconds: {
-              type: 'number',
-              minimum: 1,
-              description: 'Time window in seconds for historical data'
-            }
-          },
-          required: ['entity']
-        }
-      },
-
-      // Data Mode (Required)
-      data_mode: {
-        type: 'string',
-        enum: ['random', 'template', 'datasource'],
-        description: 'Data input mode: random (decorative), template (manual), datasource (real-time)'
-      },
-
-      // Random Mode Properties
-      format: {
-        type: 'string',
-        enum: ['digit', 'float', 'alpha', 'hex', 'mixed'],
-        description: 'Data format for random mode (default: mixed)'
-      },
-      refresh_interval: {
-        type: 'number',
-        minimum: 0,
-        description: 'Auto-refresh interval in milliseconds (0 = disabled)'
-      },
-
-      // Template Mode Properties
-      rows: {
-        type: 'array',
-        description: 'Grid data rows (template: array of arrays; datasource: row configs)'
-      },
-
-      // Datasource Mode Properties
-      layout: {
-        type: 'string',
-        enum: ['timeline', 'spreadsheet'],
-        description: 'Layout type for datasource mode'
-      },
-      source: {
-        type: 'string',
-        description: 'Entity ID or DataSource name (timeline mode)'
-      },
-      history_hours: {
-        type: 'number',
-        minimum: 0,
-        description: 'Hours of history to preload (default: 1)'
-      },
-      value_template: {
-        type: 'string',
-        description: 'Value formatting template (default: {value})'
-      },
-      data_sources: {
-        type: 'object',
-        description: 'DataSource definitions (optional, can auto-create)'
-      },
-      columns: {
-        type: 'array',
-        description: 'Column definitions for spreadsheet mode',
-        items: {
-          type: 'object',
-          properties: {
-            header: { type: 'string', description: 'Column header text' },
-            width: { type: 'number', minimum: 0, description: 'Column width in px' },
-            align: {
-              type: 'string',
-              enum: ['left', 'center', 'right'],
-              description: 'Column text alignment'
-            },
-            style: { type: 'object', description: 'Column-level style overrides' }
-          }
-        }
-      },
-
-      // Grid Configuration (CSS Grid or legacy format)
-      grid: {
-        type: 'object',
-        description: 'Grid layout configuration',
-        properties: {
-          // CSS Grid Properties (Recommended)
-          'grid-template-columns': { type: 'string', description: 'Column track sizing (e.g., repeat(12, 1fr))' },
-          'grid-template-rows': { type: 'string', description: 'Row track sizing (e.g., repeat(8, auto))' },
-          'gap': { type: 'string', description: 'Uniform gap (e.g., 8px)' },
-          'row-gap': { type: 'string', description: 'Vertical gap only' },
-          'column-gap': { type: 'string', description: 'Horizontal gap only' },
-          'grid-auto-flow': {
-            type: 'string',
-            enum: ['row', 'column', 'dense', 'row dense', 'column dense'],
-            description: 'Auto-placement algorithm'
-          },
-          'justify-items': {
-            type: 'string',
-            enum: ['start', 'end', 'center', 'stretch'],
-            description: 'Horizontal item alignment'
-          },
-          'align-items': {
-            type: 'string',
-            enum: ['start', 'end', 'center', 'stretch'],
-            description: 'Vertical item alignment'
-          },
-          'justify-content': {
-            type: 'string',
-            enum: ['start', 'end', 'center', 'stretch', 'space-around', 'space-between', 'space-evenly'],
-            description: 'Horizontal container alignment'
-          },
-          'align-content': {
-            type: 'string',
-            enum: ['start', 'end', 'center', 'stretch', 'space-around', 'space-between', 'space-evenly'],
-            description: 'Vertical container alignment'
-          },
-          'grid-auto-columns': { type: 'string', description: 'Implicit column track sizing' },
-          'grid-auto-rows': { type: 'string', description: 'Implicit row track sizing' },
-          'grid-template-areas': { type: 'string', description: 'Named grid areas (passes through to CSS)' },
-
-          // Legacy Format (Deprecated but supported)
-          rows: { type: 'number', minimum: 1, description: 'Number of rows (deprecated - use grid-template-rows)' },
-          columns: { type: 'number', minimum: 1, description: 'Number of columns (deprecated - use grid-template-columns)' },
-          cell_width: {
-            type: ['string', 'number'],
-            description: 'Cell width: "auto" or px value (deprecated - use grid-template-columns)'
-          }
-        }
-      },
-
-      // Styling Properties
-      style: {
-        type: 'object',
-        description: 'Grid-wide cell styling (level 1 in hierarchy)',
-        properties: {
-          font_size: { type: 'number', minimum: 8, maximum: 72, description: 'Font size in px (default: 24)' },
-          font_family: { type: 'string', description: 'Font family' },
-          font_weight: { type: 'number', minimum: 100, maximum: 900, description: 'Font weight' },
-          color: { type: 'string', description: 'Text color (supports theme tokens)' },
-          background: { type: 'string', description: 'Background color (supports theme tokens)' },
-          align: {
-            type: 'string',
-            enum: ['left', 'center', 'right'],
-            description: 'Text alignment (default: right)'
-          },
-          padding: { type: 'string', description: 'Cell padding (default: 8px)' },
-          border_width: { type: 'number', minimum: 0, description: 'Border width in px' },
-          border_color: { type: 'string', description: 'Border color' },
-          border_style: {
-            type: 'string',
-            enum: ['solid', 'dashed', 'dotted', 'none'],
-            description: 'Border style'
-          }
-        }
-      },
-
-      header_style: {
-        type: 'object',
-        description: 'Header row styling for spreadsheet mode (level 2 in hierarchy)'
-      },
-
-      // Top-level style shortcuts
-      font_size: { type: 'number', minimum: 8, maximum: 72, description: 'Global font size (default: 24px)' },
-      font_family: { type: 'string', description: 'Global font family' },
-      font_weight: { type: 'number', minimum: 100, maximum: 900, description: 'Global font weight' },
-      color: { type: 'string', description: 'Global text color' },
-      align: {
-        type: 'string',
-        enum: ['left', 'center', 'right'],
-        description: 'Global text alignment (default: right)'
-      },
-
-      // Animation Configuration
-      animation: {
-        type: 'object',
-        description: 'Cascade animation and change detection configuration',
-        properties: {
-          type: {
-            type: 'string',
-            enum: ['cascade'],
-            description: 'Animation type'
-          },
-          pattern: {
-            type: 'string',
-            enum: ['default', 'niagara', 'fast', 'custom'],
-            description: 'Timing pattern for cascade'
-          },
-          colors: {
-            type: 'object',
-            description: '3-color cascade cycle',
-            properties: {
-              start: { type: 'string', description: 'Starting color (75% dwell)' },
-              text: { type: 'string', description: 'Middle color (10% snap)' },
-              end: { type: 'string', description: 'Ending color (10% brief)' }
-            }
-          },
-          speed_multiplier: {
-            type: 'number',
-            minimum: 0.1,
-            maximum: 10,
-            description: 'Animation speed multiplier'
-          },
-          duration: {
-            type: 'number',
-            minimum: 100,
-            description: 'Override all row durations (ms)'
-          },
-          easing: {
-            type: 'string',
-            description: 'Easing function (default: linear)'
-          },
-          timing: {
-            type: 'array',
-            description: 'Custom per-row timing (when pattern: custom)',
-            items: {
-              type: 'object',
-              properties: {
-                duration: { type: 'number', minimum: 100, description: 'Duration in ms' },
-                delay: { type: 'number', minimum: 0, description: 'Delay in seconds' }
-              }
-            }
-          },
-          highlight_changes: {
-            type: 'boolean',
-            description: 'Enable change detection highlighting (default: false)'
-          },
-          change_preset: {
-            type: 'string',
-            enum: ['pulse', 'glow', 'flash'],
-            description: 'Change animation preset (default: pulse)'
-          },
-          change_duration: {
-            type: 'number',
-            minimum: 100,
-            description: 'Change animation duration in ms (default: 500)'
-          },
-          change_easing: {
-            type: 'string',
-            description: 'Change animation easing function'
-          },
-          change_params: {
-            type: 'object',
-            description: 'Preset-specific parameters'
-          },
-          max_highlight_cells: {
-            type: 'number',
-            minimum: 1,
-            description: 'Limit animated cells per update (default: 50)'
-          }
-        }
-      },
-
-      // Card Metadata
-      id: {
-        type: 'string',
-        description: 'Card identifier for rules/animations'
-      },
-      tags: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Tags for rules engine'
-      }
-    }
-  });
+    // Register JSON schema with x-ui-hints for visual editor
+    configManager.registerCardSchema('data-grid', dataGridSchema);
 
     lcardsLog.info('[LCARdSDataGrid] Schema registered with CoreConfigManager');
   }
