@@ -370,8 +370,13 @@ export function getElbowSchema(options = {}) {
                                                     value: 'theme',
                                                     label: 'Theme Binding',
                                                     selector: {
-                                                        text: {
-                                                            type: 'text'
+                                                        select: {
+                                                            options: [
+                                                                {
+                                                                    value: 'theme',
+                                                                    label: 'Bind to input_number.lcars_vertical'
+                                                                }
+                                                            ]
                                                         }
                                                     }
                                                 }
@@ -423,8 +428,13 @@ export function getElbowSchema(options = {}) {
                                                     value: 'theme',
                                                     label: 'Theme Binding',
                                                     selector: {
-                                                        text: {
-                                                            type: 'text'
+                                                        select: {
+                                                            options: [
+                                                                {
+                                                                    value: 'theme',
+                                                                    label: 'Bind to input_number.lcars_horizontal'
+                                                                }
+                                                            ]
                                                         }
                                                     }
                                                 }
