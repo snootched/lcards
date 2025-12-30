@@ -28,8 +28,8 @@
  *
  * @example Slotted mode (mixed controls)
  * <lcards-object-editor columns="2">
- *   <lcards-form-field path="font.size" label="Size"></lcards-form-field>
- *   <lcards-form-field path="font.weight" label="Weight"></lcards-form-field>
+ *   ${FormField.renderField(this, 'font.size', { label: 'Size' })}
+ *   ${FormField.renderField(this, 'font.weight', { label: 'Weight' })}
  * </lcards-object-editor>
  */
 

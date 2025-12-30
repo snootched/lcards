@@ -15,7 +15,7 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
-import '../shared/lcards-form-field.js';
+import { LCARdSFormFieldHelper as FormField } from '../shared/lcards-form-field.js';
 import './lcards-color-section.js';
 import '../shared/lcards-color-picker.js';
 import './lcards-icon-area-picker.js';
@@ -56,21 +56,15 @@ export class LCARdSIconEditor extends LitElement {
 
         return html`
             <!-- Show Icon Toggle -->
-            <lcards-form-field
-                .editor=${this.editor}
-                .config=${this.editor.config}
-                path="show_icon"
-                label="Show Icon">
-            </lcards-form-field>
+            ${FormField.renderField(this.editor, 'show_icon', {
+                label: 'Show Icon'
+            })}
 
             ${showIcon ? html`
                 <!-- Icon Picker -->
-                <lcards-form-field
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="icon"
-                    label="Icon">
-                </lcards-form-field>
+                ${FormField.renderField(this.editor, 'icon', {
+                    label: 'Icon'
+                })}
 
                 <!-- Icon Area Section -->
                 <lcards-form-section
@@ -88,13 +82,10 @@ export class LCARdSIconEditor extends LitElement {
                         @value-changed=${(e) => this.editor._setConfigValue('icon_area', e.detail.value)}>
                     </lcards-icon-area-picker>
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                        .config=${this.editor.config}
-                        path="icon_area_size"
-                        label="Area Size"
-                        helper="Override calculated area size (width for left/right, height for top/bottom)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, 'icon_area_size', {
+                        label: 'Area Size',
+                        helper: 'Override calculated area size (width for left/right, height for top/bottom)'
+                    })}
 
                     <lcards-color-section
                         .editor=${this.editor}
@@ -115,13 +106,10 @@ export class LCARdSIconEditor extends LitElement {
                         ?outlined=${true}
                         headerLevel="5">
 
-                        <lcards-form-field
-                            .editor=${this.editor}
-                            .config=${this.editor.config}
-                            path="divider.width"
-                            label="Width"
-                            helper="Divider line width (default: 6)">
-                        </lcards-form-field>
+                        ${FormField.renderField(this.editor, 'divider.width', {
+                            label: 'Width',
+                            helper: 'Divider line width (default: 6)'
+                        })}
 
                         <lcards-color-picker
                             .hass=${this.hass}
@@ -140,27 +128,18 @@ export class LCARdSIconEditor extends LitElement {
                     ?outlined=${true}
                     headerLevel="4">
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                        .config=${this.editor.config}
-                        path="icon_style.position"
-                        label="Position"
-                        helper="Where to display the icon within its area">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, 'icon_style.position', {
+                        label: 'Position',
+                        helper: 'Where to display the icon within its area'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                        .config=${this.editor.config}
-                        path="icon_style.size"
-                        label="Size">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, 'icon_style.size', {
+                        label: 'Size'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this.editor}
-                        .config=${this.editor.config}
-                        path="icon_style.rotation"
-                        label="Rotation (degrees)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this.editor, 'icon_style.rotation', {
+                        label: 'Rotation (degrees)'
+                    })}
 
                     <!-- Padding Configuration -->
                     <lcards-form-section

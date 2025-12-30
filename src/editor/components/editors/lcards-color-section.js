@@ -16,7 +16,7 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
-import '../shared/lcards-form-field.js';
+import { LCARdSFormFieldHelper as FormField } from '../shared/lcards-form-field.js';
 import '../shared/lcards-color-picker.js';
 import { getSchemaAtPath } from '../../../utils/schema-helpers.js';
 
@@ -258,14 +258,9 @@ export class LCARdSColorSection extends LitElement {
             `;
         }
 
-        return html`
-            <lcards-form-field
-                .editor=${this.editor}
-                .config=${this.editor.config}
-                path="${this.basePath}"
-                label="Color">
-            </lcards-form-field>
-        `;
+        return FormField.renderField(this.editor, this.basePath, {
+            label: 'Color'
+        });
     }
 
     /**
@@ -334,14 +329,9 @@ export class LCARdSColorSection extends LitElement {
             `;
         }
 
-        return html`
-            <lcards-form-field
-                .editor=${this.editor}
-                .config=${this.editor.config}
-                path="${path}"
-                label="${label}">
-            </lcards-form-field>
-        `;
+        return FormField.renderField(this.editor, path, {
+            label: label
+        });
     }
 
     /**

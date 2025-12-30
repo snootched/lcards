@@ -6,8 +6,8 @@
  *
  * @example
  * <lcards-grid-layout>
- *   <lcards-form-field path="grid_columns" label="Grid Columns"></lcards-form-field>
- *   <lcards-form-field path="grid_rows" label="Grid Rows"></lcards-form-field>
+ *   ${FormField.renderField(this, 'grid_columns', { label: 'Grid Columns' })}
+ *   ${FormField.renderField(this, 'grid_rows', { label: 'Grid Rows' })}
  * </lcards-grid-layout>
  */
 
