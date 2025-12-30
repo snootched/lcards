@@ -209,8 +209,9 @@ export class LCARdSColorSection extends LitElement {
             `;
         }
 
-        // For state-based colors, use choose selector
+        // For state-based colors with oneOf, use choose selector with custom rendering
         const currentValue = this._getCurrentValue();
+        const currentMode = this._getCurrentMode();
         
         return html`
             <lcards-form-section
@@ -218,61 +219,57 @@ export class LCARdSColorSection extends LitElement {
                 description="${this.description}"
                 ?expanded=${this.expanded}
                 outlined>
-                <lcards-form-field
-                    .editor=${this.editor}
-                    path="${this.basePath}"
-                    .selectorOverride=${{
-                        choose: {
+                
+                <!-- Native HA choose selector for mode toggle -->
+                <ha-selector
+                    .hass=${this.editor.hass}
+                    .selector=${{
+                        select: {
+                            mode: 'list',
                             options: [
-                                {
-                                    value: "simple",
-                                    label: "Single Color",
-                                    selector: { ui_color: {} }
-                                },
-                                {
-                                    value: "states",
-                                    label: "By State",
-                                    selector: this._getStateColorSelector()
-                                }
+                                { value: 'simple', label: 'Single Color' },
+                                { value: 'states', label: 'By State' }
                             ]
                         }
-                    }}>
-                </lcards-form-field>
+                    }}
+                    .value=${currentMode}
+                    @value-changed=${this._handleModeChange}>
+                </ha-selector>
+
+                <!-- Custom color pickers based on mode -->
+                <div style="margin-top: 12px;">
+                    ${currentMode === 'simple' ? this._renderSingleColor() : this._renderStateColors()}
+                </div>
             </lcards-form-section>
         `;
     }
 
     /**
-     * Generate selector for state-based colors
-     * @returns {Object} Selector configuration
+     * Handle mode change from selector
+     * @param {CustomEvent} ev - value-changed event
      * @private
      */
-    _getStateColorSelector() {
-        const properties = {};
-        
-        for (const state of this.states) {
-            properties[state] = {
-                selector: { ui_color: {} },
-                name: this._formatStateName(state)
+    _handleModeChange(ev) {
+        ev.stopPropagation();
+        const newMode = ev.detail.value;
+        const currentValue = this._getCurrentValue();
+
+        let newValue;
+        if (newMode === 'simple') {
+            // Convert to simple mode: use default state or first available
+            if (typeof currentValue === 'object' && currentValue !== null) {
+                newValue = currentValue.default || currentValue[Object.keys(currentValue)[0]] || '#ffffff';
+            } else {
+                newValue = typeof currentValue === 'string' ? currentValue : '#ffffff';
+            }
+        } else {
+            // Convert to states mode: create object with default state
+            newValue = {
+                default: typeof currentValue === 'string' ? currentValue : '#ffffff'
             };
         }
 
-        return {
-            object: {
-                name: 'State Colors',
-                properties: properties
-            }
-        };
-    }
-
-    /**
-     * Format state name for display
-     * @param {string} state - State name
-     * @returns {string} Formatted name
-     * @private
-     */
-    _formatStateName(state) {
-        return state.charAt(0).toUpperCase() + state.slice(1);
+        this.editor.updateConfig(this.basePath, newValue);
     }
 
     /**
