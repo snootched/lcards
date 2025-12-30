@@ -920,10 +920,8 @@ export function getButtonSchema(options = {}) {
                                     helper: 'Corner roundness (pixels, theme token, or per-corner)',
                                     selector: {
                                         choose: {
-                                            options: [
-                                                {
-                                                    value: 'pixels',
-                                                    label: 'Pixels',
+                                            choices: {
+                                                pixels: {
                                                     selector: {
                                                         number: {
                                                             mode: 'slider',
@@ -935,18 +933,14 @@ export function getButtonSchema(options = {}) {
                                                         }
                                                     }
                                                 },
-                                                {
-                                                    value: 'theme',
-                                                    label: 'Theme Token',
+                                                theme: {
                                                     selector: {
                                                         text: {
                                                             placeholder: '{theme:borders.radius.md}'
                                                         }
                                                     }
                                                 },
-                                                {
-                                                    value: 'custom',
-                                                    label: 'Per Corner',
+                                                per_corner: {
                                                     selector: {
                                                         object: {
                                                             properties: {
@@ -970,7 +964,7 @@ export function getButtonSchema(options = {}) {
                                                         }
                                                     }
                                                 }
-                                            ]
+                                            }
                                         }
                                     }
                                 }

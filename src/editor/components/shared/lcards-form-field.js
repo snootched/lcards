@@ -305,6 +305,7 @@ export class LCARdSFormField extends LitElement {
 
     /**
      * Auto-generate ha-selector-choose for oneOf schemas
+     * Uses HA's required "choices" object structure (not "options" array)
      * @param {Object} schema - JSON Schema with oneOf
      * @returns {Object} Choose selector configuration
      * @private
@@ -314,20 +315,23 @@ export class LCARdSFormField extends LitElement {
             return this._generateDefaultSelector();
         }
 
-        const options = schema.oneOf.map((branch, index) => {
+        const choices = {};
+        
+        schema.oneOf.forEach((branch, index) => {
             const label = this._getLabelForOneOfBranch(branch);
             const branchSelector = this._generateSelectorFromSchema(branch);
             
-            return {
-                value: `option_${index}`,
-                label: label,
+            // Generate key from label (lowercase, no spaces, underscores)
+            const key = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            
+            choices[key] = {
                 selector: branchSelector
             };
         });
 
         return {
             choose: {
-                options: options
+                choices: choices  // ← Object with named keys (HA requirement)
             }
         };
     }
@@ -379,53 +383,6 @@ export class LCARdSFormField extends LitElement {
         }
         
         return `Option ${branch.title || ''}`;
-    }
-
-    /**
-     * Detect which choose option matches the current value
-     * @param {*} value - Current config value
-     * @param {Array} options - Choose selector options
-     * @returns {Object|null} Matching option or null
-     * @private
-     */
-    _detectChooseOption(value, options) {
-        if (value === undefined || value === null) {
-            return options[0]; // Default to first option
-        }
-
-        if (typeof value === 'number') {
-            return options.find(o => o.selector?.number);
-        }
-        
-        if (typeof value === 'string') {
-            // Theme token pattern
-            if (value.startsWith('{theme:') || value.includes('var(--')) {
-                return options.find(o => o.label === 'Theme Token' || o.value === 'theme');
-            }
-            // Special "theme" string binding
-            if (value === 'theme') {
-                return options.find(o => o.label === 'Theme Binding' || o.value === 'theme');
-            }
-            return options.find(o => o.selector?.text);
-        }
-        
-        if (typeof value === 'object' && !Array.isArray(value)) {
-            // State-based if has default/active/inactive keys
-            if (value.default !== undefined || value.active !== undefined) {
-                return options.find(o => o.label === 'By State' || o.value === 'states');
-            }
-            
-            // Padding/spacing if has top/right/bottom/left
-            if (value.top !== undefined || value.left !== undefined) {
-                return options.find(o => o.label === 'Per Side' || o.value === 'custom');
-            }
-            
-            // General object
-            return options.find(o => o.selector?.object);
-        }
-        
-        // Default to first option
-        return options[0];
     }
 
     /**
@@ -574,22 +531,17 @@ export class LCARdSFormField extends LitElement {
 
     /**
      * Render ha-selector-choose for oneOf schemas
-     * @param {Object} selectorConfig - Selector configuration with choose property
+     * HA's choose selector automatically detects which choice matches the value type
+     * @param {Object} selectorConfig - Selector configuration with choose.choices
      * @returns {TemplateResult}
      * @private
      */
     _renderChooseSelector(selectorConfig) {
-        const currentValue = this._value;
-        
-        // Auto-detect which option matches current value
-        const matchedOption = this._detectChooseOption(currentValue, selectorConfig.choose.options);
-        
         return html`
             <ha-selector
                 .hass=${this.editor.hass}
                 .selector=${selectorConfig}
-                .configValue=${this.path}
-                .value=${currentValue}
+                .value=${this._value}
                 .label=${this._effectiveLabel}
                 .helper=${this._effectiveHelper}
                 .disabled=${this.disabled}

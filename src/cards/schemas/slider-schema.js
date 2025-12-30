@@ -542,10 +542,8 @@ export function getSliderSchema(options = {}) {
                                             "helper": "Space between pill segments (pixels or theme token)",
                                             "selector": {
                                                 "choose": {
-                                                    "options": [
-                                                        {
-                                                            "value": "pixels",
-                                                            "label": "Pixels",
+                                                    "choices": {
+                                                        "pixels": {
                                                             "selector": {
                                                                 "number": {
                                                                     "mode": "slider",
@@ -557,16 +555,14 @@ export function getSliderSchema(options = {}) {
                                                                 }
                                                             }
                                                         },
-                                                        {
-                                                            "value": "theme",
-                                                            "label": "Theme Token",
+                                                        "theme": {
                                                             "selector": {
                                                                 "text": {
                                                                     "placeholder": "{theme:spacing.sm}"
                                                                 }
                                                             }
                                                         }
-                                                    ]
+                                                    }
                                                 }
                                             }
                                         }

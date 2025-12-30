@@ -351,10 +351,8 @@ export function getElbowSchema(options = {}) {
                                     helper: 'Vertical bar thickness (pixels or theme binding)',
                                     selector: {
                                         choose: {
-                                            options: [
-                                                {
-                                                    value: 'pixels',
-                                                    label: 'Static (Pixels)',
+                                            choices: {
+                                                pixels: {
                                                     selector: {
                                                         number: {
                                                             mode: 'slider',
@@ -366,9 +364,7 @@ export function getElbowSchema(options = {}) {
                                                         }
                                                     }
                                                 },
-                                                {
-                                                    value: 'theme',
-                                                    label: 'Theme Binding',
+                                                theme: {
                                                     selector: {
                                                         select: {
                                                             options: [
@@ -380,7 +376,7 @@ export function getElbowSchema(options = {}) {
                                                         }
                                                     }
                                                 }
-                                            ]
+                                            }
                                         }
                                     }
                                 }
@@ -409,10 +405,8 @@ export function getElbowSchema(options = {}) {
                                     helper: 'Horizontal bar thickness (pixels or theme binding)',
                                     selector: {
                                         choose: {
-                                            options: [
-                                                {
-                                                    value: 'pixels',
-                                                    label: 'Static (Pixels)',
+                                            choices: {
+                                                pixels: {
                                                     selector: {
                                                         number: {
                                                             mode: 'slider',
@@ -424,9 +418,7 @@ export function getElbowSchema(options = {}) {
                                                         }
                                                     }
                                                 },
-                                                {
-                                                    value: 'theme',
-                                                    label: 'Theme Binding',
+                                                theme: {
                                                     selector: {
                                                         select: {
                                                             options: [
@@ -438,7 +430,7 @@ export function getElbowSchema(options = {}) {
                                                         }
                                                     }
                                                 }
-                                            ]
+                                            }
                                         }
                                     }
                                 }
