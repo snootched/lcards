@@ -1,4 +1,62 @@
-# LCARdS Schema Editor
+# LCARdS Development Tools
+
+This directory contains development tools for creating and managing LCARdS cards and editors.
+
+## 🎨 Editor Boilerplate Generator
+
+**NEW!** CLI tool to generate card editor boilerplate with interactive prompts.
+
+```bash
+npm run create-editor
+# or
+npm run create-editor chart
+```
+
+### Quick Start
+
+```bash
+$ npm run create-editor gauge
+
+🎨 LCARdS Editor Boilerplate Generator
+
+Card type: gauge
+Display label: Gauge Card
+Has primary entity?: Yes
+Select tabs to include:
+  [✓] General (entity, name, basic config)
+  [✓] Style (appearance, colors, layout)
+  [ ] Data (data sources, series)
+  [✓] Advanced (actions, templates)
+Base template: Standard (entity + style basics + actions) [Recommended]
+Generate schema file?: Yes
+
+📝 Generating files...
+
+✅ Created: src/editor/cards/lcards-gauge-editor.js
+✅ Created: src/cards/schemas/gauge-schema.js
+
+✨ Done! Next steps:
+  1. Customize schema: src/cards/schemas/gauge-schema.js
+  2. Add tab content: src/editor/cards/lcards-gauge-editor.js
+  3. Test: Reload HA, create Gauge Card, verify editor opens
+  4. Use Schema Editor: open tools/schema-editor.html
+```
+
+### Features
+
+- **Interactive Prompts**: Guided configuration for card type, tabs, and features
+- **Template System**: Minimal, Standard, Advanced, or clone from existing editors
+- **Auto-Generation**: Creates editor class and schema with proper structure
+- **Validation**: Checks for duplicate editors and validates card type format
+- **Production-Ready**: Generates code following LCARdS conventions
+
+### Documentation
+
+See [Creating New Card Editors](../doc/editor/creating-editors.md) for complete documentation.
+
+---
+
+## 📝 Schema Editor
 
 Visual tool for editing JSON Schema files with x-ui-hints.
 
