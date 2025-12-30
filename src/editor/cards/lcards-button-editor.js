@@ -11,7 +11,6 @@ import { configToYaml } from '../utils/yaml-utils.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
-import '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';

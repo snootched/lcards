@@ -18,7 +18,7 @@ import '../components/editors/lcards-border-editor.js';
 import '../components/editors/lcards-object-editor.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-message.js';
-import '../components/shared/lcards-form-field.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 
 // Import specialized editor components
@@ -229,50 +229,38 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <lcards-form-field
-                    .editor=${this}
-                    path="entity"
-                    label="Entity"
-                    helper="Entity to control/display (light, cover, fan, sensor, etc.)">
-                </lcards-form-field>
+                ${FormField.renderField(this, 'entity', {
+                    label: 'Entity',
+                    helper: 'Entity to control/display (light, cover, fan, sensor, etc.)'
+                })}
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="control.attribute"
-                        label="Attribute"
-                        helper="Entity attribute to control (e.g., brightness)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'control.attribute', {
+                        label: 'Attribute',
+                        helper: 'Entity attribute to control (e.g., brightness)'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="control.locked"
-                        label="Display Only"
-                        helper="Disable interaction (auto-locked for sensors)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'control.locked', {
+                        label: 'Display Only',
+                        helper: 'Disable interaction (auto-locked for sensors)'
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-grid-layout columns="3">
-                    <lcards-form-field
-                        .editor=${this}
-                        path="control.min"
-                        label="Min"
-                        helper="Minimum value">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'control.min', {
+                        label: 'Min',
+                        helper: 'Minimum value'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="control.max"
-                        label="Max"
-                        helper="Maximum value">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'control.max', {
+                        label: 'Max',
+                        helper: 'Maximum value'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="control.step"
-                        label="Step"
-                        helper="Increment size">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'control.step', {
+                        label: 'Step',
+                        helper: 'Increment size'
+                    })}
                 </lcards-grid-layout>
             </lcards-form-section>
 
@@ -327,35 +315,25 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.count"
-                        label="Segment Count"
-                        helper="Number of pill segments">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.count', {
+                        label: 'Segment Count',
+                        helper: 'Number of pill segments'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.gap"
-                        label="Gap Size (px)"
-                        helper="Space between segments"
-                        .fieldOptions=${{ type: 'number' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.gap', {
+                        label: 'Gap Size (px)',
+                        helper: 'Space between segments'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.shape.radius"
-                        label="Border Radius (px)"
-                        helper="Roundness of pill corners"
-                        .fieldOptions=${{ type: 'number' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.shape.radius', {
+                        label: 'Border Radius (px)',
+                        helper: 'Roundness of pill corners'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.size.height"
-                        label="Pill Height (px)"
-                        helper="Height of each pill">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.size.height', {
+                        label: 'Pill Height (px)',
+                        helper: 'Height of each pill'
+                    })}
                 </lcards-grid-layout>
 
                 <!-- INLINE COLORS: Gradient colors appear right here with pills settings -->
@@ -371,7 +349,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?useColorPicker=${true}>
                 </lcards-color-section>
 
-                <lcards-form-field .editor=${this} path="style.track.segments.gradient.interpolated" label="Interpolate Colors" helper="Blend colors smoothly across segments"></lcards-form-field>
+                ${FormField.renderField(this, 'style.track.segments.gradient.interpolated', {
+                    label: 'Interpolate Colors',
+                    helper: 'Blend colors smoothly across segments'
+                })}
             </lcards-form-section>
 
             <!-- Opacity Settings -->
@@ -384,19 +365,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.appearance.unfilled.opacity"
-                        label="Unfilled Opacity"
-                        helper="Opacity for unfilled pills (0-1, default: 0.2)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.appearance.unfilled.opacity', {
+                        label: 'Unfilled Opacity',
+                        helper: 'Opacity for unfilled pills (0-1, default: 0.2)'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.track.segments.appearance.filled.opacity"
-                        label="Filled Opacity"
-                        helper="Opacity for filled pills (0-1, default: 1.0)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.track.segments.appearance.filled.opacity', {
+                        label: 'Filled Opacity',
+                        helper: 'Opacity for filled pills (0-1, default: 1.0)'
+                    })}
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
@@ -424,19 +401,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.progress_bar.height"
-                        label="Height"
-                        helper="Progress bar height in pixels (default: 12)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.progress_bar.height', {
+                        label: 'Height',
+                        helper: 'Progress bar height in pixels (default: 12)'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.progress_bar.radius"
-                        label="Border Radius"
-                        helper="Progress bar border radius in pixels (default: 2)">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.progress_bar.radius', {
+                        label: 'Border Radius',
+                        helper: 'Progress bar border radius in pixels (default: 2)'
+                    })}
                 </lcards-grid-layout>
 
                 <!-- INLINE: Progress bar color -->
@@ -470,25 +443,19 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     headerLevel="5">
 
                     <lcards-grid-layout>
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.major.enabled"
-                            label="Show Major Ticks">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.major.enabled', {
+                            label: 'Show Major Ticks'
+                        })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.major.interval"
-                            label="Interval"
-                            helper="Value interval between major ticks">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.major.interval', {
+                        label: 'Interval',
+                        helper: 'Value interval between major ticks'
+                    })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.major.width"
-                            label="Line Width"
-                            helper="Major tick line width in pixels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.major.width', {
+                        label: 'Line Width',
+                        helper: 'Major tick line width in pixels'
+                    })}
                     </lcards-grid-layout>
                 </lcards-form-section>
 
@@ -502,32 +469,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     headerLevel="5">
 
                     <lcards-grid-layout>
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.minor.enabled"
-                            label="Show Minor Ticks">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.minor.enabled', {
+                            label: 'Show Minor Ticks'
+                        })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.minor.interval"
-                            label="Interval"
-                            helper="Value interval between minor ticks">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.minor.interval', {
+                        label: 'Interval',
+                        helper: 'Value interval between minor ticks'
+                    })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.minor.height"
-                            label="Height"
-                            helper="Minor tick height in pixels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.minor.height', {
+                        label: 'Height',
+                        helper: 'Minor tick height in pixels'
+                    })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.tick_marks.minor.width"
-                            label="Line Width"
-                            helper="Minor tick line width in pixels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.tick_marks.minor.width', {
+                        label: 'Line Width',
+                        helper: 'Minor tick line width in pixels'
+                    })}
                     </lcards-grid-layout>
                 </lcards-form-section>
 
@@ -552,32 +511,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     headerLevel="5">
 
                     <lcards-grid-layout>
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.labels.enabled"
-                            label="Show Scale Labels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.enabled', {
+                            label: 'Show Scale Labels'
+                        })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.labels.unit"
-                            label="Unit"
-                            helper="Unit to append to values (%, °C, °F, W, etc.)">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.unit', {
+                        label: 'Unit',
+                        helper: 'Unit to append to values (%, °C, °F, W, etc.)'
+                    })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.labels.font_size"
-                            label="Font Size"
-                            helper="Label font size in pixels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.font_size', {
+                        label: 'Font Size',
+                        helper: 'Label font size in pixels'
+                    })}
 
-                        <lcards-form-field
-                            .editor=${this}
-                            path="style.gauge.scale.labels.padding"
-                            label="Padding"
-                            helper="Space between tick and label in pixels">
-                        </lcards-form-field>
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.padding', {
+                        label: 'Padding',
+                        helper: 'Space between tick and label in pixels'
+                    })}
                     </lcards-grid-layout>
 
                     <!-- INLINE: Label color -->
@@ -603,47 +554,35 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.enabled"
-                        label="Show Indicator"
-                        helper="Display a marker at the current value">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.enabled', {
+                        label: 'Show Indicator',
+                        helper: 'Display a marker at the current value'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.type"
-                        label="Indicator Type"
-                        helper="line: vertical/horizontal line, thumb: circular marker">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.type', {
+                        label: 'Indicator Type',
+                        helper: 'line: vertical/horizontal line, thumb: circular marker'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.size.width"
-                        label="Width"
-                        helper="Indicator width in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.size.width', {
+                        label: 'Width',
+                        helper: 'Indicator width in pixels'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.size.height"
-                        label="Height"
-                        helper="Indicator height in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.size.height', {
+                        label: 'Height',
+                        helper: 'Indicator height in pixels'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.border.enabled"
-                        label="Show Border"
-                        helper="Add border around indicator">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.border.enabled', {
+                        label: 'Show Border',
+                        helper: 'Add border around indicator'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.gauge.indicator.border.width"
-                        label="Border Width"
-                        helper="Border width in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.gauge.indicator.border.width', {
+                        label: 'Border Width',
+                        helper: 'Border width in pixels'
+                    })}
                 </lcards-grid-layout>
 
                 <!-- INLINE: Indicator colors -->
@@ -707,20 +646,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.left.enabled"
-                        label="Enabled"
-                        helper="Show left border cap"
-                        .fieldOptions=${{ type: 'boolean' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.left.enabled', {
+                        label: 'Enabled',
+                        helper: 'Show left border cap'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.left.size"
-                        label="Size (px)"
-                        helper="Border width in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.left.size', {
+                        label: 'Size (px)',
+                        helper: 'Border width in pixels'
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-color-section
@@ -745,20 +679,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.top.enabled"
-                        label="Enabled"
-                        helper="Show top border cap"
-                        .fieldOptions=${{ type: 'boolean' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.top.enabled', {
+                        label: 'Enabled',
+                        helper: 'Show top border cap'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.top.size"
-                        label="Size (px)"
-                        helper="Border height in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.top.size', {
+                        label: 'Size (px)',
+                        helper: 'Border height in pixels'
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-color-section
@@ -783,20 +712,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.right.enabled"
-                        label="Enabled"
-                        helper="Show right border cap"
-                        .fieldOptions=${{ type: 'boolean' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.right.enabled', {
+                        label: 'Enabled',
+                        helper: 'Show right border cap'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.right.size"
-                        label="Size (px)"
-                        helper="Border width in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.right.size', {
+                        label: 'Size (px)',
+                        helper: 'Border width in pixels'
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-color-section
@@ -821,20 +745,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.bottom.enabled"
-                        label="Enabled"
-                        helper="Show bottom border cap"
-                        .fieldOptions=${{ type: 'boolean' }}>
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.bottom.enabled', {
+                        label: 'Enabled',
+                        helper: 'Show bottom border cap'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        path="style.border.bottom.size"
-                        label="Size (px)"
-                        helper="Border height in pixels">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'style.border.bottom.size', {
+                        label: 'Size (px)',
+                        helper: 'Border height in pixels'
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-color-section
