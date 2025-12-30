@@ -69,7 +69,7 @@ export class LCARdSFormFieldHelper {
             `;
         }
 
-        const value = editor._getConfigValue?.(path);
+        const rawValue = editor._getConfigValue?.(path);
         const hints = schema?.['x-ui-hints'] || {};
         
         // Get selector config (priority: override > x-ui-hints > auto-generated)
@@ -83,17 +83,20 @@ export class LCARdSFormFieldHelper {
         
         // Check if we need special rendering (format-specific components)
         if (hasFormat(schema, 'font-family')) {
-            return this._renderFontSelector(editor, path, value, label, helper, options.disabled);
+            return this._renderFontSelector(editor, path, rawValue, label, helper, options.disabled);
         }
         
         if (isPositionEnum(schema)) {
-            return this._renderPositionPicker(editor, path, value, label, helper, options.disabled);
+            return this._renderPositionPicker(editor, path, rawValue, label, helper, options.disabled);
         }
         
         // Special handling for tags field
         if (path === 'tags') {
-            return this._renderTagsSelector(editor, path, value, label, helper);
+            return this._renderTagsSelector(editor, path, rawValue, label, helper);
         }
+        
+        // Prepare value for selector (transforms for choose selector if needed)
+        const value = this._prepareValueForSelector(rawValue, selectorConfig);
         
         // Return ha-selector template directly (no wrapper element)
         return html`
@@ -108,6 +111,120 @@ export class LCARdSFormFieldHelper {
                 @value-changed=${(ev) => this._handleChange(ev, editor, path)}>
             </ha-selector>
         `;
+    }
+    
+    /**
+     * Prepare value for ha-selector rendering
+     * Transforms clean config values into choose structure when needed
+     * 
+     * @param {*} value - Clean value from config (e.g., 23, "{theme:spacing.sm}")
+     * @param {Object} selectorConfig - HA selector configuration
+     * @returns {*} Value in format expected by selector (choose structure if needed)
+     * @private
+     * 
+     * @example
+     * // For choose selector with number value
+     * _prepareValueForSelector(23, { choose: { choices: { pixels: {...}, theme: {...} } } })
+     * // Returns: { active_choice: "pixels", pixels: 23, theme: "" }
+     * 
+     * // For non-choose selector
+     * _prepareValueForSelector(23, { number: { min: 0, max: 50 } })
+     * // Returns: 23 (unchanged)
+     */
+    static _prepareValueForSelector(value, selectorConfig) {
+        // Only transform for choose selectors
+        if (!selectorConfig?.choose?.choices) {
+            return value;
+        }
+        
+        const choices = selectorConfig.choose.choices;
+        
+        // Handle undefined/null values - use first choice default
+        if (value === undefined || value === null) {
+            const firstKey = Object.keys(choices)[0];
+            const firstSelector = choices[firstKey]?.selector;
+            
+            if (firstSelector?.number) {
+                value = firstSelector.number.min ?? 0;
+            } else if (firstSelector?.text) {
+                value = '';
+            } else {
+                value = null;
+            }
+        }
+        
+        // Detect which choice matches the value type
+        let activeChoice = null;
+        
+        if (typeof value === 'number') {
+            // Find choice with number selector
+            activeChoice = Object.keys(choices).find(key => 
+                choices[key]?.selector?.number
+            );
+        } else if (typeof value === 'string') {
+            // Check for theme token pattern
+            if (value.startsWith('{theme:') || value.includes('var(--')) {
+                activeChoice = Object.keys(choices).find(key => 
+                    (key.includes('theme') || key === 'theme_token') && 
+                    choices[key]?.selector?.text
+                );
+            }
+            
+            // Check for special "theme" enum value (elbow bar_width/height)
+            if (!activeChoice && value === 'theme') {
+                activeChoice = Object.keys(choices).find(key => 
+                    key.includes('theme') || key.includes('binding')
+                );
+            }
+            
+            // Find any text selector
+            if (!activeChoice) {
+                activeChoice = Object.keys(choices).find(key => 
+                    choices[key]?.selector?.text || choices[key]?.selector?.select
+                );
+            }
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Find choice with object selector
+            activeChoice = Object.keys(choices).find(key => 
+                choices[key]?.selector?.object
+            );
+        }
+        
+        // Default to first choice if no match
+        if (!activeChoice) {
+            activeChoice = Object.keys(choices)[0];
+        }
+        
+        // Build choose structure: { active_choice: "key", key: value, otherKeys: defaults }
+        const chooseValue = { active_choice: activeChoice };
+        
+        Object.keys(choices).forEach(key => {
+            if (key === activeChoice) {
+                // Set the active choice to the actual value
+                chooseValue[key] = value;
+            } else {
+                // Set inactive choices to appropriate defaults
+                const selector = choices[key]?.selector;
+                if (selector?.number) {
+                    chooseValue[key] = selector.number.min ?? 0;
+                } else if (selector?.text) {
+                    chooseValue[key] = '';
+                } else if (selector?.select) {
+                    chooseValue[key] = selector.select.options?.[0]?.value ?? '';
+                } else {
+                    chooseValue[key] = null;
+                }
+            }
+        });
+        
+        console.log('[FormFieldHelper] Value prepared for choose selector:', {
+            path: '(see render context)',
+            rawValue: value,
+            activeChoice: activeChoice,
+            chooseValue: chooseValue
+        });
+        
+        return chooseValue;
     }
     
     /**
@@ -128,7 +245,24 @@ export class LCARdSFormFieldHelper {
             value = ev.detail?.value;
         }
         
-        // Set config value (no transformation needed - HA handles choose selector internally)
+        // Extract actual value from choose structure
+        // Choose selector emits: { active_choice: "pixels", pixels: 23, theme: "" }
+        // We need to extract just: 23
+        if (value && typeof value === 'object' && value.active_choice) {
+            const activeChoice = value.active_choice;
+            const extractedValue = value[activeChoice];
+            
+            console.log('[FormFieldHelper] Choose value extracted:', {
+                path: path,
+                rawValue: value,
+                activeChoice: activeChoice,
+                extractedValue: extractedValue
+            });
+            
+            value = extractedValue;
+        }
+        
+        // Set config value (now clean, no choose wrapper)
         editor._setConfigValue?.(path, value);
     }
     

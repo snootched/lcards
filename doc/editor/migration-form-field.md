@@ -76,6 +76,73 @@ ${FormField.renderField(this, 'entity', {
 })}
 ```
 
+## Choose Selector Value Transformation (v1.12.01+)
+
+As of v1.12.01, FormFieldHelper includes **bidirectional value transformation** for `ha-selector-choose`:
+
+### How It Works
+
+1. **On Render** (`_prepareValueForSelector`): Transforms clean config value → choose structure
+   ```javascript
+   // Config has clean value:
+   gap: 23
+   
+   // FormFieldHelper transforms to choose structure for ha-selector:
+   {
+     active_choice: "pixels",
+     pixels: 23,
+     theme_token: ""
+   }
+   ```
+
+2. **On Change** (`_handleChange`): Extracts actual value from choose structure → clean config
+   ```javascript
+   // ha-selector emits choose structure:
+   {
+     active_choice: "pixels",
+     pixels: 23,
+     theme_token: ""
+   }
+   
+   // FormFieldHelper extracts clean value for config:
+   gap: 23
+   ```
+
+### Benefits
+
+✅ **Config stays clean** - No `active_choice` or nested choice values in YAML  
+✅ **Choose selector renders correctly** - Auto-detects which option to show based on value type  
+✅ **Existing configs load properly** - Clean values automatically transform on render  
+✅ **Type detection** - Automatically detects number, string (theme tokens), objects  
+
+### Debug Logging
+
+The transformation logs to console for debugging:
+
+```javascript
+[FormFieldHelper] Value prepared for choose selector: {
+  rawValue: 23,
+  activeChoice: "pixels",
+  chooseValue: { active_choice: "pixels", pixels: 23, theme_token: "" }
+}
+
+[FormFieldHelper] Choose value extracted: {
+  path: "style.track.segments.gap",
+  rawValue: { active_choice: "pixels", pixels: 23, theme_token: "" },
+  activeChoice: "pixels",
+  extractedValue: 23
+}
+```
+
+### Supported Value Types
+
+| Value Type | Detection Logic | Example |
+|------------|-----------------|---------|
+| Number | `typeof value === 'number'` | `23` → finds choice with `number` selector |
+| Theme Token | `value.startsWith('{theme:')` | `{theme:spacing.sm}` → finds `theme_token` choice |
+| Theme Binding | `value === 'theme'` | `"theme"` → finds `theme_binding` choice |
+| Object | `typeof value === 'object'` | `{ top: 10, right: 10 }` → finds `object` selector |
+
 ## API Reference
 
 ```javascript
