@@ -1,5 +1,8 @@
 # Migration Guide: lcards-form-field Custom Element → FormFieldHelper
 
+> **Note:** As of LCARdS v1.10.0, the `<lcards-form-field>` custom element has been **removed**.
+> All code must use `FormFieldHelper.renderField()`. This guide remains for reference during migration.
+
 ## Overview
 
 The `<lcards-form-field>` custom element has been **refactored to a helper function** for better performance, reactivity, and compatibility with `ha-selector-choose`.

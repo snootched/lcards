@@ -1,14 +1,20 @@
 /**
  * LCARdS Form Field Helper
  *
- * Generates ha-selector configurations from JSON Schema with x-ui-hints.
+ * Static utility class that generates ha-selector configurations from JSON Schema with x-ui-hints.
  * Returns TemplateResult for direct rendering in editor templates (no wrapper element).
  *
- * This refactored version fixes reactivity issues with ha-selector-choose by eliminating
- * double shadow DOM nesting and value transformation.
+ * This approach fixes reactivity issues with ha-selector-choose by eliminating
+ * double shadow DOM nesting and value transformation that occurred with the old custom element.
+ *
+ * Features:
+ * - Auto-generates selectors from schema types (number, string, boolean, entity, etc.)
+ * - Supports ha-selector-choose for oneOf schemas with bidirectional value transformation
+ * - Handles x-ui-hints (labels, helpers, selector overrides)
+ * - Special components (font-selector, position-picker, tags)
  *
  * @example
- * // In editor render method:
+ * // Basic usage:
  * import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
  * 
  * ${FormField.renderField(this, 'style.track.segments.gap')}
@@ -16,11 +22,19 @@
  * // With overrides:
  * ${FormField.renderField(this, 'entity', {
  *     label: 'Primary Entity',
- *     helper: 'Select the entity to control'
+ *     helper: 'Select the entity to control',
+ *     required: true
+ * })}
+ * 
+ * // With custom selector:
+ * ${FormField.renderField(this, 'custom_field', {
+ *     selectorOverride: {
+ *         number: { mode: 'slider', min: 0, max: 100 }
+ *     }
  * })}
  */
 
-import { LitElement, html, css } from 'lit';
+import { html } from 'lit';
 import {
     getEffectiveLabel,
     getEffectiveHelper,
@@ -521,57 +535,3 @@ export class LCARdSFormFieldHelper {
 
 // Export with both names for flexibility
 export const FormFieldHelper = LCARdSFormFieldHelper;
-
-
-/**
- * DEPRECATED: Custom element wrapper (backward compatibility only)
- * Delegates to FormFieldHelper for actual rendering
- * 
- * @deprecated Will be removed in future version - Use FormFieldHelper.renderField() instead
- */
-export class LCARdSFormField extends LitElement {
-    static properties = {
-        editor: { type: Object },
-        path: { type: String },
-        label: { type: String },
-        helper: { type: String },
-        selectorOverride: { type: Object },
-        disabled: { type: Boolean },
-        required: { type: Boolean }
-    };
-    
-    constructor() {
-        super();
-        this.editor = null;
-        this.path = '';
-        this.label = '';
-        this.helper = '';
-        this.selectorOverride = null;
-        this.disabled = false;
-        this.required = false;
-    }
-    
-    render() {
-        // Delegate to helper (no custom logic)
-        return LCARdSFormFieldHelper.renderField(this.editor, this.path, {
-            label: this.label,
-            helper: this.helper,
-            selectorOverride: this.selectorOverride,
-            disabled: this.disabled,
-            required: this.required
-        });
-    }
-}
-
-// Still register for backward compatibility, but warn
-customElements.define('lcards-form-field', LCARdSFormField);
-
-// Warn on first use (only once)
-if (!window.__lcardsFormFieldDeprecationWarned) {
-    window.__lcardsFormFieldDeprecationWarned = true;
-    console.warn(
-        '[LCARdS] <lcards-form-field> custom element is deprecated. ' +
-        'Use FormFieldHelper.renderField() instead for better performance and reactivity. ' +
-        'See doc/editor/migration-form-field.md'
-    );
-}
