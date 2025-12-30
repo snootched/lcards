@@ -372,6 +372,22 @@
             border-left-color: var(--lcars-yellow);
         }
 
+        .validation-message.info {
+            background: rgba(153, 153, 255, 0.2);
+            border-left-color: var(--lcars-blue);
+        }
+
+        .validation-message.success {
+            background: rgba(153, 255, 153, 0.2);
+            border-left-color: #99ff99;
+        }
+
+        .validation-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -530,6 +546,95 @@
             background: rgba(204, 102, 102, 0.3);
             color: var(--lcars-red);
         }
+
+        .mode-toggle {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: var(--bg-panel);
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .mode-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .mode-toggle input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .mode-toggle input[type="radio"]:checked + span {
+            color: var(--lcars-orange);
+            font-weight: bold;
+        }
+
+        .mode-help {
+            color: var(--text-muted);
+            cursor: help;
+            font-size: 14px;
+        }
+
+        .dropdown-content hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 4px 0;
+        }
+
+        .dropdown-item-icon {
+            display: inline-block;
+            width: 20px;
+        }
+
+        details {
+            margin: 10px 0;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        details summary {
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--lcars-yellow);
+            font-size: 13px;
+            user-select: none;
+            background: var(--bg-panel);
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        details summary:hover {
+            background: var(--bg-hover);
+        }
+
+        details[open] summary {
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 4px 4px 0 0;
+        }
+
+        details .details-content {
+            padding: 12px;
+        }
+
+        .branch-constraints,
+        .branch-ui-hints {
+            padding: 10px;
+        }
+
+        .choice-key {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+        }
     </style>
 </head>
 <body>
@@ -556,9 +661,24 @@
         <div class="dropdown">
             <button class="btn btn-small" onclick="app.toggleDropdown('exportMenu')">📤 Export ▼</button>
             <div id="exportMenu" class="dropdown-content">
-                <div class="dropdown-item" onclick="app.exportToFile()">To File</div>
-                <div class="dropdown-item" onclick="app.copyToClipboard()">To Clipboard</div>
+                <div class="dropdown-item" onclick="app.exportFormat('json')"><span class="dropdown-item-icon">📋</span> Copy as JSON</div>
+                <div class="dropdown-item" onclick="app.exportFormat('js-object')"><span class="dropdown-item-icon">📝</span> Copy as JS Object</div>
+                <div class="dropdown-item" onclick="app.exportFormat('js-const')"><span class="dropdown-item-icon">🔧</span> Copy as JS Const</div>
+                <hr>
+                <div class="dropdown-item" onclick="app.exportFormat('json-file')"><span class="dropdown-item-icon">💾</span> Download JSON</div>
+                <div class="dropdown-item" onclick="app.exportFormat('js-file')"><span class="dropdown-item-icon">💾</span> Download .js File</div>
             </div>
+        </div>
+        <div class="mode-toggle">
+            <label>
+                <input type="radio" name="mode" value="full" checked onchange="app.setMode(this.value)">
+                <span>📋 Full Schema</span>
+            </label>
+            <label>
+                <input type="radio" name="mode" value="fragment" onchange="app.setMode(this.value)">
+                <span>✂️ Fragment</span>
+            </label>
+            <span class="mode-help" title="Full Schema requires top-level 'properties'. Fragment mode validates structure only.">ⓘ</span>
         </div>
         <button class="btn btn-small" onclick="app.undo()" id="undoBtn" disabled>↶ Undo</button>
         <button class="btn btn-small" onclick="app.redo()" id="redoBtn" disabled>↷ Redo</button>
@@ -736,6 +856,7 @@
                 this.historyIndex = -1;
                 this.isDirty = false;
                 this.currentFile = 'untitled.json';
+                this.mode = 'full'; // 'full' or 'fragment'
             }
 
             pushHistory() {
@@ -974,11 +1095,15 @@
                 if (!prop.oneOf) return '';
                 let html = '<div class="section-header">oneOf Branches</div><div class="branch-list">';
                 prop.oneOf.forEach((branch, i) => {
+                    const choiceKey = (branch.title || branch.type || `opt${i}`).toLowerCase().replace(/[^a-z0-9]/g,'_');
                     html += `
                         <div class="branch-item">
                             <div class="branch-header">
-                                <span class="branch-title">Branch ${i+1}: ${branch.title||branch.type}</span>
-                                <button class="btn btn-small btn-danger" onclick="app.removeBranch(${i})">Remove</button>
+                                <div>
+                                    <span class="branch-title">Branch ${i+1}: ${branch.title||branch.type}</span>
+                                    <span class="choice-key">Key: <code>${choiceKey}</code></span>
+                                </div>
+                                <button class="btn btn-small btn-danger" onclick="app.removeBranch(${i})">×</button>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Title</label>
@@ -986,17 +1111,187 @@
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Type</label>
-                                <select class="form-select" onchange="app.updateBranch(${i},'type',this.value)">
+                                <select class="form-select" onchange="app.updateBranchType(${i},this.value)">
                                     <option ${branch.type==='string'?'selected':''}>string</option>
                                     <option ${branch.type==='number'?'selected':''}>number</option>
+                                    <option ${branch.type==='boolean'?'selected':''}>boolean</option>
                                     <option ${branch.type==='object'?'selected':''}>object</option>
                                 </select>
                             </div>
+                            
+                            <details open>
+                                <summary>Constraints</summary>
+                                <div class="details-content">
+                                    ${this.renderBranchConstraints(branch, i)}
+                                </div>
+                            </details>
+                            
+                            <details>
+                                <summary>x-ui-hints (Selector Override)</summary>
+                                <div class="details-content">
+                                    ${this.renderBranchUIHints(branch, i)}
+                                </div>
+                            </details>
                         </div>
                     `;
                 });
                 html += '</div><button class="btn btn-small" onclick="app.addBranch()" style="width:100%;margin-top:10px;">+ Add Branch</button>';
                 return html;
+            }
+
+            renderBranchConstraints(branch, i) {
+                if (branch.type === 'number') {
+                    return `
+                        <div class="branch-constraints">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Minimum</label>
+                                    <input type="number" class="form-input" value="${branch.minimum??''}" 
+                                           onchange="app.updateBranch(${i},'minimum',parseFloat(this.value)||undefined)">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Maximum</label>
+                                    <input type="number" class="form-input" value="${branch.maximum??''}" 
+                                           onchange="app.updateBranch(${i},'maximum',parseFloat(this.value)||undefined)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Step</label>
+                                <input type="number" class="form-input" value="${branch.multipleOf??''}" 
+                                       onchange="app.updateBranch(${i},'multipleOf',parseFloat(this.value)||undefined)">
+                            </div>
+                        </div>
+                    `;
+                } else if (branch.type === 'string') {
+                    return `
+                        <div class="branch-constraints">
+                            <div class="form-group">
+                                <label class="form-label">Pattern (Regex)</label>
+                                <input class="form-input" value="${branch.pattern||''}" placeholder="^\\{theme:.*\\}$"
+                                       onchange="app.updateBranch(${i},'pattern',this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Format</label>
+                                <select class="form-select" onchange="app.updateBranch(${i},'format',this.value)">
+                                    <option value="">None</option>
+                                    <option ${branch.format==='entity'?'selected':''}>entity</option>
+                                    <option ${branch.format==='icon'?'selected':''}>icon</option>
+                                    <option ${branch.format==='color'?'selected':''}>color</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Enum (comma-separated)</label>
+                                <input class="form-input" value="${(branch.enum||[]).join(', ')}" 
+                                       placeholder="opt1, opt2, opt3"
+                                       onchange="app.updateBranchEnum(${i},this.value)">
+                            </div>
+                        </div>
+                    `;
+                } else if (branch.type === 'boolean') {
+                    return '<div class="branch-constraints"><p style="color: var(--text-muted); font-size: 12px;">No constraints for boolean type</p></div>';
+                } else if (branch.type === 'object') {
+                    return '<div class="branch-constraints"><p style="color: var(--text-muted); font-size: 12px;">Object constraints not yet supported in branch editor</p></div>';
+                }
+                return '';
+            }
+
+            renderBranchUIHints(branch, i) {
+                const hasCustomSelector = branch['x-ui-hints'] && branch['x-ui-hints'].selector;
+                const selector = hasCustomSelector ? branch['x-ui-hints'].selector : {};
+                const selectorType = Object.keys(selector)[0] || '';
+                
+                return `
+                    <div class="branch-ui-hints">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" ${hasCustomSelector?'checked':''} 
+                                       onchange="app.toggleBranchSelector(${i}, this.checked)">
+                                Override auto-generated selector
+                            </label>
+                        </div>
+                        
+                        <div id="branchSelector${i}" style="display: ${hasCustomSelector?'block':'none'};">
+                            <div class="form-group">
+                                <label class="form-label">Selector Type</label>
+                                <select class="form-select" onchange="app.updateBranchSelector(${i}, this.value)">
+                                    <option value="">None</option>
+                                    <option ${selectorType==='text'?'selected':''}>text</option>
+                                    <option ${selectorType==='number'?'selected':''}>number</option>
+                                    <option ${selectorType==='entity'?'selected':''}>entity</option>
+                                    <option ${selectorType==='select'?'selected':''}>select</option>
+                                    <option ${selectorType==='icon'?'selected':''}>icon</option>
+                                    <option ${selectorType==='ui_color'?'selected':''}>ui_color</option>
+                                    <option ${selectorType==='boolean'?'selected':''}>boolean</option>
+                                </select>
+                            </div>
+                            
+                            <div id="selectorOptions${i}">
+                                ${this.renderBranchSelectorOptions(branch, i, selectorType)}
+                            </div>
+                        </div>
+                        
+                        <div class="helper-text" style="margin-top: 8px;">
+                            💡 If unchecked, selector will be auto-generated from type and constraints
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderBranchSelectorOptions(branch, i, selectorType) {
+                const selector = branch['x-ui-hints']?.selector || {};
+                const options = selector[selectorType] || {};
+                
+                if (selectorType === 'number') {
+                    return `
+                        <div class="form-group">
+                            <label class="form-label">Mode</label>
+                            <select class="form-select" onchange="app.updateBranchSelectorOption(${i}, 'number', 'mode', this.value)">
+                                <option ${options.mode==='box'?'selected':''}>box</option>
+                                <option ${options.mode==='slider'?'selected':''}>slider</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Min</label>
+                                <input type="number" class="form-input" value="${options.min??''}" 
+                                       onchange="app.updateBranchSelectorOption(${i}, 'number', 'min', parseFloat(this.value))">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max</label>
+                                <input type="number" class="form-input" value="${options.max??''}" 
+                                       onchange="app.updateBranchSelectorOption(${i}, 'number', 'max', parseFloat(this.value))">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Step</label>
+                                <input type="number" class="form-input" value="${options.step??1}" 
+                                       onchange="app.updateBranchSelectorOption(${i}, 'number', 'step', parseFloat(this.value))">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Unit</label>
+                                <input class="form-input" value="${options.unit_of_measurement||''}" placeholder="px"
+                                       onchange="app.updateBranchSelectorOption(${i}, 'number', 'unit_of_measurement', this.value)">
+                            </div>
+                        </div>
+                    `;
+                } else if (selectorType === 'text') {
+                    return `
+                        <div class="form-group">
+                            <label class="form-label">Placeholder</label>
+                            <input class="form-input" value="${options.placeholder||''}" placeholder="{theme:spacing.sm}"
+                                   onchange="app.updateBranchSelectorOption(${i}, 'text', 'placeholder', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" ${options.multiline?'checked':''} 
+                                       onchange="app.updateBranchSelectorOption(${i}, 'text', 'multiline', this.checked)">
+                                Multiline
+                            </label>
+                        </div>
+                    `;
+                }
+                return '<p style="color: var(--text-muted); font-size: 12px;">No additional options for this selector type</p>';
             }
 
             renderXUiConfig(prop) {
@@ -1092,9 +1387,89 @@
             updateBranch(i, f, v) {
                 const prop = this.state.getPropertyAtPath(this.state.selectedPath);
                 if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
-                v === '' ? delete prop.oneOf[i][f] : prop.oneOf[i][f] = v;
+                v === '' || v === undefined ? delete prop.oneOf[i][f] : prop.oneOf[i][f] = v;
                 this.state.pushHistory();
                 this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            updateBranchType(i, type) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                prop.oneOf[i].type = type;
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            updateBranchEnum(i, value) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                if (value.trim() === '') {
+                    delete prop.oneOf[i].enum;
+                } else {
+                    prop.oneOf[i].enum = value.split(',').map(s => s.trim()).filter(s => s);
+                }
+                this.state.pushHistory();
+                this.renderJSONPreview();
+            }
+
+            toggleBranchSelector(i, enabled) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                
+                if (enabled) {
+                    if (!prop.oneOf[i]['x-ui-hints']) prop.oneOf[i]['x-ui-hints'] = {};
+                    prop.oneOf[i]['x-ui-hints'].selector = { text: {} };
+                } else {
+                    if (prop.oneOf[i]['x-ui-hints']) {
+                        delete prop.oneOf[i]['x-ui-hints'].selector;
+                        if (Object.keys(prop.oneOf[i]['x-ui-hints']).length === 0) {
+                            delete prop.oneOf[i]['x-ui-hints'];
+                        }
+                    }
+                }
+                
+                document.getElementById(`branchSelector${i}`).style.display = enabled ? 'block' : 'none';
+                this.state.pushHistory();
+                this.renderJSONPreview();
+            }
+
+            updateBranchSelector(i, selectorType) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                
+                if (!prop.oneOf[i]['x-ui-hints']) prop.oneOf[i]['x-ui-hints'] = {};
+                
+                if (selectorType === '') {
+                    delete prop.oneOf[i]['x-ui-hints'].selector;
+                } else {
+                    prop.oneOf[i]['x-ui-hints'].selector = { [selectorType]: {} };
+                }
+                
+                // Re-render to show selector options
+                this.renderEditor();
+                this.state.pushHistory();
+                this.renderJSONPreview();
+            }
+
+            updateBranchSelectorOption(i, selectorType, optionKey, value) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                
+                if (!prop.oneOf[i]['x-ui-hints']) prop.oneOf[i]['x-ui-hints'] = {};
+                if (!prop.oneOf[i]['x-ui-hints'].selector) prop.oneOf[i]['x-ui-hints'].selector = {};
+                if (!prop.oneOf[i]['x-ui-hints'].selector[selectorType]) {
+                    prop.oneOf[i]['x-ui-hints'].selector[selectorType] = {};
+                }
+                
+                if (value === '' || value === undefined) {
+                    delete prop.oneOf[i]['x-ui-hints'].selector[selectorType][optionKey];
+                } else {
+                    prop.oneOf[i]['x-ui-hints'].selector[selectorType][optionKey] = value;
+                }
+                
+                this.state.pushHistory();
                 this.renderJSONPreview();
             }
 
@@ -1104,16 +1479,37 @@
                 const choices = {};
                 prop.oneOf.forEach((b, i) => {
                     const key = (b.title || b.type || `opt${i}`).toLowerCase().replace(/[^a-z0-9]/g,'_');
-                    const sel = b.type === 'number' ? {number:{mode:'slider',min:b.minimum,max:b.maximum}}
-                             : b.type === 'string' && b.pattern?.includes('theme') ? {text:{placeholder:'{theme:}'}}
-                             : {text:{}};
+                    
+                    // Use branch x-ui-hints if provided, else auto-generate
+                    let sel;
+                    if (b['x-ui-hints'] && b['x-ui-hints'].selector) {
+                        sel = b['x-ui-hints'].selector;
+                    } else {
+                        // Auto-generate selector based on type and constraints
+                        if (b.type === 'number') {
+                            sel = {number:{mode:'slider',min:b.minimum,max:b.maximum,step:b.multipleOf||1}};
+                        } else if (b.type === 'string' && b.pattern?.includes('theme')) {
+                            sel = {text:{placeholder:'{theme:}'}};
+                        } else if (b.type === 'string' && b.format === 'entity') {
+                            sel = {entity:{}};
+                        } else if (b.type === 'string' && b.format === 'icon') {
+                            sel = {icon:{}};
+                        } else if (b.type === 'string' && b.format === 'color') {
+                            sel = {ui_color:{}};
+                        } else if (b.type === 'boolean') {
+                            sel = {boolean:{}};
+                        } else {
+                            sel = {text:{}};
+                        }
+                    }
+                    
                     choices[key] = {selector:sel};
                 });
                 if (!prop['x-ui-hints']) prop['x-ui-hints'] = {};
                 prop['x-ui-hints'].selector = {choose:{choices}};
                 this.state.pushHistory();
                 this.renderJSONPreview();
-                alert('✅ Choices generated!');
+                alert('✅ Choices generated! Branch-level selectors have been respected.');
             }
 
             renderTemplateList() {
@@ -1156,7 +1552,89 @@
             
             copyJSON() {
                 navigator.clipboard.writeText(JSON.stringify(this.state.schema,null,2))
-                    .then(()=>alert('📋 Copied')).catch(()=>alert('❌ Failed'));
+                    .then(()=>alert('📋 Copied as JSON')).catch(()=>alert('❌ Failed'));
+            }
+
+            exportFormat(format) {
+                this.toggleDropdown('exportMenu');
+                
+                if (format === 'json') {
+                    this.copyJSON();
+                } else if (format === 'js-object') {
+                    this.copyAsJSObject();
+                } else if (format === 'js-const') {
+                    this.copyAsJSConst();
+                } else if (format === 'json-file') {
+                    this.exportToFile('json');
+                } else if (format === 'js-file') {
+                    this.exportToFile('js');
+                }
+            }
+
+            exportAsJavaScript(schema, format) {
+                // Convert JSON to JavaScript object literal
+                let js = JSON.stringify(schema, null, 2);
+                
+                // Remove quotes from keys (except those with special chars)
+                js = js.replace(/"([a-zA-Z_$][a-zA-Z0-9_$-]*)"\s*:/g, '$1:');
+                
+                // Convert double quotes to single quotes
+                js = js.replace(/"/g, "'");
+                
+                if (format === 'js-const') {
+                    // Extract property name from first key (if properties object)
+                    let propName = 'schema';
+                    if (schema.properties && Object.keys(schema.properties).length === 1) {
+                        propName = Object.keys(schema.properties)[0];
+                        // If exporting single property as const, unwrap it
+                        js = JSON.stringify(schema.properties[propName], null, 2);
+                        js = js.replace(/"([a-zA-Z_$][a-zA-Z0-9_$-]*)"\s*:/g, '$1:');
+                        js = js.replace(/"/g, "'");
+                    }
+                    js = `const ${propName} = ${js};`;
+                }
+                
+                return js;
+            }
+
+            copyAsJSObject() {
+                const js = this.exportAsJavaScript(this.state.schema, 'js-object');
+                navigator.clipboard.writeText(js)
+                    .then(() => alert('📝 Copied as JavaScript Object\n\nReady to paste into properties: { ... }'))
+                    .catch(() => alert('❌ Failed to copy'));
+            }
+
+            copyAsJSConst() {
+                const js = this.exportAsJavaScript(this.state.schema, 'js-const');
+                navigator.clipboard.writeText(js)
+                    .then(() => alert('🔧 Copied as JavaScript Const\n\nReady to paste as standalone constant'))
+                    .catch(() => alert('❌ Failed to copy'));
+            }
+
+            detectImportFormat(text) {
+                // Try parse as JSON first
+                try {
+                    return { format: 'json', data: JSON.parse(text) };
+                } catch {}
+                
+                // Try convert JS to JSON
+                try {
+                    // Remove const/let/var declarations and trailing semicolons
+                    let cleaned = text.trim();
+                    cleaned = cleaned.replace(/^(const|let|var)\s+\w+\s*=\s*/, '');
+                    cleaned = cleaned.replace(/;+\s*$/, '');
+                    
+                    // Convert JS object to JSON-parseable
+                    // Add quotes to unquoted keys
+                    cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$-]*)\s*:/g, '$1"$2":');
+                    
+                    // Convert single quotes to double quotes (carefully, avoiding escaped quotes)
+                    cleaned = cleaned.replace(/'/g, '"');
+                    
+                    return { format: 'js', data: JSON.parse(cleaned) };
+                } catch (e) {
+                    throw new Error('Invalid format. Expected JSON or JavaScript object.\n\nError: ' + e.message);
+                }
             }
 
             save() { this.state.isDirty = false; this.state.updateUI(); alert('💾 Saved'); }
@@ -1164,22 +1642,25 @@
             loadFromFile() {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = '.json';
+                input.accept = '.json,.js';
                 input.onchange = e => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
                     reader.onload = e => {
                         try {
-                            this.state.schema = JSON.parse(e.target.result);
+                            const result = this.detectImportFormat(e.target.result);
+                            this.state.schema = result.data;
                             this.state.currentFile = file.name;
                             this.state.selectedPath = null;
                             this.state.pushHistory();
                             document.getElementById('currentFile').textContent = file.name;
                             this.renderAll();
                             this.renderEditor();
-                            alert('✅ Loaded');
-                        } catch(err) { alert('❌ Invalid JSON'); }
+                            alert(`✅ Loaded from ${result.format.toUpperCase()} format`);
+                        } catch(err) { 
+                            alert('❌ Invalid file format\n\n' + err.message); 
+                        }
                     };
                     reader.readAsText(file);
                 };
@@ -1189,43 +1670,192 @@
             loadFromClipboard() {
                 navigator.clipboard.readText().then(text => {
                     try {
-                        this.state.schema = JSON.parse(text);
-                        this.state.currentFile = 'from-clipboard.json';
+                        const result = this.detectImportFormat(text);
+                        this.state.schema = result.data;
+                        this.state.currentFile = 'from-clipboard.' + (result.format === 'json' ? 'json' : 'js');
                         this.state.selectedPath = null;
                         this.state.pushHistory();
                         document.getElementById('currentFile').textContent = this.state.currentFile;
                         this.renderAll();
                         this.renderEditor();
-                        alert('✅ Loaded');
-                    } catch(err) { alert('❌ Invalid JSON'); }
-                }).catch(()=>alert('❌ Clipboard failed'));
+                        alert(`✅ Loaded from ${result.format.toUpperCase()} format`);
+                    } catch(err) { 
+                        alert('❌ Invalid clipboard content\n\n' + err.message); 
+                    }
+                }).catch(()=>alert('❌ Clipboard access failed'));
             }
 
-            exportToFile() {
-                const json = JSON.stringify(this.state.schema, null, 2);
-                const blob = new Blob([json], {type:'application/json'});
+            exportToFile(format = 'json') {
+                let content, filename, mimeType;
+                
+                if (format === 'json') {
+                    content = JSON.stringify(this.state.schema, null, 2);
+                    filename = this.state.currentFile.replace(/\.(js|json)$/, '') + '.json';
+                    mimeType = 'application/json';
+                } else if (format === 'js') {
+                    content = this.exportAsJavaScript(this.state.schema, 'js-object');
+                    filename = this.state.currentFile.replace(/\.(js|json)$/, '') + '.js';
+                    mimeType = 'application/javascript';
+                }
+                
+                const blob = new Blob([content], {type: mimeType});
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = this.state.currentFile;
+                a.download = filename;
                 a.click();
-                alert('📥 Exported');
+                alert(`📥 Exported as ${format.toUpperCase()} file`);
             }
-
-            copyToClipboard() { this.copyJSON(); }
-            updateFileNameDisplay() { document.getElementById('currentFile').textContent = this.state.currentFile; }
 
             undo() { this.state.undo(); this.renderAll(); this.renderEditor(); }
             redo() { this.state.redo(); this.renderAll(); this.renderEditor(); }
 
             validate() {
+                const validationResults = this.state.mode === 'full' 
+                    ? this.validateFullSchema(this.state.schema)
+                    : this.validateFragment(this.state.schema);
+                
+                this.displayValidationResults(validationResults);
+            }
+
+            setMode(mode) {
+                this.state.mode = mode;
+                // Re-validate with new mode
+                if (this.state.schema) {
+                    // Just update status badge
+                    const badge = document.getElementById('statusBadge');
+                    badge.textContent = mode === 'fragment' ? 'Fragment Mode' : 'Full Schema';
+                }
+            }
+
+            validateFullSchema(schema) {
                 const errors = [];
-                Object.keys(this.state.schema.properties).forEach(k => {
-                    const p = this.state.schema.properties[k];
-                    if (!p.type && !p.oneOf) errors.push(`${k}: Missing type/oneOf`);
-                    if ((p.type==='number')&&p.minimum!==undefined&&p.maximum!==undefined&&p.minimum>p.maximum)
-                        errors.push(`${k}: Min > Max`);
+                const warnings = [];
+                const info = [];
+                
+                if (!schema.properties) {
+                    errors.push({
+                        severity: 'error',
+                        message: 'Schema must have top-level "properties" object',
+                        hint: 'Switch to Fragment mode if editing a single property or fragment'
+                    });
+                    return { errors, warnings, info };
+                }
+                
+                Object.keys(schema.properties).forEach(k => {
+                    const p = schema.properties[k];
+                    
+                    // Error checks
+                    if (!p.type && !p.oneOf) {
+                        errors.push({ message: `Property "${k}": Missing type or oneOf` });
+                    }
+                    
+                    if (p.type === 'number' && p.minimum !== undefined && p.maximum !== undefined && p.minimum > p.maximum) {
+                        errors.push({ message: `Property "${k}": Minimum (${p.minimum}) > Maximum (${p.maximum})` });
+                    }
+                    
+                    // Warning checks
+                    if (p.type === 'number' && p.maximum === undefined) {
+                        warnings.push({ 
+                            message: `Property "${k}": Number field missing maximum constraint`,
+                            hint: 'Add "maximum" for better UX with sliders'
+                        });
+                    }
+                    
+                    if (p.oneOf && (!p['x-ui-hints'] || !p['x-ui-hints'].selector)) {
+                        warnings.push({
+                            message: `Property "${k}": oneOf without selector`,
+                            hint: 'Add x-ui-hints with choose selector for visual type picker'
+                        });
+                    }
                 });
-                alert(errors.length ? '❌ Errors:\n'+errors.join('\n') : '✅ Valid');
+                
+                if (errors.length === 0) {
+                    info.push({ message: '✅ Valid full schema', hint: `${Object.keys(schema.properties).length} properties defined` });
+                }
+                
+                return { errors, warnings, info };
+            }
+
+            validateFragment(data) {
+                const errors = [];
+                const warnings = [];
+                const info = [];
+                
+                // Detect fragment type
+                if (Array.isArray(data)) {
+                    // oneOf array fragment
+                    if (data.length === 0) {
+                        errors.push({ message: 'oneOf array cannot be empty' });
+                    }
+                    data.forEach((branch, i) => {
+                        if (!branch.type && !branch.oneOf) {
+                            errors.push({ message: `Branch ${i+1}: Missing type or oneOf` });
+                        }
+                    });
+                    info.push({ message: '✂️ Fragment Mode: oneOf array', hint: `${data.length} branches detected` });
+                    
+                } else if (data.type || data.oneOf) {
+                    // Single property definition
+                    if (data.type && data.type === 'number' && data.minimum !== undefined && data.maximum !== undefined && data.minimum > data.maximum) {
+                        errors.push({ message: 'Minimum > Maximum for number property' });
+                    }
+                    info.push({ message: '✂️ Fragment Mode: Single property', hint: `Type: ${data.type || 'oneOf'}` });
+                    
+                } else if (data.properties && typeof data.properties === 'object') {
+                    // Full schema (properties object)
+                    Object.entries(data.properties).forEach(([key, prop]) => {
+                        if (!prop.type && !prop.oneOf) {
+                            errors.push({ message: `Property "${key}": Missing type or oneOf` });
+                        }
+                    });
+                    info.push({ message: '✂️ Fragment Mode: Properties object', hint: `${Object.keys(data.properties).length} properties` });
+                    
+                } else {
+                    // Unknown fragment type
+                    errors.push({ message: 'Invalid fragment structure', hint: 'Expected: single property, oneOf array, or properties object' });
+                }
+                
+                if (errors.length === 0) {
+                    info.push({ message: '✅ Valid fragment structure', hint: 'This fragment can be copied into a larger schema' });
+                }
+                
+                return { errors, warnings, info };
+            }
+
+            displayValidationResults(results) {
+                const { errors, warnings, info } = results;
+                let message = '';
+                
+                if (errors.length > 0) {
+                    message += '❌ ERRORS:\n';
+                    errors.forEach(e => {
+                        message += `  • ${e.message}\n`;
+                        if (e.hint) message += `    💡 ${e.hint}\n`;
+                    });
+                    message += '\n';
+                }
+                
+                if (warnings.length > 0) {
+                    message += '⚠️ WARNINGS:\n';
+                    warnings.forEach(w => {
+                        message += `  • ${w.message}\n`;
+                        if (w.hint) message += `    💡 ${w.hint}\n`;
+                    });
+                    message += '\n';
+                }
+                
+                if (info.length > 0) {
+                    info.forEach(i => {
+                        message += `ℹ️ ${i.message}\n`;
+                        if (i.hint) message += `  ${i.hint}\n`;
+                    });
+                }
+                
+                if (message === '') {
+                    message = '✅ No validation rules to check';
+                }
+                
+                alert(message.trim());
             }
 
             showHelp() { document.getElementById('helpModal').classList.add('active'); }
