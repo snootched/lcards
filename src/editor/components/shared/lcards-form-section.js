@@ -9,8 +9,8 @@
  *   header="Color Settings"
  *   description="Configure colors for different button states"
  *   ?expanded=${true}>
- *   <lcards-form-field path="style.color.default" label="Default Color"></lcards-form-field>
- *   <lcards-form-field path="style.color.active" label="Active Color"></lcards-form-field>
+ *   ${FormField.renderField(this, 'style.color.default', { label: 'Default Color' })}
+ *   ${FormField.renderField(this, 'style.color.active', { label: 'Active Color' })}
  * </lcards-form-section>
  */
 

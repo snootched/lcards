@@ -11,6 +11,7 @@ import { editorStyles } from './editor-styles.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 
 export class LCARdSBaseEditor extends LitElement {
 
@@ -711,15 +712,10 @@ export class LCARdSBaseEditor extends LitElement {
             return html``;
         }
 
-        return html`
-            <lcards-form-field
-                .editor=${this}
-                .config=${this.config}
-                path="${path}"
-                label="${label}"
-                helper="${helper}">
-            </lcards-form-field>
-        `;
+        return FormField.renderField(this, path, {
+            label: label,
+            helper: helper
+        });
     }
 
     /**
@@ -753,14 +749,9 @@ export class LCARdSBaseEditor extends LitElement {
 
         if (isOneOf) {
             // For oneOf, let form-field handle it with toggle
-            return html`
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="${basePath}"
-                    label="Padding">
-                </lcards-form-field>
-            `;
+            return FormField.renderField(this, basePath, {
+                label: 'Padding'
+            });
         }
 
         // Render as object editor
@@ -794,26 +785,17 @@ export class LCARdSBaseEditor extends LitElement {
                 headerLevel="5">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.font_size"
-                        label="Font Size">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.font_size`, {
+                        label: 'Font Size'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.font_weight"
-                        label="Font Weight">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.font_weight`, {
+                        label: 'Font Weight'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.font_family"
-                        label="Font Family">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.font_family`, {
+                        label: 'Font Family'
+                    })}
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
@@ -836,33 +818,21 @@ export class LCARdSBaseEditor extends LitElement {
                 headerLevel="5">
 
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.position"
-                        label="Position">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.position`, {
+                        label: 'Position'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.rotation"
-                        label="Rotation">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.rotation`, {
+                        label: 'Rotation'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.justify"
-                        label="Horizontal Align">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.justify`, {
+                        label: 'Horizontal Align'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="${basePath}.align"
-                        label="Vertical Align">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, `${basePath}.align`, {
+                        label: 'Vertical Align'
+                    })}
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
@@ -910,21 +880,15 @@ export class LCARdSBaseEditor extends LitElement {
                 headerLevel="4">
 
                 <!-- Content -->
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="${basePath}.content"
-                    label="Content"
-                    helper="Text content or template (e.g., {{entity.state}})">
-                </lcards-form-field>
+                ${FormField.renderField(this, `${basePath}.content`, {
+                    label: 'Content',
+                    helper: 'Text content or template (e.g., {{entity.state}})'
+                })}
 
                 <!-- Show Toggle -->
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="${basePath}.show"
-                    label="Show ${fieldLabel}">
-                </lcards-form-field>
+                ${FormField.renderField(this, `${basePath}.show`, {
+                    label: `Show ${fieldLabel}`
+                })}
 
                 <!-- Padding -->
                 <lcards-form-section
@@ -1089,45 +1053,30 @@ export class LCARdSBaseEditor extends LitElement {
                 headerLevel="4">
 
                 <!-- Icon Picker -->
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="icon"
-                    label="Icon">
-                </lcards-form-field>
+                ${FormField.renderField(this, 'icon', {
+                    label: 'Icon'
+                })}
 
                 <!-- Show Toggle -->
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="show_icon"
-                    label="Show Icon">
-                </lcards-form-field>
+                ${FormField.renderField(this, 'show_icon', {
+                    label: 'Show Icon'
+                })}
 
                 <!-- Icon Area -->
-                <lcards-form-field
-                    .editor=${this}
-                    .config=${this.config}
-                    path="icon_area"
-                    label="Icon Area"
-                    helper="Reserved space for icon (left, right, top, bottom)">
-                </lcards-form-field>
+                ${FormField.renderField(this, 'icon_area', {
+                    label: 'Icon Area',
+                    helper: 'Reserved space for icon (left, right, top, bottom)'
+                })}
 
                 <!-- Icon Size -->
                 <lcards-grid-layout>
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="icon_style.size"
-                        label="Icon Size">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'icon_style.size', {
+                        label: 'Icon Size'
+                    })}
 
-                    <lcards-form-field
-                        .editor=${this}
-                        .config=${this.config}
-                        path="icon_style.padding"
-                        label="Icon Padding">
-                    </lcards-form-field>
+                    ${FormField.renderField(this, 'icon_style.padding', {
+                        label: 'Icon Padding'
+                    })}
                 </lcards-grid-layout>
 
                 <!-- Icon Colors -->
