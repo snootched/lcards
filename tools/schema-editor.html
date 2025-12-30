@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 LCARdS Schema Editor</title>
+    <style>
+        :root {
+            --lcars-orange: #ff9900;
+            --lcars-yellow: #ffcc66;
+            --lcars-purple: #cc99cc;
+            --lcars-blue: #9999ff;
+            --lcars-red: #cc6666;
+            --bg-dark: #000000;
+            --bg-darker: #0a0a0a;
+            --bg-panel: #1a1a2e;
+            --bg-hover: #252538;
+            --bg-selected: #2a2a44;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #888888;
+            --border-color: #333344;
+            --accent-glow: rgba(255, 153, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Antonio', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--lcars-orange);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--lcars-orange);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr 400px;
+            height: calc(100vh - 110px);
+            gap: 0;
+        }
+
+        .panel {
+            background: var(--bg-darker);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .panel:last-child {
+            border-right: none;
+        }
+
+        .panel-header {
+            background: var(--bg-panel);
+            padding: 12px 15px;
+            border-bottom: 2px solid var(--lcars-orange);
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--lcars-orange);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .panel-content {
+            padding: 15px;
+        }
+
+        .property-tree {
+            list-style: none;
+        }
+
+        .property-item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 0 4px 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .property-item:hover {
+            background: var(--bg-hover);
+            border-left-color: var(--lcars-yellow);
+        }
+
+        .property-item.selected {
+            background: var(--bg-selected);
+            border-left-color: var(--lcars-orange);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .property-icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .property-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .property-type {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-panel);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .editor-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: var(--lcars-yellow);
+            font-weight: bold;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--lcars-orange);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--bg-panel);
+            border: 2px solid var(--lcars-orange);
+            color: var(--lcars-orange);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--lcars-orange);
+            color: var(--bg-dark);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-small {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            border-color: var(--lcars-red);
+            color: var(--lcars-red);
+        }
+
+        .btn-danger:hover {
+            background: var(--lcars-red);
+            color: var(--text-primary);
+        }
+
+        .json-preview {
+            background: var(--bg-darker);
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: calc(100vh - 240px);
+            overflow-y: auto;
+        }
+
+        .json-key {
+            color: var(--lcars-purple);
+        }
+
+        .json-string {
+            color: var(--lcars-yellow);
+        }
+
+        .json-number {
+            color: var(--lcars-blue);
+        }
+
+        .json-boolean {
+            color: var(--lcars-orange);
+        }
+
+        .json-null {
+            color: var(--text-muted);
+        }
+
+        .section-header {
+            background: var(--bg-panel);
+            padding: 10px 12px;
+            margin: 20px -15px 15px;
+            border-left: 4px solid var(--lcars-orange);
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--lcars-orange);
+        }
+
+        .branch-list {
+            margin-top: 10px;
+        }
+
+        .branch-item {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .branch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .branch-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--lcars-yellow);
+        }
+
+        .choices-preview {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .template-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .template-item {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-item:hover {
+            border-color: var(--lcars-orange);
+            background: var(--bg-hover);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .template-name {
+            font-weight: bold;
+            color: var(--lcars-orange);
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .validation-message {
+            background: rgba(204, 102, 102, 0.2);
+            border-left: 3px solid var(--lcars-red);
+            padding: 10px 12px;
+            margin: 10px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 12px;
+        }
+
+        .validation-message.warning {
+            background: rgba(255, 204, 102, 0.2);
+            border-left-color: var(--lcars-yellow);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 3px solid var(--lcars-orange);
+            border-radius: 8px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--lcars-orange);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--lcars-orange);
+        }
+
+        .helper-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+
+        .icon-btn:hover {
+            color: var(--lcars-orange);
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-panel);
+            border: 2px solid var(--lcars-orange);
+            border-radius: 4px;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            margin-top: 5px;
+        }
+
+        .dropdown-content.active {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .selector-config {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-dirty {
+            background: rgba(255, 153, 0, 0.3);
+            color: var(--lcars-orange);
+        }
+
+        .status-valid {
+            background: rgba(153, 255, 153, 0.3);
+            color: #99ff99;
+        }
+
+        .status-error {
+            background: rgba(204, 102, 102, 0.3);
+            color: var(--lcars-red);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">
+            🎨 LCARdS Schema Editor
+            <span id="statusBadge" class="status-badge status-valid">Ready</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-small" onclick="app.showHelp()">❓ Help</button>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="dropdown">
+            <button class="btn btn-small" onclick="app.toggleDropdown('loadMenu')">📁 Load ▼</button>
+            <div id="loadMenu" class="dropdown-content">
+                <div class="dropdown-item" onclick="app.loadFromFile()">From File</div>
+                <div class="dropdown-item" onclick="app.loadFromClipboard()">From Clipboard</div>
+            </div>
+        </div>
+        <span id="currentFile" style="color: var(--text-secondary); font-size: 13px;">untitled.json</span>
+        <button class="btn btn-small" onclick="app.save()">💾 Save</button>
+        <div class="dropdown">
+            <button class="btn btn-small" onclick="app.toggleDropdown('exportMenu')">📤 Export ▼</button>
+            <div id="exportMenu" class="dropdown-content">
+                <div class="dropdown-item" onclick="app.exportToFile()">To File</div>
+                <div class="dropdown-item" onclick="app.copyToClipboard()">To Clipboard</div>
+            </div>
+        </div>
+        <button class="btn btn-small" onclick="app.undo()" id="undoBtn" disabled>↶ Undo</button>
+        <button class="btn btn-small" onclick="app.redo()" id="redoBtn" disabled>↷ Redo</button>
+        <span style="flex: 1"></span>
+        <button class="btn btn-small" onclick="app.validate()">✓ Validate</button>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">Properties</div>
+            <div class="panel-content">
+                <ul id="propertyTree" class="property-tree"></ul>
+                <button class="btn btn-small" onclick="app.addProperty()" style="width: 100%; margin-top: 10px;">+ Add Property</button>
+                
+                <div class="section-header" style="margin-top: 20px;">Templates</div>
+                <div class="template-list" id="templateList"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">Editor</div>
+            <div class="panel-content" id="editorPanel">
+                <div class="editor-empty">
+                    <p>👈 Select a property to edit</p>
+                    <p style="margin-top: 10px; font-size: 12px;">or click "Add Property" to create a new one</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                JSON Preview
+                <button class="btn btn-small" onclick="app.copyJSON()" style="float: right; margin-top: -4px;">📋 Copy</button>
+                <button class="btn btn-small" onclick="app.formatJSON()" style="float: right; margin-top: -4px; margin-right: 8px;">✨ Format</button>
+            </div>
+            <div class="panel-content">
+                <pre id="jsonPreview" class="json-preview"></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">LCARdS Schema Editor Help</div>
+            <div style="line-height: 1.8;">
+                <h3 style="color: var(--lcars-yellow); margin: 15px 0 8px;">Quick Start</h3>
+                <p>1. Click "Add Property" to create a new schema property</p>
+                <p>2. Select a property type and configure constraints</p>
+                <p>3. Add x-ui-hints for visual editor support</p>
+                <p>4. Use templates for common patterns</p>
+                
+                <h3 style="color: var(--lcars-yellow); margin: 15px 0 8px;">Keyboard Shortcuts</h3>
+                <p><code>Ctrl/Cmd + S</code> - Save schema</p>
+                <p><code>Ctrl/Cmd + Z</code> - Undo</p>
+                <p><code>Ctrl/Cmd + Shift + Z</code> - Redo</p>
+                <p><code>Delete</code> - Delete selected property</p>
+                <p><code>Ctrl/Cmd + D</code> - Duplicate property</p>
+                
+                <h3 style="color: var(--lcars-yellow); margin: 15px 0 8px;">Choose Selector Wizard</h3>
+                <p>For oneOf schemas, use the choose selector to provide a visual type picker:</p>
+                <p>1. Create oneOf branches with titles</p>
+                <p>2. Select "choose" selector in x-ui-hints</p>
+                <p>3. Click "Auto-Generate Choices"</p>
+                
+                <h3 style="color: var(--lcars-yellow); margin: 15px 0 8px;">Home Assistant Selectors</h3>
+                <p>Available selector types: text, number, boolean, entity, select, icon, ui_color, choose, object, duration, time, date, area, device, addon</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="app.closeHelp()">Close</button>
+            </div>
+        </div>
+    </div>
+
+        <script>
+        // LCARdS Schema Editor - JavaScript Application
+        
+        // Home Assistant Selector Definitions
+        const HA_SELECTORS = {
+            text: { label: 'Text Input', icon: '📝', description: 'Single or multi-line text input', options: [
+                { key: 'multiline', type: 'boolean', label: 'Multiline' },
+                { key: 'placeholder', type: 'string', label: 'Placeholder' }
+            ]},
+            number: { label: 'Number Input', icon: '🔢', description: 'Numeric input', options: [
+                { key: 'mode', type: 'select', label: 'Mode', options: ['box', 'slider'] },
+                { key: 'min', type: 'number', label: 'Minimum' },
+                { key: 'max', type: 'number', label: 'Maximum' },
+                { key: 'step', type: 'number', label: 'Step' },
+                { key: 'unit_of_measurement', type: 'string', label: 'Unit' }
+            ]},
+            boolean: { label: 'Boolean', icon: '🔘', options: [] },
+            entity: { label: 'Entity', icon: '🏠', options: [
+                { key: 'domain', type: 'array', label: 'Domains' },
+                { key: 'multiple', type: 'boolean', label: 'Multiple' }
+            ]},
+            select: { label: 'Select', icon: '📋', options: [
+                { key: 'mode', type: 'select', label: 'Mode', options: ['dropdown', 'list'] }
+            ]},
+            icon: { label: 'Icon', icon: '🎨', options: [] },
+            ui_color: { label: 'Color', icon: '🎨', options: [] },
+            ui_action: { label: 'Action', icon: '⚡', options: [] },
+            object: { label: 'Object', icon: '📦', options: [] },
+            choose: { label: 'Choose', icon: '🔀', options: [], requiresOneOf: true },
+            duration: { label: 'Duration', icon: '⏱️', options: [] },
+            time: { label: 'Time', icon: '🕐', options: [] },
+            date: { label: 'Date', icon: '📅', options: [] },
+            addon: { label: 'Add-on', icon: '🧩', options: [] },
+            area: { label: 'Area', icon: '🏘️', options: [{ key: 'multiple', type: 'boolean', label: 'Multiple' }] },
+            device: { label: 'Device', icon: '📱', options: [{ key: 'multiple', type: 'boolean', label: 'Multiple' }] }
+        };
+
+        // Template Library
+        const TEMPLATES = {
+            numberOrTheme: {
+                name: 'Number or Theme',
+                icon: '🔢',
+                schema: {
+                    oneOf: [
+                        { type: 'number', title: 'Pixels', minimum: 0, maximum: 100 },
+                        { type: 'string', title: 'Theme', pattern: '^\\{theme:.*\\}$' }
+                    ]
+                }
+            },
+            entitySelector: {
+                name: 'Entity Selector',
+                icon: '🏠',
+                schema: { type: 'string', format: 'entity' }
+            },
+            colorByState: {
+                name: 'Color by State',
+                icon: '🎨',
+                schema: {
+                    oneOf: [
+                        { type: 'string', title: 'Simple' },
+                        { type: 'object', title: 'States', properties: { default: {type:'string'}, active: {type:'string'} }}
+                    ]
+                }
+            },
+            iconPicker: {
+                name: 'Icon Picker',
+                icon: '🎨',
+                schema: { type: 'string', format: 'icon' }
+            },
+            actionConfig: {
+                name: 'Action Config',
+                icon: '⚡',
+                schema: {
+                    type: 'object',
+                    properties: {
+                        tap_action: { type: 'object' },
+                        hold_action: { type: 'object' }
+                    }
+                }
+            },
+            perCorner: {
+                name: 'Per Corner',
+                icon: '📐',
+                schema: {
+                    oneOf: [
+                        { type: 'number', title: 'Uniform', minimum: 0, maximum: 100 },
+                        { type: 'object', title: 'Corners', properties: {
+                            top_left: {type:'number'}, top_right: {type:'number'},
+                            bottom_right: {type:'number'}, bottom_left: {type:'number'}
+                        }}
+                    ]
+                }
+            }
+        };
+
+        // State Management
+        class SchemaEditorState {
+            constructor() {
+                this.schema = { properties: {} };
+                this.selectedPath = null;
+                this.history = [];
+                this.historyIndex = -1;
+                this.isDirty = false;
+                this.currentFile = 'untitled.json';
+            }
+
+            pushHistory() {
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(JSON.parse(JSON.stringify(this.schema)));
+                this.historyIndex++;
+                if (this.history.length > 50) { this.history.shift(); this.historyIndex--; }
+                this.isDirty = true;
+                this.updateUI();
+            }
+
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.schema = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+                    this.updateUI();
+                }
+            }
+
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.schema = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+                    this.updateUI();
+                }
+            }
+
+            canUndo() { return this.historyIndex > 0; }
+            canRedo() { return this.historyIndex < this.history.length - 1; }
+
+            getPropertyAtPath(path) {
+                if (!path) return null;
+                const parts = path.split('.');
+                let current = this.schema.properties;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!current[parts[i]] || !current[parts[i]].properties) return null;
+                    current = current[parts[i]].properties;
+                }
+                return current[parts[parts.length - 1]];
+            }
+
+            deleteProperty(path) {
+                const parts = path.split('.');
+                let current = this.schema.properties;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!current[parts[i]] || !current[parts[i]].properties) return;
+                    current = current[parts[i]].properties;
+                }
+                delete current[parts[parts.length - 1]];
+            }
+
+            updateUI() {
+                document.getElementById('undoBtn').disabled = !this.canUndo();
+                document.getElementById('redoBtn').disabled = !this.canRedo();
+                const badge = document.getElementById('statusBadge');
+                badge.className = this.isDirty ? 'status-badge status-dirty' : 'status-badge status-valid';
+                badge.textContent = this.isDirty ? 'Modified' : 'Saved';
+            }
+        }
+
+        // Main Application
+        class SchemaEditor {
+            constructor() {
+                this.state = new SchemaEditorState();
+                this.init();
+            }
+
+            init() {
+                this.state.pushHistory();
+                this.renderAll();
+                this.setupKeyboardShortcuts();
+            }
+
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                        e.preventDefault(); this.save();
+                    } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                        e.preventDefault();
+                        e.shiftKey ? this.redo() : this.undo();
+                    }
+                });
+            }
+
+            renderAll() {
+                this.renderPropertyTree();
+                this.renderJSONPreview();
+                this.renderTemplateList();
+            }
+
+            renderPropertyTree() {
+                const tree = document.getElementById('propertyTree');
+                tree.innerHTML = '';
+                Object.keys(this.state.schema.properties).sort().forEach(key => {
+                    const prop = this.state.schema.properties[key];
+                    const li = document.createElement('li');
+                    li.className = 'property-item';
+                    if (key === this.state.selectedPath) li.classList.add('selected');
+                    li.innerHTML = `
+                        <span class="property-icon">${this.getTypeIcon(prop)}</span>
+                        <span class="property-name">${key}</span>
+                        <span class="property-type">${prop.oneOf ? 'oneOf' : prop.type || '?'}</span>
+                    `;
+                    li.onclick = () => this.selectProperty(key);
+                    tree.appendChild(li);
+                });
+            }
+
+            getTypeIcon(prop) {
+                if (prop.oneOf) return '🔀';
+                if (prop.type === 'object') return '📁';
+                if (prop.type === 'string') return '📝';
+                if (prop.type === 'number') return '🔢';
+                if (prop.type === 'boolean') return '☑️';
+                return '❓';
+            }
+
+            selectProperty(path) {
+                this.state.selectedPath = path;
+                this.renderPropertyTree();
+                this.renderEditor();
+            }
+
+            addProperty() {
+                const name = prompt('Property name:');
+                if (!name || this.state.schema.properties[name]) {
+                    if (name) alert('Property exists!');
+                    return;
+                }
+                this.state.schema.properties[name] = { type: 'string' };
+                this.state.pushHistory();
+                this.renderAll();
+                this.selectProperty(name);
+            }
+
+            deleteProperty(path) {
+                this.state.deleteProperty(path);
+                this.state.selectedPath = null;
+                this.state.pushHistory();
+                this.renderAll();
+                this.renderEditor();
+            }
+
+            duplicateProperty(path) {
+                const prop = this.state.getPropertyAtPath(path);
+                if (!prop) return;
+                let newName = path + '_copy', i = 1;
+                while (this.state.schema.properties[newName]) newName = path + '_copy' + i++;
+                this.state.schema.properties[newName] = JSON.parse(JSON.stringify(prop));
+                this.state.pushHistory();
+                this.renderAll();
+                this.selectProperty(newName);
+            }
+
+            renderEditor() {
+                const panel = document.getElementById('editorPanel');
+                if (!this.state.selectedPath) {
+                    panel.innerHTML = '<div class="editor-empty"><p>👈 Select a property</p></div>';
+                    return;
+                }
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop) {
+                    panel.innerHTML = '<div class="editor-empty"><p>Property not found</p></div>';
+                    return;
+                }
+                panel.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Property</label>
+                        <input class="form-input" value="${this.state.selectedPath}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" onchange="app.updateType(this.value)">
+                            <option ${prop.type==='string'?'selected':''}>string</option>
+                            <option ${prop.type==='number'?'selected':''}>number</option>
+                            <option ${prop.type==='boolean'?'selected':''}>boolean</option>
+                            <option ${prop.type==='object'?'selected':''}>object</option>
+                            <option ${prop.oneOf?'selected':''}>oneOf</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input class="form-input" value="${prop.title||''}" onchange="app.updateField('title',this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea" onchange="app.updateField('description',this.value)">${prop.description||''}</textarea>
+                    </div>
+                    ${this.renderTypeConfig(prop)}
+                    ${prop.oneOf ? this.renderOneOfConfig(prop) : ''}
+                    ${this.renderXUiConfig(prop)}
+                    <div class="action-group">
+                        <button class="btn btn-danger" onclick="app.deleteProperty('${this.state.selectedPath}')">Delete</button>
+                        <button class="btn" onclick="app.duplicateProperty('${this.state.selectedPath}')">Duplicate</button>
+                    </div>
+                `;
+            }
+
+            renderTypeConfig(prop) {
+                if (prop.type === 'string') {
+                    return `
+                        <div class="section-header">String Config</div>
+                        <div class="form-group">
+                            <label class="form-label">Pattern</label>
+                            <input class="form-input" value="${prop.pattern||''}" onchange="app.updateField('pattern',this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Format</label>
+                            <select class="form-select" onchange="app.updateField('format',this.value)">
+                                <option value="">None</option>
+                                <option ${prop.format==='entity'?'selected':''}>entity</option>
+                                <option ${prop.format==='icon'?'selected':''}>icon</option>
+                                <option ${prop.format==='color'?'selected':''}>color</option>
+                            </select>
+                        </div>
+                    `;
+                } else if (prop.type === 'number') {
+                    return `
+                        <div class="section-header">Number Config</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Min</label>
+                                <input type="number" class="form-input" value="${prop.minimum??''}" onchange="app.updateField('minimum',parseFloat(this.value))">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max</label>
+                                <input type="number" class="form-input" value="${prop.maximum??''}" onchange="app.updateField('maximum',parseFloat(this.value))">
+                            </div>
+                        </div>
+                    `;
+                }
+                return '';
+            }
+
+            renderOneOfConfig(prop) {
+                if (!prop.oneOf) return '';
+                let html = '<div class="section-header">oneOf Branches</div><div class="branch-list">';
+                prop.oneOf.forEach((branch, i) => {
+                    html += `
+                        <div class="branch-item">
+                            <div class="branch-header">
+                                <span class="branch-title">Branch ${i+1}: ${branch.title||branch.type}</span>
+                                <button class="btn btn-small btn-danger" onclick="app.removeBranch(${i})">Remove</button>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Title</label>
+                                <input class="form-input" value="${branch.title||''}" onchange="app.updateBranch(${i},'title',this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Type</label>
+                                <select class="form-select" onchange="app.updateBranch(${i},'type',this.value)">
+                                    <option ${branch.type==='string'?'selected':''}>string</option>
+                                    <option ${branch.type==='number'?'selected':''}>number</option>
+                                    <option ${branch.type==='object'?'selected':''}>object</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div><button class="btn btn-small" onclick="app.addBranch()" style="width:100%;margin-top:10px;">+ Add Branch</button>';
+                return html;
+            }
+
+            renderXUiConfig(prop) {
+                const hints = prop['x-ui-hints'] || {};
+                const selector = hints.selector || {};
+                const selType = Object.keys(selector)[0] || '';
+                let html = '<div class="section-header">x-ui-hints</div>';
+                html += `
+                    <div class="form-group">
+                        <label class="form-label">Label</label>
+                        <input class="form-input" value="${hints.label||''}" onchange="app.updateHint('label',this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Helper</label>
+                        <input class="form-input" value="${hints.helper||''}" onchange="app.updateHint('helper',this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Selector</label>
+                        <select class="form-select" onchange="app.updateSelector(this.value)">
+                            <option value="">None</option>
+                `;
+                Object.keys(HA_SELECTORS).forEach(k => {
+                    const disabled = HA_SELECTORS[k].requiresOneOf && !prop.oneOf;
+                    html += `<option value="${k}" ${selType===k?'selected':''} ${disabled?'disabled':''}>${HA_SELECTORS[k].icon} ${HA_SELECTORS[k].label}</option>`;
+                });
+                html += '</select></div>';
+                if (selType === 'choose' && prop.oneOf) {
+                    html += '<button class="btn" onclick="app.autoGenChoices()" style="width:100%;margin-top:10px;">✨ Auto-Generate Choices</button>';
+                }
+                return html;
+            }
+
+            updateType(t) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop) return;
+                if (t === 'oneOf') {
+                    delete prop.type;
+                    prop.oneOf = [{type:'string',title:'Option 1'},{type:'number',title:'Option 2'}];
+                } else {
+                    delete prop.oneOf;
+                    prop.type = t;
+                }
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            updateField(f, v) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop) return;
+                v === '' ? delete prop[f] : prop[f] = v;
+                this.state.pushHistory();
+                this.renderJSONPreview();
+            }
+
+            updateHint(f, v) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop) return;
+                if (!prop['x-ui-hints']) prop['x-ui-hints'] = {};
+                v === '' ? delete prop['x-ui-hints'][f] : prop['x-ui-hints'][f] = v;
+                this.state.pushHistory();
+                this.renderJSONPreview();
+            }
+
+            updateSelector(t) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop) return;
+                if (!prop['x-ui-hints']) prop['x-ui-hints'] = {};
+                t === '' ? delete prop['x-ui-hints'].selector : prop['x-ui-hints'].selector = {[t]:{}};
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            addBranch() {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf) return;
+                prop.oneOf.push({type:'string',title:`Option ${prop.oneOf.length+1}`});
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            removeBranch(i) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf) return;
+                prop.oneOf.splice(i, 1);
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            updateBranch(i, f, v) {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf || !prop.oneOf[i]) return;
+                v === '' ? delete prop.oneOf[i][f] : prop.oneOf[i][f] = v;
+                this.state.pushHistory();
+                this.renderEditor();
+                this.renderJSONPreview();
+            }
+
+            autoGenChoices() {
+                const prop = this.state.getPropertyAtPath(this.state.selectedPath);
+                if (!prop || !prop.oneOf) return;
+                const choices = {};
+                prop.oneOf.forEach((b, i) => {
+                    const key = (b.title || b.type || `opt${i}`).toLowerCase().replace(/[^a-z0-9]/g,'_');
+                    const sel = b.type === 'number' ? {number:{mode:'slider',min:b.minimum,max:b.maximum}}
+                             : b.type === 'string' && b.pattern?.includes('theme') ? {text:{placeholder:'{theme:}'}}
+                             : {text:{}};
+                    choices[key] = {selector:sel};
+                });
+                if (!prop['x-ui-hints']) prop['x-ui-hints'] = {};
+                prop['x-ui-hints'].selector = {choose:{choices}};
+                this.state.pushHistory();
+                this.renderJSONPreview();
+                alert('✅ Choices generated!');
+            }
+
+            renderTemplateList() {
+                const list = document.getElementById('templateList');
+                list.innerHTML = '';
+                Object.values(TEMPLATES).forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'template-item';
+                    div.innerHTML = `<div class="template-name">${t.icon} ${t.name}</div>`;
+                    div.onclick = () => this.insertTemplate(t);
+                    list.appendChild(div);
+                });
+            }
+
+            insertTemplate(t) {
+                const name = prompt('Property name:');
+                if (!name || this.state.schema.properties[name]) return;
+                this.state.schema.properties[name] = JSON.parse(JSON.stringify(t.schema));
+                this.state.pushHistory();
+                this.renderAll();
+                this.selectProperty(name);
+            }
+
+            renderJSONPreview() {
+                const json = JSON.stringify(this.state.schema, null, 2);
+                document.getElementById('jsonPreview').innerHTML = this.highlight(json);
+            }
+
+            highlight(j) {
+                j = j.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                return j.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+                    let cls = /^"/.test(m) ? (/:$/.test(m) ? 'json-key' : 'json-string')
+                           : /true|false/.test(m) ? 'json-boolean'
+                           : /null/.test(m) ? 'json-null' : 'json-number';
+                    return `<span class="${cls}">${m}</span>`;
+                });
+            }
+
+            formatJSON() { this.renderJSONPreview(); alert('✨ Formatted'); }
+            
+            copyJSON() {
+                navigator.clipboard.writeText(JSON.stringify(this.state.schema,null,2))
+                    .then(()=>alert('📋 Copied')).catch(()=>alert('❌ Failed'));
+            }
+
+            save() { this.state.isDirty = false; this.state.updateUI(); alert('💾 Saved'); }
+
+            loadFromFile() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        try {
+                            this.state.schema = JSON.parse(e.target.result);
+                            this.state.currentFile = file.name;
+                            this.state.selectedPath = null;
+                            this.state.pushHistory();
+                            document.getElementById('currentFile').textContent = file.name;
+                            this.renderAll();
+                            this.renderEditor();
+                            alert('✅ Loaded');
+                        } catch(err) { alert('❌ Invalid JSON'); }
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+            }
+
+            loadFromClipboard() {
+                navigator.clipboard.readText().then(text => {
+                    try {
+                        this.state.schema = JSON.parse(text);
+                        this.state.currentFile = 'from-clipboard.json';
+                        this.state.selectedPath = null;
+                        this.state.pushHistory();
+                        document.getElementById('currentFile').textContent = this.state.currentFile;
+                        this.renderAll();
+                        this.renderEditor();
+                        alert('✅ Loaded');
+                    } catch(err) { alert('❌ Invalid JSON'); }
+                }).catch(()=>alert('❌ Clipboard failed'));
+            }
+
+            exportToFile() {
+                const json = JSON.stringify(this.state.schema, null, 2);
+                const blob = new Blob([json], {type:'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = this.state.currentFile;
+                a.click();
+                alert('📥 Exported');
+            }
+
+            copyToClipboard() { this.copyJSON(); }
+            updateFileNameDisplay() { document.getElementById('currentFile').textContent = this.state.currentFile; }
+
+            undo() { this.state.undo(); this.renderAll(); this.renderEditor(); }
+            redo() { this.state.redo(); this.renderAll(); this.renderEditor(); }
+
+            validate() {
+                const errors = [];
+                Object.keys(this.state.schema.properties).forEach(k => {
+                    const p = this.state.schema.properties[k];
+                    if (!p.type && !p.oneOf) errors.push(`${k}: Missing type/oneOf`);
+                    if ((p.type==='number')&&p.minimum!==undefined&&p.maximum!==undefined&&p.minimum>p.maximum)
+                        errors.push(`${k}: Min > Max`);
+                });
+                alert(errors.length ? '❌ Errors:\n'+errors.join('\n') : '✅ Valid');
+            }
+
+            showHelp() { document.getElementById('helpModal').classList.add('active'); }
+            closeHelp() { document.getElementById('helpModal').classList.remove('active'); }
+
+            toggleDropdown(id) {
+                const d = document.getElementById(id);
+                d.classList.toggle('active');
+                setTimeout(() => document.addEventListener('click', e => {
+                    if (!d.contains(e.target) && !e.target.closest('.dropdown')) {
+                        d.classList.remove('active');
+                    }
+                }, {once: true}), 0);
+            }
+        }
+
+        const app = new SchemaEditor();
+    </script>
+</body>
+</html>
