@@ -536,7 +536,20 @@ export function getSliderSchema(options = {}) {
                                                 pattern: '^(\\d+px|theme:)',
                                                 description: 'CSS value or theme token'
                                             }
-                                        ]
+                                        ],
+                                        "x-ui-hints": {
+                                                "defaultOneOfBranch": 0,  // ← Show number input first (most common)
+                                                "label": "Segment Gap",
+                                                "helper": "Space between pill segments in pixels (or use theme token)",
+                                                "selector": {
+                                                    "number": {
+                                                        "mode": "slider",
+                                                        "slider_ticks": false,
+                                                        "unit_of_measurement": "px",
+                                                        "step": 1
+                                                    }
+                                                }
+                                            }
                                     },
                                     shape: {
                                         type: 'object',

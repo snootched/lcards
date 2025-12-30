@@ -950,7 +950,7 @@ export class LCARdSBaseEditor extends LitElement {
 
     /**
      * Build standard config tab structure with flexible field control
-     * 
+     *
      * @param {Object} options - Config tab options
      * @param {string} options.infoMessage - Info message at top of tab
      * @param {Array} options.modeSections - Mode-specific sections (preset/component/svg)
@@ -960,9 +960,9 @@ export class LCARdSBaseEditor extends LitElement {
      * @param {string} options.basicSectionDescription - Description for basic section
      * @param {string} options.basicSectionIcon - Icon for basic section (default: 'mdi:cog')
      * @param {boolean} options.basicSectionExpanded - Expand basic section (default: true)
-     * 
+     *
      * @returns {Array} Config tab definition
-     * 
+     *
      * @example Default usage (all fields)
      * _getConfigTabConfig() {
      *     return this._buildConfigTab({
@@ -970,7 +970,7 @@ export class LCARdSBaseEditor extends LitElement {
      *         modeSections: [...]
      *     });
      * }
-     * 
+     *
      * @example Custom field subset (slider: no entity, appears in Control tab)
      * _getConfigTabConfig() {
      *     return this._buildConfigTab({
@@ -982,7 +982,7 @@ export class LCARdSBaseEditor extends LitElement {
      *         ]
      *     });
      * }
-     * 
+     *
      * @example Hide basic section entirely
      * _getConfigTabConfig() {
      *     return this._buildConfigTab({
@@ -991,7 +991,7 @@ export class LCARdSBaseEditor extends LitElement {
      *         showBasicSection: false
      *     });
      * }
-     * 
+     *
      * @protected
      */
     _buildConfigTab(options = {}) {
@@ -999,7 +999,7 @@ export class LCARdSBaseEditor extends LitElement {
             infoMessage = 'Configure your LCARdS card settings.',
             modeSections = [],
             basicFields = [
-                { path: 'entity', label: 'Entity', helper: 'Entity to control or display' },
+                { path: 'entity' },
                 { path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
                 { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
             ],
@@ -1285,7 +1285,7 @@ export class LCARdSBaseEditor extends LitElement {
     /**
      * Get standard utility tabs (Data Sources, Rules, Templates, Theme Browser, Provenance, YAML)
      * Child editors should call this and append to their card-specific tabs
-     * 
+     *
      * @example
      * _getTabDefinitions() {
      *     const cardTabs = [
@@ -1294,7 +1294,7 @@ export class LCARdSBaseEditor extends LitElement {
      *     ];
      *     return [...cardTabs, ...this._getUtilityTabs()];
      * }
-     * 
+     *
      * @returns {Array<{label: string, content: Function}>}
      * @protected
      */
