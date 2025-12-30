@@ -21,7 +21,6 @@ import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
-import '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components

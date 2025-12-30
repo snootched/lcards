@@ -4,6 +4,83 @@
 
 ---
 
+## Using FormFieldHelper (Recommended)
+
+LCARdS provides a **static helper class** that generates form fields directly from schemas with x-ui-hints. This is the recommended approach for rendering form fields in card editors.
+
+### Basic Usage
+
+```javascript
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
+
+_renderMyTab() {
+    return html`
+        <lcards-form-section header="Settings">
+            ${FormField.renderField(this, 'style.track.segments.gap')}
+            ${FormField.renderField(this, 'entity')}
+        </lcards-form-section>
+    `;
+}
+```
+
+### With Overrides
+
+```javascript
+${FormField.renderField(this, 'entity', {
+    label: 'Primary Entity',
+    helper: 'Select the entity this card controls',
+    required: true
+})}
+
+${FormField.renderField(this, 'custom_field', {
+    selectorOverride: {
+        number: {
+            mode: 'slider',
+            min: 0,
+            max: 100
+        }
+    }
+})}
+```
+
+### Benefits
+
+- ✅ **Direct `ha-selector` rendering** (no wrapper element)
+- ✅ **Native HA reactivity** (value updates propagate correctly)
+- ✅ **Better performance** (no shadow DOM nesting)
+- ✅ **Easier debugging** (selector visible in editor template)
+- ✅ **Full `ha-selector-choose` support** (number box updates, placeholders work)
+
+### Migration from `<lcards-form-field>`
+
+**Before (Custom Element - Deprecated):**
+```html
+<lcards-form-field
+    .editor=${this}
+    path="style.border.radius"
+    label="Border Radius"
+    helper="Corner roundness">
+</lcards-form-field>
+```
+
+**After (Helper Function - Recommended):**
+```javascript
+${FormField.renderField(this, 'style.border.radius', {
+    label: 'Border Radius',
+    helper: 'Corner roundness'
+})}
+```
+
+The helper automatically:
+- Reads schema from `this._getSchemaForPath(path)`
+- Applies x-ui-hints (label, helper, selector config)
+- Auto-generates selectors for oneOf (choose), numbers, strings, booleans
+- Handles value changes via `this._setConfigValue(path, value)`
+
+For detailed migration instructions, see [`doc/editor/migration-form-field.md`](./migration-form-field.md).
+
+---
+
 ## Overview
 
 `x-ui-hints` is a custom JSON Schema extension property that stores UI presentation metadata directly within schema definitions. This enables a **schema-driven UI** where the visual editor automatically generates appropriate controls without requiring manual editor configuration.
