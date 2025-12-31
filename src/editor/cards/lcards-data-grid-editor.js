@@ -38,6 +38,9 @@ import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
 
+// Import template editor dialog
+import '../dialogs/lcards-template-editor-dialog.js';
+
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -187,26 +190,122 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                     message="Template mode allows you to define grid rows manually using arrays with Home Assistant template syntax.">
                 </lcards-message>
 
-                <!-- Placeholder for Template Row Editor (Future PR) -->
+                <!-- Template Row Editor Button -->
                 <div style="margin: 16px 0;">
-                    <mwc-button disabled aria-label="Configure template rows - coming in a future update">
+                    <mwc-button 
+                        raised
+                        @click=${this._openTemplateEditorDialog}
+                        aria-label="Configure template rows">
                         <ha-icon icon="mdi:table-edit" slot="icon"></ha-icon>
-                        Configure Template Rows (Coming in PR 2)
+                        Configure Template Rows
                     </mwc-button>
                 </div>
 
-                <ha-alert alert-type="info">
-                    Template row configuration will be available in the next update.
-                    For now, use the YAML tab to configure template rows as arrays.
-                    <br><br>
-                    <strong>Example:</strong>
-                    <pre style="margin-top: 8px; font-size: 12px;">rows:
-  - ['Room', 'Temp', 'Status']
-  - ['Living', '{{states.sensor.living_temp.state}}°C', 'OK']
-  - ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C', 'OK']</pre>
-                </ha-alert>
+                ${this._renderTemplateRowsSummary()}
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Render summary of configured template rows
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderTemplateRowsSummary() {
+        const rows = this._getConfigValue('rows') || [];
+        
+        if (rows.length === 0) {
+            return html`
+                <ha-alert alert-type="info">
+                    No template rows configured. Click "Configure Template Rows" to add rows.
+                    <br><br>
+                    <strong>Quick Start:</strong> Each row contains cells that can have static text 
+                    or Home Assistant templates like <code>{{states.sensor.temp.state}}</code>
+                </ha-alert>
+            `;
+        }
+
+        const totalCells = rows.reduce((sum, row) => {
+            if (Array.isArray(row)) {
+                return sum + row.length;
+            } else if (row.values) {
+                return sum + row.values.length;
+            }
+            return sum;
+        }, 0);
+
+        return html`
+            <ha-alert alert-type="success">
+                <strong>${rows.length} row(s) configured</strong> with ${totalCells} total cell(s)
+                <br><br>
+                Click "Configure Template Rows" to edit or view the YAML tab for full configuration.
+            </ha-alert>
+        `;
+    }
+
+    /**
+     * Open template editor dialog
+     * @private
+     */
+    async _openTemplateEditorDialog() {
+        const rows = this._getConfigValue('rows') || [];
+        
+        // Convert simple array rows to full row objects if needed
+        const normalizedRows = rows.map(row => {
+            if (Array.isArray(row)) {
+                // Simple array format - convert to full object
+                return {
+                    values: row,
+                    style: {},
+                    cellStyles: []
+                };
+            } else if (row.values) {
+                // Already in object format
+                return row;
+            } else {
+                // Unknown format - treat as empty
+                return {
+                    values: [],
+                    style: {},
+                    cellStyles: []
+                };
+            }
+        });
+
+        const dialog = document.createElement('lcards-template-editor-dialog');
+        dialog.hass = this.hass;
+        dialog.rows = normalizedRows;
+        
+        dialog.addEventListener('rows-changed', (e) => {
+            // Save the rows back to config
+            const savedRows = e.detail.rows;
+            
+            // Convert rows back to simple arrays if they have no style overrides
+            const finalRows = savedRows.map(row => {
+                const hasRowStyle = row.style && Object.keys(row.style).length > 0;
+                const hasCellStyles = row.cellStyles && row.cellStyles.length > 0 && 
+                    row.cellStyles.some(style => style !== null && style !== undefined);
+                
+                // If no styling, return simple array format for cleaner YAML
+                if (!hasRowStyle && !hasCellStyles) {
+                    return row.values;
+                }
+                
+                // Otherwise return full object format
+                return row;
+            });
+            
+            this._setConfigValue('rows', finalRows);
+            lcardsLog.info('[LCARdSDataGridEditor] Template rows updated', finalRows);
+        });
+        
+        // Cleanup on close
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+        
+        document.body.appendChild(dialog);
+        lcardsLog.debug('[LCARdSDataGridEditor] Opened template editor dialog');
     }
 
     /**

@@ -1,0 +1,81 @@
+# Test configuration for Data Grid Template Editor Dialog
+# This file demonstrates the template row editor functionality
+# 
+# To test:
+# 1. Copy dist/lcards.js to Home Assistant www/community/lcards/
+# 2. Add this card to a Lovelace dashboard
+# 3. Click "Edit" on the card
+# 4. Go to "Data Mode" tab
+# 5. Click "Configure Template Rows" button
+# 6. Test all functionality:
+#    - Add/remove rows
+#    - Edit cell values
+#    - Insert entity templates with picker
+#    - Configure row-level styles
+#    - Configure cell-level styles
+#    - Reorder rows with up/down buttons
+# 7. Save and verify YAML output
+
+type: custom:lcards-data-grid
+data_mode: template
+
+# Grid layout configuration
+grid:
+  grid-template-columns: repeat(3, 1fr)
+  grid-template-rows: auto
+  gap: 4px
+
+# Grid-wide styling
+style:
+  font_size: 14px
+  font_family: lcards_condensed
+  color: var(--lcars-blue)
+  background: rgba(0, 0, 0, 0.8)
+  padding: 8px
+  border_width: 1px
+  border_color: var(--lcars-moonlight)
+  border_style: solid
+
+# Example template rows (can be edited in visual editor)
+# Simple array format (no style overrides):
+rows:
+  - ['Room', 'Temperature', 'Status']
+  
+  # Row with row-level styling:
+  - values: ['Living Room', '{{states.sensor.living_room_temp.state}}°C', 'OK']
+    style:
+      background: var(--lcars-dark-blue)
+      color: var(--lcars-moonlight)
+      font_weight: 700
+  
+  # Row with cell-level styling:
+  - values: ['Kitchen', '{{states.sensor.kitchen_temp.state}}°C', 'WARM']
+    cellStyles:
+      - null  # Cell 1: use row/grid defaults
+      - color: var(--lcars-orange)
+        font_weight: 700
+      - color: var(--lcars-red)
+        font_weight: 700
+  
+  # Row with both row and cell styling:
+  - values: ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C', 'COOL']
+    style:
+      background: rgba(100, 100, 200, 0.3)
+      padding: 12px
+    cellStyles:
+      - font_weight: 700
+      - null
+      - color: var(--lcars-green)
+
+# Animation (optional)
+animation:
+  type: cascade
+  pattern: default
+  colors:
+    start: var(--lcars-blue)
+    text: var(--lcars-dark-blue)
+    end: var(--lcars-moonlight)
+
+# Card metadata
+id: test-data-grid-template
+tags: ['testing', 'template-editor']
