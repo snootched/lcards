@@ -41,6 +41,9 @@ import '../components/provenance/lcards-provenance-tab.js';
 // Import template editor dialog
 import '../dialogs/lcards-template-editor-dialog.js';
 
+// Import datasource picker dialog
+import '../dialogs/lcards-datasource-picker-dialog.js';
+
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -309,6 +312,84 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Open DataSource picker dialog
+     * @private
+     */
+    async _openDataSourcePickerDialog() {
+        const dialog = document.createElement('lcards-datasource-picker-dialog');
+        dialog.hass = this.hass;
+        dialog.currentSource = this._getConfigValue('source') || '';
+        dialog.open = true;
+        
+        dialog.addEventListener('source-selected', (e) => {
+            const selectedSource = e.detail.source;
+            this._setConfigValue('source', selectedSource);
+            lcardsLog.info('[LCARdSDataGridEditor] DataSource selected:', selectedSource);
+        });
+        
+        // Cleanup on close
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+        
+        document.body.appendChild(dialog);
+        lcardsLog.debug('[LCARdSDataGridEditor] Opened DataSource picker dialog');
+    }
+
+    /**
+     * Render summary of selected DataSource
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDataSourceSummary() {
+        const source = this._getConfigValue('source');
+        
+        if (!source) {
+            return html`
+                <ha-alert alert-type="info">
+                    No data source selected. Click "Select Data Source" to choose one.
+                </ha-alert>
+            `;
+        }
+
+        // Check if it's a DataSource name or entity ID
+        const dsManager = window.lcards?.core?.dataSourceManager;
+        const ds = dsManager?.sources?.get(source);
+        
+        if (ds) {
+            // It's a registered DataSource
+            const entity = ds.cfg?.entity || 'N/A';
+            const name = ds.cfg?.name || source;
+            
+            return html`
+                <ha-alert alert-type="success">
+                    <strong>DataSource:</strong> ${name}
+                    <br>
+                    <small>Entity: ${entity}</small>
+                </ha-alert>
+            `;
+        } else if (source.includes('.')) {
+            // Looks like an entity ID (will auto-create DataSource)
+            return html`
+                <ha-alert alert-type="info">
+                    <strong>Entity:</strong> ${source}
+                    <br>
+                    <small>DataSource will be created automatically when the card loads</small>
+                </ha-alert>
+            `;
+        } else {
+            // Unknown format
+            return html`
+                <ha-alert alert-type="warning">
+                    <strong>Source:</strong> ${source}
+                    <br>
+                    <small>This doesn't appear to be a registered DataSource or entity ID</small>
+                </ha-alert>
+            `;
+        }
+    }
+
+    /**
      * Render datasource mode configuration fields
      * @returns {TemplateResult}
      * @private
@@ -349,27 +430,22 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                     message="Timeline layout displays flowing data from a single source, filling left-to-right, top-to-bottom.">
                 </lcards-message>
 
-                <!-- Placeholder for DataSource Picker (Future PR) -->
+                <!-- DataSource Picker Button -->
                 <div style="margin: 16px 0;">
-                    <mwc-button disabled aria-label="Pick datasource - coming in a future update">
-                        <ha-icon icon="mdi:selection" slot="icon"></ha-icon>
-                        Pick DataSource (Coming in PR 3)
+                    <mwc-button 
+                        raised
+                        @click=${this._openDataSourcePickerDialog}
+                        aria-label="Select data source">
+                        <ha-icon icon="mdi:database-search" slot="icon"></ha-icon>
+                        Select Data Source
                     </mwc-button>
                 </div>
 
-                <ha-alert alert-type="info">
-                    DataSource picker will be available in a future update.
-                    For now, use the YAML tab to configure the source.
-                    <br><br>
-                    <strong>Example:</strong>
-                    <pre style="margin-top: 8px; font-size: 12px;">source: sensor.temperature
-history_hours: 1
-value_template: '{value}°C'</pre>
-                </ha-alert>
+                ${this._renderDataSourceSummary()}
 
                 ${FormField.renderField(this, 'source', {
                     label: 'Data Source',
-                    helper: 'Entity ID or DataSource name'
+                    helper: 'Entity ID or DataSource name (filled from picker)'
                 })}
 
                 <lcards-grid-layout>
