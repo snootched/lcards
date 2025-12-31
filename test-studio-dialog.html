@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCARdS Configuration Studio Dialog - Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        button.primary {
+            background: #2196f3;
+            color: white;
+        }
+        
+        button.primary:hover {
+            background: #1976d2;
+        }
+        
+        button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        button.secondary:hover {
+            background: #bdbdbd;
+        }
+        
+        .config-display {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+        
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .status {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .status.error {
+            background: #ffcdd2;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ LCARdS Configuration Studio Dialog - Test Page</h1>
+        
+        <div class="info-box">
+            <strong>Note:</strong> This is a test page to demonstrate the Configuration Studio Dialog component.
+            In production, this dialog would be integrated into Home Assistant's Lovelace editor.
+        </div>
+        
+        <h2>Features</h2>
+        <ul class="feature-list">
+            <li>Full-screen immersive workspace (95vw × 90vh)</li>
+            <li>Split-panel layout with live preview</li>
+            <li>Visual mode selection (Random, Template, DataSource)</li>
+            <li>Integrated grid designer with visual controls</li>
+            <li>Mode-specific configuration panels</li>
+            <li>Style preset buttons (Classic LCARS, Picard, Minimal)</li>
+            <li>Animation configuration (cascade & change detection)</li>
+            <li>Real-time validation with helpful error messages</li>
+            <li>Responsive mobile layout</li>
+        </ul>
+        
+        <h2>Test Actions</h2>
+        <div class="button-group">
+            <button class="primary" onclick="openStudioDialog('random')">
+                🎲 Open with Random Mode
+            </button>
+            <button class="primary" onclick="openStudioDialog('template')">
+                📝 Open with Template Mode
+            </button>
+            <button class="primary" onclick="openStudioDialog('datasource')">
+                📊 Open with DataSource Mode
+            </button>
+            <button class="secondary" onclick="clearStatus()">
+                Clear Status
+            </button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <h2>Current Configuration</h2>
+        <div class="config-display">
+            <pre id="config-output">No configuration yet. Open the dialog to create one.</pre>
+        </div>
+        
+        <h2>Component Information</h2>
+        <p><strong>Component:</strong> <code>lcards-data-grid-studio-dialog</code></p>
+        <p><strong>Location:</strong> <code>src/editor/dialogs/lcards-data-grid-studio-dialog.js</code></p>
+        
+        <h3>Events</h3>
+        <ul>
+            <li><code>config-changed</code> - Fired when configuration is saved</li>
+            <li><code>closed</code> - Fired when dialog is closed</li>
+        </ul>
+        
+        <h3>Properties</h3>
+        <ul>
+            <li><code>hass</code> (Object) - Home Assistant instance</li>
+            <li><code>config</code> (Object) - Card configuration to edit</li>
+        </ul>
+    </div>
+    
+    <script type="module">
+        // Mock Home Assistant instance for testing
+        const mockHass = {
+            states: {
+                'sensor.temperature': {
+                    state: '23.5',
+                    attributes: {
+                        unit_of_measurement: '°C',
+                        friendly_name: 'Temperature'
+                    }
+                },
+                'sensor.humidity': {
+                    state: '65',
+                    attributes: {
+                        unit_of_measurement: '%',
+                        friendly_name: 'Humidity'
+                    }
+                }
+            },
+            user: {
+                name: 'Test User'
+            },
+            language: 'en'
+        };
+        
+        // Sample configurations for different modes
+        const sampleConfigs = {
+            random: {
+                type: 'custom:lcards-data-grid',
+                data_mode: 'random',
+                format: 'mixed',
+                refresh_interval: 1000,
+                grid: {
+                    rows: 8,
+                    columns: 12,
+                    gap: 8
+                },
+                style: {
+                    color: '#00AAFF',
+                    background: 'transparent',
+                    font_size: 18,
+                    align: 'right'
+                },
+                animation: {
+                    type: 'cascade',
+                    pattern: 'default',
+                    colors: {
+                        start: '#00AAFF',
+                        text: '#006699',
+                        end: '#FFFFFF'
+                    }
+                }
+            },
+            template: {
+                type: 'custom:lcards-data-grid',
+                data_mode: 'template',
+                grid: {
+                    rows: 4,
+                    columns: 8,
+                    gap: 8
+                },
+                rows: [
+                    {
+                        values: ['TEMP', '{{states("sensor.temperature")}}°C'],
+                        style: {},
+                        cellStyles: []
+                    },
+                    {
+                        values: ['HUMID', '{{states("sensor.humidity")}}%'],
+                        style: {},
+                        cellStyles: []
+                    }
+                ],
+                style: {
+                    color: '#FFFFFF',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    font_size: 16,
+                    align: 'left'
+                }
+            },
+            datasource: {
+                type: 'custom:lcards-data-grid',
+                data_mode: 'datasource',
+                layout: 'timeline',
+                source: 'sensor_temperature',
+                history_hours: 2,
+                grid: {
+                    rows: 10,
+                    columns: 20,
+                    gap: 4
+                },
+                style: {
+                    color: '#FF9900',
+                    background: 'transparent',
+                    font_size: 14,
+                    align: 'center'
+                },
+                animation: {
+                    type: 'cascade',
+                    pattern: 'niagara',
+                    highlight_changes: true,
+                    change_preset: 'pulse'
+                }
+            }
+        };
+        
+        window.openStudioDialog = function(mode) {
+            // In a real environment, the component would be loaded from lcards.js
+            // For this demo, we're just showing the structure
+            
+            const config = sampleConfigs[mode];
+            
+            showStatus('info', `Opening Configuration Studio with ${mode} mode...`);
+            updateConfigDisplay(config);
+            
+            // Note: In actual implementation, you would do:
+            // const studio = document.createElement('lcards-data-grid-studio-dialog');
+            // studio.hass = mockHass;
+            // studio.config = config;
+            // studio.addEventListener('config-changed', handleConfigChanged);
+            // studio.addEventListener('closed', handleClosed);
+            // document.body.appendChild(studio);
+            
+            setTimeout(() => {
+                showStatus('success', `Configuration Studio opened with ${mode} mode. (In production, dialog would appear here)`);
+            }, 500);
+        };
+        
+        window.clearStatus = function() {
+            document.getElementById('status').innerHTML = '';
+        };
+        
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            const className = type === 'success' ? 'success' : 'error';
+            statusEl.innerHTML = `<div class="status ${className}">${message}</div>`;
+        }
+        
+        function updateConfigDisplay(config) {
+            const configOutput = document.getElementById('config-output');
+            configOutput.textContent = JSON.stringify(config, null, 2);
+        }
+        
+        function handleConfigChanged(event) {
+            const config = event.detail.config;
+            showStatus('success', 'Configuration saved successfully!');
+            updateConfigDisplay(config);
+        }
+        
+        function handleClosed() {
+            showStatus('info', 'Dialog closed');
+        }
+    </script>
+</body>
+</html>
