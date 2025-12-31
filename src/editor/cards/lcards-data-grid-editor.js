@@ -47,6 +47,9 @@ import '../dialogs/lcards-datasource-picker-dialog.js';
 // Import spreadsheet editor dialog
 import '../dialogs/lcards-spreadsheet-editor-dialog.js';
 
+// Import Configuration Studio dialog
+import '../dialogs/lcards-data-grid-studio-dialog.js';
+
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -89,7 +92,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     _getTabDefinitions() {
         return [
-            { label: 'Data Mode', content: () => this._renderDataModeTab() },
+            { label: 'Configuration', content: () => this._renderConfigurationTab() },
             { label: 'Grid Layout', content: () => this._renderGridLayoutTab() },
             { label: 'Styling', content: () => this._renderStylingTab() },
             { label: 'Animation', content: () => this._renderAnimationTab() },
@@ -99,48 +102,162 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     }
 
     // ============================================================================
-    // TAB 1: DATA MODE
+    // TAB 1: CONFIGURATION
     // ============================================================================
 
     /**
-     * Data Mode Tab - Mode selector and mode-specific configuration
+     * Configuration Tab - Studio launcher and quick settings
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfigurationTab() {
+        return html`
+            <!-- Studio Launcher Card (Top Priority) -->
+            <div class="info-card">
+                <div class="info-card-content">
+                    <h3>🎨 Configuration Studio</h3>
+                    <p>
+                        <strong>Full-screen immersive workspace</strong> with live preview
+                        <br />
+                        Visual grid designer, contextual controls, and real-time updates
+                    </p>
+                    <p style="font-size: 13px; color: var(--secondary-text-color);">
+                        Build your data grid visually with instant feedback. Perfect for beginners and power users alike.
+                    </p>
+                </div>
+                <div class="info-card-actions">
+                    <ha-button
+                        raised
+                        @click=${this._openConfigurationStudio}>
+                        <ha-icon icon="mdi:pencil-ruler" slot="icon"></ha-icon>
+                        Open Configuration Studio
+                    </ha-button>
+                </div>
+            </div>
+
+            <!-- Quick Settings (Collapsible) -->
+            <details style="margin-top: 16px;">
+                <summary style="cursor: pointer; padding: 12px; font-weight: 600; color: var(--primary-text-color);">
+                    Quick Settings (Advanced)
+                </summary>
+                <div style="padding: 12px;">
+                    ${this._renderQuickSettings()}
+                </div>
+            </details>
+        `;
+    }
+
+    /**
+     * Render quick settings section
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderQuickSettings() {
+        return html`
+            <lcards-form-section
+                header="Data Mode"
+                description="How the grid receives data"
+                ?expanded=${true}>
+                ${FormField.renderField(this, 'data_mode', {
+                    label: 'Data Mode',
+                    helper: 'Random, Template, or DataSource'
+                })}
+            </lcards-form-section>
+
+            <!-- Mode-specific quick fields (simplified) -->
+            ${this._renderModeSpecificQuickFields()}
+        `;
+    }
+
+    /**
+     * Render mode-specific quick fields
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderModeSpecificQuickFields() {
+        const dataMode = this._getDataMode();
+        
+        switch (dataMode) {
+            case 'random':
+                return html`
+                    <lcards-form-section header="Random Data" ?expanded=${false}>
+                        ${FormField.renderField(this, 'format')}
+                        ${FormField.renderField(this, 'refresh_interval')}
+                    </lcards-form-section>
+                `;
+                
+            case 'template':
+                return html`
+                    <lcards-form-section header="Template Rows" ?expanded=${false}>
+                        <lcards-message
+                            type="info"
+                            message="Use Configuration Studio for full template editing capabilities.">
+                        </lcards-message>
+                        <ha-button @click=${this._openConfigurationStudio}>
+                            Open Studio to Edit Rows
+                        </ha-button>
+                    </lcards-form-section>
+                `;
+                
+            case 'datasource':
+                return html`
+                    <lcards-form-section header="DataSource" ?expanded=${false}>
+                        ${FormField.renderField(this, 'layout')}
+                        <lcards-message
+                            type="info"
+                            message="Use Configuration Studio for full DataSource configuration.">
+                        </lcards-message>
+                        <ha-button @click=${this._openConfigurationStudio}>
+                            Open Studio to Configure
+                        </ha-button>
+                    </lcards-form-section>
+                `;
+                
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Open Configuration Studio dialog
+     * @private
+     */
+    async _openConfigurationStudio() {
+        lcardsLog.debug('[DataGridEditor] Opening Configuration Studio');
+
+        const dialog = document.createElement('lcards-data-grid-studio-dialog');
+        dialog.hass = this.hass;
+        
+        // Deep clone current config
+        dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+
+        // Listen for config changes
+        dialog.addEventListener('config-changed', (e) => {
+            lcardsLog.debug('[DataGridEditor] Studio config changed:', e.detail.config);
+            
+            // Update config using base editor pattern
+            // This will handle validation, YAML sync, and firing to HA
+            this._updateConfig(e.detail.config, 'visual');
+        });
+
+        // Cleanup on close
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+
+        // Append to body and show
+        document.body.appendChild(dialog);
+    }
+
+    /**
+     * Data Mode Tab - DEPRECATED - keeping for backward compatibility
+     * Use _renderConfigurationTab() instead
      * @returns {TemplateResult}
      * @private
      */
     _renderDataModeTab() {
-        const dataMode = this._getDataMode();
-        const layout = this._getLayout();
-
-        return html`
-            <lcards-message
-                type="info"
-                message="Choose how the grid gets its data: Random generates decorative data, Template uses manual arrays with Home Assistant templates, and DataSource pulls from real-time data sources.">
-            </lcards-message>
-
-            <!-- Mode Selection -->
-            <lcards-form-section
-                header="Data Mode"
-                description="Choose data input mode"
-                icon="mdi:database"
-                ?expanded=${true}
-                ?outlined=${true}
-                headerLevel="4">
-
-                ${FormField.renderField(this, 'data_mode', {
-                    label: 'Data Mode',
-                    helper: 'How the grid receives data'
-                })}
-            </lcards-form-section>
-
-            <!-- Random Mode Configuration -->
-            ${dataMode === 'random' ? this._renderRandomModeFields() : ''}
-
-            <!-- Template Mode Configuration -->
-            ${dataMode === 'template' ? this._renderTemplateModeFields() : ''}
-
-            <!-- DataSource Mode Configuration -->
-            ${dataMode === 'datasource' ? this._renderDataSourceModeFields() : ''}
-        `;
+        // Redirect to new Configuration tab
+        return this._renderConfigurationTab();
     }
 
     /**
