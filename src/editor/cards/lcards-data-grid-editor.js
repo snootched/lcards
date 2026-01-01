@@ -47,8 +47,8 @@ import '../dialogs/lcards-datasource-picker-dialog.js';
 // Import spreadsheet editor dialog
 import '../dialogs/lcards-spreadsheet-editor-dialog.js';
 
-// Import Configuration Studio dialog
-import '../dialogs/lcards-data-grid-studio-dialog.js';
+// Import Configuration Studio dialog (V3)
+import '../dialogs/lcards-data-grid-studio-dialog-v3.js';
 
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
@@ -225,7 +225,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     async _openConfigurationStudio() {
         lcardsLog.debug('[DataGridEditor] Opening Configuration Studio');
 
-        const dialog = document.createElement('lcards-data-grid-studio-dialog');
+        const dialog = document.createElement('lcards-data-grid-studio-dialog-v3');
         dialog.hass = this.hass;
         
         // Deep clone current config
