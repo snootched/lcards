@@ -19,7 +19,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../components/shared/lcards-dialog.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/editors/lcards-grid-layout.js';
-import '../components/editors/lcards-color-selector.js';
+import '../components/editors/lcards-color-section.js';
 
 export class LCARdSSpreadsheetEditorDialog extends LitElement {
     static get properties() {
@@ -1065,21 +1065,18 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
 
     _renderStyleFields(index, type, style, cellIndex = null) {
         return html`
-            <lcards-grid-layout columns="2">
-                <lcards-color-selector
-                    .hass=${this.hass}
-                    .label=${'Background'}
-                    .value=${style.background || ''}
-                    @value-changed=${(e) => this._handleStyleChange(index, type, 'background', e.detail.value, cellIndex)}>
-                </lcards-color-selector>
-
-                <lcards-color-selector
-                    .hass=${this.hass}
-                    .label=${'Text Color'}
-                    .value=${style.color || ''}
-                    @value-changed=${(e) => this._handleStyleChange(index, type, 'color', e.detail.value, cellIndex)}>
-                </lcards-color-selector>
-            </lcards-grid-layout>
+            <lcards-color-section
+                .editor=${this}
+                header="Colors"
+                .colorPaths=${[
+                    { path: 'background', label: 'Background', helper: 'Cell background color' },
+                    { path: 'color', label: 'Text Color', helper: 'Cell text color' }
+                ]}
+                .getConfigValue=${(path) => style[path] || ''}
+                .setConfigValue=${(path, value) => this._handleStyleChange(index, type, path, value, cellIndex)}
+                ?expanded=${true}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
 
             <lcards-grid-layout columns="2">
                 <ha-textfield

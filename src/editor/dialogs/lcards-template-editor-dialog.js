@@ -17,7 +17,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../components/shared/lcards-dialog.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/editors/lcards-grid-layout.js';
-import '../components/editors/lcards-color-selector.js';
+import '../components/editors/lcards-color-section.js';
 
 export class LCARdSTemplateEditorDialog extends LitElement {
     static get properties() {
@@ -429,21 +429,18 @@ export class LCARdSTemplateEditorDialog extends LitElement {
 
     _renderStyleFields(rowIndex, type, style, cellIndex = null) {
         return html`
-            <lcards-grid-layout columns="2">
-                <lcards-color-selector
-                    .hass=${this.hass}
-                    .label=${'Background'}
-                    .value=${style.background || ''}
-                    @value-changed=${(e) => this._handleStyleChange(rowIndex, type, 'background', e.detail.value, cellIndex)}>
-                </lcards-color-selector>
-
-                <lcards-color-selector
-                    .hass=${this.hass}
-                    .label=${'Text Color'}
-                    .value=${style.color || ''}
-                    @value-changed=${(e) => this._handleStyleChange(rowIndex, type, 'color', e.detail.value, cellIndex)}>
-                </lcards-color-selector>
-            </lcards-grid-layout>
+            <lcards-color-section
+                .editor=${this}
+                header="Colors"
+                .colorPaths=${[
+                    { path: 'background', label: 'Background', helper: 'Cell background color' },
+                    { path: 'color', label: 'Text Color', helper: 'Cell text color' }
+                ]}
+                .getConfigValue=${(path) => style[path] || ''}
+                .setConfigValue=${(path, value) => this._handleStyleChange(rowIndex, type, path, value, cellIndex)}
+                ?expanded=${true}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
 
             <lcards-grid-layout columns="2">
                 <ha-textfield
@@ -472,20 +469,26 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 @input=${(e) => this._handleStyleChange(rowIndex, type, 'padding', e.target.value, cellIndex)}>
             </ha-textfield>
 
-            <lcards-grid-layout columns="3">
-                <ha-textfield
-                    label="Border Width"
-                    .value=${style.border_width || ''}
-                    placeholder="e.g., 2px"
-                    @input=${(e) => this._handleStyleChange(rowIndex, type, 'border_width', e.target.value, cellIndex)}>
-                </ha-textfield>
+            <ha-textfield
+                label="Border Width"
+                .value=${style.border_width || ''}
+                placeholder="e.g., 2px"
+                @input=${(e) => this._handleStyleChange(rowIndex, type, 'border_width', e.target.value, cellIndex)}>
+            </ha-textfield>
 
-                <lcards-color-selector
-                    .hass=${this.hass}
-                    .label=${'Border Color'}
-                    .value=${style.border_color || ''}
-                    @value-changed=${(e) => this._handleStyleChange(rowIndex, type, 'border_color', e.detail.value, cellIndex)}>
-                </lcards-color-selector>
+            <lcards-color-section
+                .editor=${this}
+                header="Border Color"
+                .colorPaths=${[
+                    { path: 'border_color', label: 'Color', helper: 'Border color' }
+                ]}
+                .getConfigValue=${(path) => style[path] || ''}
+                .setConfigValue=${(path, value) => this._handleStyleChange(rowIndex, type, path, value, cellIndex)}
+                ?expanded=${true}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
+
+            <lcards-grid-layout columns="2">
 
                 <ha-selector
                     .hass=${this.hass}
@@ -689,27 +692,45 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             padding: 24px;
             border-radius: 8px;
             box-shadow: var(--ha-card-box-shadow, 0 8px 16px rgba(0,0,0,0.2));
-            z-index: calc(var(--dialog-z-index, 100) + 1);
+            z-index: 10000;
             min-width: 400px;
         `;
 
-        container.innerHTML = `
-            <div style="margin-bottom: 16px; font-weight: 500;">Select Entity</div>
-            <ha-entity-picker allow-custom-entity></ha-entity-picker>
-            <div style="display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;">
-                <ha-button class="cancel-btn">Cancel</ha-button>
-                <ha-button class="insert-btn" raised>Insert Template</ha-button>
-            </div>
-        `;
+        // Create title
+        const title = document.createElement('div');
+        title.textContent = 'Select Entity';
+        title.style.cssText = 'margin-bottom: 16px; font-weight: 500;';
+        container.appendChild(title);
 
-        const picker = container.querySelector('ha-entity-picker');
-        picker.hass = this.hass;
-        picker.value = currentEntity;
+        // Create ha-selector with entity selector
+        const selector = document.createElement('ha-selector');
+        selector.hass = this.hass;
+        selector.selector = { entity: {} };
+        selector.value = currentEntity;
+        selector.label = 'Entity';
+        container.appendChild(selector);
 
         let selectedEntity = currentEntity;
-        picker.addEventListener('value-changed', (e) => {
+        selector.addEventListener('value-changed', (e) => {
             selectedEntity = e.detail.value;
         });
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;';
+
+        const cancelBtn = document.createElement('ha-button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'cancel-btn';
+
+        const insertBtn = document.createElement('ha-button');
+        insertBtn.textContent = 'Insert Template';
+        insertBtn.raised = true;
+        insertBtn.className = 'insert-btn';
+
+        buttonContainer.appendChild(cancelBtn);
+        buttonContainer.appendChild(insertBtn);
+        container.appendChild(buttonContainer);
 
         // Create backdrop
         const backdrop = document.createElement('div');
@@ -720,7 +741,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.5);
-            z-index: var(--dialog-z-index, 100);
+            z-index: 9999;
         `;
 
         // Unified cleanup function to prevent memory leaks
@@ -749,8 +770,8 @@ export class LCARdSTemplateEditorDialog extends LitElement {
         };
 
         // Attach event listeners
-        container.querySelector('.insert-btn').addEventListener('click', handleInsert);
-        container.querySelector('.cancel-btn').addEventListener('click', handleCancel);
+        insertBtn.addEventListener('click', handleInsert);
+        cancelBtn.addEventListener('click', handleCancel);
         backdrop.addEventListener('click', handleBackdropClick);
 
         // Add to DOM
