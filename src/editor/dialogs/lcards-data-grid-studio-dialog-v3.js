@@ -194,30 +194,63 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     }
 
     /**
+     * Get JSON schema from CoreConfigManager
+     * @returns {Object} JSON Schema object
+     * @private
+     */
+    _getSchema() {
+        const configManager = window.lcards?.core?.configManager;
+
+        if (!configManager) {
+            lcardsLog.warn('[DataGridStudioV3] CoreConfigManager not available');
+            return {};
+        }
+
+        const schema = configManager.getCardSchema('data-grid');
+
+        if (!schema) {
+            lcardsLog.warn('[DataGridStudioV3] No schema registered for data-grid');
+            return {};
+        }
+
+        return schema;
+    }
+
+    /**
      * Get schema for a config path
      * @param {string} path - Dot-notation path
      * @returns {Object|null}
      * @private
      */
     _getSchemaForPath(path) {
-        // Import schema dynamically
-        const schemaModule = window.lcards?.schemas?.['data-grid'];
-        if (!schemaModule) {
-            lcardsLog.warn('[DataGridStudioV3] Schema not found for data-grid');
+        if (!path) return null;
+
+        const schema = this._getSchema();
+        if (!schema || !schema.properties) return null;
+
+        const keys = path.split('.');
+        let currentSchema = schema;
+
+        for (const key of keys) {
+            // Direct properties
+            if (currentSchema.properties && currentSchema.properties[key]) {
+                currentSchema = currentSchema.properties[key];
+                continue;
+            }
+
+            // Handle additionalProperties
+            if (currentSchema.additionalProperties) {
+                if (typeof currentSchema.additionalProperties === 'object') {
+                    currentSchema = currentSchema.additionalProperties;
+                    continue;
+                }
+            }
+
+            // Property not found
             return null;
         }
-        
-        const keys = path.split('.');
-        let schema = schemaModule.properties || schemaModule;
-        
-        for (const key of keys) {
-            if (!schema || !schema.properties) {
-                return null;
-            }
-            schema = schema.properties[key];
-        }
-        
-        return schema;
+
+        return currentSchema;
     }
 
     /**
