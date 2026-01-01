@@ -273,7 +273,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         // Deep clone for editing (don't mutate props)
         this._editingColumns = JSON.parse(JSON.stringify(this.columns || []));
         this._editingRows = JSON.parse(JSON.stringify(this.rows || []));
-        
+
         // Initialize with defaults if empty
         if (this._editingColumns.length === 0) {
             this._addColumn(); // Start with one column
@@ -281,7 +281,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         if (this._editingRows.length === 0) {
             this._addRow(); // Start with one row
         }
-        
+
         lcardsLog.debug('[LCARdSSpreadsheetEditorDialog] Connected with columns:', this._editingColumns, 'rows:', this._editingRows);
     }
 
@@ -291,48 +291,48 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
                 open
                 @closed=${this._handleClose}
                 .heading=${'Configure Spreadsheet'}>
-                
+
                 <div class="dialog-content">
                     ${this._validationErrors.length > 0 ? this._renderValidationErrors() : ''}
-                    
+
                     <div class="section">
                         <div class="section-header">
                             <div class="section-title">Columns</div>
-                            <mwc-button 
+                            <ha-button
                                 dense
                                 raised
                                 @click=${this._addColumn}>
                                 <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                                 Add Column
-                            </mwc-button>
+                            </ha-button>
                         </div>
                         ${this._renderColumnList()}
                     </div>
-                    
+
                     <div class="section">
                         <div class="section-header">
                             <div class="section-title">Rows</div>
-                            <mwc-button 
+                            <ha-button
                                 dense
                                 raised
                                 @click=${this._addRow}>
                                 <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                                 Add Row
-                            </mwc-button>
+                            </ha-button>
                         </div>
                         ${this._renderRowList()}
                     </div>
                 </div>
 
-                <mwc-button 
-                    slot="primaryAction" 
+                <ha-button
+                    slot="primaryAction"
                     @click=${this._handleSave}
                     ?disabled=${!this._canSave()}>
                     Save
-                </mwc-button>
-                <mwc-button slot="secondaryAction" @click=${this._handleCancel}>
+                </ha-button>
+                <ha-button slot="secondaryAction" @click=${this._handleCancel}>
                     Cancel
-                </mwc-button>
+                </ha-button>
             </lcards-dialog>
         `;
     }
@@ -354,16 +354,16 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
 
     _canSave() {
         this._validationErrors = [];
-        
+
         // Validate columns
         if (!this._validateColumns()) return false;
-        
+
         // Validate rows
         if (!this._validateRows()) return false;
-        
+
         // Validate data sources
         if (!this._validateDataSources()) return false;
-        
+
         return true;
     }
 
@@ -453,7 +453,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         return html`
             <div class="item-container">
                 <div class="item-header" @click=${() => this._toggleColumnExpanded(index)}>
-                    <ha-icon 
+                    <ha-icon
                         class="expand-icon ${isExpanded ? 'expanded' : ''}"
                         icon="mdi:chevron-right">
                     </ha-icon>
@@ -553,7 +553,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             style: {}
         };
         this._editingColumns = [...this._editingColumns, newColumn];
-        
+
         // Add cells to all rows for this new column
         const columnIndex = this._editingColumns.length - 1;
         this._editingRows = this._editingRows.map(row => {
@@ -567,7 +567,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
                 }]
             };
         });
-        
+
         this._expandedColumns.add(columnIndex);
         this.requestUpdate();
         lcardsLog.debug('[LCARdSSpreadsheetEditorDialog] Added column');
@@ -575,14 +575,14 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
 
     _deleteColumn(index) {
         const column = this._editingColumns[index];
-        
+
         if (!confirm(`Delete column "${column.header}"? This will remove the column from all rows.`)) {
             return;
         }
 
         // Remove column
         this._editingColumns = this._editingColumns.filter((_, i) => i !== index);
-        
+
         // Remove cells from all rows and adjust column indices
         this._editingRows = this._editingRows.map(row => {
             const sources = (row.sources || [])
@@ -596,15 +596,15 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
                 sources
             };
         });
-        
+
         // Clean up expanded state
         this._expandedColumns.delete(index);
         this._expandedColumnStyles.delete(index);
-        
+
         // Adjust expanded indices
         const newExpandedColumns = new Set();
         const newExpandedColumnStyles = new Set();
-        
+
         this._expandedColumns.forEach(i => {
             if (i > index) newExpandedColumns.add(i - 1);
             else if (i < index) newExpandedColumns.add(i);
@@ -613,21 +613,21 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             if (i > index) newExpandedColumnStyles.add(i - 1);
             else if (i < index) newExpandedColumnStyles.add(i);
         });
-        
+
         this._expandedColumns = newExpandedColumns;
         this._expandedColumnStyles = newExpandedColumnStyles;
-        
+
         this.requestUpdate();
         lcardsLog.debug('[LCARdSSpreadsheetEditorDialog] Deleted column', index);
     }
 
     _moveColumnUp(index) {
         if (index === 0) return;
-        
+
         const columns = [...this._editingColumns];
         [columns[index - 1], columns[index]] = [columns[index], columns[index - 1]];
         this._editingColumns = columns;
-        
+
         // Swap cell column indices in all rows
         this._editingRows = this._editingRows.map(row => {
             const sources = (row.sources || []).map(s => {
@@ -637,17 +637,17 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             });
             return { ...row, sources };
         });
-        
+
         this.requestUpdate();
     }
 
     _moveColumnDown(index) {
         if (index === this._editingColumns.length - 1) return;
-        
+
         const columns = [...this._editingColumns];
         [columns[index], columns[index + 1]] = [columns[index + 1], columns[index]];
         this._editingColumns = columns;
-        
+
         // Swap cell column indices in all rows
         this._editingRows = this._editingRows.map(row => {
             const sources = (row.sources || []).map(s => {
@@ -657,7 +657,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             });
             return { ...row, sources };
         });
-        
+
         this.requestUpdate();
     }
 
@@ -719,7 +719,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         return html`
             <div class="item-container">
                 <div class="item-header" @click=${() => this._toggleRowExpanded(index)}>
-                    <ha-icon 
+                    <ha-icon
                         class="expand-icon ${isExpanded ? 'expanded' : ''}"
                         icon="mdi:chevron-right">
                     </ha-icon>
@@ -782,7 +782,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
                 <div class="cell-header">
                     <span>${column.header || `Column ${columnIndex + 1}`}</span>
                 </div>
-                
+
                 <div class="cell-fields">
                     <ha-selector
                         .hass=${this.hass}
@@ -797,7 +797,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
                         @value-changed=${(e) => this._handleCellTypeChange(rowIndex, columnIndex, e.detail.value)}>
                     </ha-selector>
 
-                    ${isDataSource 
+                    ${isDataSource
                         ? this._renderDataSourceCell(cellConfig, rowIndex, columnIndex)
                         : this._renderStaticCell(cellConfig, rowIndex, columnIndex)}
                 </div>
@@ -818,13 +818,13 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
 
     _renderDataSourceCell(cellConfig, rowIndex, columnIndex) {
         return html`
-            <mwc-button 
+            <ha-button
                 class="datasource-button"
                 @click=${() => this._openDataSourcePicker(rowIndex, columnIndex)}>
                 <ha-icon icon="mdi:database" slot="icon"></ha-icon>
                 ${cellConfig.source ? 'Change Source' : 'Select Source'}
-            </mwc-button>
-            
+            </ha-button>
+
             ${cellConfig.source ? html`
                 <div class="source-info">
                     <strong>Source:</strong> ${cellConfig.source}
@@ -885,7 +885,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             sources,
             style: {}
         };
-        
+
         this._editingRows = [...this._editingRows, newRow];
         this._expandedRows.add(this._editingRows.length - 1);
         this.requestUpdate();
@@ -900,11 +900,11 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         this._editingRows = this._editingRows.filter((_, i) => i !== index);
         this._expandedRows.delete(index);
         this._expandedRowStyles.delete(index);
-        
+
         // Adjust expanded indices
         const newExpandedRows = new Set();
         const newExpandedRowStyles = new Set();
-        
+
         this._expandedRows.forEach(i => {
             if (i > index) newExpandedRows.add(i - 1);
             else if (i < index) newExpandedRows.add(i);
@@ -913,17 +913,17 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             if (i > index) newExpandedRowStyles.add(i - 1);
             else if (i < index) newExpandedRowStyles.add(i);
         });
-        
+
         this._expandedRows = newExpandedRows;
         this._expandedRowStyles = newExpandedRowStyles;
-        
+
         this.requestUpdate();
         lcardsLog.debug('[LCARdSSpreadsheetEditorDialog] Deleted row', index);
     }
 
     _moveRowUp(index) {
         if (index === 0) return;
-        
+
         const rows = [...this._editingRows];
         [rows[index - 1], rows[index]] = [rows[index], rows[index - 1]];
         this._editingRows = rows;
@@ -932,7 +932,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
 
     _moveRowDown(index) {
         if (index === this._editingRows.length - 1) return;
-        
+
         const rows = [...this._editingRows];
         [rows[index], rows[index + 1]] = [rows[index + 1], rows[index]];
         this._editingRows = rows;
@@ -978,7 +978,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
         }
 
         cellConfig.type = type;
-        
+
         // Initialize datasource fields
         if (type === 'datasource') {
             cellConfig.source = cellConfig.source || '';
@@ -1026,24 +1026,24 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
     async _openDataSourcePicker(rowIndex, columnIndex) {
         // Dynamically import the dialog
         await import('./lcards-datasource-picker-dialog.js');
-        
+
         const row = this._editingRows[rowIndex];
         const cellConfig = row.sources.find(s => s.column === columnIndex);
-        
+
         const dialog = document.createElement('lcards-datasource-picker-dialog');
         dialog.hass = this.hass;
         dialog.currentSource = cellConfig?.source || '';
         dialog.open = true;
-        
+
         dialog.addEventListener('source-selected', (e) => {
             this._handleDataSourceSelected(rowIndex, columnIndex, e.detail.source);
         });
-        
+
         // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
         });
-        
+
         document.body.appendChild(dialog);
         lcardsLog.debug('[LCARdSSpreadsheetEditorDialog] Opened DataSource picker', { rowIndex, columnIndex });
     }
@@ -1051,7 +1051,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
     _handleDataSourceSelected(rowIndex, columnIndex, source) {
         const row = this._editingRows[rowIndex];
         const cellConfig = row.sources.find(s => s.column === columnIndex);
-        
+
         if (cellConfig) {
             cellConfig.source = source;
             this.requestUpdate();
@@ -1122,7 +1122,7 @@ export class LCARdSSpreadsheetEditorDialog extends LitElement {
             }
             this._editingRows[index].style[property] = value;
         }
-        
+
         this.requestUpdate();
     }
 

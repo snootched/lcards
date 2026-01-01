@@ -243,26 +243,26 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 open
                 @closed=${this._handleClose}
                 .heading=${'Configure Template Rows'}>
-                
+
                 <div class="dialog-content">
-                    <mwc-button 
+                    <ha-button
                         class="add-row-button"
                         raised
                         @click=${this._addRow}>
                         <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                         Add Row
-                    </mwc-button>
+                    </ha-button>
 
                     ${this._editingRows.length === 0 ? this._renderEmptyState() : ''}
                     ${this._editingRows.map((row, index) => this._renderRow(row, index))}
                 </div>
 
-                <mwc-button slot="primaryAction" @click=${this._handleSave}>
+                <ha-button slot="primaryAction" @click=${this._handleSave}>
                     Save
-                </mwc-button>
-                <mwc-button slot="secondaryAction" @click=${this._handleCancel}>
+                </ha-button>
+                <ha-button slot="secondaryAction" @click=${this._handleCancel}>
                     Cancel
-                </mwc-button>
+                </ha-button>
             </lcards-dialog>
         `;
     }
@@ -285,7 +285,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
         return html`
             <div class="row-container">
                 <div class="row-header" @click=${() => this._toggleRowExpanded(index)}>
-                    <ha-icon 
+                    <ha-icon
                         class="row-expand-icon ${isExpanded ? 'expanded' : ''}"
                         icon="mdi:chevron-right">
                     </ha-icon>
@@ -354,12 +354,12 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                         </mwc-icon-button>
                     </div>
                 `)}
-                <mwc-button
+                <ha-button
                     class="add-cell-button"
                     @click=${() => this._addCell(rowIndex)}>
                     <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                     Add Cell
-                </mwc-button>
+                </ha-button>
             </div>
         `;
     }
@@ -533,12 +533,12 @@ export class LCARdSTemplateEditorDialog extends LitElement {
         this._expandedRows.delete(index);
         this._expandedRowStyles.delete(index);
         this._expandedCellStyles.delete(index);
-        
+
         // Adjust expanded indices
         const newExpandedRows = new Set();
         const newExpandedRowStyles = new Set();
         const newExpandedCellStyles = new Set();
-        
+
         this._expandedRows.forEach(i => {
             if (i > index) newExpandedRows.add(i - 1);
             else if (i < index) newExpandedRows.add(i);
@@ -551,53 +551,53 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             if (i > index) newExpandedCellStyles.add(i - 1);
             else if (i < index) newExpandedCellStyles.add(i);
         });
-        
+
         this._expandedRows = newExpandedRows;
         this._expandedRowStyles = newExpandedRowStyles;
         this._expandedCellStyles = newExpandedCellStyles;
-        
+
         this.requestUpdate();
         lcardsLog.debug('[LCARdSTemplateEditorDialog] Deleted row', index);
     }
 
     _moveRowUp(index) {
         if (index === 0) return;
-        
+
         const newRows = [...this._editingRows];
         [newRows[index - 1], newRows[index]] = [newRows[index], newRows[index - 1]];
         this._editingRows = newRows;
-        
+
         // Update expanded state
         const wasExpanded = this._expandedRows.has(index);
         const wasExpandedAbove = this._expandedRows.has(index - 1);
-        
+
         this._expandedRows.delete(index);
         this._expandedRows.delete(index - 1);
-        
+
         if (wasExpanded) this._expandedRows.add(index - 1);
         if (wasExpandedAbove) this._expandedRows.add(index);
-        
+
         this.requestUpdate();
         lcardsLog.debug('[LCARdSTemplateEditorDialog] Moved row up', index);
     }
 
     _moveRowDown(index) {
         if (index === this._editingRows.length - 1) return;
-        
+
         const newRows = [...this._editingRows];
         [newRows[index], newRows[index + 1]] = [newRows[index + 1], newRows[index]];
         this._editingRows = newRows;
-        
+
         // Update expanded state
         const wasExpanded = this._expandedRows.has(index);
         const wasExpandedBelow = this._expandedRows.has(index + 1);
-        
+
         this._expandedRows.delete(index);
         this._expandedRows.delete(index + 1);
-        
+
         if (wasExpanded) this._expandedRows.add(index + 1);
         if (wasExpandedBelow) this._expandedRows.add(index);
-        
+
         this.requestUpdate();
         lcardsLog.debug('[LCARdSTemplateEditorDialog] Moved row down', index);
     }
@@ -670,14 +670,14 @@ export class LCARdSTemplateEditorDialog extends LitElement {
         // Create inline entity picker
         const row = this._editingRows[rowIndex];
         const currentValue = row.values?.[cellIndex] || '';
-        
+
         // Extract entity ID from template if present
         let currentEntity = '';
         const templateMatch = currentValue.match(/{{states\.([^.}]+\.[^.}]+)/);
         if (templateMatch) {
             currentEntity = templateMatch[1];
         }
-        
+
         // Create a temporary container for the entity picker
         const container = document.createElement('div');
         container.style.cssText = `
@@ -692,25 +692,25 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             z-index: calc(var(--dialog-z-index, 100) + 1);
             min-width: 400px;
         `;
-        
+
         container.innerHTML = `
             <div style="margin-bottom: 16px; font-weight: 500;">Select Entity</div>
             <ha-entity-picker allow-custom-entity></ha-entity-picker>
             <div style="display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;">
-                <mwc-button class="cancel-btn">Cancel</mwc-button>
-                <mwc-button class="insert-btn" raised>Insert Template</mwc-button>
+                <ha-button class="cancel-btn">Cancel</ha-button>
+                <ha-button class="insert-btn" raised>Insert Template</ha-button>
             </div>
         `;
-        
+
         const picker = container.querySelector('ha-entity-picker');
         picker.hass = this.hass;
         picker.value = currentEntity;
-        
+
         let selectedEntity = currentEntity;
         picker.addEventListener('value-changed', (e) => {
             selectedEntity = e.detail.value;
         });
-        
+
         // Create backdrop
         const backdrop = document.createElement('div');
         backdrop.style.cssText = `
@@ -722,13 +722,13 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             background: rgba(0,0,0,0.5);
             z-index: var(--dialog-z-index, 100);
         `;
-        
+
         // Unified cleanup function to prevent memory leaks
         const cleanup = () => {
             container.remove();
             backdrop.remove();
         };
-        
+
         // Insert button handler
         const handleInsert = () => {
             if (selectedEntity) {
@@ -737,26 +737,26 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             }
             cleanup();
         };
-        
+
         // Cancel button handler
         const handleCancel = () => {
             cleanup();
         };
-        
+
         // Backdrop click handler
         const handleBackdropClick = () => {
             cleanup();
         };
-        
+
         // Attach event listeners
         container.querySelector('.insert-btn').addEventListener('click', handleInsert);
         container.querySelector('.cancel-btn').addEventListener('click', handleCancel);
         backdrop.addEventListener('click', handleBackdropClick);
-        
+
         // Add to DOM
         document.body.appendChild(backdrop);
         document.body.appendChild(container);
-        
+
         lcardsLog.debug('[LCARdSTemplateEditorDialog] Opening entity picker', { rowIndex, cellIndex });
     }
 
@@ -831,10 +831,10 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             // Only include cellStyles if it has meaningful entries (non-null/undefined)
             if (row.cellStyles && row.cellStyles.length > 0) {
                 // Filter out trailing nulls and check if any non-null entries exist
-                const meaningfulStyles = row.cellStyles.some(style => 
+                const meaningfulStyles = row.cellStyles.some(style =>
                     style !== null && style !== undefined && Object.keys(style).length > 0
                 );
-                
+
                 if (meaningfulStyles) {
                     cleaned.cellStyles = row.cellStyles;
                 }

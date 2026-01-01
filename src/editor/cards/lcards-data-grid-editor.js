@@ -135,6 +135,26 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                 </div>
             </div>
 
+            <!-- Card Metadata -->
+            <lcards-form-section
+                header="Card Metadata"
+                description="Identification for rules engine targeting"
+                icon="mdi:tag"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${FormField.renderField(this, 'id', {
+                    label: 'Card ID',
+                    helper: 'Unique identifier for rules engine targeting'
+                })}
+
+                ${FormField.renderField(this, 'tags', {
+                    label: 'Tags',
+                    helper: 'Tags for rules engine categorization'
+                })}
+            </lcards-form-section>
+
             <!-- Quick Settings (Collapsible) -->
             <details style="margin-top: 16px;">
                 <summary style="cursor: pointer; padding: 12px; font-weight: 600; color: var(--primary-text-color);">
@@ -176,7 +196,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     _renderModeSpecificQuickFields() {
         const dataMode = this._getDataMode();
-        
+
         switch (dataMode) {
             case 'random':
                 return html`
@@ -185,7 +205,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                         ${FormField.renderField(this, 'refresh_interval')}
                     </lcards-form-section>
                 `;
-                
+
             case 'template':
                 return html`
                     <lcards-form-section header="Template Rows" ?expanded=${false}>
@@ -198,7 +218,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                         </ha-button>
                     </lcards-form-section>
                 `;
-                
+
             case 'datasource':
                 return html`
                     <lcards-form-section header="DataSource" ?expanded=${false}>
@@ -212,7 +232,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                         </ha-button>
                     </lcards-form-section>
                 `;
-                
+
             default:
                 return '';
         }
@@ -227,14 +247,14 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
         const dialog = document.createElement('lcards-data-grid-studio-dialog-v3');
         dialog.hass = this.hass;
-        
+
         // Deep clone current config
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
 
         // Listen for config changes
         dialog.addEventListener('config-changed', (e) => {
             lcardsLog.debug('[DataGridEditor] Studio config changed:', e.detail.config);
-            
+
             // Update config using base editor pattern
             // This will handle validation, YAML sync, and firing to HA
             this._updateConfig(e.detail.config, 'visual');
@@ -315,7 +335,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
                 <!-- Template Row Editor Button -->
                 <div style="margin: 16px 0;">
-                    <mwc-button 
+                    <mwc-button
                         raised
                         @click=${this._openTemplateEditorDialog}
                         aria-label="Configure template rows">
@@ -336,13 +356,13 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     _renderTemplateRowsSummary() {
         const rows = this._getConfigValue('rows') || [];
-        
+
         if (rows.length === 0) {
             return html`
                 <ha-alert alert-type="info">
                     No template rows configured. Click "Configure Template Rows" to add rows.
                     <br><br>
-                    <strong>Quick Start:</strong> Each row contains cells that can have static text 
+                    <strong>Quick Start:</strong> Each row contains cells that can have static text
                     or Home Assistant templates like <code>{{states.sensor.temp.state}}</code>
                 </ha-alert>
             `;
@@ -372,7 +392,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     async _openTemplateEditorDialog() {
         const rows = this._getConfigValue('rows') || [];
-        
+
         // Convert simple array rows to full row objects if needed
         const normalizedRows = rows.map(row => {
             if (Array.isArray(row)) {
@@ -398,35 +418,35 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         const dialog = document.createElement('lcards-template-editor-dialog');
         dialog.hass = this.hass;
         dialog.rows = normalizedRows;
-        
+
         dialog.addEventListener('rows-changed', (e) => {
             // Save the rows back to config
             const savedRows = e.detail.rows;
-            
+
             // Convert rows back to simple arrays if they have no style overrides
             const finalRows = savedRows.map(row => {
                 const hasRowStyle = row.style && Object.keys(row.style).length > 0;
-                const hasCellStyles = row.cellStyles && row.cellStyles.length > 0 && 
+                const hasCellStyles = row.cellStyles && row.cellStyles.length > 0 &&
                     row.cellStyles.some(style => style !== null && style !== undefined);
-                
+
                 // If no styling, return simple array format for cleaner YAML
                 if (!hasRowStyle && !hasCellStyles) {
                     return row.values;
                 }
-                
+
                 // Otherwise return full object format
                 return row;
             });
-            
+
             this._setConfigValue('rows', finalRows);
             lcardsLog.info('[LCARdSDataGridEditor] Template rows updated', finalRows);
         });
-        
+
         // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
         });
-        
+
         document.body.appendChild(dialog);
         lcardsLog.debug('[LCARdSDataGridEditor] Opened template editor dialog');
     }
@@ -440,18 +460,18 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         dialog.hass = this.hass;
         dialog.currentSource = this._getConfigValue('source') || '';
         dialog.open = true;
-        
+
         dialog.addEventListener('source-selected', (e) => {
             const selectedSource = e.detail.source;
             this._setConfigValue('source', selectedSource);
             lcardsLog.info('[LCARdSDataGridEditor] DataSource selected:', selectedSource);
         });
-        
+
         // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
         });
-        
+
         document.body.appendChild(dialog);
         lcardsLog.debug('[LCARdSDataGridEditor] Opened DataSource picker dialog');
     }
@@ -463,7 +483,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     _renderDataSourceSummary() {
         const source = this._getConfigValue('source');
-        
+
         if (!source) {
             return html`
                 <ha-alert alert-type="info">
@@ -475,12 +495,12 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         // Check if it's a DataSource name or entity ID
         const dsManager = window.lcards?.core?.dataSourceManager;
         const ds = dsManager?.sources?.get(source);
-        
+
         if (ds) {
             // It's a registered DataSource
             const entity = ds.cfg?.entity || 'N/A';
             const name = ds.cfg?.name || source;
-            
+
             return html`
                 <ha-alert alert-type="success">
                     <strong>DataSource:</strong> ${name}
@@ -552,7 +572,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
                 <!-- DataSource Picker Button -->
                 <div style="margin: 16px 0;">
-                    <mwc-button 
+                    <mwc-button
                         raised
                         @click=${this._openDataSourcePickerDialog}
                         aria-label="Select data source">
@@ -598,7 +618,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
                 <!-- Spreadsheet Editor Button -->
                 <div style="margin: 16px 0;">
-                    <mwc-button 
+                    <mwc-button
                         raised
                         @click=${this._openSpreadsheetEditorDialog}
                         aria-label="Configure spreadsheet columns and rows">
@@ -620,7 +640,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     _renderSpreadsheetSummary() {
         const columns = this._getConfigValue('columns') || [];
         const rows = this._getConfigValue('rows') || [];
-        
+
         if (columns.length === 0 || rows.length === 0) {
             return html`
                 <ha-alert alert-type="info">
@@ -654,28 +674,28 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     async _openSpreadsheetEditorDialog() {
         const columns = this._getConfigValue('columns') || [];
         const rows = this._getConfigValue('rows') || [];
-        
+
         const dialog = document.createElement('lcards-spreadsheet-editor-dialog');
         dialog.hass = this.hass;
         dialog.columns = columns;
         dialog.rows = rows;
-        
+
         dialog.addEventListener('config-changed', (e) => {
             // Save the columns and rows back to config
             this._setConfigValue('columns', e.detail.columns);
             this._setConfigValue('rows', e.detail.rows);
-            
+
             lcardsLog.info('[LCARdSDataGridEditor] Spreadsheet configuration updated', {
                 columns: e.detail.columns,
                 rows: e.detail.rows
             });
         });
-        
+
         // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
         });
-        
+
         document.body.appendChild(dialog);
         lcardsLog.debug('[LCARdSDataGridEditor] Opened spreadsheet editor dialog');
     }
@@ -690,7 +710,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderGridLayoutTab() {
-        const hasLegacyShorthand = this._getConfigValue('grid.rows') !== undefined || 
+        const hasLegacyShorthand = this._getConfigValue('grid.rows') !== undefined ||
                                     this._getConfigValue('grid.columns') !== undefined;
 
         return html`
@@ -701,7 +721,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
             ${hasLegacyShorthand ? html`
                 <ha-alert alert-type="warning">
-                    ⚠️ This card uses legacy shorthand properties (grid.rows, grid.columns). 
+                    ⚠️ This card uses legacy shorthand properties (grid.rows, grid.columns).
                     Consider migrating to standard CSS Grid properties (grid-template-rows, grid-template-columns) for better control.
                 </ha-alert>
             ` : ''}
@@ -1022,10 +1042,10 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <ha-alert alert-type="info">
-                    <strong>Column-level styling</strong> (spreadsheet mode) and <strong>row-level styling</strong> 
+                    <strong>Column-level styling</strong> (spreadsheet mode) and <strong>row-level styling</strong>
                     allow you to override grid-wide defaults for specific columns or rows.
                     <br><br>
-                    These features use the YAML tab for configuration. Visual editors for column and row styling 
+                    These features use the YAML tab for configuration. Visual editors for column and row styling
                     will be added in future updates.
                     <br><br>
                     <strong>Hierarchy:</strong> Grid-Wide → Header → Column → Row → Cell (lowest priority first)
@@ -1270,14 +1290,14 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
                 <ha-alert alert-type="info">
                     <strong>For optimal performance with large grids:</strong><br><br>
-                    
+
                     • <strong>Limit grid size:</strong> Keep grids under 200 cells for smooth animations<br>
                     • <strong>Reduce refresh rate:</strong> Use longer refresh_interval for random mode<br>
                     • <strong>Limit animations:</strong> Disable cascade or change detection for very large grids<br>
                     • <strong>Use simple patterns:</strong> "niagara" or "fast" patterns perform better than "default"<br>
                     • <strong>Cap highlights:</strong> Set max_highlight_cells to 20-30 for large grids<br>
                     • <strong>Optimize templates:</strong> Avoid complex Jinja2 logic in template mode<br><br>
-                    
+
                     See <code>doc/user/examples/data-grid-performance.yaml</code> for examples.
                 </ha-alert>
             </lcards-form-section>

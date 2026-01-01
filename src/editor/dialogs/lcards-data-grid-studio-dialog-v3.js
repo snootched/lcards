@@ -21,6 +21,7 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
+import '../components/editors/lcards-font-selector.js';
 import '../../cards/lcards-data-grid.js';
 import './lcards-template-editor-dialog.js';
 import './lcards-spreadsheet-editor-dialog.js';
@@ -652,13 +653,13 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 </lcards-message>
 
                 <div style="margin: 16px 0;">
-                    <mwc-button
+                    <ha-button
                         raised
                         @click=${this._openTemplateEditorDialog}
                         aria-label="Configure template rows">
                         <ha-icon icon="mdi:table-edit" slot="icon"></ha-icon>
                         Configure Template Rows
-                    </mwc-button>
+                    </ha-button>
                 </div>
 
                 ${rows.length > 0 ? html`
@@ -723,13 +724,13 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     </lcards-message>
 
                     <div style="margin: 16px 0;">
-                        <mwc-button
+                        <ha-button
                             raised
                             @click=${this._openSpreadsheetEditorDialog}
                             aria-label="Configure spreadsheet columns and rows">
                             <ha-icon icon="mdi:table-large" slot="icon"></ha-icon>
                             Configure Spreadsheet
-                        </mwc-button>
+                        </ha-button>
                     </div>
 
                     ${this._renderSpreadsheetSummary()}
@@ -791,32 +792,41 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     _renderTypographySubTab() {
         return html`
             <lcards-form-section
-                header="Typography"
-                description="Font settings for all cells"
+                header="Font Settings"
+                description="Font family, size, and weight"
                 ?expanded=${true}>
 
-                <ha-textfield
-                    type="text"
-                    label="Font Size"
-                    .value=${this._workingConfig.style?.font_size || ''}
-                    @input=${(e) => this._updateConfig('style.font_size', e.target.value)}
-                    helper="Font size (e.g., '18px', '1.2rem')">
-                </ha-textfield>
-
-                <ha-textfield
-                    label="Font Family"
+                <lcards-font-selector
+                    .hass=${this.hass}
                     .value=${this._workingConfig.style?.font_family || ''}
-                    @input=${(e) => this._updateConfig('style.font_family', e.target.value)}
-                    helper="Font family (e.g., 'Antonio', 'Arial')">
-                </ha-textfield>
+                    .showPreview=${true}
+                    .label=${'Font Family'}
+                    @value-changed=${(e) => this._updateConfig('style.font_family', e.detail.value)}>
+                </lcards-font-selector>
 
-                <ha-textfield
-                    type="number"
-                    label="Font Weight"
-                    .value=${this._workingConfig.style?.font_weight || ''}
-                    @input=${(e) => this._updateConfig('style.font_weight', e.target.value)}
-                    helper="Font weight (100-900)">
-                </ha-textfield>
+                <lcards-grid-layout>
+                    <ha-textfield
+                        type="text"
+                        label="Font Size"
+                        .value=${this._workingConfig.style?.font_size || ''}
+                        @input=${(e) => this._updateConfig('style.font_size', e.target.value)}
+                        helper="Font size (e.g., '18px', '1.2rem')">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        type="number"
+                        label="Font Weight"
+                        .value=${this._workingConfig.style?.font_weight || ''}
+                        @input=${(e) => this._updateConfig('style.font_weight', e.target.value)}
+                        helper="Font weight (100-900)">
+                    </ha-textfield>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Text Alignment & Spacing"
+                description="Alignment and padding settings"
+                ?expanded=${true}>
 
                 <ha-selector
                     .hass=${this.hass}
@@ -899,25 +909,35 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     _renderHeaderStyleSubTab() {
         return html`
             <lcards-form-section
-                header="Header Row Style"
-                description="Styling for spreadsheet header row"
+                header="Header Font Settings"
+                description="Font styling for spreadsheet header row"
                 ?expanded=${true}>
 
-                <ha-textfield
-                    type="number"
-                    label="Font Size"
-                    .value=${this._workingConfig.header_style?.font_size || ''}
-                    @input=${(e) => this._updateConfig('header_style.font_size', parseInt(e.target.value) || 0)}
-                    helper="Header font size in pixels">
-                </ha-textfield>
+                <lcards-font-selector
+                    .hass=${this.hass}
+                    .value=${this._workingConfig.header_style?.font_family || ''}
+                    .showPreview=${true}
+                    .label=${'Font Family'}
+                    @value-changed=${(e) => this._updateConfig('header_style.font_family', e.detail.value)}>
+                </lcards-font-selector>
 
-                <ha-textfield
-                    type="number"
-                    label="Font Weight"
-                    .value=${this._workingConfig.header_style?.font_weight || ''}
-                    @input=${(e) => this._updateConfig('header_style.font_weight', parseInt(e.target.value) || 0)}
-                    helper="Header font weight (100-900)">
-                </ha-textfield>
+                <lcards-grid-layout>
+                    <ha-textfield
+                        type="number"
+                        label="Font Size"
+                        .value=${this._workingConfig.header_style?.font_size || ''}
+                        @input=${(e) => this._updateConfig('header_style.font_size', parseInt(e.target.value) || 0)}
+                        helper="Header font size in pixels">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        type="number"
+                        label="Font Weight"
+                        .value=${this._workingConfig.header_style?.font_weight || ''}
+                        @input=${(e) => this._updateConfig('header_style.font_weight', parseInt(e.target.value) || 0)}
+                        helper="Header font weight (100-900)">
+                    </ha-textfield>
+                </lcards-grid-layout>
 
                 <ha-selector
                     .hass=${this.hass}
@@ -932,6 +952,12 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     @value-changed=${(e) => this._updateConfig('header_style.text_transform', e.detail.value)}
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Header Colors & Spacing"
+                description="Colors, padding, and borders"
+                ?expanded=${true}>
 
                 <lcards-color-section
                     .editor=${this}
