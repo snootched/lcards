@@ -22,6 +22,8 @@ import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../../cards/lcards-data-grid.js';
+import './lcards-template-editor-dialog.js';
+import './lcards-spreadsheet-editor-dialog.js';
 
 export class LCARdSDataGridStudioDialogV3 extends LitElement {
     static get properties() {
@@ -629,6 +631,16 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     }
 
     _renderTemplateConfig() {
+        const rows = this._workingConfig.rows || [];
+        const totalCells = rows.reduce((sum, row) => {
+            if (Array.isArray(row)) {
+                return sum + row.length;
+            } else if (row.values) {
+                return sum + row.values.length;
+            }
+            return sum;
+        }, 0);
+
         return html`
             <lcards-form-section
                 header="Template Configuration"
@@ -636,13 +648,28 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
                 <lcards-message
                     type="info"
-                    message="Template mode allows manual grid configuration. Use the main editor's Configuration tab to open the Template Editor dialog for full row editing.">
+                    message="Template mode allows manual grid configuration with Home Assistant templates.">
                 </lcards-message>
 
-                <ha-alert alert-type="info">
-                    Template row editing is available in the main Data Grid Editor.
-                    Close this studio and use the "Open Configuration Studio" button for template editing.
-                </ha-alert>
+                <div style="margin: 16px 0;">
+                    <mwc-button
+                        raised
+                        @click=${this._openTemplateEditorDialog}
+                        aria-label="Configure template rows">
+                        <ha-icon icon="mdi:table-edit" slot="icon"></ha-icon>
+                        Configure Template Rows
+                    </mwc-button>
+                </div>
+
+                ${rows.length > 0 ? html`
+                    <ha-alert alert-type="success">
+                        <strong>${rows.length} row(s) configured</strong> with ${totalCells} total cell(s)
+                    </ha-alert>
+                ` : html`
+                    <ha-alert alert-type="info">
+                        No template rows configured. Click "Configure Template Rows" to add rows.
+                    </ha-alert>
+                `}
             </lcards-form-section>
         `;
     }
@@ -692,8 +719,20 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 ` : html`
                     <lcards-message
                         type="info"
-                        message="Spreadsheet layout configuration is available in the main editor. Close this studio to access the Spreadsheet Editor.">
+                        message="Spreadsheet layout creates a structured grid with defined columns and rows.">
                     </lcards-message>
+
+                    <div style="margin: 16px 0;">
+                        <mwc-button
+                            raised
+                            @click=${this._openSpreadsheetEditorDialog}
+                            aria-label="Configure spreadsheet columns and rows">
+                            <ha-icon icon="mdi:table-large" slot="icon"></ha-icon>
+                            Configure Spreadsheet
+                        </mwc-button>
+                    </div>
+
+                    ${this._renderSpreadsheetSummary()}
                 `}
             </lcards-form-section>
         `;
@@ -1184,26 +1223,19 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     _renderMetadataSubTab() {
         return html`
             <lcards-form-section
-                header="Card Metadata"
-                description="Identification and categorization"
+                header="About Metadata"
+                description="Card identification settings"
                 ?expanded=${true}>
 
-                <ha-textfield
-                    label="Card ID"
-                    .value=${this._workingConfig.id || ''}
-                    @input=${(e) => this._updateConfig('id', e.target.value)}
-                    helper="Unique identifier for rules engine targeting">
-                </ha-textfield>
+                <lcards-message
+                    type="info"
+                    message="Card ID and Tags are configured in the main editor's Advanced tab for rules engine targeting and categorization.">
+                </lcards-message>
 
-                <ha-textfield
-                    label="Tags"
-                    .value=${(this._workingConfig.tags || []).join(', ')}
-                    @input=${(e) => {
-                        const tags = e.target.value.split(',').map(t => t.trim()).filter(t => t);
-                        this._updateConfig('tags', tags);
-                    }}
-                    helper="Comma-separated tags for rules engine categorization">
-                </ha-textfield>
+                <ha-alert alert-type="info">
+                    The Studio focuses on visual configuration. For card metadata (ID, tags) and
+                    performance tuning, use the main editor's Advanced tab.
+                </ha-alert>
             </lcards-form-section>
         `;
     }
@@ -1410,6 +1442,115 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     // ========================================
     // Validation & Save/Cancel
     // ========================================
+
+    // ========================================
+    // Helper Methods for Child Dialogs
+    // ========================================
+
+    /**
+     * Render spreadsheet summary
+     */
+    _renderSpreadsheetSummary() {
+        const columns = this._workingConfig.columns || [];
+        const rows = this._workingConfig.rows || [];
+
+        if (columns.length === 0 || rows.length === 0) {
+            return html`
+                <ha-alert alert-type="info">
+                    No spreadsheet configured. Click "Configure Spreadsheet" to set up columns and rows.
+                </ha-alert>
+            `;
+        }
+
+        return html`
+            <ha-alert alert-type="success">
+                <strong>${columns.length} column(s) × ${rows.length} row(s) configured</strong>
+                <br>
+                Columns: ${columns.map(c => c.header).join(', ')}
+            </ha-alert>
+        `;
+    }
+
+    /**
+     * Open template editor dialog
+     */
+    async _openTemplateEditorDialog() {
+        const rows = this._workingConfig.rows || [];
+
+        // Convert simple array rows to full row objects if needed
+        const normalizedRows = rows.map(row => {
+            if (Array.isArray(row)) {
+                return { values: row, style: {}, cellStyles: [] };
+            } else if (row.values) {
+                return row;
+            } else {
+                return { values: [], style: {}, cellStyles: [] };
+            }
+        });
+
+        const dialog = document.createElement('lcards-template-editor-dialog');
+        dialog.hass = this.hass;
+        dialog.rows = normalizedRows;
+
+        dialog.addEventListener('rows-changed', (e) => {
+            const savedRows = e.detail.rows;
+
+            // Convert rows back to simple arrays if they have no style overrides
+            const finalRows = savedRows.map(row => {
+                const hasRowStyle = row.style && Object.keys(row.style).length > 0;
+                const hasCellStyles = row.cellStyles && row.cellStyles.length > 0 &&
+                    row.cellStyles.some(style => style !== null && style !== undefined);
+
+                if (!hasRowStyle && !hasCellStyles) {
+                    return row.values;
+                }
+
+                return row;
+            });
+
+            this._updateConfig('rows', finalRows);
+            this.requestUpdate();
+            lcardsLog.info('[StudioV3] Template rows updated', finalRows);
+        });
+
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+
+        document.body.appendChild(dialog);
+        lcardsLog.debug('[StudioV3] Opened template editor dialog');
+    }
+
+    /**
+     * Open spreadsheet editor dialog
+     */
+    async _openSpreadsheetEditorDialog() {
+        const columns = this._workingConfig.columns || [];
+        const rows = this._workingConfig.rows || [];
+
+        const dialog = document.createElement('lcards-spreadsheet-editor-dialog');
+        dialog.hass = this.hass;
+        dialog.columns = columns;
+        dialog.rows = rows;
+
+        dialog.addEventListener('config-changed', (e) => {
+            this._updateConfig('columns', e.detail.columns);
+            this._updateConfig('rows', e.detail.rows);
+            this.requestUpdate();
+
+            lcardsLog.info('[StudioV3] Spreadsheet configuration updated', {
+                columns: e.detail.columns,
+                rows: e.detail.rows
+            });
+        });
+
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+
+        document.body.appendChild(dialog);
+        lcardsLog.debug('[StudioV3] Opened spreadsheet editor dialog');
+    }
 
     _validateConfig() {
         this._validationErrors = [];
