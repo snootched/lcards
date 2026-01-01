@@ -1,14 +1,14 @@
 /**
  * LCARdS Data Grid Configuration Studio V3
- * 
+ *
  * Complete redesign with proper tab pattern and manual card instantiation preview.
  * Fixes critical preview update issue by using manual DOM manipulation instead of
  * Lit child rendering.
- * 
+ *
  * @element lcards-data-grid-studio-dialog-v3
  * @fires config-changed - When configuration is saved (detail: { config })
  * @fires closed - When dialog is closed
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} config - Initial card configuration
  */
@@ -51,7 +51,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
         this._advancedSubTab = 'performance';
         this._validationErrors = [];
         this._expertGridMode = false;
-        
+
         // Create ref for preview container
         this._previewRef = createRef();
     }
@@ -60,17 +60,17 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
         super.connectedCallback();
         // Deep clone initial config
         this._workingConfig = JSON.parse(JSON.stringify(this.config || {}));
-        
+
         // Ensure data_mode is set
         if (!this._workingConfig.data_mode) {
             this._workingConfig.data_mode = 'random';
         }
-        
+
         // Ensure grid defaults
         if (!this._workingConfig.grid) {
             this._workingConfig.grid = {};
         }
-        
+
         lcardsLog.debug('[DataGridStudioV3] Opened with config:', this._workingConfig);
     }
 
@@ -136,7 +136,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 border: 2px solid var(--divider-color);
                 border-radius: 8px;
                 overflow: hidden;
-                background: var(--card-background-color);
+                background: var(--primary-background-color);
             }
 
             .preview-container {
@@ -162,6 +162,73 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
             .expert-toggle {
                 margin: 16px 0;
             }
+
+            /* Mode Selector Cards */
+            .mode-selector {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                margin: 16px 0;
+            }
+
+            .mode-card {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 24px 16px;
+                border: 2px solid var(--divider-color);
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                background: var(--card-background-color);
+                text-align: center;
+                min-height: 140px;
+            }
+
+            .mode-card:hover {
+                border-color: var(--primary-color);
+                background: var(--secondary-background-color);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .mode-card.active {
+                border-color: var(--primary-color);
+                border-width: 3px;
+                background: linear-gradient(135deg,
+                    rgba(var(--rgb-primary-color, 3, 169, 244), 0.1) 0%,
+                    transparent 100%);
+            }
+
+            .mode-icon {
+                font-size: 48px;
+                margin-bottom: 12px;
+                color: var(--secondary-text-color);
+            }
+
+            .mode-card.active .mode-icon {
+                color: var(--primary-color);
+            }
+
+            .mode-title {
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 6px;
+                color: var(--primary-text-color);
+            }
+
+            .mode-description {
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                line-height: 1.4;
+            }
+
+            @media (max-width: 768px) {
+                .mode-selector {
+                    grid-template-columns: 1fr;
+                }
+            }
         `;
     }
 
@@ -171,7 +238,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 open
                 @closed=${this._handleCancel}
                 .heading=${'Data Grid Configuration Studio'}>
-                
+
                 <div class="dialog-content">
                     <!-- Main Tab Navigation -->
                     <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
@@ -192,20 +259,20 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                             Advanced
                         </ha-tab-group-tab>
                     </ha-tab-group>
-                    
+
                     <!-- Split Layout: Config (60%) | Preview (40%) -->
                     <div class="studio-layout">
                         <div class="config-panel">
                             ${this._renderValidationErrors()}
                             ${this._renderActiveTab()}
                         </div>
-                        
+
                         <div class="preview-panel">
                             ${this._renderPreview()}
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Dialog Actions -->
                 <ha-button
                     slot="primaryAction"
@@ -214,7 +281,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     <ha-icon icon="mdi:check" slot="icon"></ha-icon>
                     Save Configuration
                 </ha-button>
-                
+
                 <ha-button
                     slot="secondaryAction"
                     @click=${this._handleCancel}>
@@ -230,7 +297,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderValidationErrors() {
         if (this._validationErrors.length === 0) return '';
-        
+
         return html`
             <div class="validation-errors">
                 <ha-alert alert-type="error">
@@ -310,26 +377,44 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderDataModeSubTab() {
         const dataMode = this._workingConfig.data_mode || 'random';
-        
+
+        const modes = [
+            {
+                id: 'random',
+                icon: 'mdi:dice-multiple',
+                title: 'Random',
+                description: 'Auto-generated decorative data for LCARS-style ambiance'
+            },
+            {
+                id: 'template',
+                icon: 'mdi:table-edit',
+                title: 'Template',
+                description: 'Manual grid with Home Assistant template syntax'
+            },
+            {
+                id: 'datasource',
+                icon: 'mdi:database',
+                title: 'DataSource',
+                description: 'Real-time data from entities or DataSources'
+            }
+        ];
+
         return html`
             <lcards-form-section
                 header="Data Mode"
                 description="Choose how the grid receives its data"
                 ?expanded=${true}>
-                
-                <ha-select
-                    label="Data Mode"
-                    .value=${dataMode}
-                    @selected=${(e) => this._updateConfig('data_mode', e.target.value)}>
-                    <mwc-list-item value="random">Random (Decorative)</mwc-list-item>
-                    <mwc-list-item value="template">Template (Manual Grid)</mwc-list-item>
-                    <mwc-list-item value="datasource">DataSource (Real-Time)</mwc-list-item>
-                </ha-select>
 
-                <div class="helper-text">
-                    ${dataMode === 'random' ? 'Generates decorative random data for LCARS-style ambiance.' : ''}
-                    ${dataMode === 'template' ? 'Define rows manually using arrays with Home Assistant templates.' : ''}
-                    ${dataMode === 'datasource' ? 'Display real-time data from sensors or DataSources.' : ''}
+                <div class="mode-selector">
+                    ${modes.map(mode => html`
+                        <div
+                            class="mode-card ${dataMode === mode.id ? 'active' : ''}"
+                            @click=${() => this._updateConfig('data_mode', mode.id)}>
+                            <ha-icon class="mode-icon" icon="${mode.icon}"></ha-icon>
+                            <div class="mode-title">${mode.title}</div>
+                            <div class="mode-description">${mode.description}</div>
+                        </div>
+                    `)}
                 </div>
             </lcards-form-section>
         `;
@@ -341,7 +426,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Grid Dimensions"
                 description="Configure rows and columns"
                 ?expanded=${true}>
-                
+
                 <ha-textfield
                     type="text"
                     label="Grid Template Columns"
@@ -387,7 +472,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Advanced Grid Properties"
                 description="Full CSS Grid control"
                 ?expanded=${true}>
-                
+
                 <lcards-grid-layout columns="2">
                     <ha-textfield
                         label="Row Gap"
@@ -414,63 +499,83 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     </ha-textfield>
                 </lcards-grid-layout>
 
-                <ha-select
-                    label="Auto Flow"
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'row', label: 'Row' },
+                        { value: 'column', label: 'Column' },
+                        { value: 'dense', label: 'Dense' },
+                        { value: 'row dense', label: 'Row Dense' },
+                        { value: 'column dense', label: 'Column Dense' }
+                    ]}}}
+                    .label=${'Auto Flow'}
                     .value=${this._workingConfig.grid?.['grid-auto-flow'] || 'row'}
-                    @selected=${(e) => this._updateConfig('grid.grid-auto-flow', e.target.value)}>
-                    <mwc-list-item value="row">Row</mwc-list-item>
-                    <mwc-list-item value="column">Column</mwc-list-item>
-                    <mwc-list-item value="dense">Dense</mwc-list-item>
-                    <mwc-list-item value="row dense">Row Dense</mwc-list-item>
-                    <mwc-list-item value="column dense">Column Dense</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('grid.grid-auto-flow', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 <lcards-grid-layout columns="2">
-                    <ha-select
-                        label="Justify Items"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' }
+                        ]}}}
+                        .label=${'Justify Items'}
                         .value=${this._workingConfig.grid?.['justify-items'] || 'stretch'}
-                        @selected=${(e) => this._updateConfig('grid.justify-items', e.target.value)}>
-                        <mwc-list-item value="stretch">Stretch</mwc-list-item>
-                        <mwc-list-item value="start">Start</mwc-list-item>
-                        <mwc-list-item value="end">End</mwc-list-item>
-                        <mwc-list-item value="center">Center</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('grid.justify-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
-                    <ha-select
-                        label="Align Items"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' }
+                        ]}}}
+                        .label=${'Align Items'}
                         .value=${this._workingConfig.grid?.['align-items'] || 'stretch'}
-                        @selected=${(e) => this._updateConfig('grid.align-items', e.target.value)}>
-                        <mwc-list-item value="stretch">Stretch</mwc-list-item>
-                        <mwc-list-item value="start">Start</mwc-list-item>
-                        <mwc-list-item value="end">End</mwc-list-item>
-                        <mwc-list-item value="center">Center</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('grid.align-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
-                    <ha-select
-                        label="Justify Content"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: '', label: 'Default' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'space-between', label: 'Space Between' },
+                            { value: 'space-around', label: 'Space Around' },
+                            { value: 'space-evenly', label: 'Space Evenly' }
+                        ]}}}
+                        .label=${'Justify Content'}
                         .value=${this._workingConfig.grid?.['justify-content'] || ''}
-                        @selected=${(e) => this._updateConfig('grid.justify-content', e.target.value)}>
-                        <mwc-list-item value="">Default</mwc-list-item>
-                        <mwc-list-item value="start">Start</mwc-list-item>
-                        <mwc-list-item value="end">End</mwc-list-item>
-                        <mwc-list-item value="center">Center</mwc-list-item>
-                        <mwc-list-item value="space-between">Space Between</mwc-list-item>
-                        <mwc-list-item value="space-around">Space Around</mwc-list-item>
-                        <mwc-list-item value="space-evenly">Space Evenly</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('grid.justify-content', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
-                    <ha-select
-                        label="Align Content"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: '', label: 'Default' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'space-between', label: 'Space Between' },
+                            { value: 'space-around', label: 'Space Around' },
+                            { value: 'space-evenly', label: 'Space Evenly' }
+                        ]}}}
+                        .label=${'Align Content'}
                         .value=${this._workingConfig.grid?.['align-content'] || ''}
-                        @selected=${(e) => this._updateConfig('grid.align-content', e.target.value)}>
-                        <mwc-list-item value="">Default</mwc-list-item>
-                        <mwc-list-item value="start">Start</mwc-list-item>
-                        <mwc-list-item value="end">End</mwc-list-item>
-                        <mwc-list-item value="center">Center</mwc-list-item>
-                        <mwc-list-item value="space-between">Space Between</mwc-list-item>
-                        <mwc-list-item value="space-around">Space Around</mwc-list-item>
-                        <mwc-list-item value="space-evenly">Space Evenly</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('grid.align-content', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
@@ -478,7 +583,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderDataConfigSubTab() {
         const dataMode = this._workingConfig.data_mode || 'random';
-        
+
         switch (dataMode) {
             case 'random':
                 return this._renderRandomConfig();
@@ -496,17 +601,21 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
             <lcards-form-section
                 header="Random Data Settings"
                 ?expanded=${true}>
-                
-                <ha-select
-                    label="Data Format"
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'digit', label: 'Digit (0042)' },
+                        { value: 'float', label: 'Float (42.17)' },
+                        { value: 'alpha', label: 'Alpha (AB)' },
+                        { value: 'hex', label: 'Hex (A3F1)' },
+                        { value: 'mixed', label: 'Mixed' }
+                    ]}}}
+                    .label=${'Data Format'}
                     .value=${this._workingConfig.format || 'mixed'}
-                    @selected=${(e) => this._updateConfig('format', e.target.value)}>
-                    <mwc-list-item value="digit">Digit (0042)</mwc-list-item>
-                    <mwc-list-item value="float">Float (42.17)</mwc-list-item>
-                    <mwc-list-item value="alpha">Alpha (AB)</mwc-list-item>
-                    <mwc-list-item value="hex">Hex (A3F1)</mwc-list-item>
-                    <mwc-list-item value="mixed">Mixed</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('format', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 <ha-textfield
                     type="number"
@@ -524,7 +633,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
             <lcards-form-section
                 header="Template Configuration"
                 ?expanded=${true}>
-                
+
                 <lcards-message
                     type="info"
                     message="Template mode allows manual grid configuration. Use the main editor's Configuration tab to open the Template Editor dialog for full row editing.">
@@ -540,19 +649,23 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderDataSourceConfig() {
         const layout = this._workingConfig.layout || 'timeline';
-        
+
         return html`
             <lcards-form-section
                 header="DataSource Settings"
                 ?expanded=${true}>
-                
-                <ha-select
-                    label="Layout Type"
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'timeline', label: 'Timeline (Flowing Data)' },
+                        { value: 'spreadsheet', label: 'Spreadsheet (Structured Grid)' }
+                    ]}}}
+                    .label=${'Layout Type'}
                     .value=${layout}
-                    @selected=${(e) => this._updateConfig('layout', e.target.value)}>
-                    <mwc-list-item value="timeline">Timeline (Flowing Data)</mwc-list-item>
-                    <mwc-list-item value="spreadsheet">Spreadsheet (Structured Grid)</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('layout', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 ${layout === 'timeline' ? html`
                     <ha-textfield
@@ -617,7 +730,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     }
 
     _shouldShowHeaderStyleTab() {
-        return this._workingConfig.data_mode === 'datasource' && 
+        return this._workingConfig.data_mode === 'datasource' &&
                this._workingConfig.layout === 'spreadsheet';
     }
 
@@ -642,7 +755,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Typography"
                 description="Font settings for all cells"
                 ?expanded=${true}>
-                
+
                 <ha-textfield
                     type="text"
                     label="Font Size"
@@ -666,14 +779,18 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     helper="Font weight (100-900)">
                 </ha-textfield>
 
-                <ha-select
-                    label="Text Alignment"
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'left', label: 'Left' },
+                        { value: 'center', label: 'Center' },
+                        { value: 'right', label: 'Right' }
+                    ]}}}
+                    .label=${'Text Alignment'}
                     .value=${this._workingConfig.style?.align || 'right'}
-                    @selected=${(e) => this._updateConfig('style.align', e.target.value)}>
-                    <mwc-list-item value="left">Left</mwc-list-item>
-                    <mwc-list-item value="center">Center</mwc-list-item>
-                    <mwc-list-item value="right">Right</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('style.align', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 <ha-textfield
                     label="Padding"
@@ -707,7 +824,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Cell Borders"
                 description="Border styling for all cells"
                 ?expanded=${true}>
-                
+
                 <ha-textfield
                     type="number"
                     label="Border Width"
@@ -723,15 +840,19 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     helper="Border color">
                 </ha-textfield>
 
-                <ha-select
-                    label="Border Style"
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'solid', label: 'Solid' },
+                        { value: 'dashed', label: 'Dashed' },
+                        { value: 'dotted', label: 'Dotted' },
+                        { value: 'double', label: 'Double' }
+                    ]}}}
+                    .label=${'Border Style'}
                     .value=${this._workingConfig.style?.border_style || 'solid'}
-                    @selected=${(e) => this._updateConfig('style.border_style', e.target.value)}>
-                    <mwc-list-item value="solid">Solid</mwc-list-item>
-                    <mwc-list-item value="dashed">Dashed</mwc-list-item>
-                    <mwc-list-item value="dotted">Dotted</mwc-list-item>
-                    <mwc-list-item value="double">Double</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('style.border_style', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
             </lcards-form-section>
         `;
     }
@@ -742,7 +863,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Header Row Style"
                 description="Styling for spreadsheet header row"
                 ?expanded=${true}>
-                
+
                 <ha-textfield
                     type="number"
                     label="Font Size"
@@ -759,15 +880,19 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     helper="Header font weight (100-900)">
                 </ha-textfield>
 
-                <ha-select
-                    label="Text Transform"
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'uppercase', label: 'Uppercase' },
+                        { value: 'lowercase', label: 'Lowercase' },
+                        { value: 'capitalize', label: 'Capitalize' }
+                    ]}}}
+                    .label=${'Text Transform'}
                     .value=${this._workingConfig.header_style?.text_transform || 'uppercase'}
-                    @selected=${(e) => this._updateConfig('header_style.text_transform', e.target.value)}>
-                    <mwc-list-item value="none">None</mwc-list-item>
-                    <mwc-list-item value="uppercase">Uppercase</mwc-list-item>
-                    <mwc-list-item value="lowercase">Lowercase</mwc-list-item>
-                    <mwc-list-item value="capitalize">Capitalize</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('header_style.text_transform', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 <lcards-color-section
                     .editor=${this}
@@ -802,14 +927,18 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                     helper="Bottom border color">
                 </ha-textfield>
 
-                <ha-select
-                    label="Bottom Border Style"
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'solid', label: 'Solid' },
+                        { value: 'dashed', label: 'Dashed' },
+                        { value: 'dotted', label: 'Dotted' }
+                    ]}}}
+                    .label=${'Bottom Border Style'}
                     .value=${this._workingConfig.header_style?.border_bottom_style || 'solid'}
-                    @selected=${(e) => this._updateConfig('header_style.border_bottom_style', e.target.value)}>
-                    <mwc-list-item value="solid">Solid</mwc-list-item>
-                    <mwc-list-item value="dashed">Dashed</mwc-list-item>
-                    <mwc-list-item value="dotted">Dotted</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('header_style.border_bottom_style', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
             </lcards-form-section>
         `;
     }
@@ -849,31 +978,39 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderCascadeSubTab() {
         const animationType = this._workingConfig.animation?.type || 'none';
-        
+
         return html`
             <lcards-form-section
                 header="Cascade Animation"
                 description="Waterfall color cycling effect"
                 ?expanded=${true}>
-                
-                <ha-select
-                    label="Animation Type"
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'cascade', label: 'Cascade' }
+                    ]}}}
+                    .label=${'Animation Type'}
                     .value=${animationType}
-                    @selected=${(e) => this._updateConfig('animation.type', e.target.value)}>
-                    <mwc-list-item value="none">None</mwc-list-item>
-                    <mwc-list-item value="cascade">Cascade</mwc-list-item>
-                </ha-select>
+                    @value-changed=${(e) => this._updateConfig('animation.type', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
 
                 ${animationType === 'cascade' ? html`
-                    <ha-select
-                        label="Timing Pattern"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'default', label: 'Default (Varied Organic)' },
+                            { value: 'niagara', label: 'Niagara (Smooth Uniform)' },
+                            { value: 'fast', label: 'Fast (Quick Waterfall)' },
+                            { value: 'custom', label: 'Custom' }
+                        ]}}}
+                        .label=${'Timing Pattern'}
                         .value=${this._workingConfig.animation?.pattern || 'default'}
-                        @selected=${(e) => this._updateConfig('animation.pattern', e.target.value)}>
-                        <mwc-list-item value="default">Default (Varied Organic)</mwc-list-item>
-                        <mwc-list-item value="niagara">Niagara (Smooth Uniform)</mwc-list-item>
-                        <mwc-list-item value="fast">Fast (Quick Waterfall)</mwc-list-item>
-                        <mwc-list-item value="custom">Custom</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('animation.pattern', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
                     <lcards-color-section
                         .editor=${this}
@@ -920,13 +1057,13 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _renderChangeDetectionSubTab() {
         const highlightChanges = this._workingConfig.animation?.highlight_changes || false;
-        
+
         return html`
             <lcards-form-section
                 header="Change Detection"
                 description="Highlight cells when values change"
                 ?expanded=${true}>
-                
+
                 <ha-formfield label="Highlight Changes">
                     <ha-switch
                         .checked=${highlightChanges}
@@ -935,14 +1072,18 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 </ha-formfield>
 
                 ${highlightChanges ? html`
-                    <ha-select
-                        label="Change Animation Preset"
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'pulse', label: 'Pulse (Scale & Fade)' },
+                            { value: 'glow', label: 'Glow (Shadow Effect)' },
+                            { value: 'flash', label: 'Flash (Background Color)' }
+                        ]}}}
+                        .label=${'Change Animation Preset'}
                         .value=${this._workingConfig.animation?.change_preset || 'pulse'}
-                        @selected=${(e) => this._updateConfig('animation.change_preset', e.target.value)}>
-                        <mwc-list-item value="pulse">Pulse (Scale & Fade)</mwc-list-item>
-                        <mwc-list-item value="glow">Glow (Shadow Effect)</mwc-list-item>
-                        <mwc-list-item value="flash">Flash (Background Color)</mwc-list-item>
-                    </ha-select>
+                        @value-changed=${(e) => this._updateConfig('animation.change_preset', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
                     <ha-textfield
                         type="number"
@@ -1015,7 +1156,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Performance Settings"
                 description="Optimization for large grids"
                 ?expanded=${true}>
-                
+
                 <lcards-message
                     type="info"
                     message="For large grids (100+ cells), consider: reducing refresh_interval, limiting max_highlight_cells, or disabling animations.">
@@ -1046,7 +1187,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Card Metadata"
                 description="Identification and categorization"
                 ?expanded=${true}>
-                
+
                 <ha-textfield
                     label="Card ID"
                     .value=${this._workingConfig.id || ''}
@@ -1073,14 +1214,14 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 header="Expert Settings"
                 description="Advanced configuration options"
                 ?expanded=${true}>
-                
+
                 <lcards-message
                     type="warning"
                     message="These settings are for advanced users. Incorrect values may cause rendering issues.">
                 </lcards-message>
 
                 <ha-alert alert-type="info">
-                    Expert settings like custom animation timing arrays and complex DataSource configurations 
+                    Expert settings like custom animation timing arrays and complex DataSource configurations
                     should be edited in the main editor's YAML tab for full control.
                 </ha-alert>
             </lcards-form-section>
@@ -1097,7 +1238,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _handleMainTabChange(event) {
         event.stopPropagation(); // CRITICAL: Prevent bubbling
-        
+
         const tab = event.target.activeTab?.getAttribute('value');
         if (tab && tab !== this._activeTab) {
             this._activeTab = tab;
@@ -1111,7 +1252,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _handleDataSubTabChange(event) {
         event.stopPropagation(); // CRITICAL: Prevent bubbling to main handler
-        
+
         const tab = event.target.activeTab?.getAttribute('value');
         if (tab && tab !== this._dataSubTab) {
             this._dataSubTab = tab;
@@ -1124,7 +1265,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _handleAppearanceSubTabChange(event) {
         event.stopPropagation();
-        
+
         const tab = event.target.activeTab?.getAttribute('value');
         if (tab && tab !== this._appearanceSubTab) {
             this._appearanceSubTab = tab;
@@ -1137,7 +1278,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _handleAnimationSubTabChange(event) {
         event.stopPropagation();
-        
+
         const tab = event.target.activeTab?.getAttribute('value');
         if (tab && tab !== this._animationSubTab) {
             this._animationSubTab = tab;
@@ -1150,7 +1291,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _handleAdvancedSubTabChange(event) {
         event.stopPropagation();
-        
+
         const tab = event.target.activeTab?.getAttribute('value');
         if (tab && tab !== this._advancedSubTab) {
             this._advancedSubTab = tab;
@@ -1165,31 +1306,31 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
     /**
      * UNIFIED config update - ONLY method to modify config
      * Triggers Lit reactivity by creating new reference
-     * 
+     *
      * @param {string} path - Dot-separated path (e.g., 'style.font_size')
      * @param {*} value - New value
      */
     _updateConfig(path, value) {
         if (!path) return;
-        
+
         // Deep clone entire config
         const newConfig = JSON.parse(JSON.stringify(this._workingConfig));
-        
+
         // Navigate path and set value
         const keys = path.split('.');
         const lastKey = keys.pop();
         let target = newConfig;
-        
+
         for (const key of keys) {
             if (!target[key]) target[key] = {};
             target = target[key];
         }
-        
+
         target[lastKey] = value;
-        
+
         // Atomic assignment - triggers Lit reactivity
         this._workingConfig = newConfig;
-        
+
         lcardsLog.debug(`[StudioV3] Config updated: ${path}`, value);
     }
 
@@ -1212,15 +1353,15 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _getConfigValue(path) {
         if (!path) return undefined;
-        
+
         const keys = path.split('.');
         let value = this._workingConfig;
-        
+
         for (const key of keys) {
             if (value === undefined || value === null) return undefined;
             value = value[key];
         }
-        
+
         return value;
     }
 
@@ -1234,7 +1375,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     updated(changedProperties) {
         super.updated(changedProperties);
-        
+
         if (changedProperties.has('_workingConfig')) {
             this._updatePreviewCard();
         }
@@ -1246,23 +1387,23 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
      */
     _updatePreviewCard() {
         if (!this._previewRef.value) return;
-        
+
         // Remove existing card
         while (this._previewRef.value.firstChild) {
             this._previewRef.value.firstChild.remove();
         }
-        
+
         // Create new card instance
         const card = document.createElement('lcards-data-grid');
         card.hass = this.hass;
-        
+
         // Deep clone config to prevent mutations
         const clonedConfig = JSON.parse(JSON.stringify(this._workingConfig));
         card.setConfig(clonedConfig);
-        
+
         // Insert into container
         this._previewRef.value.appendChild(card);
-        
+
         lcardsLog.debug('[StudioV3] Preview card updated');
     }
 
@@ -1272,16 +1413,16 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
 
     _validateConfig() {
         this._validationErrors = [];
-        
+
         // Basic validation
         if (!this._workingConfig.data_mode) {
             this._validationErrors.push('Data mode is required');
         }
-        
+
         if (this._workingConfig.data_mode === 'template' && !this._workingConfig.rows?.length) {
             this._validationErrors.push('Template mode requires at least one row');
         }
-        
+
         if (this._workingConfig.data_mode === 'datasource') {
             if (!this._workingConfig.layout) {
                 this._validationErrors.push('DataSource mode requires layout selection');
@@ -1293,7 +1434,7 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
                 this._validationErrors.push('Spreadsheet layout requires at least one column');
             }
         }
-        
+
         return this._validationErrors.length === 0;
     }
 
@@ -1303,15 +1444,15 @@ export class LCARdSDataGridStudioDialogV3 extends LitElement {
             this.requestUpdate(); // Force re-render to show errors
             return;
         }
-        
+
         lcardsLog.info('[StudioV3] Saving config:', this._workingConfig);
-        
+
         this.dispatchEvent(new CustomEvent('config-changed', {
             detail: { config: this._workingConfig },
             bubbles: true,
             composed: true
         }));
-        
+
         this._handleClose();
     }
 
