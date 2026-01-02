@@ -38,7 +38,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     static get properties() {
         return {
             hass: { type: Object },
-            config: { type: Object },
+            _initialConfig: { type: Object }, // Store initial config here
             _workingConfig: { type: Object, state: true },
             _activeTab: { type: String, state: true },
             _basicSubTab: { type: String, state: true },
@@ -51,7 +51,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     constructor() {
         super();
         this.hass = null;
-        this.config = null;
+        this._initialConfig = null;
         this._workingConfig = {};
         this._activeTab = 'basic';
         this._basicSubTab = 'mode';
@@ -69,10 +69,29 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._activeOverlay = null;
     }
 
+    /**
+     * Getter for config property that returns _workingConfig
+     * This is needed for lcards-color-section compatibility which expects editor.config
+     */
+    get config() {
+        return this._workingConfig;
+    }
+
+    /**
+     * Setter for config property - stores initial config
+     */
+    set config(value) {
+        this._initialConfig = value;
+        // Initialize _workingConfig if not already set
+        if (!this._workingConfig || Object.keys(this._workingConfig).length === 0) {
+            this._workingConfig = JSON.parse(JSON.stringify(value || {}));
+        }
+    }
+
     connectedCallback() {
         super.connectedCallback();
         // Deep clone initial config
-        this._workingConfig = JSON.parse(JSON.stringify(this.config || {}));
+        this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig || {}));
 
         // Ensure data_mode is set - use new simplified naming
         if (!this._workingConfig.data_mode) {
@@ -614,16 +633,114 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Click cells in the preview panel (WYSIWYG mode) to edit their content.
                     You can use static values or Home Assistant templates.
                 </lcards-message>
+            </lcards-form-section>
 
-                <ha-button @click=${this._openTemplateHelper}>
-                    <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
-                    Template Syntax Helper
-                </ha-button>
+            <lcards-form-section
+                header="Template Syntax Help"
+                description="Common template patterns you can use in cells"
+                ?expanded=${false}>
+
+                ${this._renderTemplateSyntaxExamples()}
             </lcards-form-section>
         `;
     }
 
+    /**
+     * Render template syntax examples with copy buttons
+     */
+    _renderTemplateSyntaxExamples() {
+        const examples = [
+            {
+                title: 'Static Text',
+                description: 'Display fixed text',
+                code: "'DECK 1'",
+                explanation: 'Wrap text in single quotes for static display'
+            },
+            {
+                title: 'Entity State',
+                description: 'Display current state of an entity',
+                code: "{{states('sensor.temperature')}}",
+                explanation: 'Shows the current value of the sensor'
+            },
+            {
+                title: 'Entity Attribute',
+                description: 'Access specific attribute of an entity',
+                code: "{{state_attr('sensor.temperature', 'unit_of_measurement')}}",
+                explanation: 'Access attributes like unit, friendly_name, etc.'
+            },
+            {
+                title: 'Conditional Display',
+                description: 'Show different text based on condition',
+                code: "{% if states('sensor.temperature')|float > 22 %}WARM{% else %}COOL{% endif %}",
+                explanation: 'Use if/else logic to conditionally display text'
+            },
+            {
+                title: 'Formatted Number',
+                description: 'Format numeric values',
+                code: "{{states('sensor.temperature')|float|round(1)}}°C",
+                explanation: 'Round to 1 decimal place and add unit symbol'
+            },
+            {
+                title: 'Time/Date Display',
+                description: 'Show current time or date',
+                code: "{{as_timestamp(now())|timestamp_custom('%H:%M')}}",
+                explanation: 'Format: %H:%M for 24-hour, %I:%M %p for 12-hour'
+            },
+            {
+                title: 'Multiple States Combined',
+                description: 'Combine multiple entity states',
+                code: "{{states('sensor.temp')}}°C / {{states('sensor.humidity')}}%",
+                explanation: 'Show temperature and humidity in one cell'
+            }
+        ];
+
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                ${examples.map((example, index) => html`
+                    <div style="border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px; background: var(--card-background-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div>
+                                <div style="font-weight: 600; color: var(--primary-text-color); margin-bottom: 4px;">
+                                    ${example.title}
+                                </div>
+                                <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">
+                                    ${example.description}
+                                </div>
+                            </div>
+                            <ha-icon-button
+                                @click=${() => this._copyToClipboard(example.code)}
+                                title="Copy to clipboard">
+                                <ha-icon icon="mdi:content-copy"></ha-icon>
+                            </ha-icon-button>
+                        </div>
+                        <div style="background: var(--primary-background-color); border-radius: 4px; padding: 10px; font-family: 'Courier New', monospace; font-size: 13px; overflow-x: auto; color: var(--primary-color); border: 1px solid var(--divider-color);">
+                            ${example.code}
+                        </div>
+                        <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 6px; font-style: italic;">
+                            ${example.explanation}
+                        </div>
+                    </div>
+                `)}
+            </div>
+        `;
+    }
+
+    /**
+     * Copy text to clipboard
+     */
+    _copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Show a brief success message
+            lcardsLog.info('[DataGridStudioV4] Copied to clipboard:', text);
+            // TODO: Could show a toast notification here
+        }).catch(err => {
+            lcardsLog.error('[DataGridStudioV4] Failed to copy:', err);
+        });
+    }
+
     _renderDataTableModeConfig() {
+        const layout = this._workingConfig.layout || 'column-based';
+        
         return html`
             <lcards-form-section
                 header="Data Table Mode Settings"
@@ -637,16 +754,176 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         { value: 'row-timeline', label: 'Row-timeline (Historical Data)' }
                     ]}}}
                     .label=${'Layout Type'}
-                    .value=${this._workingConfig.layout || 'column-based'}
+                    .value=${layout}
                     @value-changed=${(e) => this._updateConfig('layout', e.detail.value)}
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
 
                 <lcards-message type="info">
-                    ${this._workingConfig.layout === 'row-timeline' 
+                    ${layout === 'row-timeline' 
                         ? 'Each row represents one datasource with historical values'
                         : 'Standard spreadsheet layout with column headers'}
                 </lcards-message>
+            </lcards-form-section>
+
+            ${layout === 'column-based' ? this._renderColumnBasedConfig() : this._renderRowTimelineConfig()}
+        `;
+    }
+
+    /**
+     * Render column-based layout configuration
+     */
+    _renderColumnBasedConfig() {
+        const columns = this._workingConfig.columns || [];
+        const rows = this._workingConfig.rows || [];
+
+        return html`
+            <lcards-form-section
+                header="Columns"
+                description="Define column structure"
+                ?expanded=${true}>
+
+                <lcards-message type="info">
+                    Click column headers in preview (WYSIWYG mode) to edit columns, or manage them here.
+                </lcards-message>
+
+                ${columns.length > 0 ? html`
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                        ${columns.map((col, index) => html`
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                                <span style="flex: 1; font-weight: 500;">${col.header || `Column ${index + 1}`}</span>
+                                <span style="color: var(--secondary-text-color); font-size: 12px;">${col.width || 'auto'}</span>
+                                <ha-icon-button
+                                    @click=${() => this._editColumn(index)}
+                                    title="Edit column">
+                                    <ha-icon icon="mdi:pencil"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._deleteColumn(index)}
+                                    title="Delete column">
+                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <lcards-message type="warning">
+                        No columns defined. Click "Add Column" to start.
+                    </lcards-message>
+                `}
+
+                <ha-button @click=${this._addColumn} style="margin-top: 12px;">
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Column
+                </ha-button>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Rows"
+                description="Define row data"
+                ?expanded=${true}>
+
+                <lcards-message type="info">
+                    Each row contains cells for all defined columns. Click cells in preview to edit.
+                </lcards-message>
+
+                ${rows.length > 0 ? html`
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                        ${rows.map((row, index) => html`
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                                <span style="flex: 1; font-weight: 500;">Row ${index + 1}</span>
+                                <span style="color: var(--secondary-text-color); font-size: 12px;">
+                                    ${row.sources?.length || 0} cells
+                                </span>
+                                <ha-icon-button
+                                    @click=${() => this._editRow(index)}
+                                    title="Edit row">
+                                    <ha-icon icon="mdi:pencil"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._deleteRow(index)}
+                                    title="Delete row">
+                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <lcards-message type="warning">
+                        No rows defined. Click "Add Row" to start.
+                    </lcards-message>
+                `}
+
+                <ha-button @click=${this._addRow} style="margin-top: 12px;">
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Row
+                </ha-button>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render row-timeline layout configuration
+     */
+    _renderRowTimelineConfig() {
+        const rows = this._workingConfig.rows || [];
+
+        return html`
+            <lcards-form-section
+                header="Timeline Rows"
+                description="Each row displays historical data from an entity/datasource"
+                ?expanded=${true}>
+
+                <lcards-message type="info">
+                    Rows automatically populate with historical values (newest → oldest, left to right).
+                </lcards-message>
+
+                ${rows.length > 0 ? html`
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                        ${rows.map((row, index) => html`
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                                <ha-icon icon="mdi:chart-timeline-variant" style="color: var(--primary-color);"></ha-icon>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 500;">${row.label || row.source || `Row ${index + 1}`}</div>
+                                    <div style="font-size: 12px; color: var(--secondary-text-color);">
+                                        ${row.source || 'No source'} • ${row.history_hours || 2}h history
+                                    </div>
+                                </div>
+                                <ha-icon-button
+                                    @click=${() => this._editTimelineRow(index)}
+                                    title="Edit row">
+                                    <ha-icon icon="mdi:pencil"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._moveRow(index, 'up')}
+                                    ?disabled=${index === 0}
+                                    title="Move up">
+                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._moveRow(index, 'down')}
+                                    ?disabled=${index === rows.length - 1}
+                                    title="Move down">
+                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._deleteRow(index)}
+                                    title="Delete row">
+                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <lcards-message type="warning">
+                        No timeline rows defined. Click "Add Timeline Row" to start.
+                    </lcards-message>
+                `}
+
+                <ha-button @click=${this._addTimelineRow} style="margin-top: 12px;">
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Timeline Row
+                </ha-button>
             </lcards-form-section>
         `;
     }
@@ -784,6 +1061,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderStylingSubTab() {
+        const isDataTableMode = this._workingConfig.data_mode === 'data-table';
+        const layoutType = this._workingConfig.layout || 'column-based';
+        const showHeaderStyles = isDataTableMode && layoutType === 'column-based';
+
         return html`
             <lcards-form-section
                 header="Style Hierarchy"
@@ -795,6 +1076,97 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Cell Style → Row Style → Column Style → Header Style → Grid Style
                 </lcards-message>
             </lcards-form-section>
+
+            ${showHeaderStyles ? html`
+                <lcards-form-section
+                    header="Header Style"
+                    description="Column header specific styling (Data Table mode only)"
+                    ?expanded=${true}>
+
+                    <lcards-message type="info">
+                        These styles apply only to column headers in Data Table mode.
+                    </lcards-message>
+
+                    <lcards-grid-layout>
+                        <ha-textfield
+                            label="Font Size"
+                            .value=${this._workingConfig.header_style?.font_size || ''}
+                            @input=${(e) => this._updateConfig('header_style.font_size', e.target.value)}
+                            helper="e.g., '18px', '1.2rem'">
+                        </ha-textfield>
+
+                        <ha-textfield
+                            type="number"
+                            label="Font Weight"
+                            .value=${this._workingConfig.header_style?.font_weight || ''}
+                            @input=${(e) => this._updateConfig('header_style.font_weight', e.target.value)}
+                            helper="100-900">
+                        </ha-textfield>
+                    </lcards-grid-layout>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'none', label: 'None' },
+                            { value: 'uppercase', label: 'UPPERCASE' },
+                            { value: 'lowercase', label: 'lowercase' },
+                            { value: 'capitalize', label: 'Capitalize Each Word' }
+                        ]}}}
+                        .label=${'Text Transform'}
+                        .value=${this._workingConfig.header_style?.text_transform || 'none'}
+                        @value-changed=${(e) => this._updateConfig('header_style.text_transform', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <lcards-color-section
+                        .editor=${this}
+                        header="Header Colors"
+                        description="Colors specific to column headers"
+                        .colorPaths=${[
+                            { path: 'header_style.color', label: 'Header Text Color', helper: 'Column header text' },
+                            { path: 'header_style.background', label: 'Header Background', helper: 'Column header background' }
+                        ]}
+                        ?expanded=${false}
+                        ?useColorPicker=${true}>
+                    </lcards-color-section>
+
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider-color);">
+                        <div style="font-weight: 500; margin-bottom: 8px;">Header Border Bottom</div>
+                        <lcards-grid-layout>
+                            <ha-textfield
+                                type="number"
+                                label="Width (px)"
+                                .value=${this._workingConfig.header_style?.border_bottom_width || 0}
+                                @input=${(e) => this._updateConfig('header_style.border_bottom_width', parseInt(e.target.value) || 0)}
+                                min="0"
+                                max="10"
+                                helper="Border below headers">
+                            </ha-textfield>
+
+                            <ha-textfield
+                                label="Color"
+                                .value=${this._workingConfig.header_style?.border_bottom_color || ''}
+                                @input=${(e) => this._updateConfig('header_style.border_bottom_color', e.target.value)}
+                                helper="Border color">
+                            </ha-textfield>
+                        </lcards-grid-layout>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {mode: 'dropdown', options: [
+                                { value: 'solid', label: 'Solid' },
+                                { value: 'dashed', label: 'Dashed' },
+                                { value: 'dotted', label: 'Dotted' },
+                                { value: 'double', label: 'Double' }
+                            ]}}}
+                            .label=${'Border Style'}
+                            .value=${this._workingConfig.header_style?.border_bottom_style || 'solid'}
+                            @value-changed=${(e) => this._updateConfig('header_style.border_bottom_style', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+                    </div>
+                </lcards-form-section>
+            ` : ''}
 
             <lcards-form-section
                 header="Border Settings"
@@ -986,29 +1358,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._updatePreviewCard();
     }
 
-    _openTemplateHelper() {
-        // TODO: Implement template helper dialog
-        lcardsLog.info('[DataGridStudioV4] Template helper not yet implemented');
-        
-        // For now, show a simple alert with examples
-        alert(`Template Syntax Examples:
-
-Entity State:
-{{states('sensor.temperature')}}
-
-Entity Attribute:
-{{state_attr('light.kitchen', 'brightness')}}
-
-Current Time:
-{{now().strftime('%H:%M')}}
-
-Conditional:
-{% if is_state('light.kitchen', 'on') %}ON{% else %}OFF{% endif %}
-
-Math:
-{{(states('sensor.temp') | float * 1.8) + 32}}
-`);
-    }
 
     // ========================================
     // Config Management
@@ -1058,6 +1407,26 @@ Math:
         }
 
         return obj;
+    }
+
+    /**
+     * Set config value at a given path (for lcards-color-section compatibility)
+     * This is an alias for _updateConfig to match the interface expected by lcards-color-section
+     * @param {string} path - Dot-notation path
+     * @param {*} value - New value
+     */
+    _setConfigValue(path, value) {
+        this._updateConfig(path, value);
+    }
+
+    /**
+     * Public updateConfig method (for lcards-color-section compatibility)
+     * This is an alias for _updateConfig
+     * @param {string} path - Dot-notation path
+     * @param {*} value - New value
+     */
+    updateConfig(path, value) {
+        this._updateConfig(path, value);
     }
 
     /**
@@ -1119,38 +1488,56 @@ Math:
             return;
         }
 
-        // Find clicked cell element
-        let target = event.target;
-        while (target && !target.classList.contains('grid-cell') && target.parentElement) {
-            target = target.parentElement;
+        lcardsLog.debug('[DataGridStudioV4] Preview clicked', event.target);
+
+        // The card renders in shadow DOM, so we need to get the composed path
+        const path = event.composedPath();
+        
+        // Find the first grid-cell element in the path
+        let cellElement = null;
+        for (const element of path) {
+            if (element.classList && element.classList.contains('grid-cell')) {
+                cellElement = element;
+                break;
+            }
         }
 
-        if (!target || !target.classList.contains('grid-cell')) {
+        if (!cellElement) {
             lcardsLog.debug('[DataGridStudioV4] Click not on a grid cell');
             return;
         }
 
-        // Get cell position from data attributes (if card supports it)
-        // For now, we'll implement basic detection
-        const cellIndex = Array.from(target.parentElement.children).indexOf(target);
-        const rowElement = target.parentElement;
-        const rowIndex = Array.from(rowElement.parentElement.children).indexOf(rowElement);
+        // Get cell position from data attributes
+        const row = parseInt(cellElement.dataset.row);
+        const col = parseInt(cellElement.dataset.col);
 
-        lcardsLog.debug('[DataGridStudioV4] Cell clicked:', { row: rowIndex, col: cellIndex });
+        // Check if this is a header cell (has data-col but no data-row, or row is undefined)
+        const isHeader = cellElement.classList.contains('grid-header');
 
-        // Determine what to open based on modifier keys
-        if (event.shiftKey) {
+        lcardsLog.debug('[DataGridStudioV4] Cell clicked:', { 
+            row, 
+            col, 
+            isHeader,
+            element: cellElement 
+        });
+
+        // Determine what to open based on click type
+        if (isHeader) {
+            // Header cell = column editor
+            this._openColumnEditor(col, event);
+        } else if (event.shiftKey) {
             // Shift + click = row editor
-            this._openRowEditor(rowIndex, event);
+            this._openRowEditor(row, event);
         } else if (event.ctrlKey || event.metaKey) {
             // Ctrl/Cmd + click = column editor
-            this._openColumnEditor(cellIndex, event);
+            this._openColumnEditor(col, event);
         } else {
             // Normal click = cell editor
-            this._openCellEditor(rowIndex, cellIndex, event);
+            this._openCellEditor(row, col, event);
         }
 
         event.stopPropagation();
+        event.preventDefault();
     }
 
     /**
@@ -1546,7 +1933,205 @@ Math:
             }
         }
 
+        // Data Table mode validation
+        if (this._workingConfig.data_mode === 'data-table') {
+            const layout = this._workingConfig.layout || 'column-based';
+
+            if (layout === 'column-based') {
+                // Column-based validation
+                const columns = this._workingConfig.columns || [];
+                const rows = this._workingConfig.rows || [];
+
+                if (columns.length === 0) {
+                    errors.push('Data Table (column-based): At least one column is required');
+                }
+
+                if (rows.length === 0) {
+                    errors.push('Data Table (column-based): At least one row is required');
+                }
+
+                // Validate that all rows have cells for all columns
+                rows.forEach((row, rowIndex) => {
+                    if (!row.sources || row.sources.length < columns.length) {
+                        errors.push(`Data Table (column-based): Row ${rowIndex + 1} is missing cells for all columns`);
+                    }
+                });
+
+                // Validate column headers
+                columns.forEach((col, colIndex) => {
+                    if (!col.header || col.header.trim() === '') {
+                        errors.push(`Data Table (column-based): Column ${colIndex + 1} is missing a header`);
+                    }
+                });
+            } else if (layout === 'row-timeline') {
+                // Row-timeline validation
+                const rows = this._workingConfig.rows || [];
+
+                if (rows.length === 0) {
+                    errors.push('Data Table (row-timeline): At least one row is required');
+                }
+
+                // Validate that all rows have valid entity/datasource
+                rows.forEach((row, rowIndex) => {
+                    if (!row.source || row.source.trim() === '') {
+                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} is missing a datasource/entity`);
+                    }
+
+                    if (!row.history_hours || row.history_hours < 1 || row.history_hours > 24) {
+                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} history hours must be between 1 and 24`);
+                    }
+                });
+            }
+        }
+
         return errors;
+    }
+
+    // ========================================
+    // Data Table Mode Operations
+    // ========================================
+
+    /**
+     * Add new column (column-based layout)
+     */
+    _addColumn() {
+        if (!this._workingConfig.columns) {
+            this._workingConfig.columns = [];
+        }
+
+        this._workingConfig.columns.push({
+            header: `Column ${this._workingConfig.columns.length + 1}`,
+            width: 'auto',
+            align: 'left',
+            style: {}
+        });
+
+        lcardsLog.info('[DataGridStudioV4] Column added');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Edit column configuration
+     */
+    _editColumn(index) {
+        // TODO: Open column editor dialog
+        lcardsLog.info('[DataGridStudioV4] Edit column:', index);
+    }
+
+    /**
+     * Delete column
+     */
+    _deleteColumn(index) {
+        if (!this._workingConfig.columns) return;
+
+        this._workingConfig.columns.splice(index, 1);
+
+        // Also remove cells from all rows
+        if (this._workingConfig.rows) {
+            this._workingConfig.rows.forEach(row => {
+                if (row.sources && Array.isArray(row.sources)) {
+                    row.sources.splice(index, 1);
+                }
+            });
+        }
+
+        lcardsLog.info('[DataGridStudioV4] Column deleted:', index);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Add new row (column-based layout)
+     */
+    _addRow() {
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        const numColumns = this._workingConfig.columns?.length || 0;
+        const newRow = {
+            sources: Array(numColumns).fill(null).map(() => ({
+                type: 'static',
+                value: '',
+                column: 0
+            }))
+        };
+
+        this._workingConfig.rows.push(newRow);
+
+        lcardsLog.info('[DataGridStudioV4] Row added');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Edit row configuration
+     */
+    _editRow(index) {
+        // TODO: Open row editor dialog
+        lcardsLog.info('[DataGridStudioV4] Edit row:', index);
+    }
+
+    /**
+     * Delete row
+     */
+    _deleteRow(index) {
+        if (!this._workingConfig.rows) return;
+
+        this._workingConfig.rows.splice(index, 1);
+
+        lcardsLog.info('[DataGridStudioV4] Row deleted:', index);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Add timeline row (row-timeline layout)
+     */
+    _addTimelineRow() {
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        this._workingConfig.rows.push({
+            source: '',
+            label: `Row ${this._workingConfig.rows.length + 1}`,
+            format: '{value}',
+            history_hours: 2,
+            columns: 12
+        });
+
+        lcardsLog.info('[DataGridStudioV4] Timeline row added');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Edit timeline row configuration
+     */
+    _editTimelineRow(index) {
+        // TODO: Open timeline row editor dialog
+        lcardsLog.info('[DataGridStudioV4] Edit timeline row:', index);
+    }
+
+    /**
+     * Move row up or down
+     */
+    _moveRow(index, direction) {
+        if (!this._workingConfig.rows) return;
+
+        const rows = this._workingConfig.rows;
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+
+        if (newIndex < 0 || newIndex >= rows.length) return;
+
+        // Swap rows
+        [rows[index], rows[newIndex]] = [rows[newIndex], rows[index]];
+
+        lcardsLog.info('[DataGridStudioV4] Row moved:', direction, index, newIndex);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
     }
 
     // ========================================
