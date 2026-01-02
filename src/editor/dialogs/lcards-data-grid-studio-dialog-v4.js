@@ -72,10 +72,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Create ref for preview container
         this._previewRef = createRef();
-        
+
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
-        
+
         // Active overlay editor reference
         this._activeOverlay = null;
     }
@@ -121,10 +121,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Initialize Manual mode with empty row structure to prevent validation errors
         if (this._workingConfig.data_mode === 'manual') {
+            // Parse grid config to get column count
+            this._parseGridConfigForUI();
+            const numColumns = this._gridColumns || 12;
+
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._workingConfig.rows = [
-                    ['', '', ''], // Start with one empty row (3 cells)
-                ];
+                this._workingConfig.rows = [Array(numColumns).fill('')];
             }
         }
 
@@ -134,7 +136,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             if (!this._workingConfig.layout) {
                 this._workingConfig.layout = 'spreadsheet';
             }
-            
+
             // Migrate old layout names
             const layoutMap = {
                 'column-based': 'spreadsheet',
@@ -143,7 +145,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             if (layoutMap[this._workingConfig.layout]) {
                 this._workingConfig.layout = layoutMap[this._workingConfig.layout];
             }
-            
+
             // Initialize columns/rows for spreadsheet layout
             if (this._workingConfig.layout === 'spreadsheet') {
                 if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
@@ -161,7 +163,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     ];
                 }
             }
-            
+
             // Initialize source for timeline layout
             if (this._workingConfig.layout === 'timeline') {
                 if (!this._workingConfig.source) {
@@ -186,7 +188,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._parseGridConfigForUI();
 
         lcardsLog.debug('[DataGridStudioV4] Opened with config:', this._workingConfig);
-        
+
         // Schedule initial preview update
         this.updateComplete.then(() => this._updatePreviewCard());
     }
@@ -330,6 +332,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 min-height: 400px;
                 padding: 16px;
                 position: relative;
+            }
+
+            /* Make grid cells visible in preview */
+            .preview-container lcards-data-grid {
+                display: block;
+                width: 100%;
+                min-height: 300px;
             }
 
             /* Sub-tabs styling */
@@ -488,13 +497,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <div class="dialog-content">
                     <!-- Main Tab Navigation -->
                     <div class="main-tabs">
-                        <button 
+                        <button
                             class="main-tab ${this._activeTab === 'basic' ? 'active' : ''}"
                             @click=${() => this._handleMainTabChange('basic')}>
                             <ha-icon icon="mdi:view-grid"></ha-icon>
                             Basic
                         </button>
-                        <button 
+                        <button
                             class="main-tab ${this._activeTab === 'advanced' ? 'active' : ''}"
                             @click=${() => this._handleMainTabChange('advanced')}>
                             <ha-icon icon="mdi:cog"></ha-icon>
@@ -530,7 +539,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Cancel
                 </ha-button>
             </ha-dialog>
-            
+
             <!-- Render active overlay editor -->
             ${this._activeOverlay ? this._renderOverlay() : ''}
         `;
@@ -572,7 +581,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _renderPreview() {
         const showEditToggle = this._workingConfig.data_mode === 'manual' || this._workingConfig.data_mode === 'data-table';
-        
+
         return html`
             <div class="preview-header">
                 <span class="preview-title">Live Preview</span>
@@ -580,21 +589,21 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-button
                         @click=${this._toggleEditMode}
                         .label=${this._isEditMode ? 'Switch to Preview' : 'Switch to Edit Mode'}>
-                        <ha-icon 
-                            icon=${this._isEditMode ? 'mdi:eye' : 'mdi:pencil'} 
+                        <ha-icon
+                            icon=${this._isEditMode ? 'mdi:eye' : 'mdi:pencil'}
                             slot="icon">
                         </ha-icon>
                         ${this._isEditMode ? 'Preview Mode' : 'Edit Mode'}
                     </ha-button>
                 ` : ''}
             </div>
-            
+
             ${this._isEditMode && (this._workingConfig.data_mode === 'manual' || this._workingConfig.data_mode === 'data-table') ? html`
                 <div style="padding: 12px; background: var(--info-color, #2196F3); color: white; font-size: 12px;">
                     <strong>WYSIWYG Mode:</strong> Click cells to edit • Shift+Click for row • Ctrl/Cmd+Click for column
                 </div>
             ` : ''}
-            
+
             <div class="preview-container" ${ref(this._previewRef)}>
                 <!-- Card will be inserted here by _updatePreviewCard() -->
             </div>
@@ -609,17 +618,17 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return html`
             <!-- Sub-tabs for Basic -->
             <div class="sub-tabs">
-                <button 
+                <button
                     class="sub-tab ${this._basicSubTab === 'mode' ? 'active' : ''}"
                     @click=${() => this._handleBasicSubTabChange('mode')}>
                     Mode Selection
                 </button>
-                <button 
+                <button
                     class="sub-tab ${this._basicSubTab === 'grid' ? 'active' : ''}"
                     @click=${() => this._handleBasicSubTabChange('grid')}>
                     Grid Structure
                 </button>
-                <button 
+                <button
                     class="sub-tab ${this._basicSubTab === 'config' ? 'active' : ''}"
                     @click=${() => this._handleBasicSubTabChange('config')}>
                     Configuration
@@ -675,7 +684,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                 <div class="mode-selector">
                     ${modes.map(mode => html`
-                        <div 
+                        <div
                             class="mode-card ${dataMode === mode.id ? 'active' : ''}"
                             @click=${() => this._handleModeChange(mode.id)}>
                             <div class="mode-icon">
@@ -741,6 +750,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderManualModeConfig() {
+        const rows = this._workingConfig.rows || [];
+        const numColumns = this._gridColumns || 12;
+
         return html`
             <lcards-form-section
                 header="Manual Mode Settings"
@@ -751,6 +763,39 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Click cells in the preview panel (WYSIWYG mode) to edit their content.
                     You can use static values or Home Assistant templates.
                 </lcards-message>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Rows"
+                description="Manage grid rows"
+                ?expanded=${true}>
+
+                ${rows.length > 0 ? html`
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                        ${rows.map((row, index) => html`
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                                <span style="flex: 1; font-weight: 500;">Row ${index + 1}</span>
+                                <span style="color: var(--secondary-text-color); font-size: 12px;">
+                                    ${Array.isArray(row) ? row.length : 0} cells
+                                </span>
+                                <ha-icon-button
+                                    @click=${() => this._deleteManualRow(index)}
+                                    title="Delete row">
+                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <lcards-message type="warning">
+                        No rows defined. Click "Add Row" to start building your grid.
+                    </lcards-message>
+                `}
+
+                <ha-button @click=${this._addManualRow} style="margin-top: 12px;">
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Row
+                </ha-button>
             </lcards-form-section>
 
             <lcards-form-section
@@ -858,7 +903,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderDataTableModeConfig() {
         const layout = this._workingConfig.layout || 'spreadsheet';
-        
+
         return html`
             <lcards-form-section
                 header="Data Table Mode Settings"
@@ -878,7 +923,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </ha-selector>
 
                 <lcards-message type="info">
-                    ${layout === 'timeline' 
+                    ${layout === 'timeline'
                         ? 'Each row represents one datasource with historical values'
                         : 'Standard spreadsheet layout with column headers'}
                 </lcards-message>
@@ -1144,17 +1189,17 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return html`
             <!-- Sub-tabs for Advanced -->
             <div class="sub-tabs">
-                <button 
+                <button
                     class="sub-tab ${this._advancedSubTab === 'styling' ? 'active' : ''}"
                     @click=${() => this._handleAdvancedSubTabChange('styling')}>
                     Styling
                 </button>
-                <button 
+                <button
                     class="sub-tab ${this._advancedSubTab === 'animation' ? 'active' : ''}"
                     @click=${() => this._handleAdvancedSubTabChange('animation')}>
                     Animation
                 </button>
-                <button 
+                <button
                     class="sub-tab ${this._advancedSubTab === 'css-grid' ? 'active' : ''}"
                     @click=${() => this._handleAdvancedSubTabChange('css-grid')}>
                     CSS Grid
@@ -1182,7 +1227,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const isDataTableMode = this._workingConfig.data_mode === 'data-table';
         const layoutType = this._workingConfig.layout || 'spreadsheet';
         const showHeaderStyles = isDataTableMode && layoutType === 'spreadsheet';
-        
+
         // Determine mode for hierarchy diagram
         let hierarchyMode = 'all';
         if (this._workingConfig.data_mode === 'manual') {
@@ -1383,20 +1428,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         header="Cascade Colors"
                         description="3-color cycle for cascade effect"
                         .colorPaths=${[
-                            { 
-                                path: 'animation.colors.start', 
-                                label: 'Start Color', 
-                                helper: 'Starting color (75% dwell)' 
+                            {
+                                path: 'animation.colors.start',
+                                label: 'Start Color',
+                                helper: 'Starting color (75% dwell)'
                             },
-                            { 
-                                path: 'animation.colors.text', 
-                                label: 'Middle Color', 
-                                helper: 'Middle color (10% snap)' 
+                            {
+                                path: 'animation.colors.text',
+                                label: 'Middle Color',
+                                helper: 'Middle color (10% snap)'
                             },
-                            { 
-                                path: 'animation.colors.end', 
-                                label: 'End Color', 
-                                helper: 'Ending color (10% brief)' 
+                            {
+                                path: 'animation.colors.end',
+                                label: 'End Color',
+                                helper: 'Ending color (10% brief)'
                             }
                         ]}
                         ?expanded=${true}
@@ -1498,21 +1543,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _handleModeChange(mode) {
         this._updateConfig('data_mode', mode);
-        
+
         // Initialize mode-specific config
         if (mode === 'manual') {
-            // Initialize empty rows array for manual mode
+            // Initialize with one empty row matching grid columns for manual mode
+            const numColumns = this._gridColumns || 12;
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._workingConfig.rows = [
-                    ['', '', ''], // Start with one empty row (3 cells)
-                ];
+                this._workingConfig.rows = [Array(numColumns).fill('')];
             }
         } else if (mode === 'data-table') {
             // Initialize data table with spreadsheet layout
             if (!this._workingConfig.layout) {
                 this._workingConfig.layout = 'spreadsheet';
             }
-            
+
             // Initialize columns/rows for spreadsheet
             if (this._workingConfig.layout === 'spreadsheet') {
                 if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
@@ -1531,7 +1575,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 }
             }
         }
-        
+
         lcardsLog.debug('[DataGridStudioV4] Mode changed to:', mode);
         this.requestUpdate();
         this._schedulePreviewUpdate();
@@ -1539,7 +1583,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _handleLayoutChange(newLayout) {
         this._updateConfig('layout', newLayout);
-        
+
         // Initialize layout-specific config
         if (newLayout === 'spreadsheet') {
             // Ensure columns exist
@@ -1572,7 +1616,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 this._workingConfig.rows = [];
             }
         }
-        
+
         lcardsLog.debug('[DataGridStudioV4] Layout changed to:', newLayout);
         this.requestUpdate();
         this._schedulePreviewUpdate();
@@ -1581,7 +1625,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _setPreviewMode(mode) {
         this._previewMode = mode;
         lcardsLog.debug('[DataGridStudioV4] Preview mode changed to:', mode);
-        
+
         // Re-render preview to enable/disable click handlers
         this._updatePreviewCard();
     }
@@ -1592,7 +1636,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _parseGridConfigForUI() {
         const grid = this._workingConfig.grid || {};
-        
+
         // Parse grid-template-rows: "repeat(8, auto)" -> 8
         if (grid['grid-template-rows']) {
             const match = grid['grid-template-rows'].match(/repeat\((\d+),/);
@@ -1603,7 +1647,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         } else {
             this._gridRows = 8;
         }
-        
+
         // Parse grid-template-columns: "repeat(12, 1fr)" -> 12
         if (grid['grid-template-columns']) {
             const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
@@ -1614,7 +1658,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         } else {
             this._gridColumns = 12;
         }
-        
+
         // Parse gap: "8px" -> 8
         if (grid.gap) {
             const match = String(grid.gap).match(/(\d+)/);
@@ -1639,10 +1683,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Generate CSS Grid string
         const cssValue = `repeat(${value}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
-        
+
         // Store human-readable value for UI binding
         this._gridRows = value;
-        
+
         lcardsLog.debug('[DataGridStudioV4] Grid rows changed:', { value, cssValue });
     }
 
@@ -1655,10 +1699,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Generate CSS Grid string
         const cssValue = `repeat(${value}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
-        
+
         // Store human-readable value for UI binding
         this._gridColumns = value;
-        
+
         lcardsLog.debug('[DataGridStudioV4] Grid columns changed:', { value, cssValue });
     }
 
@@ -1671,10 +1715,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Gap can be number or string with units
         const cssValue = `${value}px`;
         this._updateConfig('grid.gap', cssValue);
-        
+
         // Store human-readable value for UI binding
         this._gridGap = value;
-        
+
         lcardsLog.debug('[DataGridStudioV4] Grid gap changed:', { value, cssValue });
     }
 
@@ -1683,16 +1727,16 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * @private
      */
     _toggleEditMode() {
-        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', { 
-            before: this._isEditMode 
+        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', {
+            before: this._isEditMode
         });
-        
+
         this._isEditMode = !this._isEditMode;
-        
-        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', { 
-            after: this._isEditMode 
+
+        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', {
+            after: this._isEditMode
         });
-        
+
         this.requestUpdate();
     }
 
@@ -1796,30 +1840,59 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Create new card instance
         const card = document.createElement('lcards-data-grid');
-        
+
         // Convert config for backward compatibility with card
         const cardConfig = this._convertConfigForCard(this._workingConfig);
-        
+
         // Add editorMode flag if in edit mode
         if (this._isEditMode) {
             cardConfig.editorMode = true;
         }
-        
+
+        // Ensure style config exists for preview visibility
+        if (!cardConfig.style) {
+            cardConfig.style = {};
+        }
+
+        // Add default colors and padding for visibility in editor
+        if (!cardConfig.style.color) {
+            cardConfig.style.color = '#99ccff'; // LCARS blue
+        }
+        if (!cardConfig.style.background) {
+            cardConfig.style.background = 'transparent';
+        }
+        // Override padding for editor visibility
+        cardConfig.style.padding = '4px 8px';
+        // Add border for visibility
+        cardConfig.style.border_width = 1;
+        cardConfig.style.border_style = 'solid';
+        cardConfig.style.border_color = 'rgba(153, 204, 255, 0.3)';
+
+        lcardsLog.debug('[DataGridStudioV4] Setting card config:', cardConfig);
+
         card.setConfig(cardConfig);
         card.hass = this.hass;
 
+        lcardsLog.debug('[DataGridStudioV4] Card config set, attaching listeners');
+
         // Add WYSIWYG click handler if in edit mode
         if (this._isEditMode) {
-            card.addEventListener('click', this._handlePreviewClick.bind(this));
+            lcardsLog.info('[DataGridStudioV4] Attaching click handler for WYSIWYG');
+
+            // Try multiple approaches to catch clicks
+            card.addEventListener('click', this._handlePreviewClick.bind(this), true); // Capture phase
+            card.addEventListener('click', this._handlePreviewClick.bind(this)); // Bubble phase
+
             card.style.cursor = 'pointer';
         }
 
         // Add to container
         container.appendChild(card);
 
-        lcardsLog.debug('[DataGridStudioV4] Preview card updated', { 
+        lcardsLog.debug('[DataGridStudioV4] Preview card updated', {
             isEditMode: this._isEditMode,
-            editorMode: cardConfig.editorMode 
+            editorMode: cardConfig.editorMode,
+            config: cardConfig
         });
     }
 
@@ -1828,16 +1901,25 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * Detects cell/row/column and opens appropriate editor
      */
     _handlePreviewClick(event) {
+        lcardsLog.debug('[DataGridStudioV4] Click received', {
+            isEditMode: this._isEditMode,
+            dataMode: this._workingConfig.data_mode,
+            target: event.target
+        });
+
         // Only handle in edit mode and manual mode
         if (!this._isEditMode || this._workingConfig.data_mode !== 'manual') {
+            lcardsLog.debug('[DataGridStudioV4] Click ignored - not in edit mode or not manual mode');
             return;
         }
 
-        lcardsLog.debug('[DataGridStudioV4] Preview clicked', event.target);
+        lcardsLog.debug('[DataGridStudioV4] Processing click for WYSIWYG');
 
         // The card renders in shadow DOM, so we need to get the composed path
         const path = event.composedPath();
-        
+
+        lcardsLog.debug('[DataGridStudioV4] Composed path length:', path.length);
+
         // Find the first grid-cell element in the path
         let cellElement = null;
         for (const element of path) {
@@ -1859,11 +1941,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Check if this is a header cell (has data-col but no data-row, or row is undefined)
         const isHeader = cellElement.classList.contains('grid-header');
 
-        lcardsLog.debug('[DataGridStudioV4] Cell clicked:', { 
-            row, 
-            col, 
+        lcardsLog.info('[DataGridStudioV4] Cell clicked:', {
+            row,
+            col,
             isHeader,
-            element: cellElement 
+            element: cellElement
         });
 
         // Determine what to open based on click type
@@ -2010,7 +2092,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _calculateOverlayPosition(event) {
         const padding = 20;
         const maxWidth = 400;
-        
+
         let left = event.clientX + padding;
         let top = event.clientY;
 
@@ -2033,12 +2115,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (!this._workingConfig.rows || !this._workingConfig.rows[row]) {
             return '';
         }
-        
+
         const rowData = this._workingConfig.rows[row];
         if (Array.isArray(rowData)) {
             return rowData[col] || '';
         }
-        
+
         return '';
     }
 
@@ -2057,7 +2139,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (!this._workingConfig.rows || !this._workingConfig.rows[row]) {
             return [];
         }
-        
+
         const rowData = this._workingConfig.rows[row];
         return Array.isArray(rowData) ? rowData : [];
     }
@@ -2131,11 +2213,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _handleRowUpdate(detail) {
         const { row, style } = detail;
-        
+
         // TODO: Store row-specific style
-        
+
         lcardsLog.info('[DataGridStudioV4] Row updated:', { row, style });
-        
+
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2177,11 +2259,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _handleColumnUpdate(detail) {
         const { col, width, alignment, style } = detail;
-        
+
         // TODO: Store column-specific configuration
-        
+
         lcardsLog.info('[DataGridStudioV4] Column updated:', { col, width, alignment, style });
-        
+
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2253,6 +2335,50 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             converted.data_mode = modeMap[converted.data_mode];
         }
 
+        // Disable animations in preview for cleaner editing experience
+        if (converted.animation) {
+            delete converted.animation;
+        }
+
+        // Convert Data Table structure if needed
+        if (config.data_mode === 'data-table') {
+            const layout = config.layout || 'spreadsheet';
+
+            if (layout === 'spreadsheet' && config.columns && config.rows) {
+                // Convert spreadsheet structure to card-compatible format
+                // For preview, we need to convert the sources structure to flat arrays
+                const flatRows = [];
+
+                // Add header row
+                flatRows.push(config.columns.map(col => col.header || ''));
+
+                // Convert data rows
+                config.rows.forEach(row => {
+                    if (row.sources && Array.isArray(row.sources)) {
+                        // Extract values from sources
+                        const flatRow = row.sources.map(source => {
+                            if (source.type === 'static') {
+                                return source.value || '';
+                            } else if (source.type === 'entity') {
+                                return source.entity_id || '';
+                            } else if (source.type === 'datasource') {
+                                return source.datasource_id || '';
+                            }
+                            return '';
+                        });
+                        flatRows.push(flatRow);
+                    }
+                });
+
+                converted.rows = flatRows;
+
+                // Set data_mode to template for preview
+                converted.data_mode = 'template';
+
+                lcardsLog.debug('[DataGridStudioV4] Converted data-table to flat rows:', flatRows);
+            }
+        }
+
         return converted;
     }
 
@@ -2281,7 +2407,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Manual mode validation - only validate if not in edit mode
         if (this._workingConfig.data_mode === 'manual' && !this._isEditMode) {
             const rows = this._workingConfig.rows || [];
-            
+
             if (rows.length === 0) {
                 errors.push('Manual mode: At least one row is required');
             }
@@ -2376,20 +2502,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _editColumn(index) {
         lcardsLog.info('[DataGridStudioV4] Edit column:', index);
-        
+
         const column = this._workingConfig.columns?.[index];
         if (!column) {
             lcardsLog.error('[DataGridStudioV4] Column not found:', index);
             return;
         }
-        
+
         // Create overlay with column editor
         this._activeOverlay = {
             type: 'column',
             colIndex: index,
             data: { ...column }
         };
-        
+
         this.requestUpdate();
     }
 
@@ -2486,20 +2612,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     _editTimelineRow(index) {
         lcardsLog.info('[DataGridStudioV4] Edit timeline row:', index);
-        
+
         const row = this._workingConfig.rows?.[index];
         if (!row) {
             lcardsLog.error('[DataGridStudioV4] Row not found:', index);
             return;
         }
-        
+
         // Create overlay with timeline row editor
         this._activeOverlay = {
             type: 'timeline-row',
             rowIndex: index,
             data: { ...row }
         };
-        
+
         this.requestUpdate();
     }
 
@@ -2518,6 +2644,37 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         [rows[index], rows[newIndex]] = [rows[newIndex], rows[index]];
 
         lcardsLog.info('[DataGridStudioV4] Row moved:', direction, index, newIndex);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Add new row for Manual mode
+     */
+    _addManualRow() {
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        const numColumns = this._gridColumns || 12;
+        const newRow = Array(numColumns).fill('');
+
+        this._workingConfig.rows.push(newRow);
+
+        lcardsLog.info('[DataGridStudioV4] Manual row added');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Delete row in Manual mode
+     */
+    _deleteManualRow(index) {
+        if (!this._workingConfig.rows) return;
+
+        this._workingConfig.rows.splice(index, 1);
+
+        lcardsLog.info('[DataGridStudioV4] Manual row deleted:', index);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }

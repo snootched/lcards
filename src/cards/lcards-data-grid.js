@@ -184,6 +184,15 @@ export class LCARdSDataGrid extends LCARdSCard {
           overflow: hidden;
           text-overflow: ellipsis;
           transition: color 0.3s ease, background-color 0.3s ease;
+          min-height: 1.5em; /* Prevent collapse when empty */
+          padding: 4px 8px; /* Add padding for better visibility */
+        }
+
+        /* Empty cells show placeholder for better visibility */
+        .grid-cell:empty::before {
+          content: '—';
+          opacity: 0.4;
+          color: var(--secondary-text-color, #999);
         }
 
         .grid-cell.align-left {
