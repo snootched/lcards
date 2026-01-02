@@ -1,8 +1,8 @@
 /**
  * LCARdS Style Hierarchy Diagram Component
- * 
+ *
  * Visual SVG diagram showing style precedence for Data Grid cards
- * 
+ *
  * @element lcards-style-hierarchy-diagram
  * @property {String} mode - Display mode: 'all', 'data-table', or 'manual'
  */
@@ -20,119 +20,84 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
         return css`
             :host {
                 display: block;
-                padding: 16px;
+                padding: 12px;
                 background: var(--secondary-background-color, #f5f5f5);
                 border-radius: 8px;
             }
 
-            svg {
-                width: 100%;
-                height: auto;
+            .box-model {
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 200px;
             }
 
-            .level-box {
-                fill: var(--card-background-color, white);
-                stroke: var(--primary-color, #03a9f4);
-                stroke-width: 2;
+            .level {
+                position: absolute;
+                border: 2px solid var(--primary-color, #03a9f4);
+                background: var(--card-background-color, white);
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
             }
 
-            .level-text {
-                fill: var(--primary-text-color, #000);
-                font-size: 14px;
-                font-weight: 500;
+            .level:hover {
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.05);
+                transform: scale(1.02);
             }
 
-            .level-desc {
-                fill: var(--secondary-text-color, #666);
+            /* Nested box model - each level smaller and centered */
+            .level-0 { width: 280px; height: 200px; top: 0; left: 0; }
+            .level-1 { width: 230px; height: 160px; top: 20px; left: 25px; }
+            .level-2 { width: 180px; height: 120px; top: 40px; left: 50px; }
+            .level-3 { width: 130px; height: 80px; top: 60px; left: 75px; }
+            .level-4 { width: 80px; height: 40px; top: 80px; left: 100px; }
+
+            .level-label {
+                position: absolute;
+                top: 4px;
+                left: 8px;
                 font-size: 11px;
-            }
-
-            .arrow {
-                stroke: var(--primary-color, #03a9f4);
-                stroke-width: 2;
-                fill: none;
-                marker-end: url(#arrowhead);
-            }
-
-            .priority-text {
-                fill: var(--secondary-text-color, #666);
-                font-size: 10px;
-                font-style: italic;
+                font-weight: 600;
+                color: var(--primary-text-color, #000);
+                background: var(--card-background-color, white);
+                padding: 2px 6px;
+                border-radius: 3px;
             }
 
             .help-text {
-                margin-top: 12px;
-                font-size: 12px;
+                margin-top: 16px;
+                font-size: 11px;
                 color: var(--secondary-text-color);
-                line-height: 1.5;
+                line-height: 1.4;
+                text-align: center;
             }
         `;
     }
 
     render() {
         const levels = this._getLevels();
-        const boxHeight = 60;
-        const boxWidth = 140;
-        const spacing = 40;
-        const totalHeight = (levels.length * boxHeight) + ((levels.length - 1) * spacing) + 40;
 
         return html`
-            <svg viewBox="0 0 200 ${totalHeight}" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="10" 
-                            refX="9" refY="3" orient="auto">
-                        <polygon points="0 0, 10 3, 0 6" 
-                                 fill="var(--primary-color, #03a9f4)" />
-                    </marker>
-                </defs>
-
-                <!-- Priority labels -->
-                <text x="10" y="15" class="priority-text">Lowest Priority</text>
-                <text x="10" y="${totalHeight - 5}" class="priority-text">Highest Priority</text>
-
-                ${levels.map((level, index) => {
-                    const y = 30 + (index * (boxHeight + spacing));
-                    return svg`
-                        <!-- Box -->
-                        <rect 
-                            class="level-box"
-                            x="30" 
-                            y="${y}" 
-                            width="${boxWidth}" 
-                            height="${boxHeight}" 
-                            rx="4" />
-
-                        <!-- Level name -->
-                        <text 
-                            class="level-text"
-                            x="100" 
-                            y="${y + 25}" 
-                            text-anchor="middle">
-                            ${level.name}
-                        </text>
-
-                        <!-- Description -->
-                        <text 
-                            class="level-desc"
-                            x="100" 
-                            y="${y + 40}" 
-                            text-anchor="middle">
-                            ${level.desc}
-                        </text>
-
-                        <!-- Arrow to next level -->
-                        ${index < levels.length - 1 ? svg`
-                            <path 
-                                class="arrow"
-                                d="M 100 ${y + boxHeight} L 100 ${y + boxHeight + spacing}" />
+            <div class="box-model">
+                ${levels.map((level, index) => html`
+                    <div class="level level-${index}" title="${level.desc}">
+                        <div class="level-label">${level.name}</div>
+                        ${index < levels.length - 1 ? html`
+                            <div class="level-content">
+                                <!-- Next level nested inside -->
+                            </div>
                         ` : ''}
-                    `;
-                })}
-            </svg>
+                    </div>
+                `)}
+            </div>
 
             <div class="help-text">
-                Each level can override styles from levels above it. 
-                Cell-level styles have the highest priority and will override all others.
+                <strong>Cascade Override:</strong> Inner levels override outer levels.
+                ${levels[levels.length - 1].name} (innermost) has highest priority.
             </div>
         `;
     }
