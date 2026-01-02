@@ -1061,6 +1061,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderStylingSubTab() {
+        const isDataTableMode = this._workingConfig.data_mode === 'data-table';
+        const layoutType = this._workingConfig.layout || 'column-based';
+        const showHeaderStyles = isDataTableMode && layoutType === 'column-based';
+
         return html`
             <lcards-form-section
                 header="Style Hierarchy"
@@ -1072,6 +1076,97 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Cell Style → Row Style → Column Style → Header Style → Grid Style
                 </lcards-message>
             </lcards-form-section>
+
+            ${showHeaderStyles ? html`
+                <lcards-form-section
+                    header="Header Style"
+                    description="Column header specific styling (Data Table mode only)"
+                    ?expanded=${true}>
+
+                    <lcards-message type="info">
+                        These styles apply only to column headers in Data Table mode.
+                    </lcards-message>
+
+                    <lcards-grid-layout>
+                        <ha-textfield
+                            label="Font Size"
+                            .value=${this._workingConfig.header_style?.font_size || ''}
+                            @input=${(e) => this._updateConfig('header_style.font_size', e.target.value)}
+                            helper="e.g., '18px', '1.2rem'">
+                        </ha-textfield>
+
+                        <ha-textfield
+                            type="number"
+                            label="Font Weight"
+                            .value=${this._workingConfig.header_style?.font_weight || ''}
+                            @input=${(e) => this._updateConfig('header_style.font_weight', e.target.value)}
+                            helper="100-900">
+                        </ha-textfield>
+                    </lcards-grid-layout>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'none', label: 'None' },
+                            { value: 'uppercase', label: 'UPPERCASE' },
+                            { value: 'lowercase', label: 'lowercase' },
+                            { value: 'capitalize', label: 'Capitalize Each Word' }
+                        ]}}}
+                        .label=${'Text Transform'}
+                        .value=${this._workingConfig.header_style?.text_transform || 'none'}
+                        @value-changed=${(e) => this._updateConfig('header_style.text_transform', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <lcards-color-section
+                        .editor=${this}
+                        header="Header Colors"
+                        description="Colors specific to column headers"
+                        .colorPaths=${[
+                            { path: 'header_style.color', label: 'Header Text Color', helper: 'Column header text' },
+                            { path: 'header_style.background', label: 'Header Background', helper: 'Column header background' }
+                        ]}
+                        ?expanded=${false}
+                        ?useColorPicker=${true}>
+                    </lcards-color-section>
+
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider-color);">
+                        <div style="font-weight: 500; margin-bottom: 8px;">Header Border Bottom</div>
+                        <lcards-grid-layout>
+                            <ha-textfield
+                                type="number"
+                                label="Width (px)"
+                                .value=${this._workingConfig.header_style?.border_bottom_width || 0}
+                                @input=${(e) => this._updateConfig('header_style.border_bottom_width', parseInt(e.target.value) || 0)}
+                                min="0"
+                                max="10"
+                                helper="Border below headers">
+                            </ha-textfield>
+
+                            <ha-textfield
+                                label="Color"
+                                .value=${this._workingConfig.header_style?.border_bottom_color || ''}
+                                @input=${(e) => this._updateConfig('header_style.border_bottom_color', e.target.value)}
+                                helper="Border color">
+                            </ha-textfield>
+                        </lcards-grid-layout>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {mode: 'dropdown', options: [
+                                { value: 'solid', label: 'Solid' },
+                                { value: 'dashed', label: 'Dashed' },
+                                { value: 'dotted', label: 'Dotted' },
+                                { value: 'double', label: 'Double' }
+                            ]}}}
+                            .label=${'Border Style'}
+                            .value=${this._workingConfig.header_style?.border_bottom_style || 'solid'}
+                            @value-changed=${(e) => this._updateConfig('header_style.border_bottom_style', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+                    </div>
+                </lcards-form-section>
+            ` : ''}
 
             <lcards-form-section
                 header="Border Settings"
@@ -1835,6 +1930,57 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
             if (this._workingConfig.grid.columns < 1 || this._workingConfig.grid.columns > 50) {
                 errors.push('Grid columns must be between 1 and 50');
+            }
+        }
+
+        // Data Table mode validation
+        if (this._workingConfig.data_mode === 'data-table') {
+            const layout = this._workingConfig.layout || 'column-based';
+
+            if (layout === 'column-based') {
+                // Column-based validation
+                const columns = this._workingConfig.columns || [];
+                const rows = this._workingConfig.rows || [];
+
+                if (columns.length === 0) {
+                    errors.push('Data Table (column-based): At least one column is required');
+                }
+
+                if (rows.length === 0) {
+                    errors.push('Data Table (column-based): At least one row is required');
+                }
+
+                // Validate that all rows have cells for all columns
+                rows.forEach((row, rowIndex) => {
+                    if (!row.sources || row.sources.length < columns.length) {
+                        errors.push(`Data Table (column-based): Row ${rowIndex + 1} is missing cells for all columns`);
+                    }
+                });
+
+                // Validate column headers
+                columns.forEach((col, colIndex) => {
+                    if (!col.header || col.header.trim() === '') {
+                        errors.push(`Data Table (column-based): Column ${colIndex + 1} is missing a header`);
+                    }
+                });
+            } else if (layout === 'row-timeline') {
+                // Row-timeline validation
+                const rows = this._workingConfig.rows || [];
+
+                if (rows.length === 0) {
+                    errors.push('Data Table (row-timeline): At least one row is required');
+                }
+
+                // Validate that all rows have valid entity/datasource
+                rows.forEach((row, rowIndex) => {
+                    if (!row.source || row.source.trim() === '') {
+                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} is missing a datasource/entity`);
+                    }
+
+                    if (!row.history_hours || row.history_hours < 1 || row.history_hours > 24) {
+                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} history hours must be between 1 and 24`);
+                    }
+                });
             }
         }
 
