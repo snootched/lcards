@@ -666,18 +666,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderModeSpecificConfig() {
-        const dataMode = this._workingConfig.data_mode || 'decorative';
-
-        switch (dataMode) {
-            case 'decorative':
-                return this._renderDecorativeModeConfig();
-            case 'manual':
-                return '';  // No additional config needed - editing done in Grid Structure tab
-            case 'data-table':
-                return '';  // No additional config needed - editing done in Grid Structure tab
-            default:
-                return '';
-        }
+        // All mode-specific config moved to Grid Structure tab
+        return '';
     }
 
     _renderDecorativeModeConfig() {
@@ -972,8 +962,42 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </ha-textfield>
             </lcards-form-section>
 
+            ${dataMode === 'decorative' ? this._renderDecorativeModeConfig() : ''}
             ${dataMode === 'manual' ? this._renderManualModeEditor() : ''}
             ${dataMode === 'data-table' ? this._renderDataTableModeEditor() : ''}
+        `;
+    }
+
+    _renderDecorativeModeConfig() {
+        return html`
+            <lcards-form-section
+                header="Decorative Mode Settings"
+                description="Configure auto-generated random data"
+                ?expanded=${true}>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'digit', label: 'Digit (0042, 1337)' },
+                        { value: 'float', label: 'Float (42.17, 3.14)' },
+                        { value: 'alpha', label: 'Alpha (AB, XY)' },
+                        { value: 'hex', label: 'Hex (A3F1, 00FF)' },
+                        { value: 'mixed', label: 'Mixed (various)' }
+                    ]}}}
+                    .label=${'Data Format'}
+                    .value=${this._workingConfig.format || 'mixed'}
+                    @value-changed=${(e) => this._updateConfig('format', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
+
+                <ha-textfield
+                    type="number"
+                    label="Refresh Interval (ms)"
+                    .value=${this._workingConfig.refresh_interval || 0}
+                    @input=${(e) => this._updateConfig('refresh_interval', parseInt(e.target.value) || 0)}
+                    helper="Auto-refresh interval (0 = disabled)">
+                </ha-textfield>
+            </lcards-form-section>
         `;
     }
 
@@ -3366,8 +3390,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     }}
                     @keydown=${(e) => {
                         if (e.key === 'Enter') {
+                            e.stopPropagation();
+                            e.preventDefault();
                             this._saveCellEdit();
                         } else if (e.key === 'Escape') {
+                            e.stopPropagation();
                             this._cancelCellEdit();
                         }
                     }}
@@ -3385,14 +3412,117 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </ha-button>
                 </div>
 
-                <lcards-message type="info" style="margin-top: 12px;">
-                    <strong>Template Examples:</strong><br>
-                    • Static: <code>DECK 1</code><br>
-                    • Entity: <code>{{states('sensor.temperature')}}</code><br>
-                    • Formatted: <code>{{states('sensor.temp')|float|round(1)}}°C</code>
-                </lcards-message>
+                ${this._renderTemplateExamples()}
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Render template examples with insert/copy buttons
+     */
+    _renderTemplateExamples() {
+        const examples = [
+            {
+                category: 'Basic',
+                items: [
+                    { label: 'Static Text', template: 'DECK 1', description: 'Plain text' },
+                    { label: 'Entity State', template: "{{states('sensor.temperature')}}", description: 'Current entity state' },
+                    { label: 'Entity Attribute', template: "{{state_attr('light.kitchen', 'brightness')}}", description: 'Specific attribute' }
+                ]
+            },
+            {
+                category: 'Formatted Numbers',
+                items: [
+                    { label: 'Temperature', template: "{{states('sensor.temp')|float|round(1)}}°C", description: 'Rounded to 1 decimal' },
+                    { label: 'Percentage', template: "{{states('sensor.battery')|int}}%", description: 'Integer percentage' },
+                    { label: 'Power', template: "{{(states('sensor.power')|float / 1000)|round(2)}} kW", description: 'Watts to kilowatts' }
+                ]
+            },
+            {
+                category: 'Conditionals',
+                items: [
+                    { label: 'On/Off', template: "{% if is_state('light.kitchen', 'on') %}ON{% else %}OFF{% endif %}", description: 'Binary state' },
+                    { label: 'Threshold', template: "{% if states('sensor.temp')|float > 25 %}HOT{% else %}OK{% endif %}", description: 'Numeric comparison' },
+                    { label: 'Status', template: "{% if is_state('binary_sensor.door', 'on') %}OPEN{% else %}CLOSED{% endif %}", description: 'Binary sensor' }
+                ]
+            },
+            {
+                category: 'Time & Date',
+                items: [
+                    { label: 'Last Changed', template: "{{relative_time(states.sensor.temperature.last_changed)}}", description: 'Relative time' },
+                    { label: 'Current Time', template: "{{now().strftime('%H:%M')}}", description: '24-hour format' },
+                    { label: 'Date', template: "{{now().strftime('%Y-%m-%d')}}", description: 'ISO date format' }
+                ]
+            }
+        ];
+
+        return html`
+            <lcards-form-section
+                header="Template Examples"
+                description="Click to insert or copy common patterns"
+                ?expanded=${false}
+                style="margin-top: 12px;">
+
+                ${examples.map(category => html`
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: var(--primary-text-color);">
+                            ${category.category}
+                        </div>
+                        ${category.items.map(item => html`
+                            <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 500; margin-bottom: 4px;">${item.label}</div>
+                                    <code style="font-size: 11px; color: var(--secondary-text-color); word-break: break-all;">
+                                        ${item.template}
+                                    </code>
+                                    <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px;">
+                                        ${item.description}
+                                    </div>
+                                </div>
+                                <ha-icon-button
+                                    @click=${() => this._insertTemplate(item.template)}
+                                    title="Insert template into cell"
+                                    style="--mdc-icon-button-size: 36px;">
+                                    <ha-icon icon="mdi:arrow-left-bold"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._copyTemplate(item.template)}
+                                    title="Copy to clipboard"
+                                    style="--mdc-icon-button-size: 36px;">
+                                    <ha-icon icon="mdi:content-copy"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                    </div>
+                `)}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Insert template into active cell
+     */
+    _insertTemplate(template) {
+        if (this._activeCellEdit) {
+            this._activeCellEdit.value = template;
+            this.requestUpdate();
+            lcardsLog.info('[DataGridStudioV4] Template inserted:', template);
+        }
+    }
+
+    /**
+     * Copy template to clipboard
+     */
+    async _copyTemplate(template) {
+        try {
+            await navigator.clipboard.writeText(template);
+            lcardsLog.info('[DataGridStudioV4] Template copied to clipboard:', template);
+
+            // Show brief success feedback (optional)
+            // Could trigger a toast notification here if available
+        } catch (err) {
+            lcardsLog.error('[DataGridStudioV4] Failed to copy template:', err);
+        }
     }
 
     /**
