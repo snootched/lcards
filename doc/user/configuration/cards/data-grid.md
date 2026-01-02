@@ -1,17 +1,18 @@
 # LCARdS Data Grid Card - Quick Reference
 
 **Component:** `custom:lcards-data-grid`
-**Purpose:** Flexible LCARS-style data grid with cascade animations and multiple data modes
+**Purpose:** Flexible LCARS-style data grid with cascade animations and two data modes
 
 ---
 
 ## Overview
 
 The Data Grid card creates authentic LCARS-style data visualizations with:
-- Three data input modes: random (decorative), template (manual), datasource (real-time)
+- Two data input modes: decorative (random) and data (real entities/sensors)
 - Cascade animations with per-row timing and authentic LCARS color cycling
 - Change detection with configurable highlight animations
-- Timeline and spreadsheet layouts for DataSource mode
+- Grid and timeline layouts for data mode
+- Auto-detection of cell types (static text, entity references, or templates)
 - Full theme integration with token support
 - Performance-optimized CSS Grid layout
 
@@ -24,6 +25,187 @@ The Data Grid card creates authentic LCARS-style data visualizations with:
 
 ---
 
+## Data Modes
+
+The Data Grid supports two modes:
+
+### Mode 1: Decorative
+
+Auto-generates random data for LCARS-style ambiance.
+
+**Format Options:**
+
+| Format | Output Example | Description |
+|--------|----------------|-------------|
+| `digit` | `0042`, `1337` | 4-digit numbers (zero-padded) |
+| `float` | `42.17`, `3.14` | Decimal numbers (2 decimals) |
+| `alpha` | `AB`, `XY` | Two uppercase letters |
+| `hex` | `A3F1`, `00FF` | 4-digit hexadecimal |
+| `mixed` | Various | Random mix of all formats |
+
+**Example:**
+```yaml
+type: custom:lcards-data-grid
+data_mode: decorative
+format: hex
+refresh_interval: 3000
+grid:
+  grid-template-rows: repeat(8, auto)
+  grid-template-columns: repeat(12, 1fr)
+  gap: 8px
+animation:
+  type: cascade
+```
+
+---
+
+### Mode 2: Data
+
+Display real entity/sensor data with two layout options:
+
+#### Layout: Grid (Default)
+
+Static grid structure with auto-detected cell types:
+- **Static text:** `'CPU'` or `'Label'`
+- **Entity reference:** `sensor.cpu_usage` (auto-subscribes to state)
+- **Template string:** `'{{states.sensor.cpu_usage.state}}%'` (Jinja2 templates)
+
+**Basic Example:**
+```yaml
+type: custom:lcards-data-grid
+data_mode: data
+layout: grid  # default, can omit
+rows:
+  - ['System', 'Value', 'Status']
+  - ['CPU', sensor.cpu_usage, '{{states.sensor.cpu_usage.state|float > 80 and "HIGH" or "OK"}}']
+  - ['Memory', sensor.memory_usage, 'OK']
+  - ['Temp', sensor.cpu_temp, '{{states.sensor.cpu_temp.state}}°C']
+grid:
+  grid-template-columns: 140px 100px 100px
+  gap: 8px
+animation:
+  type: cascade
+  highlight_changes: true
+```
+
+**With Row Styling:**
+```yaml
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  # Simple array (no styling)
+  - ['System', 'Value', 'Status']
+  
+  # Object format with row-level styling
+  - values: ['CPU', sensor.cpu_usage, 'ALERT']
+    style:
+      color: colors.lcars.orange
+      font_weight: 600
+      background: 'alpha(colors.lcars.orange, 0.1)'
+  
+  - values: ['Memory', sensor.memory_usage, 'OK']
+    style:
+      color: colors.lcars.blue
+```
+
+**Features:**
+- Auto-detects cell types (static/entity/template)
+- Subscribes to entity state changes automatically
+- Full Home Assistant template syntax support
+- Hierarchical styling system
+
+#### Layout: Timeline
+
+Flowing historical data from a single source.
+
+**Example:**
+```yaml
+type: custom:lcards-data-grid
+data_mode: data
+layout: timeline
+source: sensor.temperature
+history_hours: 2
+value_template: '{value}°C'
+grid:
+  grid-template-rows: repeat(6, auto)
+  grid-template-columns: repeat(12, 1fr)
+  gap: 8px
+animation:
+  type: cascade
+```
+
+**Features:**
+- Displays historical data flowing left-to-right
+- Preloads specified hours of history
+- Auto-updates with new data points
+- Value formatting with template strings
+
+---
+
+### Migration from Old Modes
+
+**Old `random` mode:**
+```yaml
+# OLD
+data_mode: random
+format: mixed
+
+# NEW (just rename mode)
+data_mode: decorative
+format: mixed
+```
+
+**Old `template` mode:**
+```yaml
+# OLD
+data_mode: template
+rows:
+  - ['CPU', '{{states.sensor.cpu.state}}%']
+
+# NEW (identical config, just change mode name)
+data_mode: data
+layout: grid  # optional, this is default
+rows:
+  - ['CPU', '{{states.sensor.cpu.state}}%']
+```
+
+**Old `datasource` timeline:**
+```yaml
+# OLD
+data_mode: datasource
+layout: timeline
+source: sensor.temperature
+
+# NEW (identical, just change mode name)
+data_mode: data
+layout: timeline
+source: sensor.temperature
+```
+
+**Old `datasource` spreadsheet (no longer supported):**
+```yaml
+# OLD (complex datasource spreadsheet syntax)
+data_mode: datasource
+layout: spreadsheet
+columns:
+  - header: Location
+  - header: Temperature
+rows:
+  - sources:
+      - {type: static, column: 0, value: 'Living Room'}
+      - {type: datasource, column: 1, source: sensor.living_temp}
+
+# NEW (simpler auto-detect syntax)
+data_mode: data
+layout: grid
+rows:
+  - ['Location', 'Temperature']  # Row 0 as header (style it with rows[0].style)
+  - ['Living Room', sensor.living_temp]
+  - ['Bedroom', sensor.bedroom_temp]
+```
+
+---
+
 ## Complete Schema
 
 ```yaml
@@ -33,57 +215,37 @@ type: custom:lcards-data-grid
 # DATA MODE (Required - choose one)
 # ==============================================================================
 
-data_mode: random | template | datasource
+data_mode: decorative | data
 
 # ------------------------------------------------------------------------------
-# RANDOM MODE - Decorative data generation
+# DECORATIVE MODE - Decorative data generation
 # ------------------------------------------------------------------------------
 
 format: digit | float | alpha | hex | mixed  # Data format (default: mixed)
 refresh_interval: <number>                   # Auto-refresh in ms (0 = disabled)
 
 # ------------------------------------------------------------------------------
-# TEMPLATE MODE - Manual grid with templates
+# DATA MODE - Real entity/sensor data
 # ------------------------------------------------------------------------------
 
+layout: grid | timeline                      # Layout type (default: grid)
+
+# Grid Layout - static structure with auto-detected cells
 rows:
-  - [<value>, <value>, ...]  # Row 1
-  - [<value>, <value>, ...]  # Row 2
-  # Values can be:
-  # - Static text: 'Label'
-  # - Entity state: '{{states.sensor.temp.state}}'
-  # - Entity attribute: '{{states.sensor.temp.attributes.unit}}'
-  # - Jinja2 logic: '{% if ... %}...{% endif %}'
-
-# ------------------------------------------------------------------------------
-# DATASOURCE MODE - Real-time data integration
-# ------------------------------------------------------------------------------
-
-layout: timeline | spreadsheet               # Layout type (required for datasource mode)
+  - [<value>, <value>, ...]  # Row 1 (simple array)
+  - values: [<value>, <value>, ...]  # Row 2 (with styling)
+    style:
+      color: <color>
+      font_weight: <number>
+  # Cell values auto-detect:
+  # - Static text: 'Label' or 'CPU'
+  # - Entity reference: sensor.temperature
+  # - Template: '{{states.sensor.temp.state}}°C'
 
 # Timeline Layout - flowing data from single source
 source: <string>                             # Entity ID or DataSource name
 history_hours: <number>                      # Hours of history to preload (default: 1)
 value_template: <string>                     # Format template (default: '{value}')
-
-# Spreadsheet Layout - structured multi-source grid
-data_sources:                                # DataSource definitions (optional, can auto-create)
-  <name>:
-    entity: <entity_id>                      # Entity to track
-
-columns:                                     # Column definitions (required for spreadsheet)
-  - header: <string>                         # Column header text
-    width: <number>                          # Column width in px (optional)
-    align: left | center | right             # Alignment (default: left)
-
-rows:                                        # Row definitions (required for spreadsheet)
-  - sources:
-      - type: static | datasource
-        column: <number>                     # Column index (0-based)
-        value: <any>                         # For static type
-        source: <string>                     # For datasource type (name or entity)
-        format: <string>                     # Format template (default: '{value}')
-        aggregation: last | avg | min | max  # Aggregation (default: last)
 
 # ==============================================================================
 # GRID CONFIGURATION
