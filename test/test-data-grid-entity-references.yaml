@@ -1,0 +1,21 @@
+# Test: Data Mode - Grid Layout with Entity References
+# Verifies: Auto-detection of entity IDs and automatic subscription
+
+type: custom:lcards-data-grid
+data_mode: data
+layout: grid
+rows:
+  - ['System', 'Value', 'Status']
+  - ['CPU', sensor.cpu_temperature, 'OK']
+  - ['Memory', sensor.memory_percent, 'OK']
+  - ['Disk', sensor.disk_usage, 'OK']
+grid:
+  grid-template-columns: 140px 100px 100px
+  grid-template-rows: repeat(4, auto)
+  gap: 8px
+style:
+  padding: 12px
+  font_size: 18px
+animation:
+  type: cascade
+  pattern: default

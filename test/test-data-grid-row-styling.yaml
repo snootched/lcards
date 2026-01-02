@@ -1,0 +1,29 @@
+# Test: Data Mode - Grid Layout with Row Styling
+# Verifies: Object format rows with style property
+
+type: custom:lcards-data-grid
+data_mode: data
+layout: grid
+rows:
+  - ['System', 'Value', 'Alert Level']
+  - values: ['CPU', sensor.cpu_usage, 'CRITICAL']
+    style:
+      color: '#ff6666'
+      font_weight: 700
+      background: 'rgba(255, 102, 102, 0.1)'
+  - values: ['Memory', sensor.memory_usage, 'WARNING']
+    style:
+      color: '#ffcc66'
+      font_weight: 600
+  - values: ['Disk', sensor.disk_usage, 'OK']
+    style:
+      color: '#66ccff'
+grid:
+  grid-template-columns: 120px 100px 120px
+  grid-template-rows: repeat(4, auto)
+  gap: 8px
+style:
+  padding: 12px
+  font_size: 18px
+animation:
+  type: cascade

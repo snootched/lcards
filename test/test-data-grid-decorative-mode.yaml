@@ -1,0 +1,18 @@
+# Test: Decorative Mode (renamed from random)
+# Verifies: Auto-generated random data with cascade animation
+
+type: custom:lcards-data-grid
+data_mode: decorative
+format: hex
+refresh_interval: 3000
+grid:
+  grid-template-rows: repeat(8, auto)
+  grid-template-columns: repeat(12, 1fr)
+  gap: 4px
+style:
+  padding: 8px
+  font_size: 20px
+  color: '#99ccff'
+animation:
+  type: cascade
+  pattern: default

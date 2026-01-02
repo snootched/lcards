@@ -1,0 +1,20 @@
+# Test: Data Mode - Timeline Layout
+# Verifies: Timeline layout with historical data
+
+type: custom:lcards-data-grid
+data_mode: data
+layout: timeline
+source: sensor.temperature
+history_hours: 2
+value_template: '{value}°C'
+grid:
+  grid-template-rows: repeat(6, auto)
+  grid-template-columns: repeat(12, 1fr)
+  gap: 4px
+style:
+  padding: 8px
+  font_size: 16px
+  color: '#99ccff'
+animation:
+  type: cascade
+  pattern: default

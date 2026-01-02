@@ -1,0 +1,21 @@
+# Test: Data Mode - Grid Layout with Templates
+# Verifies: Jinja2 template evaluation and mixed cell types
+
+type: custom:lcards-data-grid
+data_mode: data
+layout: grid
+rows:
+  - ['Location', 'Temperature', 'Status']
+  - ['Living Room', '{{states.sensor.living_temp.state}}°C', '{{states.sensor.living_temp.state|float > 25 and "HOT" or "OK"}}']
+  - ['Bedroom', '{{states.sensor.bedroom_temp.state}}°C', '{{states.sensor.bedroom_temp.state|float > 25 and "HOT" or "OK"}}']
+  - ['Kitchen', '{{states.sensor.kitchen_temp.state}}°C', 'OK']
+grid:
+  grid-template-columns: 140px 140px 100px
+  grid-template-rows: repeat(4, auto)
+  gap: 8px
+style:
+  padding: 12px
+  font_size: 18px
+animation:
+  type: cascade
+  pattern: default

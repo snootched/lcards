@@ -1,0 +1,18 @@
+# Test: Legacy Mode Support - Old 'template' mode
+# Verifies: Legacy mode name still works, maps to 'data' with grid layout
+
+type: custom:lcards-data-grid
+data_mode: template  # Legacy name, should map to 'data'
+rows:
+  - ['Label', 'Value']
+  - ['Test', '{{states.sensor.test.state}}']
+  - ['Static', '42']
+grid:
+  grid-template-columns: 120px 100px
+  grid-template-rows: repeat(3, auto)
+  gap: 8px
+style:
+  padding: 12px
+  font_size: 18px
+animation:
+  type: cascade
