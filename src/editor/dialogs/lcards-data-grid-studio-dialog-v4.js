@@ -29,6 +29,9 @@ import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
+import '../components/editors/lcards-grid-cell-editor.js';
+import '../components/editors/lcards-grid-row-editor.js';
+import '../components/editors/lcards-grid-column-editor.js';
 import '../../cards/lcards-data-grid.js';
 
 export class LCARdSDataGridStudioDialogV4 extends LitElement {
@@ -61,6 +64,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
+        
+        // Active overlay editor reference
+        this._activeOverlay = null;
     }
 
     connectedCallback() {
@@ -439,11 +445,19 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </button>
                     <button 
                         class="preview-mode-btn ${this._previewMode === 'wysiwyg' ? 'active' : ''}"
-                        @click=${() => this._setPreviewMode('wysiwyg')}>
+                        @click=${() => this._setPreviewMode('wysiwyg')}"
+                        ?disabled=${this._workingConfig.data_mode !== 'manual'}>
                         WYSIWYG
                     </button>
                 </div>
             </div>
+            
+            ${this._previewMode === 'wysiwyg' && this._workingConfig.data_mode === 'manual' ? html`
+                <div style="padding: 12px; background: var(--info-color, #2196F3); color: white; font-size: 12px;">
+                    <strong>WYSIWYG Mode:</strong> Click cells to edit • Shift+Click for row • Ctrl/Cmd+Click for column
+                </div>
+            ` : ''}
+            
             <div class="preview-container" ${ref(this._previewRef)}>
                 <!-- Card will be inserted here by _updatePreviewCard() -->
             </div>
@@ -967,12 +981,33 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _setPreviewMode(mode) {
         this._previewMode = mode;
         lcardsLog.debug('[DataGridStudioV4] Preview mode changed to:', mode);
-        // TODO: Enable/disable WYSIWYG overlays based on mode
+        
+        // Re-render preview to enable/disable click handlers
+        this._updatePreviewCard();
     }
 
     _openTemplateHelper() {
         // TODO: Implement template helper dialog
         lcardsLog.info('[DataGridStudioV4] Template helper not yet implemented');
+        
+        // For now, show a simple alert with examples
+        alert(`Template Syntax Examples:
+
+Entity State:
+{{states('sensor.temperature')}}
+
+Entity Attribute:
+{{state_attr('light.kitchen', 'brightness')}}
+
+Current Time:
+{{now().strftime('%H:%M')}}
+
+Conditional:
+{% if is_state('light.kitchen', 'on') %}ON{% else %}OFF{% endif %}
+
+Math:
+{{(states('sensor.temp') | float * 1.8) + 32}}
+`);
     }
 
     // ========================================
@@ -1062,10 +1097,410 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         card.setConfig(cardConfig);
         card.hass = this.hass;
 
+        // Add WYSIWYG click handler if in WYSIWYG mode
+        if (this._previewMode === 'wysiwyg') {
+            card.addEventListener('click', this._handlePreviewClick.bind(this));
+            card.style.cursor = 'pointer';
+        }
+
         // Add to container
         container.appendChild(card);
 
         lcardsLog.debug('[DataGridStudioV4] Preview card updated');
+    }
+
+    /**
+     * Handle clicks on preview card in WYSIWYG mode
+     * Detects cell/row/column and opens appropriate editor
+     */
+    _handlePreviewClick(event) {
+        // Only handle in WYSIWYG mode and manual mode
+        if (this._previewMode !== 'wysiwyg' || this._workingConfig.data_mode !== 'manual') {
+            return;
+        }
+
+        // Find clicked cell element
+        let target = event.target;
+        while (target && !target.classList.contains('grid-cell') && target.parentElement) {
+            target = target.parentElement;
+        }
+
+        if (!target || !target.classList.contains('grid-cell')) {
+            lcardsLog.debug('[DataGridStudioV4] Click not on a grid cell');
+            return;
+        }
+
+        // Get cell position from data attributes (if card supports it)
+        // For now, we'll implement basic detection
+        const cellIndex = Array.from(target.parentElement.children).indexOf(target);
+        const rowElement = target.parentElement;
+        const rowIndex = Array.from(rowElement.parentElement.children).indexOf(rowElement);
+
+        lcardsLog.debug('[DataGridStudioV4] Cell clicked:', { row: rowIndex, col: cellIndex });
+
+        // Determine what to open based on modifier keys
+        if (event.shiftKey) {
+            // Shift + click = row editor
+            this._openRowEditor(rowIndex, event);
+        } else if (event.ctrlKey || event.metaKey) {
+            // Ctrl/Cmd + click = column editor
+            this._openColumnEditor(cellIndex, event);
+        } else {
+            // Normal click = cell editor
+            this._openCellEditor(rowIndex, cellIndex, event);
+        }
+
+        event.stopPropagation();
+    }
+
+    /**
+     * Open cell editor overlay
+     */
+    _openCellEditor(row, col, event) {
+        // Close any existing overlay
+        this._closeActiveOverlay();
+
+        // Get current cell value and style
+        const cellValue = this._getCellValue(row, col);
+        const cellStyle = this._getCellStyle(row, col);
+
+        // Create editor
+        const editor = document.createElement('lcards-grid-cell-editor');
+        editor.hass = this.hass;
+        editor.row = row;
+        editor.col = col;
+        editor.value = cellValue;
+        editor.style = cellStyle;
+        editor.position = this._calculateOverlayPosition(event);
+
+        // Position editor
+        editor.style.top = `${editor.position.top}px`;
+        editor.style.left = `${editor.position.left}px`;
+
+        // Listen for events
+        editor.addEventListener('cell-updated', (e) => {
+            this._handleCellUpdate(e.detail);
+        });
+
+        editor.addEventListener('closed', () => {
+            this._closeActiveOverlay();
+        });
+
+        // Add to DOM
+        document.body.appendChild(editor);
+        this._activeOverlay = editor;
+
+        lcardsLog.debug('[DataGridStudioV4] Cell editor opened');
+    }
+
+    /**
+     * Open row editor overlay
+     */
+    _openRowEditor(row, event) {
+        this._closeActiveOverlay();
+
+        const editor = document.createElement('lcards-grid-row-editor');
+        editor.hass = this.hass;
+        editor.row = row;
+        editor.cells = this._getRowCells(row);
+        editor.style = this._getRowStyle(row);
+        editor.position = this._calculateOverlayPosition(event);
+
+        editor.style.top = `${editor.position.top}px`;
+        editor.style.left = `${editor.position.left}px`;
+
+        editor.addEventListener('row-updated', (e) => {
+            this._handleRowUpdate(e.detail);
+        });
+
+        editor.addEventListener('row-operation', (e) => {
+            this._handleRowOperation(e.detail);
+        });
+
+        editor.addEventListener('closed', () => {
+            this._closeActiveOverlay();
+        });
+
+        document.body.appendChild(editor);
+        this._activeOverlay = editor;
+
+        lcardsLog.debug('[DataGridStudioV4] Row editor opened');
+    }
+
+    /**
+     * Open column editor overlay
+     */
+    _openColumnEditor(col, event) {
+        this._closeActiveOverlay();
+
+        const editor = document.createElement('lcards-grid-column-editor');
+        editor.hass = this.hass;
+        editor.col = col;
+        editor.width = this._getColumnWidth(col);
+        editor.alignment = this._getColumnAlignment(col);
+        editor.style = this._getColumnStyle(col);
+        editor.position = this._calculateOverlayPosition(event);
+
+        editor.style.top = `${editor.position.top}px`;
+        editor.style.left = `${editor.position.left}px`;
+
+        editor.addEventListener('column-updated', (e) => {
+            this._handleColumnUpdate(e.detail);
+        });
+
+        editor.addEventListener('column-operation', (e) => {
+            this._handleColumnOperation(e.detail);
+        });
+
+        editor.addEventListener('closed', () => {
+            this._closeActiveOverlay();
+        });
+
+        document.body.appendChild(editor);
+        this._activeOverlay = editor;
+
+        lcardsLog.debug('[DataGridStudioV4] Column editor opened');
+    }
+
+    /**
+     * Close active overlay editor
+     */
+    _closeActiveOverlay() {
+        if (this._activeOverlay && this._activeOverlay.parentElement) {
+            this._activeOverlay.parentElement.removeChild(this._activeOverlay);
+            this._activeOverlay = null;
+        }
+    }
+
+    /**
+     * Calculate overlay position near click
+     */
+    _calculateOverlayPosition(event) {
+        const padding = 20;
+        const maxWidth = 400;
+        
+        let left = event.clientX + padding;
+        let top = event.clientY;
+
+        // Ensure overlay stays on screen
+        if (left + maxWidth > window.innerWidth) {
+            left = event.clientX - maxWidth - padding;
+        }
+
+        if (top + 400 > window.innerHeight) {
+            top = window.innerHeight - 400 - padding;
+        }
+
+        return { top, left };
+    }
+
+    /**
+     * Get cell value from config
+     */
+    _getCellValue(row, col) {
+        if (!this._workingConfig.rows || !this._workingConfig.rows[row]) {
+            return '';
+        }
+        
+        const rowData = this._workingConfig.rows[row];
+        if (Array.isArray(rowData)) {
+            return rowData[col] || '';
+        }
+        
+        return '';
+    }
+
+    /**
+     * Get cell style from config
+     */
+    _getCellStyle(row, col) {
+        // TODO: Implement cell-specific style lookup
+        return {};
+    }
+
+    /**
+     * Get row cells
+     */
+    _getRowCells(row) {
+        if (!this._workingConfig.rows || !this._workingConfig.rows[row]) {
+            return [];
+        }
+        
+        const rowData = this._workingConfig.rows[row];
+        return Array.isArray(rowData) ? rowData : [];
+    }
+
+    /**
+     * Get row style
+     */
+    _getRowStyle(row) {
+        // TODO: Implement row-specific style lookup
+        return {};
+    }
+
+    /**
+     * Get column width
+     */
+    _getColumnWidth(col) {
+        // TODO: Implement column width lookup
+        return 'auto';
+    }
+
+    /**
+     * Get column alignment
+     */
+    _getColumnAlignment(col) {
+        // TODO: Implement column alignment lookup
+        return 'left';
+    }
+
+    /**
+     * Get column style
+     */
+    _getColumnStyle(col) {
+        // TODO: Implement column-specific style lookup
+        return {};
+    }
+
+    /**
+     * Handle cell update from editor
+     */
+    _handleCellUpdate(detail) {
+        const { row, col, value, mode, style } = detail;
+
+        // Ensure rows array exists
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        // Ensure row exists
+        while (this._workingConfig.rows.length <= row) {
+            this._workingConfig.rows.push([]);
+        }
+
+        // Ensure row is array
+        if (!Array.isArray(this._workingConfig.rows[row])) {
+            this._workingConfig.rows[row] = [];
+        }
+
+        // Update cell value
+        this._workingConfig.rows[row][col] = value;
+
+        // TODO: Store mode and style information
+
+        lcardsLog.info('[DataGridStudioV4] Cell updated:', { row, col, value });
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Handle row update from editor
+     */
+    _handleRowUpdate(detail) {
+        const { row, style } = detail;
+        
+        // TODO: Store row-specific style
+        
+        lcardsLog.info('[DataGridStudioV4] Row updated:', { row, style });
+        
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Handle row operations (insert, delete, duplicate)
+     */
+    _handleRowOperation(detail) {
+        const { operation, row } = detail;
+
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        switch (operation) {
+            case 'insert-above':
+                this._workingConfig.rows.splice(row, 0, []);
+                break;
+            case 'insert-below':
+                this._workingConfig.rows.splice(row + 1, 0, []);
+                break;
+            case 'duplicate':
+                const duplicateRow = [...(this._workingConfig.rows[row] || [])];
+                this._workingConfig.rows.splice(row + 1, 0, duplicateRow);
+                break;
+            case 'delete':
+                this._workingConfig.rows.splice(row, 1);
+                break;
+        }
+
+        lcardsLog.info('[DataGridStudioV4] Row operation:', operation, row);
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Handle column update from editor
+     */
+    _handleColumnUpdate(detail) {
+        const { col, width, alignment, style } = detail;
+        
+        // TODO: Store column-specific configuration
+        
+        lcardsLog.info('[DataGridStudioV4] Column updated:', { col, width, alignment, style });
+        
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Handle column operations (insert, delete)
+     */
+    _handleColumnOperation(detail) {
+        const { operation, col } = detail;
+
+        if (!this._workingConfig.rows) {
+            this._workingConfig.rows = [];
+        }
+
+        switch (operation) {
+            case 'insert-left':
+                this._workingConfig.rows.forEach(row => {
+                    if (Array.isArray(row)) {
+                        row.splice(col, 0, '');
+                    }
+                });
+                if (this._workingConfig.grid) {
+                    this._workingConfig.grid.columns = (this._workingConfig.grid.columns || 0) + 1;
+                }
+                break;
+            case 'insert-right':
+                this._workingConfig.rows.forEach(row => {
+                    if (Array.isArray(row)) {
+                        row.splice(col + 1, 0, '');
+                    }
+                });
+                if (this._workingConfig.grid) {
+                    this._workingConfig.grid.columns = (this._workingConfig.grid.columns || 0) + 1;
+                }
+                break;
+            case 'delete':
+                this._workingConfig.rows.forEach(row => {
+                    if (Array.isArray(row)) {
+                        row.splice(col, 1);
+                    }
+                });
+                if (this._workingConfig.grid) {
+                    this._workingConfig.grid.columns = Math.max(1, (this._workingConfig.grid.columns || 1) - 1);
+                }
+                break;
+        }
+
+        lcardsLog.info('[DataGridStudioV4] Column operation:', operation, col);
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
     }
 
     /**
