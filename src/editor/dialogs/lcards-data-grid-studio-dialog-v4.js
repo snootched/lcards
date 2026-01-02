@@ -44,7 +44,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             _basicSubTab: { type: String, state: true },
             _advancedSubTab: { type: String, state: true },
             _validationErrors: { type: Array, state: true },
-            _previewMode: { type: String, state: true }
+            _previewMode: { type: String, state: true },
+            _isEditMode: { type: Boolean, state: true },
+            _gridRows: { type: Number, state: true },
+            _gridColumns: { type: Number, state: true },
+            _gridGap: { type: Number, state: true }
         };
     }
 
@@ -58,6 +62,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._advancedSubTab = 'styling';
         this._validationErrors = [];
         this._previewMode = 'live'; // 'live' or 'wysiwyg'
+        this._isEditMode = false; // Initialize edit mode
+
+        // Grid UI state variables
+        this._gridRows = 8;
+        this._gridColumns = 12;
+        this._gridGap = 8;
 
         // Create ref for preview container
         this._previewRef = createRef();
@@ -111,11 +121,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Ensure grid defaults
         if (!this._workingConfig.grid) {
             this._workingConfig.grid = {
-                rows: 8,
-                columns: 12,
-                gap: 8
+                'grid-template-rows': 'repeat(8, auto)',
+                'grid-template-columns': 'repeat(12, 1fr)',
+                gap: '8px'
             };
         }
+
+        // Parse CSS Grid strings to numbers for UI sliders
+        this._parseGridConfigForUI();
 
         lcardsLog.debug('[DataGridStudioV4] Opened with config:', this._workingConfig);
         
@@ -453,25 +466,25 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * This is the proven reliable pattern from v3
      */
     _renderPreview() {
+        const showEditToggle = this._workingConfig.data_mode === 'manual' || this._workingConfig.data_mode === 'data-table';
+        
         return html`
             <div class="preview-header">
                 <span class="preview-title">Live Preview</span>
-                <div class="preview-mode-toggle">
-                    <button 
-                        class="preview-mode-btn ${this._previewMode === 'live' ? 'active' : ''}"
-                        @click=${() => this._setPreviewMode('live')}>
-                        Live
-                    </button>
-                    <button 
-                        class="preview-mode-btn ${this._previewMode === 'wysiwyg' ? 'active' : ''}"
-                        @click=${() => this._setPreviewMode('wysiwyg')}"
-                        ?disabled=${this._workingConfig.data_mode !== 'manual'}>
-                        WYSIWYG
-                    </button>
-                </div>
+                ${showEditToggle ? html`
+                    <ha-button
+                        @click=${this._toggleEditMode}
+                        .label=${this._isEditMode ? 'Switch to Preview' : 'Switch to Edit Mode'}>
+                        <ha-icon 
+                            icon=${this._isEditMode ? 'mdi:eye' : 'mdi:pencil'} 
+                            slot="icon">
+                        </ha-icon>
+                        ${this._isEditMode ? 'Preview Mode' : 'Edit Mode'}
+                    </ha-button>
+                ` : ''}
             </div>
             
-            ${this._previewMode === 'wysiwyg' && this._workingConfig.data_mode === 'manual' ? html`
+            ${this._isEditMode && (this._workingConfig.data_mode === 'manual' || this._workingConfig.data_mode === 'data-table') ? html`
                 <div style="padding: 12px; background: var(--info-color, #2196F3); color: white; font-size: 12px;">
                     <strong>WYSIWYG Mode:</strong> Click cells to edit • Shift+Click for row • Ctrl/Cmd+Click for column
                 </div>
@@ -939,8 +952,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-textfield
                         type="number"
                         label="Rows"
-                        .value=${this._workingConfig.grid?.rows || 8}
-                        @input=${(e) => this._updateConfig('grid.rows', parseInt(e.target.value) || 1)}
+                        .value=${this._gridRows}
+                        @input=${(e) => this._handleGridRowsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
                         helper="Number of rows">
@@ -949,8 +962,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-textfield
                         type="number"
                         label="Columns"
-                        .value=${this._workingConfig.grid?.columns || 12}
-                        @input=${(e) => this._updateConfig('grid.columns', parseInt(e.target.value) || 1)}
+                        .value=${this._gridColumns}
+                        @input=${(e) => this._handleGridColumnsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
                         helper="Number of columns">
@@ -960,8 +973,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <ha-textfield
                     type="number"
                     label="Gap (px)"
-                    .value=${this._workingConfig.grid?.gap || 8}
-                    @input=${(e) => this._updateConfig('grid.gap', parseInt(e.target.value) || 0)}
+                    .value=${this._gridGap}
+                    @input=${(e) => this._handleGridGapChange(parseInt(e.target.value) || 0)}
                     min="0"
                     max="50"
                     helper="Space between cells">
@@ -1358,6 +1371,115 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._updatePreviewCard();
     }
 
+    /**
+     * Parse CSS Grid strings back to numbers for UI sliders
+     * @private
+     */
+    _parseGridConfigForUI() {
+        const grid = this._workingConfig.grid || {};
+        
+        // Parse grid-template-rows: "repeat(8, auto)" -> 8
+        if (grid['grid-template-rows']) {
+            const match = grid['grid-template-rows'].match(/repeat\((\d+),/);
+            this._gridRows = match ? parseInt(match[1]) : 8;
+        } else if (grid.rows) {
+            // Fallback to old shorthand format
+            this._gridRows = grid.rows;
+        } else {
+            this._gridRows = 8;
+        }
+        
+        // Parse grid-template-columns: "repeat(12, 1fr)" -> 12
+        if (grid['grid-template-columns']) {
+            const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
+            this._gridColumns = match ? parseInt(match[1]) : 12;
+        } else if (grid.columns) {
+            // Fallback to old shorthand format
+            this._gridColumns = grid.columns;
+        } else {
+            this._gridColumns = 12;
+        }
+        
+        // Parse gap: "8px" -> 8
+        if (grid.gap) {
+            const match = String(grid.gap).match(/(\d+)/);
+            this._gridGap = match ? parseInt(match[1]) : 8;
+        } else {
+            this._gridGap = 8;
+        }
+
+        lcardsLog.debug('[DataGridStudioV4] Parsed grid config for UI:', {
+            rows: this._gridRows,
+            columns: this._gridColumns,
+            gap: this._gridGap
+        });
+    }
+
+    /**
+     * Handle grid rows change - generates CSS Grid string
+     * @param {number} value - Number of rows
+     * @private
+     */
+    _handleGridRowsChange(value) {
+        // Generate CSS Grid string
+        const cssValue = `repeat(${value}, auto)`;
+        this._updateConfig('grid.grid-template-rows', cssValue);
+        
+        // Store human-readable value for UI binding
+        this._gridRows = value;
+        
+        lcardsLog.debug('[DataGridStudioV4] Grid rows changed:', { value, cssValue });
+    }
+
+    /**
+     * Handle grid columns change - generates CSS Grid string
+     * @param {number} value - Number of columns
+     * @private
+     */
+    _handleGridColumnsChange(value) {
+        // Generate CSS Grid string
+        const cssValue = `repeat(${value}, 1fr)`;
+        this._updateConfig('grid.grid-template-columns', cssValue);
+        
+        // Store human-readable value for UI binding
+        this._gridColumns = value;
+        
+        lcardsLog.debug('[DataGridStudioV4] Grid columns changed:', { value, cssValue });
+    }
+
+    /**
+     * Handle grid gap change - converts to string with units
+     * @param {number} value - Gap in pixels
+     * @private
+     */
+    _handleGridGapChange(value) {
+        // Gap can be number or string with units
+        const cssValue = `${value}px`;
+        this._updateConfig('grid.gap', cssValue);
+        
+        // Store human-readable value for UI binding
+        this._gridGap = value;
+        
+        lcardsLog.debug('[DataGridStudioV4] Grid gap changed:', { value, cssValue });
+    }
+
+    /**
+     * Toggle WYSIWYG edit mode
+     * @private
+     */
+    _toggleEditMode() {
+        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', { 
+            before: this._isEditMode 
+        });
+        
+        this._isEditMode = !this._isEditMode;
+        
+        lcardsLog.debug('[DataGridStudioV4] Toggle edit mode', { 
+            after: this._isEditMode 
+        });
+        
+        this.requestUpdate();
+    }
 
     // ========================================
     // Config Management
@@ -1463,11 +1585,16 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Convert config for backward compatibility with card
         const cardConfig = this._convertConfigForCard(this._workingConfig);
         
+        // Add editorMode flag if in edit mode
+        if (this._isEditMode) {
+            cardConfig.editorMode = true;
+        }
+        
         card.setConfig(cardConfig);
         card.hass = this.hass;
 
-        // Add WYSIWYG click handler if in WYSIWYG mode
-        if (this._previewMode === 'wysiwyg') {
+        // Add WYSIWYG click handler if in edit mode
+        if (this._isEditMode) {
             card.addEventListener('click', this._handlePreviewClick.bind(this));
             card.style.cursor = 'pointer';
         }
@@ -1475,7 +1602,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Add to container
         container.appendChild(card);
 
-        lcardsLog.debug('[DataGridStudioV4] Preview card updated');
+        lcardsLog.debug('[DataGridStudioV4] Preview card updated', { 
+            isEditMode: this._isEditMode,
+            editorMode: cardConfig.editorMode 
+        });
     }
 
     /**
@@ -1483,8 +1613,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * Detects cell/row/column and opens appropriate editor
      */
     _handlePreviewClick(event) {
-        // Only handle in WYSIWYG mode and manual mode
-        if (this._previewMode !== 'wysiwyg' || this._workingConfig.data_mode !== 'manual') {
+        // Only handle in edit mode and manual mode
+        if (!this._isEditMode || this._workingConfig.data_mode !== 'manual') {
             return;
         }
 

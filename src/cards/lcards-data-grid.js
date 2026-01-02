@@ -143,7 +143,8 @@ export class LCARdSDataGrid extends LCARdSCard {
     return {
       ...super.properties,
       _gridData: { type: Array, state: true },
-      _containerSize: { type: Object, state: true }
+      _containerSize: { type: Object, state: true },
+      editorMode: { type: Boolean } // Enable WYSIWYG data attributes (optional, for studio dialog)
     };
   }
 
