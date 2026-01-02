@@ -26,6 +26,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
+import '../components/shared/lcards-style-hierarchy-diagram.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
@@ -115,6 +116,60 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             };
             if (modeMap[this._workingConfig.data_mode]) {
                 this._workingConfig.data_mode = modeMap[this._workingConfig.data_mode];
+            }
+        }
+
+        // Initialize Manual mode with empty row structure to prevent validation errors
+        if (this._workingConfig.data_mode === 'manual') {
+            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
+                this._workingConfig.rows = [
+                    ['', '', ''], // Start with one empty row (3 cells)
+                ];
+            }
+        }
+
+        // Initialize Data Table mode with proper defaults
+        if (this._workingConfig.data_mode === 'data-table') {
+            // Default to spreadsheet layout if not set
+            if (!this._workingConfig.layout) {
+                this._workingConfig.layout = 'spreadsheet';
+            }
+            
+            // Migrate old layout names
+            const layoutMap = {
+                'column-based': 'spreadsheet',
+                'row-timeline': 'timeline'
+            };
+            if (layoutMap[this._workingConfig.layout]) {
+                this._workingConfig.layout = layoutMap[this._workingConfig.layout];
+            }
+            
+            // Initialize columns/rows for spreadsheet layout
+            if (this._workingConfig.layout === 'spreadsheet') {
+                if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
+                    this._workingConfig.columns = [
+                        { header: 'Column 1', width: 100, align: 'left' }
+                    ];
+                }
+                if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
+                    this._workingConfig.rows = [
+                        {
+                            sources: [
+                                { type: 'static', column: 0, value: '' }
+                            ]
+                        }
+                    ];
+                }
+            }
+            
+            // Initialize source for timeline layout
+            if (this._workingConfig.layout === 'timeline') {
+                if (!this._workingConfig.source) {
+                    this._workingConfig.source = '';
+                }
+                if (!this._workingConfig.rows) {
+                    this._workingConfig.rows = [];
+                }
             }
         }
 
@@ -368,6 +423,53 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 margin-bottom: 16px;
             }
 
+            /* Overlay editor styles */
+            .editor-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .overlay-backdrop {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+            }
+
+            .overlay-content {
+                position: relative;
+                background: var(--card-background-color);
+                border-radius: 8px;
+                padding: 24px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 1;
+            }
+
+            .overlay-content h3 {
+                margin: 0 0 16px 0;
+                color: var(--primary-text-color);
+            }
+
+            .overlay-actions {
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+                margin-top: 24px;
+            }
+
             @media (max-width: 768px) {
                 .mode-selector {
                     grid-template-columns: 1fr;
@@ -428,6 +530,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     Cancel
                 </ha-button>
             </ha-dialog>
+            
+            <!-- Render active overlay editor -->
+            ${this._activeOverlay ? this._renderOverlay() : ''}
         `;
     }
 
@@ -752,7 +857,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderDataTableModeConfig() {
-        const layout = this._workingConfig.layout || 'column-based';
+        const layout = this._workingConfig.layout || 'spreadsheet';
         
         return html`
             <lcards-form-section
@@ -763,23 +868,23 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <ha-selector
                     .hass=${this.hass}
                     .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'column-based', label: 'Column-based (Standard Spreadsheet)' },
-                        { value: 'row-timeline', label: 'Row-timeline (Historical Data)' }
+                        { value: 'spreadsheet', label: 'Spreadsheet (Standard Column-based)' },
+                        { value: 'timeline', label: 'Timeline (Historical Data)' }
                     ]}}}
                     .label=${'Layout Type'}
                     .value=${layout}
-                    @value-changed=${(e) => this._updateConfig('layout', e.detail.value)}
+                    @value-changed=${(e) => this._handleLayoutChange(e.detail.value)}
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
 
                 <lcards-message type="info">
-                    ${layout === 'row-timeline' 
+                    ${layout === 'timeline' 
                         ? 'Each row represents one datasource with historical values'
                         : 'Standard spreadsheet layout with column headers'}
                 </lcards-message>
             </lcards-form-section>
 
-            ${layout === 'column-based' ? this._renderColumnBasedConfig() : this._renderRowTimelineConfig()}
+            ${layout === 'spreadsheet' ? this._renderColumnBasedConfig() : this._renderRowTimelineConfig()}
         `;
     }
 
@@ -1075,19 +1180,26 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderStylingSubTab() {
         const isDataTableMode = this._workingConfig.data_mode === 'data-table';
-        const layoutType = this._workingConfig.layout || 'column-based';
-        const showHeaderStyles = isDataTableMode && layoutType === 'column-based';
+        const layoutType = this._workingConfig.layout || 'spreadsheet';
+        const showHeaderStyles = isDataTableMode && layoutType === 'spreadsheet';
+        
+        // Determine mode for hierarchy diagram
+        let hierarchyMode = 'all';
+        if (this._workingConfig.data_mode === 'manual') {
+            hierarchyMode = 'manual';
+        } else if (isDataTableMode) {
+            hierarchyMode = 'data-table';
+        }
 
         return html`
             <lcards-form-section
                 header="Style Hierarchy"
-                description="Visual diagram of style precedence"
+                description="Understanding style precedence"
                 ?expanded=${true}>
 
-                <lcards-message type="info">
-                    <strong>Style Precedence (highest to lowest):</strong><br>
-                    Cell Style → Row Style → Column Style → Header Style → Grid Style
-                </lcards-message>
+                <lcards-style-hierarchy-diagram
+                    .mode=${hierarchyMode}>
+                </lcards-style-hierarchy-diagram>
             </lcards-form-section>
 
             ${showHeaderStyles ? html`
@@ -1264,6 +1376,32 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         max="10"
                         helper="Speed multiplier (1.0 = normal)">
                     </ha-textfield>
+
+                    <!-- CASCADE COLORS - Use lcards-color-section -->
+                    <lcards-color-section
+                        .editor=${this}
+                        header="Cascade Colors"
+                        description="3-color cycle for cascade effect"
+                        .colorPaths=${[
+                            { 
+                                path: 'animation.colors.start', 
+                                label: 'Start Color', 
+                                helper: 'Starting color (75% dwell)' 
+                            },
+                            { 
+                                path: 'animation.colors.text', 
+                                label: 'Middle Color', 
+                                helper: 'Middle color (10% snap)' 
+                            },
+                            { 
+                                path: 'animation.colors.end', 
+                                label: 'End Color', 
+                                helper: 'Ending color (10% brief)' 
+                            }
+                        ]}
+                        ?expanded=${true}
+                        ?useColorPicker=${true}>
+                    </lcards-color-section>
                 ` : ''}
             </lcards-form-section>
 
@@ -1360,7 +1498,84 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _handleModeChange(mode) {
         this._updateConfig('data_mode', mode);
+        
+        // Initialize mode-specific config
+        if (mode === 'manual') {
+            // Initialize empty rows array for manual mode
+            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
+                this._workingConfig.rows = [
+                    ['', '', ''], // Start with one empty row (3 cells)
+                ];
+            }
+        } else if (mode === 'data-table') {
+            // Initialize data table with spreadsheet layout
+            if (!this._workingConfig.layout) {
+                this._workingConfig.layout = 'spreadsheet';
+            }
+            
+            // Initialize columns/rows for spreadsheet
+            if (this._workingConfig.layout === 'spreadsheet') {
+                if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
+                    this._workingConfig.columns = [
+                        { header: 'Column 1', width: 100, align: 'left' }
+                    ];
+                }
+                if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
+                    this._workingConfig.rows = [
+                        {
+                            sources: [
+                                { type: 'static', column: 0, value: '' }
+                            ]
+                        }
+                    ];
+                }
+            }
+        }
+        
         lcardsLog.debug('[DataGridStudioV4] Mode changed to:', mode);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    _handleLayoutChange(newLayout) {
+        this._updateConfig('layout', newLayout);
+        
+        // Initialize layout-specific config
+        if (newLayout === 'spreadsheet') {
+            // Ensure columns exist
+            if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
+                this._workingConfig.columns = [
+                    { header: 'Column 1', width: 100, align: 'left' }
+                ];
+            }
+            // Ensure rows exist
+            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
+                this._workingConfig.rows = [
+                    {
+                        sources: [
+                            { type: 'static', column: 0, value: '' }
+                        ]
+                    }
+                ];
+            }
+            // Remove timeline-specific fields
+            delete this._workingConfig.source;
+        } else if (newLayout === 'timeline') {
+            // Timeline needs source
+            if (!this._workingConfig.source) {
+                this._workingConfig.source = '';
+            }
+            // Timeline doesn't use columns structure
+            delete this._workingConfig.columns;
+            // Timeline rows are different structure (each row = one datasource)
+            if (!this._workingConfig.rows) {
+                this._workingConfig.rows = [];
+            }
+        }
+        
+        lcardsLog.debug('[DataGridStudioV4] Layout changed to:', newLayout);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
     }
 
     _setPreviewMode(mode) {
@@ -2063,54 +2278,69 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         }
 
-        // Data Table mode validation
-        if (this._workingConfig.data_mode === 'data-table') {
-            const layout = this._workingConfig.layout || 'column-based';
+        // Manual mode validation - only validate if not in edit mode
+        if (this._workingConfig.data_mode === 'manual' && !this._isEditMode) {
+            const rows = this._workingConfig.rows || [];
+            
+            if (rows.length === 0) {
+                errors.push('Manual mode: At least one row is required');
+            }
+        }
 
-            if (layout === 'column-based') {
-                // Column-based validation
+        // Data Table mode validation - skip if in edit mode and config is still being built
+        if (this._workingConfig.data_mode === 'data-table') {
+            const layout = this._workingConfig.layout || 'spreadsheet';
+
+            if (layout === 'spreadsheet') {
+                // Spreadsheet layout validation
                 const columns = this._workingConfig.columns || [];
                 const rows = this._workingConfig.rows || [];
 
-                if (columns.length === 0) {
-                    errors.push('Data Table (column-based): At least one column is required');
-                }
-
-                if (rows.length === 0) {
-                    errors.push('Data Table (column-based): At least one row is required');
-                }
-
-                // Validate that all rows have cells for all columns
-                rows.forEach((row, rowIndex) => {
-                    if (!row.sources || row.sources.length < columns.length) {
-                        errors.push(`Data Table (column-based): Row ${rowIndex + 1} is missing cells for all columns`);
+                // Only validate if not in edit mode
+                if (!this._isEditMode) {
+                    if (columns.length === 0) {
+                        errors.push('Data Table (spreadsheet): At least one column is required');
                     }
-                });
 
-                // Validate column headers
-                columns.forEach((col, colIndex) => {
-                    if (!col.header || col.header.trim() === '') {
-                        errors.push(`Data Table (column-based): Column ${colIndex + 1} is missing a header`);
+                    if (rows.length === 0) {
+                        errors.push('Data Table (spreadsheet): At least one row is required');
                     }
-                });
-            } else if (layout === 'row-timeline') {
-                // Row-timeline validation
+
+                    // Validate that all rows have cells for all columns
+                    rows.forEach((row, rowIndex) => {
+                        if (!row.sources || row.sources.length < columns.length) {
+                            errors.push(`Data Table (spreadsheet): Row ${rowIndex + 1} is missing cells for all columns`);
+                        }
+                    });
+
+                    // Validate column headers
+                    columns.forEach((col, colIndex) => {
+                        if (!col.header || col.header.trim() === '') {
+                            errors.push(`Data Table (spreadsheet): Column ${colIndex + 1} is missing a header`);
+                        }
+                    });
+                }
+            } else if (layout === 'timeline') {
+                // Timeline validation
                 const rows = this._workingConfig.rows || [];
 
-                if (rows.length === 0) {
-                    errors.push('Data Table (row-timeline): At least one row is required');
+                // Only validate if not in edit mode
+                if (!this._isEditMode && rows.length === 0) {
+                    errors.push('Data Table (timeline): At least one row is required');
                 }
 
                 // Validate that all rows have valid entity/datasource
-                rows.forEach((row, rowIndex) => {
-                    if (!row.source || row.source.trim() === '') {
-                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} is missing a datasource/entity`);
-                    }
+                if (!this._isEditMode) {
+                    rows.forEach((row, rowIndex) => {
+                        if (!row.source || row.source.trim() === '') {
+                            errors.push(`Data Table (timeline): Row ${rowIndex + 1} is missing a datasource/entity`);
+                        }
 
-                    if (!row.history_hours || row.history_hours < 1 || row.history_hours > 24) {
-                        errors.push(`Data Table (row-timeline): Row ${rowIndex + 1} history hours must be between 1 and 24`);
-                    }
-                });
+                        if (!row.history_hours || row.history_hours < 1 || row.history_hours > 24) {
+                            errors.push(`Data Table (timeline): Row ${rowIndex + 1} history hours must be between 1 and 24`);
+                        }
+                    });
+                }
             }
         }
 
@@ -2145,8 +2375,22 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * Edit column configuration
      */
     _editColumn(index) {
-        // TODO: Open column editor dialog
         lcardsLog.info('[DataGridStudioV4] Edit column:', index);
+        
+        const column = this._workingConfig.columns?.[index];
+        if (!column) {
+            lcardsLog.error('[DataGridStudioV4] Column not found:', index);
+            return;
+        }
+        
+        // Create overlay with column editor
+        this._activeOverlay = {
+            type: 'column',
+            colIndex: index,
+            data: { ...column }
+        };
+        
+        this.requestUpdate();
     }
 
     /**
@@ -2241,8 +2485,22 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * Edit timeline row configuration
      */
     _editTimelineRow(index) {
-        // TODO: Open timeline row editor dialog
         lcardsLog.info('[DataGridStudioV4] Edit timeline row:', index);
+        
+        const row = this._workingConfig.rows?.[index];
+        if (!row) {
+            lcardsLog.error('[DataGridStudioV4] Row not found:', index);
+            return;
+        }
+        
+        // Create overlay with timeline row editor
+        this._activeOverlay = {
+            type: 'timeline-row',
+            rowIndex: index,
+            data: { ...row }
+        };
+        
+        this.requestUpdate();
     }
 
     /**
@@ -2262,6 +2520,194 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         lcardsLog.info('[DataGridStudioV4] Row moved:', direction, index, newIndex);
         this.requestUpdate();
         this._schedulePreviewUpdate();
+    }
+
+    // ========================================
+    // Overlay Rendering
+    // ========================================
+
+    /**
+     * Render active overlay editor
+     */
+    _renderOverlay() {
+        if (!this._activeOverlay) return '';
+
+        switch (this._activeOverlay.type) {
+            case 'timeline-row':
+                return this._renderTimelineRowEditorOverlay();
+            case 'column':
+                return this._renderColumnEditorOverlay();
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Render timeline row editor overlay
+     */
+    _renderTimelineRowEditorOverlay() {
+        const { rowIndex, data } = this._activeOverlay;
+
+        return html`
+            <div class="editor-overlay">
+                <div class="overlay-backdrop" @click=${this._closeOverlay}></div>
+                <div class="overlay-content">
+                    <h3>Edit Timeline Row ${rowIndex + 1}</h3>
+
+                    <ha-entity-picker
+                        .hass=${this.hass}
+                        .value=${data.source || ''}
+                        label="Entity or DataSource"
+                        @value-changed=${(e) => {
+                            this._activeOverlay.data.source = e.detail.value;
+                            this.requestUpdate();
+                        }}>
+                    </ha-entity-picker>
+
+                    <ha-textfield
+                        label="Label (optional)"
+                        .value=${data.label || ''}
+                        @input=${(e) => {
+                            this._activeOverlay.data.label = e.target.value;
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        label="Format Template"
+                        .value=${data.format || '{value}'}
+                        @input=${(e) => {
+                            this._activeOverlay.data.format = e.target.value;
+                            this.requestUpdate();
+                        }}
+                        helper="Use {value} for the data value"
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        type="number"
+                        label="History Hours"
+                        .value=${data.history_hours || 2}
+                        @input=${(e) => {
+                            this._activeOverlay.data.history_hours = parseInt(e.target.value) || 2;
+                            this.requestUpdate();
+                        }}
+                        min="1"
+                        max="24"
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-textfield>
+
+                    <div class="overlay-actions">
+                        <ha-button @click=${this._closeOverlay}>Cancel</ha-button>
+                        <ha-button @click=${this._saveTimelineRow}>Save</ha-button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render column editor overlay
+     */
+    _renderColumnEditorOverlay() {
+        const { colIndex, data } = this._activeOverlay;
+
+        return html`
+            <div class="editor-overlay">
+                <div class="overlay-backdrop" @click=${this._closeOverlay}></div>
+                <div class="overlay-content">
+                    <h3>Edit Column ${colIndex + 1}</h3>
+
+                    <ha-textfield
+                        label="Column Header"
+                        .value=${data.header || ''}
+                        @input=${(e) => {
+                            this._activeOverlay.data.header = e.target.value;
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        type="number"
+                        label="Width (px)"
+                        .value=${data.width || 100}
+                        @input=${(e) => {
+                            this._activeOverlay.data.width = parseInt(e.target.value) || 100;
+                            this.requestUpdate();
+                        }}
+                        min="50"
+                        max="500"
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-textfield>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'left', label: 'Left' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'right', label: 'Right' }
+                        ]}}}
+                        .label=${'Alignment'}
+                        .value=${data.align || 'left'}
+                        @value-changed=${(e) => {
+                            this._activeOverlay.data.align = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        @closed=${(e) => e.stopPropagation()}
+                        style="margin-top: 16px; width: 100%;">
+                    </ha-selector>
+
+                    <div class="overlay-actions">
+                        <ha-button @click=${this._closeOverlay}>Cancel</ha-button>
+                        <ha-button @click=${this._saveColumn}>Save</ha-button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Save timeline row changes
+     */
+    _saveTimelineRow() {
+        const { rowIndex, data } = this._activeOverlay;
+
+        // Update config
+        this._workingConfig.rows[rowIndex] = data;
+
+        // Close overlay
+        this._closeOverlay();
+
+        // Update preview
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Save column changes
+     */
+    _saveColumn() {
+        const { colIndex, data } = this._activeOverlay;
+
+        // Update config
+        this._workingConfig.columns[colIndex] = data;
+
+        // Close overlay
+        this._closeOverlay();
+
+        // Update preview
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Close overlay
+     */
+    _closeOverlay() {
+        this._activeOverlay = null;
+        this.requestUpdate();
     }
 
     // ========================================
