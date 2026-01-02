@@ -120,70 +120,58 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (!this._workingConfig.data_mode) {
             this._workingConfig.data_mode = 'decorative';
         } else {
-            // Migrate old mode names
+            // Migrate old mode names to new schema
             const modeMap = {
                 'random': 'decorative',
-                'template': 'manual',
-                'datasource': 'data-table'
+                'template': 'data',
+                'manual': 'data',
+                'datasource': 'data',
+                'data-table': 'data'
             };
             if (modeMap[this._workingConfig.data_mode]) {
                 this._workingConfig.data_mode = modeMap[this._workingConfig.data_mode];
             }
         }
 
-        // Initialize Manual mode with empty row structure to prevent validation errors
-        if (this._workingConfig.data_mode === 'manual') {
+        // Initialize Data mode (grid layout) with empty row structure
+        if (this._workingConfig.data_mode === 'data' && (!this._workingConfig.layout || this._workingConfig.layout === 'grid')) {
             // Parse grid config to get column count
             this._parseGridConfigForUI();
             const numColumns = this._gridColumns || 12;
 
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._workingConfig.rows = [Array(numColumns).fill('')];
+                this._workingConfig.rows = [
+                    ['Label', 'Value', 'Status'],
+                    ['CPU', 'sensor.cpu_usage', 'OK']
+                ];
             }
         }
 
-        // Initialize Data Table mode with proper defaults
-        if (this._workingConfig.data_mode === 'data-table') {
-            // Default to spreadsheet layout if not set
-            if (!this._workingConfig.layout) {
-                this._workingConfig.layout = 'spreadsheet';
-            }
-
+        // Initialize Data mode timeline layout
+        if (this._workingConfig.data_mode === 'data' && this._workingConfig.layout === 'timeline') {
             // Migrate old layout names
             const layoutMap = {
-                'column-based': 'spreadsheet',
+                'column-based': 'grid',
+                'spreadsheet': 'grid',
                 'row-timeline': 'timeline'
             };
             if (layoutMap[this._workingConfig.layout]) {
                 this._workingConfig.layout = layoutMap[this._workingConfig.layout];
             }
 
-            // Initialize columns/rows for spreadsheet layout
-            if (this._workingConfig.layout === 'spreadsheet') {
-                if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
-                    this._workingConfig.columns = [
-                        { header: 'Column 1', width: 100, align: 'left' }
-                    ];
-                }
-                if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                    this._workingConfig.rows = [
-                        {
-                            sources: [
-                                { type: 'static', column: 0, value: '' }
-                            ]
-                        }
-                    ];
-                }
-            }
-
             // Initialize source for timeline layout
-            if (this._workingConfig.layout === 'timeline') {
-                if (!this._workingConfig.source) {
-                    this._workingConfig.source = '';
-                }
-                if (!this._workingConfig.rows) {
-                    this._workingConfig.rows = [];
-                }
+            if (!this._workingConfig.source) {
+                this._workingConfig.source = '';
+            }
+            if (!this._workingConfig.history_hours) {
+                this._workingConfig.history_hours = 2;
+            }
+            if (!this._workingConfig.value_template) {
+                this._workingConfig.value_template = '{value}';
+            }
+            // Timeline doesn't use rows array (single source only)
+            if (this._workingConfig.rows) {
+                delete this._workingConfig.rows;
             }
         }
 
@@ -412,7 +400,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             /* Mode selector cards */
             .mode-selector {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
                 margin-bottom: 24px;
             }
@@ -716,21 +704,15 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const modes = [
             {
                 id: 'decorative',
-                icon: 'mdi:dice-multiple',
+                icon: 'mdi:shimmer',
                 title: 'Decorative',
-                description: 'Auto-generated random data for LCARS-style ambiance (simplest)'
+                description: 'Auto-generated random data for LCARS-style ambiance'
             },
             {
-                id: 'manual',
-                icon: 'mdi:table-edit',
-                title: 'Manual',
-                description: 'User-defined cell values with inline editing'
-            },
-            {
-                id: 'data-table',
+                id: 'data',
                 icon: 'mdi:database',
-                title: 'Data Table',
-                description: 'Structured data from entities/datasources'
+                title: 'Data',
+                description: 'Real entity/sensor data with grid or timeline layout'
             }
         ];
 
@@ -1057,10 +1039,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             </lcards-form-section>
 
             ${dataMode === 'decorative' ? this._renderDecorativeModeConfig() : ''}
-            ${dataMode === 'manual' ? this._renderManualModeEditor() : ''}
-            ${dataMode === 'data-table' ? html`
-                ${this._renderDataTableModeConfig()}
-                ${this._renderDataTableModeEditor()}
+            ${dataMode === 'data' ? html`
+                ${this._renderDataModeConfig()}
+                ${this._renderDataModeEditor()}
             ` : ''}
         `;
     }
@@ -1218,18 +1199,18 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         `;
     }
 
-    _renderDataTableModeEditor() {
-        const layout = this._workingConfig.layout || 'spreadsheet';
+    _renderDataModeEditor() {
+        const layout = this._workingConfig.layout || 'grid';
 
         // Render different editor based on layout type
         if (layout === 'timeline') {
             return this._renderTimelineDataEditor();
         } else {
-            return this._renderSpreadsheetDataEditor();
+            return this._renderGridDataEditor();
         }
     }
 
-    _renderSpreadsheetDataEditor() {
+    _renderGridDataEditor() {
         const rows = this._workingConfig.rows || [];
         const numColumns = this._gridColumns || 12;
 
@@ -1393,9 +1374,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </lcards-message>
                 `}
 
-                <ha-button @click=${this._addTimelineRow} style="margin-top: 16px;">
+                <ha-button @click=${this._addTimelineRow} style="margin-top: 16px;" disabled>
                     <ha-icon icon="mdi:table-row-plus-after" slot="icon"></ha-icon>
-                    Add Timeline Row
+                    Add Timeline Row (Timeline limited to 1 row)
                 </ha-button>
 
                 ${this._activeTimelineRowEdit !== null ? this._renderTimelineRowEditor() : ''}
@@ -1441,20 +1422,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         `;
     }
 
-    _renderDataTableModeConfig() {
-        const layout = this._workingConfig.layout || 'spreadsheet';
+    _renderDataModeConfig() {
+        const layout = this._workingConfig.layout || 'grid';
 
         return html`
             <lcards-form-section
-                header="Data Table Mode Settings"
-                description="Configure datasource-based grid"
+                header="Data Mode Settings"
+                description="Configure real entity/sensor data"
                 ?expanded=${true}>
 
                 <ha-selector
                     .hass=${this.hass}
                     .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'spreadsheet', label: 'Spreadsheet (Column-based)' },
-                        { value: 'timeline', label: 'Timeline (Historical)' }
+                        { value: 'grid', label: 'Grid (Auto-detected cells)' },
+                        { value: 'timeline', label: 'Timeline (Historical data)' }
                     ]}}}
                     .label=${'Layout Type'}
                     .value=${layout}
@@ -1464,8 +1445,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                 <lcards-message type="info">
                     ${layout === 'timeline'
-                        ? 'Timeline mode: Each row displays one datasource/entity with historical values over time'
-                        : 'Spreadsheet mode: Standard column-based layout with headers and entity mappings'}
+                        ? 'Timeline mode: Display historical data from a single source (limited to 1 row)'
+                        : 'Grid mode: Rows with auto-detected cells (static text, entity refs, or templates)'}
                 </lcards-message>
 
                 ${layout === 'timeline' ? this._renderTimelineConfig() : ''}
@@ -1918,195 +1899,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         `;
     }
 
-    _renderDataTableModeConfig() {
-        const layout = this._workingConfig.layout || 'spreadsheet';
-
-        return html`
-            <lcards-form-section
-                header="Data Table Mode Settings"
-                description="Configure datasource-based grid"
-                ?expanded=${true}>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'spreadsheet', label: 'Spreadsheet (Standard Column-based)' },
-                        { value: 'timeline', label: 'Timeline (Historical Data)' }
-                    ]}}}
-                    .label=${'Layout Type'}
-                    .value=${layout}
-                    @value-changed=${(e) => this._handleLayoutChange(e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <lcards-message type="info">
-                    ${layout === 'timeline'
-                        ? 'Timeline mode: Each row displays a datasource/entity with historical values across time'
-                        : 'Spreadsheet mode: Standard column-based layout with headers'}
-                </lcards-message>
-            </lcards-form-section>
-
-            ${layout === 'spreadsheet' ? this._renderSpreadsheetModeEditor() : this._renderTimelineModeEditor()}
-        `;
-    }
-
-    /**
-     * Render spreadsheet mode editor (column-based layout)
-     */
-    _renderSpreadsheetModeEditor() {
-        const columns = this._workingConfig.columns || [];
-        const rows = this._workingConfig.rows || [];
-
-        return html`
-            <lcards-form-section
-                header="Columns"
-                description="Define column structure"
-                ?expanded=${true}>
-
-                <lcards-message type="info">
-                    Click column headers in preview (WYSIWYG mode) to edit columns, or manage them here.
-                </lcards-message>
-
-                ${columns.length > 0 ? html`
-                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                        ${columns.map((col, index) => html`
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
-                                <span style="flex: 1; font-weight: 500;">${col.header || `Column ${index + 1}`}</span>
-                                <span style="color: var(--secondary-text-color); font-size: 12px;">${col.width || 'auto'}</span>
-                                <ha-icon-button
-                                    @click=${() => this._editColumn(index)}
-                                    title="Edit column">
-                                    <ha-icon icon="mdi:pencil"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._deleteColumn(index)}
-                                    title="Delete column">
-                                    <ha-icon icon="mdi:delete"></ha-icon>
-                                </ha-icon-button>
-                            </div>
-                        `)}
-                    </div>
-                ` : html`
-                    <lcards-message type="warning">
-                        No columns defined. Click "Add Column" to start.
-                    </lcards-message>
-                `}
-
-                <ha-button @click=${this._addColumn} style="margin-top: 12px;">
-                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                    Add Column
-                </ha-button>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Rows"
-                description="Define row data"
-                ?expanded=${true}>
-
-                <lcards-message type="info">
-                    Each row contains cells for all defined columns. Click cells in preview to edit.
-                </lcards-message>
-
-                ${rows.length > 0 ? html`
-                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                        ${rows.map((row, index) => html`
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
-                                <span style="flex: 1; font-weight: 500;">Row ${index + 1}</span>
-                                <span style="color: var(--secondary-text-color); font-size: 12px;">
-                                    ${row.sources?.length || 0} cells
-                                </span>
-                                <ha-icon-button
-                                    @click=${() => this._editRow(index)}
-                                    title="Edit row">
-                                    <ha-icon icon="mdi:pencil"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._deleteRow(index)}
-                                    title="Delete row">
-                                    <ha-icon icon="mdi:delete"></ha-icon>
-                                </ha-icon-button>
-                            </div>
-                        `)}
-                    </div>
-                ` : html`
-                    <lcards-message type="warning">
-                        No rows defined. Click "Add Row" to start.
-                    </lcards-message>
-                `}
-
-                <ha-button @click=${this._addRow} style="margin-top: 12px;">
-                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                    Add Row
-                </ha-button>
-            </lcards-form-section>
-        `;
-    }
-
-    /**
-     * Render row-timeline layout configuration
-     */
-    _renderRowTimelineConfig() {
-        const rows = this._workingConfig.rows || [];
-
-        return html`
-            <lcards-form-section
-                header="Timeline Rows"
-                description="Each row displays historical data from an entity/datasource"
-                ?expanded=${true}>
-
-                <lcards-message type="info">
-                    Rows automatically populate with historical values (newest → oldest, left to right).
-                </lcards-message>
-
-                ${rows.length > 0 ? html`
-                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                        ${rows.map((row, index) => html`
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
-                                <ha-icon icon="mdi:chart-timeline-variant" style="color: var(--primary-color);"></ha-icon>
-                                <div style="flex: 1;">
-                                    <div style="font-weight: 500;">${row.label || row.source || `Row ${index + 1}`}</div>
-                                    <div style="font-size: 12px; color: var(--secondary-text-color);">
-                                        ${row.source || 'No source'} • ${row.history_hours || 2}h history
-                                    </div>
-                                </div>
-                                <ha-icon-button
-                                    @click=${() => this._editTimelineRow(index)}
-                                    title="Edit row">
-                                    <ha-icon icon="mdi:pencil"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._moveRow(index, 'up')}
-                                    ?disabled=${index === 0}
-                                    title="Move up">
-                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._moveRow(index, 'down')}
-                                    ?disabled=${index === rows.length - 1}
-                                    title="Move down">
-                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._deleteRow(index)}
-                                    title="Delete row">
-                                    <ha-icon icon="mdi:delete"></ha-icon>
-                                </ha-icon-button>
-                            </div>
-                        `)}
-                    </div>
-                ` : html`
-                    <lcards-message type="warning">
-                        No timeline rows defined. Click "Add Timeline Row" to start.
-                    </lcards-message>
-                `}
-
-                <ha-button @click=${this._addTimelineRow} style="margin-top: 12px;">
-                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                    Add Timeline Row
-                </ha-button>
-            </lcards-form-section>
-        `;
-    }
 
     _renderGridStructureSubTab() {
         return html`
@@ -2563,35 +2355,32 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._updateConfig('layout', newLayout);
 
         // Initialize layout-specific config
-        if (newLayout === 'spreadsheet') {
-            // Ensure columns exist
-            if (!this._workingConfig.columns || this._workingConfig.columns.length === 0) {
-                this._workingConfig.columns = [
-                    { header: 'Column 1', width: 100, align: 'left' }
-                ];
-            }
-            // Ensure rows exist
+        if (newLayout === 'grid') {
+            // Ensure rows exist for grid mode
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
                 this._workingConfig.rows = [
-                    {
-                        sources: [
-                            { type: 'static', column: 0, value: '' }
-                        ]
-                    }
+                    ['Label', 'Value', 'Status'],
+                    ['CPU', 'sensor.cpu_usage', 'OK']
                 ];
             }
             // Remove timeline-specific fields
             delete this._workingConfig.source;
+            delete this._workingConfig.history_hours;
+            delete this._workingConfig.value_template;
         } else if (newLayout === 'timeline') {
-            // Timeline needs source
+            // Timeline mode: set source and history config
             if (!this._workingConfig.source) {
                 this._workingConfig.source = '';
             }
-            // Timeline doesn't use columns structure
-            delete this._workingConfig.columns;
-            // Timeline rows are different structure (each row = one datasource)
-            if (!this._workingConfig.rows) {
-                this._workingConfig.rows = [];
+            if (!this._workingConfig.history_hours) {
+                this._workingConfig.history_hours = 2;
+            }
+            if (!this._workingConfig.value_template) {
+                this._workingConfig.value_template = '{value}';
+            }
+            // Timeline is limited to 1 row, no rows array needed
+            if (this._workingConfig.rows) {
+                delete this._workingConfig.rows;
             }
         }
 
