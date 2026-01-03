@@ -1123,7 +1123,8 @@ export class LCARdSSlider extends LCARdSButton {
         // Using concatenated string for efficiency instead of JSON.stringify
         const configHash = `${trackConfig?.count || 10}|${trackConfig?.gap || 4}|${trackConfig?.shape?.radius ?? 4}|` +
             `${trackConfig?.size?.height || 12}|${trackConfig?.gradient?.start || ''}|${trackConfig?.gradient?.end || ''}|` +
-            `${trackConfig?.gradient?.interpolated || false}|${orientation}|${width}|${height}`;
+            `${trackConfig?.gradient?.interpolated || false}|${orientation}|${width}|${height}|` +
+            `${JSON.stringify(this._sliderStyle?.ranges || [])}`; // NEW: Include ranges
 
         // Check memoization cache
         if (this._memoizedTrack && this._memoizedTrackConfig === configHash) {
@@ -1163,6 +1164,43 @@ export class LCARdSSlider extends LCARdSButton {
         const trackY = trackBounds.y || 0; // Y offset of track zone within viewBox
 
         const isVertical = orientation === 'vertical';
+
+        // ====================================================================
+        // NEW: Get ranges configuration (optional for pills)
+        // ====================================================================
+        const ranges = this._sliderStyle?.ranges || [];
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+
+        /**
+         * Get color for a specific pill index based on ranges
+         * If ranges are defined and pill value falls within a range, use range color.
+         * Otherwise, use default gradient interpolation.
+         * @param {number} pillIndex - Index of the pill (0-based)
+         * @param {number} pillCount - Total number of pills
+         * @returns {string} Color value (hex, rgb, or CSS variable)
+         * @private
+         */
+        const getPillColor = (pillIndex, pillCount) => {
+            // Calculate the value this pill represents (in display space)
+            const valuePercent = pillIndex / (pillCount - 1 || 1);
+            const pillValue = displayMin + (valuePercent * displayRange);
+
+            // Check if this value falls within any defined range
+            if (ranges.length > 0) {
+                const matchingRange = ranges.find(r => pillValue >= r.min && pillValue < r.max);
+                if (matchingRange) {
+                    return this._resolveCssVariable(matchingRange.color);
+                }
+            }
+
+            // Fallback: use global gradient (existing behavior)
+            // Note: ColorUtils.mix(c1, c2, t) returns c2 at t=0, c1 at t=1
+            // So we swap params: mix(end, start, t) to get start→end
+            const t = pillIndex / (pillCount - 1 || 1);
+            return ColorUtils.mix(gradientEnd, gradientStart, t);
+        };
 
         // Calculate count and dimensions based on orientation
         let count, pillWidth, pillHeight;
@@ -1257,11 +1295,8 @@ export class LCARdSSlider extends LCARdSButton {
                 const y = trackY + trackHeight - ((i + 1) * pillHeight) - (i * gap);
                 const x = trackX; // Fill entire track width
 
-                // Calculate solid color for this pill based on position
-                // Note: ColorUtils.mix(c1, c2, t) returns c2 at t=0, c1 at t=1
-                // So we swap params: mix(end, start, t) to get start→end
-                const t = i / (count - 1 || 1);
-                const color = ColorUtils.mix(gradientEnd, gradientStart, t);
+                // NEW: Use range color if defined, else gradient
+                const color = getPillColor(i, count);
 
                 pills += `
                     <rect
@@ -1292,11 +1327,8 @@ export class LCARdSSlider extends LCARdSButton {
                 // Pills fill the entire track height
                 const y = trackY;
 
-                // Calculate solid color for this pill based on position
-                // Note: ColorUtils.mix(c1, c2, t) returns c2 at t=0, c1 at t=1
-                // So we swap params: mix(end, start, t) to get start→end
-                const t = i / (count - 1 || 1);
-                const color = ColorUtils.mix(gradientEnd, gradientStart, t);
+                // NEW: Use range color if defined, else gradient
+                const color = getPillColor(i, count);
 
                 pills += `
                     <rect
@@ -1334,7 +1366,8 @@ export class LCARdSSlider extends LCARdSButton {
             width: trackWidth,
             height: trackHeight,
             orientation,
-            value: this._sliderValue
+            value: this._sliderValue,
+            ranges: this._sliderStyle?.ranges || []  // NEW: Include ranges
         });
 
         if (this._memoizedGauge && this._memoizedGaugeConfig === configHash) {
@@ -1349,6 +1382,62 @@ export class LCARdSSlider extends LCARdSButton {
         const range = max - min;
         const tickConfig = gaugeConfig?.scale?.tick_marks;
         const labelConfig = gaugeConfig?.scale?.labels;
+
+        // ====================================================================
+        // NEW: Inject range backgrounds FIRST (behind ticks/labels)
+        // ====================================================================
+        const ranges = this._sliderStyle?.ranges || [];
+        if (ranges.length > 0) {
+            lcardsLog.debug(`[LCARdSSlider] Rendering ${ranges.length} range backgrounds`);
+            
+            ranges.forEach((rangeConfig, idx) => {
+                const rangeMin = rangeConfig.min;
+                const rangeMax = rangeConfig.max;
+                const rangeColor = this._resolveCssVariable(rangeConfig.color);
+                const rangeOpacity = rangeConfig.opacity ?? 0.3;
+
+                // Calculate range position as percentage of display range
+                const startPercent = (rangeMin - min) / range;
+                const endPercent = (rangeMax - min) / range;
+
+                if (isVertical) {
+                    // Vertical: ranges stack from bottom to top
+                    // Y position is inverted (0% = bottom/max, 100% = top/min)
+                    const yStart = trackHeight * (1 - endPercent);
+                    const yEnd = trackHeight * (1 - startPercent);
+                    const rangeHeight = yEnd - yStart;
+
+                    svg += `
+                        <rect class="range-bg"
+                              x="0" y="${yStart}"
+                              width="${trackWidth}" height="${rangeHeight}"
+                              fill="${rangeColor}"
+                              opacity="${rangeOpacity}"
+                              data-range-index="${idx}"
+                              data-range-label="${rangeConfig.label || ''}" />
+                    `;
+                } else {
+                    // Horizontal: ranges extend from left to right
+                    const xStart = trackWidth * startPercent;
+                    const xEnd = trackWidth * endPercent;
+                    const rangeWidth = xEnd - xStart;
+
+                    svg += `
+                        <rect class="range-bg"
+                              x="${xStart}" y="0"
+                              width="${rangeWidth}" height="${trackHeight}"
+                              fill="${rangeColor}"
+                              opacity="${rangeOpacity}"
+                              data-range-index="${idx}"
+                              data-range-label="${rangeConfig.label || ''}" />
+                    `;
+                }
+            });
+        }
+
+        // ====================================================================
+        // Continue with existing major ticks rendering...
+        // ====================================================================
 
         // Major tick configuration
         const majorEnabled = tickConfig?.major?.enabled !== false;
