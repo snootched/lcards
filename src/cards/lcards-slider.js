@@ -258,6 +258,14 @@ export class LCARdSSlider extends LCARdSButton {
             locked: false
         };
 
+        // Display configuration (derived from config + entity)
+        // Defines visual scale range (what pills/gauge render)
+        this._displayConfig = {
+            min: 0,
+            max: 100,
+            unit: ''
+        };
+
         // Entity domain for behavior
         this._domain = null;
 
@@ -465,7 +473,22 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Update control configuration from entity and config
+     * Get default attribute for current entity domain
+     * @private
+     * @returns {string|null}
+     */
+    _getDefaultAttribute() {
+        switch (this._domain) {
+            case 'light': return 'brightness';
+            case 'cover': return 'current_position';
+            case 'fan': return 'percentage';
+            default: return null;
+        }
+    }
+
+    /**
+     * Update control and display configuration from entity and config
+     * Separates control range (what user can set) from display range (what visuals show)
      * @private
      */
     _updateControlConfig() {
@@ -476,56 +499,27 @@ export class LCARdSSlider extends LCARdSButton {
         const controllableDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
         const isControllable = controllableDomains.includes(this._domain);
 
-        // Start with config values
+        // CONTROL CONFIG: What user can set via slider input
         this._controlConfig = {
-            min: config.control?.min ?? 0,
-            max: config.control?.max ?? 100,
-            step: config.control?.step ?? 1,
-            attribute: config.control?.attribute ?? null,
-            // Auto-set locked based on domain, but allow explicit override
+            min: config.control?.min ?? entity?.attributes?.min ?? 0,
+            max: config.control?.max ?? entity?.attributes?.max ?? 100,
+            step: config.control?.step ?? entity?.attributes?.step ?? 1,
+            attribute: config.control?.attribute ?? this._getDefaultAttribute(),
             locked: config.control?.locked ?? !isControllable
         };
 
-        // Override from entity attributes if available
-        if (entity?.attributes) {
-            if (entity.attributes.min !== undefined && config.control?.min === undefined) {
-                this._controlConfig.min = entity.attributes.min;
-            }
-            if (entity.attributes.max !== undefined && config.control?.max === undefined) {
-                this._controlConfig.max = entity.attributes.max;
-            }
-            if (entity.attributes.step !== undefined && config.control?.step === undefined) {
-                this._controlConfig.step = entity.attributes.step;
-            }
-        }
+        // DISPLAY CONFIG: What visual scale shows (from style.track.display)
+        // Default to control range if not explicitly configured (no breaking changes)
+        this._displayConfig = {
+            min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
+            max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
+            unit: this._sliderStyle?.track?.display?.unit ?? entity?.attributes?.unit_of_measurement ?? ''
+        };
 
-        // Domain-specific defaults for attribute and range
-        if (this._domain === 'light' && !this._controlConfig.attribute) {
-            this._controlConfig.attribute = 'brightness';
-            // Only set default range if not explicitly configured
-            if (config.control?.min === undefined) {
-                this._controlConfig.min = 0;
-            }
-            if (config.control?.max === undefined) {
-                this._controlConfig.max = 100;  // Use percentage scale (0-100), will be converted to brightness (0-255) in service call
-            }
-        } else if (this._domain === 'cover' && !this._controlConfig.attribute) {
-            this._controlConfig.attribute = 'current_position';
-            if (config.control?.min === undefined) {
-                this._controlConfig.min = 0;
-            }
-            if (config.control?.max === undefined) {
-                this._controlConfig.max = 100;
-            }
-        } else if (this._domain === 'fan' && !this._controlConfig.attribute) {
-            this._controlConfig.attribute = 'percentage';
-            if (config.control?.min === undefined) {
-                this._controlConfig.min = 0;
-            }
-            if (config.control?.max === undefined) {
-                this._controlConfig.max = 100;
-            }
-        }
+        lcardsLog.debug('[LCARdSSlider] Config resolved:', {
+            control: this._controlConfig,
+            display: this._displayConfig
+        });
     }
 
     /**
@@ -1349,9 +1343,9 @@ export class LCARdSSlider extends LCARdSButton {
 
         let svg = '';
 
-        // Get scale configuration
-        const min = this._controlConfig.min;
-        const max = this._controlConfig.max;
+        // Get scale configuration - use DISPLAY range for visual scale
+        const min = this._displayConfig.min;
+        const max = this._displayConfig.max;
         const range = max - min;
         const tickConfig = gaugeConfig?.scale?.tick_marks;
         const labelConfig = gaugeConfig?.scale?.labels;
@@ -1372,7 +1366,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Label configuration
         const labelsEnabled = labelConfig?.enabled !== false;
-        const labelUnit = labelConfig?.unit || '';
+        const labelUnit = this._displayConfig.unit || labelConfig?.unit || '';
         const labelPadding = labelConfig?.padding || 3; // Padding between tick and label
 
         // Progress bar configuration
@@ -1689,18 +1683,18 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Calculate value as percentage (0-1)
+     * Calculate value as percentage (0-1) within DISPLAY range
+     * Used for visual rendering of pills/gauge position
      * @private
+     * @returns {number} Percentage (0-1)
      */
     _calculateValuePercent() {
-        // Calculate percentage within the VISUAL range, not the control range
-        // Visual range is implicitly 0-100 for most domains
-        // (Future: could be configurable via display.min/max)
-        const visualMin = 0;
-        const visualMax = 100;
+        // Use DISPLAY range (visual scale), not control range
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
         const value = this._sliderValue;
 
-        return Math.max(0, Math.min(1, (value - visualMin) / (visualMax - visualMin)));
+        return Math.max(0, Math.min(1, (value - displayMin) / (displayMax - displayMin)));
     }
 
     /**
@@ -2053,23 +2047,20 @@ export class LCARdSSlider extends LCARdSButton {
         const scaleX = width / svgViewBoxWidth;
         const scaleY = height / svgViewBoxHeight;
 
-        // Determine the full visual range (what pills/gauge display)
-        // For most domains, this is implicitly 0-100
-        // Future: could be configurable via display.min/max or scale.min/max
-        const visualMin = 0;
-        const visualMax = 100;
-        const visualRange = visualMax - visualMin;
+        // Calculate where control range sits within display range
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
 
-        // Calculate where the control range sits within the visual range
         const controlMin = this._controlConfig.min;
         const controlMax = this._controlConfig.max;
 
-        // What percentage of the visual range does the control span?
-        const controlStartPercent = (controlMin - visualMin) / visualRange;
-        const controlEndPercent = (controlMax - visualMin) / visualRange;
+        // What percentage of display range does control span?
+        const controlStartPercent = (controlMin - displayMin) / displayRange;
+        const controlEndPercent = (controlMax - displayMin) / displayRange;
         const controlWidthPercent = controlEndPercent - controlStartPercent;
 
-        // Scale and adjust the control bounds based on control range within visual range
+        // Scale and adjust the control bounds
         const trackWidth = controlBounds.width * scaleX;
         const trackHeight = controlBounds.height * scaleY;
 

@@ -421,6 +421,27 @@ export function getSliderSchema(options = {}) {
                         type: 'object',
                         description: 'Track appearance configuration',
                         properties: {
+                            display: {
+                                type: 'object',
+                                description: 'Visual display range configuration (what pills/gauge render). Defaults to control range if not specified.',
+                                properties: {
+                                    min: {
+                                        type: 'number',
+                                        description: 'Minimum value shown on visual scale (default: control.min)',
+                                        examples: [0, -20, 10]
+                                    },
+                                    max: {
+                                        type: 'number',
+                                        description: 'Maximum value shown on visual scale (default: control.max)',
+                                        examples: [100, 60, 35]
+                                    },
+                                    unit: {
+                                        type: 'string',
+                                        description: 'Display unit for labels (overrides entity unit_of_measurement)',
+                                        examples: ['°C', '%', 'rpm', 'lux']
+                                    }
+                                }
+                            },
                             type: {
                                 type: 'string',
                                 enum: ['pills', 'gauge'],
