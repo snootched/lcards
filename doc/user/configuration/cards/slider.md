@@ -41,6 +41,12 @@ style:
     orientation: horizontal | vertical  # Auto-detected from component
     margin: <number> | object # Margin around track zone (px)
 
+    # Display Range (Phase 1) - Visual scale independent of control range
+    display:
+      min: <number>           # Minimum value shown on visual scale (default: control.min)
+      max: <number>           # Maximum value shown on visual scale (default: control.max)
+      unit: <string>          # Display unit for labels (overrides entity unit)
+
     # Pills Configuration (when type: pills)
     segments:
       count: <number>         # Number of pills (undefined = auto-calculate)
@@ -96,6 +102,15 @@ style:
       border:
         color: <color>        # Border color
         width: <number>       # Border width (default: 1)
+
+  # Color-Coded Ranges (Phase 2) - Visual context zones
+  ranges:
+    - min: <number>           # Range start value (in display space)
+      max: <number>           # Range end value (in display space)
+      color: <color>          # Range background color (CSS color or variable)
+      label: <string>         # Optional descriptive label (for future use)
+      opacity: <number>       # Background opacity (0-1, default: 0.3)
+    # Add multiple ranges to create color-coded zones
 
   # CSS Borders (simple frame)
   border:
@@ -980,11 +995,119 @@ The Slider card inherits **all features** from LCARdS Button:
 - ✅ **State colors** - Active/inactive/unavailable
 - ✅ **Theme tokens** - CSS variables and theme paths
 
+**Slider-specific features:**
+
+- ✅ **Control Range Separation** (Phase 1) - Set min/max for user control independently from visual display range
+- ✅ **Color-Coded Ranges** (Phase 2) - Define visual zones for context (cold/comfort/hot, low/normal/high)
+  - Gauge mode: Background segments behind ruler
+  - Pills mode: Override gradient colors per range
+  - Configurable opacity and labels
+
 See [LCARdS Button Quick Reference](button.md) for details.
 
 ---
 
 ## Common Use Cases
+
+### Temperature Gauge with Color-Coded Ranges
+
+```yaml
+type: custom:lcards-slider
+entity: sensor.outdoor_temperature
+preset: gauge-basic
+
+control:
+  locked: true
+
+style:
+  track:
+    display:
+      min: -20
+      max: 60
+      unit: '°C'
+    orientation: horizontal
+  
+  ranges:
+    - min: -20
+      max: 0
+      color: 'var(--info-color)'
+      label: 'Freezing'
+      opacity: 0.35
+    - min: 0
+      max: 15
+      color: 'var(--primary-color)'
+      label: 'Cold'
+      opacity: 0.35
+    - min: 15
+      max: 25
+      color: 'var(--success-color)'
+      label: 'Comfortable'
+      opacity: 0.35
+    - min: 25
+      max: 35
+      color: 'var(--warning-color)'
+      label: 'Hot'
+      opacity: 0.35
+    - min: 35
+      max: 60
+      color: 'var(--error-color)'
+      label: 'Extreme'
+      opacity: 0.35
+  
+  gauge:
+    scale:
+      tick_marks:
+        major:
+          interval: 10
+      labels:
+        enabled: true
+```
+
+### Climate Control with Comfort Zones
+
+```yaml
+type: custom:lcards-slider
+entity: climate.living_room
+preset: gauge-basic
+
+control:
+  min: 16
+  max: 28
+  step: 0.5
+  attribute: temperature
+
+style:
+  track:
+    display:
+      min: 10
+      max: 35
+      unit: '°C'
+  
+  ranges:
+    - min: 10
+      max: 18
+      color: '#4488ff'
+      label: 'Too Cold'
+      opacity: 0.4
+    - min: 18
+      max: 24
+      color: '#44ff88'
+      label: 'Comfort Zone'
+      opacity: 0.4
+    - min: 24
+      max: 35
+      color: '#ff8844'
+      label: 'Too Hot'
+      opacity: 0.4
+  
+  gauge:
+    scale:
+      tick_marks:
+        major:
+          interval: 5
+      labels:
+        enabled: true
+```
 
 ### Dashboard Control Strip
 
