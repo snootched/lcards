@@ -867,6 +867,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 icon="mdi:ruler"
                 ?expanded=${true}>
 
+                ${dataMode === 'data' ? html`
+                    <lcards-message type="info">
+                        <strong>Tip:</strong> Grid dimensions sync with spreadsheet editor.
+                        You can add/remove rows/columns here or in the spreadsheet below.
+                        <strong>Warning:</strong> Reducing dimensions will remove data from deleted cells.
+                    </lcards-message>
+                ` : ''}
+
                 <lcards-grid-layout>
                     <ha-selector
                         .hass=${this.hass}
@@ -2011,26 +2019,61 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _parseGridConfigForUI() {
         const grid = this._workingConfig.grid || {};
 
-        // Parse grid-template-rows: "repeat(8, auto)" -> 8
-        if (grid['grid-template-rows']) {
-            const match = grid['grid-template-rows'].match(/repeat\((\d+),/);
-            this._gridRows = match ? parseInt(match[1]) : 8;
-        } else if (grid.rows) {
-            // Fallback to old shorthand format
-            this._gridRows = grid.rows;
+        // For data mode with actual rows, use the actual row count
+        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
+            this._gridRows = this._workingConfig.rows.length;
+
+            // Sync the grid template to match actual data
+            const cssValue = `repeat(${this._gridRows}, auto)`;
+            if (grid['grid-template-rows'] !== cssValue) {
+                this._workingConfig.grid['grid-template-rows'] = cssValue;
+            }
         } else {
-            this._gridRows = 8;
+            // Parse grid-template-rows: "repeat(8, auto)" -> 8
+            if (grid['grid-template-rows']) {
+                const match = grid['grid-template-rows'].match(/repeat\((\d+),/);
+                this._gridRows = match ? parseInt(match[1]) : 8;
+            } else if (grid.rows) {
+                // Fallback to old shorthand format
+                this._gridRows = grid.rows;
+            } else {
+                this._gridRows = 8;
+            }
         }
 
-        // Parse grid-template-columns: "repeat(12, 1fr)" -> 12
-        if (grid['grid-template-columns']) {
-            const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
-            this._gridColumns = match ? parseInt(match[1]) : 12;
-        } else if (grid.columns) {
-            // Fallback to old shorthand format
-            this._gridColumns = grid.columns;
+        // For data mode with actual rows, calculate columns from first row
+        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
+            const firstRow = this._workingConfig.rows[0];
+            if (Array.isArray(firstRow) && firstRow.length > 0) {
+                this._gridColumns = firstRow.length;
+
+                // Sync the grid template to match actual data
+                const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+                if (grid['grid-template-columns'] !== cssValue) {
+                    this._workingConfig.grid['grid-template-columns'] = cssValue;
+                }
+            } else {
+                // Parse from grid template
+                if (grid['grid-template-columns']) {
+                    const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
+                    this._gridColumns = match ? parseInt(match[1]) : 12;
+                } else if (grid.columns) {
+                    this._gridColumns = grid.columns;
+                } else {
+                    this._gridColumns = 12;
+                }
+            }
         } else {
-            this._gridColumns = 12;
+            // Parse grid-template-columns: "repeat(12, 1fr)" -> 12
+            if (grid['grid-template-columns']) {
+                const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
+                this._gridColumns = match ? parseInt(match[1]) : 12;
+            } else if (grid.columns) {
+                // Fallback to old shorthand format
+                this._gridColumns = grid.columns;
+            } else {
+                this._gridColumns = 12;
+            }
         }
 
         // Parse gap: "8px" -> 8
@@ -2044,7 +2087,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         lcardsLog.debug('[DataGridStudioV4] Parsed grid config for UI:', {
             rows: this._gridRows,
             columns: this._gridColumns,
-            gap: this._gridGap
+            gap: this._gridGap,
+            actualRowsLength: this._workingConfig.rows?.length,
+            mode: this._workingConfig.data_mode
         });
     }
 
@@ -2527,7 +2572,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         this._workingConfig.rows.push(newRow);
 
-        lcardsLog.info('[DataGridStudioV4] Manual row added');
+        // Sync _gridRows and update grid template
+        this._gridRows = this._workingConfig.rows.length;
+        const cssValue = `repeat(${this._gridRows}, auto)`;
+        this._updateConfig('grid.grid-template-rows', cssValue);
+
+        lcardsLog.info('[DataGridStudioV4] Manual row added, grid rows synced to:', this._gridRows);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2540,7 +2590,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         this._workingConfig.rows.splice(index, 1);
 
-        lcardsLog.info('[DataGridStudioV4] Manual row deleted:', index);
+        // Sync _gridRows and update grid template
+        this._gridRows = this._workingConfig.rows.length;
+        const cssValue = `repeat(${this._gridRows}, auto)`;
+        this._updateConfig('grid.grid-template-rows', cssValue);
+
+        lcardsLog.info('[DataGridStudioV4] Manual row deleted:', index, 'grid rows synced to:', this._gridRows);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2560,13 +2615,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         });
 
-        // Update grid columns count
+        // Update grid columns count and sync grid template
         this._gridColumns = (this._gridColumns || 12) + 1;
-        if (this._workingConfig.grid) {
-            this._workingConfig.grid['grid-template-columns'] = `repeat(${this._gridColumns}, 1fr)`;
-        }
+        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        this._updateConfig('grid.grid-template-columns', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Manual column added');
+        lcardsLog.info('[DataGridStudioV4] Manual column added, grid columns synced to:', this._gridColumns);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2895,7 +2949,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const emptyRow = Array(this._gridColumns).fill('');
         this._workingConfig.rows.splice(index, 0, emptyRow);
         this._activeRowEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Row inserted before:', index);
+
+        // Sync _gridRows and update grid template
+        this._gridRows = this._workingConfig.rows.length;
+        const cssValue = `repeat(${this._gridRows}, auto)`;
+        this._updateConfig('grid.grid-template-rows', cssValue);
+
+        lcardsLog.info('[DataGridStudioV4] Row inserted before:', index, 'grid rows synced to:', this._gridRows);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2904,7 +2964,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const emptyRow = Array(this._gridColumns).fill('');
         this._workingConfig.rows.splice(index + 1, 0, emptyRow);
         this._activeRowEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Row inserted after:', index);
+
+        // Sync _gridRows and update grid template
+        this._gridRows = this._workingConfig.rows.length;
+        const cssValue = `repeat(${this._gridRows}, auto)`;
+        this._updateConfig('grid.grid-template-rows', cssValue);
+
+        lcardsLog.info('[DataGridStudioV4] Row inserted after:', index, 'grid rows synced to:', this._gridRows);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2936,11 +3002,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         });
         this._gridColumns++;
-        if (this._workingConfig.grid) {
-            this._workingConfig.grid['grid-template-columns'] = `repeat(${this._gridColumns}, 1fr)`;
-        }
+
+        // Update grid template using _updateConfig
+        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        this._updateConfig('grid.grid-template-columns', cssValue);
+
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column inserted before:', index);
+        lcardsLog.info('[DataGridStudioV4] Column inserted before:', index, 'grid columns synced to:', this._gridColumns);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2952,11 +3020,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         });
         this._gridColumns++;
-        if (this._workingConfig.grid) {
-            this._workingConfig.grid['grid-template-columns'] = `repeat(${this._gridColumns}, 1fr)`;
-        }
+
+        // Update grid template using _updateConfig
+        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        this._updateConfig('grid.grid-template-columns', cssValue);
+
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column inserted after:', index);
+        lcardsLog.info('[DataGridStudioV4] Column inserted after:', index, 'grid columns synced to:', this._gridColumns);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2998,11 +3068,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         });
         this._gridColumns--;
-        if (this._workingConfig.grid) {
-            this._workingConfig.grid['grid-template-columns'] = `repeat(${this._gridColumns}, 1fr)`;
-        }
+
+        // Update grid template using _updateConfig
+        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        this._updateConfig('grid.grid-template-columns', cssValue);
+
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column deleted:', index);
+        lcardsLog.info('[DataGridStudioV4] Column deleted:', index, 'grid columns synced to:', this._gridColumns);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
