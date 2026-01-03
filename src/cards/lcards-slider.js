@@ -419,6 +419,14 @@ export class LCARdSSlider extends LCARdSButton {
             this._sliderValue = this._getEntityValue(this._entity);
         }
 
+        // NEW: Trigger initial pill opacity update
+        if (this._mode === 'pills') {
+            // Use requestAnimationFrame to ensure SVG is rendered before updating
+            requestAnimationFrame(() => {
+                this._updatePillOpacities();
+            });
+        }
+
         // Register for rules
         if (this.config.id) {
             this._registerOverlayForRules(`slider-${this.config.id}`, ['slider']);
@@ -1189,7 +1197,9 @@ export class LCARdSSlider extends LCARdSButton {
 
             // Check if this value falls within any defined range
             if (ranges.length > 0) {
-                const matchingRange = ranges.find(r => pillValue >= r.min && pillValue < r.max);
+                // FIX: Use inclusive upper boundary (<=) to match standard range notation
+                // This ensures pills at exact boundaries (e.g., 66.6, 77.7, 88.8 in 66-100 range) are matched
+                const matchingRange = ranges.find(r => pillValue >= r.min && pillValue <= r.max);
                 if (matchingRange) {
                     return this._resolveCssVariable(matchingRange.color);
                 }
@@ -1430,6 +1440,57 @@ export class LCARdSSlider extends LCARdSButton {
                               opacity="${rangeOpacity}"
                               data-range-index="${idx}"
                               data-range-label="${rangeConfig.label || ''}" />
+                    `;
+                }
+            });
+        }
+
+        // ====================================================================
+        // NEW: Render labels for ranges (after background rects)
+        // ====================================================================
+        if (ranges.length > 0) {
+            const labelColor = this._resolveCssVariable(
+                gaugeConfig?.scale?.labels?.color || 
+                'var(--primary-text-color, #ffffff)'
+            );
+            const labelFontSize = gaugeConfig?.scale?.labels?.font_size || 12;
+            
+            ranges.forEach((rangeConfig, idx) => {
+                if (!rangeConfig.label) return; // Skip if no label configured
+                
+                const rangeMin = rangeConfig.min;
+                const rangeMax = rangeConfig.max;
+                const rangeMidValue = (rangeMin + rangeMax) / 2;
+                const midPercent = (rangeMidValue - min) / range;
+                
+                if (isVertical) {
+                    // Vertical: label at midpoint Y, right-aligned
+                    const yPos = trackHeight * (1 - midPercent);
+                    const xPos = trackWidth - 5; // 5px from right edge
+                    
+                    svg += `
+                        <text class="range-label"
+                              x="${xPos}" y="${yPos}"
+                              font-size="${labelFontSize}px"
+                              font-weight="400"
+                              font-family="Antonio"
+                              fill="${labelColor}"
+                              text-anchor="end"
+                              dy="0.35em">${rangeConfig.label}</text>
+                    `;
+                } else {
+                    // Horizontal: label at midpoint X, centered
+                    const xPos = trackWidth * midPercent;
+                    const yPos = 15; // 15px from top
+                    
+                    svg += `
+                        <text class="range-label"
+                              x="${xPos}" y="${yPos}"
+                              font-size="${labelFontSize}px"
+                              font-weight="400"
+                              font-family="Antonio"
+                              fill="${labelColor}"
+                              text-anchor="middle">${rangeConfig.label}</text>
                     `;
                 }
             });
