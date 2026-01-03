@@ -1,0 +1,38 @@
+# Vertical temperature gauge with ranges
+# Tests: vertical orientation, range rendering bottom-to-top
+type: custom:lcards-slider
+entity: sensor.room_temperature
+preset: gauge-basic
+
+control:
+  locked: true
+
+style:
+  track:
+    display:
+      min: 10
+      max: 30
+      unit: '°C'
+    orientation: vertical
+  
+  ranges:
+    - min: 10
+      max: 18
+      color: '#0088ff'
+      label: 'Cold'
+    - min: 18
+      max: 22
+      color: '#00ff88'
+      label: 'Perfect'
+    - min: 22
+      max: 30
+      color: '#ff8800'
+      label: 'Warm'
+  
+  gauge:
+    scale:
+      tick_marks:
+        major:
+          interval: 2
+      labels:
+        enabled: true

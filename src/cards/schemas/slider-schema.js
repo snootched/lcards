@@ -838,6 +838,60 @@ export function getSliderSchema(options = {}) {
                                 }
                             }
                         }
+                    },
+
+                    // ====================================================================
+                    // RANGES CONFIGURATION (Phase 2)
+                    // ====================================================================
+
+                    ranges: {
+                        type: 'array',
+                        description: 'Color-coded value ranges for visual context (backgrounds in gauge mode, gradient overrides in pills mode)',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                min: {
+                                    type: 'number',
+                                    description: 'Range start value (in display space, matching style.track.display.min/max)',
+                                    examples: [0, 18, 80]
+                                },
+                                max: {
+                                    type: 'number',
+                                    description: 'Range end value (in display space, matching style.track.display.min/max)',
+                                    examples: [20, 24, 100]
+                                },
+                                color: {
+                                    type: 'string',
+                                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                                    description: 'Range background color (hex, rgba, theme token, or CSS variable)',
+                                    examples: ['var(--error-color)', '#ff0000', 'rgba(255,0,0,0.3)', 'theme:palette.danger']
+                                },
+                                label: {
+                                    type: 'string',
+                                    description: 'Optional descriptive label for this range (used in future Picard inset borders)',
+                                    examples: ['Cold', 'Normal', 'Hot', 'Critical', 'Standby']
+                                },
+                                opacity: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 1,
+                                    default: 0.3,
+                                    description: 'Background opacity (0=transparent, 1=solid, default: 0.3)'
+                                }
+                            },
+                            required: ['min', 'max', 'color']
+                        },
+                        examples: [
+                            [
+                                { min: 0, max: 20, color: 'var(--error-color)', label: 'Low', opacity: 0.3 },
+                                { min: 20, max: 80, color: 'var(--success-color)', label: 'Normal', opacity: 0.3 },
+                                { min: 80, max: 100, color: 'var(--warning-color)', label: 'High', opacity: 0.3 }
+                            ]
+                        ],
+                        'x-ui-hints': {
+                            label: 'Value Ranges',
+                            helper: 'Define color-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
+                        }
                     }
                 }
             },

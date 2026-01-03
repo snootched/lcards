@@ -1,0 +1,19 @@
+# Standard gauge without ranges
+# Tests: backward compatibility, no ranges defined
+type: custom:lcards-slider
+entity: light.bedroom
+preset: gauge-basic
+
+control:
+  min: 0
+  max: 100
+  attribute: brightness
+
+style:
+  gauge:
+    scale:
+      tick_marks:
+        major:
+          interval: 10
+      labels:
+        enabled: true

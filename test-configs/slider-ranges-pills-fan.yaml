@@ -1,0 +1,35 @@
+# Fan speed control with pills using range color overrides
+# Tests: pills mode, range color override instead of gradient
+type: custom:lcards-slider
+entity: fan.bedroom
+preset: pills-basic
+
+control:
+  min: 0
+  max: 100
+  step: 10
+  attribute: percentage
+
+style:
+  track:
+    display:
+      min: 0
+      max: 100
+      unit: '%'
+    segments:
+      count: 10
+      gap: 4
+  
+  ranges:
+    - min: 0
+      max: 33
+      color: 'var(--success-color)'
+      label: 'Low'
+    - min: 33
+      max: 66
+      color: 'var(--warning-color)'
+      label: 'Medium'
+    - min: 66
+      max: 100
+      color: 'var(--error-color)'
+      label: 'High'
