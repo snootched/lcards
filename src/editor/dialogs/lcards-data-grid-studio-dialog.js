@@ -184,38 +184,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 gap: 16px;
             }
 
-            /* Main Tab Navigation */
-            .main-tabs {
-                display: flex;
-                gap: 4px;
+            /* HA native tab group styling */
+            ha-tab-group {
+                display: block;
                 margin-bottom: 12px;
-                border-bottom: 2px solid var(--divider-color);
-            }
-
-            .main-tab {
-                padding: 12px 24px;
-                background: transparent;
-                border: none;
-                border-bottom: 3px solid transparent;
-                color: var(--secondary-text-color);
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .main-tab:hover {
-                color: var(--primary-text-color);
-                background: var(--secondary-background-color);
-            }
-
-            .main-tab.active {
-                color: var(--primary-color);
-                border-bottom-color: var(--primary-color);
-                border-bottom-width: 4px;
             }
 
             /* Studio Layout: Config (60%) | Preview (40%) */
@@ -316,46 +288,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 display: block;
                 width: 100%;
                 min-height: 300px;
-            }
-
-            /* Sub-tabs styling */
-            .sub-tabs {
-                display: flex;
-                gap: 8px;
-                margin-bottom: 16px;
-                border-bottom: 1px solid var(--divider-color);
-                padding-bottom: 8px;
-            }
-
-            .sub-tab {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 8px 16px;
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                color: var(--secondary-text-color);
-                font-size: 13px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                white-space: nowrap;
-            }
-
-            .sub-tab ha-icon {
-                --mdc-icon-size: 18px;
-            }
-
-            .sub-tab:hover {
-                background: var(--secondary-background-color);
-                border-color: var(--divider-color);
-            }
-
-            .sub-tab.active {
-                background: var(--primary-color);
-                color: white;
-                border-color: var(--primary-color);
-                font-weight: 500;
             }
 
             /* Mode selector cards */
@@ -524,38 +456,28 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                 <div class="dialog-content">
                     <!-- Main Tab Navigation -->
-                    <div class="main-tabs">
-                        <button
-                            class="main-tab ${this._activeTab === 'mode' ? 'active' : ''}"
-                            @click=${() => this._handleMainTabChange('mode')}>
+                    <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
+                        <ha-tab-group-tab value="mode" ?active=${this._activeTab === 'mode'}>
                             <ha-icon icon="mdi:view-grid"></ha-icon>
                             Mode
-                        </button>
-                        <button
-                            class="main-tab ${this._activeTab === 'grid-structure' ? 'active' : ''}"
-                            @click=${() => this._handleMainTabChange('grid-structure')}>
+                        </ha-tab-group-tab>
+                        <ha-tab-group-tab value="grid-structure" ?active=${this._activeTab === 'grid-structure'}>
                             <ha-icon icon="mdi:table-settings"></ha-icon>
                             Grid Structure
-                        </button>
-                        <button
-                            class="main-tab ${this._activeTab === 'grid-styles' ? 'active' : ''}"
-                            @click=${() => this._handleMainTabChange('grid-styles')}>
+                        </ha-tab-group-tab>
+                        <ha-tab-group-tab value="grid-styles" ?active=${this._activeTab === 'grid-styles'}>
                             <ha-icon icon="mdi:palette"></ha-icon>
                             Grid Styles
-                        </button>
-                        <button
-                            class="main-tab ${this._activeTab === 'animation' ? 'active' : ''}"
-                            @click=${() => this._handleMainTabChange('animation')}>
+                        </ha-tab-group-tab>
+                        <ha-tab-group-tab value="animation" ?active=${this._activeTab === 'animation'}>
                             <ha-icon icon="mdi:animation"></ha-icon>
                             Animation
-                        </button>
-                        <button
-                            class="main-tab ${this._activeTab === 'advanced' ? 'active' : ''}"
-                            @click=${() => this._handleMainTabChange('advanced')}>
+                        </ha-tab-group-tab>
+                        <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
                             <ha-icon icon="mdi:cog"></ha-icon>
                             Advanced
-                        </button>
-                    </div>
+                        </ha-tab-group-tab>
+                    </ha-tab-group>
 
                     <!-- Split Layout: Config (60%) | Preview (40%) -->
                     <div class="studio-layout">
@@ -1484,21 +1406,23 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         ];
 
         return html`
-            <div class="sub-tabs">
+            <ha-tab-group @wa-tab-show=${this._handleStylesSubTabChange}>
                 ${subTabs.map(tab => html`
-                    <div
-                        class="sub-tab ${this._gridStylesSubTab === tab.id ? 'active' : ''}"
-                        @click=${() => { this._gridStylesSubTab = tab.id; this.requestUpdate(); }}>
+                    <ha-tab-group-tab value="${tab.id}" ?active=${this._gridStylesSubTab === tab.id}>
                         <ha-icon icon="${tab.icon}"></ha-icon>
-                        <span>${tab.label}</span>
-                    </div>
+                        ${tab.label}
+                    </ha-tab-group-tab>
                 `)}
-            </div>
 
-            ${this._gridStylesSubTab === 'hierarchy' ? this._renderStyleHierarchySubTab() : ''}
-            ${this._gridStylesSubTab === 'table' ? this._renderTableLevelStylesSubTab() : ''}
-            ${this._gridStylesSubTab === 'row-column' ? this._renderRowColumnStylesSubTab() : ''}
-            ${this._gridStylesSubTab === 'cell' ? this._renderCellLevelStylesSubTab() : ''}
+                ${subTabs.map(tab => html`
+                    <ha-tab-panel value="${tab.id}" ?hidden=${this._gridStylesSubTab !== tab.id}>
+                        ${tab.id === 'hierarchy' ? this._renderStyleHierarchySubTab() : ''}
+                        ${tab.id === 'table' ? this._renderTableLevelStylesSubTab() : ''}
+                        ${tab.id === 'row-column' ? this._renderRowColumnStylesSubTab() : ''}
+                        ${tab.id === 'cell' ? this._renderCellLevelStylesSubTab() : ''}
+                    </ha-tab-panel>
+                `)}
+            </ha-tab-group>
         `;
     }
 
@@ -2250,9 +2174,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     // Event Handlers
     // ========================================
 
-    _handleMainTabChange(tab) {
-        this._activeTab = tab;
-        lcardsLog.debug('[DataGridStudioV4] Main tab changed to:', tab);
+    _handleMainTabChange(e) {
+        const value = e.target.activeTab?.getAttribute('value');
+        if (value !== null && value !== undefined) {
+            this._activeTab = value;
+            lcardsLog.debug('[DataGridStudioV4] Main tab changed to:', value);
+        }
+    }
+
+    _handleStylesSubTabChange(e) {
+        const value = e.target.activeTab?.getAttribute('value');
+        if (value !== null && value !== undefined) {
+            this._gridStylesSubTab = value;
+            this.requestUpdate();
+        }
     }
 
     _handleModeChange(mode) {
