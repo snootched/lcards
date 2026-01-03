@@ -115,6 +115,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             this._workingConfig.data_mode = 'decorative';
         }
 
+        // Normalize rows to object format (convert old array format)
+        this._normalizeRowsFormat();
+
         // Ensure grid defaults
         if (!this._workingConfig.grid) {
             this._workingConfig.grid = {
@@ -156,6 +159,42 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Schedule initial preview update
         this.updateComplete.then(() => this._updatePreviewCard());
+    }
+
+    /**
+     * Normalize rows to object format
+     * Converts old array format [val1, val2, ...] to {values: [...], style: {}, cellStyles: []}
+     * @private
+     */
+    _normalizeRowsFormat() {
+        if (!this._workingConfig.rows || !Array.isArray(this._workingConfig.rows)) {
+            return;
+        }
+
+        this._workingConfig.rows = this._workingConfig.rows.map(row => {
+            // Already in object format
+            if (row && typeof row === 'object' && !Array.isArray(row) && row.values) {
+                // Ensure required properties exist
+                if (!row.style) row.style = {};
+                if (!row.cellStyles) row.cellStyles = [];
+                return row;
+            }
+
+            // Convert array format to object format
+            if (Array.isArray(row)) {
+                return {
+                    values: row,
+                    style: {},
+                    cellStyles: []
+                };
+            }
+
+            // Unexpected format - return as-is with warning
+            lcardsLog.warn('[DataGridStudioV4] Unexpected row format:', row);
+            return row;
+        });
+
+        lcardsLog.debug('[DataGridStudioV4] Normalized rows to object format');
     }
 
     /**
@@ -706,7 +745,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                         <!-- Row Cells -->
                         ${Array.from({ length: numColumns }, (_, col) => {
-                            const value = Array.isArray(row) ? (row[col] || '') : '';
+                            const value = row.values?.[col] || '';
                             return html`
                                 <div class="editable-cell" style="
                                     background: var(--card-background-color);
@@ -1017,7 +1056,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                         <!-- Row Cells -->
                         ${Array.from({ length: numColumns }, (_, col) => {
-                            const value = Array.isArray(row) ? (row[col] || '') : '';
+                            const value = row.values?.[col] || '';
                             return html`
                                 <div class="editable-cell" style="
                                     background: var(--card-background-color);
@@ -1149,7 +1188,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
                         <!-- Row Cells -->
                         ${Array.from({ length: numColumns }, (_, col) => {
-                            const value = Array.isArray(row) ? (row[col] || '') : '';
+                            const value = row.values?.[col] || '';
                             return html`
                                 <div class="editable-cell" style="
                                     background: var(--card-background-color);
@@ -1432,12 +1471,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderTableLevelStylesSubTab() {
-        const isDataTableMode = this._workingConfig.data_mode === 'data-table';
-        const layoutType = this._workingConfig.layout || 'spreadsheet';
-        const showHeaderStyles = isDataTableMode && layoutType === 'spreadsheet';
-
         return html`
-
             <lcards-form-section
                 header="Typography"
                 description="Font settings for all cells"
@@ -1990,20 +2024,25 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         this._workingConfig.rows = [];
 
-        // Create sample rows with appropriate number of columns
+        // Create sample rows with object format (ready for styles)
         for (let r = 0; r < numRows; r++) {
-            const row = [];
+            const values = [];
             for (let c = 0; c < numCols; c++) {
                 // Sample data for first two rows
                 if (r === 0) {
-                    row.push(c === 0 ? 'Label' : (c === 1 ? 'Value' : ''));
+                    values.push(c === 0 ? 'Label' : (c === 1 ? 'Value' : ''));
                 } else if (r === 1) {
-                    row.push(c === 0 ? 'CPU' : (c === 1 ? 'sensor.cpu_usage' : ''));
+                    values.push(c === 0 ? 'CPU' : (c === 1 ? 'sensor.cpu_usage' : ''));
                 } else {
-                    row.push('');
+                    values.push('');
                 }
             }
-            this._workingConfig.rows.push(row);
+            // Use object format from the start
+            this._workingConfig.rows.push({
+                values: values,
+                style: {},
+                cellStyles: []
+            });
         }
 
         lcardsLog.debug('[DataGridStudioV4] Initialized grid rows:', {
@@ -2762,7 +2801,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         }
 
         const numColumns = this._gridColumns || 12;
-        const newRow = Array(numColumns).fill('');
+        const newRow = {
+            values: Array(numColumns).fill(''),
+            style: {},
+            cellStyles: []
+        };
 
         this._workingConfig.rows.push(newRow);
 
@@ -2802,10 +2845,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             this._workingConfig.rows = [];
         }
 
-        // Add empty cell to each row
+        // Add empty cell to each row's values array
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                row.push('');
+            if (row.values) {
+                row.values.push('');
             }
         });
 
@@ -2860,13 +2903,19 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         const { row, col, value } = this._activeCellEdit;
 
-        // Ensure row exists
+        // Ensure row exists as object format
         if (!this._workingConfig.rows[row]) {
-            this._workingConfig.rows[row] = [];
+            this._workingConfig.rows[row] = { values: [], style: {}, cellStyles: [] };
+        }
+
+        // Ensure values array exists
+        const rowData = this._workingConfig.rows[row];
+        if (!rowData.values) {
+            rowData.values = [];
         }
 
         // Update cell value
-        this._workingConfig.rows[row][col] = value;
+        rowData.values[col] = value;
 
         // Close editor
         this._activeCellEdit = null;
@@ -3257,7 +3306,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     // ========================================
 
     _insertRowBefore(index) {
-        const emptyRow = Array(this._gridColumns).fill('');
+        const emptyRow = {
+            values: Array(this._gridColumns).fill(''),
+            style: {},
+            cellStyles: []
+        };
         this._workingConfig.rows.splice(index, 0, emptyRow);
         this._activeRowEdit = null;
 
@@ -3272,7 +3325,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _insertRowAfter(index) {
-        const emptyRow = Array(this._gridColumns).fill('');
+        const emptyRow = {
+            values: Array(this._gridColumns).fill(''),
+            style: {},
+            cellStyles: []
+        };
         this._workingConfig.rows.splice(index + 1, 0, emptyRow);
         this._activeRowEdit = null;
 
@@ -3308,8 +3365,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _insertColumnBefore(index) {
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                row.splice(index, 0, '');
+            if (row.values) {
+                row.values.splice(index, 0, '');
             }
         });
         this._gridColumns++;
@@ -3326,8 +3383,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _insertColumnAfter(index) {
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                row.splice(index + 1, 0, '');
+            if (row.values) {
+                row.values.splice(index + 1, 0, '');
             }
         });
         this._gridColumns++;
@@ -3345,10 +3402,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _moveColumnLeft(index) {
         if (index === 0) return;
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                const temp = row[index];
-                row[index] = row[index - 1];
-                row[index - 1] = temp;
+            if (row.values) {
+                const temp = row.values[index];
+                row.values[index] = row.values[index - 1];
+                row.values[index - 1] = temp;
             }
         });
         this._activeColumnEdit = index - 1;
@@ -3360,10 +3417,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _moveColumnRight(index) {
         if (index === this._gridColumns - 1) return;
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                const temp = row[index];
-                row[index] = row[index + 1];
-                row[index + 1] = temp;
+            if (row.values) {
+                const temp = row.values[index];
+                row.values[index] = row.values[index + 1];
+                row.values[index + 1] = temp;
             }
         });
         this._activeColumnEdit = index + 1;
@@ -3374,8 +3431,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _deleteColumn(index) {
         this._workingConfig.rows.forEach(row => {
-            if (Array.isArray(row)) {
-                row.splice(index, 1);
+            if (row.values) {
+                row.values.splice(index, 1);
+                // Also remove cell style if it exists
+                if (row.cellStyles && row.cellStyles[index] !== undefined) {
+                    row.cellStyles.splice(index, 1);
+                }
             }
         });
         this._gridColumns--;
