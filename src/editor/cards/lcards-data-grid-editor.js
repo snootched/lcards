@@ -11,6 +11,8 @@
 import { html } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { fireEvent } from 'custom-card-helpers';
+import { configToYaml } from '../utils/yaml-utils.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
@@ -256,9 +258,20 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         dialog.addEventListener('config-changed', (e) => {
             lcardsLog.debug('[DataGridEditor] Studio config changed:', e.detail.config);
 
-            // Update config using base editor pattern
-            // This will handle validation, YAML sync, and firing to HA
-            this._updateConfig(e.detail.config, 'visual');
+            // CRITICAL: Replace config entirely, don't merge
+            // The studio has already cleaned up mode-specific properties
+            // If we merge, deleted keys will persist from the old config
+            this.config = e.detail.config;
+
+            // Sync to YAML and notify HA
+            this._isUpdatingYaml = true;
+            this._yamlValue = configToYaml(this.config);
+            requestAnimationFrame(() => {
+                this._isUpdatingYaml = false;
+            });
+
+            fireEvent(this, 'config-changed', { config: this.config });
+            this.requestUpdate();
         });
 
         // Cleanup on close

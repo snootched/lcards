@@ -1938,16 +1938,56 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _handleModeChange(mode) {
+        const oldMode = this._workingConfig.data_mode;
         this._updateConfig('data_mode', mode);
 
-        // Initialize data mode with sample rows if needed
-        if (mode === 'data' && (!this._workingConfig.rows || this._workingConfig.rows.length === 0)) {
-            this._initializeGridRows();
+        // Clean up mode-specific config when switching
+        if (mode === 'decorative') {
+            // Switching to decorative: remove data mode properties
+            delete this._workingConfig.rows;
+            delete this._workingConfig.layout;
+            delete this._workingConfig.source;
+            delete this._workingConfig.history_hours;
+            delete this._workingConfig.value_template;
+
+            // Ensure decorative mode defaults
+            if (!this._workingConfig.format) {
+                this._workingConfig.format = 'mixed';
+            }
+            if (this._workingConfig.refresh_interval === undefined) {
+                this._workingConfig.refresh_interval = 0;
+            }
+        } else if (mode === 'data') {
+            // Switching to data: remove decorative mode properties
+            delete this._workingConfig.format;
+            delete this._workingConfig.refresh_interval;
+
+            // Initialize data mode with grid layout by default
+            if (!this._workingConfig.layout) {
+                this._workingConfig.layout = 'grid';
+            }
+
+            // Initialize grid mode with sample rows
+            if (this._workingConfig.layout === 'grid' && (!this._workingConfig.rows || this._workingConfig.rows.length === 0)) {
+                this._initializeGridRows();
+            }
+
+            // Initialize timeline mode
+            if (this._workingConfig.layout === 'timeline') {
+                if (!this._workingConfig.source) {
+                    this._workingConfig.source = '';
+                }
+                if (!this._workingConfig.history_hours) {
+                    this._workingConfig.history_hours = 2;
+                }
+                if (!this._workingConfig.value_template) {
+                    this._workingConfig.value_template = '{value}';
+                }
+                delete this._workingConfig.rows;
+            }
         }
 
-        lcardsLog.debug('[DataGridStudioV4] Mode changed to:', mode);
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
+        lcardsLog.info('[DataGridStudioV4] Mode changed:', { from: oldMode, to: mode });
     }
 
     _toggleGridLines(e) {
@@ -1969,23 +2009,26 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _handleLayoutChange(newLayout) {
+        const oldLayout = this._workingConfig.layout;
         this._updateConfig('layout', newLayout);
 
-        // Initialize layout-specific config
+        // Clean up layout-specific config when switching
         if (newLayout === 'grid') {
-            // Ensure rows exist for grid mode
+            // Switching to grid: ensure rows exist, remove timeline fields
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._workingConfig.rows = [
-                    ['Label', 'Value', 'Status'],
-                    ['CPU', 'sensor.cpu_usage', 'OK']
-                ];
+                this._initializeGridRows();
+            } else {
+                // Normalize existing rows to object format
+                this._normalizeRowsFormat();
             }
+
             // Remove timeline-specific fields
             delete this._workingConfig.source;
             delete this._workingConfig.history_hours;
             delete this._workingConfig.value_template;
+
         } else if (newLayout === 'timeline') {
-            // Timeline mode: set source and history config
+            // Switching to timeline: set source and history config, remove rows
             if (!this._workingConfig.source) {
                 this._workingConfig.source = '';
             }
@@ -1995,13 +2038,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             if (!this._workingConfig.value_template) {
                 this._workingConfig.value_template = '{value}';
             }
-            // Timeline is limited to 1 row, no rows array needed
-            if (this._workingConfig.rows) {
-                delete this._workingConfig.rows;
-            }
+
+            // Timeline doesn't use rows array (single source only)
+            delete this._workingConfig.rows;
         }
 
-        lcardsLog.debug('[DataGridStudioV4] Layout changed to:', newLayout);
+        lcardsLog.info('[DataGridStudioV4] Layout changed:', { from: oldLayout, to: newLayout });
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
