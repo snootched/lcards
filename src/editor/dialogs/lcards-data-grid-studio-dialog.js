@@ -22,6 +22,7 @@
 import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { editorStyles } from '../base/editor-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import { dataGridSchema } from '../../cards/schemas/data-grid-schema.js';
 import '../components/shared/lcards-form-section.js';
@@ -252,7 +253,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     static get styles() {
-        return css`
+        return [
+            editorStyles,
+            css`
             :host {
                 display: block;
             }
@@ -469,6 +472,16 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 line-height: 1.4;
             }
 
+            /* Form section spacing - match main editor */
+            lcards-form-section {
+                display: block;
+                margin-bottom: 20px;
+            }
+
+            lcards-form-section:last-child {
+                margin-bottom: 0;
+            }
+
             /* Validation errors */
             .validation-errors {
                 margin-bottom: 16px;
@@ -479,7 +492,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     grid-template-columns: 1fr;
                 }
             }
-        `;
+        `];
     }
 
     render() {
@@ -1397,17 +1410,19 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 icon="mdi:database"
                 ?expanded=${true}>
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'grid', label: 'Grid (Auto-detected cells)' },
-                        { value: 'timeline', label: 'Timeline (Historical data)' }
-                    ]}}}
-                    .label=${'Layout Type'}
-                    .value=${layout}
-                    @value-changed=${(e) => this._handleLayoutChange(e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
+                <div class="form-row-group">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'grid', label: 'Grid (Auto-detected cells)' },
+                            { value: 'timeline', label: 'Timeline (Historical data)' }
+                        ]}}}
+                        .label=${'Layout Type'}
+                        .value=${layout}
+                        @value-changed=${(e) => this._handleLayoutChange(e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </div>
 
                 <lcards-message type="info">
                     ${layout === 'timeline'
@@ -1505,6 +1520,35 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </lcards-grid-layout>
             </lcards-form-section>
 
+            <lcards-form-section
+                header="Alignment & Padding"
+                description="Text alignment and cell padding"
+                icon="mdi:format-align-center"
+                ?expanded=${true}>
+
+                <lcards-grid-layout>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'left', label: 'Left' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'right', label: 'Right' }
+                        ]}}}
+                        .label=${'Text Alignment'}
+                        .value=${this._workingConfig.style?.align || 'left'}
+                        @value-changed=${(e) => this._updateConfig('style.align', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <ha-textfield
+                        label="Padding"
+                        .value=${this._workingConfig.style?.padding || ''}
+                        @input=${(e) => this._updateConfig('style.padding', e.target.value)}
+                        helper="e.g., '8px', '4px 8px'">
+                    </ha-textfield>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
             <lcards-color-section
                 .editor=${this}
                 header="Colors"
@@ -1546,7 +1590,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         { value: 'solid', label: 'Solid' },
                         { value: 'dashed', label: 'Dashed' },
                         { value: 'dotted', label: 'Dotted' },
-                        { value: 'double', label: 'Double' }
+                        { value: 'double', label: 'Double' },
+                        { value: 'groove', label: 'Groove' },
+                        { value: 'ridge', label: 'Ridge' },
+                        { value: 'inset', label: 'Inset' },
+                        { value: 'outset', label: 'Outset' },
+                        { value: 'none', label: 'None' },
+                        { value: 'hidden', label: 'Hidden' }
                     ]}}}
                     .label=${'Border Style'}
                     .value=${this._workingConfig.style?.border_style || 'solid'}
@@ -1614,97 +1664,205 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     // ========================================
 
     _renderAnimationTab() {
+        const animationType = this._workingConfig.animation?.type || 'none';
+        const pattern = this._workingConfig.animation?.pattern || 'default';
+        const highlightChanges = this._workingConfig.animation?.highlight_changes || false;
+        const changePreset = this._workingConfig.animation?.change_preset || 'pulse';
+
         return html`
+            <lcards-message
+                type="info"
+                message="Configure cascade animation (continuous waterfall effect) and change detection (highlights when values change).">
+            </lcards-message>
+
+            <!-- Cascade Animation -->
             <lcards-form-section
                 header="Cascade Animation"
-                description="Background color cycling effect"
-                icon="mdi:animation-play"
-                ?expanded=${true}>
+                description="Authentic LCARS waterfall color cycling effect"
+                icon="mdi:animation"
+                ?expanded=${true}
+                ?outlined=${true}>
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'none', label: 'None' },
-                        { value: 'cascade', label: 'Cascade' }
-                    ]}}}
-                    .label=${'Animation Type'}
-                    .value=${this._workingConfig.animation?.type || 'none'}
-                    @value-changed=${(e) => this._updateConfig('animation.type', e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                ${this._workingConfig.animation?.type === 'cascade' ? html`
+                <div class="form-row-group">
                     <ha-selector
                         .hass=${this.hass}
                         .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'default', label: 'Default' },
-                            { value: 'niagara', label: 'Niagara' },
-                            { value: 'fast', label: 'Fast' },
-                            { value: 'frozen', label: 'Frozen' }
+                            { value: 'none', label: 'None' },
+                            { value: 'cascade', label: 'Cascade' }
                         ]}}}
-                        .label=${'Pattern'}
-                        .value=${this._workingConfig.animation?.pattern || 'default'}
-                        @value-changed=${(e) => this._updateConfig('animation.pattern', e.detail.value)}
+                        .label=${'Animation Type'}
+                        .value=${animationType}
+                        @value-changed=${(e) => this._updateConfig('animation.type', e.detail.value)}
                         @closed=${(e) => e.stopPropagation()}>
                     </ha-selector>
+                </div>
 
-                    <ha-textfield
-                        type="number"
-                        label="Speed Multiplier"
-                        .value=${this._workingConfig.animation?.speed_multiplier || 1.0}
-                        @input=${(e) => this._updateConfig('animation.speed_multiplier', parseFloat(e.target.value) || 1.0)}
-                        step="0.1"
-                        min="0.1"
-                        max="10"
-                        helper="Speed multiplier (1.0 = normal)">
-                    </ha-textfield>
+                ${animationType === 'cascade' ? html`
+                    <div class="form-row-group">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {mode: 'dropdown', options: [
+                                { value: 'default', label: 'Default' },
+                                { value: 'niagara', label: 'Niagara' },
+                                { value: 'fast', label: 'Fast' },
+                                { value: 'frozen', label: 'Frozen' },
+                                { value: 'custom', label: 'Custom' }
+                            ]}}}
+                            .label=${'Timing Pattern'}
+                            .value=${pattern}
+                            @value-changed=${(e) => this._updateConfig('animation.pattern', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+                    </div>
 
+                    <!-- 3-Color Cascade -->
                     <lcards-color-section
                         .editor=${this}
                         header="Cascade Colors"
                         description="3-color cycle for cascade effect"
                         .colorPaths=${[
-                            {
-                                path: 'animation.colors.start',
-                                label: 'Start Color',
-                                helper: 'Starting color (75% dwell)'
-                            },
-                            {
-                                path: 'animation.colors.text',
-                                label: 'Middle Color',
-                                helper: 'Middle color (10% snap)'
-                            },
-                            {
-                                path: 'animation.colors.end',
-                                label: 'End Color',
-                                helper: 'Ending color (10% brief)'
-                            }
+                            { path: 'animation.colors.start', label: 'Start Color', helper: 'Starting color (75% dwell)' },
+                            { path: 'animation.colors.text', label: 'Middle Color', helper: 'Middle color (10% snap)' },
+                            { path: 'animation.colors.end', label: 'End Color', helper: 'Ending color (10% brief)' }
                         ]}
                         ?expanded=${true}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
+
+                    <!-- Speed Controls -->
+                    <lcards-grid-layout>
+                        <ha-textfield
+                            type="number"
+                            label="Speed Multiplier"
+                            .value=${this._workingConfig.animation?.speed_multiplier || 1.0}
+                            @input=${(e) => this._updateConfig('animation.speed_multiplier', parseFloat(e.target.value) || 1.0)}
+                            step="0.1"
+                            min="0.1"
+                            max="10"
+                            helper="2.0 = twice as fast, 0.5 = half speed">
+                        </ha-textfield>
+
+                        <ha-textfield
+                            type="number"
+                            label="Override Duration (ms)"
+                            .value=${this._workingConfig.animation?.duration || ''}
+                            @input=${(e) => this._updateConfig('animation.duration', parseInt(e.target.value) || undefined)}
+                            min="100"
+                            max="30000"
+                            helper="Override all row durations (leave empty to use pattern)">
+                        </ha-textfield>
+                    </lcards-grid-layout>
+
+                    <ha-textfield
+                        label="Easing Function"
+                        .value=${this._workingConfig.animation?.easing || 'linear'}
+                        @input=${(e) => this._updateConfig('animation.easing', e.target.value)}
+                        helper="Animation easing (e.g., linear, ease-in-out)">
+                    </ha-textfield>
+
+                    <!-- Custom Timing (when pattern = custom) -->
+                    ${pattern === 'custom' ? html`
+                        <ha-alert alert-type="info" style="margin-top: 16px;">
+                            <strong>Custom Timing Configuration</strong>
+                            <br><br>
+                            Custom timing array configuration is not yet available in the visual editor.
+                            Use the YAML editor (in main editor) to define per-row timing.
+                            <br><br>
+                            <strong>Example:</strong>
+                            <pre style="margin-top: 8px; font-size: 12px; background: var(--secondary-background-color); padding: 8px; border-radius: 4px;">animation:
+  timing:
+    - { duration: 3000, delay: 0.1 }
+    - { duration: 2000, delay: 0.2 }
+    - { duration: 4000, delay: 0.3 }</pre>
+                        </ha-alert>
+                    ` : ''}
                 ` : ''}
             </lcards-form-section>
 
+            <!-- Change Detection -->
             <lcards-form-section
                 header="Change Detection"
-                description="Highlight cells on data changes"
-                icon="mdi:bell-alert"
-                ?expanded=${true}>
+                description="Highlight cells when values change"
+                icon="mdi:alert-circle-outline"
+                ?expanded=${true}
+                ?outlined=${true}>
 
                 <ha-selector
                     .hass=${this.hass}
                     .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'none', label: 'None' },
-                        { value: 'pulse', label: 'Pulse' },
-                        { value: 'glow', label: 'Glow' },
-                        { value: 'flash', label: 'Flash' }
+                        { value: false, label: 'Disabled' },
+                        { value: true, label: 'Enabled' }
                     ]}}}
-                    .label=${'Change Animation'}
-                    .value=${this._workingConfig.change_animation?.preset || 'none'}
-                    @value-changed=${(e) => this._updateConfig('change_animation.preset', e.detail.value)}
+                    .label=${'Highlight Changes'}
+                    .value=${highlightChanges}
+                    @value-changed=${(e) => this._updateConfig('animation.highlight_changes', e.detail.value)}
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
+
+                ${highlightChanges ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'pulse', label: 'Pulse' },
+                            { value: 'glow', label: 'Glow' },
+                            { value: 'flash', label: 'Flash' }
+                        ]}}}
+                        .label=${'Change Animation Preset'}
+                        .value=${changePreset}
+                        @value-changed=${(e) => this._updateConfig('animation.change_preset', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <lcards-grid-layout>
+                        <ha-textfield
+                            type="number"
+                            label="Duration (ms)"
+                            .value=${this._workingConfig.animation?.change_duration || 600}
+                            @input=${(e) => this._updateConfig('animation.change_duration', parseInt(e.target.value) || 600)}
+                            min="100"
+                            max="5000"
+                            helper="Animation duration">
+                        </ha-textfield>
+
+                        <ha-textfield
+                            label="Easing"
+                            .value=${this._workingConfig.animation?.change_easing || 'ease-in-out'}
+                            @input=${(e) => this._updateConfig('animation.change_easing', e.target.value)}
+                            helper="Easing function">
+                        </ha-textfield>
+
+                        <ha-textfield
+                            type="number"
+                            label="Max Cells"
+                            .value=${this._workingConfig.animation?.max_highlight_cells || 10}
+                            @input=${(e) => this._updateConfig('animation.max_highlight_cells', parseInt(e.target.value) || 10)}
+                            min="1"
+                            max="100"
+                            helper="Maximum cells to animate per update">
+                        </ha-textfield>
+                    </lcards-grid-layout>
+
+                    <!-- Preset-specific parameters info -->
+                    <ha-alert alert-type="info">
+                        <strong>${changePreset.charAt(0).toUpperCase() + changePreset.slice(1)} Preset Parameters:</strong>
+                        <br><br>
+                        ${changePreset === 'pulse' ? html`
+                            • <strong>max_scale:</strong> Maximum scale factor (default: 1.05)<br>
+                            • <strong>min_opacity:</strong> Minimum opacity (default: 0.7)
+                        ` : ''}
+                        ${changePreset === 'glow' ? html`
+                            • <strong>color:</strong> Glow color (default: preset color)<br>
+                            • <strong>blur_max:</strong> Maximum blur radius in px (default: 8)
+                        ` : ''}
+                        ${changePreset === 'flash' ? html`
+                            • <strong>color:</strong> Flash color (default: preset color)<br>
+                            • <strong>intensity:</strong> Flash intensity 0-1 (default: 0.6)
+                        ` : ''}
+                        <br>
+                        Configure these in <code>animation.change_params</code> via the YAML tab in the main editor.
+                        Visual configuration will be added in a future update.
+                    </ha-alert>
+                ` : ''}
             </lcards-form-section>
         `;
     }
@@ -1747,8 +1905,29 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     @input=${(e) => this._handleGridGapChange(parseInt(e.target.value) || 0)}
                     min="0"
                     max="50"
-                    helper="Space between cells">
+                    helper="Uniform spacing between cells">
                 </ha-textfield>
+
+                <lcards-message
+                    type="info"
+                    message="You can also use row-gap and column-gap separately for different vertical and horizontal spacing.">
+                </lcards-message>
+
+                <lcards-grid-layout>
+                    <ha-textfield
+                        label="Row Gap"
+                        .value=${this._workingConfig.grid?.['row-gap'] || ''}
+                        @input=${(e) => this._updateConfig('grid.row-gap', e.target.value)}
+                        helper="Vertical spacing (e.g., '8px')">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        label="Column Gap"
+                        .value=${this._workingConfig.grid?.['column-gap'] || ''}
+                        @input=${(e) => this._updateConfig('grid.column-gap', e.target.value)}
+                        helper="Horizontal spacing (e.g., '8px')">
+                    </ha-textfield>
+                </lcards-grid-layout>
             </lcards-form-section>
         `;
     }
@@ -1794,37 +1973,135 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     // ========================================
 
     _renderAdvancedTab() {
-        return this._renderCssGridSubTab();
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure advanced CSS Grid properties for fine-grained control over grid layout and item placement.">
+            </lcards-message>
+
+            <!-- Auto-Placement & Item Alignment -->
+            <lcards-form-section
+                header="Auto-Placement & Item Alignment"
+                description="How cells automatically fill and align within the grid"
+                icon="mdi:format-align-middle"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                <div class="form-row-group">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'row', label: 'Row (Fill rows first)' },
+                            { value: 'column', label: 'Column (Fill columns first)' },
+                            { value: 'row dense', label: 'Row Dense (Fill gaps)' },
+                            { value: 'column dense', label: 'Column Dense (Fill gaps)' }
+                        ]}}}
+                        .label=${'Auto Flow'}
+                        .value=${this._workingConfig.grid?.['grid-auto-flow'] || 'row'}
+                        @value-changed=${(e) => this._updateConfig('grid.grid-auto-flow', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </div>
+
+                <lcards-grid-layout>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'stretch', label: 'Stretch' }
+                        ]}}}
+                        .label=${'Justify Items'}
+                        .value=${this._workingConfig.grid?.['justify-items'] || 'stretch'}
+                        @value-changed=${(e) => this._updateConfig('grid.justify-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'stretch', label: 'Stretch' }
+                        ]}}}
+                        .label=${'Align Items'}
+                        .value=${this._workingConfig.grid?.['align-items'] || 'stretch'}
+                        @value-changed=${(e) => this._updateConfig('grid.align-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <!-- Advanced Grid Properties -->
+            <lcards-form-section
+                header="Advanced Grid Properties"
+                description="Container alignment and implicit grid sizing"
+                icon="mdi:cog"
+                ?expanded=${false}
+                ?outlined=${true}>
+
+                <lcards-grid-layout>
+                    <ha-textfield
+                        label="Auto Columns"
+                        .value=${this._workingConfig.grid?.['grid-auto-columns'] || ''}
+                        @input=${(e) => this._updateConfig('grid.grid-auto-columns', e.target.value)}
+                        helper="Width of implicit columns (e.g., 100px, 1fr)">
+                    </ha-textfield>
+
+                    <ha-textfield
+                        label="Auto Rows"
+                        .value=${this._workingConfig.grid?.['grid-auto-rows'] || ''}
+                        @input=${(e) => this._updateConfig('grid.grid-auto-rows', e.target.value)}
+                        helper="Height of implicit rows (e.g., 50px, auto)">
+                    </ha-textfield>
+                </lcards-grid-layout>
+
+                <lcards-grid-layout>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'space-around', label: 'Space Around' },
+                            { value: 'space-between', label: 'Space Between' },
+                            { value: 'space-evenly', label: 'Space Evenly' }
+                        ]}}}
+                        .label=${'Justify Content'}
+                        .value=${this._workingConfig.grid?.['justify-content'] || 'start'}
+                        @value-changed=${(e) => this._updateConfig('grid.justify-content', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'space-around', label: 'Space Around' },
+                            { value: 'space-between', label: 'Space Between' },
+                            { value: 'space-evenly', label: 'Space Evenly' }
+                        ]}}}
+                        .label=${'Align Content'}
+                        .value=${this._workingConfig.grid?.['align-content'] || 'start'}
+                        @value-changed=${(e) => this._updateConfig('grid.align-content', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </lcards-grid-layout>
+            </lcards-form-section>
+        `;
     }
 
     // Old subtabs removed - Grid Styles is now a main tab, Animation is now a main tab
 
     _renderCssGridSubTab() {
-        return html`
-            <lcards-form-section
-                header="CSS Grid Expert Mode"
-                description="Advanced CSS Grid properties"
-                ?expanded=${true}>
-
-                <lcards-style-hierarchy-diagram
-                    .mode=${hierarchyMode}>
-                </lcards-style-hierarchy-diagram>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Border Settings"
-                description="Cell border configuration"
-                icon="mdi:border-all"
-                ?expanded=${true}>
-
-                <lcards-grid-layout>
-                    ${FormField.renderField(this, 'style.border_width')}
-                    ${FormField.renderField(this, 'style.border_color')}
-                </lcards-grid-layout>
-
-                ${FormField.renderField(this, 'style.border_style')}
-            </lcards-form-section>
-        `;
+        // This method is no longer used - advanced grid controls moved to _renderAdvancedTab
+        return html``;
     }
 
     _renderAnimationSubTab() {

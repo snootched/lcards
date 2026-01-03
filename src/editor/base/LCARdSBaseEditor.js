@@ -1249,8 +1249,8 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _getUtilityTabs() {
         return [
-            { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
-            { label: 'Developer', content: () => this._renderDeveloperTab() },
+            //{ label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
+            { label: 'Main Engineering', content: () => this._renderDeveloperTab() },
             { label: 'YAML', content: () => this._renderYamlTab() }
         ];
     }
