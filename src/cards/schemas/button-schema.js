@@ -396,11 +396,6 @@ export function getButtonSchema(options = {}) {
                 'x-ui-hints': {
                     label: 'Style Preset',
                     helper: 'Choose a pre-configured button style. Use "component" instead for advanced layouts like D-pad.',
-                    selector: {
-                        select: {
-                            mode: 'dropdown'
-                        }
-                    }
                 }
             },
 
@@ -944,19 +939,19 @@ export function getButtonSchema(options = {}) {
                                                     selector: {
                                                         object: {
                                                             properties: {
-                                                                top_left: { 
+                                                                top_left: {
                                                                     title: 'Top Left',
                                                                     number: { min: 0, max: 100, step: 1 }
                                                                 },
-                                                                top_right: { 
+                                                                top_right: {
                                                                     title: 'Top Right',
                                                                     number: { min: 0, max: 100, step: 1 }
                                                                 },
-                                                                bottom_right: { 
+                                                                bottom_right: {
                                                                     title: 'Bottom Right',
                                                                     number: { min: 0, max: 100, step: 1 }
                                                                 },
-                                                                bottom_left: { 
+                                                                bottom_left: {
                                                                     title: 'Bottom Left',
                                                                     number: { min: 0, max: 100, step: 1 }
                                                                 }

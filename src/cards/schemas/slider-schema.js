@@ -181,12 +181,8 @@ export function getSliderSchema(options = {}) {
                 examples: ['pills-basic', 'gauge-basic'],
                 'x-ui-hints': {
                     label: 'Style Preset',
-                    helper: 'Choose a pre-configured slider style',
-                    selector: {
-                        select: {
-                            mode: 'dropdown'
-                        }
-                    }
+                    helper: 'Choose a pre-configured slider style'
+                    // No selector - let auto-generation build it from enum
                 }
             },
 

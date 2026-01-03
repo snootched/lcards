@@ -2,7 +2,7 @@
  * LCARdS Slider Editor
  *
  * Visual configuration editor for slider cards.
- * Refactored from 11 tabs to 6 tabs with inline colors for better UX.
+ * 5-tab structure with utility tabs from base class.
  *
  * @extends {LCARdSBaseEditor}
  */
@@ -86,7 +86,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'slider';
-        lcardsLog.debug('[LCARdSSliderEditor] Refactored editor initialized with cardType: slider (8 tabs)');
+        lcardsLog.debug('[LCARdSSliderEditor] Editor initialized with cardType: slider (5 tabs + utility tabs)');
     }
 
     /**
@@ -99,7 +99,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Define editor tabs - 8 tabs with reorganized structure
+     * Define editor tabs - 5 tabs + utility tabs from base class
      * @returns {Array} Tab definitions
      * @protected
      */
@@ -110,9 +110,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             { label: 'Borders', content: () => this._renderBordersTab() },
             { label: 'Text Fields', content: () => this._renderTextTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
-            { label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
-            { label: 'Developer', content: () => this._renderDeveloperTab() },
-            { label: 'YAML', content: () => this._renderYamlTab() }
+            ...this._getUtilityTabs()
         ];
     }
 
@@ -787,62 +785,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 @value-changed=${this._handleActionsChange}>
             </lcards-multi-action-editor>
         `;
-    }
-
-    /**
-     * Advanced tab - Grid layout, CSS class, and animations
-     * @returns {Array} Advanced tab definition
-     */
-    _getAdvancedTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Advanced configuration: Grid layout, custom CSS classes, and animation settings.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Grid Layout',
-                description: 'Card size in Home Assistant grid',
-                icon: 'mdi:grid',
-                expanded: true,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'grid_columns',
-                        label: 'Grid Columns',
-                        helper: 'Number of grid columns to span (1-12, default: 4)'
-                    },
-                    {
-                        type: 'field',
-                        path: 'grid_rows',
-                        label: 'Grid Rows',
-                        helper: 'Number of grid rows to span (1-12, default: 1)'
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                header: 'Custom Styling',
-                description: 'CSS classes and advanced styling options',
-                icon: 'mdi:code-braces',
-                expanded: false,
-                outlined: true,
-                children: [
-                    {
-                        type: 'field',
-                        path: 'css_class',
-                        label: 'Custom CSS Class',
-                        helper: 'Add custom CSS class for styling'
-                    }
-                ]
-            }
-        ];
     }
 
     // ============================================================================
