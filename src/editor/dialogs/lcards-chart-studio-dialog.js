@@ -32,7 +32,6 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/lcards-chart-live-preview.js';
-import '../dialogs/lcards-datasource-picker-dialog.js';
 import '../../cards/lcards-chart.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
@@ -45,8 +44,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             _validationErrors: { type: Array, state: true },
             // Data Sources tab state
             _dataSourceLevel: { type: String, state: true }, // 'simple' | 'multi' | 'advanced'
-            _selectedEntity: { type: String, state: true },
-            _showDataSourcePicker: { type: Boolean, state: true }
+            _selectedEntity: { type: String, state: true }
         };
     }
 
@@ -67,7 +65,6 @@ export class LCARdSChartStudioDialog extends LitElement {
         // Data Sources tab state
         this._dataSourceLevel = 'simple';
         this._selectedEntity = '';
-        this._showDataSourcePicker = false;
     }
 
     /**
@@ -542,12 +539,15 @@ export class LCARdSChartStudioDialog extends LitElement {
      * Handle Cancel button
      * @private
      */
-    _handleCancel() {
+    async _handleCancel() {
         // Confirm if changes were made
         const hasChanges = JSON.stringify(this._workingConfig) !== JSON.stringify(this._initialConfig);
         
         if (hasChanges) {
-            const confirmed = confirm('You have unsaved changes. Are you sure you want to cancel?');
+            const confirmed = await this._showConfirmDialog(
+                'Unsaved Changes',
+                'You have unsaved changes. Are you sure you want to cancel?'
+            );
             if (!confirmed) return;
         }
 
@@ -558,14 +558,46 @@ export class LCARdSChartStudioDialog extends LitElement {
      * Handle Reset button
      * @private
      */
-    _handleReset() {
-        const confirmed = confirm('Reset all changes to original configuration?');
+    async _handleReset() {
+        const confirmed = await this._showConfirmDialog(
+            'Reset Configuration',
+            'Reset all changes to original configuration?'
+        );
         if (!confirmed) return;
 
         this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig));
         this._schedulePreviewUpdate();
         this.requestUpdate();
         lcardsLog.debug('[ChartStudio] Reset to initial config');
+    }
+
+    /**
+     * Show confirmation dialog using HA design system
+     * @private
+     * @param {string} title - Dialog title
+     * @param {string} message - Dialog message
+     * @returns {Promise<boolean>} True if confirmed, false if cancelled
+     */
+    async _showConfirmDialog(title, message) {
+        return new Promise((resolve) => {
+            const event = new CustomEvent('show-dialog', {
+                detail: {
+                    dialogTag: 'ha-dialog',
+                    dialogImport: () => Promise.resolve(),
+                    dialogParams: {
+                        title: title,
+                        text: message,
+                        confirmText: 'Continue',
+                        dismissText: 'Cancel',
+                        confirm: () => resolve(true),
+                        cancel: () => resolve(false)
+                    }
+                },
+                bubbles: true,
+                composed: true
+            });
+            this.dispatchEvent(event);
+        });
     }
 
     /**
@@ -666,15 +698,6 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${this._renderDataSourceHelp()}
             </div>
-
-            ${this._showDataSourcePicker ? html`
-                <lcards-datasource-picker-dialog
-                    .hass=${this.hass}
-                    .open=${this._showDataSourcePicker}
-                    @source-selected=${this._handleDataSourceSelected}
-                    @closed=${() => this._showDataSourcePicker = false}>
-                </lcards-datasource-picker-dialog>
-            ` : ''}
         `;
     }
 
@@ -729,22 +752,23 @@ export class LCARdSChartStudioDialog extends LitElement {
             <lcards-form-section header="Entity Configuration">
                 <div class="form-field">
                     <label class="form-label">Entity</label>
-                    <ha-entity-picker
+                    <ha-selector
                         .hass=${this.hass}
+                        .selector=${{ entity: {} }}
                         .value=${entityId}
-                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}
-                        allow-custom-entity>
-                    </ha-entity-picker>
+                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}>
+                    </ha-selector>
                     <div class="form-helper">Select a Home Assistant entity to chart</div>
                 </div>
 
                 <div class="form-field">
                     <label class="form-label">Attribute (Optional)</label>
-                    <ha-textfield
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ text: {} }}
                         .value=${attribute}
-                        @input=${(e) => this._updateConfig('attribute', e.target.value)}
-                        placeholder="e.g., temperature">
-                    </ha-textfield>
+                        @value-changed=${(e) => this._updateConfig('attribute', e.detail.value)}>
+                    </ha-selector>
                     <div class="form-helper">Track a specific entity attribute instead of state</div>
                 </div>
 
@@ -788,20 +812,21 @@ export class LCARdSChartStudioDialog extends LitElement {
                             <div class="series-content">
                                 <div class="form-field">
                                     <label class="form-label">Entity</label>
-                                    <ha-entity-picker
+                                    <ha-selector
                                         .hass=${this.hass}
+                                        .selector=${{ entity: {} }}
                                         .value=${source}
-                                        @value-changed=${(e) => this._updateSeries(index, e.detail.value)}
-                                        allow-custom-entity>
-                                    </ha-entity-picker>
+                                        @value-changed=${(e) => this._updateSeries(index, 'source', e.detail.value)}>
+                                    </ha-selector>
                                 </div>
                                 <div class="form-field">
                                     <label class="form-label">Series Name</label>
-                                    <ha-textfield
-                                        .value=${seriesNames[index] || ''}
-                                        @input=${(e) => this._updateSeriesName(index, e.target.value)}
-                                        placeholder="Custom legend name">
-                                    </ha-textfield>
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .selector=${{ text: {} }}
+                                        .value=${seriesNames[index] || source}
+                                        @value-changed=${(e) => this._updateSeries(index, 'name', e.detail.value)}>
+                                    </ha-selector>
                                 </div>
                             </div>
                         </div>
@@ -859,7 +884,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                     </lcards-message>
                 `}
 
-                <ha-button class="add-button" @click=${() => this._showDataSourcePicker = true}>
+                <ha-button class="add-button" @click=${() => this._openDataSourcePicker()}>
                     <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                     Add DataSource
                 </ha-button>
@@ -914,34 +939,32 @@ export class LCARdSChartStudioDialog extends LitElement {
             <div style="margin-top: 12px;">
                 <div class="form-field">
                     <label class="form-label">Entity</label>
-                    <ha-entity-picker
+                    <ha-selector
                         .hass=${this.hass}
+                        .selector=${{ entity: {} }}
                         .value=${config.entity || ''}
-                        @value-changed=${(e) => this._updateDataSourceConfig(name, 'entity', e.detail.value)}
-                        allow-custom-entity>
-                    </ha-entity-picker>
+                        @value-changed=${(e) => this._updateDataSourceConfig(name, 'entity', e.detail.value)}>
+                    </ha-selector>
                 </div>
 
                 <div class="form-field">
-                    <label class="form-label">Window (seconds): ${windowSeconds}</label>
-                    <ha-textfield
-                        type="number"
-                        min="60"
-                        max="86400"
+                    <label class="form-label">Window (seconds)</label>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 60, max: 86400, mode: 'box' } }}
                         .value=${windowSeconds}
-                        @input=${(e) => this._updateDataSourceConfig(name, 'window_seconds', parseInt(e.target.value))}>
-                    </ha-textfield>
+                        @value-changed=${(e) => this._updateDataSourceConfig(name, 'window_seconds', e.detail.value)}>
+                    </ha-selector>
                 </div>
 
                 <div class="form-field">
-                    <label class="form-label">Min Emit (ms): ${minEmitMs}</label>
-                    <ha-textfield
-                        type="number"
-                        min="0"
-                        max="10000"
+                    <label class="form-label">Min Emit (ms)</label>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 10000, mode: 'box' } }}
                         .value=${minEmitMs}
-                        @input=${(e) => this._updateDataSourceConfig(name, 'minEmitMs', parseInt(e.target.value))}>
-                    </ha-textfield>
+                        @value-changed=${(e) => this._updateDataSourceConfig(name, 'minEmitMs', e.detail.value)}>
+                    </ha-selector>
                 </div>
 
                 <div class="form-field">
@@ -956,14 +979,13 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${historyPreload ? html`
                     <div class="form-field">
-                        <label class="form-label">History Hours: ${historyHours}</label>
-                        <ha-textfield
-                            type="number"
-                            min="0"
-                            max="168"
+                        <label class="form-label">History Hours</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 168, mode: 'box' } }}
                             .value=${historyHours}
-                            @input=${(e) => this._updateDataSourceHistoryConfig(name, 'hours', parseInt(e.target.value))}>
-                        </ha-textfield>
+                            @value-changed=${(e) => this._updateDataSourceHistoryConfig(name, 'hours', e.detail.value)}>
+                        </ha-selector>
                     </div>
                 ` : ''}
             </div>
@@ -1082,14 +1104,15 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @param {string} level - 'simple' | 'multi' | 'advanced'
      * @private
      */
-    _switchDataSourceLevel(level) {
+    async _switchDataSourceLevel(level) {
         if (level === this._dataSourceLevel) return;
 
         // Check if config exists and confirm switch
         const hasExistingConfig = this._hasDataSourceConfig();
         if (hasExistingConfig) {
-            const confirmed = confirm(
-                'Switching levels will clear existing data source configuration. Continue?'
+            const confirmed = await this._showConfirmDialog(
+                'Switch Data Source Level?',
+                'Switching data source levels will reset your current configuration. Continue?'
             );
             if (!confirmed) return;
         }
@@ -1159,29 +1182,22 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Update a series entity
+     * Update a series entity or name
      * @param {number} index - Series index
-     * @param {string} value - New entity ID
+     * @param {string} field - 'source' or 'name'
+     * @param {string} value - New value
      * @private
      */
-    _updateSeries(index, value) {
-        if (!this._workingConfig.sources) return;
-        this._workingConfig.sources[index] = value;
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
-    }
-
-    /**
-     * Update series name
-     * @param {number} index - Series index
-     * @param {string} value - New name
-     * @private
-     */
-    _updateSeriesName(index, value) {
-        if (!this._workingConfig.series_names) {
-            this._workingConfig.series_names = [];
+    _updateSeries(index, field, value) {
+        if (field === 'source') {
+            if (!this._workingConfig.sources) return;
+            this._workingConfig.sources[index] = value;
+        } else if (field === 'name') {
+            if (!this._workingConfig.series_names) {
+                this._workingConfig.series_names = [];
+            }
+            this._workingConfig.series_names[index] = value;
         }
-        this._workingConfig.series_names[index] = value;
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -1231,49 +1247,19 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Handle DataSource selected from picker
-     * @param {CustomEvent} e - source-selected event
+     * Open DataSource editor (redirect to main editor)
      * @private
      */
-    _handleDataSourceSelected(e) {
-        const sourceId = e.detail.source;
+    async _openDataSourcePicker() {
+        const confirmed = await this._showConfirmDialog(
+            'Open DataSource Editor',
+            'Advanced DataSource configuration requires the full editor. Save your changes and open the DataSource editor tab?'
+        );
         
-        if (!this._workingConfig.sources) {
-            this._workingConfig.sources = [];
+        if (confirmed) {
+            // Save and close studio
+            this._handleSave();
         }
-        
-        // Add to sources if not already present
-        if (!this._workingConfig.sources.includes(sourceId)) {
-            this._workingConfig.sources.push(sourceId);
-        }
-
-        // Get the DataSource config from manager
-        const dsManager = window.lcards?.core?.dataSourceManager;
-        if (dsManager && dsManager.sources) {
-            const ds = dsManager.sources.get(sourceId);
-            if (ds) {
-                // Add to data_sources config if not already present
-                if (!this._workingConfig.data_sources) {
-                    this._workingConfig.data_sources = {};
-                }
-                
-                if (!this._workingConfig.data_sources[sourceId]) {
-                    this._workingConfig.data_sources[sourceId] = {
-                        entity: ds.config?.entity || '',
-                        window_seconds: ds.config?.windowSeconds || 3600,
-                        minEmitMs: ds.config?.minEmitMs || 0,
-                        history: {
-                            preload: false,
-                            hours: 0
-                        }
-                    };
-                }
-            }
-        }
-
-        this._showDataSourcePicker = false;
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
     }
 
     /**
@@ -1281,8 +1267,11 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @param {string} name - DataSource name
      * @private
      */
-    _removeDataSource(name) {
-        const confirmed = confirm(`Remove DataSource "${name}"?`);
+    async _removeDataSource(name) {
+        const confirmed = await this._showConfirmDialog(
+            'Remove DataSource?',
+            `Remove DataSource "${name}"? This will also remove it from the sources list.`
+        );
         if (!confirmed) return;
 
         // Remove from data_sources
@@ -1355,24 +1344,504 @@ export class LCARdSChartStudioDialog extends LitElement {
         this._schedulePreviewUpdate();
     }
 
+    /**
+     * Get nested config value by dot-notation path
+     * @private
+     * @param {string} path - Dot-separated path (e.g., 'style.colors.series')
+     * @returns {*} Value at path or undefined
+     */
+    _getNestedValue(path) {
+        const parts = path.split('.');
+        let value = this._workingConfig;
+        for (const part of parts) {
+            value = value?.[part];
+            if (value === undefined) return undefined;
+        }
+        return value;
+    }
+
+    /**
+     * Set nested config value by dot-notation path
+     * @private
+     * @param {string} path - Dot-separated path
+     * @param {*} value - Value to set
+     */
+    _setNestedValue(path, value) {
+        const parts = path.split('.');
+        const lastPart = parts.pop();
+        
+        let target = this._workingConfig;
+        for (const part of parts) {
+            if (!target[part]) {
+                target[part] = {};
+            }
+            target = target[part];
+        }
+        
+        target[lastPart] = value;
+        this.requestUpdate();
+        this._updatePreview();
+    }
+
+    /**
+     * Render single color picker using ha-selector
+     * @private
+     * @param {string} path - Config path
+     * @param {string} label - Field label
+     * @param {string} fallback - Fallback color value
+     * @returns {TemplateResult}
+     */
+    _renderSingleColorPicker(path, label, fallback) {
+        const value = this._getNestedValue(path) || fallback;
+        
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ color_rgb: {} }}
+                .value=${value}
+                .label=${label}
+                @value-changed=${(e) => this._setNestedValue(path, e.detail.value)}>
+            </ha-selector>
+        `;
+    }
+
+    /**
+     * Render color array editor (multiple colors)
+     * @private
+     * @param {string} path - Config path
+     * @param {string} label - Field label
+     * @param {string} description - Optional description
+     * @returns {TemplateResult}
+     */
+    _renderColorArray(path, label, description = '') {
+        const colors = this._getNestedValue(path) || [];
+        
+        return html`
+            <div style="margin-bottom: 16px;">
+                <div style="font-weight: 500; margin-bottom: 8px;">${label}</div>
+                ${description ? html`<div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">${description}</div>` : ''}
+                
+                <div class="color-array-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    ${colors.map((color, index) => html`
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ color_rgb: {} }}
+                                .value=${color}
+                                .label=${"Color " + (index + 1)}
+                                @value-changed=${(e) => this._updateColorInArray(path, index, e.detail.value)}>
+                            </ha-selector>
+                            <ha-icon-button
+                                @click=${() => this._removeColorFromArray(path, index)}>
+                                <ha-icon icon="mdi:delete"></ha-icon>
+                            </ha-icon-button>
+                        </div>
+                    `)}
+                </div>
+                
+                <ha-button @click=${() => this._addColorToArray(path)} style="margin-top: 8px;">
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Color
+                </ha-button>
+            </div>
+        `;
+    }
+
+    /**
+     * Update a color in an array
+     * @private
+     * @param {string} path - Config path
+     * @param {number} index - Array index
+     * @param {string} value - New color value
+     */
+    _updateColorInArray(path, index, value) {
+        const colors = this._getNestedValue(path) || [];
+        colors[index] = value;
+        this._setNestedValue(path, colors);
+    }
+
+    /**
+     * Add a color to an array
+     * @private
+     * @param {string} path - Config path
+     */
+    _addColorToArray(path) {
+        const colors = this._getNestedValue(path) || [];
+        colors.push('#ffffff');
+        this._setNestedValue(path, colors);
+    }
+
+    /**
+     * Remove a color from an array
+     * @private
+     * @param {string} path - Config path
+     * @param {number} index - Array index
+     */
+    _removeColorFromArray(path, index) {
+        const colors = this._getNestedValue(path) || [];
+        colors.splice(index, 1);
+        this._setNestedValue(path, colors);
+    }
+
+    /**
+     * Render gradient configuration (conditional)
+     * @private
+     * @returns {TemplateResult}
+     */
+    _renderGradientConfig() {
+        const gradientType = this._getNestedValue('style.fill.gradient.type') || 'vertical';
+        const shadeIntensity = this._getNestedValue('style.fill.gradient.shadeIntensity') ?? 0.5;
+
+        return html`
+            <div class="gradient-config" style="padding-left: 16px; border-left: 2px solid var(--divider-color); margin-top: 16px;">
+                <h4 style="margin: 0 0 12px 0;">Gradient Settings</h4>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ select: { options: [
+                        { value: 'vertical', label: 'Vertical' },
+                        { value: 'horizontal', label: 'Horizontal' },
+                        { value: 'diagonal1', label: 'Diagonal ↘' },
+                        { value: 'diagonal2', label: 'Diagonal ↙' }
+                    ]}}}
+                    .value=${gradientType}
+                    .label=${"Gradient Direction"}
+                    @value-changed=${(e) => this._setNestedValue('style.fill.gradient.type', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
+                    .value=${shadeIntensity}
+                    .label=${"Shade Intensity"}
+                    @value-changed=${(e) => this._setNestedValue('style.fill.gradient.shadeIntensity', e.detail.value)}>
+                </ha-selector>
+            </div>
+        `;
+    }
+
     _renderChartTypeTab() {
-        return this._renderComingSoon('Chart Type', 'Phase 3',
-            'Visual chart type selector with 16 chart types and dimension configuration');
+        const chartTypes = [
+            { value: 'line', label: 'Line', icon: 'mdi:chart-line', desc: 'Trends over time' },
+            { value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', desc: 'Volume/magnitude' },
+            { value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', desc: 'Comparisons' },
+            { value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', desc: 'Vertical bars' },
+            { value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', desc: 'Correlations' },
+            { value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', desc: 'Proportions (circle)' },
+            { value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', desc: 'Proportions (ring)' },
+            { value: 'radar', label: 'Radar', icon: 'mdi:radar', desc: 'Spider chart' },
+            { value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', desc: 'Gauges' },
+            { value: 'rangeBar', label: 'Range Bar', icon: 'mdi:chart-gantt', desc: 'Timelines' },
+            { value: 'polarArea', label: 'Polar Area', icon: 'mdi:chart-donut-variant', desc: 'Directional' },
+            { value: 'treemap', label: 'Treemap', icon: 'mdi:view-grid', desc: 'Hierarchical' },
+            { value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', desc: 'Ranges' },
+            { value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', desc: 'Matrix data' },
+            { value: 'candlestick', label: 'Candlestick', icon: 'mdi:chart-candlestick', desc: 'OHLC data' },
+            { value: 'boxPlot', label: 'Box Plot', icon: 'mdi:chart-box-outline', desc: 'Distributions' }
+        ];
+
+        const currentType = this._workingConfig.chart_type || 'line';
+
+        return html`
+            <lcards-form-section
+                header="Chart Type Selection"
+                description="Choose the visualization type for your data"
+                icon="mdi:chart-line-variant"
+                ?expanded=${true}>
+                
+                <div class="chart-type-grid" style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 12px;
+                    margin-top: 16px;
+                ">
+                    ${chartTypes.map(type => html`
+                        <div 
+                            class="chart-type-card ${currentType === type.value ? 'selected' : ''}"
+                            style="
+                                padding: 16px;
+                                border: 2px solid ${currentType === type.value ? 'var(--primary-color)' : 'var(--divider-color)'};
+                                border-radius: 8px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                background: ${currentType === type.value ? 'var(--primary-color)' : 'var(--card-background-color)'};
+                                color: ${currentType === type.value ? 'white' : 'var(--primary-text-color)'};
+                                text-align: center;
+                            "
+                            @click=${() => this._setConfigValue('chart_type', type.value)}>
+                            <ha-icon 
+                                icon="${type.icon}" 
+                                style="font-size: 32px; margin-bottom: 8px;">
+                            </ha-icon>
+                            <div style="font-weight: 600; margin-bottom: 4px;">
+                                ${type.label}
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.9;">
+                                ${type.desc}
+                            </div>
+                        </div>
+                    `)}
+                </div>
+            </lcards-form-section>
+
+            <!-- Dimensions -->
+            <lcards-form-section
+                header="Chart Dimensions"
+                description="Configure chart size and data limits"
+                icon="mdi:resize"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 100, max: 1000, step: 50, mode: 'slider', unit_of_measurement: 'px' } }}
+                    .value=${this._workingConfig.height || 300}
+                    .label=${"Height"}
+                    @value-changed=${(e) => this._setConfigValue('height', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 10000, step: 100, mode: 'box' } }}
+                    .value=${this._workingConfig.max_points || 0}
+                    .label=${"Max Data Points"}
+                    .helper=${"Limit data points for performance (0 = unlimited)"}
+                    @value-changed=${(e) => this._setConfigValue('max_points', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <!-- X-Axis Type -->
+            <lcards-form-section
+                header="X-Axis Configuration"
+                description="Configure horizontal axis type"
+                icon="mdi:axis-x-arrow"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ select: { options: [
+                        { value: 'datetime', label: 'DateTime (Time Series)' },
+                        { value: 'category', label: 'Category (Labels)' },
+                        { value: 'numeric', label: 'Numeric' }
+                    ]}}}
+                    .value=${this._workingConfig.xaxis_type || 'datetime'}
+                    .label=${"X-Axis Type"}
+                    @value-changed=${(e) => this._setConfigValue('xaxis_type', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
+        `;
     }
 
     _renderColorsTab() {
-        return this._renderComingSoon('Colors', 'Phase 3',
-            'Series colors, stroke colors, fill colors, background, markers, and legend colors');
+        return html`
+            <!-- Series Colors (Primary) -->
+            <lcards-form-section
+                header="Series Colors"
+                description="Primary colors for data visualization"
+                icon="mdi:palette"
+                ?expanded=${true}>
+                
+                ${this._renderColorArray('style.colors.series', 'Series Colors', 'Colors for each data series')}
+            </lcards-form-section>
+
+            <!-- Stroke & Fill Colors -->
+            <lcards-form-section
+                header="Stroke & Fill Colors"
+                description="Line and area fill colors"
+                icon="mdi:brush"
+                ?expanded=${true}>
+                
+                ${this._renderColorArray('style.colors.stroke', 'Stroke Colors', 'Outline/line colors')}
+                ${this._renderColorArray('style.colors.fill', 'Fill Colors', 'Area fill colors')}
+            </lcards-form-section>
+
+            <!-- Background & Foreground -->
+            <lcards-form-section
+                header="Background & Foreground"
+                description="Base chart colors"
+                icon="mdi:format-color-fill"
+                ?expanded=${true}>
+                
+                ${this._renderSingleColorPicker('style.colors.background', 'Background', 'transparent')}
+                ${this._renderSingleColorPicker('style.colors.foreground', 'Foreground', 'var(--lcars-white, #FFFFFF)')}
+                ${this._renderSingleColorPicker('style.colors.grid', 'Grid', 'var(--lcars-gray, #999999)')}
+            </lcards-form-section>
+
+            <!-- Marker Colors (Collapsed by default) -->
+            <lcards-form-section
+                header="Marker Colors"
+                description="Data point marker styling"
+                icon="mdi:circle"
+                ?expanded=${false}>
+                
+                ${this._renderColorArray('style.colors.marker.fill', 'Marker Fill')}
+                ${this._renderColorArray('style.colors.marker.stroke', 'Marker Stroke')}
+            </lcards-form-section>
+
+            <!-- Axis Colors (Collapsed) -->
+            <lcards-form-section
+                header="Axis Colors"
+                description="X and Y axis styling"
+                icon="mdi:axis-arrow"
+                ?expanded=${false}>
+                
+                ${this._renderSingleColorPicker('style.colors.axis.x', 'X-Axis', null)}
+                ${this._renderSingleColorPicker('style.colors.axis.y', 'Y-Axis', null)}
+                ${this._renderSingleColorPicker('style.colors.axis.border', 'Axis Border', null)}
+                ${this._renderSingleColorPicker('style.colors.axis.ticks', 'Axis Ticks', null)}
+            </lcards-form-section>
+
+            <!-- Legend Colors (Collapsed) -->
+            <lcards-form-section
+                header="Legend Colors"
+                description="Legend text styling"
+                icon="mdi:label"
+                ?expanded=${false}>
+                
+                ${this._renderSingleColorPicker('style.colors.legend.default', 'Legend Text', null)}
+                ${this._renderColorArray('style.colors.legend.items', 'Legend Items', 'Per-item legend colors')}
+            </lcards-form-section>
+
+            <!-- Data Label Colors (Collapsed) -->
+            <lcards-form-section
+                header="Data Label Colors"
+                description="On-chart data label styling"
+                icon="mdi:label-variant"
+                ?expanded=${false}>
+                
+                ${this._renderColorArray('style.colors.data_labels', 'Data Label Colors')}
+            </lcards-form-section>
+        `;
     }
 
     _renderStrokeFillTab() {
-        return this._renderComingSoon('Stroke & Fill', 'Phase 3',
-            'Line styling, stroke width, fill types, gradients, and transparency');
+        const strokeWidth = this._getNestedValue('style.stroke.width') || 2;
+        const strokeCurve = this._getNestedValue('style.stroke.curve') || 'smooth';
+        const fillType = this._getNestedValue('style.fill.type') || 'solid';
+        const fillOpacity = this._getNestedValue('style.fill.opacity') ?? 0.7;
+
+        return html`
+            <!-- Stroke Configuration -->
+            <lcards-form-section
+                header="Stroke Configuration"
+                description="Line and border styling"
+                icon="mdi:brush"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 10, step: 0.5, mode: 'slider' } }}
+                    .value=${strokeWidth}
+                    .label=${"Stroke Width"}
+                    @value-changed=${(e) => this._setNestedValue('style.stroke.width', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ select: { options: [
+                        { value: 'smooth', label: 'Smooth' },
+                        { value: 'straight', label: 'Straight' },
+                        { value: 'stepline', label: 'Stepline' },
+                        { value: 'monotoneCubic', label: 'Monotone Cubic' }
+                    ]}}}
+                    .value=${strokeCurve}
+                    .label=${"Curve Type"}
+                    @value-changed=${(e) => this._setNestedValue('style.stroke.curve', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <!-- Fill Configuration -->
+            <lcards-form-section
+                header="Fill Configuration"
+                description="Area and background fill styling"
+                icon="mdi:format-color-fill"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ select: { options: [
+                        { value: 'solid', label: 'Solid' },
+                        { value: 'gradient', label: 'Gradient' },
+                        { value: 'pattern', label: 'Pattern' },
+                        { value: 'image', label: 'Image' }
+                    ]}}}
+                    .value=${fillType}
+                    .label=${"Fill Type"}
+                    @value-changed=${(e) => this._setNestedValue('style.fill.type', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
+                    .value=${fillOpacity}
+                    .label=${"Fill Opacity"}
+                    @value-changed=${(e) => this._setNestedValue('style.fill.opacity', e.detail.value)}>
+                </ha-selector>
+
+                ${fillType === 'gradient' ? this._renderGradientConfig() : ''}
+            </lcards-form-section>
+        `;
     }
 
     _renderMarkersGridTab() {
-        return this._renderComingSoon('Markers & Grid', 'Phase 3',
-            'Data point markers, grid configuration, and axis lines');
+        const markerSize = this._getNestedValue('style.markers.size') ?? 4;
+        const markerStrokeWidth = this._getNestedValue('style.markers.stroke.width') ?? 2;
+        const showGrid = this._getNestedValue('style.grid.show') ?? true;
+        const gridOpacity = this._getNestedValue('style.grid.opacity') ?? 0.3;
+
+        return html`
+            <!-- Markers Configuration -->
+            <lcards-form-section
+                header="Markers Configuration"
+                description="Data point marker styling"
+                icon="mdi:circle"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
+                    .value=${markerSize}
+                    .label=${"Marker Size"}
+                    @value-changed=${(e) => this._setNestedValue('style.markers.size', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ number: { min: 0, max: 10, step: 0.5, mode: 'slider' } }}
+                    .value=${markerStrokeWidth}
+                    .label=${"Marker Stroke Width"}
+                    @value-changed=${(e) => this._setNestedValue('style.markers.stroke.width', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <!-- Grid Configuration -->
+            <lcards-form-section
+                header="Grid Configuration"
+                description="Background grid styling"
+                icon="mdi:grid"
+                ?expanded=${true}>
+                
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${showGrid}
+                    .label=${"Show Grid"}
+                    @value-changed=${(e) => this._setNestedValue('style.grid.show', e.detail.value)}>
+                </ha-selector>
+
+                ${showGrid ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
+                        .value=${gridOpacity}
+                        .label=${"Grid Opacity"}
+                        @value-changed=${(e) => this._setNestedValue('style.grid.opacity', e.detail.value)}>
+                    </ha-selector>
+
+                    ${this._renderColorArray('style.grid.row_colors', 'Grid Row Colors', 'Alternating row background colors')}
+                    ${this._renderColorArray('style.grid.column_colors', 'Grid Column Colors', 'Alternating column background colors')}
+                ` : ''}
+            </lcards-form-section>
+        `;
     }
 
     _renderAxesTab() {
