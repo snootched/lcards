@@ -434,6 +434,141 @@ style:
 
 ---
 
+## Label and Tooltip Formatters
+
+**NEW in v1.17.0:** Control how axis labels, tooltips, and legends display values using simple template strings.
+
+### X-Axis Date/Time Formatting
+
+Format datetime x-axis labels using date format strings:
+
+```yaml
+style:
+  xaxis_label_format: "MMM DD"           # Jan 04
+  # OR
+  xaxis_label_format: "HH:mm"            # 14:30
+  # OR
+  xaxis_label_format: "YYYY-MM-DD HH:mm" # 2026-01-04 14:30
+```
+
+**Common Format Patterns:**
+
+| Pattern | Output | Description |
+|---------|--------|-------------|
+| `MMM DD` | Jan 04 | Short month + day |
+| `HH:mm` | 14:30 | 24-hour time |
+| `YYYY-MM-DD` | 2026-01-04 | ISO date |
+| `ddd HH:mm` | Sat 14:30 | Day of week + time |
+| `MM/DD/YYYY` | 01/04/2026 | US date format |
+| `DD/MM/YYYY` | 04/01/2026 | European date format |
+| `MMMM D, YYYY` | January 4, 2026 | Full month name |
+| `hh:mm A` | 02:30 PM | 12-hour time with AM/PM |
+
+**Supported Format Tokens:**
+- **Year**: `YYYY` (2026), `YY` (26)
+- **Month**: `MMMM` (January), `MMM` (Jan), `MM` (01), `M` (1)
+- **Day**: `DD` (04), `D` (4)
+- **Day of Week**: `dddd` (Saturday), `ddd` (Sat)
+- **Hour**: `HH` (14, 24-hour), `H` (14), `hh` (02, 12-hour), `h` (2)
+- **Minute**: `mm` (30), `m` (30)
+- **Second**: `ss` (05), `s` (5)
+- **AM/PM**: `A` (PM), `a` (pm)
+
+### Y-Axis Value Formatting
+
+Format numeric y-axis labels with units or prefixes:
+
+```yaml
+style:
+  yaxis_label_format: "{value}°C"        # 23.5°C
+  # OR
+  yaxis_label_format: "{value}%"         # 85.0%
+  # OR
+  yaxis_label_format: "${value}"         # $42.5
+  # OR
+  yaxis_label_format: "{value} kWh"      # 123.5 kWh
+```
+
+The `{value}` token is replaced with the numeric value (formatted to 1 decimal place).
+
+### Tooltip Formatting
+
+Combine date/time and value formatting for tooltips:
+
+```yaml
+style:
+  tooltip_format: "{x|MMM DD HH:mm}: {y}°C"
+  # Result: "Jan 04 14:30: 23.5°C"
+```
+
+**Template Tokens:**
+- `{x}` - X-axis value (timestamp or category) - auto-formats as "MMM DD HH:mm" if number
+- `{x|format}` - X-axis value formatted with custom date format (e.g., `{x|HH:mm}`)
+- `{y}` - Y-axis value (numeric, formatted to 1 decimal)
+
+**Examples:**
+
+```yaml
+# Simple time + value
+tooltip_format: "{x|HH:mm}: {y}%"
+# Result: "14:30: 85.0%"
+
+# Full date + value + unit
+tooltip_format: "{x|MMM DD, YYYY HH:mm}: {y} kWh"
+# Result: "Jan 04, 2026 14:30: 123.5 kWh"
+
+# Value first
+tooltip_format: "{y}°C at {x|ddd HH:mm}"
+# Result: "23.5°C at Sat 14:30"
+```
+
+### Complete Example
+
+```yaml
+type: custom:lcards-chart
+source: sensor.temperature
+chart_type: area
+height: 300
+style:
+  colors: ["#FF9900"]
+  xaxis_label_format: "HH:mm"                        # X-axis: time only
+  yaxis_label_format: "{value}°C"                    # Y-axis: value + unit
+  tooltip_format: "{x|MMM DD HH:mm}: {y}°C"          # Tooltip: date + value
+  fill_opacity: 0.3
+```
+
+### Advanced Formatters
+
+For complex formatting logic beyond simple templates, use the `chart_options` escape hatch to provide custom JavaScript formatter functions:
+
+```yaml
+style:
+  chart_options:
+    xaxis:
+      labels:
+        formatter: |
+          function(val) {
+            const date = new Date(val);
+            return date.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          }
+    yaxis:
+      labels:
+        formatter: |
+          function(val) {
+            if (val >= 1000) return (val/1000).toFixed(1) + 'k';
+            return val.toFixed(1);
+          }
+```
+
+**Note:** Custom formatter functions are evaluated at runtime and have access to full JavaScript and ApexCharts context. See [ApexCharts formatter documentation](https://apexcharts.com/docs/options/xaxis/#labels) for details.
+
+---
+
 ## Theme Integration
 
 LCARdS Chart fully integrates with LCARdS themes and HA CSS variables.

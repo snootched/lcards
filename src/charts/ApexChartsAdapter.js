@@ -738,6 +738,36 @@ export class ApexChartsAdapter {
     });
 
     // ============================================================================
+    // FORMATTERS (Simple Template-Based)
+    // ============================================================================
+
+    // Apply X-Axis Label Formatter
+    if (style.xaxis_label_format) {
+      const formatter = this._createLabelFormatter(style.xaxis_label_format, 'xaxis');
+      if (!optionsWithTypeDefaults.xaxis) optionsWithTypeDefaults.xaxis = {};
+      if (!optionsWithTypeDefaults.xaxis.labels) optionsWithTypeDefaults.xaxis.labels = {};
+      optionsWithTypeDefaults.xaxis.labels.formatter = formatter;
+      lcardsLog.debug('[ApexChartsAdapter] Applied xaxis_label_format:', style.xaxis_label_format);
+    }
+
+    // Apply Y-Axis Label Formatter
+    if (style.yaxis_label_format) {
+      const formatter = this._createLabelFormatter(style.yaxis_label_format, 'yaxis');
+      if (!optionsWithTypeDefaults.yaxis) optionsWithTypeDefaults.yaxis = {};
+      if (!optionsWithTypeDefaults.yaxis.labels) optionsWithTypeDefaults.yaxis.labels = {};
+      optionsWithTypeDefaults.yaxis.labels.formatter = formatter;
+      lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label_format:', style.yaxis_label_format);
+    }
+
+    // Apply Tooltip Formatter
+    if (style.tooltip_format) {
+      const formatter = this._createTooltipFormatter(style.tooltip_format);
+      if (!optionsWithTypeDefaults.tooltip) optionsWithTypeDefaults.tooltip = {};
+      optionsWithTypeDefaults.tooltip.custom = formatter;
+      lcardsLog.debug('[ApexChartsAdapter] Applied tooltip_format:', style.tooltip_format);
+    }
+
+    // ============================================================================
     // APPLY CHART_OPTIONS OVERRIDES (Highest precedence)
     // ============================================================================
 
@@ -1648,6 +1678,126 @@ static _getRawData(dataSource, config) {
     }
 
     return value.toFixed(1);
+  }
+
+  /**
+   * Create label formatter from template string
+   * @private
+   * @param {string} format - Format template (e.g., "MMM DD", "{value}°C")
+   * @param {string} axis - Axis type ('xaxis' or 'yaxis')
+   * @returns {Function} ApexCharts formatter function
+   */
+  static _createLabelFormatter(format, axis) {
+    // Check if it's a date format (no braces) or value template
+    if (!format.includes('{')) {
+      // Assume date format for x-axis
+      return function(val) {
+        if (axis === 'xaxis' && typeof val === 'number') {
+          return ApexChartsAdapter._formatDate(val, format);
+        }
+        return val;
+      };
+    }
+
+    // Value template (e.g., "{value}°C")
+    return function(val) {
+      const formatted = typeof val === 'number' ? val.toFixed(1) : val;
+      return format.replace('{value}', formatted);
+    };
+  }
+
+  /**
+   * Create tooltip formatter from template string
+   * @private
+   * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
+   * @returns {Function} ApexCharts tooltip formatter
+   */
+  static _createTooltipFormatter(format) {
+    return function({ series, seriesIndex, dataPointIndex, w }) {
+      const x = w.globals.seriesX[seriesIndex][dataPointIndex];
+      const y = series[seriesIndex][dataPointIndex];
+
+      let output = format;
+
+      // Handle {x|format} syntax for date formatting
+      const xMatch = output.match(/\{x\|([^}]+)\}/);
+      if (xMatch) {
+        const dateFormat = xMatch[1];
+        const formattedX = ApexChartsAdapter._formatDate(x, dateFormat);
+        output = output.replace(xMatch[0], formattedX);
+      } else if (output.includes('{x}')) {
+        // Simple {x} without format - use as-is or default format
+        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm') : x;
+        output = output.replace('{x}', formattedX);
+      }
+
+      // Handle {y} syntax for value
+      if (output.includes('{y}')) {
+        const formattedY = typeof y === 'number' ? y.toFixed(1) : y;
+        output = output.replace('{y}', formattedY);
+      }
+
+      return `<div class="apexcharts-tooltip-text">${output}</div>`;
+    };
+  }
+
+  /**
+   * Format date using simple format string
+   * @private
+   * @param {number|Date} timestamp - Timestamp or Date object
+   * @param {string} format - Format string (e.g., "MMM DD", "HH:mm", "YYYY-MM-DD HH:mm")
+   * @returns {string} Formatted date string
+   */
+  static _formatDate(timestamp, format) {
+    const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
+    
+    if (!date || isNaN(date.getTime())) {
+      return String(timestamp);
+    }
+
+    // Simple format string replacement (common patterns)
+    let formatted = format;
+
+    // Year
+    formatted = formatted.replace('YYYY', date.getFullYear());
+    formatted = formatted.replace('YY', String(date.getFullYear()).slice(-2));
+
+    // Month
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    formatted = formatted.replace('MMMM', monthsFull[date.getMonth()]);
+    formatted = formatted.replace('MMM', months[date.getMonth()]);
+    formatted = formatted.replace('MM', String(date.getMonth() + 1).padStart(2, '0'));
+    formatted = formatted.replace('M', String(date.getMonth() + 1));
+
+    // Day
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const daysFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    formatted = formatted.replace('dddd', daysFull[date.getDay()]);
+    formatted = formatted.replace('ddd', days[date.getDay()]);
+    formatted = formatted.replace('DD', String(date.getDate()).padStart(2, '0'));
+    formatted = formatted.replace('D', String(date.getDate()));
+
+    // Hours
+    formatted = formatted.replace('HH', String(date.getHours()).padStart(2, '0'));
+    formatted = formatted.replace('H', String(date.getHours()));
+    const hours12 = date.getHours() % 12 || 12;
+    formatted = formatted.replace('hh', String(hours12).padStart(2, '0'));
+    formatted = formatted.replace('h', String(hours12));
+
+    // Minutes
+    formatted = formatted.replace('mm', String(date.getMinutes()).padStart(2, '0'));
+    formatted = formatted.replace('m', String(date.getMinutes()));
+
+    // Seconds
+    formatted = formatted.replace('ss', String(date.getSeconds()).padStart(2, '0'));
+    formatted = formatted.replace('s', String(date.getSeconds()));
+
+    // AM/PM
+    formatted = formatted.replace('A', date.getHours() >= 12 ? 'PM' : 'AM');
+    formatted = formatted.replace('a', date.getHours() >= 12 ? 'pm' : 'am');
+
+    return formatted;
   }
 
   /**
