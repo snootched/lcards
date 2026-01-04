@@ -322,39 +322,36 @@ export class ApexChartsAdapter {
     // SERIES COLORS (Primary data visualization)
     // ============================================================================
 
-    let colors = style.colors || (style.color ? [style.color] : null);
+    let colors = style.colors?.series ?? null;
     colors = resolveColorArray(colors, 'defaultColors', null);
 
     // ============================================================================
     // STROKE/OUTLINE COLORS
     // ============================================================================
 
-    let strokeColors = style.stroke_colors;
-    if (!strokeColors && style.stroke_color) {
-      strokeColors = [style.stroke_color];
-    }
+    let strokeColors = style.colors?.stroke ?? null;
     strokeColors = resolveColorArray(strokeColors, 'defaultStrokeColors', null);
 
     const strokeWidth = this._resolveTokenValue(
-      style.stroke_width,
+      style.stroke?.width,
       'defaultStrokeWidth',
       resolveToken,
       2,
       context
     );
 
-    const curve = style.curve ||
+    const curve = style.stroke?.curve ??
       (resolveToken ? resolveToken('curve', 'smooth', context) : 'smooth');
 
     // ============================================================================
     // FILL COLORS (for area/bar charts)
     // ============================================================================
 
-    const fillColors = resolveColorArray(style.fill_colors, 'defaultFillColors', null);
-    const fillType = style.fill_type ||
+    const fillColors = resolveColorArray(style.colors?.fill, 'defaultFillColors', null);
+    const fillType = style.fill?.type ??
       (resolveToken ? resolveToken('defaultFillType', 'solid', context) : 'solid');
-    const fillOpacity = style.fill_opacity !== undefined ?
-      style.fill_opacity :
+    const fillOpacity = style.fill?.opacity !== undefined ?
+      style.fill?.opacity :
       (resolveToken ? resolveToken('defaultFillOpacity', 0.7, context) : 0.7);
 
     // ============================================================================
@@ -362,13 +359,13 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     const backgroundColor = resolveColor(
-      style.background_color,
+      style.colors?.background,
       'backgroundColor',
       'transparent'
     );
 
     const foregroundColor = resolveColor(
-      style.foreground_color,
+      style.colors?.foreground,
       'foregroundColor',
       'var(--lcars-white, #FFFFFF)'
     );
@@ -378,25 +375,25 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     const gridColor = resolveColor(
-      style.grid_color,
+      style.colors?.grid,
       'gridColor',
       'var(--lcars-gray, #999999)'
     );
 
     const gridRowColors = resolveColorArray(
-      style.grid_row_colors,
+      style.grid?.row_colors,
       'gridRowColors',
       null
     );
 
     const gridColumnColors = resolveColorArray(
-      style.grid_column_colors,
+      style.grid?.column_colors,
       'gridColumnColors',
       null
     );
 
-    const showGrid = style.show_grid !== undefined ?
-      style.show_grid :
+    const showGrid = style.grid?.show !== undefined ?
+      style.grid?.show :
       (resolveToken ? resolveToken('showGrid', true, context) : true);
 
     // ============================================================================
@@ -405,42 +402,34 @@ export class ApexChartsAdapter {
 
     // Unified axis color (fallback for both axes)
     const unifiedAxisColor = resolveColor(
-      style.axis_color,
+      style.colors?.axis?.x ?? style.colors?.axis?.y,
       'axisColor',
       foregroundColor
     );
 
     // X-axis specific
-    const xaxisColor = style.xaxis_color ?
-      resolveColor(style.xaxis_color, 'xaxisColor', unifiedAxisColor) :
+    const xaxisColor = style.colors?.axis?.x ?
+      resolveColor(style.colors?.axis?.x, 'xaxisColor', unifiedAxisColor) :
       unifiedAxisColor;
 
-    const xaxisColors = resolveColorArray(
-      style.xaxis_colors,
-      'xaxisColors',
-      null
-    );
+    const xaxisColors = null; // Not part of nested structure
 
     // Y-axis specific
-    const yaxisColor = style.yaxis_color ?
-      resolveColor(style.yaxis_color, 'yaxisColor', unifiedAxisColor) :
+    const yaxisColor = style.colors?.axis?.y ?
+      resolveColor(style.colors?.axis?.y, 'yaxisColor', unifiedAxisColor) :
       unifiedAxisColor;
 
-    const yaxisColors = resolveColorArray(
-      style.yaxis_colors,
-      'yaxisColors',
-      null
-    );
+    const yaxisColors = null; // Not part of nested structure
 
     // Axis border and ticks
     const axisBorderColor = resolveColor(
-      style.axis_border_color,
+      style.colors?.axis?.border,
       'axisBorderColor',
       gridColor
     );
 
     const axisTicksColor = resolveColor(
-      style.axis_ticks_color,
+      style.colors?.axis?.ticks,
       'axisTicksColor',
       gridColor
     );
@@ -450,19 +439,19 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     const legendColor = resolveColor(
-      style.legend_color,
+      style.colors?.legend?.default,
       'legendColor',
       foregroundColor
     );
 
     const legendColors = resolveColorArray(
-      style.legend_colors,
+      style.colors?.legend?.items,
       'legendColors',
       null
     );
 
-    const showLegend = style.show_legend !== undefined ?
-      style.show_legend :
+    const showLegend = style.legend?.show !== undefined ?
+      style.legend?.show :
       (resolveToken ? resolveToken('showLegend', false, context) : false);
 
     // ============================================================================
@@ -470,19 +459,19 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     const markerColors = resolveColorArray(
-      style.marker_colors,
+      style.colors?.marker?.fill,
       'markerColors',
       colors  // Default to series colors
     );
 
     const markerStrokeColors = resolveColorArray(
-      style.marker_stroke_colors,
+      style.colors?.marker?.stroke,
       'markerStrokeColors',
       foregroundColor
     );
 
-    const markerStrokeWidth = style.marker_stroke_width !== undefined ?
-      style.marker_stroke_width :
+    const markerStrokeWidth = style.markers?.stroke?.width !== undefined ?
+      style.markers?.stroke?.width :
       (resolveToken ? resolveToken('markerStrokeWidth', 2, context) : 2);
 
     // ============================================================================
@@ -490,23 +479,23 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     const dataLabelColors = resolveColorArray(
-      style.data_label_colors,
+      style.colors?.data_labels,
       'dataLabelColors',
       foregroundColor
     );
 
-    const showDataLabels = style.show_data_labels !== undefined ?
-      style.show_data_labels :
+    const showDataLabels = style.data_labels?.show !== undefined ?
+      style.data_labels?.show :
       (resolveToken ? resolveToken('showDataLabels', false, context) : false);
 
     // ============================================================================
     // THEME SETTINGS
     // ============================================================================
 
-    const themeMode = style.theme_mode ||
+    const themeMode = style.theme?.mode ??
       (resolveToken ? resolveToken('themeMode', 'dark', context) : 'dark');
 
-    let themePalette = style.theme_palette ||
+    let themePalette = style.theme?.palette ??
       (resolveToken ? resolveToken('themePalette', null, context) : null);
 
     // Filter out unresolved theme token paths (e.g., "colors.chart.themePalette")
@@ -516,13 +505,13 @@ export class ApexChartsAdapter {
     }
 
     // Monochrome settings
-    const monochrome = style.monochrome || {};
+    const monochrome = style.theme?.monochrome ?? {};
     const monochromeEnabled = monochrome.enabled !== undefined ? monochrome.enabled :
       (resolveToken ? resolveToken('monochromeEnabled', false, context) : false);
     const monochromeColor = monochrome.color ?
       resolveColor(monochrome.color, 'monochromeColor', colors?.[0]) :
       (resolveToken ? resolveColor(null, 'monochromeColor', colors?.[0]) : colors?.[0]);
-    const monochromeShadeTo = monochrome.shade_to ||
+    const monochromeShadeTo = monochrome.shade_to ??
       (resolveToken ? resolveToken('monochromeShadeTo', 'dark', context) : 'dark');
     const monochromeIntensity = monochrome.shade_intensity !== undefined ? monochrome.shade_intensity :
       (resolveToken ? resolveToken('monochromeIntensity', 0.65, context) : 0.65);
@@ -531,27 +520,29 @@ export class ApexChartsAdapter {
     // TYPOGRAPHY
     // ============================================================================
 
-    const fontFamily = resolveToken ?
+    const fontFamily = style.typography?.font_family ??
+      (resolveToken ?
       resolveToken('fontFamily', 'Antonio, Helvetica Neue, sans-serif', context) :
-      'Antonio, Helvetica Neue, sans-serif';
+      'Antonio, Helvetica Neue, sans-serif');
 
-    const fontSize = resolveToken ?
+    const fontSize = style.typography?.font_size ??
+      (resolveToken ?
       resolveToken('fontSize', 12, context) :
-      12;
+      12);
 
     // ============================================================================
     // DISPLAY OPTIONS
     // ============================================================================
 
-    const showToolbar = style.show_toolbar !== undefined ?
-      style.show_toolbar :
+    const showToolbar = style.display?.toolbar !== undefined ?
+      style.display?.toolbar :
       (resolveToken ? resolveToken('showToolbar', false, context) : false);
 
-    const showTooltip = style.show_tooltip !== undefined ?
-      style.show_tooltip :
+    const showTooltip = style.display?.tooltip?.show !== undefined ?
+      style.display?.tooltip?.show :
       (resolveToken ? resolveToken('showTooltip', true, context) : true);
 
-    const tooltipTheme = style.tooltip_theme ||
+    const tooltipTheme = style.display?.tooltip?.theme ??
       (resolveToken ? resolveToken('tooltipTheme', 'dark', context) : 'dark');
 
     // ============================================================================
@@ -707,14 +698,14 @@ export class ApexChartsAdapter {
     // APPLY ANIMATION PRESET
     // ============================================================================
 
-    if (style.animation_preset) {
-      const animationPreset = ApexChartsAdapter._getAnimationPreset(style.animation_preset);
+    if (style.animation?.preset) {
+      const animationPreset = ApexChartsAdapter._getAnimationPreset(style.animation.preset);
       if (animationPreset) {
         optionsWithTypeDefaults.chart.animations = {
           ...optionsWithTypeDefaults.chart.animations,
           ...animationPreset
         };
-        lcardsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${style.animation_preset}`, animationPreset);
+        lcardsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${style.animation.preset}`, animationPreset);
       }
     }
 
@@ -742,29 +733,29 @@ export class ApexChartsAdapter {
     // ============================================================================
 
     // Apply X-Axis Label Formatter
-    if (style.xaxis_label_format) {
-      const formatter = this._createLabelFormatter(style.xaxis_label_format, 'xaxis');
+    if (style.formatters?.xaxis_label) {
+      const formatter = this._createLabelFormatter(style.formatters.xaxis_label, 'xaxis');
       if (!optionsWithTypeDefaults.xaxis) optionsWithTypeDefaults.xaxis = {};
       if (!optionsWithTypeDefaults.xaxis.labels) optionsWithTypeDefaults.xaxis.labels = {};
       optionsWithTypeDefaults.xaxis.labels.formatter = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied xaxis_label_format:', style.xaxis_label_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied xaxis_label formatter:', style.formatters.xaxis_label);
     }
 
     // Apply Y-Axis Label Formatter
-    if (style.yaxis_label_format) {
-      const formatter = this._createLabelFormatter(style.yaxis_label_format, 'yaxis');
+    if (style.formatters?.yaxis_label) {
+      const formatter = this._createLabelFormatter(style.formatters.yaxis_label, 'yaxis');
       if (!optionsWithTypeDefaults.yaxis) optionsWithTypeDefaults.yaxis = {};
       if (!optionsWithTypeDefaults.yaxis.labels) optionsWithTypeDefaults.yaxis.labels = {};
       optionsWithTypeDefaults.yaxis.labels.formatter = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label_format:', style.yaxis_label_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label formatter:', style.formatters.yaxis_label);
     }
 
     // Apply Tooltip Formatter
-    if (style.tooltip_format) {
-      const formatter = this._createTooltipFormatter(style.tooltip_format);
+    if (style.formatters?.tooltip) {
+      const formatter = this._createTooltipFormatter(style.formatters.tooltip);
       if (!optionsWithTypeDefaults.tooltip) optionsWithTypeDefaults.tooltip = {};
       optionsWithTypeDefaults.tooltip.custom = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied tooltip_format:', style.tooltip_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied tooltip formatter:', style.formatters.tooltip);
     }
 
     // ============================================================================
@@ -1131,7 +1122,7 @@ export class ApexChartsAdapter {
       case 'scatter':
         return {
           markers: {
-            size: style.marker_size || 6,
+            size: style.markers?.size ?? 6,
             strokeWidth: 0,
             hover: {
               sizeOffset: 3
@@ -1141,10 +1132,10 @@ export class ApexChartsAdapter {
             borderColor: resolveToken('colors.ui.border', 'var(--lcars-gray, #999999)'),
             strokeDashArray: 4,
             xaxis: {
-              lines: { show: style.show_grid !== false }
+              lines: { show: style.grid?.show !== false }
             },
             yaxis: {
-              lines: { show: style.show_grid !== false }
+              lines: { show: style.grid?.show !== false }
             }
           },
           dataLabels: {

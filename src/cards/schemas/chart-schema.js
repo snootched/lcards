@@ -1,21 +1,20 @@
 /**
- * Chart Card Schema - Complete Implementation
+ * Chart Card Schema - Nested Structure (v1.18.0+)
  *
- * Comprehensive schema for LCARdS Chart Card with 50+ style properties,
- * data source configuration (3 levels), formatters, and x-ui-hints.
+ * ⚠️ BREAKING CHANGE: Complete rewrite with nested property groups.
+ * No backward compatibility with flat snake_case properties.
  *
- * This schema enables:
- * - Full validation of chart configurations
- * - Auto-generated GUI editor from x-ui-hints
- * - Support for all ApexCharts features
+ * Complete schema for LCARdS Chart Card with nested configuration:
+ * - 13+ nested property groups (colors, stroke, fill, markers, grid, legend, etc.)
+ * - Comprehensive x-ui-hints for GUI editor
+ * - Full ApexCharts feature support
  * - Simple template-based formatters
  *
  * @see doc/user/configuration/cards/chart.md
- * @see doc/architecture/schemas/chart-schema-definition.md
  */
 
 /**
- * Get complete chart card schema
+ * Get complete chart card schema with nested structure
  * @param {Object} options - Schema options
  * @param {Array<string>} options.availableAnimationPresets - Animation preset names
  * @returns {Object} Complete chart schema
@@ -24,7 +23,7 @@ export function getChartSchema(options = {}) {
     const {
         availableAnimationPresets = [
             'lcars_standard',
-            'lcars_dramatic', 
+            'lcars_dramatic',
             'lcars_minimal',
             'lcars_realtime',
             'lcars_alert',
@@ -83,7 +82,7 @@ export function getChartSchema(options = {}) {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://github.com/snootched/lcards/schemas/chart-schema',
         title: 'LCARdS Chart Card Configuration',
-        description: 'Complete configuration schema for lcards-chart custom card',
+        description: 'Complete configuration schema for lcards-chart custom card (v1.18.0+ nested structure)',
         type: 'object',
         properties: {
 
@@ -479,10 +478,10 @@ export function getChartSchema(options = {}) {
             show_legend: {
                 type: 'boolean',
                 default: false,
-                description: 'Show/hide chart legend',
+                description: 'Show/hide chart legend (deprecated - use style.legend.show)',
                 'x-ui-hints': {
-                    label: 'Show Legend',
-                    helper: 'Display legend for multi-series charts',
+                    label: 'Show Legend (deprecated)',
+                    helper: 'Use style.legend.show instead',
                     selector: {
                         boolean: {}
                     }
@@ -505,31 +504,6 @@ export function getChartSchema(options = {}) {
                                 { value: 'numeric', label: 'Numeric' }
                             ]
                         }
-                    },
-                    enumDescriptions: [
-                        'Datetime - Time series data',
-                        'Category - Categorical labels',
-                        'Numeric - Numeric values'
-                    ]
-                }
-            },
-
-            time_window: {
-                type: 'number',
-                minimum: 60,
-                maximum: 86400,
-                description: 'Time window in seconds (for datetime x-axis)',
-                'x-ui-hints': {
-                    label: 'Time Window',
-                    helper: 'Time range to display on x-axis (seconds)',
-                    selector: {
-                        number: {
-                            mode: 'slider',
-                            min: 60,
-                            max: 86400,
-                            step: 60,
-                            unit_of_measurement: 's'
-                        }
                     }
                 }
             },
@@ -537,17 +511,16 @@ export function getChartSchema(options = {}) {
             max_points: {
                 type: 'number',
                 minimum: 0,
-                maximum: 1000,
+                maximum: 10000,
                 default: 0,
-                description: 'Maximum data points to display (0 = unlimited, enables decimation)',
+                description: 'Maximum data points to display (0 = unlimited)',
                 'x-ui-hints': {
                     label: 'Max Points',
-                    helper: 'Limit number of data points (0 = unlimited)',
+                    helper: 'Limit number of data points (0 = unlimited, auto-decimates if exceeded)',
                     selector: {
                         number: {
-                            mode: 'box',
                             min: 0,
-                            max: 1000,
+                            max: 10000,
                             step: 10
                         }
                     }
@@ -555,916 +528,805 @@ export function getChartSchema(options = {}) {
             },
 
             // ====================================================================
-            // STYLE PROPERTIES (50+ properties)
+            // NESTED STYLE CONFIGURATION (v1.18.0+)
             // ====================================================================
 
             style: {
                 type: 'object',
-                description: 'Chart styling configuration',
+                description: 'Nested style configuration for chart appearance',
                 properties: {
 
                     // ================================================================
-                    // COLORS
+                    // GROUP 1: COLORS - All color properties
                     // ================================================================
 
                     colors: {
-                        ...colorArraySchema,
-                        description: 'Series colors (main data visualization colors)',
-                        'x-ui-hints': {
-                            label: 'Series Colors',
-                            helper: 'Colors for chart series (supports hex, rgba, theme tokens, CSS variables)',
-                            examples: [
-                                ['#FF9900', '#99CCFF'],
-                                ['theme:colors.primary.orange', 'theme:colors.accent.blue'],
-                                ['var(--lcars-orange)', 'var(--lcars-blue)']
-                            ]
-                        }
-                    },
-
-                    color: simpleColorSchema,  // Alias for single series
-
-                    stroke_colors: {
-                        ...colorArraySchema,
-                        description: 'Line/border colors (separate from fill)',
-                        'x-ui-hints': {
-                            label: 'Stroke Colors',
-                            helper: 'Colors for lines and borders',
-                            examples: [['#FF9900', '#FFCC00']]
-                        }
-                    },
-
-                    stroke_color: simpleColorSchema,  // Alias for single series
-
-                    fill_colors: {
-                        ...colorArraySchema,
-                        description: 'Fill colors for area/bar charts',
-                        'x-ui-hints': {
-                            label: 'Fill Colors',
-                            helper: 'Colors for filled areas (area charts, bar charts)',
-                            examples: [['#FF9900', '#99CCFF']]
-                        }
-                    },
-
-                    marker_colors: {
-                        ...colorArraySchema,
-                        description: 'Data point marker colors',
-                        'x-ui-hints': {
-                            label: 'Marker Colors',
-                            helper: 'Colors for data point markers',
-                            examples: [['#FF9900', '#99CCFF']]
-                        }
-                    },
-
-                    marker_stroke_colors: {
-                        ...colorArraySchema,
-                        description: 'Data point marker border colors',
-                        'x-ui-hints': {
-                            label: 'Marker Stroke Colors',
-                            helper: 'Border colors for data point markers',
-                            examples: [['#FFFFFF']]
-                        }
-                    },
-
-                    grid_color: {
-                        ...simpleColorSchema,
-                        description: 'Grid line color',
-                        'x-ui-hints': {
-                            label: 'Grid Color',
-                            helper: 'Color for grid lines',
-                            examples: ['rgba(255, 255, 255, 0.1)', 'var(--lcars-gray)']
-                        }
-                    },
-
-                    grid_row_colors: {
-                        ...colorArraySchema,
-                        description: 'Alternating row background colors',
-                        'x-ui-hints': {
-                            label: 'Grid Row Colors',
-                            helper: 'Alternating colors for row backgrounds',
-                            examples: [['transparent', 'rgba(255, 255, 255, 0.05)']]
-                        }
-                    },
-
-                    grid_column_colors: {
-                        ...colorArraySchema,
-                        description: 'Alternating column background colors',
-                        'x-ui-hints': {
-                            label: 'Grid Column Colors',
-                            helper: 'Alternating colors for column backgrounds',
-                            examples: [['transparent', 'rgba(255, 255, 255, 0.03)']]
-                        }
-                    },
-
-                    axis_color: {
-                        ...simpleColorSchema,
-                        description: 'Unified axis label color (fallback for both axes)',
-                        'x-ui-hints': {
-                            label: 'Axis Color',
-                            helper: 'Default color for all axis labels',
-                            examples: ['#FFFFFF', 'var(--primary-text-color)']
-                        }
-                    },
-
-                    xaxis_color: {
-                        ...simpleColorSchema,
-                        description: 'X-axis label color',
-                        'x-ui-hints': {
-                            label: 'X-Axis Color',
-                            helper: 'Color for x-axis labels',
-                            examples: ['#FFCC00']
-                        }
-                    },
-
-                    yaxis_color: {
-                        ...simpleColorSchema,
-                        description: 'Y-axis label color',
-                        'x-ui-hints': {
-                            label: 'Y-Axis Color',
-                            helper: 'Color for y-axis labels',
-                            examples: ['#FF9900']
-                        }
-                    },
-
-                    xaxis_colors: colorArraySchema,
-                    yaxis_colors: colorArraySchema,
-
-                    axis_border_color: {
-                        ...simpleColorSchema,
-                        description: 'Axis line/border color',
-                        'x-ui-hints': {
-                            label: 'Axis Border Color',
-                            helper: 'Color for axis lines',
-                            examples: ['#666666']
-                        }
-                    },
-
-                    axis_ticks_color: {
-                        ...simpleColorSchema,
-                        description: 'Axis tick mark color',
-                        'x-ui-hints': {
-                            label: 'Axis Ticks Color',
-                            helper: 'Color for axis tick marks',
-                            examples: ['#444444']
-                        }
-                    },
-
-                    legend_color: {
-                        ...simpleColorSchema,
-                        description: 'Legend text color',
-                        'x-ui-hints': {
-                            label: 'Legend Color',
-                            helper: 'Color for legend text',
-                            examples: ['#FFFFFF']
-                        }
-                    },
-
-                    legend_colors: {
-                        ...colorArraySchema,
-                        description: 'Per-series legend colors',
-                        'x-ui-hints': {
-                            label: 'Legend Colors',
-                            helper: 'Individual colors for each legend item',
-                            examples: [['#FF9900', '#FFCC00']]
-                        }
-                    },
-
-                    data_label_colors: {
-                        ...colorArraySchema,
-                        description: 'Data label text colors',
-                        'x-ui-hints': {
-                            label: 'Data Label Colors',
-                            helper: 'Colors for data labels on chart',
-                            examples: [['#FFFFFF']]
-                        }
-                    },
-
-                    background_color: {
-                        ...simpleColorSchema,
-                        description: 'Chart background color',
-                        'x-ui-hints': {
-                            label: 'Background Color',
-                            helper: 'Background color for entire chart',
-                            examples: ['rgba(0, 0, 0, 0.3)', 'transparent']
-                        }
-                    },
-
-                    foreground_color: {
-                        ...simpleColorSchema,
-                        description: 'Foreground/text color',
-                        'x-ui-hints': {
-                            label: 'Foreground Color',
-                            helper: 'Default color for text and foreground elements',
-                            examples: ['#FFFFFF', 'var(--primary-text-color)']
-                        }
-                    },
-
-                    // ================================================================
-                    // STROKE/LINE STYLING
-                    // ================================================================
-
-                    stroke_width: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 20,
-                        default: 2,
-                        description: 'Line/stroke width in pixels',
-                        'x-ui-hints': {
-                            label: 'Stroke Width',
-                            helper: 'Width of lines and borders',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 20,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
-                                }
-                            }
-                        }
-                    },
-
-                    curve: {
-                        type: 'string',
-                        enum: ['smooth', 'straight', 'stepline', 'monotoneCubic'],
-                        default: 'smooth',
-                        description: 'Line curve style',
-                        'x-ui-hints': {
-                            label: 'Curve Style',
-                            helper: 'How lines are drawn between data points',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'smooth', label: 'Smooth' },
-                                        { value: 'straight', label: 'Straight' },
-                                        { value: 'stepline', label: 'Step Line' },
-                                        { value: 'monotoneCubic', label: 'Monotone Cubic' }
-                                    ]
-                                }
-                            },
-                            enumDescriptions: [
-                                'Smooth - Curved lines with spline interpolation',
-                                'Straight - Direct lines between points',
-                                'Stepline - Step-wise transitions',
-                                'Monotone Cubic - Smooth curves preserving monotonicity'
-                            ]
-                        }
-                    },
-
-                    stroke_dash_array: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 20,
-                        default: 0,
-                        description: 'Dashed line pattern (0 = solid)',
-                        'x-ui-hints': {
-                            label: 'Stroke Dash',
-                            helper: 'Dash pattern for lines (0 = solid line)',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 20,
-                                    step: 1
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // FILL STYLING (Area/Bar Charts)
-                    // ================================================================
-
-                    fill_type: {
-                        type: 'string',
-                        enum: ['solid', 'gradient', 'pattern', 'image'],
-                        default: 'solid',
-                        description: 'Fill type for area/bar charts',
-                        'x-ui-hints': {
-                            label: 'Fill Type',
-                            helper: 'Type of fill for area and bar charts',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'solid', label: 'Solid' },
-                                        { value: 'gradient', label: 'Gradient' },
-                                        { value: 'pattern', label: 'Pattern' },
-                                        { value: 'image', label: 'Image' }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-
-                    fill_opacity: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 1,
-                        default: 0.7,
-                        description: 'Fill opacity (0-1)',
-                        'x-ui-hints': {
-                            label: 'Fill Opacity',
-                            helper: 'Transparency of filled areas (0 = transparent, 1 = opaque)',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 1,
-                                    step: 0.1
-                                }
-                            }
-                        }
-                    },
-
-                    fill_gradient: {
                         type: 'object',
-                        description: 'Gradient fill configuration',
+                        description: 'Complete color configuration for all chart elements',
+                        'x-ui-hints': {
+                            label: 'Colors',
+                            helper: 'Configure colors for all chart elements',
+                            collapsible: true,
+                            defaultCollapsed: false
+                        },
                         properties: {
-                            shade: {
-                                type: 'string',
-                                enum: ['light', 'dark'],
-                                description: 'Gradient shade direction'
+                            series: colorArraySchema,
+                            stroke: colorArraySchema,
+                            fill: colorArraySchema,
+                            background: simpleColorSchema,
+                            foreground: simpleColorSchema,
+                            grid: simpleColorSchema,
+                            
+                            marker: {
+                                type: 'object',
+                                description: 'Marker colors',
+                                properties: {
+                                    fill: colorArraySchema,
+                                    stroke: colorArraySchema
+                                }
                             },
+                            
+                            axis: {
+                                type: 'object',
+                                description: 'Axis colors',
+                                properties: {
+                                    x: simpleColorSchema,
+                                    y: simpleColorSchema,
+                                    border: simpleColorSchema,
+                                    ticks: simpleColorSchema
+                                }
+                            },
+                            
+                            legend: {
+                                type: 'object',
+                                description: 'Legend colors',
+                                properties: {
+                                    default: simpleColorSchema,
+                                    items: colorArraySchema
+                                }
+                            },
+                            
+                            data_labels: simpleColorSchema
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 2: STROKE - Line styling
+                    // ================================================================
+
+                    stroke: {
+                        type: 'object',
+                        description: 'Line stroke configuration',
+                        'x-ui-hints': {
+                            label: 'Stroke',
+                            helper: 'Configure line width, curve, and dash pattern',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            width: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 10,
+                                default: 2,
+                                description: 'Stroke width in pixels',
+                                'x-ui-hints': {
+                                    label: 'Width',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 10,
+                                            step: 0.5
+                                        }
+                                    }
+                                }
+                            },
+                            curve: {
+                                type: 'string',
+                                enum: ['smooth', 'straight', 'stepline', 'monotoneCubic'],
+                                default: 'smooth',
+                                description: 'Line curve type',
+                                'x-ui-hints': {
+                                    label: 'Curve',
+                                    selector: {
+                                        select: {
+                                            options: [
+                                                { value: 'smooth', label: 'Smooth' },
+                                                { value: 'straight', label: 'Straight' },
+                                                { value: 'stepline', label: 'Stepline' },
+                                                { value: 'monotoneCubic', label: 'Monotone Cubic' }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            dash_array: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 20,
+                                default: 0,
+                                description: 'Dashed line pattern (0 = solid)',
+                                'x-ui-hints': {
+                                    label: 'Dash Pattern',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 20,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 3: FILL - Fill styling
+                    // ================================================================
+
+                    fill: {
+                        type: 'object',
+                        description: 'Fill configuration for area and bar charts',
+                        'x-ui-hints': {
+                            label: 'Fill',
+                            helper: 'Configure fill type, opacity, and gradients',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
                             type: {
                                 type: 'string',
-                                enum: ['horizontal', 'vertical', 'diagonal1', 'diagonal2'],
-                                description: 'Gradient direction'
+                                enum: ['solid', 'gradient', 'pattern', 'image'],
+                                default: 'solid',
+                                description: 'Fill type',
+                                'x-ui-hints': {
+                                    label: 'Type',
+                                    selector: {
+                                        select: {
+                                            options: [
+                                                { value: 'solid', label: 'Solid' },
+                                                { value: 'gradient', label: 'Gradient' },
+                                                { value: 'pattern', label: 'Pattern' },
+                                                { value: 'image', label: 'Image' }
+                                            ]
+                                        }
+                                    }
+                                }
                             },
-                            shadeIntensity: {
+                            opacity: {
                                 type: 'number',
                                 minimum: 0,
                                 maximum: 1,
-                                description: 'Intensity of shading'
-                            },
-                            opacityFrom: {
-                                type: 'number',
-                                minimum: 0,
-                                maximum: 1,
-                                description: 'Starting opacity'
-                            },
-                            opacityTo: {
-                                type: 'number',
-                                minimum: 0,
-                                maximum: 1,
-                                description: 'Ending opacity'
-                            }
-                        },
-                        'x-ui-hints': {
-                            label: 'Fill Gradient',
-                            helper: 'Configure gradient fill properties',
-                            examples: [{
-                                shade: 'dark',
-                                type: 'vertical',
-                                shadeIntensity: 0.5,
-                                opacityFrom: 0.9,
-                                opacityTo: 0.3
-                            }]
-                        }
-                    },
-
-                    // ================================================================
-                    // GRID STYLING
-                    // ================================================================
-
-                    show_grid: {
-                        type: 'boolean',
-                        default: true,
-                        description: 'Show/hide grid lines',
-                        'x-ui-hints': {
-                            label: 'Show Grid',
-                            helper: 'Display grid lines on chart',
-                            selector: {
-                                boolean: {}
-                            }
-                        }
-                    },
-
-                    grid_opacity: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 1,
-                        default: 0.3,
-                        description: 'Grid line opacity (0-1)',
-                        'x-ui-hints': {
-                            label: 'Grid Opacity',
-                            helper: 'Transparency of grid lines',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 1,
-                                    step: 0.1
-                                }
-                            }
-                        }
-                    },
-
-                    grid_stroke_dash_array: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 20,
-                        default: 4,
-                        description: 'Grid line dash pattern',
-                        'x-ui-hints': {
-                            label: 'Grid Dash',
-                            helper: 'Dash pattern for grid lines',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 20,
-                                    step: 1
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // MARKER STYLING (Data Points)
-                    // ================================================================
-
-                    marker_size: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 20,
-                        default: 4,
-                        description: 'Data point marker size in pixels',
-                        'x-ui-hints': {
-                            label: 'Marker Size',
-                            helper: 'Size of data point markers',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 20,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
-                                }
-                            }
-                        }
-                    },
-
-                    marker_shape: {
-                        type: 'string',
-                        enum: ['circle', 'square', 'rect'],
-                        default: 'circle',
-                        description: 'Marker shape',
-                        'x-ui-hints': {
-                            label: 'Marker Shape',
-                            helper: 'Shape of data point markers',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'circle', label: 'Circle' },
-                                        { value: 'square', label: 'Square' },
-                                        { value: 'rect', label: 'Rectangle' }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-
-                    marker_stroke_width: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 10,
-                        default: 2,
-                        description: 'Marker border width',
-                        'x-ui-hints': {
-                            label: 'Marker Stroke Width',
-                            helper: 'Width of marker borders',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 0,
-                                    max: 10,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // LEGEND STYLING
-                    // ================================================================
-
-                    legend_position: {
-                        type: 'string',
-                        enum: ['top', 'bottom', 'left', 'right'],
-                        default: 'bottom',
-                        description: 'Legend position',
-                        'x-ui-hints': {
-                            label: 'Legend Position',
-                            helper: 'Where to display the legend',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'top', label: 'Top' },
-                                        { value: 'bottom', label: 'Bottom' },
-                                        { value: 'left', label: 'Left' },
-                                        { value: 'right', label: 'Right' }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-
-                    legend_font_size: {
-                        type: 'number',
-                        minimum: 8,
-                        maximum: 24,
-                        default: 14,
-                        description: 'Legend font size in pixels',
-                        'x-ui-hints': {
-                            label: 'Legend Font Size',
-                            helper: 'Font size for legend text',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 8,
-                                    max: 24,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // DATA LABELS
-                    // ================================================================
-
-                    show_data_labels: {
-                        type: 'boolean',
-                        default: false,
-                        description: 'Show data value labels on chart',
-                        'x-ui-hints': {
-                            label: 'Show Data Labels',
-                            helper: 'Display value labels on data points',
-                            selector: {
-                                boolean: {}
-                            }
-                        }
-                    },
-
-                    data_label_font_size: {
-                        type: 'number',
-                        minimum: 8,
-                        maximum: 24,
-                        default: 12,
-                        description: 'Data label font size',
-                        'x-ui-hints': {
-                            label: 'Data Label Font Size',
-                            helper: 'Font size for data labels',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 8,
-                                    max: 24,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // TYPOGRAPHY
-                    // ================================================================
-
-                    font_family: {
-                        type: 'string',
-                        default: 'Antonio, Helvetica Neue, sans-serif',
-                        description: 'Font family for all chart text',
-                        'x-ui-hints': {
-                            label: 'Font Family',
-                            helper: 'Font family for chart text',
-                            selector: {
-                                text: {
-                                    placeholder: 'Antonio, sans-serif'
+                                default: 0.7,
+                                description: 'Fill opacity (0-1)',
+                                'x-ui-hints': {
+                                    label: 'Opacity',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 1,
+                                            step: 0.1
+                                        }
+                                    }
                                 }
                             },
-                            examples: [
-                                'Antonio, Helvetica Neue, sans-serif',
-                                'Roboto, sans-serif',
-                                'Arial, sans-serif'
-                            ]
-                        }
-                    },
-
-                    font_size: {
-                        type: 'number',
-                        minimum: 8,
-                        maximum: 24,
-                        default: 12,
-                        description: 'Base font size in pixels',
-                        'x-ui-hints': {
-                            label: 'Font Size',
-                            helper: 'Base font size for chart text',
-                            selector: {
-                                number: {
-                                    mode: 'slider',
-                                    min: 8,
-                                    max: 24,
-                                    step: 1,
-                                    unit_of_measurement: 'px'
+                            gradient: {
+                                type: 'object',
+                                description: 'Gradient fill configuration',
+                                properties: {
+                                    shade: {
+                                        type: 'string',
+                                        enum: ['light', 'dark'],
+                                        description: 'Gradient shade direction'
+                                    },
+                                    type: {
+                                        type: 'string',
+                                        enum: ['horizontal', 'vertical', 'diagonal1', 'diagonal2'],
+                                        description: 'Gradient direction'
+                                    },
+                                    shadeIntensity: {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 1,
+                                        description: 'Intensity of shading'
+                                    },
+                                    opacityFrom: {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 1,
+                                        description: 'Starting opacity'
+                                    },
+                                    opacityTo: {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 1,
+                                        description: 'Ending opacity'
+                                    }
                                 }
                             }
                         }
                     },
 
                     // ================================================================
-                    // DISPLAY OPTIONS
+                    // GROUP 4: MARKERS - Data point markers
                     // ================================================================
 
-                    show_toolbar: {
-                        type: 'boolean',
-                        default: false,
-                        description: 'Show ApexCharts toolbar',
-                        'x-ui-hints': {
-                            label: 'Show Toolbar',
-                            helper: 'Display ApexCharts toolbar with zoom/download options',
-                            selector: {
-                                boolean: {}
-                            }
-                        }
-                    },
-
-                    show_tooltip: {
-                        type: 'boolean',
-                        default: true,
-                        description: 'Show tooltips on hover',
-                        'x-ui-hints': {
-                            label: 'Show Tooltip',
-                            helper: 'Display tooltips when hovering over data points',
-                            selector: {
-                                boolean: {}
-                            }
-                        }
-                    },
-
-                    tooltip_theme: {
-                        type: 'string',
-                        enum: ['light', 'dark'],
-                        default: 'dark',
-                        description: 'Tooltip color theme',
-                        'x-ui-hints': {
-                            label: 'Tooltip Theme',
-                            helper: 'Color theme for tooltips',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'light', label: 'Light' },
-                                        { value: 'dark', label: 'Dark' }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-
-                    // ================================================================
-                    // ANIMATION
-                    // ================================================================
-
-                    animation_preset: {
-                        type: 'string',
-                        enum: availableAnimationPresets,
-                        description: 'LCARS animation preset',
-                        'x-ui-hints': {
-                            label: 'Animation Preset',
-                            helper: 'Select an animation style for chart entrance and updates',
-                            selector: {
-                                select: {
-                                    options: availableAnimationPresets.map(preset => ({
-                                        value: preset,
-                                        label: preset.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                                    }))
-                                }
-                            },
-                            examples: ['lcars_standard', 'lcars_realtime', 'none']
-                        }
-                    },
-
-                    // ================================================================
-                    // THEME
-                    // ================================================================
-
-                    theme_mode: {
-                        type: 'string',
-                        enum: ['light', 'dark'],
-                        default: 'dark',
-                        description: 'ApexCharts theme mode',
-                        'x-ui-hints': {
-                            label: 'Theme Mode',
-                            helper: 'Light or dark theme for chart',
-                            selector: {
-                                select: {
-                                    options: [
-                                        { value: 'light', label: 'Light' },
-                                        { value: 'dark', label: 'Dark' }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-
-                    theme_palette: {
-                        type: 'string',
-                        description: 'ApexCharts palette name (optional)',
-                        'x-ui-hints': {
-                            label: 'Theme Palette',
-                            helper: 'Named ApexCharts color palette (optional)',
-                            selector: {
-                                text: {
-                                    placeholder: 'palette1'
-                                }
-                            }
-                        }
-                    },
-
-                    monochrome: {
+                    markers: {
                         type: 'object',
-                        description: 'Monochrome color mode configuration',
+                        description: 'Data point marker configuration',
+                        'x-ui-hints': {
+                            label: 'Markers',
+                            helper: 'Configure data point markers',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
                         properties: {
-                            enabled: {
+                            size: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 20,
+                                default: 4,
+                                description: 'Marker size in pixels',
+                                'x-ui-hints': {
+                                    label: 'Size',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 20,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            },
+                            shape: {
+                                type: 'string',
+                                enum: ['circle', 'square', 'rect', 'rhombus'],
+                                default: 'circle',
+                                description: 'Marker shape',
+                                'x-ui-hints': {
+                                    label: 'Shape',
+                                    selector: {
+                                        select: {
+                                            options: [
+                                                { value: 'circle', label: 'Circle' },
+                                                { value: 'square', label: 'Square' },
+                                                { value: 'rect', label: 'Rectangle' },
+                                                { value: 'rhombus', label: 'Rhombus' }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            stroke: {
+                                type: 'object',
+                                description: 'Marker stroke configuration',
+                                properties: {
+                                    width: {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 10,
+                                        default: 2,
+                                        description: 'Marker stroke width',
+                                        'x-ui-hints': {
+                                            label: 'Stroke Width',
+                                            selector: {
+                                                number: {
+                                                    min: 0,
+                                                    max: 10,
+                                                    step: 0.5
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 5: GRID - Grid configuration
+                    // ================================================================
+
+                    grid: {
+                        type: 'object',
+                        description: 'Grid line configuration',
+                        'x-ui-hints': {
+                            label: 'Grid',
+                            helper: 'Configure grid lines and colors',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            show: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show/hide grid lines',
+                                'x-ui-hints': {
+                                    label: 'Show Grid',
+                                    selector: {
+                                        boolean: {}
+                                    }
+                                }
+                            },
+                            opacity: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 1,
+                                default: 0.3,
+                                description: 'Grid line opacity',
+                                'x-ui-hints': {
+                                    label: 'Opacity',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 1,
+                                            step: 0.1
+                                        }
+                                    }
+                                }
+                            },
+                            stroke_dash_array: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 20,
+                                default: 4,
+                                description: 'Grid line dash pattern',
+                                'x-ui-hints': {
+                                    label: 'Dash Pattern',
+                                    selector: {
+                                        number: {
+                                            mode: 'slider',
+                                            min: 0,
+                                            max: 20,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            },
+                            row_colors: colorArraySchema,
+                            column_colors: colorArraySchema
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 6: LEGEND - Legend configuration
+                    // ================================================================
+
+                    legend: {
+                        type: 'object',
+                        description: 'Legend configuration',
+                        'x-ui-hints': {
+                            label: 'Legend',
+                            helper: 'Configure chart legend',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            show: {
                                 type: 'boolean',
                                 default: false,
-                                description: 'Enable monochrome mode'
+                                description: 'Show/hide legend',
+                                'x-ui-hints': {
+                                    label: 'Show Legend',
+                                    selector: {
+                                        boolean: {}
+                                    }
+                                }
                             },
-                            color: {
-                                ...simpleColorSchema,
-                                description: 'Base color for monochrome palette'
+                            position: {
+                                type: 'string',
+                                enum: ['top', 'right', 'bottom', 'left'],
+                                default: 'bottom',
+                                description: 'Legend position',
+                                'x-ui-hints': {
+                                    label: 'Position',
+                                    selector: {
+                                        select: {
+                                            options: [
+                                                { value: 'top', label: 'Top' },
+                                                { value: 'right', label: 'Right' },
+                                                { value: 'bottom', label: 'Bottom' },
+                                                { value: 'left', label: 'Left' }
+                                            ]
+                                        }
+                                    }
+                                }
                             },
-                            shade_to: {
+                            font_size: {
+                                type: 'number',
+                                minimum: 8,
+                                maximum: 24,
+                                default: 14,
+                                description: 'Legend font size',
+                                'x-ui-hints': {
+                                    label: 'Font Size',
+                                    selector: {
+                                        number: {
+                                            min: 8,
+                                            max: 24,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 7: DATA LABELS - Data label configuration
+                    // ================================================================
+
+                    data_labels: {
+                        type: 'object',
+                        description: 'Data label configuration',
+                        'x-ui-hints': {
+                            label: 'Data Labels',
+                            helper: 'Configure data point labels',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            show: {
+                                type: 'boolean',
+                                default: false,
+                                description: 'Show/hide data labels',
+                                'x-ui-hints': {
+                                    label: 'Show Data Labels',
+                                    selector: {
+                                        boolean: {}
+                                    }
+                                }
+                            },
+                            font_size: {
+                                type: 'number',
+                                minimum: 8,
+                                maximum: 24,
+                                default: 12,
+                                description: 'Data label font size',
+                                'x-ui-hints': {
+                                    label: 'Font Size',
+                                    selector: {
+                                        number: {
+                                            min: 8,
+                                            max: 24,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 8: TYPOGRAPHY - Font configuration
+                    // ================================================================
+
+                    typography: {
+                        type: 'object',
+                        description: 'Typography configuration',
+                        'x-ui-hints': {
+                            label: 'Typography',
+                            helper: 'Configure fonts for chart text',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            font_family: {
+                                type: 'string',
+                                default: 'Antonio, Helvetica Neue, sans-serif',
+                                description: 'Font family',
+                                'x-ui-hints': {
+                                    label: 'Font Family',
+                                    selector: {
+                                        text: {}
+                                    }
+                                }
+                            },
+                            font_size: {
+                                type: 'number',
+                                minimum: 8,
+                                maximum: 24,
+                                default: 12,
+                                description: 'Base font size',
+                                'x-ui-hints': {
+                                    label: 'Font Size',
+                                    selector: {
+                                        number: {
+                                            min: 8,
+                                            max: 24,
+                                            step: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 9: DISPLAY - Display options
+                    // ================================================================
+
+                    display: {
+                        type: 'object',
+                        description: 'Display options',
+                        'x-ui-hints': {
+                            label: 'Display',
+                            helper: 'Configure toolbar and tooltip display',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            toolbar: {
+                                type: 'boolean',
+                                default: false,
+                                description: 'Show/hide toolbar',
+                                'x-ui-hints': {
+                                    label: 'Show Toolbar',
+                                    selector: {
+                                        boolean: {}
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                type: 'object',
+                                description: 'Tooltip configuration',
+                                properties: {
+                                    show: {
+                                        type: 'boolean',
+                                        default: true,
+                                        description: 'Show/hide tooltip',
+                                        'x-ui-hints': {
+                                            label: 'Show Tooltip',
+                                            selector: {
+                                                boolean: {}
+                                            }
+                                        }
+                                    },
+                                    theme: {
+                                        type: 'string',
+                                        enum: ['light', 'dark'],
+                                        default: 'dark',
+                                        description: 'Tooltip theme',
+                                        'x-ui-hints': {
+                                            label: 'Theme',
+                                            selector: {
+                                                select: {
+                                                    options: [
+                                                        { value: 'light', label: 'Light' },
+                                                        { value: 'dark', label: 'Dark' }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 10: ANIMATION - Animation configuration
+                    // ================================================================
+
+                    animation: {
+                        type: 'object',
+                        description: 'Animation configuration',
+                        'x-ui-hints': {
+                            label: 'Animation',
+                            helper: 'Configure chart animations',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            preset: {
+                                type: 'string',
+                                enum: availableAnimationPresets,
+                                description: 'Animation preset name',
+                                'x-ui-hints': {
+                                    label: 'Preset',
+                                    selector: {
+                                        select: {
+                                            options: availableAnimationPresets.map(preset => ({
+                                                value: preset,
+                                                label: preset.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                                            }))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 11: THEME - Theme configuration
+                    // ================================================================
+
+                    theme: {
+                        type: 'object',
+                        description: 'Theme configuration',
+                        'x-ui-hints': {
+                            label: 'Theme',
+                            helper: 'Configure chart theme settings',
+                            collapsible: true,
+                            defaultCollapsed: true
+                        },
+                        properties: {
+                            mode: {
                                 type: 'string',
                                 enum: ['light', 'dark'],
                                 default: 'dark',
-                                description: 'Shade direction'
+                                description: 'Theme mode',
+                                'x-ui-hints': {
+                                    label: 'Mode',
+                                    selector: {
+                                        select: {
+                                            options: [
+                                                { value: 'light', label: 'Light' },
+                                                { value: 'dark', label: 'Dark' }
+                                            ]
+                                        }
+                                    }
+                                }
                             },
-                            shade_intensity: {
-                                type: 'number',
-                                minimum: 0,
-                                maximum: 1,
-                                default: 0.65,
-                                description: 'Intensity of shading'
+                            palette: {
+                                type: 'string',
+                                description: 'Theme palette name',
+                                'x-ui-hints': {
+                                    label: 'Palette',
+                                    selector: {
+                                        text: {}
+                                    }
+                                }
+                            },
+                            monochrome: {
+                                type: 'object',
+                                description: 'Monochrome theme configuration',
+                                properties: {
+                                    enabled: {
+                                        type: 'boolean',
+                                        default: false,
+                                        description: 'Enable monochrome theme',
+                                        'x-ui-hints': {
+                                            label: 'Enabled',
+                                            selector: {
+                                                boolean: {}
+                                            }
+                                        }
+                                    },
+                                    color: simpleColorSchema,
+                                    shade_to: {
+                                        type: 'string',
+                                        enum: ['light', 'dark'],
+                                        default: 'dark',
+                                        description: 'Shade direction',
+                                        'x-ui-hints': {
+                                            label: 'Shade To',
+                                            selector: {
+                                                select: {
+                                                    options: [
+                                                        { value: 'light', label: 'Light' },
+                                                        { value: 'dark', label: 'Dark' }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    },
+                                    shade_intensity: {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 1,
+                                        default: 0.65,
+                                        description: 'Shade intensity',
+                                        'x-ui-hints': {
+                                            label: 'Intensity',
+                                            selector: {
+                                                number: {
+                                                    mode: 'slider',
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.05
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                        }
+                    },
+
+                    // ================================================================
+                    // GROUP 12: FORMATTERS - Label and tooltip formatters
+                    // ================================================================
+
+                    formatters: {
+                        type: 'object',
+                        description: 'Label and tooltip formatters',
+                        'x-ui-hints': {
+                            label: 'Formatters',
+                            helper: 'Configure label and tooltip formatting',
+                            collapsible: true,
+                            defaultCollapsed: true
                         },
-                        'x-ui-hints': {
-                            label: 'Monochrome Mode',
-                            helper: 'Generate color variations from single base color',
-                            examples: [{
-                                enabled: true,
-                                color: '#FF9900',
-                                shade_to: 'dark',
-                                shade_intensity: 0.65
-                            }]
+                        properties: {
+                            xaxis_label: {
+                                type: 'string',
+                                description: 'X-axis label format template',
+                                'x-ui-hints': {
+                                    label: 'X-Axis Label',
+                                    helper: 'Template for x-axis labels (e.g., "HH:mm")',
+                                    selector: {
+                                        text: {
+                                            placeholder: 'HH:mm'
+                                        }
+                                    },
+                                    examples: ['HH:mm', 'MMM DD', 'YYYY-MM-DD HH:mm']
+                                }
+                            },
+                            yaxis_label: {
+                                type: 'string',
+                                description: 'Y-axis label format template',
+                                'x-ui-hints': {
+                                    label: 'Y-Axis Label',
+                                    helper: 'Template for y-axis labels (e.g., "{value}°C")',
+                                    selector: {
+                                        text: {
+                                            placeholder: '{value}°C'
+                                        }
+                                    },
+                                    examples: ['{value}°C', '{value}%', '${value}']
+                                }
+                            },
+                            tooltip: {
+                                type: 'string',
+                                description: 'Tooltip format template',
+                                'x-ui-hints': {
+                                    label: 'Tooltip',
+                                    helper: 'Template for tooltip (e.g., "{x|MMM DD HH:mm}: {y}°C")',
+                                    selector: {
+                                        text: {
+                                            placeholder: '{x|MMM DD HH:mm}: {y}°C'
+                                        }
+                                    },
+                                    examples: [
+                                        '{x|MMM DD HH:mm}: {y}°C',
+                                        '{x}: {y}',
+                                        '{seriesName}: {y}'
+                                    ]
+                                }
+                            }
                         }
                     },
 
                     // ================================================================
-                    // NEW: FORMATTERS (Template-Based)
-                    // ================================================================
-
-                    xaxis_label_format: {
-                        type: 'string',
-                        description: 'X-axis label format string (date format or template with {value})',
-                        'x-ui-hints': {
-                            label: 'X-Axis Label Format',
-                            helper: 'Format string for x-axis labels. Use standard date format (MMM DD, HH:mm) or template with {value}',
-                            selector: {
-                                text: {
-                                    placeholder: 'HH:mm'
-                                }
-                            },
-                            examples: [
-                                'MMM DD',
-                                'HH:mm',
-                                'YYYY-MM-DD HH:mm',
-                                'ddd HH:mm',
-                                '{value}'
-                            ]
-                        }
-                    },
-
-                    yaxis_label_format: {
-                        type: 'string',
-                        description: 'Y-axis label format template with {value} token',
-                        'x-ui-hints': {
-                            label: 'Y-Axis Label Format',
-                            helper: 'Format template for y-axis labels. Use {value} token with prefix/suffix',
-                            selector: {
-                                text: {
-                                    placeholder: '{value}°C'
-                                }
-                            },
-                            examples: [
-                                '{value}°C',
-                                '{value}%',
-                                '${value}',
-                                '{value} kWh'
-                            ]
-                        }
-                    },
-
-                    tooltip_format: {
-                        type: 'string',
-                        description: 'Tooltip format template with {x} and {y} tokens',
-                        'x-ui-hints': {
-                            label: 'Tooltip Format',
-                            helper: 'Format template for tooltips. Use {x|format} for date formatting and {y} for value',
-                            selector: {
-                                text: {
-                                    placeholder: '{x|MMM DD HH:mm}: {y}°C'
-                                }
-                            },
-                            examples: [
-                                '{x|MMM DD HH:mm}: {y}°C',
-                                '{x|HH:mm}: {y}%',
-                                '{y} at {x|ddd HH:mm}'
-                            ]
-                        }
-                    },
-
-                    legend_format: {
-                        type: 'string',
-                        description: 'Legend format template with {seriesName} and {value} tokens',
-                        'x-ui-hints': {
-                            label: 'Legend Format',
-                            helper: 'Format template for legend items',
-                            selector: {
-                                text: {
-                                    placeholder: '{seriesName}: {value}'
-                                }
-                            },
-                            examples: [
-                                '{seriesName}: {value}',
-                                '{seriesName} ({value}%)'
-                            ]
-                        }
-                    },
-
-                    // ================================================================
-                    // RAW PASS-THROUGH (Highest Precedence)
+                    // GROUP 13: CHART_OPTIONS - Raw ApexCharts pass-through
                     // ================================================================
 
                     chart_options: {
                         type: 'object',
-                        description: 'Raw ApexCharts options (highest precedence, bypasses validation)',
+                        description: 'Raw ApexCharts options (highest precedence - overrides all other settings)',
                         'x-ui-hints': {
-                            label: 'Raw Chart Options',
-                            helper: 'Direct ApexCharts configuration - use for advanced customization. See ApexCharts docs.',
+                            label: 'Chart Options',
+                            helper: 'Raw ApexCharts options object - overrides all other settings',
+                            collapsible: true,
+                            defaultCollapsed: true,
                             examples: [{
                                 plotOptions: {
                                     bar: {
-                                        horizontal: true,
-                                        distributed: true
+                                        borderRadius: 4,
+                                        horizontal: false
                                     }
                                 }
                             }]
                         }
                     }
                 }
-            },
-
-            // ====================================================================
-            // ACTIONS
-            // ====================================================================
-
-            tap_action: {
-                type: 'object',
-                description: 'Action to perform when tapped',
-                'x-ui-hints': {
-                    label: 'Tap Action',
-                    helper: 'Action to perform when chart is tapped',
-                    selector: {
-                        ui_action: {}
-                    }
-                }
-            },
-
-            hold_action: {
-                type: 'object',
-                description: 'Action to perform on long press',
-                'x-ui-hints': {
-                    label: 'Hold Action',
-                    helper: 'Action to perform when chart is held/long-pressed',
-                    selector: {
-                        ui_action: {}
-                    }
-                }
-            },
-
-            double_tap_action: {
-                type: 'object',
-                description: 'Action to perform on double tap',
-                'x-ui-hints': {
-                    label: 'Double Tap Action',
-                    helper: 'Action to perform when chart is double-tapped',
-                    selector: {
-                        ui_action: {}
-                    }
-                }
             }
-        }
+        },
+        required: ['type']
     };
 }

@@ -858,7 +858,7 @@ export class LCARdSChart extends LCARdSCard {
         max_points: 0                 // No point limit by default (0 = unlimited)
     });
 
-    // Import and register complete schema (v1.17.0+)
+    // Import and register complete schema (v1.18.0+)
     import('./schemas/chart-schema.js').then(module => {
         const schema = module.getChartSchema({
             availableAnimationPresets: [
@@ -871,8 +871,8 @@ export class LCARdSChart extends LCARdSCard {
             ]
         });
 
-        configManager.registerCardSchema('chart', schema, { version: '1.17.0' });
-        lcardsLog.debug('[LCARdSChart] Registered complete schema with CoreConfigManager');
+        configManager.registerCardSchema('chart', schema, { version: '1.18.0' });
+        lcardsLog.debug('[LCARdSChart] Registered nested schema with CoreConfigManager (v1.18.0)');
     }).catch(error => {
         lcardsLog.error('[LCARdSChart] Failed to load chart schema:', error);
     });
