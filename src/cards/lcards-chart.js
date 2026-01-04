@@ -557,15 +557,15 @@ export class LCARdSChart extends LCARdSCard {
                     this._chartData.some(s => s.data && Array.isArray(s.data) && s.data.length > 0);
 
     // Use ApexChartsAdapter.generateOptions() for full feature parity with MSD
-    // This gives us all 50+ style properties that MSD overlays support:
-    // - colors, stroke_colors, fill_colors, marker_colors
-    // - grid_color, grid_row_colors, grid_column_colors, show_grid
-    // - axis_color, xaxis_color, yaxis_color, axis_border_color, axis_ticks_color
-    // - legend_color, legend_colors, show_legend
-    // - theme_mode, theme_palette, monochrome settings
-    // - font_family, font_size
-    // - show_toolbar, show_tooltip, tooltip_theme
-    // - animation_preset
+    // This gives us all 50+ style properties (v1.18.0+ nested structure):
+    // - colors.series, colors.stroke, colors.fill, colors.marker.*
+    // - colors.grid, grid.show, grid.opacity, grid.row_colors, grid.column_colors
+    // - colors.axis.x, colors.axis.y, colors.axis.border, colors.axis.ticks
+    // - colors.legend.default, colors.legend.items, legend.show
+    // - theme.mode, theme.palette, theme.monochrome.*
+    // - typography.font_family, typography.font_size
+    // - display.toolbar, display.tooltip.*
+    // - animation.preset
     // - and all chart-type-specific defaults
     const options = ApexChartsAdapter.generateOptions(
       enhancedStyle,
@@ -858,7 +858,7 @@ export class LCARdSChart extends LCARdSCard {
         max_points: 0                 // No point limit by default (0 = unlimited)
     });
 
-    // Import and register complete schema (v1.17.0+)
+    // Import and register complete schema (v1.18.0+)
     import('./schemas/chart-schema.js').then(module => {
         const schema = module.getChartSchema({
             availableAnimationPresets: [
@@ -871,8 +871,8 @@ export class LCARdSChart extends LCARdSCard {
             ]
         });
 
-        configManager.registerCardSchema('chart', schema, { version: '1.17.0' });
-        lcardsLog.debug('[LCARdSChart] Registered complete schema with CoreConfigManager');
+        configManager.registerCardSchema('chart', schema, { version: '1.18.0' });
+        lcardsLog.debug('[LCARdSChart] Registered nested schema with CoreConfigManager (v1.18.0)');
     }).catch(error => {
         lcardsLog.error('[LCARdSChart] Failed to load chart schema:', error);
     });

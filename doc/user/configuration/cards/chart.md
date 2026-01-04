@@ -1,5 +1,28 @@
 # LCARdS Chart Card - User Guide
 
+> **⚠️ BREAKING CHANGE (v1.18.0):** Chart card now uses nested structure.
+
+**Migration Required:**
+```yaml
+# ❌ Before (v1.17) - FLAT structure (NO LONGER SUPPORTED):
+style:
+  stroke_width: 2
+  marker_size: 4
+  fill_opacity: 0.7
+  show_legend: true
+
+# ✅ After (v1.18) - NESTED structure:
+style:
+  stroke:
+    width: 2
+  markers:
+    size: 4
+  fill:
+    opacity: 0.7
+  legend:
+    show: true
+```
+
 > **Powerful standalone charting with 15+ chart types**
 > Create interactive, real-time charts using ApexCharts library without requiring MSD.
 
