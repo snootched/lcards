@@ -1,5 +1,7 @@
 # LCARdS Chart Card - User Guide
 
+> **⚠️ BREAKING CHANGE (v1.18):** Chart card now uses nested structure for consistency with button and slider cards. See [Migration Guide](#migration-guide) below.
+
 > **Powerful standalone charting with 15+ chart types**
 > Create interactive, real-time charts using ApexCharts library without requiring MSD.
 
@@ -8,16 +10,16 @@
 ## 📋 Table of Contents
 
 1. [Overview](#overview)
-2. [Quick Start](#quick-start)
-3. [Data Source Configuration](#data-source-configuration)
-4. [Chart Types](#chart-types)
-5. [Multi-Series Charts](#multi-series-charts)
-6. [Styling Guide](#styling-guide)
-7. [Theme Integration](#theme-integration)
-8. [Animation Presets](#animation-presets)
-9. [Advanced Features](#advanced-features)
-10. [Complete Examples](#complete-examples)
-11. [Migration from MSD](#migration-from-msd)
+2. [Migration Guide](#migration-guide)
+3. [Quick Start](#quick-start)
+4. [Data Source Configuration](#data-source-configuration)
+5. [Chart Types](#chart-types)
+6. [Multi-Series Charts](#multi-series-charts)
+7. [Styling Guide](#styling-guide)
+8. [Theme Integration](#theme-integration)
+9. [Animation Presets](#animation-presets)
+10. [Advanced Features](#advanced-features)
+11. [Complete Examples](#complete-examples)
 12. [Troubleshooting](#troubleshooting)
 
 ---
@@ -32,6 +34,7 @@ The **LCARdS Chart Card** is a standalone card that provides powerful charting c
 ✅ **Real-time updates** - Live data from Home Assistant entities
 ✅ **Multi-series support** - Multiple data sources on one chart
 ✅ **Advanced data sources** - Inline DataSource configuration with history preload, throttling, coalescing
+✅ **Nested structure** - Organized style properties matching button/slider cards
 ✅ **50+ style properties** - Complete control over colors, markers, grid, axes, typography
 ✅ **Theme integration** - LCARdS theme tokens and HA CSS variables
 ✅ **Animation presets** - LCARS-appropriate motion profiles
@@ -46,6 +49,93 @@ The **LCARdS Chart Card** is a standalone card that provides powerful charting c
 - **Multi-sensor tracking** - Indoor vs outdoor temperature
 - **Historical analysis** - Preload hours of data for trends
 - **Custom dashboards** - Standalone charts in Lovelace views
+
+---
+
+## Migration Guide
+
+### What Changed in v1.18
+
+The chart card schema has been restructured from flat snake_case to nested objects for consistency with button and slider cards.
+
+**Before (v1.17 and earlier):**
+```yaml
+style:
+  stroke_width: 2
+  stroke_colors: ["#FF9900"]
+  marker_size: 4
+  grid_color: "#FFFFFF"
+  show_grid: true
+  fill_opacity: 0.3
+```
+
+**After (v1.18+):**
+```yaml
+style:
+  stroke:
+    width: 2
+    colors: ["#FF9900"]
+  markers:
+    size: 4
+  grid:
+    show: true
+    color: "#FFFFFF"
+  fill:
+    opacity: 0.3
+```
+
+### Backward Compatibility
+
+✅ **Flat properties still work as convenience aliases!** You can use either syntax:
+
+```yaml
+# Old flat syntax (still works)
+style:
+  stroke_width: 2
+  marker_size: 4
+
+# New nested syntax (recommended)
+style:
+  stroke:
+    width: 2
+  markers:
+    size: 4
+
+# Mixed syntax (both work together)
+style:
+  stroke_width: 2      # Flat alias
+  markers:             # Nested
+    size: 4
+```
+
+**Resolution priority:** Nested → Flat alias → Default
+
+If both nested and flat are specified, nested takes priority.
+
+### Quick Migration
+
+Replace these flat properties with nested equivalents:
+
+| Old (Flat) | New (Nested) |
+|------------|--------------|
+| `stroke_width` | `stroke.width` |
+| `stroke_colors` | `stroke.colors` |
+| `curve` | `stroke.curve` |
+| `marker_size` | `markers.size` |
+| `marker_colors` | `markers.colors` |
+| `grid_color` | `grid.color` |
+| `show_grid` | `grid.show` |
+| `fill_opacity` | `fill.opacity` |
+| `fill_type` | `fill.type` |
+| `show_legend` | `legend.show` |
+| `legend_position` | `legend.position` |
+| `show_data_labels` | `data_labels.show` |
+| `show_toolbar` | `display.toolbar` |
+| `show_tooltip` | `display.tooltip.show` |
+| `animation_preset` | `animation.preset` |
+| `font_family` | `typography.font_family` |
+
+**Convenience aliases:** `colors`, `stroke_width`, `marker_size` remain as top-level shortcuts.
 
 ---
 
@@ -64,9 +154,9 @@ height: 300
 
 **Result:** A simple line chart showing temperature data with automatic DataSource creation.
 
-### With Basic Styling
+### With Basic Nested Styling
 
-Add colors and customize appearance:
+Add colors and customize appearance using nested structure:
 
 ```yaml
 type: custom:lcards-chart
@@ -74,9 +164,12 @@ source: sensor.temperature
 chart_type: area
 height: 300
 style:
-  colors: ["#FF9900"]
-  fill_opacity: 0.3
-  curve: smooth
+  colors:
+    series: ["#FF9900"]
+  fill:
+    opacity: 0.3
+  stroke:
+    curve: smooth
 ```
 
 ---
