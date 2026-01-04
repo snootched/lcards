@@ -1,0 +1,61 @@
+# Picard Vertical Component Test
+# Tests: elbow shape, inset ranges, animation placeholder, vertical orientation
+type: custom:lcards-slider
+entity: sensor.warp_core_power
+component: picard-vertical
+
+control:
+  locked: true
+
+style:
+  track:
+    display:
+      min: 0
+      max: 100
+      unit: '%'
+    orientation: vertical
+  
+  ranges:
+    - min: 0
+      max: 20
+      color: 'var(--picard-darkest-gray)'
+      label: 'STANDBY'
+    - min: 20
+      max: 80
+      color: 'var(--picard-medium-light-blue)'
+      label: 'NOMINAL'
+    - min: 80
+      max: 100
+      color: 'var(--picard-red)'
+      label: 'CRITICAL'
+  
+  gauge:
+    range:
+      inset:
+        border:
+          color: black
+          size: 4
+        gap: 5
+    scale:
+      tick_marks:
+        major:
+          interval: 10
+        minor:
+          interval: 2
+      labels:
+        enabled: true
+        unit: '%'
+
+  border:
+    top:
+      enabled: true
+      size: 40
+      color:
+        active: 'var(--lcars-card-button)'
+        inactive: 'var(--lcars-card-button-off)'
+    bottom:
+      enabled: true
+      size: 50
+      color:
+        active: 'var(--lcars-card-button)'
+        inactive: 'var(--lcars-card-button-off)'

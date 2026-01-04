@@ -9,6 +9,9 @@
  * @module core/packs/components/sliders
  */
 
+// Import Picard vertical component
+import { picardVertical } from './picard-vertical.js';
+
 /**
  * Basic Slider Component (Unified)
  * Square viewBox with preserveAspectRatio="none" for flexible orientation
@@ -122,7 +125,10 @@ export const sliderComponents = {
         svg: sliderPicardVerticalSvg,
         orientation: 'vertical',  // Locked (decorative elbows require vertical)
         features: ['decorative-borders', 'segmented-elbows', 'text-zone']
-    }
+    },
+
+    // NEW: Picard Vertical Component with inset ranges
+    'picard-vertical': picardVertical
 };
 
 /**
