@@ -320,99 +320,112 @@ export class ApexChartsAdapter {
 
     // ============================================================================
     // SERIES COLORS (Primary data visualization)
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
-    let colors = style.colors || (style.color ? [style.color] : null);
+    let colors = style.colors?.series ?? style.colors ?? (style.color ? [style.color] : null);
     colors = resolveColorArray(colors, 'defaultColors', null);
 
     // ============================================================================
     // STROKE/OUTLINE COLORS
+    // Waterfall: nested → flat alias → fallback to series
     // ============================================================================
 
-    let strokeColors = style.stroke_colors;
+    let strokeColors = style.colors?.stroke ?? style.stroke?.colors ?? style.stroke_colors;
     if (!strokeColors && style.stroke_color) {
       strokeColors = [style.stroke_color];
     }
     strokeColors = resolveColorArray(strokeColors, 'defaultStrokeColors', null);
 
     const strokeWidth = this._resolveTokenValue(
-      style.stroke_width,
+      style.stroke?.width ?? style.stroke_width,
       'defaultStrokeWidth',
       resolveToken,
       2,
       context
     );
 
-    const curve = style.curve ||
+    const curve = style.stroke?.curve ?? style.curve ??
       (resolveToken ? resolveToken('curve', 'smooth', context) : 'smooth');
+
+    const strokeDashArray = style.stroke?.dash_array ?? style.stroke_dash_array ?? 0;
 
     // ============================================================================
     // FILL COLORS (for area/bar charts)
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
-    const fillColors = resolveColorArray(style.fill_colors, 'defaultFillColors', null);
-    const fillType = style.fill_type ||
+    const fillColors = resolveColorArray(
+      style.colors?.fill ?? style.fill?.colors ?? style.fill_colors,
+      'defaultFillColors',
+      null
+    );
+    const fillType = style.fill?.type ?? style.fill_type ??
       (resolveToken ? resolveToken('defaultFillType', 'solid', context) : 'solid');
-    const fillOpacity = style.fill_opacity !== undefined ?
-      style.fill_opacity :
+    const fillOpacity = style.fill?.opacity ?? style.fill_opacity ??
       (resolveToken ? resolveToken('defaultFillOpacity', 0.7, context) : 0.7);
+    const fillGradient = style.fill?.gradient ?? style.fill_gradient;
 
     // ============================================================================
     // BACKGROUND & FOREGROUND
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
     const backgroundColor = resolveColor(
-      style.background_color,
+      style.colors?.background ?? style.background_color,
       'backgroundColor',
       'transparent'
     );
 
     const foregroundColor = resolveColor(
-      style.foreground_color,
+      style.colors?.foreground ?? style.foreground_color,
       'foregroundColor',
       'var(--lcars-white, #FFFFFF)'
     );
 
     // ============================================================================
     // GRID COLORS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
     const gridColor = resolveColor(
-      style.grid_color,
+      style.colors?.grid ?? style.grid?.color ?? style.grid_color,
       'gridColor',
       'var(--lcars-gray, #999999)'
     );
 
     const gridRowColors = resolveColorArray(
-      style.grid_row_colors,
+      style.grid?.row_colors ?? style.grid_row_colors,
       'gridRowColors',
       null
     );
 
     const gridColumnColors = resolveColorArray(
-      style.grid_column_colors,
+      style.grid?.column_colors ?? style.grid_column_colors,
       'gridColumnColors',
       null
     );
 
-    const showGrid = style.show_grid !== undefined ?
-      style.show_grid :
+    const showGrid = style.grid?.show ?? style.show_grid ??
       (resolveToken ? resolveToken('showGrid', true, context) : true);
+
+    const gridOpacity = style.grid?.opacity ?? style.grid_opacity ?? 0.3;
+    const gridStrokeDashArray = style.grid?.stroke_dash_array ?? style.grid_stroke_dash_array ?? 4;
 
     // ============================================================================
     // AXIS COLORS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
     // Unified axis color (fallback for both axes)
     const unifiedAxisColor = resolveColor(
-      style.axis_color,
+      style.colors?.axis ?? style.axes?.color ?? style.axis_color,
       'axisColor',
       foregroundColor
     );
 
     // X-axis specific
-    const xaxisColor = style.xaxis_color ?
-      resolveColor(style.xaxis_color, 'xaxisColor', unifiedAxisColor) :
+    const xaxisColor = style.colors?.axis?.x ?? style.axes?.x?.color ?? style.xaxis_color ??
       unifiedAxisColor;
 
     const xaxisColors = resolveColorArray(
@@ -422,8 +435,7 @@ export class ApexChartsAdapter {
     );
 
     // Y-axis specific
-    const yaxisColor = style.yaxis_color ?
-      resolveColor(style.yaxis_color, 'yaxisColor', unifiedAxisColor) :
+    const yaxisColor = style.colors?.axis?.y ?? style.axes?.y?.color ?? style.yaxis_color ??
       unifiedAxisColor;
 
     const yaxisColors = resolveColorArray(
@@ -434,79 +446,90 @@ export class ApexChartsAdapter {
 
     // Axis border and ticks
     const axisBorderColor = resolveColor(
-      style.axis_border_color,
+      style.colors?.axis?.border ?? style.axes?.border?.color ?? style.axis_border_color,
       'axisBorderColor',
       gridColor
     );
 
     const axisTicksColor = resolveColor(
-      style.axis_ticks_color,
+      style.colors?.axis?.ticks ?? style.axes?.ticks?.color ?? style.axis_ticks_color,
       'axisTicksColor',
       gridColor
     );
 
     // ============================================================================
     // LEGEND COLORS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
     const legendColor = resolveColor(
-      style.legend_color,
+      style.colors?.legend?.default ?? style.legend?.color ?? style.legend_color,
       'legendColor',
       foregroundColor
     );
 
     const legendColors = resolveColorArray(
-      style.legend_colors,
+      style.colors?.legend?.items ?? style.legend?.colors ?? style.legend_colors,
       'legendColors',
       null
     );
 
-    const showLegend = style.show_legend !== undefined ?
-      style.show_legend :
+    const showLegend = style.legend?.show ?? style.show_legend ??
       (resolveToken ? resolveToken('showLegend', false, context) : false);
+
+    const legendPosition = style.legend?.position ?? style.legend_position ?? 'bottom';
+    const legendFontSize = style.legend?.font_size ?? style.legend_font_size ?? 14;
 
     // ============================================================================
     // MARKER COLORS (data points)
+    // Waterfall: nested → flat alias → fallback to series
     // ============================================================================
 
     const markerColors = resolveColorArray(
-      style.marker_colors,
+      style.colors?.marker?.fill ?? style.markers?.colors ?? style.marker_colors,
       'markerColors',
       colors  // Default to series colors
     );
 
     const markerStrokeColors = resolveColorArray(
-      style.marker_stroke_colors,
+      style.colors?.marker?.stroke ?? style.markers?.stroke?.colors ?? style.marker_stroke_colors,
       'markerStrokeColors',
       foregroundColor
     );
 
-    const markerStrokeWidth = style.marker_stroke_width !== undefined ?
-      style.marker_stroke_width :
+    const markerSize = style.markers?.size ?? style.marker_size ??
+      (resolveToken ? resolveToken('markerSize', 4, context) : 4);
+
+    const markerShape = style.markers?.shape ?? style.marker_shape ?? 'circle';
+
+    const markerStrokeWidth = style.markers?.stroke?.width ?? style.marker_stroke_width ??
       (resolveToken ? resolveToken('markerStrokeWidth', 2, context) : 2);
 
     // ============================================================================
     // DATA LABEL COLORS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
     const dataLabelColors = resolveColorArray(
-      style.data_label_colors,
+      style.colors?.data_labels ?? style.data_labels?.colors ?? style.data_label_colors,
       'dataLabelColors',
       foregroundColor
     );
 
-    const showDataLabels = style.show_data_labels !== undefined ?
-      style.show_data_labels :
+    const showDataLabels = style.data_labels?.show ?? style.show_data_labels ??
       (resolveToken ? resolveToken('showDataLabels', false, context) : false);
+
+    const dataLabelFontSize = style.data_labels?.font_size ?? style.data_label_font_size ?? 12;
 
     // ============================================================================
     // THEME SETTINGS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
-    const themeMode = style.theme_mode ||
+    const themeMode = style.theme?.mode ?? style.theme_mode ??
       (resolveToken ? resolveToken('themeMode', 'dark', context) : 'dark');
 
-    let themePalette = style.theme_palette ||
+    let themePalette = style.theme?.palette ?? style.theme_palette ??
       (resolveToken ? resolveToken('themePalette', null, context) : null);
 
     // Filter out unresolved theme token paths (e.g., "colors.chart.themePalette")
@@ -516,42 +539,41 @@ export class ApexChartsAdapter {
     }
 
     // Monochrome settings
-    const monochrome = style.monochrome || {};
-    const monochromeEnabled = monochrome.enabled !== undefined ? monochrome.enabled :
+    const monochrome = style.theme?.monochrome ?? style.monochrome ?? {};
+    const monochromeEnabled = monochrome.enabled ??
       (resolveToken ? resolveToken('monochromeEnabled', false, context) : false);
     const monochromeColor = monochrome.color ?
       resolveColor(monochrome.color, 'monochromeColor', colors?.[0]) :
       (resolveToken ? resolveColor(null, 'monochromeColor', colors?.[0]) : colors?.[0]);
-    const monochromeShadeTo = monochrome.shade_to ||
+    const monochromeShadeTo = monochrome.shade_to ??
       (resolveToken ? resolveToken('monochromeShadeTo', 'dark', context) : 'dark');
-    const monochromeIntensity = monochrome.shade_intensity !== undefined ? monochrome.shade_intensity :
+    const monochromeIntensity = monochrome.shade_intensity ??
       (resolveToken ? resolveToken('monochromeIntensity', 0.65, context) : 0.65);
 
     // ============================================================================
     // TYPOGRAPHY
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
-    const fontFamily = resolveToken ?
-      resolveToken('fontFamily', 'Antonio, Helvetica Neue, sans-serif', context) :
-      'Antonio, Helvetica Neue, sans-serif';
+    const fontFamily = style.typography?.font_family ?? style.font_family ??
+      (resolveToken ? resolveToken('fontFamily', 'Antonio, Helvetica Neue, sans-serif', context) : 
+        'Antonio, Helvetica Neue, sans-serif');
 
-    const fontSize = resolveToken ?
-      resolveToken('fontSize', 12, context) :
-      12;
+    const fontSize = style.typography?.font_size ?? style.font_size ??
+      (resolveToken ? resolveToken('fontSize', 12, context) : 12);
 
     // ============================================================================
     // DISPLAY OPTIONS
+    // Waterfall: nested → flat alias → default
     // ============================================================================
 
-    const showToolbar = style.show_toolbar !== undefined ?
-      style.show_toolbar :
+    const showToolbar = style.display?.toolbar ?? style.show_toolbar ??
       (resolveToken ? resolveToken('showToolbar', false, context) : false);
 
-    const showTooltip = style.show_tooltip !== undefined ?
-      style.show_tooltip :
+    const showTooltip = style.display?.tooltip?.show ?? style.show_tooltip ??
       (resolveToken ? resolveToken('showTooltip', true, context) : true);
 
-    const tooltipTheme = style.tooltip_theme ||
+    const tooltipTheme = style.display?.tooltip?.theme ?? style.tooltip_theme ??
       (resolveToken ? resolveToken('tooltipTheme', 'dark', context) : 'dark');
 
     // ============================================================================
@@ -590,6 +612,7 @@ export class ApexChartsAdapter {
       stroke: {
         width: strokeWidth,
         curve: curve,
+        dashArray: strokeDashArray,
         colors: nullToUndefined(strokeColors)
       },
 
@@ -597,15 +620,16 @@ export class ApexChartsAdapter {
       fill: {
         colors: nullToUndefined(fillColors),
         type: fillType,
-        opacity: fillOpacity
+        opacity: fillOpacity,
+        ...(fillGradient && { gradient: fillGradient })
       },
 
       // Grid
       grid: {
         show: showGrid,
         borderColor: gridColor,
-        strokeDashArray: 4,
-        opacity: 0.3,
+        strokeDashArray: gridStrokeDashArray,
+        opacity: gridOpacity,
         ...(gridRowColors && { row: { colors: gridRowColors } }),
         ...(gridColumnColors && { column: { colors: gridColumnColors } })
       },
@@ -647,7 +671,8 @@ export class ApexChartsAdapter {
       // Legend
       legend: {
         show: showLegend,
-        fontSize: `${fontSize + 2}px`,
+        position: legendPosition,
+        fontSize: `${legendFontSize}px`,
         fontFamily: fontFamily,
         labels: {
           colors: nullToUndefined(legendColors) || legendColor
@@ -656,6 +681,8 @@ export class ApexChartsAdapter {
 
       // Markers (data points)
       markers: {
+        size: markerSize,
+        shape: markerShape,
         colors: nullToUndefined(markerColors),
         strokeColors: nullToUndefined(markerStrokeColors),
         strokeWidth: markerStrokeWidth
@@ -666,7 +693,7 @@ export class ApexChartsAdapter {
         enabled: showDataLabels,
         style: {
           colors: nullToUndefined(dataLabelColors),
-          fontSize: `${fontSize}px`,
+          fontSize: `${dataLabelFontSize}px`,
           fontFamily: fontFamily
         }
       },
@@ -705,16 +732,18 @@ export class ApexChartsAdapter {
 
     // ============================================================================
     // APPLY ANIMATION PRESET
+    // Waterfall: nested → flat alias
     // ============================================================================
 
-    if (style.animation_preset) {
-      const animationPreset = ApexChartsAdapter._getAnimationPreset(style.animation_preset);
+    const animationPresetName = style.animation?.preset ?? style.animation_preset;
+    if (animationPresetName) {
+      const animationPreset = ApexChartsAdapter._getAnimationPreset(animationPresetName);
       if (animationPreset) {
         optionsWithTypeDefaults.chart.animations = {
           ...optionsWithTypeDefaults.chart.animations,
           ...animationPreset
         };
-        lcardsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${style.animation_preset}`, animationPreset);
+        lcardsLog.debug(`[ApexChartsAdapter] Applied animation preset: ${animationPresetName}`, animationPreset);
       }
     }
 
@@ -734,37 +763,42 @@ export class ApexChartsAdapter {
       themeMode,
       themePalette,
       monochromeEnabled,
-      cssVariablesResolved: true
+      cssVariablesResolved: true,
+      nestedStructureSupport: true  // NEW: Indicate nested structure support
     });
 
     // ============================================================================
     // FORMATTERS (Simple Template-Based)
+    // Waterfall: nested → flat alias
     // ============================================================================
 
     // Apply X-Axis Label Formatter
-    if (style.xaxis_label_format) {
-      const formatter = this._createLabelFormatter(style.xaxis_label_format, 'xaxis');
+    const xaxisLabelFormat = style.formatters?.xaxis_label ?? style.axes?.x?.labels?.format ?? style.xaxis_label_format;
+    if (xaxisLabelFormat) {
+      const formatter = this._createLabelFormatter(xaxisLabelFormat, 'xaxis');
       if (!optionsWithTypeDefaults.xaxis) optionsWithTypeDefaults.xaxis = {};
       if (!optionsWithTypeDefaults.xaxis.labels) optionsWithTypeDefaults.xaxis.labels = {};
       optionsWithTypeDefaults.xaxis.labels.formatter = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied xaxis_label_format:', style.xaxis_label_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied xaxis_label_format:', xaxisLabelFormat);
     }
 
     // Apply Y-Axis Label Formatter
-    if (style.yaxis_label_format) {
-      const formatter = this._createLabelFormatter(style.yaxis_label_format, 'yaxis');
+    const yaxisLabelFormat = style.formatters?.yaxis_label ?? style.axes?.y?.labels?.format ?? style.yaxis_label_format;
+    if (yaxisLabelFormat) {
+      const formatter = this._createLabelFormatter(yaxisLabelFormat, 'yaxis');
       if (!optionsWithTypeDefaults.yaxis) optionsWithTypeDefaults.yaxis = {};
       if (!optionsWithTypeDefaults.yaxis.labels) optionsWithTypeDefaults.yaxis.labels = {};
       optionsWithTypeDefaults.yaxis.labels.formatter = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label_format:', style.yaxis_label_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label_format:', yaxisLabelFormat);
     }
 
     // Apply Tooltip Formatter
-    if (style.tooltip_format) {
-      const formatter = this._createTooltipFormatter(style.tooltip_format);
+    const tooltipFormat = style.formatters?.tooltip ?? style.display?.tooltip?.format ?? style.tooltip_format;
+    if (tooltipFormat) {
+      const formatter = this._createTooltipFormatter(tooltipFormat);
       if (!optionsWithTypeDefaults.tooltip) optionsWithTypeDefaults.tooltip = {};
       optionsWithTypeDefaults.tooltip.custom = formatter;
-      lcardsLog.debug('[ApexChartsAdapter] Applied tooltip_format:', style.tooltip_format);
+      lcardsLog.debug('[ApexChartsAdapter] Applied tooltip_format:', tooltipFormat);
     }
 
     // ============================================================================
