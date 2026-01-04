@@ -1699,16 +1699,16 @@ static _getRawData(dataSource, config) {
 
   /**
    * Create tooltip formatter from template string
-   * 
+   *
    * ✅ FIX: Returns complete custom tooltip HTML structure to prevent ApexCharts
    * from re-processing formatted content. ApexCharts' internal formatter can
    * misinterpret characters in formatted dates (e.g., "Jan" → "Jamn" when it
    * treats the second 'M' as a minute format token).
-   * 
+   *
    * By returning the outer <div class="apexcharts-tooltip"> wrapper, we signal
    * to ApexCharts that this is a fully custom tooltip and content should not
    * be re-formatted.
-   * 
+   *
    * @private
    * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
    * @returns {Function} ApexCharts tooltip formatter
@@ -1721,14 +1721,13 @@ static _getRawData(dataSource, config) {
       let output = format;
 
       // Handle {x|format} syntax for date formatting
-      const xMatch = output.match(/\{x\|([^}]+)\}/);
+      const xMatch = output. match(/\{x\|([^}]+)\}/);
       if (xMatch) {
         const dateFormat = xMatch[1];
         const formattedX = ApexChartsAdapter._formatDate(x, dateFormat);
         output = output.replace(xMatch[0], formattedX);
       } else if (output.includes('{x}')) {
-        // Simple {x} without format - use as-is or default format
-        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm') : x;
+        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH: mm') : x;
         output = output.replace('{x}', formattedX);
       }
 
@@ -1738,17 +1737,16 @@ static _getRawData(dataSource, config) {
         output = output.replace('{y}', formattedY);
       }
 
-      // ✅ FIX: Return complete custom tooltip structure
+      // ✅ FIX: Return complete custom tooltip structure WITHOUT hardcoded styles
       // The outer wrapper signals to ApexCharts: "Don't re-format this content"
-      // This prevents ApexCharts' formatter from misinterpreting characters in
-      // our formatted dates (e.g., treating 'M' in "Jan" as a format token)
+      // ApexCharts will apply its own tooltip styling from the configured options
       return `
-      <div class="apexcharts-tooltip" style="padding: 8px; background: rgba(0, 0, 0, 0.9); border-radius: 4px;">
-        <div class="apexcharts-tooltip-text" style="color: #ffffff; font-size: 12px;">
-          ${output}
+        <div class="apexcharts-tooltip">
+          <div class="apexcharts-tooltip-text">
+            ${output}
+          </div>
         </div>
-      </div>
-    `;
+      `;
     };
   }
 
@@ -1761,7 +1759,7 @@ static _getRawData(dataSource, config) {
    */
   static _formatDate(timestamp, format) {
     const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
-    
+
     if (!date || isNaN(date.getTime())) {
       return String(timestamp);
     }
