@@ -35,6 +35,7 @@ import '../components/lcards-chart-live-preview.js';
 import '../../cards/lcards-chart.js';
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-color-array.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
     static get properties() {
@@ -46,7 +47,8 @@ export class LCARdSChartStudioDialog extends LitElement {
             _validationErrors: { type: Array, state: true },
             // Data Sources tab state
             _dataSourceLevel: { type: String, state: true }, // 'simple' | 'multi' | 'advanced'
-            _selectedEntity: { type: String, state: true }
+            _selectedEntity: { type: String, state: true },
+            _renderKey: { type: Number, state: true } // Preview render key for forced updates
         };
     }
 
@@ -70,6 +72,9 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Initialize chart schema
         this._chartSchema = getChartSchema();
+        
+        // Preview render key for forced updates
+        this._renderKey = 0;
     }
 
     /**
@@ -496,6 +501,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         }
 
         this._previewUpdateTimer = setTimeout(() => {
+            this._renderKey++; // Force preview re-render
             this._updatePreviewCard();
             this._previewUpdateTimer = null;
         }, 300);
@@ -593,36 +599,37 @@ export class LCARdSChartStudioDialog extends LitElement {
             content.textContent = message;
             content.style.padding = '16px';
             content.style.lineHeight = '1.5';
-            
-            // Create button bar
-            const buttonBar = document.createElement('div');
-            buttonBar.slot = 'footer';
-            buttonBar.style.display = 'flex';
-            buttonBar.style.gap = '8px';
-            buttonBar.style.justifyContent = 'flex-end';
-            
-            // Cancel button
-            const cancelButton = document.createElement('mwc-button');
-            cancelButton.label = 'Cancel';
-            cancelButton.dialogAction = 'cancel';
-            
-            // Confirm button
-            const confirmButton = document.createElement('mwc-button');
-            confirmButton.label = 'Continue';
-            confirmButton.raised = true;
-            confirmButton.dialogAction = 'confirm';
-            
-            buttonBar.appendChild(cancelButton);
-            buttonBar.appendChild(confirmButton);
-            
-            // Assemble dialog
             dialog.appendChild(content);
-            dialog.appendChild(buttonBar);
             
-            // Handle close
-            dialog.addEventListener('closed', (e) => {
-                const confirmed = e.detail.action === 'confirm';
-                resolve(confirmed);
+            // Create button container
+            const buttonContainer = document.createElement('div');
+            buttonContainer.slot = 'secondaryAction';
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.gap = '8px';
+            
+            // Cancel button with explicit handler
+            const cancelButton = document.createElement('ha-button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', () => {
+                dialog.close();
+                resolve(false);
+            });
+            
+            // Confirm button with explicit handler
+            const confirmButton = document.createElement('ha-button');
+            confirmButton.textContent = 'Continue';
+            confirmButton.setAttribute('raised', '');
+            confirmButton.addEventListener('click', () => {
+                dialog.close();
+                resolve(true);
+            });
+            
+            buttonContainer.appendChild(cancelButton);
+            buttonContainer.appendChild(confirmButton);
+            dialog.appendChild(buttonContainer);
+            
+            // Handle dialog close (ESC key or backdrop click)
+            dialog.addEventListener('closed', () => {
                 setTimeout(() => dialog.remove(), 100);
             });
             
@@ -1465,7 +1472,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Render color array editor (multiple colors)
+     * Render color array editor using lcards-color-array
      * @private
      * @param {string} path - Config path
      * @param {string} label - Field label
@@ -1476,70 +1483,16 @@ export class LCARdSChartStudioDialog extends LitElement {
         const colors = this._getNestedValue(path) || [];
         
         return html`
-            <div style="margin-bottom: 16px;">
-                <div style="font-weight: 500; margin-bottom: 8px;">${label}</div>
-                ${description ? html`<div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">${description}</div>` : ''}
-                
-                <div class="color-array-list" style="display: flex; flex-direction: column; gap: 8px;">
-                    ${colors.map((color, index) => html`
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{ color_rgb: {} }}
-                                .value=${color}
-                                .label=${"Color " + (index + 1)}
-                                @value-changed=${(e) => this._updateColorInArray(path, index, e.detail.value)}>
-                            </ha-selector>
-                            <ha-icon-button
-                                @click=${() => this._removeColorFromArray(path, index)}>
-                                <ha-icon icon="mdi:delete"></ha-icon>
-                            </ha-icon-button>
-                        </div>
-                    `)}
-                </div>
-                
-                <ha-button @click=${() => this._addColorToArray(path)} style="margin-top: 8px;">
-                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                    Add Color
-                </ha-button>
-            </div>
+            <lcards-color-array
+                .hass=${this.hass}
+                .colors=${colors}
+                .label=${label}
+                .description=${description}
+                @colors-changed=${(e) => {
+                    this._setNestedValue(path, e.detail.colors);
+                }}>
+            </lcards-color-array>
         `;
-    }
-
-    /**
-     * Update a color in an array
-     * @private
-     * @param {string} path - Config path
-     * @param {number} index - Array index
-     * @param {string} value - New color value
-     */
-    _updateColorInArray(path, index, value) {
-        const colors = this._getNestedValue(path) || [];
-        colors[index] = value;
-        this._setNestedValue(path, colors);
-    }
-
-    /**
-     * Add a color to an array
-     * @private
-     * @param {string} path - Config path
-     */
-    _addColorToArray(path) {
-        const colors = this._getNestedValue(path) || [];
-        colors.push('#ffffff');
-        this._setNestedValue(path, colors);
-    }
-
-    /**
-     * Remove a color from an array
-     * @private
-     * @param {string} path - Config path
-     * @param {number} index - Array index
-     */
-    _removeColorFromArray(path, index) {
-        const colors = this._getNestedValue(path) || [];
-        colors.splice(index, 1);
-        this._setNestedValue(path, colors);
     }
 
     /**
@@ -2206,10 +2159,11 @@ yaxis:
                         </div>
 
                         <!-- Preview Panel (40%) -->
-                        <div class="preview-panel">
+                        <div class="preview-panel" ${ref(this._previewRef)}>
                             <lcards-chart-live-preview
                                 .hass=${this.hass}
                                 .config=${this._workingConfig}
+                                .key=${this._renderKey}
                                 .showRefreshButton=${true}>
                             </lcards-chart-live-preview>
                         </div>
