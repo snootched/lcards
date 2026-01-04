@@ -1,0 +1,458 @@
+# ============================================================================
+# LCARdS Chart Card Test Configurations
+# ============================================================================
+# Use these configs to test the refactored nested schema (v1.18+)
+# Copy/paste into Home Assistant Lovelace YAML editor
+#
+# PURPOSE: Validate nested structure support with waterfall resolution
+# - Nested paths (style.stroke.width)
+# - Flat aliases (style.stroke_width)
+# - Mixed usage (nested + flat)
+#
+# USAGE:
+#   1. Copy a test case below
+#   2. Paste into HA dashboard YAML editor
+#   3. Replace sensor entity IDs with your own
+#   4. Verify chart renders correctly
+#
+# ============================================================================
+
+# TEST 1: Basic Line Chart (Minimal Config - Flat Properties)
+# ----------------------------------------------------------------------------
+# Tests: Backward compatibility with flat properties
+# Expected: Chart renders with default styling
+# ----------------------------------------------------------------------------
+test_1_basic_line_flat:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+
+# TEST 2: Area Chart with NESTED Style Properties
+# ----------------------------------------------------------------------------
+# Tests: Full nested structure for all major groups
+# Expected: All nested properties applied correctly
+# ----------------------------------------------------------------------------
+test_2_area_nested_full:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: area
+  height: 400
+  style:
+    # NESTED: colors group
+    colors:
+      series: ["#FF9900"]
+      fill: ["rgba(255, 153, 0, 0.3)"]
+      grid: "rgba(255, 255, 255, 0.1)"
+    # NESTED: stroke group
+    stroke:
+      width: 2
+      curve: smooth
+      dash_array: 0
+    # NESTED: fill group
+    fill:
+      type: solid
+      opacity: 0.3
+    # NESTED: grid group
+    grid:
+      show: true
+      color: "rgba(255, 255, 255, 0.1)"
+      opacity: 0.3
+      stroke_dash_array: 4
+    # NESTED: markers group
+    markers:
+      size: 4
+      colors: ["#FF9900"]
+      stroke:
+        colors: ["#FFFFFF"]
+        width: 2
+    # NESTED: display group
+    display:
+      toolbar: false
+      tooltip:
+        show: true
+        theme: dark
+    # NESTED: animation group
+    animation:
+      preset: lcars_standard
+    # NESTED: formatters group
+    formatters:
+      xaxis_label: "HH:mm"
+      yaxis_label: "{value}°C"
+      tooltip: "{x|MMM DD HH:mm}: {y}°C"
+
+# TEST 3: Multi-Series Line Chart with MIXED Properties
+# ----------------------------------------------------------------------------
+# Tests: Mix of nested and flat properties (waterfall resolution)
+# Expected: Both nested and flat properties work together
+# ----------------------------------------------------------------------------
+test_3_multi_series_mixed:
+  type: custom:lcards-chart
+  sources:
+    - sensor.indoor_temperature
+    - sensor.outdoor_temperature
+  series_names: ["Indoor", "Outdoor"]
+  chart_type: line
+  height: 300
+  show_legend: true  # Flat property at top level
+  style:
+    # FLAT: top-level colors array (maps to colors.series)
+    colors: ["#FF9900", "#99CCFF"]
+    # NESTED: stroke group
+    stroke:
+      width: 2
+      curve: smooth
+      colors: ["#FF9900", "#99CCFF"]
+    # FLAT: convenience alias
+    marker_size: 4
+    # NESTED: markers.stroke
+    markers:
+      stroke:
+        colors: ["#FFFFFF", "#FFFFFF"]
+        width: 2
+    # NESTED: legend group
+    legend:
+      show: true
+      position: bottom
+      color: "#FFFFFF"
+
+# TEST 4: Bar Chart with Gradient Fill (NESTED)
+# ----------------------------------------------------------------------------
+# Tests: Nested fill.gradient configuration
+# Expected: Gradient fill renders correctly
+# ----------------------------------------------------------------------------
+test_4_bar_gradient_nested:
+  type: custom:lcards-chart
+  source: sensor.daily_energy
+  chart_type: bar
+  height: 300
+  style:
+    colors:
+      series: ["#FF9900"]
+    fill:
+      type: gradient
+      opacity: 0.8
+      gradient:
+        shade: dark
+        type: vertical
+        shade_intensity: 0.5
+        opacity_from: 0.9
+        opacity_to: 0.4
+    grid:
+      show: true
+      row_colors: ["transparent", "rgba(255, 255, 255, 0.05)"]
+
+# TEST 5: Advanced DataSource with History (NESTED Formatters)
+# ----------------------------------------------------------------------------
+# Tests: Advanced DataSource + nested formatters
+# Expected: History preloads, formatters work
+# ----------------------------------------------------------------------------
+test_5_advanced_datasource_nested:
+  type: custom:lcards-chart
+  data_sources:
+    temp:
+      entity: sensor.temperature
+      window_seconds: 7200
+      minEmitMs: 500
+      coalesceMs: 200
+      history:
+        preload: true
+        hours: 2
+  source: temp
+  chart_type: area
+  height: 400
+  style:
+    colors:
+      series: ["#FF9900"]
+    stroke:
+      width: 2
+      curve: smooth
+    fill:
+      opacity: 0.3
+    formatters:
+      tooltip: "{x|ddd MMM DD HH:mm}: {y}°C"
+
+# TEST 6: Theme Integration with Nested Colors
+# ----------------------------------------------------------------------------
+# Tests: Theme tokens in nested color paths
+# Expected: Theme tokens resolve correctly
+# ----------------------------------------------------------------------------
+test_6_theme_tokens_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  style:
+    colors:
+      series: ["theme:colors.primary.orange"]
+      stroke: ["theme:colors.primary.orange"]
+      grid: "theme:colors.ui.border"
+      marker:
+        fill: ["theme:colors.primary.orange"]
+        stroke: ["theme:colors.ui.white"]
+      background: "theme:colors.background.card"
+    stroke:
+      width: 2
+    markers:
+      size: 4
+
+# TEST 7: Monochrome Theme (NESTED Theme Group)
+# ----------------------------------------------------------------------------
+# Tests: Nested theme.monochrome configuration
+# Expected: Monochrome color variations applied
+# ----------------------------------------------------------------------------
+test_7_monochrome_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: area
+  height: 300
+  style:
+    theme:
+      mode: dark
+      monochrome:
+        enabled: true
+        color: "#FF9900"
+        shade_to: dark
+        shade_intensity: 0.65
+    fill:
+      opacity: 0.4
+
+# TEST 8: Custom Axes Configuration (NESTED Axes Group)
+# ----------------------------------------------------------------------------
+# Tests: Nested axes configuration
+# Expected: Axis colors and formatters work
+# ----------------------------------------------------------------------------
+test_8_axes_config_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  xaxis_type: datetime
+  time_window: 3600
+  style:
+    colors:
+      axis:
+        x: "#FFCC00"
+        y: "#FF9900"
+        border: "#666666"
+        ticks: "#444444"
+    formatters:
+      xaxis_label: "HH:mm"
+      yaxis_label: "{value}°C"
+
+# TEST 9: Animation Presets (NESTED Animation Group)
+# ----------------------------------------------------------------------------
+# Tests: Nested animation.preset
+# Expected: Different animation presets work
+# ----------------------------------------------------------------------------
+test_9_animation_dramatic_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: area
+  height: 300
+  style:
+    colors:
+      series: ["#FF9900"]
+    animation:
+      preset: lcars_dramatic
+
+test_9_animation_realtime_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 200
+  style:
+    animation:
+      preset: lcars_realtime
+
+# TEST 10: Convenience Aliases (Backward Compatibility)
+# ----------------------------------------------------------------------------
+# Tests: Old flat properties still work
+# Expected: Flat properties map correctly via waterfall resolution
+# ----------------------------------------------------------------------------
+test_10_convenience_aliases_flat:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  style:
+    # Top-level flat aliases (should still work)
+    colors: ["#FF9900"]              # Maps to colors.series
+    stroke_width: 3                  # Maps to stroke.width
+    marker_size: 5                   # Maps to markers.size
+    fill_opacity: 0.3                # Maps to fill.opacity
+    grid_color: "#666666"            # Maps to grid.color
+    show_grid: true                  # Maps to grid.show
+    legend_position: bottom          # Maps to legend.position
+    show_legend: true                # Maps to legend.show
+    animation_preset: lcars_standard # Maps to animation.preset
+
+# TEST 11: Mixed Nested and Flat (Waterfall Priority)
+# ----------------------------------------------------------------------------
+# Tests: Nested takes precedence over flat
+# Expected: Nested values override flat aliases
+# ----------------------------------------------------------------------------
+test_11_waterfall_priority:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  style:
+    # Both nested and flat specified - nested should win
+    stroke_width: 1          # Flat: should be overridden
+    stroke:
+      width: 3               # Nested: should be used (overrides flat)
+      curve: smooth
+    marker_size: 2           # Flat: should be overridden
+    markers:
+      size: 6                # Nested: should be used (overrides flat)
+      colors: ["#FF9900"]
+
+# TEST 12: Nested Typography and Data Labels
+# ----------------------------------------------------------------------------
+# Tests: Nested typography and data_labels groups
+# Expected: Font and data label settings work
+# ----------------------------------------------------------------------------
+test_12_typography_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: area
+  height: 300
+  style:
+    typography:
+      font_family: "Roboto, sans-serif"
+      font_size: 14
+    data_labels:
+      show: true
+      colors: ["#FFFFFF"]
+      font_size: 12
+
+# TEST 13: Nested Display Tooltip Configuration
+# ----------------------------------------------------------------------------
+# Tests: Nested display.tooltip group
+# Expected: Tooltip settings and formatter work
+# ----------------------------------------------------------------------------
+test_13_display_tooltip_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  style:
+    display:
+      toolbar: false
+      tooltip:
+        show: true
+        theme: dark
+        format: "{x|HH:mm}: {y}°C"
+
+# TEST 14: Grid with Row and Column Colors (NESTED)
+# ----------------------------------------------------------------------------
+# Tests: Nested grid.row_colors and grid.column_colors
+# Expected: Alternating grid colors render correctly
+# ----------------------------------------------------------------------------
+test_14_grid_colors_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: line
+  height: 300
+  style:
+    grid:
+      show: true
+      color: "#FFFFFF"
+      opacity: 0.2
+      stroke_dash_array: 4
+      row_colors: 
+        - "transparent"
+        - "rgba(255, 255, 255, 0.05)"
+      column_colors:
+        - "transparent"
+        - "rgba(255, 255, 255, 0.03)"
+
+# TEST 15: Complete Nested Structure (All Groups)
+# ----------------------------------------------------------------------------
+# Tests: All nested groups together
+# Expected: Complete nested config works without conflicts
+# ----------------------------------------------------------------------------
+test_15_complete_nested:
+  type: custom:lcards-chart
+  source: sensor.temperature
+  chart_type: area
+  height: 400
+  style:
+    colors:
+      series: ["#FF9900"]
+      stroke: ["#FF9900"]
+      fill: ["rgba(255, 153, 0, 0.2)"]
+      grid: "rgba(255, 255, 255, 0.1)"
+      axis:
+        x: "#FFCC00"
+        y: "#FF9900"
+      legend:
+        default: "#FFFFFF"
+      marker:
+        fill: ["#FF9900"]
+        stroke: ["#FFFFFF"]
+    stroke:
+      width: 2
+      curve: smooth
+      dash_array: 0
+    fill:
+      type: gradient
+      opacity: 0.5
+      gradient:
+        shade: dark
+        type: vertical
+        shade_intensity: 0.5
+        opacity_from: 0.9
+        opacity_to: 0.2
+    markers:
+      size: 4
+      shape: circle
+      stroke:
+        width: 2
+    grid:
+      show: true
+      opacity: 0.3
+      stroke_dash_array: 4
+    legend:
+      show: true
+      position: bottom
+      font_size: 14
+    data_labels:
+      show: false
+      font_size: 12
+    typography:
+      font_family: "Antonio, sans-serif"
+      font_size: 12
+    display:
+      toolbar: false
+      tooltip:
+        show: true
+        theme: dark
+    animation:
+      preset: lcars_standard
+    theme:
+      mode: dark
+    formatters:
+      xaxis_label: "HH:mm"
+      yaxis_label: "{value}°C"
+      tooltip: "{x|MMM DD HH:mm}: {y}°C"
+
+# ============================================================================
+# VALIDATION CHECKLIST
+# ============================================================================
+# 
+# For each test above, verify:
+#   ✓ Chart renders without console errors
+#   ✓ Style properties are applied correctly
+#   ✓ Nested properties work as expected
+#   ✓ Flat aliases work as fallback
+#   ✓ Waterfall resolution (nested > flat > default) works
+#   ✓ Theme tokens resolve correctly
+#   ✓ Formatters format data correctly
+#   ✓ Animation presets animate as expected
+#   ✓ Multi-series charts show all series
+#   ✓ Legend displays when enabled
+#   ✓ Tooltips show formatted data
+#
+# ============================================================================
