@@ -485,6 +485,11 @@ export class ApexChartsAdapter {
       style.marker_stroke_width :
       (resolveToken ? resolveToken('markerStrokeWidth', 2, context) : 2);
 
+    // ✅ FIX: Add explicit marker size (was missing, causing markers to not show)
+    const markerSize = style.marker_size !== undefined ?
+      style.marker_size :
+      (resolveToken ? resolveToken('markerSize', 4, context) : 4);
+
     // ============================================================================
     // DATA LABEL COLORS
     // ============================================================================
@@ -655,10 +660,17 @@ export class ApexChartsAdapter {
       },
 
       // Markers (data points)
+      // ✅ FIX: Added explicit size and hover effects for better visibility
       markers: {
+        size: markerSize,  // Explicit size (was missing)
         colors: nullToUndefined(markerColors),
         strokeColors: nullToUndefined(markerStrokeColors),
-        strokeWidth: markerStrokeWidth
+        strokeWidth: markerStrokeWidth,
+        shape: style.marker_shape || 'circle',
+        hover: {
+          size: markerSize + 2,  // Hover effect (slightly larger)
+          sizeOffset: 2
+        }
       },
 
       // Data labels
@@ -695,6 +707,15 @@ export class ApexChartsAdapter {
         })
       }
     };
+
+    // ============================================================================
+    // ENABLE MARKERS FOR LINE/AREA CHARTS
+    // ============================================================================
+    // ✅ FIX: For line/area charts, ensure markers are visible by default
+    // ApexCharts hides markers by default on these chart types unless explicitly enabled
+    if (['line', 'area'].includes(chartType) && markerSize > 0) {
+      baseOptions.markers.discrete = [];  // Empty discrete array enables all markers
+    }
 
     // ============================================================================
     // APPLY TYPE-SPECIFIC DEFAULTS
@@ -1708,6 +1729,16 @@ static _getRawData(dataSource, config) {
 
   /**
    * Create tooltip formatter from template string
+   * 
+   * ✅ FIX: Returns complete custom tooltip HTML structure to prevent ApexCharts
+   * from re-processing formatted content. ApexCharts' internal formatter can
+   * misinterpret characters in formatted dates (e.g., "Jan" → "Jamn" when it
+   * treats the second 'M' as a minute format token).
+   * 
+   * By returning the outer <div class="apexcharts-tooltip"> wrapper, we signal
+   * to ApexCharts that this is a fully custom tooltip and content should not
+   * be re-formatted.
+   * 
    * @private
    * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
    * @returns {Function} ApexCharts tooltip formatter
@@ -1737,7 +1768,17 @@ static _getRawData(dataSource, config) {
         output = output.replace('{y}', formattedY);
       }
 
-      return `<div class="apexcharts-tooltip-text">${output}</div>`;
+      // ✅ FIX: Return complete custom tooltip structure
+      // The outer wrapper signals to ApexCharts: "Don't re-format this content"
+      // This prevents ApexCharts' formatter from misinterpreting characters in
+      // our formatted dates (e.g., treating 'M' in "Jan" as a format token)
+      return `
+        <div class="apexcharts-tooltip" style="padding: 8px; background: rgba(0, 0, 0, 0.9); border-radius: 4px;">
+          <div class="apexcharts-tooltip-text" style="color: #ffffff; font-size: 12px;">
+            ${output}
+          </div>
+        </div>
+      `;
     };
   }
 
