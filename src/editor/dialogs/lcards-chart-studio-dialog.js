@@ -32,6 +32,7 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/lcards-chart-live-preview.js';
+import '../dialogs/lcards-datasource-picker-dialog.js';
 import '../../cards/lcards-chart.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
@@ -41,7 +42,11 @@ export class LCARdSChartStudioDialog extends LitElement {
             _initialConfig: { type: Object }, // Store initial config
             _workingConfig: { type: Object, state: true },
             _activeTab: { type: String, state: true },
-            _validationErrors: { type: Array, state: true }
+            _validationErrors: { type: Array, state: true },
+            // Data Sources tab state
+            _dataSourceLevel: { type: String, state: true }, // 'simple' | 'multi' | 'advanced'
+            _selectedEntity: { type: String, state: true },
+            _showDataSourcePicker: { type: Boolean, state: true }
         };
     }
 
@@ -58,6 +63,11 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
+
+        // Data Sources tab state
+        this._dataSourceLevel = 'simple';
+        this._selectedEntity = '';
+        this._showDataSourcePicker = false;
     }
 
     /**
@@ -93,7 +103,11 @@ export class LCARdSChartStudioDialog extends LitElement {
             this._workingConfig.chart_type = 'line';
         }
 
+        // Detect data source level
+        this._dataSourceLevel = this._detectDataSourceLevel();
+
         lcardsLog.debug('[ChartStudio] Opened with config:', this._workingConfig);
+        lcardsLog.debug('[ChartStudio] Detected data source level:', this._dataSourceLevel);
 
         // Schedule initial preview update
         this.updateComplete.then(() => this._updatePreviewCard());
@@ -279,6 +293,165 @@ export class LCARdSChartStudioDialog extends LitElement {
             .validation-errors ul {
                 margin: 0;
                 padding-left: 20px;
+            }
+
+            /* Data Sources Tab Styles */
+            .level-selector {
+                display: flex;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+
+            .level-card {
+                flex: 1;
+                padding: 16px;
+                border: 2px solid var(--divider-color);
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                background: var(--card-background-color);
+            }
+
+            .level-card:hover {
+                border-color: var(--primary-color);
+                background: var(--secondary-background-color);
+            }
+
+            .level-card.active {
+                border-color: var(--primary-color);
+                border-width: 3px;
+                background: var(--primary-color);
+                color: white;
+            }
+
+            .level-card-title {
+                font-weight: 600;
+                font-size: 16px;
+                margin-bottom: 4px;
+            }
+
+            .level-card-description {
+                font-size: 12px;
+                opacity: 0.8;
+            }
+
+            .level-card.active .level-card-description {
+                opacity: 1;
+            }
+
+            .form-field {
+                margin-bottom: 12px;
+            }
+
+            .form-label {
+                display: block;
+                font-weight: 500;
+                margin-bottom: 8px;
+                font-size: 14px;
+            }
+
+            .form-helper {
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                margin-top: 4px;
+            }
+
+            .entity-preview {
+                padding: 12px;
+                background: var(--secondary-background-color);
+                border-radius: 8px;
+                margin-top: 12px;
+            }
+
+            .entity-preview-header {
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+
+            .entity-preview-item {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 4px;
+                font-size: 13px;
+            }
+
+            .entity-preview-label {
+                font-weight: 500;
+                min-width: 120px;
+            }
+
+            .entity-preview-value {
+                color: var(--secondary-text-color);
+            }
+
+            .series-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .series-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px;
+                background: var(--card-background-color);
+                border: 1px solid var(--divider-color);
+                border-radius: 8px;
+            }
+
+            .series-controls {
+                display: flex;
+                gap: 4px;
+            }
+
+            .series-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .add-button {
+                margin-top: 12px;
+            }
+
+            .datasource-list {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .datasource-item {
+                padding: 12px;
+                background: var(--card-background-color);
+                border: 1px solid var(--divider-color);
+                border-radius: 8px;
+            }
+
+            .datasource-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+
+            .datasource-name {
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .datasource-entity {
+                font-size: 12px;
+                color: var(--secondary-text-color);
+            }
+
+            ha-entity-picker {
+                width: 100%;
+            }
+
+            ha-textfield {
+                width: 100%;
             }
             `
         ];
@@ -475,9 +648,711 @@ export class LCARdSChartStudioDialog extends LitElement {
     // TAB CONTENT RENDERERS (Phase 1 Placeholders)
     // ============================================================================
 
+    /**
+     * Render Data Sources tab
+     * @returns {TemplateResult}
+     * @private
+     */
     _renderDataSourcesTab() {
-        return this._renderComingSoon('Data Sources', 'Phase 2', 
-            'Entity picker, multi-series configuration, and advanced DataSource setup');
+        return html`
+            <div class="data-sources-tab">
+                ${this._renderLevelSelector()}
+                
+                <div class="level-content">
+                    ${this._dataSourceLevel === 'simple' ? this._renderSimpleMode() : ''}
+                    ${this._dataSourceLevel === 'multi' ? this._renderMultiMode() : ''}
+                    ${this._dataSourceLevel === 'advanced' ? this._renderAdvancedMode() : ''}
+                </div>
+
+                ${this._renderDataSourceHelp()}
+            </div>
+
+            ${this._showDataSourcePicker ? html`
+                <lcards-datasource-picker-dialog
+                    .hass=${this.hass}
+                    .open=${this._showDataSourcePicker}
+                    @source-selected=${this._handleDataSourceSelected}
+                    @closed=${() => this._showDataSourcePicker = false}>
+                </lcards-datasource-picker-dialog>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Render level selector (Simple / Multi-Series / Advanced)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLevelSelector() {
+        const levels = [
+            {
+                id: 'simple',
+                title: 'Simple',
+                description: 'Single entity reference'
+            },
+            {
+                id: 'multi',
+                title: 'Multi-Series',
+                description: 'Multiple entities'
+            },
+            {
+                id: 'advanced',
+                title: 'Advanced',
+                description: 'Full DataSource config'
+            }
+        ];
+
+        return html`
+            <div class="level-selector">
+                ${levels.map(level => html`
+                    <div
+                        class="level-card ${this._dataSourceLevel === level.id ? 'active' : ''}"
+                        @click=${() => this._switchDataSourceLevel(level.id)}>
+                        <div class="level-card-title">${level.title}</div>
+                        <div class="level-card-description">${level.description}</div>
+                    </div>
+                `)}
+            </div>
+        `;
+    }
+
+    /**
+     * Render Simple Mode (single entity)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSimpleMode() {
+        const entityId = this._workingConfig.source || '';
+        const attribute = this._workingConfig.attribute || '';
+
+        return html`
+            <lcards-form-section header="Entity Configuration">
+                <div class="form-field">
+                    <label class="form-label">Entity</label>
+                    <ha-entity-picker
+                        .hass=${this.hass}
+                        .value=${entityId}
+                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}
+                        allow-custom-entity>
+                    </ha-entity-picker>
+                    <div class="form-helper">Select a Home Assistant entity to chart</div>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Attribute (Optional)</label>
+                    <ha-textfield
+                        .value=${attribute}
+                        @input=${(e) => this._updateConfig('attribute', e.target.value)}
+                        placeholder="e.g., temperature">
+                    </ha-textfield>
+                    <div class="form-helper">Track a specific entity attribute instead of state</div>
+                </div>
+
+                ${this._renderEntityPreview(entityId)}
+            </lcards-form-section>
+
+            ${this._renderHistoryConfig()}
+        `;
+    }
+
+    /**
+     * Render Multi-Series Mode
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMultiMode() {
+        const sources = this._workingConfig.sources || [];
+        const seriesNames = this._workingConfig.series_names || [];
+
+        return html`
+            <lcards-form-section header="Series Configuration">
+                <div class="series-list">
+                    ${sources.map((source, index) => html`
+                        <div class="series-item">
+                            <div class="series-controls">
+                                <ha-icon-button
+                                    @click=${() => this._moveSeries(index, -1)}
+                                    .disabled=${index === 0}>
+                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._moveSeries(index, 1)}
+                                    .disabled=${index === sources.length - 1}>
+                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${() => this._removeSeries(index)}>
+                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                </ha-icon-button>
+                            </div>
+                            <div class="series-content">
+                                <div class="form-field">
+                                    <label class="form-label">Entity</label>
+                                    <ha-entity-picker
+                                        .hass=${this.hass}
+                                        .value=${source}
+                                        @value-changed=${(e) => this._updateSeries(index, e.detail.value)}
+                                        allow-custom-entity>
+                                    </ha-entity-picker>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-label">Series Name</label>
+                                    <ha-textfield
+                                        .value=${seriesNames[index] || ''}
+                                        @input=${(e) => this._updateSeriesName(index, e.target.value)}
+                                        placeholder="Custom legend name">
+                                    </ha-textfield>
+                                </div>
+                            </div>
+                        </div>
+                    `)}
+                </div>
+
+                <ha-button class="add-button" @click=${this._addSeries}>
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Series
+                </ha-button>
+            </lcards-form-section>
+
+            ${this._renderHistoryConfig()}
+        `;
+    }
+
+    /**
+     * Render Advanced Mode (DataSource configuration)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderAdvancedMode() {
+        const dataSources = this._workingConfig.data_sources || {};
+        const sources = this._workingConfig.sources || [];
+
+        return html`
+            <lcards-form-section header="DataSource Configuration">
+                <lcards-message
+                    type="info"
+                    message="Advanced mode provides full control over DataSource configuration including history preload, throttling, and transformations.">
+                </lcards-message>
+
+                ${Object.keys(dataSources).length > 0 ? html`
+                    <div class="datasource-list">
+                        ${Object.entries(dataSources).map(([name, config]) => html`
+                            <div class="datasource-item">
+                                <div class="datasource-header">
+                                    <div>
+                                        <div class="datasource-name">${name}</div>
+                                        <div class="datasource-entity">${config.entity || 'No entity'}</div>
+                                    </div>
+                                    <ha-icon-button
+                                        @click=${() => this._removeDataSource(name)}>
+                                        <ha-icon icon="mdi:delete"></ha-icon>
+                                    </ha-icon-button>
+                                </div>
+                                ${this._renderDataSourceInlineConfig(name, config)}
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <lcards-message
+                        type="info"
+                        message="No DataSources configured. Click 'Add DataSource' to get started.">
+                    </lcards-message>
+                `}
+
+                <ha-button class="add-button" @click=${() => this._showDataSourcePicker = true}>
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add DataSource
+                </ha-button>
+            </lcards-form-section>
+
+            ${sources.length > 0 ? html`
+                <lcards-form-section header="Sources Order">
+                    <lcards-message
+                        type="info"
+                        message="Order determines the sequence of series in the chart.">
+                    </lcards-message>
+                    <div class="series-list">
+                        ${sources.map((source, index) => html`
+                            <div class="series-item">
+                                <div class="series-controls">
+                                    <ha-icon-button
+                                        @click=${() => this._moveSource(index, -1)}
+                                        .disabled=${index === 0}>
+                                        <ha-icon icon="mdi:arrow-up"></ha-icon>
+                                    </ha-icon-button>
+                                    <ha-icon-button
+                                        @click=${() => this._moveSource(index, 1)}
+                                        .disabled=${index === sources.length - 1}>
+                                        <ha-icon icon="mdi:arrow-down"></ha-icon>
+                                    </ha-icon-button>
+                                </div>
+                                <div class="series-content">
+                                    <strong>${source}</strong>
+                                </div>
+                            </div>
+                        `)}
+                    </div>
+                </lcards-form-section>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Render inline DataSource configuration
+     * @param {string} name - DataSource name
+     * @param {Object} config - DataSource config
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDataSourceInlineConfig(name, config) {
+        const windowSeconds = config.window_seconds || 3600;
+        const minEmitMs = config.minEmitMs || 0;
+        const historyPreload = config.history?.preload || false;
+        const historyHours = config.history?.hours || 0;
+
+        return html`
+            <div style="margin-top: 12px;">
+                <div class="form-field">
+                    <label class="form-label">Entity</label>
+                    <ha-entity-picker
+                        .hass=${this.hass}
+                        .value=${config.entity || ''}
+                        @value-changed=${(e) => this._updateDataSourceConfig(name, 'entity', e.detail.value)}
+                        allow-custom-entity>
+                    </ha-entity-picker>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Window (seconds): ${windowSeconds}</label>
+                    <ha-textfield
+                        type="number"
+                        min="60"
+                        max="86400"
+                        .value=${windowSeconds}
+                        @input=${(e) => this._updateDataSourceConfig(name, 'window_seconds', parseInt(e.target.value))}>
+                    </ha-textfield>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Min Emit (ms): ${minEmitMs}</label>
+                    <ha-textfield
+                        type="number"
+                        min="0"
+                        max="10000"
+                        .value=${minEmitMs}
+                        @input=${(e) => this._updateDataSourceConfig(name, 'minEmitMs', parseInt(e.target.value))}>
+                    </ha-textfield>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">
+                        <ha-checkbox
+                            .checked=${historyPreload}
+                            @change=${(e) => this._updateDataSourceHistoryConfig(name, 'preload', e.target.checked)}>
+                        </ha-checkbox>
+                        Preload History
+                    </label>
+                </div>
+
+                ${historyPreload ? html`
+                    <div class="form-field">
+                        <label class="form-label">History Hours: ${historyHours}</label>
+                        <ha-textfield
+                            type="number"
+                            min="0"
+                            max="168"
+                            .value=${historyHours}
+                            @input=${(e) => this._updateDataSourceHistoryConfig(name, 'hours', parseInt(e.target.value))}>
+                        </ha-textfield>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Render history configuration (common to simple and multi modes)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderHistoryConfig() {
+        // This would typically be in the chart card's history configuration
+        // For now, just show a placeholder
+        return html`
+            <lcards-form-section header="History Configuration">
+                <lcards-message
+                    type="info"
+                    message="History configuration can be set in the Advanced tab or per DataSource in Advanced mode.">
+                </lcards-message>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render entity preview
+     * @param {string} entityId - Entity ID
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderEntityPreview(entityId) {
+        if (!entityId || !this.hass || !this.hass.states) {
+            return html``;
+        }
+
+        const entityState = this.hass.states[entityId];
+        if (!entityState) {
+            return html`
+                <lcards-message
+                    type="warning"
+                    message="Entity not found in Home Assistant.">
+                </lcards-message>
+            `;
+        }
+
+        return html`
+            <div class="entity-preview">
+                <div class="entity-preview-header">📋 Entity Preview</div>
+                <div class="entity-preview-item">
+                    <span class="entity-preview-label">State:</span>
+                    <span class="entity-preview-value">${entityState.state}</span>
+                </div>
+                ${entityState.attributes?.unit_of_measurement ? html`
+                    <div class="entity-preview-item">
+                        <span class="entity-preview-label">Unit:</span>
+                        <span class="entity-preview-value">${entityState.attributes.unit_of_measurement}</span>
+                    </div>
+                ` : ''}
+                ${entityState.attributes?.friendly_name ? html`
+                    <div class="entity-preview-item">
+                        <span class="entity-preview-label">Friendly Name:</span>
+                        <span class="entity-preview-value">${entityState.attributes.friendly_name}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Render data source help documentation
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDataSourceHelp() {
+        return html`
+            <lcards-form-section header="Help" ?expanded=${false}>
+                <div style="font-size: 14px; line-height: 1.6;">
+                    <h4>Simple Mode</h4>
+                    <p>Quick chart from a single entity. Best for beginners.</p>
+                    
+                    <h4>Multi-Series Mode</h4>
+                    <p>Display multiple entities on the same chart with custom names.</p>
+                    
+                    <h4>Advanced Mode</h4>
+                    <p>Full DataSource control with history preload, throttling, and transformations.</p>
+                </div>
+            </lcards-form-section>
+        `;
+    }
+
+    // ============================================================================
+    // DATA SOURCES TAB HELPER METHODS
+    // ============================================================================
+
+    /**
+     * Detect data source level from config
+     * @returns {string} 'simple' | 'multi' | 'advanced'
+     * @private
+     */
+    _detectDataSourceLevel() {
+        const config = this._workingConfig;
+        
+        if (config.data_sources && Object.keys(config.data_sources).length > 0) {
+            return 'advanced';
+        } else if (Array.isArray(config.sources) && config.sources.length > 0) {
+            return 'multi';
+        } else if (config.source) {
+            return 'simple';
+        }
+        
+        return 'simple'; // Default
+    }
+
+    /**
+     * Switch data source level
+     * @param {string} level - 'simple' | 'multi' | 'advanced'
+     * @private
+     */
+    _switchDataSourceLevel(level) {
+        if (level === this._dataSourceLevel) return;
+
+        // Check if config exists and confirm switch
+        const hasExistingConfig = this._hasDataSourceConfig();
+        if (hasExistingConfig) {
+            const confirmed = confirm(
+                'Switching levels will clear existing data source configuration. Continue?'
+            );
+            if (!confirmed) return;
+        }
+
+        // Clear incompatible config properties
+        this._clearDataSourceConfig();
+
+        // Update level
+        this._dataSourceLevel = level;
+
+        // Initialize for new level
+        if (level === 'simple') {
+            // Nothing to initialize
+        } else if (level === 'multi') {
+            if (!this._workingConfig.sources) {
+                this._workingConfig.sources = [];
+            }
+        } else if (level === 'advanced') {
+            if (!this._workingConfig.data_sources) {
+                this._workingConfig.data_sources = {};
+            }
+            if (!this._workingConfig.sources) {
+                this._workingConfig.sources = [];
+            }
+        }
+
+        lcardsLog.debug('[ChartStudio] Switched to level:', level);
+        this.requestUpdate();
+    }
+
+    /**
+     * Check if data source config exists
+     * @returns {boolean}
+     * @private
+     */
+    _hasDataSourceConfig() {
+        return !!(
+            this._workingConfig.source ||
+            (this._workingConfig.sources && this._workingConfig.sources.length > 0) ||
+            (this._workingConfig.data_sources && Object.keys(this._workingConfig.data_sources).length > 0)
+        );
+    }
+
+    /**
+     * Clear all data source configuration
+     * @private
+     */
+    _clearDataSourceConfig() {
+        delete this._workingConfig.source;
+        delete this._workingConfig.attribute;
+        delete this._workingConfig.sources;
+        delete this._workingConfig.series_names;
+        delete this._workingConfig.data_sources;
+    }
+
+    /**
+     * Add a new series (multi mode)
+     * @private
+     */
+    _addSeries() {
+        if (!this._workingConfig.sources) {
+            this._workingConfig.sources = [];
+        }
+        this._workingConfig.sources.push('');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update a series entity
+     * @param {number} index - Series index
+     * @param {string} value - New entity ID
+     * @private
+     */
+    _updateSeries(index, value) {
+        if (!this._workingConfig.sources) return;
+        this._workingConfig.sources[index] = value;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update series name
+     * @param {number} index - Series index
+     * @param {string} value - New name
+     * @private
+     */
+    _updateSeriesName(index, value) {
+        if (!this._workingConfig.series_names) {
+            this._workingConfig.series_names = [];
+        }
+        this._workingConfig.series_names[index] = value;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Move series up or down
+     * @param {number} index - Series index
+     * @param {number} direction - -1 for up, 1 for down
+     * @private
+     */
+    _moveSeries(index, direction) {
+        if (!this._workingConfig.sources) return;
+        
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= this._workingConfig.sources.length) return;
+
+        // Swap sources
+        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] = 
+        [this._workingConfig.sources[newIndex], this._workingConfig.sources[index]];
+
+        // Swap series names if they exist
+        if (this._workingConfig.series_names && this._workingConfig.series_names.length > index) {
+            [this._workingConfig.series_names[index], this._workingConfig.series_names[newIndex]] = 
+            [this._workingConfig.series_names[newIndex], this._workingConfig.series_names[index]];
+        }
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Remove a series
+     * @param {number} index - Series index
+     * @private
+     */
+    _removeSeries(index) {
+        if (!this._workingConfig.sources) return;
+        
+        this._workingConfig.sources.splice(index, 1);
+        
+        if (this._workingConfig.series_names && this._workingConfig.series_names.length > index) {
+            this._workingConfig.series_names.splice(index, 1);
+        }
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Handle DataSource selected from picker
+     * @param {CustomEvent} e - source-selected event
+     * @private
+     */
+    _handleDataSourceSelected(e) {
+        const sourceId = e.detail.source;
+        
+        if (!this._workingConfig.sources) {
+            this._workingConfig.sources = [];
+        }
+        
+        // Add to sources if not already present
+        if (!this._workingConfig.sources.includes(sourceId)) {
+            this._workingConfig.sources.push(sourceId);
+        }
+
+        // Get the DataSource config from manager
+        const dsManager = window.lcards?.core?.dataSourceManager;
+        if (dsManager && dsManager.sources) {
+            const ds = dsManager.sources.get(sourceId);
+            if (ds) {
+                // Add to data_sources config if not already present
+                if (!this._workingConfig.data_sources) {
+                    this._workingConfig.data_sources = {};
+                }
+                
+                if (!this._workingConfig.data_sources[sourceId]) {
+                    this._workingConfig.data_sources[sourceId] = {
+                        entity: ds.config?.entity || '',
+                        window_seconds: ds.config?.windowSeconds || 3600,
+                        minEmitMs: ds.config?.minEmitMs || 0,
+                        history: {
+                            preload: false,
+                            hours: 0
+                        }
+                    };
+                }
+            }
+        }
+
+        this._showDataSourcePicker = false;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Remove a DataSource
+     * @param {string} name - DataSource name
+     * @private
+     */
+    _removeDataSource(name) {
+        const confirmed = confirm(`Remove DataSource "${name}"?`);
+        if (!confirmed) return;
+
+        // Remove from data_sources
+        if (this._workingConfig.data_sources) {
+            delete this._workingConfig.data_sources[name];
+        }
+
+        // Remove from sources
+        if (this._workingConfig.sources) {
+            const index = this._workingConfig.sources.indexOf(name);
+            if (index > -1) {
+                this._workingConfig.sources.splice(index, 1);
+            }
+        }
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update DataSource configuration
+     * @param {string} name - DataSource name
+     * @param {string} key - Config key
+     * @param {*} value - New value
+     * @private
+     */
+    _updateDataSourceConfig(name, key, value) {
+        if (!this._workingConfig.data_sources || !this._workingConfig.data_sources[name]) return;
+        
+        this._workingConfig.data_sources[name][key] = value;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update DataSource history configuration
+     * @param {string} name - DataSource name
+     * @param {string} key - History config key
+     * @param {*} value - New value
+     * @private
+     */
+    _updateDataSourceHistoryConfig(name, key, value) {
+        if (!this._workingConfig.data_sources || !this._workingConfig.data_sources[name]) return;
+        
+        if (!this._workingConfig.data_sources[name].history) {
+            this._workingConfig.data_sources[name].history = {};
+        }
+        
+        this._workingConfig.data_sources[name].history[key] = value;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Move source up or down in sources list
+     * @param {number} index - Source index
+     * @param {number} direction - -1 for up, 1 for down
+     * @private
+     */
+    _moveSource(index, direction) {
+        if (!this._workingConfig.sources) return;
+        
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= this._workingConfig.sources.length) return;
+
+        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] = 
+        [this._workingConfig.sources[newIndex], this._workingConfig.sources[index]];
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
     }
 
     _renderChartTypeTab() {
