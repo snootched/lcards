@@ -47,6 +47,8 @@ import ApexCharts from 'apexcharts';
 import { ApexChartsAdapter } from '../charts/ApexChartsAdapter.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { getChartSchema } from './schemas/chart-schema.js';
+// Import chart editor for GUI editing
+import '../editor/cards/lcards-chart-editor.js';
 
 export class LCARdSChart extends LCARdSCard {
   static CARD_TYPE = 'chart';
@@ -835,6 +837,14 @@ export class LCARdSChart extends LCARdSCard {
       // Note: No source - chart will show "No data configured" message
       // This avoids creating data source subscriptions in preview
     };
+  }
+
+  /**
+   * Get config element (editor) for Home Assistant GUI
+   * @static
+   */
+  static getConfigElement() {
+    return document.createElement('lcards-chart-editor');
   }
 
   /**
