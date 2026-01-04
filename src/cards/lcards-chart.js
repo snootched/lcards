@@ -46,6 +46,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import ApexCharts from 'apexcharts';
 import { ApexChartsAdapter } from '../charts/ApexChartsAdapter.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
+import { getChartSchema } from './schemas/chart-schema.js';
 
 export class LCARdSChart extends LCARdSCard {
   static CARD_TYPE = 'chart';
@@ -858,24 +859,20 @@ export class LCARdSChart extends LCARdSCard {
         max_points: 0                 // No point limit by default (0 = unlimited)
     });
 
-    // Import and register complete schema (v1.18.0+)
-    import('./schemas/chart-schema.js').then(module => {
-        const schema = module.getChartSchema({
-            availableAnimationPresets: [
-                'lcars_standard',
-                'lcars_dramatic',
-                'lcars_minimal',
-                'lcars_realtime',
-                'lcars_alert',
-                'none'
-            ]
-        });
-
-        configManager.registerCardSchema('chart', schema, { version: '1.18.0' });
-        lcardsLog.debug('[LCARdSChart] Registered nested schema with CoreConfigManager (v1.18.0)');
-    }).catch(error => {
-        lcardsLog.error('[LCARdSChart] Failed to load chart schema:', error);
+    // Use static import (no .then() needed)
+    const schema = getChartSchema({
+        availableAnimationPresets: [
+            'lcars_standard',
+            'lcars_dramatic',
+            'lcars_minimal',
+            'lcars_realtime',
+            'lcars_alert',
+            'none'
+        ]
     });
+
+    configManager.registerCardSchema('chart', schema, { version: '1.18.0' });
+    lcardsLog.debug('[LCARdSChart] Registered nested schema with CoreConfigManager (v1.18.0)');
   }
 }
 

@@ -560,6 +560,12 @@ export function getChartSchema(options = {}) {
                             marker: {
                                 type: 'object',
                                 description: 'Marker colors',
+                                'x-ui-hints': {
+                                    label: 'Marker Colors',
+                                    helper: 'Configure fill and stroke colors for data point markers',
+                                    collapsible: true,
+                                    defaultCollapsed: true
+                                },
                                 properties: {
                                     fill: colorArraySchema,
                                     stroke: colorArraySchema
@@ -569,6 +575,12 @@ export function getChartSchema(options = {}) {
                             axis: {
                                 type: 'object',
                                 description: 'Axis colors',
+                                'x-ui-hints': {
+                                    label: 'Axis Colors',
+                                    helper: 'Configure colors for x-axis, y-axis, borders, and tick marks',
+                                    collapsible: true,
+                                    defaultCollapsed: true
+                                },
                                 properties: {
                                     x: simpleColorSchema,
                                     y: simpleColorSchema,
@@ -580,6 +592,12 @@ export function getChartSchema(options = {}) {
                             legend: {
                                 type: 'object',
                                 description: 'Legend colors',
+                                'x-ui-hints': {
+                                    label: 'Legend Colors',
+                                    helper: 'Configure default legend text color and per-series item colors',
+                                    collapsible: true,
+                                    defaultCollapsed: true
+                                },
                                 properties: {
                                     default: simpleColorSchema,
                                     items: colorArraySchema
@@ -716,34 +734,102 @@ export function getChartSchema(options = {}) {
                             gradient: {
                                 type: 'object',
                                 description: 'Gradient fill configuration',
+                                'x-ui-hints': {
+                                    label: 'Gradient',
+                                    helper: 'Configure gradient fill direction, intensity, and opacity',
+                                    collapsible: true,
+                                    defaultCollapsed: true
+                                },
                                 properties: {
                                     shade: {
                                         type: 'string',
                                         enum: ['light', 'dark'],
-                                        description: 'Gradient shade direction'
+                                        description: 'Gradient shade direction',
+                                        'x-ui-hints': {
+                                            label: 'Shade',
+                                            helper: 'Light or dark gradient shading',
+                                            selector: {
+                                                select: {
+                                                    options: [
+                                                        { value: 'light', label: 'Light' },
+                                                        { value: 'dark', label: 'Dark' }
+                                                    ]
+                                                }
+                                            }
+                                        }
                                     },
                                     type: {
                                         type: 'string',
                                         enum: ['horizontal', 'vertical', 'diagonal1', 'diagonal2'],
-                                        description: 'Gradient direction'
+                                        description: 'Gradient direction',
+                                        'x-ui-hints': {
+                                            label: 'Type',
+                                            helper: 'Direction of gradient flow',
+                                            selector: {
+                                                select: {
+                                                    options: [
+                                                        { value: 'horizontal', label: 'Horizontal' },
+                                                        { value: 'vertical', label: 'Vertical' },
+                                                        { value: 'diagonal1', label: 'Diagonal 1' },
+                                                        { value: 'diagonal2', label: 'Diagonal 2' }
+                                                    ]
+                                                }
+                                            }
+                                        }
                                     },
                                     shadeIntensity: {
                                         type: 'number',
                                         minimum: 0,
                                         maximum: 1,
-                                        description: 'Intensity of shading'
+                                        description: 'Intensity of shading',
+                                        'x-ui-hints': {
+                                            label: 'Shade Intensity',
+                                            helper: 'How strong the gradient shading effect is (0-1)',
+                                            selector: {
+                                                number: {
+                                                    mode: 'slider',
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.1
+                                                }
+                                            }
+                                        }
                                     },
                                     opacityFrom: {
                                         type: 'number',
                                         minimum: 0,
                                         maximum: 1,
-                                        description: 'Starting opacity'
+                                        description: 'Starting opacity',
+                                        'x-ui-hints': {
+                                            label: 'Opacity From',
+                                            helper: 'Starting opacity value for gradient (0-1)',
+                                            selector: {
+                                                number: {
+                                                    mode: 'slider',
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.1
+                                                }
+                                            }
+                                        }
                                     },
                                     opacityTo: {
                                         type: 'number',
                                         minimum: 0,
                                         maximum: 1,
-                                        description: 'Ending opacity'
+                                        description: 'Ending opacity',
+                                        'x-ui-hints': {
+                                            label: 'Opacity To',
+                                            helper: 'Ending opacity value for gradient (0-1)',
+                                            selector: {
+                                                number: {
+                                                    mode: 'slider',
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.1
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
