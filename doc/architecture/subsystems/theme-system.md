@@ -1,7 +1,7 @@
 # Theme System (Singleton)
 
-> **Shared theming intelligence across all MSD cards**
-> Singleton ThemeManager provides consistent token-based themes, component defaults, and coordinated styling across multiple cards.
+> **Shared theming intelligence across all LCARdS cards**
+> Singleton ThemeManager provides consistent token-based themes, component defaults, and coordinated styling across all card instances.
 
 ---
 
@@ -21,18 +21,18 @@
 
 ## Overview
 
-The **Theme System** is a **singleton service** that provides unified theming across all MSD cards through a token-based architecture. The ThemeManager singleton ensures consistent styling, coordinated theme changes, and shared component defaults across multiple cards.
+The **Theme System** is a **singleton service** that provides unified theming across all card instances (MSD cards and LCARdS Cards) through a token-based architecture. The ThemeManager singleton ensures consistent styling, coordinated theme changes, and shared component defaults across all cards.
 
 ### Key Features
 
-- 🌐 **Singleton Architecture** - Single theme manager serves all MSD cards
+- 🌐 **Singleton Architecture** - Single theme manager serves all card instances
 - ✅ **Multi-Card Consistency** - Theme changes instantly apply to all cards
 - ✅ **Token-based defaults** - All values defined in shared theme tokens
 - ✅ **Token references** - Tokens can reference other tokens across cards
 - ✅ **Component scoping** - Dedicated defaults for each overlay type
 - ✅ **Multiple themes** - Built-in themes + custom theme support
 - ✅ **Hot-swappable** - Change entire look across all cards with one setting
-- ✅ **Cross-Card Theming** - Consistent theming for overlays targeting other cards
+- ✅ **Cross-Card Theming** - Consistent theming for all card types (MSD and LCARdS Cards)
 - ✅ **Type-safe** - Schema validation for theme tokens
 - ✅ **ApexCharts integration** - Custom CSS for chart styling
 

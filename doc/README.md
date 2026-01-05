@@ -6,7 +6,9 @@
 
 ## 🏛️ Architecture
 
-LCARdS uses a **singleton-based core architecture** with the following key systems:
+LCARdS uses a **hybrid architecture** with core singleton systems for shared intelligence and per-card systems for local orchestration:
+
+### Core Singleton Systems (Shared Across All Cards)
 
 | Singleton | Access | Purpose |
 |-----------|--------|---------|
@@ -14,12 +16,18 @@ LCARdS uses a **singleton-based core architecture** with the following key syste
 | `lcardsCore.dataSourceManager` | DataSourceManager | Entity state and data fetching |
 | `lcardsCore.rulesManager` | RulesEngine | Conditional styling rules |
 | `lcardsCore.validationService` | CoreValidationService | Config validation |
-| `lcardsCore.animationRegistry` | AnimationRegistry | Animation caching |
-| `lcardsCore.animationManager` | AnimationManager | Animation coordination |
+| `lcardsCore.stylePresetManager` | StylePresetManager | Style presets and CSS utilities |
+| `lcardsCore.animationRegistry` | AnimationRegistry | Animation instance caching |
+| `lcardsCore.systemsManager` | CoreSystemsManager | Entity caching for LCARdS Cards |
 
-**MSD Overlay Types:** `line` (SVG lines) and `control` (embedded HA cards)
+### Per-Card Systems (One Instance Per Card)
 
-**Key Principle:** Any card can define `data_sources` and `rules` that are registered with global singletons, making them available system-wide for cross-card data sharing.
+| System | Used By | Purpose |
+|--------|---------|---------|
+| `AnimationManager` | Each card instance | Animation coordination and playback |
+| `MSD SystemsManager` | MSD cards only | MSD rendering pipeline orchestration |
+
+**Key Principle:** Core singletons provide shared intelligence (data, rules, themes) while per-card systems handle local rendering and animation. Any card can define `data_sources` and `rules` that are registered with global singletons, making them available system-wide for cross-card data sharing.
 
 ---
 
@@ -80,4 +88,16 @@ When making code changes:
 
 ---
 
-*Last Updated: December 2025*
+## 🏗️ Architecture Notes
+
+**Singleton vs Per-Card:**
+- **Singletons** (ThemeManager, DataSourceManager, RulesEngine, etc.) are shared across all card instances for maximum efficiency and cross-card coordination
+- **Per-card systems** (AnimationManager, MSD SystemsManager) are instantiated once per card for local rendering and animation control
+- **CoreSystemsManager** is a singleton used by LCARdS Cards (lcards-button, lcards-chart, etc.)
+- **MSD SystemsManager** is per-card, used only by MSD cards, and connects to the core singletons
+
+For detailed architecture information, see [Architecture Overview](./architecture/overview.md) and [Subsystems](./architecture/subsystems/README.md).
+
+---
+
+*Last Updated: January 2026*

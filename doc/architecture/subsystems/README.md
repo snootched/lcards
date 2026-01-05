@@ -144,16 +144,19 @@
 **When to use:** Creating packs, understanding pack structure, theme development.
 
 #### [Animation Registry](animation-registry.md)
-**Animation management system** with intelligent caching and reuse.
+**Singleton animation caching system** with intelligent instance reuse.
 
 **Key Features:**
-- Intelligent instance caching
+- Intelligent instance caching (singleton)
 - Semantic hash comparison
 - Built-in presets (pulse, fade, draw, motionpath)
 - Target compatibility validation
 - Performance tracking and LRU cleanup
+- Works with per-card AnimationManager instances
 
-**When to use:** All animations - optimizes anime.js instance reuse.
+**When to use:** All animations - singleton provides caching while per-card AnimationManagers handle playback.
+
+**Architecture Note:** AnimationRegistry is a singleton, but AnimationManager is instantiated per-card.
 
 #### [Attachment Point Manager](attachment-point-manager.md)
 **Attachment point calculation** for line overlay routing.
@@ -193,7 +196,7 @@
 
 **When to use:** LCARdS Cards, lightweight entity access.
 
-**NOT for:** MSD cards (use DataSourceManager instead).
+**NOT for:** MSD cards (use DataSourceManager singleton for advanced data processing).
 
 #### [MSD Systems Manager](msd-systems-manager.md)
 **Per-card orchestrator** for MSD cards (NOT used by LCARdS Cards).

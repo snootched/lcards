@@ -1,6 +1,6 @@
 # Animation Registry (Singleton)
 
-> **Shared animation management system across all MSD cards**
+> **Shared animation management system across all LCARdS cards**
 > Singleton registry for anime.js animations with intelligent caching, semantic comparison, and multi-card coordination.
 
 ---
@@ -22,37 +22,41 @@
 
 ## Overview
 
-The **Animation Registry** is a **singleton service** that provides centralized animation management across all MSD cards. It enables animation sharing, prevents duplicate instances, and coordinates animations between multiple cards.
+The **Animation Registry** is a **singleton service** that provides centralized animation caching across all card instances. It works in conjunction with per-card **AnimationManager** instances to enable animation sharing, prevent duplicate instances, and coordinate animations across cards.
 
 ### Key Features
 
-- 🌐 **Singleton Architecture** - Single animation registry serves all MSD cards
+- 🌐 **Singleton Architecture** - Single animation registry serves all card instances
 - ✅ **Multi-Card Coordination** - Animations can target elements across different cards
 - ✅ **Intelligent caching** - Reuse animation instances with semantic comparison
 - ✅ **Preset system** - Built-in animation presets (pulse, fade, draw, motionpath)
 - ✅ **Target compatibility** - Automatic target validation and retargeting
-- ✅ **Cross-Card Targeting** - Animations can reference overlays in other cards
+- ✅ **Cross-Card Targeting** - Animations can reference elements in other cards
 - ✅ **Performance tracking** - Cache hits, misses, reuse rates across all cards
 - ✅ **LRU cleanup** - Automatic cache management
 - ✅ **Debug access** - Global debug interface
 
-### Singleton Responsibilities
+### Architecture: Singleton Registry + Per-Card Managers
 
-**Animation Registry Singleton handles:**
+**AnimationRegistry (Singleton):**
 - Animation instance creation and caching across all cards
 - Semantic hash computation for definitions
 - Target compatibility validation (including cross-card targets)
 - Instance reuse and retargeting between cards
-- Multi-card animation coordination
-- Global animation registry management
 - Cache cleanup and optimization
 - Performance statistics across all cards
 
-**Does NOT handle:**
+**AnimationManager (Per-Card):**
+- Created once per card instance
+- Coordinates animations within its card
+- Accesses the singleton AnimationRegistry for caching
+- Manages local animation playback and state
+- Handles card-specific animation triggers
+
+**Does NOT handle (delegated to other systems):**
 - Timeline coordination (delegated to `TimelineDiffer`)
 - Animation resolution (delegated to `resolveAnimations`)
 - Preset definitions (delegated to `presets.js`)
-- Per-card animation execution (handled by individual cards)
 
 ---
 

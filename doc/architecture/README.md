@@ -20,23 +20,35 @@ Card-specific architecture:
 
 ## 🎭 [Subsystems](./subsystems/)
 
-Detailed documentation for each singleton system:
+Detailed documentation for core systems:
 
-| System | Purpose | Doc |
-|--------|---------|-----|
-| **Core Systems Manager** | Entity caching for LCARdS Cards | [Read](./subsystems/core-systems-manager.md) |
-| **Rules Engine** | Conditional logic and dynamic updates | [Read](./subsystems/rules-engine.md) |
-| **Rules Template Syntax** | Template processing and rule syntax | [Read](./subsystems/rules-template-syntax.md) |
-| **DataSource System** | Entity subscriptions for MSD cards | [Read](./subsystems/datasource-system.md) |
-| **Theme System** | Color schemes and styling | [Read](./subsystems/theme-system.md) |
-| **Animation Registry** | Animation definitions | [Read](./subsystems/animation-registry.md) |
-| **Template Processor** | Template evaluation | [Read](./subsystems/template-processor.md) |
-| **Validation System** | Schema validation | [Read](./subsystems/validation-system.md) |
-| **Style Resolver** | Style computation | [Read](./subsystems/style-resolver.md) |
-| **Router Core** | MSD navigation | [Read](./subsystems/router-core.md) |
-| **Advanced Renderer** | SVG rendering pipeline | [Read](./subsystems/advanced-renderer.md) |
-| **MSD Systems Manager** | MSD coordination | [Read](./subsystems/msd-systems-manager.md) |
-| **Pack System** | Configuration packs | [Read](./subsystems/pack-system.md) |
+### Core Singleton Systems (Shared Across All Cards)
+
+| System | Type | Purpose | Doc |
+|--------|------|---------|-----|
+| **Core Systems Manager** | Singleton | Entity caching for LCARdS Cards | [Read](./subsystems/core-systems-manager.md) |
+| **DataSource System** | Singleton | Entity subscriptions and data processing | [Read](./subsystems/datasource-system.md) |
+| **Rules Engine** | Singleton | Conditional logic and dynamic updates | [Read](./subsystems/rules-engine.md) |
+| **Theme System** | Singleton | Color schemes and styling | [Read](./subsystems/theme-system.md) |
+| **Animation Registry** | Singleton | Animation instance caching | [Read](./subsystems/animation-registry.md) |
+| **Validation System** | Singleton | Schema validation | [Read](./subsystems/validation-system.md) |
+| **Pack System** | Singleton | Configuration packs | [Read](./subsystems/pack-system.md) |
+
+### Per-Card Systems (One Instance Per Card)
+
+| System | Type | Purpose | Doc |
+|--------|------|---------|-----|
+| **MSD Systems Manager** | Per MSD card | MSD rendering pipeline orchestration | [Read](./subsystems/msd-systems-manager.md) |
+| **Template Processor** | Per MSD card | Template evaluation for MSD overlays | [Read](./subsystems/template-processor.md) |
+| **Advanced Renderer** | Per MSD card | SVG rendering pipeline | [Read](./subsystems/advanced-renderer.md) |
+| **Style Resolver** | Per MSD card | Style computation | [Read](./subsystems/style-resolver.md) |
+| **Router Core** | Per MSD card | Path routing for line overlays | [Read](./subsystems/router-core.md) |
+
+### Additional Documentation
+
+| Document | Purpose |
+|----------|---------|
+| **[Rules Template Syntax](./subsystems/rules-template-syntax.md)** | Template processing and rule syntax reference |
 
 [→ All Subsystems](./subsystems/README.md)
 
@@ -77,19 +89,37 @@ Visual documentation:
 
 ## 🎯 Key Concepts
 
-### Singleton Architecture
+### Singleton vs Per-Card Architecture
+
+LCARdS uses a **hybrid architecture** for optimal performance and flexibility:
+
+**Core Singleton Systems:**
 - **BaseService Pattern** - All singletons extend BaseService for lifecycle consistency
-- **Shared Intelligence** - Rules, data, themes shared across all cards
-- **Distributed Presentation** - Individual cards handle only rendering
+- **Shared Intelligence** - DataSource, Rules, Themes shared across all card instances
+- **Cross-Card Coordination** - Single source of truth for entity data and styling rules
+- **Used by all cards** - Both LCARdS Cards and MSD cards access core singletons
+
+**Per-Card Systems:**
+- **Local Orchestration** - Each card has its own rendering pipeline
+- **Animation Management** - AnimationManager instantiated per card for local control
+- **MSD-Specific** - MSD SystemsManager only used by MSD cards (not LCARdS Cards)
+- **Resource Efficiency** - Local systems only created when needed
 
 ### Card Types
 - **LCARdS Cards** (go-forward) - Lightweight, single-purpose (lcards-button, lcards-elbow, lcards-chart, lcards-slider)
+  - Use CoreSystemsManager singleton for entity caching
+  - Access core singletons directly (DataSourceManager, RulesEngine, ThemeManager)
+  - No heavy MSD rendering pipeline
 - **MSD Cards** (current) - Complex multi-overlay displays
+  - Use MSD SystemsManager per-card for rendering orchestration
+  - MSD SystemsManager connects to core singletons
+  - Full SVG rendering pipeline with Advanced Renderer
 
 ### Performance
-- **Entity Caching** - 80-90% faster with CoreSystemsManager
-- **Shared Subscriptions** - No duplicate entity subscriptions
+- **Entity Caching** - 80-90% faster with CoreSystemsManager singleton
+- **Shared Subscriptions** - No duplicate entity subscriptions across cards
 - **Incremental Updates** - Only changed overlays re-render
+- **Animation Caching** - AnimationRegistry singleton caches instances for reuse
 
 ---
 

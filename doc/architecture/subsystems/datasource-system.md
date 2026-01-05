@@ -1,13 +1,13 @@
 # DataSource System (Singleton)
 
-> **Shared data intelligence across all MSD cards**
-> Singleton DataSourceManager processes Home Assistant entities once and distributes to all registered cards for maximum efficiency.
+> **Shared data intelligence across all LCARdS cards**
+> Singleton DataSourceManager processes Home Assistant entities once and distributes to all card instances for maximum efficiency.
 
 ---
 
 ## 🎯 Core Concept
 
-**Everything in LCARdS is driven by shared data intelligence.** The DataSourceManager singleton sits at the heart of the architecture, processing Home Assistant entity states once and distributing processed, aggregated, and computed values to all registered MSD cards efficiently.
+**Everything in LCARdS is driven by shared data intelligence.** The DataSourceManager singleton sits at the heart of the architecture, processing Home Assistant entity states once and distributing processed, aggregated, and computed values to all card instances (both MSD cards and LCARdS Cards) efficiently.
 
 ```mermaid
 graph TB

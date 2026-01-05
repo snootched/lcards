@@ -23,7 +23,9 @@
 
 ## Overview
 
-The **Template Processor** is a **per-card system** that provides template processing for each MSD card while integrating with singleton services. It detects, parses, and validates both MSD DataSource templates and Home Assistant templates, coordinating with the singleton DataSourceManager for entity data.
+The **Template Processor** is a **per-card system** that provides template processing for each card while integrating with singleton services. It detects, parses, and validates both MSD DataSource templates and Home Assistant templates, coordinating with the singleton DataSourceManager for entity data.
+
+**Note:** Template Processor is primarily used by MSD cards. LCARdS Cards (lcards-button, etc.) use UnifiedTemplateEvaluator instead, which provides similar functionality optimized for simpler card architectures.
 
 ### Key Features
 

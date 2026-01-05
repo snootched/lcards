@@ -24,7 +24,7 @@
 
 ## Overview
 
-The **Rules Engine Singleton** provides sophisticated conditional logic for dynamic overlay styling across **all card instances**. As a shared singleton system, it collects rules from multiple cards and distributes evaluation results to all registered callbacks, enabling cross-card coordination and resource efficiency.
+The **Rules Engine Singleton** provides sophisticated conditional logic for dynamic overlay styling across **all card instances**. As a shared singleton system, it collects rules from all cards (MSD cards and LCARdS Cards) and distributes evaluation results to all registered callbacks, enabling cross-card coordination and resource efficiency.
 
 ### Key Features
 
