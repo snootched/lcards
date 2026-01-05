@@ -106,7 +106,7 @@ export class RouterCore {
     const fs = overlay.finalStyle || {};
     let channelMode = (raw.route_channel_mode || raw.routeChannelMode || raw.channel_mode || 'prefer').toLowerCase();
     if (!['prefer','avoid','force'].includes(channelMode)) {
-      perfInc && perfCount('routing.channel.mode.invalid', 1);
+      perfCount('routing.channel.mode.invalid', 1);
       channelMode = 'prefer';
     }
     let smoothingMode = (
