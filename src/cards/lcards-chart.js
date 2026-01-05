@@ -143,11 +143,13 @@ export class LCARdSChart extends LCARdSCard {
     // Need to check shadow DOM boundaries too
     const isInCardPicker = this._checkForAncestor(['hui-card-picker', 'hui-card-preview']);
     const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-dialog-create-card']);
-    const isPreview = isInCardPicker || isInEditDialog || this._isPreviewMode;
+    const isInStudioDialog = this._checkForAncestor(['lcards-chart-studio-dialog', 'lcards-data-grid-studio-dialog-v4']);
+    const isPreview = isInCardPicker || isInEditDialog || isInStudioDialog || this._isPreviewMode;
 
     lcardsLog.debug('[LCARdSChart] Preview detection in _handleFirstUpdate:', {
       isInCardPicker,
       isInEditDialog,
+      isInStudioDialog,
       isPreviewFromNativeCard: this._isPreviewMode,
       finalDecision: isPreview,
       hasParent: !!this.parentElement,
@@ -160,12 +162,18 @@ export class LCARdSChart extends LCARdSCard {
     const overlayId = this.config.id || `chart-${this._cardGuid}`;
     this._registerOverlayForRules(overlayId, this.config.tags || []);
 
-    // Skip data source subscription and chart init in preview mode
-    if (isPreview) {
+    // Skip data source subscription and chart init in preview mode UNLESS in studio dialog (live preview)
+    if (isPreview && !isInStudioDialog) {
       lcardsLog.debug('[LCARdSChart] Preview mode detected - skipping data source subscription and chart initialization');
       this._chartReady = true; // Mark as "ready" to show preview
       this._isPreviewMode = true; // Update flag for render
       return;
+    }
+
+    // Studio dialog: allow full chart initialization for live preview
+    if (isInStudioDialog) {
+      lcardsLog.debug('[LCARdSChart] Studio dialog detected - allowing full chart initialization for live preview');
+      this._isPreviewMode = false; // CRITICAL: Override any preview detection from parent
     }
 
     // Wait for config processing to complete (includes data_sources creation)
@@ -202,7 +210,6 @@ export class LCARdSChart extends LCARdSCard {
     const seriesWithData = this._chartData.filter(data => data && data.length > 0).length;
 
     if (seriesWithData < expectedSeriesCount) {
-      lcardsLog.trace(`[LCARdSChart] Waiting for all series data: ${seriesWithData}/${expectedSeriesCount} ready`);
       return; // Wait for all series to have data
     }
 
@@ -698,8 +705,12 @@ export class LCARdSChart extends LCARdSCard {
       `;
     }
 
+    // Apply config height if set
+    const configHeight = this.config.height || 300;
+    const containerStyle = `height: ${configHeight}px;`;
+
     return html`
-      <div class="lcards-card-container">
+      <div class="lcards-card-container" style="${containerStyle}">
         <div class="chart-container"></div>
       </div>
     `;

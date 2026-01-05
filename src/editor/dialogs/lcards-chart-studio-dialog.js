@@ -31,8 +31,7 @@ import { editorStyles } from '../base/editor-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
-import '../components/lcards-chart-live-preview.js';
-import '../../cards/lcards-chart.js';
+import '../../cards/lcards-chart.js';  // Import card directly for manual instantiation
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-color-array.js';
@@ -72,7 +71,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Initialize chart schema
         this._chartSchema = getChartSchema();
-        
+
         // Preview render key for forced updates
         this._renderKey = 0;
     }
@@ -212,6 +211,52 @@ export class LCARdSChartStudioDialog extends LitElement {
                 position: sticky;
                 top: 0;
                 height: fit-content;
+                display: flex;
+                flex-direction: column;
+                background: var(--card-background-color);
+                border: 2px solid var(--divider-color);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            .preview-header {
+                padding: 12px 16px;
+                background: var(--card-background-color);
+                border-bottom: 2px solid var(--primary-color);
+                font-weight: 600;
+                font-size: 14px;
+                color: var(--primary-text-color);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .preview-container {
+                flex: 1;
+                min-height: 300px;
+                height: 100%;
+                width: 100%;
+                padding: 16px;
+                overflow: auto;
+                background: #1c1c1c;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .preview-container > * {
+                width: 100%;
+                height: 100%;
+            }
+
+            .preview-footer {
+                padding: 8px 16px;
+                background: var(--card-background-color);
+                border-top: 1px solid var(--divider-color);
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                display: flex;
+                align-items: center;
             }
 
             /* Tab Navigation */
@@ -508,12 +553,87 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Update preview card
+     * Update preview card (manual DOM manipulation)
      * @private
      */
     _updatePreviewCard() {
-        lcardsLog.debug('[ChartStudio] Updating preview with config:', this._workingConfig);
-        this.requestUpdate();
+        const container = this._previewRef.value;
+        if (!container) {
+            lcardsLog.warn('[ChartStudio] Preview container ref not available');
+            return;
+        }
+
+        // Clear existing preview
+        while (container.firstChild) {
+            container.firstChild.remove();
+        }
+
+        // Get preview config with defaults
+        const previewConfig = this._getPreviewConfig();
+        if (!previewConfig) {
+            lcardsLog.warn('[ChartStudio] No valid config for preview');
+            return;
+        }
+
+        try {
+            // Manually create card element
+            const card = document.createElement('lcards-chart');
+
+            lcardsLog.debug('[ChartStudio] Creating preview card with config:', previewConfig);
+            lcardsLog.debug('[ChartStudio] HASS object available:', !!this.hass);
+
+            // CRITICAL: Set config and hass BEFORE appending (like data-grid does)
+            // This ensures firstUpdate has config available
+            card.setConfig(previewConfig);
+            card.hass = this.hass;
+
+            // NOW append to DOM after card is fully configured
+            container.appendChild(card);
+
+            lcardsLog.debug('[ChartStudio] Preview card configured and appended');
+        } catch (error) {
+            lcardsLog.error('[ChartStudio] Failed to update preview:', error);
+            container.innerHTML = `
+                <div style="padding: 24px; text-align: center; color: var(--error-color);">
+                    <ha-icon icon="mdi:alert-circle" style="--mdc-icon-size: 48px;"></ha-icon>
+                    <p>Preview Error: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Get preview config with sensible defaults
+     * @private
+     * @returns {Object|null} Preview config or null
+     */
+    _getPreviewConfig() {
+        if (!this._workingConfig) return null;
+
+        try {
+            // Deep clone to avoid modifying working config
+            const previewConfig = JSON.parse(JSON.stringify(this._workingConfig));
+
+            // Ensure type is set
+            if (!previewConfig.type) {
+                previewConfig.type = 'custom:lcards-chart';
+            }
+
+            // Ensure chart_type default
+            if (!previewConfig.chart_type) {
+                previewConfig.chart_type = 'line';
+            }
+
+            // Ensure height for preview
+            if (!previewConfig.height) {
+                previewConfig.height = 300;
+            }
+
+            return previewConfig;
+        } catch (error) {
+            lcardsLog.error('[ChartStudio] Error preparing preview config:', error);
+            return null;
+        }
     }
 
     /**
@@ -551,7 +671,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     async _handleCancel() {
         // Confirm if changes were made
         const hasChanges = JSON.stringify(this._workingConfig) !== JSON.stringify(this._initialConfig);
-        
+
         if (hasChanges) {
             const confirmed = await this._showConfirmDialog(
                 'Unsaved Changes',
@@ -593,20 +713,20 @@ export class LCARdSChartStudioDialog extends LitElement {
             const dialog = document.createElement('ha-dialog');
             dialog.heading = title;
             dialog.open = true;
-            
+
             // Create content
             const content = document.createElement('div');
             content.textContent = message;
             content.style.padding = '16px';
             content.style.lineHeight = '1.5';
             dialog.appendChild(content);
-            
+
             // Create button container
             const buttonContainer = document.createElement('div');
             buttonContainer.slot = 'secondaryAction';
             buttonContainer.style.display = 'flex';
             buttonContainer.style.gap = '8px';
-            
+
             // Cancel button with explicit handler
             const cancelButton = document.createElement('ha-button');
             cancelButton.textContent = 'Cancel';
@@ -614,7 +734,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 dialog.close();
                 resolve(false);
             });
-            
+
             // Confirm button with explicit handler
             const confirmButton = document.createElement('ha-button');
             confirmButton.textContent = 'Continue';
@@ -623,16 +743,16 @@ export class LCARdSChartStudioDialog extends LitElement {
                 dialog.close();
                 resolve(true);
             });
-            
+
             buttonContainer.appendChild(cancelButton);
             buttonContainer.appendChild(confirmButton);
             dialog.appendChild(buttonContainer);
-            
+
             // Handle dialog close (ESC key or backdrop click)
             dialog.addEventListener('closed', () => {
                 setTimeout(() => dialog.remove(), 100);
             });
-            
+
             // Append to body
             document.body.appendChild(dialog);
         });
@@ -727,7 +847,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         return html`
             <div class="data-sources-tab">
                 ${this._renderLevelSelector()}
-                
+
                 <div class="level-content">
                     ${this._dataSourceLevel === 'simple' ? this._renderSimpleMode() : ''}
                     ${this._dataSourceLevel === 'multi' ? this._renderMultiMode() : ''}
@@ -1103,10 +1223,10 @@ export class LCARdSChartStudioDialog extends LitElement {
                 <div style="font-size: 14px; line-height: 1.6;">
                     <h4>Simple Mode</h4>
                     <p>Quick chart from a single entity. Best for beginners.</p>
-                    
+
                     <h4>Multi-Series Mode</h4>
                     <p>Display multiple entities on the same chart with custom names.</p>
-                    
+
                     <h4>Advanced Mode</h4>
                     <p>Full DataSource control with history preload, throttling, and transformations.</p>
                 </div>
@@ -1125,7 +1245,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _detectDataSourceLevel() {
         const config = this._workingConfig;
-        
+
         if (config.data_sources && Object.keys(config.data_sources).length > 0) {
             return 'advanced';
         } else if (Array.isArray(config.sources) && config.sources.length > 0) {
@@ -1133,7 +1253,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         } else if (config.source) {
             return 'simple';
         }
-        
+
         return 'simple'; // Default
     }
 
@@ -1248,17 +1368,17 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _moveSeries(index, direction) {
         if (!this._workingConfig.sources) return;
-        
+
         const newIndex = index + direction;
         if (newIndex < 0 || newIndex >= this._workingConfig.sources.length) return;
 
         // Swap sources
-        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] = 
+        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] =
         [this._workingConfig.sources[newIndex], this._workingConfig.sources[index]];
 
         // Swap series names if they exist
         if (this._workingConfig.series_names && this._workingConfig.series_names.length > index) {
-            [this._workingConfig.series_names[index], this._workingConfig.series_names[newIndex]] = 
+            [this._workingConfig.series_names[index], this._workingConfig.series_names[newIndex]] =
             [this._workingConfig.series_names[newIndex], this._workingConfig.series_names[index]];
         }
 
@@ -1273,9 +1393,9 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _removeSeries(index) {
         if (!this._workingConfig.sources) return;
-        
+
         this._workingConfig.sources.splice(index, 1);
-        
+
         if (this._workingConfig.series_names && this._workingConfig.series_names.length > index) {
             this._workingConfig.series_names.splice(index, 1);
         }
@@ -1293,7 +1413,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             'Open DataSource Editor',
             'Advanced DataSource configuration requires the full editor. Save your changes and open the DataSource editor tab?'
         );
-        
+
         if (confirmed) {
             // Save and close studio
             this._handleSave();
@@ -1338,7 +1458,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _updateDataSourceConfig(name, key, value) {
         if (!this._workingConfig.data_sources || !this._workingConfig.data_sources[name]) return;
-        
+
         this._workingConfig.data_sources[name][key] = value;
         this.requestUpdate();
         this._schedulePreviewUpdate();
@@ -1353,11 +1473,11 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _updateDataSourceHistoryConfig(name, key, value) {
         if (!this._workingConfig.data_sources || !this._workingConfig.data_sources[name]) return;
-        
+
         if (!this._workingConfig.data_sources[name].history) {
             this._workingConfig.data_sources[name].history = {};
         }
-        
+
         this._workingConfig.data_sources[name].history[key] = value;
         this.requestUpdate();
         this._schedulePreviewUpdate();
@@ -1371,11 +1491,11 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _moveSource(index, direction) {
         if (!this._workingConfig.sources) return;
-        
+
         const newIndex = index + direction;
         if (newIndex < 0 || newIndex >= this._workingConfig.sources.length) return;
 
-        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] = 
+        [this._workingConfig.sources[index], this._workingConfig.sources[newIndex]] =
         [this._workingConfig.sources[newIndex], this._workingConfig.sources[index]];
 
         this.requestUpdate();
@@ -1407,7 +1527,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     _setNestedValue(path, value) {
         const parts = path.split('.');
         const lastPart = parts.pop();
-        
+
         let target = this._workingConfig;
         for (const part of parts) {
             if (!target[part]) {
@@ -1415,7 +1535,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             }
             target = target[part];
         }
-        
+
         target[lastPart] = value;
         this.requestUpdate();
         this._updatePreview();
@@ -1431,7 +1551,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     _getSchemaByPath(path) {
         const parts = path.split('.');
         let schema = this._chartSchema;
-        
+
         for (const part of parts) {
             if (schema.properties && schema.properties[part]) {
                 schema = schema.properties[part];
@@ -1440,7 +1560,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 return { type: 'string', 'x-ui-hints': { selector: { text: {} } } };
             }
         }
-        
+
         return schema;
     }
 
@@ -1454,7 +1574,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _renderSingleColorPicker(path, label, fallback) {
         const value = this._getNestedValue(path) || fallback;
-        
+
         return html`
             <lcards-color-section
                 .colors=${value ? [value] : []}
@@ -1481,7 +1601,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _renderColorArray(path, label, description = '') {
         const colors = this._getNestedValue(path) || [];
-        
+
         return html`
             <lcards-color-array
                 .hass=${this.hass}
@@ -1507,7 +1627,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         return html`
             <div class="gradient-config" style="padding-left: 16px; border-left: 2px solid var(--divider-color); margin-top: 16px;">
                 <h4 style="margin: 0 0 12px 0;">Gradient Settings</h4>
-                
+
                 ${FormField.renderField(this, 'style.fill.gradient.type', {
                     label: 'Gradient Direction'
                 })}
@@ -1547,7 +1667,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Choose the visualization type for your data"
                 icon="mdi:chart-line-variant"
                 ?expanded=${true}>
-                
+
                 <div class="chart-type-grid" style="
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1555,7 +1675,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                     margin-top: 16px;
                 ">
                     ${chartTypes.map(type => html`
-                        <div 
+                        <div
                             class="chart-type-card ${currentType === type.value ? 'selected' : ''}"
                             style="
                                 padding: 16px;
@@ -1568,8 +1688,8 @@ export class LCARdSChartStudioDialog extends LitElement {
                                 text-align: center;
                             "
                             @click=${() => this._setConfigValue('chart_type', type.value)}>
-                            <ha-icon 
-                                icon="${type.icon}" 
+                            <ha-icon
+                                icon="${type.icon}"
                                 style="font-size: 32px; margin-bottom: 8px;">
                             </ha-icon>
                             <div style="font-weight: 600; margin-bottom: 4px;">
@@ -1589,7 +1709,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Configure chart size and data limits"
                 icon="mdi:resize"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'height', {
                     label: 'Height',
                     helper: 'Chart height in pixels'
@@ -1607,7 +1727,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Configure horizontal axis type"
                 icon="mdi:axis-x-arrow"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'xaxis_type', {
                     label: 'X-Axis Type',
                     helper: 'Type of x-axis scaling'
@@ -1624,7 +1744,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Primary colors for data visualization"
                 icon="mdi:palette"
                 ?expanded=${true}>
-                
+
                 ${this._renderColorArray('style.colors.series', 'Series Colors', 'Colors for each data series')}
             </lcards-form-section>
 
@@ -1634,7 +1754,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Line and area fill colors"
                 icon="mdi:brush"
                 ?expanded=${true}>
-                
+
                 ${this._renderColorArray('style.colors.stroke', 'Stroke Colors', 'Outline/line colors')}
                 ${this._renderColorArray('style.colors.fill', 'Fill Colors', 'Area fill colors')}
             </lcards-form-section>
@@ -1645,7 +1765,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Base chart colors"
                 icon="mdi:format-color-fill"
                 ?expanded=${true}>
-                
+
                 ${this._renderSingleColorPicker('style.colors.background', 'Background', 'transparent')}
                 ${this._renderSingleColorPicker('style.colors.foreground', 'Foreground', 'var(--lcars-white, #FFFFFF)')}
                 ${this._renderSingleColorPicker('style.colors.grid', 'Grid', 'var(--lcars-gray, #999999)')}
@@ -1657,7 +1777,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Data point marker styling"
                 icon="mdi:circle"
                 ?expanded=${false}>
-                
+
                 ${this._renderColorArray('style.colors.marker.fill', 'Marker Fill')}
                 ${this._renderColorArray('style.colors.marker.stroke', 'Marker Stroke')}
             </lcards-form-section>
@@ -1668,7 +1788,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="X and Y axis styling"
                 icon="mdi:axis-arrow"
                 ?expanded=${false}>
-                
+
                 ${this._renderSingleColorPicker('style.colors.axis.x', 'X-Axis', null)}
                 ${this._renderSingleColorPicker('style.colors.axis.y', 'Y-Axis', null)}
                 ${this._renderSingleColorPicker('style.colors.axis.border', 'Axis Border', null)}
@@ -1681,7 +1801,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Legend text styling"
                 icon="mdi:label"
                 ?expanded=${false}>
-                
+
                 ${this._renderSingleColorPicker('style.colors.legend.default', 'Legend Text', null)}
                 ${this._renderColorArray('style.colors.legend.items', 'Legend Items', 'Per-item legend colors')}
             </lcards-form-section>
@@ -1692,7 +1812,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="On-chart data label styling"
                 icon="mdi:label-variant"
                 ?expanded=${false}>
-                
+
                 ${this._renderColorArray('style.colors.data_labels', 'Data Label Colors')}
             </lcards-form-section>
         `;
@@ -1711,7 +1831,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Line and border styling"
                 icon="mdi:brush"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.stroke.width', {
                     label: 'Stroke Width'
                 })}
@@ -1727,7 +1847,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Area and background fill styling"
                 icon="mdi:format-color-fill"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.fill.type', {
                     label: 'Fill Type'
                 })}
@@ -1754,7 +1874,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Data point marker styling"
                 icon="mdi:circle"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.markers.size', {
                     label: 'Marker Size'
                 })}
@@ -1770,7 +1890,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Background grid styling"
                 icon="mdi:grid"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.grid.show', {
                     label: 'Show Grid'
                 })}
@@ -1795,7 +1915,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Horizontal axis styling and labels"
                 icon="mdi:axis-x-arrow"
                 ?expanded=${true}>
-                
+
                 <!-- X-Axis Labels -->
                 ${FormField.renderField(this, 'style.xaxis.labels.show', {
                     label: 'Show X-Axis Labels'
@@ -1822,7 +1942,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Vertical axis styling and labels"
                 icon="mdi:axis-y-arrow"
                 ?expanded=${true}>
-                
+
                 <!-- Y-Axis Labels -->
                 ${FormField.renderField(this, 'style.yaxis.labels.show', {
                     label: 'Show Y-Axis Labels'
@@ -1849,7 +1969,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Chart legend positioning and styling"
                 icon="mdi:label-multiple"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.legend.show', {
                     label: 'Show Legend'
                 })}
@@ -1871,7 +1991,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Labels displayed on data points"
                 icon="mdi:label-variant"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.data_labels.show', {
                     label: 'Show Data Labels'
                 })}
@@ -1889,7 +2009,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Interactive tooltip settings"
                 icon="mdi:tooltip-text"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.display.tooltip.show', {
                     label: 'Show Tooltip'
                 })}
@@ -1905,7 +2025,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
     _renderThemeTab() {
         const monochromeEnabled = this._getNestedValue('style.theme.monochrome.enabled') ?? false;
-        
+
         return html`
             <!-- Theme Mode -->
             <lcards-form-section
@@ -1913,7 +2033,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Light or dark theme for chart"
                 icon="mdi:theme-light-dark"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.theme.mode', {
                     label: 'Theme Mode'
                 })}
@@ -1925,7 +2045,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Predefined color scheme"
                 icon="mdi:palette"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.theme.palette', {
                     label: 'Palette',
                     helper: 'Leave blank to use custom series colors'
@@ -1943,7 +2063,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Single color with shade variations"
                 icon="mdi:invert-colors"
                 ?expanded=${false}>
-                
+
                 ${FormField.renderField(this, 'style.theme.monochrome.enabled', {
                     label: 'Enable Monochrome'
                 })}
@@ -1975,7 +2095,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Chart animation and transitions"
                 icon="mdi:animation"
                 ?expanded=${true}>
-                
+
                 ${FormField.renderField(this, 'style.animation.preset', {
                     label: 'Animation Preset'
                 })}
@@ -2002,7 +2122,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Custom label and tooltip formatting"
                 icon="mdi:code-braces"
                 ?expanded=${false}>
-                
+
                 ${FormField.renderField(this, 'style.formatters.xaxis_label', {
                     label: 'X-Axis Label Format',
                     helper: "Template: 'MMM DD' or '{value}°C'"
@@ -2024,7 +2144,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Font family and size"
                 icon="mdi:format-text"
                 ?expanded=${false}>
-                
+
                 ${FormField.renderField(this, 'style.typography.font_family', {
                     label: 'Font Family'
                 })}
@@ -2040,7 +2160,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Toolbar and other UI elements"
                 icon="mdi:eye"
                 ?expanded=${false}>
-                
+
                 ${FormField.renderField(this, 'style.display.toolbar', {
                     label: 'Show Toolbar',
                     helper: 'Download, zoom, pan controls'
@@ -2053,7 +2173,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 description="Advanced: Direct ApexCharts configuration override"
                 icon="mdi:code-json"
                 ?expanded=${false}>
-                
+
                 <lcards-message type="warning">
                     <strong>Advanced Users Only:</strong> Direct ApexCharts options override.
                     These settings have highest precedence and may conflict with visual settings above.
@@ -2127,7 +2247,7 @@ yaxis:
                 open
                 @closed=${this._handleClose}
                 .heading=${'Chart Configuration Studio'}>
-                
+
                 <div slot="primaryAction">
                     <ha-button @click=${this._handleSave}>
                         <ha-icon icon="mdi:content-save" slot="icon"></ha-icon>
@@ -2159,13 +2279,26 @@ yaxis:
                         </div>
 
                         <!-- Preview Panel (40%) -->
-                        <div class="preview-panel" ${ref(this._previewRef)}>
-                            <lcards-chart-live-preview
-                                .hass=${this.hass}
-                                .config=${this._workingConfig}
-                                .key=${this._renderKey}
-                                .showRefreshButton=${true}>
-                            </lcards-chart-live-preview>
+                        <div class="preview-panel">
+                            <div class="preview-header">
+                                <span>
+                                    <ha-icon icon="mdi:eye" style="--mdc-icon-size: 16px; vertical-align: middle; margin-right: 4px;"></ha-icon>
+                                    Live Preview
+                                </span>
+                                <ha-icon-button
+                                    icon="mdi:refresh"
+                                    @click=${() => this._updatePreviewCard()}
+                                    title="Refresh preview"
+                                    aria-label="Refresh preview">
+                                </ha-icon-button>
+                            </div>
+                            <div class="preview-container" ${ref(this._previewRef)}>
+                                <!-- Preview card rendered here via manual DOM manipulation -->
+                            </div>
+                            <div class="preview-footer">
+                                <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 14px; margin-right: 4px; vertical-align: middle;"></ha-icon>
+                                <span>Preview updates automatically as you edit</span>
+                            </div>
                         </div>
                     </div>
                 </div>
