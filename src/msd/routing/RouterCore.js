@@ -1,4 +1,4 @@
-import { perfInc, perfTime } from '../perf/PerfCounters.js';
+import { perfCount, perfTime } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
@@ -45,7 +45,7 @@ export class RouterCore {
         }
       }
     }
-    perfInc('routing.invalidate.events', 1);
+    perfCount('routing.invalidate.events', 1);
   }
 
   setOverlays(overlays) {
@@ -76,7 +76,7 @@ export class RouterCore {
     // Invalidate grids & route cache referencing old obstacles
     this._gridCache.clear();
     this.invalidate('*');
-    perfInc('routing.obstacles.count', obs.length);
+    perfCount('routing.obstacles.count', obs.length);
   }
 
   stats() {
@@ -106,7 +106,7 @@ export class RouterCore {
     const fs = overlay.finalStyle || {};
     let channelMode = (raw.route_channel_mode || raw.routeChannelMode || raw.channel_mode || 'prefer').toLowerCase();
     if (!['prefer','avoid','force'].includes(channelMode)) {
-      perfInc && perfInc('routing.channel.mode.invalid', 1);
+      perfCount('routing.channel.mode.invalid', 1);
       channelMode = 'prefer';
     }
     let smoothingMode = (
@@ -119,7 +119,7 @@ export class RouterCore {
     ).toLowerCase();
     const allowedSmooth = ['none','chaikin'];
     if (!allowedSmooth.includes(smoothingMode)) {
-      try { perfInc('routing.smooth.mode.invalid', 1); } catch(_) {}
+      try { perfCount('routing.smooth.mode.invalid', 1); } catch(_) {}
       smoothingMode = 'none';
     }
 
@@ -147,11 +147,11 @@ export class RouterCore {
       if (attachSide === 'left' || attachSide === 'right') {
         modeHintLast = 'yx'; // final horizontal
         hintSourceLast = 'attach_side';
-        try { perfInc('routing.hint.attach_side.horizontal',1); } catch(_){}
+        try { perfCount('routing.hint.attach_side.horizontal',1); } catch(_){}
       } else if (attachSide === 'top' || attachSide === 'bottom') {
         modeHintLast = 'xy'; // final vertical
         hintSourceLast = 'attach_side';
-        try { perfInc('routing.hint.attach_side.vertical',1); } catch(_){}
+        try { perfCount('routing.hint.attach_side.vertical',1); } catch(_){}
       }
     }
     // Geometry-based first segment if not provided
@@ -229,17 +229,17 @@ export class RouterCore {
       const key = this._cacheKey(req);
       const cached = this._cache.get(key);
       if (cached) {
-        perfInc('routing.cache.hit', 1);
+        perfCount('routing.cache.hit', 1);
         return { ...cached, meta: { ...cached.meta, cache_hit: true } };
       }
-      perfInc('routing.cache.miss', 1);
+      perfCount('routing.cache.miss', 1);
       let result;
       const mode = req.modeFull;
       try {
         if (mode === 'grid') {
           result = this._computeGrid(req);
         } else if (mode === 'smart') {
-          perfInc('routing.strategy.smart', 1);
+          perfCount('routing.strategy.smart', 1);
           // Phase 1: base grid
             const gridBase = this._computeGrid(req, { smart: true });
           if (gridBase) {
@@ -250,7 +250,7 @@ export class RouterCore {
         lcardsLog.warn('[MSD v1] smart/grid router error; fallback to manhattan', e);
       }
       if (!result) {
-        if (mode === 'smart') perfInc('routing.strategy.smart', 1);
+        if (mode === 'smart') perfCount('routing.strategy.smart', 1);
         result = this._computeManhattan(req);
       }
 
@@ -275,7 +275,7 @@ export class RouterCore {
   }
 
   _computeGrid(req, flags={}) {
-    perfInc('routing.strategy.grid', 1);
+    perfCount('routing.strategy.grid', 1);
     const vb = this.viewBox || [0,0,400,200];
     const width = vb[2];
     const height = vb[3];
@@ -401,7 +401,7 @@ export class RouterCore {
           pts = shapeRes.pts;
           channelInfo = this._channelDelta(pts, req); // recompute
           shapingMeta = shapeRes.meta;
-          perfInc('routing.channel.shape.accept', 1);
+          perfCount('routing.channel.shape.accept', 1);
         } else if (shapeRes) {
           shapingMeta = shapeRes.meta;
         }
@@ -633,8 +633,8 @@ export class RouterCore {
         delta -= inside * weightAvg; // full reward when fully inside
       }
     }
-    if (delta !== 0) perfInc('routing.channel.applied', 1);
-    if (forcedOutside) perfInc('routing.channel.force.penalty', 1);
+    if (delta !== 0) perfCount('routing.channel.applied', 1);
+    if (forcedOutside) perfCount('routing.channel.force.penalty', 1);
     return { delta, inside, outside, coverage, forcedOutside, mode: req.channelMode };
   }
 
@@ -720,7 +720,7 @@ export class RouterCore {
           channelInfo.coverage = newChan.coverage;
           channelInfo.delta = newChan.delta;
           channelInfo.forcedOutside = newChan.forcedOutside;
-          perfInc('routing.channel.shape.accept', 1);
+          perfCount('routing.channel.shape.accept', 1);
         } else if (shapeRes) {
           shapingMeta = shapeRes.meta;
         }
@@ -751,8 +751,8 @@ export class RouterCore {
         ...(shapingMeta ? { shaping: shapingMeta } : {})
       };
     }
-    perfInc('routing.smart.refine.attempt', detoursTried);
-    perfInc('routing.smart.refine.accept', detoursAccepted);
+    perfCount('routing.smart.refine.attempt', detoursTried);
+    perfCount('routing.smart.refine.accept', detoursAccepted);
     return { d, pts: bestPts, meta: baseMeta };
   }
 
@@ -772,7 +772,7 @@ export class RouterCore {
   }
 
   _shapeForChannels(req, pts, channelInfo, desiredCoverage) {
-    perfInc('routing.channel.shape.attempt', 1);
+    perfCount('routing.channel.shape.attempt', 1);
     const attemptsMax = this._channelShapingMaxAttempts;
     const span = this._channelShapingSpan;
     const minGain = this._channelMinCoverageGain;
@@ -874,7 +874,7 @@ export class RouterCore {
     if (forceMode && bestCoverage < 0.999) {
       downgraded = true;
       // mark but caller meta will keep mode=force + forcedOutside flag (HUD can show downgrade)
-      perfInc('routing.channel.shape.downgrade', 1);
+      perfCount('routing.channel.shape.downgrade', 1);
     }
 
     return {
@@ -894,7 +894,7 @@ export class RouterCore {
   _applyCornerRounding(routeResult, radiusGlobal) {
     const pts = routeResult.pts;
     if (!Array.isArray(pts) || pts.length < 3) {
-      perfInc('routing.arc.none', 1);
+      perfCount('routing.arc.none', 1);
       return null;
     }
     const arcMin = 1;
@@ -961,10 +961,10 @@ export class RouterCore {
     }
     // If no arcs applied, skip
     if (!arcCount) {
-      perfInc('routing.arc.none', 1);
+      perfCount('routing.arc.none', 1);
       return null;
     }
-    perfInc('routing.arc.apply', 1);
+    perfCount('routing.arc.apply', 1);
     const newResult = {
       ...routeResult,
       d: parts.join(' '),
@@ -1012,7 +1012,7 @@ export class RouterCore {
         addedPoints: pts.length - routeResult.pts.length
       }
     };
-    perfInc('routing.smooth.apply',1);
+    perfCount('routing.smooth.apply',1);
     return { ...routeResult, d, pts, meta: newMeta };
   }
 }

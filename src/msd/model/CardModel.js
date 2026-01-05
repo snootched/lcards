@@ -1,8 +1,8 @@
-import { perfTime } from '../perf/PerfCounters.js';
+import { perfTimeAsync } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export async function buildCardModel(mergedConfig) {
-  return perfTime('cardModel.build', async () => {
+  return perfTimeAsync('cardModel.build', async () => {
     // Phase A: implement viewBox:auto + SVG anchor extraction + percent resolution.
     // Extract actual viewBox from SVG content instead of hardcoding
     let viewBox = [0, 0, 400, 200]; // fallback only

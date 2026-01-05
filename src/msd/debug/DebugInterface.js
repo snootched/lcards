@@ -1,4 +1,4 @@
-import { perfGetAll } from '../perf/PerfCounters.js';
+import { perfGetAll } from '../../utils/performance.js';
 import { MsdIntrospection } from '../introspection/MsdIntrospection.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 // ✅ CONSOLIDATED: ChartDataValidator removed (chart overlay deprecated, use SimpleChart instead)

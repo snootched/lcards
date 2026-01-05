@@ -4,10 +4,7 @@ import { ModelBuilder } from './ModelBuilder.js';
 import { setupDebugInterface } from '../debug/DebugInterface.js';
 import { buildCardModel } from '../model/CardModel.js';
 import { LCARdSUnifiedAPI } from '../../api/LCARdSUnifiedAPI.js';
-import { exportCollapsed, exportCollapsedJson } from '../export/exportCollapsed.js';
-import { exportFullSnapshot, exportFullSnapshotJson } from '../export/exportFullSnapshot.js';
-import { diffItem } from '../export/diffItem.js';
-import { perfGetAll } from '../perf/PerfCounters.js';
+import { perfGetAll } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { StyleResolverService } from '../styles/StyleResolverService.js';
 // ✅ CONSOLIDATED: Use Core ValidationService singleton instead of MSD-specific ValidationService
@@ -612,11 +609,6 @@ function createDisabledPipeline(mergedConfig, issues, provenance) {
     getActiveProfiles: () => [],
     getAnchors: () => (mergedConfig.anchors || {}),
     repairAnchorsFromMerged: () => false,
-    exportCollapsed: () => null,
-    exportCollapsedJson: () => 'null',
-    exportFullSnapshot: () => null,
-    exportFullSnapshotJson: () => 'null',
-    diffItem: () => null,
     getPerf: () => ({})
   };
 
@@ -905,11 +897,6 @@ function createPipelineApi(mergedConfig, cardModel, systemsManager, modelBuilder
     getEntity: (id) => systemsManager.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
-    exportCollapsed: () => exportCollapsed(userMsdConfig),
-    exportCollapsedJson: () => JSON.stringify(exportCollapsed(userMsdConfig)),
-    exportFullSnapshot: () => exportFullSnapshot(mergedConfig),
-    exportFullSnapshotJson: () => JSON.stringify(exportFullSnapshot(mergedConfig)),
-    diffItem: (item) => diffItem(item),
     getPerf: () => perfGetAll(),
 
     // Add debug API powered by DebugManager

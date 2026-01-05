@@ -1,4 +1,4 @@
-import { perfInc, perfTime } from '../perf/PerfCounters.js';
+import { perfCount, perfTime } from '../../utils/performance.js';
 import { linearMap } from '../../utils/linearMap.js';
 
 export function resolveValueMaps(resolvedOverlays, ctx) {
@@ -11,8 +11,8 @@ export function resolveValueMaps(resolvedOverlays, ctx) {
       ov.finalStyle = walk(ov.finalStyle);
     }
 
-    perfInc('value_map.resolve.count', success);
-    perfInc('value_map.fail.count', fail);
+    perfCount('value_map.resolve.count', success);
+    perfCount('value_map.fail.count', fail);
 
     function walk(node) {
       if (!node || typeof node !== 'object') return node;

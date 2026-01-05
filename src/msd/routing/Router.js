@@ -1,4 +1,4 @@
-import { perfInc } from '../perf/PerfCounters.js';
+import { perfCount } from '../../utils/performance.js';
 import { stableStringify } from '../../utils/stableStringify.js';
 
 /**
@@ -41,10 +41,10 @@ export class Router {
     const key = stableStringify(keyObj);
     const cached = this.cache.get(overlay.id);
     if (cached && cached.key === key) {
-      perfInc('connectors.route.cache.hit', 1);
+      perfCount('connectors.route.cache.hit', 1);
       return cached;
     }
-    perfInc('connectors.route.cache.miss', 1);
+    perfCount('connectors.route.cache.miss', 1);
 
     // Simple line routing (no legacy advanced routing available)
     const d = `M${a1[0]},${a1[1]} L${a2[0]},${a2[1]}`;

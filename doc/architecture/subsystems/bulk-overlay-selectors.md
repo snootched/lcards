@@ -466,7 +466,7 @@ window.lcards = {
 
 ### Performance Tests
 
-**Benchmark Harness:** `src/msd/perf/benchSelectorHarness.js` (to be created)
+**Performance Monitoring:** Use the global performance utility at `src/utils/performance.js` for all performance tracking.
 
 **Tests:**
 - Resolution time vs overlay count
