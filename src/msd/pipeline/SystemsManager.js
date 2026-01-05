@@ -1,7 +1,7 @@
 import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
 import { MsdDebugRenderer } from '../debug/MsdDebugRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
-import { MsdHudManager } from '../hud/MsdHudManager.js';
+// REMOVED: MsdHudManager - now using global HudManager from core
 import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js';
 import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -13,6 +13,11 @@ import { RulesEngine } from '../../core/rules/RulesEngine.js';
 import { DebugManager } from '../debug/DebugManager.js';
 
 import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
+
+// ✅ ADDED: Import MSD-specific HUD panels
+import { RoutingPanel } from '../hud/panels/RoutingPanel.js';
+import { OverlaysPanel } from '../hud/panels/OverlaysPanel.js';
+import { ChannelTrendPanel } from '../hud/panels/ChannelTrendPanel.js';
 
 // ✅ ADDED: Import theme system initialization
 import { initializeThemeSystem } from '../../core/themes/initializeThemeSystem.js';
@@ -357,12 +362,9 @@ export class SystemsManager extends BaseService {
       this.controlsRenderer.setHass(this._hass);
     }
 
-    // REPLACED: Initialize unified HUD manager with document.body mounting
-    this.hudManager = new MsdHudManager();
-    this.hudManager.init(mountEl); // Pass mount element for pipeline context, but HUD uses document.body
-
-    // ADDED: Integrate HUD into global debug interface immediately
-    this._setupGlobalHudInterface();
+    // REMOVED: MsdHudManager - now using global HudManager from core
+    // MSD-specific panels will be registered by the card via lcardsCore.hudManager
+    this.hudManager = null; // Deprecated - use window.lcards.core.hudManager
 
     // Initialize debug renderer with systems manager reference
     this.debugRenderer.init(this);
@@ -387,6 +389,11 @@ export class SystemsManager extends BaseService {
 
     lcardsLog.debug('[SystemsManager] ✅ Shared AnimationManager connected');
 
+    // ✅ ADDED: Register MSD panels with global HUD if card GUID is available
+    if (this._cardGuid) {
+      this._registerMsdPanelsWithHud(this._cardGuid);
+    }
+
     lcardsLog.debug('[SystemsManager] ✅ All systems initialization complete', {
       hasThemeManager: !!this.themeManager,
       hasStyleResolver: !!this.styleResolver,  // ✅ NEW: Phase 6
@@ -404,6 +411,20 @@ export class SystemsManager extends BaseService {
 
   setReRenderCallback(callback) {
     this._reRenderCallback = callback;
+  }
+
+  /**
+   * Set card GUID for HUD registration
+   * @param {string} guid - Card GUID
+   */
+  setCardGuid(guid) {
+    this._cardGuid = guid;
+    lcardsLog.debug('[SystemsManager] Card GUID set:', guid);
+    
+    // Register with HUD if systems are already initialized
+    if (this.renderer && lcardsCore?.hudManager) {
+      this._registerMsdPanelsWithHud(guid);
+    }
   }
 
 
@@ -925,10 +946,51 @@ export class SystemsManager extends BaseService {
    * Set up global HUD interface (placeholder for future implementation)
    * @private
    */
+  /**
+   * Register MSD-specific panels with global HUD Manager
+   * Called during MSD initialization to add card-specific debug panels
+   * @private
+   */
+  _registerMsdPanelsWithHud(cardGuid) {
+    if (!lcardsCore?.hudManager) {
+      lcardsLog.warn('[SystemsManager] HUD Manager not available, skipping panel registration');
+      return;
+    }
+
+    try {
+      // Create MSD-specific panels
+      const msdPanels = new Map([
+        ['routing', new RoutingPanel()],
+        ['overlays', new OverlaysPanel()],
+        ['channel-trend', new ChannelTrendPanel()]
+      ]);
+
+      // Register card with HUD
+      const cardContext = {
+        guid: cardGuid,
+        type: 'msd',
+        instance: null, // Will be set by card
+        panels: msdPanels,
+        systemsManager: this,
+        router: this.router,
+        renderer: this.renderer,
+        pipeline: null // Will be set by card
+      };
+
+      lcardsCore.hudManager.registerCard(cardGuid, cardContext);
+      lcardsLog.debug('[SystemsManager] ✅ Registered MSD card with global HUD:', cardGuid);
+    } catch (error) {
+      lcardsLog.error('[SystemsManager] ❌ Failed to register MSD panels with HUD:', error);
+    }
+  }
+
+  /**
+   * Deprecated - replaced by global HUD Manager
+   * @deprecated Use window.lcards.core.hudManager instead
+   * @private
+   */
   _setupGlobalHudInterface() {
-    lcardsLog.debug('[SystemsManager] Global HUD interface setup completed');
-    // This method is called during initialization
-    // Future HUD interface setup will go here
+    lcardsLog.debug('[SystemsManager] _setupGlobalHudInterface deprecated - using global HUD Manager');
   }
 
   /**

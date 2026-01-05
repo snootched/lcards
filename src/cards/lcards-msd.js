@@ -1180,6 +1180,12 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
                 lcardsLog.debug('[LCARdSMSDCard] Card instance set via pipeline API');
             }
 
+            // ✅ ADDED: Set card GUID in SystemsManager for HUD registration
+            if (this._msdPipeline.systemsManager && this._msdInstanceGuid) {
+                this._msdPipeline.systemsManager.setCardGuid(this._msdInstanceGuid);
+                lcardsLog.debug('[LCARdSMSDCard] Card GUID set in SystemsManager for HUD registration');
+            }
+
             // Initialize HASS state
             if (this._msdPipeline.systemsManager) {
                 this._msdPipeline.systemsManager.ingestHass(this.hass);
@@ -1366,6 +1372,21 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
                 lcardsLog.error('[LCARdSMSDCard] Error during MSD pipeline cleanup:', error);
             }
         }
+    }
+
+    /**
+     * Cleanup on disconnect
+     */
+    disconnectedCallback() {
+        super.disconnectedCallback();
+
+        // Unregister from global HUD
+        if (this._msdInstanceGuid && window.lcards?.core?.hudManager) {
+            window.lcards.core.hudManager.unregisterCard(this._msdInstanceGuid);
+            lcardsLog.debug('[LCARdSMSDCard] Unregistered from global HUD:', this._msdInstanceGuid);
+        }
+
+        lcardsLog.debug('[LCARdSMSDCard] Disconnected');
     }
 
     /**
