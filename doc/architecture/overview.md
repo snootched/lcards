@@ -76,7 +76,11 @@ graph TB
             extends BaseService"]
             SPM["🎭 StylePresetManager
             extends BaseService"]
-            AR[🗂️ AnimationRegistry]
+            PM["📦 PackManager
+            extends BaseService"]
+            ASM["🗂️ AssetManager
+            extends BaseService"]
+            AR[🎬 AnimationRegistry]
             VS[✅ ValidationService<br/>extends BaseService]
             SL[📚 StyleLibrary]
             CSM[⚙️ CoreSystemsManager<br/>extends BaseService]
@@ -118,6 +122,8 @@ graph TB
     BS -.inherits.-> TM
     BS -.inherits.-> AM
     BS -.inherits.-> SPM
+    BS -.inherits.-> PM
+    BS -.inherits.-> ASM
     BS -.inherits.-> VS
     BS -.inherits.-> CSM
 
@@ -158,7 +164,7 @@ graph TB
     classDef simplecard fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
     class BS baseservice
-    class RE,DSM,TM,AM,SPM,AR,VS,SL,CSM singleton
+    class RE,DSM,TM,AM,SPM,PM,ASM,AR,VS,SL,CSM singleton
     class CardA,SMA,RendererA,CardB,SMB,RendererB card
     class CardC,SimpleC simplecard
 ```
@@ -180,6 +186,10 @@ All intelligence is shared across card instances:
 - **CoreSystemsManager** - Entity caching (LCARdS Cards)
 - **ThemeManager** - Color schemes and styling
 - **AnimationManager** - Animation coordination
+- **PackManager** - Single authority for pack loading and registration
+- **AssetManager** - Unified asset management (SVG, buttons, sliders, fonts, audio)
+- **StylePresetManager** - Style preset registry
+- **ValidationService** - Configuration validation
 
 **See:** [Core Components](core-components.md) for detailed singleton documentation.
 
