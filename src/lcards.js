@@ -134,6 +134,14 @@ async function initializeCustomCard() {
         window.lcards.theme = lcardsCore.getThemeManager();
         lcardsLog.debug('[lcards.js] ✅ ThemeManager exposed at window.lcards.theme for MSD compatibility');
 
+        // Register slider components with AssetManager after core init
+        // This enables unified asset discovery without breaking existing patterns
+        if (lcardsCore.assetManager) {
+            const { registerSliderComponents } = await import('./core/packs/components/sliders/index.js');
+            registerSliderComponents(lcardsCore.assetManager);
+            lcardsLog.debug('[lcards.js] ✅ Slider components registered with AssetManager');
+        }
+
     } catch (error) {
         lcardsLog.warn('[lcards.js] ⚠️ Core singleton initialization deferred (will init on first card):', error);
         // This is okay - singletons will initialize when first card loads with real HASS

@@ -156,3 +156,29 @@ export function hasSliderComponent(name) {
 export function getSliderComponentNames() {
     return Object.keys(sliderComponents);
 }
+
+/**
+ * Register all slider components with AssetManager
+ * Called during core initialization to enable unified asset discovery
+ * 
+ * @param {AssetManager} assetManager - AssetManager instance
+ */
+export function registerSliderComponents(assetManager) {
+    if (!assetManager) {
+        console.warn('[SliderComponents] AssetManager not provided - skipping registration');
+        return;
+    }
+
+    Object.entries(sliderComponents).forEach(([key, component]) => {
+        assetManager.register('slider', key, component, {
+            pack: 'lcards_sliders',
+            type: 'svg-function',
+            orientation: component.orientation || 'auto',
+            features: component.features || [],
+            registeredAt: Date.now()
+        });
+    });
+
+    console.info(`[SliderComponents] Registered ${Object.keys(sliderComponents).length} components with AssetManager`);
+}
+
