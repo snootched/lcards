@@ -11,6 +11,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSNativeCard } from '../base/LCARdSNativeCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { initMsdPipeline } from '../msd/index.js';
+import { getMsdSchema } from './schemas/msd-schema.js';
 
 /**
  * Native MSD Card implementation
@@ -1402,10 +1403,6 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     }
 
     /**
-     * Register schema with CoreConfigManager
-     * Called by lcards.js after core initialization
-     * @static
-     */
     /**
      * Register schema with CoreConfigManager
      * Called by lcards.js after core initialization
@@ -1419,25 +1416,20 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             return;
         }
 
-        // Import schema factory
-        import('./schemas/msd-schema.js').then(({ getMsdSchema }) => {
-            // Get available filter presets from theme if available
-            const themeManager = window.lcards?.core?.themeManager;
-            const availableFilterPresets = themeManager?.getFilterPresets?.() || [
-                'dimmed', 'subtle', 'backdrop', 'faded', 'red-alert', 'monochrome', 'none'
-            ];
+        // Get available filter presets from theme if available
+        const themeManager = window.lcards?.core?.themeManager;
+        const availableFilterPresets = themeManager?.getFilterPresets?.() || [
+            'dimmed', 'subtle', 'backdrop', 'faded', 'red-alert', 'monochrome', 'none'
+        ];
 
-            // Generate schema with options
-            const schema = getMsdSchema({
-                availableFilterPresets
-            });
-
-            // Register with version
-            configManager.registerCardSchema('msd', schema, { version: '1.22.0' });
-
-            lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager (v1.22.0)');
-        }).catch(error => {
-            lcardsLog.error('[LCARdSMSDCard] Failed to load MSD schema:', error);
+        // Generate schema with options
+        const schema = getMsdSchema({
+            availableFilterPresets
         });
+
+        // Register with version
+        configManager.registerCardSchema('msd', schema, { version: '1.22.0' });
+
+        lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager (v1.22.0)');
     }
 }
