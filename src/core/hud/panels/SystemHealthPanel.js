@@ -79,6 +79,12 @@ export class SystemHealthPanel {
       hudManager: {
         available: !!core.hudManager,
         healthy: !!core.hudManager?.panels
+      },
+      packManager: {
+        available: !!core.packManager,
+        healthy: !!core.packManager?.loadedPacks,
+        packCount: core.packManager?.getLoadedPackIds()?.length || 0,
+        loadedPacks: core.packManager?.getLoadedPackIds() || []
       }
     };
 

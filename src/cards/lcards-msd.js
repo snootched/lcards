@@ -530,13 +530,8 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             throw new Error('MSD configuration is required');
         }
 
-        if (!config.msd.version) {
-            throw new Error('MSD version is required');
-        }
-
-        if (config.msd.version !== 1) {
-            throw new Error('Only MSD version 1 is supported');
-        }
+        // Version field is no longer required (deprecated in v1.22+)
+        // If present, it will generate a warning via ValidationService
     }
 
     // ============================================================================
