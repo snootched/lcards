@@ -27,7 +27,7 @@
 **Access Pattern**:
 ```javascript
 // Created during MSD card initialization
-const { systemsManager } = await initMsdPipeline(config, mountEl, hass);
+const { systemsManager } = await initMsdPipeline(config, svgContent, mountEl, hass);
 ```
 
 ### What MSD SystemsManager Provides
@@ -40,12 +40,59 @@ const { systemsManager } = await initMsdPipeline(config, mountEl, hass);
 | **Control overlays** | ✅ Yes (MsdControlsRenderer) |
 | **HUD management** | ✅ Yes (MsdHudManager) |
 | **Overlay updates** | ✅ Yes (BaseOverlayUpdater) |
+| **Animation playback** | ✅ Yes (AnimationManager - per card) |
 | **Singleton connections** | ✅ Yes (bridges to global systems) |
 | Entity state caching | ❌ No (uses DataSourceManager singleton) |
 | Entity subscriptions | ❌ No (uses DataSourceManager singleton) |
 | Theme management | ❌ No (uses ThemeManager singleton) |
 | Rule evaluation | ❌ No (uses RulesEngine singleton) |
 | Template processing | ❌ No (uses unified template system from src/core/templates) |
+| Pack loading | ❌ No (uses PackManager singleton) |
+| Asset management | ❌ No (uses AssetManager singleton) |
+
+---
+
+## Integration with Core Singletons
+
+SystemsManager does **NOT** create or initialize core singletons. Instead, it accesses pre-initialized singletons from `window.lcards.core`.
+
+**Singletons Accessed:**
+- `themeManager` - Theme tokens and activation
+- `stylePresetManager` - Style preset registry
+- `rulesManager` - Rules engine for overlay targeting
+- `dataSourceManager` - Entity subscriptions and data
+- `assetManager` - SVG and component assets
+- `packManager` - Pack loading (already loaded at module init)
+- `validationService` - Config validation
+
+**Initialization Pattern:**
+```javascript
+class SystemsManager {
+  async initializeSystemsWithPacksFirst(config, mountEl, hass) {
+    // Access core singletons (DO NOT CREATE)
+    const core = window.lcards?.core;
+    
+    this.themeManager = core.themeManager;
+    this.stylePresetManager = core.stylePresetManager;
+    this.rulesManager = core.rulesManager;
+    this.dataSourceManager = core.dataSourceManager;
+    this.assetManager = core.assetManager;
+    
+    // Initialize MSD-specific systems only
+    this.animationManager = new AnimationManager(...); // Per-card
+    this.advancedRenderer = new AdvancedRenderer(...);
+    this.routerCore = new RouterCore(...);
+    // ... other per-card systems
+  }
+}
+```
+
+**Why This Architecture:**
+- ✅ Singletons shared across all cards (not per-MSD instance)
+- ✅ Prevents duplicate initialization
+- ✅ Centralized pack/preset/theme management
+- ✅ Better memory efficiency
+- ✅ Consistent state across all cards
 
 ---
 
@@ -150,22 +197,28 @@ sequenceDiagram
     participant Card as MSD Card
     participant Pipeline as initMsdPipeline
     participant SM as MSD SystemsManager
-    participant Core as lcardsCore
+    participant Core as lcardsCore (Already Init)
     participant Singletons as Global Singletons
     participant Local as Local Systems
 
-    Card->>Pipeline: initMsdPipeline(config, mountEl, hass)
-    Pipeline->>Core: Ensure singletons initialized
-    Core->>Singletons: Get/create singletons (first card only)
+    Card->>Pipeline: initMsdPipeline(config, svgContent, mountEl, hass)
+    
+    Note over Core,Singletons: Singletons already initialized at module load
+    Pipeline->>Core: Verify singletons ready
+    Core-->>Pipeline: All singletons available
+    
+    Pipeline->>Pipeline: ConfigProcessor + AnchorProcessor
+    Pipeline->>Pipeline: Extract viewBox, process anchors
     
     Pipeline->>SM: new SystemsManager()
     SM->>SM: Initialize instance
     
-    Note over SM: Connect to Global Singletons
-    SM->>Singletons: Get ThemeManager singleton
-    SM->>Singletons: Get DataSourceManager singleton
-    SM->>Singletons: Get RulesEngine singleton
-    SM->>Singletons: Get AnimationRegistry singleton
+    Note over SM: Connect to Core Singletons
+    SM->>Singletons: themeManager = window.lcards.core.themeManager
+    SM->>Singletons: stylePresetManager = window.lcards.core.stylePresetManager
+    SM->>Singletons: rulesManager = window.lcards.core.rulesManager
+    SM->>Singletons: dataSourceManager = window.lcards.core.dataSourceManager
+    SM->>Singletons: assetManager = window.lcards.core.assetManager
     
     Note over SM: Create Per-Card Systems
     SM->>Local: new AnimationManager() - Per Card
@@ -243,15 +296,20 @@ Template processing uses the unified template system (`src/core/templates/`):
 // - HATemplateEvaluator for Home Assistant Jinja2 templates
 
 // Templates are evaluated transparently during rendering
-// No direct access needed from SystemsManager
+// No direct SystemsManager interaction needed
 ```
 
 **Template Features**:
 - Multiple template types (JavaScript, Token, DataSource, Jinja2)
 - Automatic detection and parsing via TemplateDetector/TemplateParser
 - Card-specific evaluation contexts
-- DataSource value substitution
+- DataSource value substitution via DataSourceManager singleton
 - Safe sandboxed execution
+
+**Architecture Note:**
+- ❌ **NO** TemplateProcessor per-card system (removed in PR #158)
+- ✅ Uses unified template system from `src/core/templates/`
+- ✅ Templates evaluated during rendering pipeline automatically
 
 ---
 
@@ -361,21 +419,29 @@ const entityState = systemsManager.dataSourceManager.getValue('light.desk');
 
 ```javascript
 // src/msd/pipeline/PipelineCore.js
-export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
-  // Validate configuration
-  const { mergedConfig, issues } = await validateAndMergeConfig(userMsdConfig);
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass) {
+  // Phase 1: Config processing with SVG extraction
+  const { mergedConfig, issues } = await processAndValidateConfig(userMsdConfig, svgContent);
+  
+  // ConfigProcessor extracts viewBox from SVG
+  // AnchorProcessor extracts and merges anchors
+  // CoreConfigManager validates with provenance tracking
 
   // Create per-card SystemsManager
   const systemsManager = new SystemsManager();
 
-  // Initialize with pack-based config merging
+  // Initialize - connects to singletons and creates local systems
   await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
 
-  // SystemsManager internally connects to singletons
-  // and creates local systems:
-  // - systemsManager.themeManager = lcardsCore.themeManager (singleton)
-  // - systemsManager.dataSourceManager = lcardsCore.dataSourceManager (singleton)
-  // - systemsManager.rulesEngine = lcardsCore.rulesEngine (singleton)
+  // SystemsManager internally:
+  // CONNECTS TO (does NOT create):
+  // - systemsManager.themeManager = window.lcards.core.themeManager (singleton)
+  // - systemsManager.dataSourceManager = window.lcards.core.dataSourceManager (singleton)
+  // - systemsManager.rulesManager = window.lcards.core.rulesManager (singleton)
+  // - systemsManager.assetManager = window.lcards.core.assetManager (singleton)
+  // 
+  // CREATES (per-card local):
+  // - systemsManager.animationManager = new AnimationManager(...) (per-card)
   // - systemsManager.renderer = new AdvancedRenderer(...) (local)
   // - systemsManager.router = new RouterCore(...) (local)
 
@@ -383,7 +449,7 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
   const cardModel = await modelBuilder.build(mergedConfig, systemsManager);
 
   // Register card rules with singleton RulesEngine
-  systemsManager.rulesEngine.registerCardRules(
+  systemsManager.rulesManager.registerCardRules(
     cardModel.rules,
     (ruleResults) => {
       // Callback when rules evaluate
@@ -541,10 +607,12 @@ systemsManager.updateHass(newHass);
 | `controlsRenderer` | MsdControlsRenderer | Local control overlay system |
 | `hudManager` | MsdHudManager | Local HUD manager |
 | `overlayUpdater` | BaseOverlayUpdater | Local incremental update system |
-| `themeManager` | ThemeManager | **Singleton** - shared theme system |
-| `dataSourceManager` | DataSourceManager | **Singleton** - shared datasource system |
-| `rulesEngine` | RulesEngine | **Singleton** - shared rules system |
-| `animationManager` | AnimationManager | **Singleton** - shared animation system |
+| `animationManager` | AnimationManager | **Per-card** animation playback (uses AnimationRegistry singleton) |
+| `themeManager` | ThemeManager | **Singleton** (from core) - shared theme system |
+| `stylePresetManager` | StylePresetManager | **Singleton** (from core) - shared preset system |
+| `dataSourceManager` | DataSourceManager | **Singleton** (from core) - shared datasource system |
+| `rulesManager` | RulesEngine | **Singleton** (from core) - shared rules system |
+| `assetManager` | AssetManager | **Singleton** (from core) - shared asset system |
 
 **Note:** Template processing uses the unified template system (`src/core/templates/`) - not a SystemsManager property.
 

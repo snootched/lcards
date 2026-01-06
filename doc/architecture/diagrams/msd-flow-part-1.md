@@ -245,44 +245,131 @@ sequenceDiagram
 
 ## Initialization Sequence
 
-### Two-Tier Initialization
+### Core Initialization (Module Load - ONE TIME)
 
 ```mermaid
 graph TD
-    Start[Card Load] --> Entry[index.js Entry Point]
-    Entry --> Core[lcardsCore.initMsdPipeline]
+    A[lcards.js Module Load] --> B[initializeLCARdSCore]
+    B --> C[Create Singletons Once]
+    
+    C --> D[ThemeManager]
+    C --> E[StylePresetManager]
+    C --> F[PackManager]
+    C --> G[AssetManager]
+    C --> H[RulesEngine]
+    C --> I[DataSourceManager]
+    C --> J[AnimationRegistry]
+    C --> K[ValidationService]
+    
+    F --> L[loadBuiltinPacks ONCE]
+    L --> M[Register themes to ThemeManager]
+    L --> N[Register presets to StylePresetManager]
+    L --> O[Register SVGs to AssetManager]
+    
+    B --> P[window.lcards.core = singletons]
+    
+    style A fill:#e1f5e1
+    style B fill:#e1f5e1
+    style P fill:#d1ecf1
+    style C fill:#b8e0c1,stroke:#266239,stroke-width:3px
+    style D,E,F,G,H,I,J,K fill:#b8e0c1,stroke:#266239,stroke-width:2px
+```
 
-    Core --> FirstCard{First MSD card<br/>in browser?}
+**Core Initialization Facts:**
+- ✅ Happens **once at module load** (before any card instantiated)
+- ✅ **PackManager** loads builtin packs once (`core`, `lcards_buttons`, themes)
+- ✅ All cards access `window.lcards.core.*` (never create singletons)
+- ✅ AssetManager pre-loads all SVG assets from packs
 
-    FirstCard -->|Yes| InitSingletons[Initialize Singletons]
-    InitSingletons --> DSM[📊 DataSourceManager Singleton]
-    InitSingletons --> RE[🧠 RulesEngine Singleton]
-    InitSingletons --> TM[🎨 ThemeManager Singleton]
-    InitSingletons --> AR[🎬 AnimationRegistry Singleton]
-    InitSingletons --> VS[✅ ValidationService Singleton]
+---
 
-    FirstCard -->|No| ReuseSingletons[Reuse Existing Singletons]
-    ReuseSingletons --> CardSetup
-    DSM --> CardSetup[Per-Card Setup]
+### MSD Card Initialization (Per Instance)
 
-    CardSetup --> Config[Process Card Configuration]
-    Config --> Valid{Valid<br/>config?}
-    Valid -->|No| Error[Throw Error<br/>with details]
-    Valid -->|Yes| Packs[Load & Merge Packs]
+```mermaid
+graph TD
+    A[MSD Card Element] --> B[_onConfigSet config]
+    B --> C{Has base_svg?}
+    
+    C -->|Yes| D[AssetManager.get svg, source]
+    C -->|No| E[base_svg: none]
+    
+    D --> F[Store svgContent]
+    E --> F
+    
+    F --> G[_onFirstUpdated]
+    G --> H[_initializeMsdPipeline]
+    
+    H --> I[Pass raw config + svgContent]
+    I --> J[MsdInstanceManager.initialize]
+    
+    J --> K[PipelineCore.initMsdPipeline]
+    
+    style A fill:#fff3cd
+    style D fill:#d1ecf1
+    style K fill:#e1f5e1
+```
 
-    Packs --> Model[Build Card Model]
-    Model --> MSM[Create MSD SystemsManager]
+**MSD Card Initialization Facts:**
+- ✅ Card only loads SVG from AssetManager (already loaded by core)
+- ✅ Card passes **raw config** to pipeline (no "enhancement")
+- ✅ Card **never** processes anchors (pipeline does via AnchorProcessor)
+- ✅ Card **never** initializes singletons (accesses from core)
 
-    MSM --> ConnectSingletons[Connect to Singletons]
-    ConnectSingletons --> RegisterDS[Register with DataSourceManager]
-    ConnectSingletons --> RegisterRE[Register with RulesEngine]
+---
 
-    MSM --> LocalSystems[Initialize Local Systems]
+### Pipeline Config Processing
+
+```mermaid
+graph TD
+    A[PipelineCore.initMsdPipeline] --> B[ConfigProcessor]
+    B --> C[Extract viewBox from svgContent]
+    B --> D[AnchorProcessor.processAnchors]
+    
+    D --> E[findSvgAnchors from SVG]
+    D --> F[Merge with user anchors]
+    D --> G[Resolve percentages]
+    
+    C --> H[Build enhancedConfig]
+    G --> H
+    
+    H --> I[CoreConfigManager.processConfig]
+    I --> J[Schema validation]
+    I --> K[Provenance tracking]
+    
+    K --> L[mergedConfig with metadata]
+    
+    style B fill:#d1ecf1
+    style D fill:#e1f5e1
+    style I fill:#d1ecf1
+```
+
+**Config Processing Facts:**
+- ✅ **ConfigProcessor** extracts viewBox from SVG
+- ✅ **AnchorProcessor** extracts anchors from SVG (not card)
+- ✅ User anchors override SVG anchors
+- ✅ **CoreConfigManager** validates with full provenance
+
+---
+
+### SystemsManager + Local Systems
+
+```mermaid
+graph TD
+    Start[Pipeline Initialization] --> MSM[Create MSD SystemsManager]
+
+    MSM --> ConnectSingletons[Connect to Core Singletons]
+    ConnectSingletons --> TM[themeManager = window.lcards.core.themeManager]
+    ConnectSingletons --> SPM[stylePresetManager = window.lcards.core.stylePresetManager]
+    ConnectSingletons --> RE[rulesManager = window.lcards.core.rulesManager]
+    ConnectSingletons --> DSM[dataSourceManager = window.lcards.core.dataSourceManager]
+
+    MSM --> LocalSystems[Initialize MSD-Specific Systems]
     LocalSystems --> Router[RouterCore]
     LocalSystems --> Renderer[AdvancedRenderer]
     LocalSystems --> Debug[MsdDebugRenderer]
     LocalSystems --> Controls[MsdControlsRenderer]
     LocalSystems --> HUD[MsdHudManager]
+    LocalSystems --> Anim[AnimationManager - Per Card]
 
     Renderer --> Initial[Initial Render]
     Initial --> Display[Display SVG]
@@ -291,61 +378,101 @@ graph TD
     Ready --> Runtime[Enter Coordinated Runtime]
 
     style Start fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
-    style Error fill:#d91604,stroke:#ef1d10,color:#f3f4f7
     style Ready fill:#266239,stroke:#083717,color:#f3f4f7
     style Runtime fill:#f9ef97,stroke:#ac943b,color:#0c2a15
-    style DSM,RE,TM,AM,VS fill:#b8e0c1,stroke:#266239,stroke-width:3px
+    style TM,SPM,RE,DSM fill:#b8e0c1,stroke:#266239,stroke-width:3px
 ```
 
 **Initialization Steps:**
-1. **Entry Point** - `index.js` exports `initMsdPipeline`, calls `lcardsCore`
-2. **Singleton Check** - First card creates global singletons, subsequent cards reuse
-3. **Singleton Creation** - DataSourceManager, RulesEngine, ThemeManager, AnimationManager, ValidationService (first card only)
-4. **Per-Card Setup** - Each card creates its own MSD SystemsManager instance
-5. **Singleton Connection** - MSD SystemsManager connects to existing singletons
-6. **Card Registration** - Register datasources and rules with appropriate singletons
-7. **Local Systems** - Initialize card-specific systems (AdvancedRenderer, RouterCore, etc.)
-8. **Initial Render** - Generate first SVG output with singleton intelligence
-9. **Coordinated Runtime** - Enter multi-card event-driven mode with shared processing
+1. **Core Init** - Singletons created at module load (once)
+2. **Card Init** - Card loads SVG from AssetManager
+3. **Pipeline Init** - ConfigProcessor + AnchorProcessor process config
+4. **SystemsManager** - Connects to existing singletons from `window.lcards.core`
+5. **Local Systems** - Initialize card-specific systems (AdvancedRenderer, RouterCore, etc.)
+6. **Initial Render** - Generate first SVG output with singleton intelligence
+7. **Coordinated Runtime** - Enter multi-card event-driven mode with shared processing
 
 ---
 
 ## Configuration Processing
 
-### Config Validation & Normalization
+### Config Processing Flow (NEW - PR #159)
+
+**Location:** `src/msd/pipeline/ConfigProcessor.js`
+
+The config processing flow has been significantly refactored to move anchor extraction from the card to the pipeline:
 
 ```mermaid
 graph TD
-    Raw[Raw User Config] --> Validator[Configuration Validator]
-
-    Validator --> Schema{Schema<br/>valid?}
-    Schema -->|No| Issues[Collect Issues]
-    Schema -->|Yes| Normalize[Normalize Values]
-
-    Issues --> Severity{Critical?}
-    Severity -->|Yes| Throw[Throw Error]
-    Severity -->|No| Warn[Log Warnings]
-
-    Normalize --> Defaults[Apply Defaults]
-    Defaults --> Expand[Expand Shorthand]
-    Expand --> Resolved[Resolved Config]
-
-    Warn --> Resolved
-    Resolved --> Provenance[Track Provenance]
-    Provenance --> Output["mergedConfig, issues, provenance"]
-
+    Raw[Raw User Config + SVG Content] --> CP[ConfigProcessor]
+    
+    CP --> ExtractVB[Extract viewBox from SVG]
+    CP --> AP[AnchorProcessor.processAnchors]
+    
+    AP --> FindSVG[findSvgAnchors from SVG]
+    FindSVG --> MergeAnchors[Merge with user anchors]
+    MergeAnchors --> ResolvePercent[Resolve percentage coords]
+    
+    ExtractVB --> BuildEnhanced[Build Enhanced Config]
+    ResolvePercent --> BuildEnhanced
+    
+    BuildEnhanced --> CCM[CoreConfigManager.processConfig]
+    
+    CCM --> Schema[Schema Validation]
+    Schema --> Defaults[Apply Defaults]
+    Defaults --> Provenance[Track Provenance]
+    
+    Provenance --> Output[mergedConfig with metadata]
+    
     style Raw fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
-    style Throw fill:#d91604,stroke:#ef1d10,color:#f3f4f7
-    style Warn fill:#f9ef97,stroke:#ac943b,color:#0c2a15
+    style AP fill:#e1f5e1
+    style CCM fill:#d1ecf1
     style Output fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
+**Key Flow Changes (PR #159):**
+
+❌ **OLD (Pre-PR #159):**
+1. Card processed anchors via `_processAnchors()`
+2. Card extracted SVG anchors
+3. Card injected anchors into config
+4. Card passed "enhanced config" to pipeline
+5. Pipeline received pre-processed config (lost provenance)
+
+✅ **NEW (Post-PR #159):**
+1. Card passes **raw config + svgContent** to pipeline
+2. **ConfigProcessor** extracts viewBox from SVG
+3. **AnchorProcessor** extracts + merges anchors:
+   - Extract anchors from SVG via `findSvgAnchors(svgContent)`
+   - Merge with user-defined anchors (user overrides SVG)
+   - Resolve percentage coordinates to absolute positions
+4. **Build enhanced config** with extracted metadata:
+   ```javascript
+   {
+     ...config,
+     view_box: viewBox,
+     anchors: processedAnchors,
+     _svgMetadata: { ... }
+   }
+   ```
+5. **CoreConfigManager** validates:
+   - Schema validation
+   - Provenance tracking (know where each value came from)
+   - Default application
+
+**Benefits:**
+- ✅ Full provenance maintained (know source of every value)
+- ✅ Card logic simplified (no preprocessing)
+- ✅ Consistent validation flow
+- ✅ Testable anchor processing (isolated in AnchorProcessor)
+
 **Configuration Stages:**
-1. **Schema Validation** - Check against JSON schema (ValidationService singleton)
-2. **Normalization** - Convert shorthand to full format
-3. **Default Application** - Fill in missing values
-4. **Issue Collection** - Track warnings and errors
-5. **Provenance Tracking** - Record where each value came from
+1. **SVG Extraction** - Extract viewBox and anchors from SVG
+2. **Anchor Processing** - Merge SVG + user anchors, resolve coordinates
+3. **Config Enhancement** - Build complete config with extracted metadata
+4. **Schema Validation** - Check against JSON schema (CoreConfigManager)
+5. **Default Application** - Fill in missing values with pack defaults
+6. **Provenance Tracking** - Record where each value came from
 
 **Validation Features:**
 - Required field checking
@@ -358,42 +485,51 @@ graph TD
 
 ## Pack System
 
-### Pack Loading & Merging
+### Pack Loading & Merging (Module Load)
 
 ```mermaid
 graph TD
-    Start[Pack Loading] --> Builtin[Load Builtin Packs]
+    Start[Module Load: lcards-core.js] --> Init[initializeLCARdSCore]
+    
+    Init --> CreatePM[Create PackManager Singleton]
+    CreatePM --> LoadBuiltin[PackManager.loadBuiltinPacks ONCE]
 
-    Builtin --> Themes[builtin_themes]
-    Builtin --> Core[core pack]
-    Builtin --> Buttons[lcards_buttons]
+    LoadBuiltin --> Themes[builtin_themes]
+    LoadBuiltin --> Core[core pack]
+    LoadBuiltin --> Buttons[lcards_buttons]
 
-    Start --> External[Load External Packs]
-    External --> User[User-defined packs]
+    Themes --> RegisterTM[Register to ThemeManager]
+    Core --> RegisterSPM[Register to StylePresetManager]
+    Buttons --> RegisterSPM
+    
+    Themes --> RegisterAM[Register SVGs to AssetManager]
+    Core --> RegisterAM
+    Buttons --> RegisterAM
 
-    Themes --> Merge[Pack Merger]
-    Core --> Merge
-    Buttons --> Merge
-    User --> Merge
+    RegisterTM --> Expose[window.lcards.core.packManager]
+    RegisterSPM --> Expose
+    RegisterAM --> Expose
+    
+    Expose --> Ready[Packs Loaded - Ready for Cards]
 
-    Merge --> Priority[Apply Priority Rules]
-    Priority --> Themes2[Theme Selection]
-    Themes2 --> Active[Set Active Theme]
-
-    Active --> Presets[Register Style Presets]
-    Presets --> Components[Register Component Defaults]
-    Components --> Output[Merged Configuration]
-
-    style Builtin fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
-    style External fill:#f9ef97,stroke:#ac943b,color:#0c2a15
-    style Output fill:#266239,stroke:#083717,color:#f3f4f7
+    style Start fill:#e1f5e1
+    style LoadBuiltin fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
+    style Ready fill:#266239,stroke:#083717,color:#f3f4f7
 ```
+
+**Pack Loading Facts:**
+- ✅ Happens **once at module load** (not per card)
+- ✅ **PackManager** singleton loads builtin packs
+- ✅ Themes register with **ThemeManager** singleton
+- ✅ Presets register with **StylePresetManager** singleton
+- ✅ SVGs register with **AssetManager** singleton
+- ✅ No per-card pack loading or `mergePacks()` calls
 
 **Pack Types:**
 - **builtin_themes** - Theme definitions (always loaded, managed by ThemeManager singleton)
 - **core** - Core overlays and defaults
 - **lcards_buttons** - LCARS button presets
-- **external** - User-provided packs from URLs
+- **external** - User-provided packs from URLs (loaded per-card if specified)
 
 **Merge Priority:**
 1. Builtin packs (lowest priority)
@@ -402,8 +538,9 @@ graph TD
 
 **What Packs Provide:**
 - Theme tokens and component defaults (via ThemeManager singleton)
-- Style presets (e.g., LCARS button styles)
+- Style presets (e.g., LCARS button styles via StylePresetManager)
 - Reusable overlay templates
+- SVG assets (via AssetManager singleton)
 - Animation definitions (cached in AnimationRegistry singleton, used by per-card AnimationManagers)
 
 ---
@@ -525,8 +662,10 @@ graph TD
 1. **DataSourceManager** - Entity subscriptions shared across all MSD cards
 2. **RulesEngine** - Rule evaluation with callback distribution to all MSD cards
 3. **ThemeManager** - Theme tokens and defaults available to all MSD cards
-4. **AnimationManager** - Animation coordination shared across all MSD cards
+4. **AnimationRegistry** - Animation instance caching shared across all MSD cards
 5. **ValidationService** - Schema validation shared across all MSD cards
+6. **PackManager** - Pack loading and registration (loads once at module init)
+7. **AssetManager** - SVG and component asset management
 
 **Per-Card Local Systems:**
 1. **RouterCore** - Card-specific line path calculation
@@ -535,8 +674,12 @@ graph TD
 4. **MsdControlsRenderer** - Card-specific control overlays
 5. **MsdHudManager** - Card-specific HUD management
 6. **BaseOverlayUpdater** - Card-specific incremental updates
+7. **AnimationManager** - Per-card animation playback (uses shared AnimationRegistry)
 
-**Note:** Template processing uses the unified template system (`src/core/templates/`) - not a per-card local system.
+**Template Processing:**
+- Uses unified template system (`src/core/templates/`) - NOT a per-card system
+- TemplateDetector/TemplateParser for syntax detection
+- Card-specific evaluators (UnifiedTemplateEvaluator, DataSourceMixin, HATemplateEvaluator)
 
 **Key Point**: MSD cards do **NOT** use CoreSystemsManager. They bypass it entirely and connect directly to the singleton layer (DataSourceManager, RulesEngine, etc.). CoreSystemsManager is only for LCARdS Cards.
 

@@ -265,24 +265,31 @@ graph TD
     Detector --> Parse[TemplateParser]
     Parse --> Tokens[Extract References]
     
-    Tokens --> Type{"Evaluator<br/>Type?"}
+    Tokens --> Type{"Template<br/>Type?"}
     
-    Type -->|LCARdS Card| UnifiedEval[UnifiedTemplateEvaluator]
-    Type -->|MSD DataSource| DSMixin[DataSourceMixin]
-    Type -->|HA Jinja2| HAEval[HATemplateEvaluator]
+    Type -->|JavaScript| JSEval["[[[...]]]"]
+    Type -->|Token| TokenEval["{entity.state}"]
+    Type -->|DataSource| DSEval["{ds:name}"]
+    Type -->|Jinja2| HAEval["{{...}}"]
     
-    UnifiedEval --> Result[Resolved String]
-    DSMixin --> Result
-    HAEval --> Result
+    JSEval --> Context[Card Context]
+    TokenEval --> Context
+    DSEval --> DSM[DataSourceManager Singleton]
+    HAEval --> HA[Home Assistant]
+    
+    Context --> Result[Resolved String]
+    DSM --> Result
+    HA --> Result
     
     style Template fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
     style Result fill:#266239,stroke:#083717,color:#f3f4f7
+    style DSM fill:#b8e0c1,stroke:#266239,stroke-width:3px
 ```
 
 **Template System Components:**
 - **TemplateDetector** (`src/core/templates/`) - Detects MSD `{...}` and HA `{{...}}` templates
 - **TemplateParser** (`src/core/templates/`) - Parses template syntax and extracts references
-- **Card Evaluators** - Handle template evaluation:
+- **Card Evaluators** - Handle template evaluation in card context:
   - `UnifiedTemplateEvaluator` for LCARdS Cards
   - `DataSourceMixin` for MSD DataSource templates
   - `HATemplateEvaluator` for HA Jinja2 templates
@@ -295,6 +302,11 @@ graph TD
 - **Token substitution** - `{entity.state}`, `{theme:palette.moonlight}`
 - **Formatting** - `{datasource.value:.2f}` (2 decimal places)
 - **Safe evaluation** - Sandboxed execution in card context
+
+**Architecture Note:**
+- ❌ **NO** TemplateProcessor per-card system (removed in PR #158)
+- ✅ Uses unified template system from `src/core/templates/`
+- ✅ Cards use card-specific evaluators automatically during rendering
 
 ---
 
@@ -615,8 +627,12 @@ core.getAllCardInstances();
 - MsdControlsRenderer (control overlays)
 - MsdHudManager (HUD management)
 - BaseOverlayUpdater (incremental updates)
+- AnimationManager (per-card animation playback, uses AnimationRegistry singleton)
 
-**Note:** Template processing uses the unified template system (`src/core/templates/`) with card-specific evaluators - not a per-card system.
+**Template Processing:**
+- Uses unified template system (`src/core/templates/`) with card-specific evaluators
+- TemplateDetector/TemplateParser for syntax detection
+- NOT a per-card system - cards use during rendering
 
 **Shared Singleton Systems (Global):**
 - DataSourceManager (entity data, buffers, transformations) - **Used by MSD cards**
@@ -624,11 +640,9 @@ core.getAllCardInstances();
 - ThemeManager (themes, tokens) - **Used by all cards**
 - AnimationRegistry (animation instance caching) - **Used by all cards**
 - ValidationService (schema validation) - **Used by all cards**
+- PackManager (pack loading) - **Loads once at module init**
+- AssetManager (SVG/component assets) - **Used by all cards**
 - CoreSystemsManager (entity caching) - **Only used by LCARdS Cards, NOT MSD**
-
-**Per-Card Systems:**
-- AnimationManager (animation playback) - **Per-card instance, uses AnimationRegistry**
-- MSD SystemsManager - **Per MSD card only**
 
 **Card Type Comparison:**
 
