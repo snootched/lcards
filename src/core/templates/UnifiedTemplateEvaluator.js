@@ -1,7 +1,7 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateDetector } from './TemplateDetector.js';
 import { LCARdSCardTemplateEvaluator } from './LCARdSCardTemplateEvaluator.js';
-import { TemplateParser } from './TemplateParser.js';
+import { DataSourceTemplateEvaluator } from './DataSourceTemplateEvaluator.js';
 
 /**
  * UnifiedTemplateEvaluator - Single unified template processor for all card types
@@ -51,6 +51,9 @@ export class UnifiedTemplateEvaluator {
     // Create LCARdS Card template evaluator (handles JS, tokens, Jinja2)
     // Note: LCARdSCardTemplateEvaluator expects hass inside the context object
     this.lcardsCardEvaluator = new LCARdSCardTemplateEvaluator(this.context);
+
+    // Create DataSource template evaluator (handles {datasource} templates)
+    this.dataSourceEvaluator = new DataSourceTemplateEvaluator(this.dataSourceManager);
 
     lcardsLog.debug('[UnifiedTemplateEvaluator] Created', {
       hasHass: !!this.hass,
@@ -152,53 +155,8 @@ export class UnifiedTemplateEvaluator {
       return content;
     }
 
-    let result = content;
-
-    // Evaluate explicit datasources first: {datasource:...}
-    result = this._evaluateExplicitDatasources(result);
-
-    // Then evaluate legacy MSD datasources: {sensor.temp}
-    result = this._evaluateLegacyDatasources(result);
-
-    return result;
-  }
-
-  /**
-   * Evaluate explicit datasource references: {datasource:name.path:format}
-   *
-   * @param {string} content - Content with datasource templates
-   * @returns {string} Content with datasources evaluated
-   * @private
-   */
-  _evaluateExplicitDatasources(content) {
-    if (!content || typeof content !== 'string') {
-      return content;
-    }
-
-    // Pattern: {datasource:name.path:format}
-    const datasourceRegex = /\{datasource:([^}]+)\}/g;
-
-    return content.replace(datasourceRegex, (match, reference) => {
-      try {
-        // Resolve the datasource reference
-        const resolved = this._resolveDatasourceReference(reference);
-
-        lcardsLog.debug('[UnifiedTemplateEvaluator] Resolved explicit datasource', {
-          original: match,
-          reference,
-          resolved
-        });
-
-        return resolved !== null ? String(resolved) : match;
-      } catch (error) {
-        lcardsLog.error('[UnifiedTemplateEvaluator] Failed to resolve datasource', {
-          match,
-          reference,
-          error: error.message
-        });
-        return match; // Return original on error
-      }
-    });
+    // Delegate to DataSourceTemplateEvaluator
+    return this.dataSourceEvaluator.evaluate(content);
   }
 
   /**
@@ -272,6 +230,7 @@ export class UnifiedTemplateEvaluator {
    */
   updateDataSourceManager(newDataSourceManager) {
     this.dataSourceManager = newDataSourceManager;
+    this.dataSourceEvaluator.updateDataSourceManager(newDataSourceManager);
   }
 }
 
