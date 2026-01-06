@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssetManager Registration Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #ff9900;
+            border-bottom: 2px solid #ff9900;
+            padding-bottom: 10px;
+        }
+        .success {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .info {
+            color: #00ccff;
+        }
+        pre {
+            background: #000;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #ff9900;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 5px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #000;
+            border-radius: 3px;
+        }
+        button {
+            background: #ff9900;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #ffaa33;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 AssetManager Registration Test</h1>
+    <p class="info">This page tests that button and slider components are properly registered with the AssetManager.</p>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="runTests()">Run All Tests</button>
+        <button onclick="showButtonList()">List Button Components</button>
+        <button onclick="showSliderList()">List Slider Components</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script type="module">
+        // Mock Home Assistant environment
+        window.customCards = window.customCards || [];
+        
+        // Create minimal HASS stub
+        const mockHass = {
+            states: {},
+            services: {},
+            config: { themes: {} },
+            user: { name: 'Test User', is_admin: true },
+            connected: true,
+            callService: async () => {},
+            callWS: async () => {}
+        };
+
+        // Import the LCARdS module
+        import('../dist/lcards.js').then(() => {
+            console.log('✅ LCARdS module loaded');
+            displayTestReady();
+        }).catch(err => {
+            console.error('❌ Failed to load LCARdS:', err);
+            displayError('Failed to load LCARdS module: ' + err.message);
+        });
+
+        function displayTestReady() {
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="test-section">
+                    <h2 class="success">✅ LCARdS Module Loaded</h2>
+                    <p class="info">Click "Run All Tests" to verify AssetManager registration.</p>
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="test-section">
+                    <h2 class="error">❌ Error</h2>
+                    <p class="error">${message}</p>
+                </div>
+            `;
+        }
+
+        window.runTests = function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="test-section"><h2>Running Tests...</h2></div>';
+
+            setTimeout(() => {
+                let output = '';
+                let passCount = 0;
+                let failCount = 0;
+
+                // Test 1: Check if AssetManager exists
+                output += '<div class="test-section"><h2>Test 1: AssetManager Existence</h2>';
+                if (window.lcards?.core?.assetManager) {
+                    output += '<div class="test-result success">✅ PASS: AssetManager exists</div>';
+                    passCount++;
+                } else {
+                    output += '<div class="test-result error">❌ FAIL: AssetManager not found</div>';
+                    failCount++;
+                }
+                output += '</div>';
+
+                if (window.lcards?.core?.assetManager) {
+                    const assetManager = window.lcards.core.assetManager;
+
+                    // Test 2: Check button components
+                    output += '<div class="test-section"><h2>Test 2: Button Components Registration</h2>';
+                    try {
+                        const buttonAssets = assetManager.listAssets('button');
+                        if (buttonAssets && buttonAssets.length > 0) {
+                            output += `<div class="test-result success">✅ PASS: ${buttonAssets.length} button components registered</div>`;
+                            output += `<pre>${JSON.stringify(buttonAssets, null, 2)}</pre>`;
+                            passCount++;
+                        } else {
+                            output += '<div class="test-result error">❌ FAIL: No button components registered</div>';
+                            failCount++;
+                        }
+                    } catch (err) {
+                        output += `<div class="test-result error">❌ FAIL: Error listing button assets: ${err.message}</div>`;
+                        failCount++;
+                    }
+                    output += '</div>';
+
+                    // Test 3: Check slider components
+                    output += '<div class="test-section"><h2>Test 3: Slider Components Registration</h2>';
+                    try {
+                        const sliderAssets = assetManager.listAssets('slider');
+                        if (sliderAssets && sliderAssets.length > 0) {
+                            output += `<div class="test-result success">✅ PASS: ${sliderAssets.length} slider components registered</div>`;
+                            output += `<pre>${JSON.stringify(sliderAssets, null, 2)}</pre>`;
+                            passCount++;
+                        } else {
+                            output += '<div class="test-result error">❌ FAIL: No slider components registered</div>';
+                            failCount++;
+                        }
+                    } catch (err) {
+                        output += `<div class="test-result error">❌ FAIL: Error listing slider assets: ${err.message}</div>`;
+                        failCount++;
+                    }
+                    output += '</div>';
+
+                    // Test 4: Check button metadata
+                    output += '<div class="test-section"><h2>Test 4: Button Component Metadata</h2>';
+                    try {
+                        const basicMetadata = assetManager.getMetadata('button', 'base');
+                        if (basicMetadata) {
+                            output += '<div class="test-result success">✅ PASS: Button metadata retrieved</div>';
+                            output += `<pre>${JSON.stringify(basicMetadata, null, 2)}</pre>`;
+                            
+                            // Check for expected metadata fields
+                            if (basicMetadata.pack === 'lcards_buttons' && basicMetadata.type === 'svg-function') {
+                                output += '<div class="test-result success">✅ PASS: Metadata has expected structure</div>';
+                                passCount++;
+                            } else {
+                                output += '<div class="test-result error">❌ FAIL: Metadata structure incorrect</div>';
+                                failCount++;
+                            }
+                        } else {
+                            output += '<div class="test-result error">❌ FAIL: Could not get button metadata</div>';
+                            failCount++;
+                        }
+                    } catch (err) {
+                        output += `<div class="test-result error">❌ FAIL: Error getting button metadata: ${err.message}</div>`;
+                        failCount++;
+                    }
+                    output += '</div>';
+
+                    // Test 5: Check slider metadata
+                    output += '<div class="test-section"><h2>Test 5: Slider Component Metadata</h2>';
+                    try {
+                        const picardMetadata = assetManager.getMetadata('slider', 'picard');
+                        if (picardMetadata) {
+                            output += '<div class="test-result success">✅ PASS: Slider metadata retrieved</div>';
+                            output += `<pre>${JSON.stringify(picardMetadata, null, 2)}</pre>`;
+                            
+                            // Check for expected metadata fields
+                            if (picardMetadata.pack === 'lcards_sliders' && picardMetadata.type === 'svg-function') {
+                                output += '<div class="test-result success">✅ PASS: Metadata has expected structure</div>';
+                                passCount++;
+                            } else {
+                                output += '<div class="test-result error">❌ FAIL: Metadata structure incorrect</div>';
+                                failCount++;
+                            }
+                        } else {
+                            output += '<div class="test-result error">❌ FAIL: Could not get slider metadata</div>';
+                            failCount++;
+                        }
+                    } catch (err) {
+                        output += `<div class="test-result error">❌ FAIL: Error getting slider metadata: ${err.message}</div>`;
+                        failCount++;
+                    }
+                    output += '</div>';
+                }
+
+                // Summary
+                output += '<div class="test-section">';
+                output += `<h2>Test Summary</h2>`;
+                output += `<div class="test-result"><span class="success">✅ Passed: ${passCount}</span> | <span class="${failCount > 0 ? 'error' : 'info'}">❌ Failed: ${failCount}</span></div>`;
+                output += '</div>';
+
+                results.innerHTML = output;
+            }, 100);
+        };
+
+        window.showButtonList = function() {
+            if (!window.lcards?.core?.assetManager) {
+                alert('AssetManager not available');
+                return;
+            }
+
+            const buttons = window.lcards.core.assetManager.listAssets('button');
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="test-section">
+                    <h2>Button Components (${buttons.length})</h2>
+                    <pre>${JSON.stringify(buttons, null, 2)}</pre>
+                </div>
+            `;
+        };
+
+        window.showSliderList = function() {
+            if (!window.lcards?.core?.assetManager) {
+                alert('AssetManager not available');
+                return;
+            }
+
+            const sliders = window.lcards.core.assetManager.listAssets('slider');
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="test-section">
+                    <h2>Slider Components (${sliders.length})</h2>
+                    <pre>${JSON.stringify(sliders, null, 2)}</pre>
+                </div>
+            `;
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+        };
+    </script>
+</body>
+</html>
