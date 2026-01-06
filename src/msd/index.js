@@ -21,7 +21,11 @@ export { initMsdPipeline, processMsdConfig };
   // CRITICAL: Attach MsdInstanceManager FIRST before anything else
   window.lcards.debug.msd.MsdInstanceManager = MsdInstanceManager;
 
+  // NEW: Multi-instance support - Map of card instances by GUID
+  window.lcards.debug.msd.instances = window.lcards.debug.msd.instances || new Map();
+
   console.log('[MSD index.js] ✅ MsdInstanceManager attached to window.lcards.debug.msd:', !!window.lcards.debug.msd.MsdInstanceManager);
+  console.log('[MSD index.js] ✅ Multi-instance map initialized');
 
   // CRITICAL FIX: Single Object.assign to preserve MsdInstanceManager
   // Previous bug: Two Object.assign calls caused the second to overwrite the first
@@ -251,16 +255,114 @@ export { initMsdPipeline, processMsdConfig };
       console.groupEnd();
 
       return overlayIds;
+    },
+
+    // NEW: Multi-instance support methods
+
+    /**
+     * Register a new MSD card instance
+     * @param {string} guid - Card instance GUID
+     * @param {Object} cardInstance - Card element reference
+     * @param {Object} pipelineInstance - Pipeline API reference
+     */
+    registerInstance(guid, cardInstance, pipelineInstance) {
+      if (!guid) {
+        console.warn('[MSD Debug] Cannot register instance without GUID');
+        return;
+      }
+
+      window.lcards.debug.msd.instances.set(guid, {
+        guid,
+        cardInstance,
+        pipelineInstance,
+        registeredAt: new Date().toISOString()
+      });
+
+      console.log(`[MSD Debug] ✅ Registered instance: ${guid}`);
+      console.log(`[MSD Debug] Total instances: ${window.lcards.debug.msd.instances.size}`);
+    },
+
+    /**
+     * Unregister an MSD card instance
+     * @param {string} guid - Card instance GUID
+     */
+    unregisterInstance(guid) {
+      const removed = window.lcards.debug.msd.instances.delete(guid);
+      if (removed) {
+        console.log(`[MSD Debug] 🗑️ Unregistered instance: ${guid}`);
+        console.log(`[MSD Debug] Remaining instances: ${window.lcards.debug.msd.instances.size}`);
+      }
+    },
+
+    /**
+     * Get instance data by GUID
+     * @param {string} guid - Card instance GUID
+     * @returns {Object|null} Instance data
+     */
+    getInstance(guid) {
+      return window.lcards.debug.msd.instances.get(guid) || null;
+    },
+
+    /**
+     * List all registered instances
+     * @returns {Array} Array of instance data
+     */
+    listInstances() {
+      const instances = Array.from(window.lcards.debug.msd.instances.values());
+      console.group(`📊 MSD Instances (${instances.length})`);
+      instances.forEach(inst => {
+        console.log(`${inst.guid}:`, {
+          hasCard: !!inst.cardInstance,
+          hasPipeline: !!inst.pipelineInstance,
+          registeredAt: inst.registeredAt
+        });
+      });
+      console.groupEnd();
+      return instances;
     }
   });
 
-  // DataSourceManager property with getter
+  // DataSourceManager property with getter (backward compatibility - uses last registered instance)
   Object.defineProperty(window.lcards.debug.msd, 'dataSourceManager', {
     get() {
-      // Simplified: Use pipelineInstance as single source of truth
-      return window.lcards.debug.msd.pipelineInstance?.dataSourceManager ||
-             window.lcards.debug.msd.pipelineInstance?.systemsManager?.dataSourceManager;
+      // Try to get from pipelineInstance (legacy single-instance reference)
+      if (window.lcards.debug.msd.pipelineInstance?.dataSourceManager) {
+        return window.lcards.debug.msd.pipelineInstance.dataSourceManager;
+      }
+      if (window.lcards.debug.msd.pipelineInstance?.systemsManager?.dataSourceManager) {
+        return window.lcards.debug.msd.pipelineInstance.systemsManager.dataSourceManager;
+      }
+      
+      // Fallback: Get from any registered instance
+      const instances = Array.from(window.lcards.debug.msd.instances.values());
+      if (instances.length > 0) {
+        return instances[0].pipelineInstance?.systemsManager?.dataSourceManager;
+      }
+      
+      return null;
     },
     configurable: true  // Allow it to be redefined if needed
+  });
+
+  // Backward compatibility: cardInstance property (uses last set value or first registered instance)
+  Object.defineProperty(window.lcards.debug.msd, 'cardInstance', {
+    get() {
+      // If explicitly set, use that
+      if (window.lcards.debug.msd._explicitCardInstance) {
+        return window.lcards.debug.msd._explicitCardInstance;
+      }
+      
+      // Otherwise, return first registered instance
+      const instances = Array.from(window.lcards.debug.msd.instances.values());
+      if (instances.length > 0) {
+        return instances[0].cardInstance;
+      }
+      
+      return null;
+    },
+    set(value) {
+      window.lcards.debug.msd._explicitCardInstance = value;
+    },
+    configurable: true
   });
 })();

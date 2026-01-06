@@ -1084,9 +1084,15 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
                 lcardsLog.debug('[LCARdSMSDCard] Generated instance GUID:', this._msdInstanceGuid);
             }
 
-            // Set global card instance reference for debug HUD
+            // Register with global debug system (multi-instance support)
             if (window.lcards.debug.msd) {
+                // Legacy single-instance reference (backward compatibility - will be overwritten by last card)
                 window.lcards.debug.msd.cardInstance = this;
+                
+                // New multi-instance registration
+                if (window.lcards.debug.msd.registerInstance) {
+                    window.lcards.debug.msd.registerInstance(this._msdInstanceGuid, this, null);
+                }
             }
 
             const mount = this.getMountElement();
@@ -1171,6 +1177,11 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             // Normal pipeline initialization completed
             this._msdPipeline = pipelineResult;
             lcardsLog.debug('[LCARdSMSDCard] Pipeline initialized successfully via MsdInstanceManager');
+
+            // Update multi-instance registration with pipeline
+            if (window.lcards.debug.msd?.registerInstance) {
+                window.lcards.debug.msd.registerInstance(this._msdInstanceGuid, this, pipelineResult);
+            }
 
             // Set up pipeline callbacks
             this._setupPipelineCallbacks();
@@ -1358,6 +1369,11 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
      * @private
      */
     _cleanupMsdPipeline() {
+        // Unregister from multi-instance tracking
+        if (this._msdInstanceGuid && window.lcards.debug.msd?.unregisterInstance) {
+            window.lcards.debug.msd.unregisterInstance(this._msdInstanceGuid);
+        }
+
         if (this._msdPipeline) {
             try {
                 // Cleanup pipeline resources
