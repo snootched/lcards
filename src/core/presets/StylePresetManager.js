@@ -55,6 +55,29 @@ export class StylePresetManager {
   }
 
   /**
+   * Register style presets from a pack
+   * Called by PackManager for each pack loaded
+   * 
+   * @param {Object} pack - Pack object with style_presets field
+   */
+  registerPresetsFromPack(pack) {
+    if (!pack.style_presets || typeof pack.style_presets !== 'object') {
+      return;
+    }
+
+    // Add pack to loaded packs if not already there
+    if (!this.loadedPacks.find(p => p.id === pack.id)) {
+      this.loadedPacks.push(pack);
+    }
+
+    // Rebuild cache to include new presets
+    this._buildPresetCache();
+
+    lcardsLog.debug(`[StylePresetManager] Registered presets from pack: ${pack.id}`);
+    this.initialized = true;
+  }
+
+  /**
    * Get a style preset for a specific overlay type with hierarchical lookup
    * @param {string} overlayType - Type of overlay (e.g., 'status_grid', 'button')
    * @param {string} presetName - Name of the preset (e.g., 'lozenge', 'bullet')

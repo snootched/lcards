@@ -27,6 +27,8 @@ export class PackManager {
 
   /**
    * Load and register builtin packs
+   * This is the ONLY place in the codebase that calls loadBuiltinPacks()
+   * 
    * @param {Array<string>} packIds - Pack IDs to load (default: all core packs)
    */
   async loadBuiltinPacks(packIds = ['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']) {
@@ -34,19 +36,26 @@ export class PackManager {
 
     const packs = loadBuiltinPacks(packIds);
 
-    for (const pack of packs) {
-      if (!pack) continue;
-      this.registerPack(pack);
+    if (!packs || packs.length === 0) {
+      lcardsLog.error('[PackManager] No packs loaded!');
+      throw new Error('Failed to load builtin packs');
     }
 
-    lcardsLog.info('[PackManager] Loaded builtin packs:', packIds);
+    for (const pack of packs) {
+      if (!pack) continue;
+      await this.registerPack(pack);
+    }
+
+    lcardsLog.info('[PackManager] ✅ Loaded and registered builtin packs:', packIds);
   }
 
   /**
    * Register pack contents to core managers
+   * Distributes pack data to ThemeManager, StylePresetManager, RulesEngine, etc.
+   * 
    * @param {Object} pack - Pack object with style_presets, animations, rules, themes
    */
-  registerPack(pack) {
+  async registerPack(pack) {
     if (!pack || !pack.id) {
       lcardsLog.warn('[PackManager] Invalid pack object - missing id');
       return;
@@ -61,24 +70,38 @@ export class PackManager {
     if (foundDeprecated.length > 0) {
       lcardsLog.warn(
         `[PackManager] Pack '${pack.id}' contains deprecated fields: ${foundDeprecated.join(', ')}. ` +
-        `These fields are ignored and unsupported. ` +
-        `Move custom styles to 'style_presets' and colors to 'themes'.`
+        `These fields are ignored. Move custom styles to 'style_presets' and colors to 'themes'.`
       );
     }
 
-    // Register style presets to StylePresetManager
-    if (pack.style_presets) {
-      this._registerStylePresets(pack);
+    // ✅ 1. Register themes to ThemeManager
+    if (pack.themes && this.core.themeManager) {
+      this.core.themeManager.registerThemesFromPack(pack);
     }
 
-    // Note: Themes and animations are handled during manager initialization,
-    // not via PackManager. Rules are added directly to RulesEngine.
-    // This is intentional to avoid duplication with existing initialization.
-
-    // Register rules to RulesEngine (if any)
-    if (pack.rules && Array.isArray(pack.rules)) {
-      this._registerRules(pack);
+    // ✅ 2. Register style presets to StylePresetManager
+    if (pack.style_presets && this.core.stylePresetManager) {
+      this.core.stylePresetManager.registerPresetsFromPack(pack);
     }
+
+    // ✅ 3. Register rules to RulesEngine
+    if (pack.rules && Array.isArray(pack.rules) && this.core.rulesManager) {
+      pack.rules.forEach(rule => {
+        if (rule.id) {
+          this.core.rulesManager.rules.push(rule);
+          this.core.rulesManager.rulesById.set(rule.id, rule);
+        }
+      });
+      
+      if (pack.rules.length > 0) {
+        this.core.rulesManager.buildDependencyIndex();
+        this.core.rulesManager.markAllDirty();
+        lcardsLog.debug(`[PackManager] Registered ${pack.rules.length} rules from pack: ${pack.id}`);
+      }
+    }
+
+    // ✅ 4. Animations - AnimationRegistry is a cache, no registration needed
+    // Animation definitions in packs are used on-demand via getOrCreateInstance()
 
     // Store pack reference
     this.loadedPacks.set(pack.id, {
@@ -90,61 +113,6 @@ export class PackManager {
 
     lcardsLog.debug(`[PackManager] ✅ Pack registered: ${pack.id}`);
   }
-
-  /**
-   * Register style presets from pack
-   * @private
-   */
-  _registerStylePresets(pack) {
-    if (!this.core.stylePresetManager) {
-      lcardsLog.warn(`[PackManager] StylePresetManager not available for pack: ${pack.id}`);
-      return;
-    }
-
-    let presetCount = 0;
-    Object.entries(pack.style_presets).forEach(([type, presets]) => {
-      Object.entries(presets).forEach(([name, preset]) => {
-        this.core.stylePresetManager.registerPreset(type, name, preset);
-        presetCount++;
-      });
-    });
-
-    lcardsLog.debug(`[PackManager] Registered ${presetCount} style presets from pack: ${pack.id}`);
-  }
-
-
-
-  /**
-   * Register rules from pack
-   * Add rules directly to RulesEngine.rules array
-   * @private
-   */
-  _registerRules(pack) {
-    if (!this.core.rulesManager) {
-      lcardsLog.warn(`[PackManager] RulesManager not available for pack: ${pack.id}`);
-      return;
-    }
-
-    let ruleCount = 0;
-    pack.rules.forEach(rule => {
-      if (rule.id) {
-        // Add rule directly to the rules array
-        this.core.rulesManager.rules.push(rule);
-        // Update the index
-        this.core.rulesManager.rulesById.set(rule.id, rule);
-        ruleCount++;
-      }
-    });
-
-    if (ruleCount > 0) {
-      // Rebuild dependency index and mark rules dirty
-      this.core.rulesManager.buildDependencyIndex();
-      this.core.rulesManager.markAllDirty();
-      lcardsLog.debug(`[PackManager] Registered ${ruleCount} rules from pack: ${pack.id}`);
-    }
-  }
-
-
 
   /**
    * Get loaded pack by ID
