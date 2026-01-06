@@ -1080,7 +1080,7 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
 
             // Generate instance GUID if not already assigned
             if (!this._msdInstanceGuid) {
-                this._msdInstanceGuid = window.lcards.debug.msd.MsdInstanceManager._generateGuid();
+                this._msdInstanceGuid = window.lcards.debug.msd.MsdInstanceManager.generateGuid();
                 lcardsLog.debug('[LCARdSMSDCard] Generated instance GUID:', this._msdInstanceGuid);
             }
 
@@ -1148,21 +1148,22 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
                 return;
             }
 
-            if (!pipelineResult.enabled) {
-                if (pipelineResult.blocked) {
-                    lcardsLog.warn('[LCARdSMSDCard] MSD instance blocked:', pipelineResult.reason);
-                    this._renderContent = pipelineResult.html;
-                } else if (pipelineResult.html) {
-                    lcardsLog.warn('[LCARdSMSDCard] MSD validation failed');
-                    this._renderContent = pipelineResult.html;
-                } else {
-                    lcardsLog.error('[LCARdSMSDCard] MSD initialization failed');
-                    this._renderContent = this._createErrorDisplay(
-                        'MSD Initialization Failed',
-                        'Pipeline initialization failed without error message.',
-                        'Check your MSD configuration and browser console.'
-                    );
-                }
+            // Check for validation/configuration errors
+            if (!pipelineResult.enabled && pipelineResult.html) {
+                lcardsLog.warn('[LCARdSMSDCard] MSD validation or configuration error');
+                this._renderContent = pipelineResult.html;
+                this.requestUpdate();
+                return;
+            }
+
+            // Check for unexpected initialization failure
+            if (!pipelineResult.enabled || !pipelineResult) {
+                lcardsLog.error('[LCARdSMSDCard] MSD initialization failed');
+                this._renderContent = this._createErrorDisplay(
+                    'MSD Initialization Failed',
+                    'Pipeline initialization failed without error message.',
+                    'Check your MSD configuration and browser console.'
+                );
                 this.requestUpdate();
                 return;
             }
