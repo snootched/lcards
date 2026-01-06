@@ -72,8 +72,8 @@ Official schema definitions (markdown with fully commented YAML):
 ## 📊 [Diagrams](./diagrams/)
 
 Visual documentation:
-- **[MSD Flow - Part 1](./diagrams/msd-flow-part-1.md)** - Initialization flow
-- **[MSD Flow - Part 2](./diagrams/msd-flow-part-2.md)** - Rendering flow
+- **[Core Initialization](./core-initialization.md)** - Module load and singleton creation ⭐
+- **[MSD Card Architecture](./msd-card-architecture.md)** - MSD pipeline and systems ⭐
 
 ---
 

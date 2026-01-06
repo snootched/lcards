@@ -99,7 +99,6 @@ graph TB
     %% SystemsManager to Local Systems
     SMA --> ARA
     SMA --> RCA
-    SMA --> TPA
     SMA --> DRA
     SMA --> CRA
     SMA --> HMA
@@ -107,7 +106,6 @@ graph TB
 
     SMB --> ARB
     SMB --> RCB
-    SMB --> TPB
     SMB --> DRB
     SMB --> CRB
     SMB --> HMB
@@ -125,8 +123,6 @@ graph TB
     AMB -.uses cache.-> AR
 
     %% Data flow from singletons
-    DSM -.entity data.-> TPA
-    DSM -.entity data.-> TPB
     RE -.rule results.-> SMA
     RE -.rule results.-> SMB
     TM -.themes.-> ARA
@@ -352,6 +348,48 @@ systemsManager.animationManager = lcardsCore.animationManager;
 const color = systemsManager.themeManager.getToken('colors.accent.primary');
 const entityState = systemsManager.dataSourceManager.getValue('light.desk');
 ```
+
+---
+
+## Integration with Core Singletons
+
+SystemsManager accesses pre-initialized singletons from `window.lcards.core`:
+
+```mermaid
+graph LR
+    A[SystemsManager] --> B[window.lcards.core]
+    B --> C[themeManager]
+    B --> D[stylePresetManager]
+    B --> E[rulesManager]
+    B --> F[dataSourceManager]
+    B --> G[assetManager]
+```
+
+**Pattern:**
+```javascript
+class SystemsManager {
+  async initializeSystemsWithPacksFirst(cardModel, config) {
+    const core = window.lcards?.core;
+    
+    // Access (don't create) core singletons
+    this.themeManager = core.themeManager;
+    this.stylePresetManager = core.stylePresetManager;
+    this.rulesManager = core.rulesManager;
+    
+    // Create MSD-specific systems
+    this.advancedRenderer = new AdvancedRenderer(...);
+    this.routerCore = new RouterCore(...);
+  }
+}
+```
+
+**Key Facts:**
+- ✅ MSD cards never create singletons
+- ✅ All intelligence systems come from core
+- ✅ Only rendering/routing systems are per-card
+- ✅ Singletons initialized once in `src/core/lcards-core.js`
+
+See: [Core Initialization](../core-initialization.md)
 
 ---
 
@@ -678,7 +716,7 @@ console.log('Active routes:', sm.router.getActiveRoutes());
 
 - **[CoreSystemsManager](./core-systems-manager.md)** - Lightweight singleton for LCARdS Cards
 - **[Architecture Overview](../overview.md)** - System architecture
-- **[MSD Flow - Part 1](../diagrams/msd-flow-part-1.md)** - Initialization flow
-- **[MSD Flow - Part 2](../diagrams/msd-flow-part-2.md)** - Runtime flow
+- **[Core Initialization](../core-initialization.md)** - Singleton initialization flow ⭐
+- **[MSD Card Architecture](../msd-card-architecture.md)** - MSD pipeline overview ⭐
 - **[Advanced Renderer](./advanced-renderer.md)** - SVG rendering engine
 - **[DataSource System](./datasource-system.md)** - Data processing pipeline

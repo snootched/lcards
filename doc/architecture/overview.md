@@ -247,7 +247,7 @@ The recommended approach combines MSD cards for layout with embedded LCARdS Card
 | **LCARdS Cards (embedded)** | Buttons, charts, interactive elements |
 | **LCARdS Cards (standalone)** | Individual controls outside MSD |
 
-**See:** [MSD Flow Part 2](diagrams/msd-flow-part-2.md#-msd--simple-cards-together) for detailed examples.
+**See:** [MSD Card Architecture](msd-card-architecture.md) for implementation details.
 
 ---
 
@@ -255,7 +255,8 @@ The recommended approach combines MSD cards for layout with embedded LCARdS Card
 
 ### Card Types
 - **[LCARdS Card Foundation](cards/lcards-card-foundation.md)** - LCARdS Card architecture
-- **[MSD Flow Diagrams](diagrams/)** - MSD initialization and rendering
+- **[Core Initialization](core-initialization.md)** - Singleton initialization flow ⭐
+- **[MSD Card Architecture](msd-card-architecture.md)** - MSD pipeline overview ⭐
 
 ### Systems
 - **[Subsystems](subsystems/)** - Detailed docs for each singleton
