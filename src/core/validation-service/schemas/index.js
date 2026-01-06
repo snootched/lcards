@@ -11,11 +11,13 @@
 
 import { commonSchema } from './common.js';
 import { lineOverlaySchema } from './lineOverlay.js';
+import { msdCardSchema } from './msdCard.js';
 
 // Re-export all schemas
 export {
   commonSchema,
-  lineOverlaySchema
+  lineOverlaySchema,
+  msdCardSchema
 };
 
 /**
@@ -35,6 +37,7 @@ export function registerAllSchemas(schemaRegistry) {
 
   // Register type-specific schemas
   schemaRegistry.register('line', lineOverlaySchema);
+  schemaRegistry.register('msd-card', msdCardSchema);
 
   // Note: Card schemas (button, data-grid, etc.) are self-registered by each card
   // using CoreConfigManager.registerCardSchema() when the card class is loaded.

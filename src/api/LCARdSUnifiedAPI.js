@@ -112,6 +112,27 @@ export class LCARdSUnifiedAPI {
         animation: !!window.lcards.anim
       });
 
+      // ==========================================
+      // DEBUG HELPERS
+      // ==========================================
+      
+      // Quick PackManager inspection helper
+      window.inspectPacks = () => {
+        const pm = window.lcards?.core?.packManager;
+        if (!pm) {
+          console.error('PackManager not available');
+          return;
+        }
+        
+        console.group('📦 PackManager Status');
+        console.log('Loaded Packs:', pm.getLoadedPackIds());
+        console.log('Pack Count:', pm.loadedPacks.size);
+        console.table(pm.getDebugInfo().loadedPacks);
+        console.groupEnd();
+      };
+
+      lcardsLog.debug('[UnifiedAPI] Debug helpers attached (window.inspectPacks)');
+
     } catch (error) {
       lcardsLog.error('[UnifiedAPI] ❌ Failed to attach API:', error);
     }

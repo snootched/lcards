@@ -207,16 +207,12 @@ async function loadBuiltinPack(packName) {
   }
 
   // Normal builtin pack loading would go here
-  // For now, return minimal core pack with simulated SVG anchors
+  // For now, return minimal core pack
   if (packName === 'core') {
     return {
       version: 1,
-      // Simulate SVG-extracted anchors
-      anchors: {
-        svg_bridge: [200, 150],  // Simulated SVG extraction
-        svg_warp: [350, 200],    // Simulated SVG extraction
-      },
-      _extracted_anchors: ['svg_bridge', 'svg_warp'], // Mark as SVG-extracted
+      // Note: Anchors are now extracted dynamically from SVG files
+      // No simulated anchors needed in fallback core pack
     };
   }
 
