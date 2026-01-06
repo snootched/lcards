@@ -98,6 +98,28 @@ export class ThemeManager extends BaseService {
   }
 
   /**
+   * Register themes from a pack
+   * Called by PackManager for each pack loaded
+   * 
+   * @param {Object} pack - Pack object with themes field
+   */
+  registerThemesFromPack(pack) {
+    if (!pack.themes || typeof pack.themes !== 'object') {
+      return;
+    }
+
+    Object.entries(pack.themes).forEach(([themeId, theme]) => {
+      this.themes.set(themeId, {
+        ...theme,
+        packId: pack.id
+      });
+      lcardsLog.debug(`[ThemeManager] Registered theme: ${themeId} from pack: ${pack.id}`);
+    });
+
+    this.initialized = true;
+  }
+
+  /**
    * Initialize theme system from packs
    *
    * @param {Array<Object>} packs - Loaded pack objects

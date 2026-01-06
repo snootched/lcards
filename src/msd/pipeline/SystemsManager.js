@@ -98,9 +98,11 @@ export class SystemsManager extends BaseService {
   /**
    * ENHANCED: Initialize systems with pack defaults loading FIRST
    * This ensures defaults are available before any overlay processing
+   * 
+   * ✅ REFACTORED: Now uses global core managers (no local pack loading)
    */
   async initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass) {
-    lcardsLog.debug('[SystemsManager] 🚀 Enhanced initialization: packs and defaults first');
+    lcardsLog.debug('[SystemsManager] 🚀 Enhanced initialization: using global core managers');
 
     // Store config and HASS context immediately
     this.mergedConfig = mergedConfig;
@@ -113,69 +115,20 @@ export class SystemsManager extends BaseService {
     }
     this.themeManager = lcardsCore.themeManager;
 
-    // PHASE 1: Initialize theme system FIRST (provides all component defaults)
-    lcardsLog.debug('[SystemsManager] 🎨 Phase 1: Initializing theme system');
+    // PHASE 1: Theme system already initialized by core - just verify
+    lcardsLog.debug('[SystemsManager] 🎨 Phase 1: Verifying theme system from core');
 
-
-    let packs;
-
-    // Load pack defaults from merged config provenance
-    if (mergedConfig && mergedConfig.__provenance && mergedConfig.__provenance.merge_order) {
-      const packLayers = mergedConfig.__provenance.merge_order.filter(layer => layer.type === 'builtin');
-      if (packLayers.length > 0) {
-        lcardsLog.debug('[SystemsManager] 📦 Loading packs from merged config provenance');
-
-        const { loadBuiltinPacks } = await import('../../core/packs/loadBuiltinPacks.js');
-        const packNames = packLayers.map(layer => layer.pack);
-
-        // Ensure 'core' and 'builtin_themes' packs are always loaded
-        if (!packNames.includes('core')) {
-          packNames.unshift('core');
-        }
-        if (!packNames.includes('builtin_themes')) {
-          packNames.push('builtin_themes');
-        }
-
-        try {
-          const packLoadPromise = Promise.resolve(loadBuiltinPacks(packNames));
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Pack loading timeout')), 10000)
-          );
-          packs = await Promise.race([packLoadPromise, timeoutPromise]);
-
-          if (!packs || !Array.isArray(packs)) {
-            throw new Error('Invalid pack loading result');
-          }
-        } catch (error) {
-          lcardsLog.error('[SystemsManager] ❌ Pack loading failed:', error);
-          throw new Error(`Pack loading failed: ${error.message}`);
-        }
-      }
-    } else {
-      // Fallback: Load core and builtin_themes packs
-      lcardsLog.debug('[SystemsManager] 📦 No pack provenance, loading core + builtin_themes');
-      try {
-        const { loadBuiltinPacks } = await import('../../core/packs/loadBuiltinPacks.js');
-        packs = loadBuiltinPacks(['core', 'builtin_themes']);
-        lcardsLog.debug('[SystemsManager] ✅ Loaded fallback packs');
-      } catch (error) {
-        lcardsLog.error('[SystemsManager] ❌ Fallback pack loading failed:', error);
-        throw new Error(`Pack loading failed: ${error.message}`);
-      }
+    const activeTheme = this.themeManager.getActiveTheme();
+    if (!activeTheme) {
+      lcardsLog.warn('[SystemsManager] ⚠️ No active theme - theme system may not be ready');
     }
 
-    // Initialize theme system with loaded packs
-    const requestedTheme = mergedConfig?.theme || 'lcars-classic';
-    await this.themeManager.initialize(packs, requestedTheme, mountEl);
-    const activeTheme = this.themeManager.getActiveTheme();
-
     // ✅ ENHANCED: Log theme provenance
-    lcardsLog.info('[SystemsManager] 🎨 Theme system initialized:', {
-      requested: requestedTheme,
+    lcardsLog.info('[SystemsManager] 🎨 Theme system ready (from core):', {
       active: activeTheme?.name,
       activeId: activeTheme?.id,
       themeCount: this.themeManager.listThemes().length,
-      provenance: mergedConfig.__provenance?.theme  // ← Log theme provenance
+      provenance: mergedConfig.__provenance?.theme
     });
 
     // Store in global namespace for access by overlays
@@ -197,20 +150,18 @@ export class SystemsManager extends BaseService {
     // Initialize data source manager FIRST (overlays may reference it)
     await this._initializeDataSources(hass, mergedConfig);
 
-    // ✅ Use shared StylePresetManager singleton from lcardsCore and initialize with packs
+    // ✅ Use shared StylePresetManager singleton from lcardsCore (already initialized by core)
     lcardsLog.debug('[SystemsManager] 🎨 Using shared StylePresetManager from lcardsCore');
     if (!lcardsCore.stylePresetManager) {
       throw new Error('lcardsCore.stylePresetManager is null - core not initialized?');
     }
     this.stylePresetManager = lcardsCore.stylePresetManager;
 
-    // Initialize with packs if not already initialized
+    // Verify it's initialized (should already be done by core)
     if (!this.stylePresetManager.initialized) {
-      lcardsLog.debug('[SystemsManager] Initializing shared StylePresetManager with packs:', packs.map(p => ({ id: p.id, hasStylePresets: !!p.style_presets })));
-      await this.stylePresetManager.initialize(packs);
-      lcardsLog.debug('[SystemsManager] ✅ Shared StylePresetManager initialized');
+      lcardsLog.warn('[SystemsManager] ⚠️ StylePresetManager not initialized - this should not happen');
     } else {
-      lcardsLog.debug('[SystemsManager] ✅ Shared StylePresetManager already initialized');
+      lcardsLog.debug('[SystemsManager] ✅ Shared StylePresetManager ready (from core)');
     }
 
     lcardsLog.debug('[SystemsManager] ✅ Critical systems ready for overlay processing');

@@ -1,6 +1,7 @@
 import { computeCanonicalChecksum } from '../../utils/checksum.js';
 import { perfTime, perfTimeAsync, perfCount } from '../../utils/performance.js';
 import { loadBuiltinPacks } from './loadBuiltinPacks.js';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
  * Single consolidated merge algorithm - COMPLETE REPLACEMENT
@@ -470,6 +471,19 @@ export { externalPackCache };
 
 async function processLayer(merged, layer) {
   const collections = ['overlays', 'rules', 'animations', 'timelines'];
+
+  // ✅ ADDED: Warn about deprecated pack fields
+  if (layer.type === 'builtin' || layer.type === 'external' || layer.type === 'user') {
+    const deprecatedFields = ['palettes', 'profiles'];
+    const foundDeprecated = deprecatedFields.filter(field => layer.data[field]);
+    
+    if (foundDeprecated.length > 0) {
+      lcardsLog.warn(
+        `[mergePacks] Pack '${layer.pack}' contains deprecated fields: ${foundDeprecated.join(', ')}. ` +
+        `These fields are ignored. Use 'themes' for colors and 'style_presets' for styles.`
+      );
+    }
+  }
 
   // Process collections with ID-based merging
   for (const collection of collections) {

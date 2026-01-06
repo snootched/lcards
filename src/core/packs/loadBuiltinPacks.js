@@ -18,10 +18,7 @@ const CORE_PACK = {
   version: '1.14.18',
   animations: [],
   timelines: [],
-  rules: [],
-  overlays: [],
-  anchors: {},
-  routing: {}
+  rules: []
 };
 
 /**
@@ -42,10 +39,7 @@ const LCARS_FX_PACK = {
     }
   ],
   timelines: [],
-  rules: [],
-  overlays: [],
-  anchors: {},
-  routing: {}
+  rules: []
 };
 
 // LCARdS Button Styles Pack (Phase 2) - Complete button presets for status grids
@@ -65,8 +59,6 @@ const LCARDS_BUTTONS_PACK = {
   animations: [],
   timelines: [],
   rules: [],
-  // OVERLAYS: Complete overlay definitions (not style templates)
-  overlays: [],
   // STYLE PRESETS: Named style bundles that can be applied to any overlay type
   style_presets: {
     // Universal button presets (work for StatusGrid, ButtonOverlay, V2 Cards, etc.)
@@ -800,10 +792,7 @@ const LCARDS_BUTTONS_PACK = {
   // COMPONENT PRESETS: Reusable UI components with SVG shapes
   component_presets: {
     dpad: dpadComponentPreset
-  },
-
-  anchors: {},
-  routing: {}
+  }
 };
 
 /**
@@ -824,7 +813,6 @@ const LCARDS_SLIDERS_PACK = {
   animations: [],
   timelines: [],
   rules: [],
-  overlays: [],
 
   style_presets: {
     slider: {
@@ -1005,10 +993,7 @@ const LCARDS_SLIDERS_PACK = {
         }
       }
     }
-  },
-
-  anchors: {},
-  routing: {}
+  }
 };
 
 // ✅ ADD: Builtin pack with themes (this is what was missing!)

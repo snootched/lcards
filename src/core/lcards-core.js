@@ -28,7 +28,6 @@ import { AnimationManager } from './animation/AnimationManager.js';
 import { CoreValidationService } from './validation-service/index.js';
 
 import { StylePresetManager } from './presets/StylePresetManager.js';  // ✅ Moved to Core
-import { loadBuiltinPacks } from './packs/loadBuiltinPacks.js';  // ✅ Moved to Core
 import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Moved to Core
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
 import { CoreConfigManager } from './config-manager/index.js';  // ✅ Unified config processing
@@ -39,6 +38,7 @@ import { PerformancePanel } from './hud/panels/PerformancePanel.js';  // ✅ Per
 import { ValidationPanel } from './hud/panels/ValidationPanel.js';  // ✅ Validation aggregation
 import { DebugFlagsPanel } from './hud/panels/DebugFlagsPanel.js';  // ✅ Debug feature toggles
 import { SystemHealthPanel } from './hud/panels/SystemHealthPanel.js';  // ✅ System health monitoring
+import { PackManager } from './PackManager.js';  // ✅ Pack registration system
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -65,6 +65,7 @@ class LCARdSCore {
         this.configManager = null;       // Unified configuration processing
         this.hudManager = null;          // Global HUD system (Phase 3)
         this.hudService = null;          // HUD keyboard shortcuts (Phase 3)
+        this.packManager = null;         // Pack loading and registration (Phase 4)
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -146,16 +147,9 @@ class LCARdSCore {
             lcardsLog.debug('[LCARdSCore] ✅ RulesManager initialized and connected to SystemsManager');
 
             // Initialize ThemeManager (Phase 2a) - ✅ Real MSD ThemeManager as singleton
+            // Note: Themes will be loaded by PackManager, not here
             this.themeManager = new ThemeManager();
-
-            // Initialize with builtin packs immediately - cards can augment later
-            try {
-                const builtinPacks = loadBuiltinPacks(['core', 'builtin_themes']);
-                await this.themeManager.initialize(builtinPacks, 'lcars-classic');
-                lcardsLog.info('[LCARdSCore] ✅ ThemeManager initialized with builtin themes');
-            } catch (error) {
-                lcardsLog.error('[LCARdSCore] ❌ ThemeManager initialization failed:', error);
-            }
+            lcardsLog.debug('[LCARdSCore] ✅ ThemeManager created (awaiting pack loading)');
 
             // Initialize AnimationManager (Phase 2a)
             this.animationManager = new AnimationManager(null); // No systemsManager in core
@@ -182,16 +176,10 @@ class LCARdSCore {
 
             // Initialize StylePresetManager (Phase 2b) - ✅ Unified style system (replaces CoreStyleLibrary)
             // This now includes both preset management AND CSS utilities
+            // Note: Presets will be loaded by PackManager, not here
             this.stylePresetManager = new StylePresetManager();
-
-            // Initialize StylePresetManager with same builtin packs (ThemeManager already initialized above)
-            try {
-                const builtinPacks = loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'builtin_themes']);
-                await this.stylePresetManager.initialize(builtinPacks);
-                lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager initialized with builtin packs:', builtinPacks.map(p => p.id));
-            } catch (error) {
-                lcardsLog.warn('[LCARdSCore] ⚠️ Failed to load builtin packs (V2 cards may have limited styling):', error);
-            }
+            this.stylePresetManager.initializeCSSUtilities(); // Initialize CSS utilities now
+            lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager created (awaiting pack loading)');
 
             // Initialize AnimationRegistry (Phase 2b) - ✅ Real MSD AnimationRegistry as singleton
             this.animationRegistry = new AnimationRegistry();
@@ -201,7 +189,21 @@ class LCARdSCore {
             this.actionHandler = new LCARdSActionHandler();
             lcardsLog.debug('[LCARdSCore] ✅ ActionHandler initialized');
 
-            // Update ConfigManager context with late-initialized systems (Phase 2d)
+            // Initialize PackManager (Phase 2d) - ✅ Centralized pack loading and registration
+            // PackManager is the ONLY place that loads builtin packs
+            this.packManager = new PackManager(this);
+            await this.packManager.loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']);
+            lcardsLog.info('[LCARdSCore] ✅ PackManager loaded all packs and registered to managers');
+
+            // Activate default theme after packs are loaded
+            try {
+                await this.themeManager.activateTheme('lcars-classic');
+                lcardsLog.info('[LCARdSCore] ✅ Default theme activated');
+            } catch (error) {
+                lcardsLog.error('[LCARdSCore] ❌ Theme activation failed:', error);
+            }
+
+            // Update ConfigManager context with late-initialized systems (Phase 2e)
             // ConfigManager was initialized early (after ValidationService), now add theme/style managers
             if (this.configManager) {
                 await this.configManager.updateContext({

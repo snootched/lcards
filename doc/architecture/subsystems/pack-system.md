@@ -1,10 +1,16 @@
-# MSD Pack Structure & Style Presets
+# LCARdS Pack System
 
-This document explains the complete structure of MSD packs and how themes, style presets, and other pack features work.
+> **⚠️ Important Note**: LCARdS v1.22+ removes support for `overlays`, `anchors`, `routing`, `palettes`, and `profiles` fields in pack definitions. These fields are deprecated and will be ignored with a warning. Packs now only support: `style_presets`, `animations`, `rules`, and `themes`.
+>
+> **Future Enhancement**: Support for user-supplied shapes and component asset registration via packs is planned, but all official assets are currently in static registries. See `src/core/packs/components` and `src/core/packs/shapes`.
+
+---
+
+This document explains the complete structure of LCARdS packs and how themes, style presets, and pack registration work.
 
 ## Pack Structure Overview
 
-MSD packs contain several sections, each serving a specific purpose:
+LCARdS packs contain focused sections for registering assets to core singleton managers:
 
 ```javascript
 const PACK = {
@@ -12,17 +18,18 @@ const PACK = {
   version: '1.0.0',
   description: 'Pack description',
 
-  // Core pack sections:
+  // Core pack sections (ONLY these are supported):
   themes: {},          // Theme definitions with tokens (for builtin_themes pack)
-  style_presets: {},   // Named style bundles
-  overlays: [],        // Complete overlay definitions
-  palettes: {},        // Named color schemes (legacy, use themes instead)
+  style_presets: {},   // Named style bundles for cards
   animations: [],      // Animation definitions
   rules: [],          // Rule definitions
-  anchors: {},        // Anchor definitions
-  routing: {},        // Routing configurations
-  chartTemplates: {},  // ApexCharts templates (for builtin_themes pack)
-  chartAnimationPresets: {} // Chart animation configs (for builtin_themes pack)
+  
+  // ❌ DEPRECATED FIELDS (removed in v1.22+):
+  // overlays: [],     // Use core cards instead
+  // palettes: {},     // Use theme tokens instead
+  // anchors: {},      // MSD-specific, deprecated
+  // routing: {},      // MSD-specific, deprecated
+  // profiles: [],     // Unused, removed
 };
 ```
 
@@ -30,46 +37,40 @@ const PACK = {
 
 ```mermaid
 graph TB
-    subgraph Pack["MSD Pack"]
+    subgraph Pack["LCARdS Pack"]
         Themes[Themes<br/>Token-based defaults]
         SP[Style Presets<br/>Named style bundles]
-        Overlays[Overlays<br/>Complete definitions]
-        Palettes[Palettes<br/>Legacy colors]
         Anims[Animations]
         Rules[Rules]
-        Anchors[Anchors]
-        Routing[Routing Config]
-        CT[Chart Templates]
-        CAP[Chart Animation Presets]
     end
 
-    subgraph Systems["LCARdS Singleton Systems"]
+    subgraph CoreManagers["LCARdS Core Singleton Managers"]
+        PM[PackManager]
         TM[ThemeManager Singleton]
         SPM[StylePresetManager]
-        AR[AdvancedRenderer]
-        SRS[StyleResolverService]
+        AR[AnimationRegistry]
+        RE[RulesEngine]
     end
 
-    subgraph UserConfig["User Configuration"]
-        UC[User Config<br/>theme: 'lcars-classic'<br/>lcars_button_preset: 'lozenge']
+    subgraph UserConfig["Card Configuration"]
+        UC[Card Config<br/>preset: 'lozenge'<br/>theme: 'lcars-classic']
     end
 
-    Themes --> TM
-    SP --> SPM
-    Overlays --> UC
-    Palettes --> SRS
-    CT --> AR
-
-    UC --> TM
+    Pack --> PM
+    PM --> TM
+    PM --> SPM
+    PM --> AR
+    PM --> RE
+    
     UC --> SPM
+    UC --> TM
     UC --> AR
-
-    TM --> SRS
-    SPM --> AR
+    UC --> RE
 
     style Pack fill:#b8e0c1,stroke:#266239,stroke-width:2px,color:#0c2a15
     style Themes fill:#f9ef97,stroke:#ac943b,stroke-width:2px,color:#0c2a15
     style SP fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
+    style PM fill:#ff9999,stroke:#990000,stroke-width:2px,color:#0c2a15
     style TM fill:#f9ef97,stroke:#ac943b,stroke-width:2px,color:#0c2a15
     style SPM fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 ```
@@ -78,52 +79,45 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant Config as User Config
-    participant PC as PipelineCore
+    participant Core as LCARdS Core
     participant PM as PackManager
-    participant Pack as MSD Pack
+    participant Pack as Builtin Packs
     participant TM as ThemeManager
     participant SPM as StylePresetManager
-    participant AR as AdvancedRenderer
+    participant AR as AnimationRegistry
+    participant RE as RulesEngine
+    participant Card as LCARdS Card
 
-    Config->>PC: Initialize with theme & packs
-    PC->>PM: Load packs
+    Core->>PM: loadBuiltinPacks()
+    PM->>Pack: Load builtin packs
+    Pack-->>PM: themes, style_presets, animations, rules
 
-    PM->>Pack: Load builtin_themes
-    Pack-->>PM: themes, style_presets, chartTemplates
-
-    PM->>Pack: Load user packs
-    Pack-->>PM: overlays, animations, rules
-
-    PM->>TM: Register themes
+    PM->>TM: registerTheme(themeId, theme)
     TM->>TM: Store theme tokens
+    
+    PM->>SPM: registerPreset(type, name, preset)
+    SPM->>SPM: Store preset by type
+    
+    PM->>AR: register(animId, animation)
+    AR->>AR: Cache animation
+    
+    PM->>RE: registerRule(rule)
+    RE->>RE: Add rule to engine
 
-    PM->>SPM: Register style presets
-    SPM->>SPM: Store presets by overlay type
-
-    PM->>PC: Pack loading complete
-
-    PC->>AR: Render overlays
-
-    alt User specified theme
-        AR->>TM: Get theme defaults
-        TM-->>AR: Token-based defaults
-    end
-
-    alt Overlay uses preset
-        AR->>SPM: Get preset
-        SPM-->>AR: Preset style bundle
-    end
-
-    AR->>AR: Merge: theme defaults + preset + user style
-    AR->>AR: Render with merged style
+    PM->>Core: All packs loaded
+    
+    Card->>SPM: getPreset('button', 'lozenge')
+    SPM-->>Card: Preset style bundle
+    
+    Card->>TM: getToken('colors.accent.primary')
+    TM-->>Card: Theme token value
 ```
 
 ## Pack Sections Explained
 
 ### 1. Themes (builtin_themes pack only)
 **Purpose**: Provide complete theme definitions with token-based defaults
-**Usage**: Selected via `theme: "theme-name"` in user config
+**Usage**: Applied automatically via ThemeManager
 
 ```javascript
 themes: {
@@ -160,37 +154,26 @@ lcarsClassicTokens = {
 
   // Component-specific defaults
   components: {
-    text: {
-      defaultSize: 'typography.fontSize.base',   // Token reference
-      defaultColor: 'colors.ui.foreground',       // Token reference
-      bracket: {
-        width: 'borders.width.base',              // Token reference
-        gap: 'spacing.gap.base',                  // Token reference
-        extension: 8                               // Direct value
+    button: {
+      background: {
+        active: 'var(--lcars-orange)',
+        inactive: 'var(--lcars-gray)'
       }
     },
-    statusGrid: {
-      rows: 3,
-      columns: 4,
-      cellGap: 'spacing.gap.sm',
-      textPadding: 'spacing.scale.4',
-      statusOnColor: 'colors.status.success'
-    },
-    sparkline: {
-      defaultColor: 'colors.accent.primary',
-      strokeWidth: 'borders.width.base'
+    slider: {
+      track: { height: 40 }
     }
   }
 }
 ```
 
 ### 2. Style Presets (Named Style Bundles)
-**Purpose**: Provide complete, named style configurations that can be applied
-**Usage**: Applied when `lcars_button_preset: "preset_name"` is specified
+**Purpose**: Provide complete, named style configurations for cards
+**Usage**: Applied via `preset: "preset_name"` in card config
 
 ```javascript
 style_presets: {
-  status_grid: {
+  button: {
     lozenge: {
       text_layout: 'diagonal',
       label_position: 'top-left',
@@ -513,7 +496,128 @@ msd:
 - **Maintainability**: Centralized configurations in packs
 - **Simplicity**: Clear separation between themes (defaults) and presets (styles)
 
-## Migration from Old System
+## Migration from v1.21 and Earlier
+
+### Breaking Changes in v1.22+
+
+**Removed Pack Fields (Deprecated):**
+- ❌ `overlays` - Use core LCARdS cards instead
+- ❌ `anchors` - MSD-specific positioning, deprecated
+- ❌ `routing` - MSD-specific navigation, deprecated
+- ❌ `palettes` - Replaced by theme tokens
+- ❌ `profiles` - Unused feature, removed
+
+**Supported Pack Fields:**
+- ✅ `style_presets` - Named style bundles for cards
+- ✅ `animations` - Animation definitions
+- ✅ `rules` - Rule definitions  
+- ✅ `themes` - Theme token definitions
+
+### Migration Steps for Custom Packs
+
+**1. Remove Obsolete Fields**
+```javascript
+// ❌ OLD (v1.21 and earlier)
+const MY_PACK = {
+  id: 'my_pack',
+  overlays: [...],
+  anchors: {...},
+  routing: {...},
+  palettes: {...},
+  style_presets: {...}
+};
+
+// ✅ NEW (v1.22+)
+const MY_PACK = {
+  id: 'my_pack',
+  style_presets: {...},
+  animations: [...],
+  rules: [...]
+};
+```
+
+**2. Convert Palettes to Theme Tokens**
+```javascript
+// ❌ OLD: Palettes
+palettes: {
+  my_palette: {
+    primary: '#ff6600',
+    secondary: '#0066ff'
+  }
+}
+
+// ✅ NEW: Theme Tokens
+themes: {
+  'my-theme': {
+    id: 'my-theme',
+    name: 'My Theme',
+    tokens: {
+      colors: {
+        accent: { primary: '#ff6600' },
+        secondary: { primary: '#0066ff' }
+      }
+    }
+  }
+}
+```
+
+**3. Move Styles to Style Presets**
+```javascript
+// ❌ OLD: Direct overlay definitions in pack
+overlays: [
+  {
+    id: 'my_button',
+    type: 'button',
+    style: { background: '#ff6600' }
+  }
+]
+
+// ✅ NEW: Style presets that cards can reference
+style_presets: {
+  button: {
+    'my-orange-button': {
+      background: '#ff6600',
+      border_radius: 20
+    }
+  }
+}
+```
+
+**4. Update Card Configurations**
+```yaml
+# ❌ OLD: Reference pack overlays
+- type: custom:lcards-msd
+  config:
+    use_packs:
+      builtin: ['my_pack']
+
+# ✅ NEW: Use style presets in card config
+- type: custom:lcards-button
+  config:
+    preset: 'my-orange-button'
+    entity: light.living_room
+```
+
+### Deprecation Warnings
+
+Packs with obsolete fields will log warnings:
+```
+[PackManager] Pack 'my_pack' contains deprecated fields: overlays, anchors, routing.
+These fields are ignored. Use 'themes' for colors and 'style_presets' for styles.
+```
+
+These warnings are informational - the pack will still load, but deprecated fields are ignored.
+
+### Getting Help
+
+If you have custom packs and need migration assistance:
+1. Check the examples above
+2. Review builtin packs in `src/core/packs/loadBuiltinPacks.js`
+3. Open an issue on GitHub with your pack structure
+
+---
+
+*Last Updated: January 2026 - LCARdS v1.22+*
 
 **Old:** Profiles in packs provided defaults
 **New:** Themes in builtin_themes pack provide defaults via tokens
