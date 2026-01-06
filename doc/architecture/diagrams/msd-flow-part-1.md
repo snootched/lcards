@@ -36,9 +36,10 @@ The MSD (Master Systems Display) system follows a **two-tier architecture**: glo
 ### Architecture Summary
 
 **Tier 1: Global Singleton Layer**
-- Shared intelligence systems (RulesEngine, DataSourceManager, ThemeManager, AnimationRegistry)
+- Shared intelligence systems (RulesEngine, DataSourceManager, ThemeManager, AnimationRegistry, PackManager, AssetManager)
 - CoreSystemsManager (for LCARdS Cards only - MSD cards do NOT use this)
-- Created once on first card initialization (MSD or LCARdS Card)
+- **Created once at module load** (lcards-core.js initialization)
+- **PackManager loads builtin packs once** at module init
 - Serves all cards simultaneously
 - Efficient resource usage through shared processing
 
@@ -74,43 +75,57 @@ The MSD (Master Systems Display) system follows a **two-tier architecture**: glo
 
 ```mermaid
 graph TB
-    subgraph "Tier 1: Global Singleton Layer"
-        LC[lcardsCore Initializer]
+    subgraph "Tier 1: Global Singleton Layer - Module Load"
+        LC[lcards-core.js<br/>initializeLCARdSCore]
         RE[🧠 RulesEngine Singleton]
         DSM[📊 DataSourceManager Singleton]
         TM[🎨 ThemeManager Singleton]
         AR[🎬 AnimationRegistry Singleton]
         VS[✅ ValidationService Singleton]
+        PM[📦 PackManager Singleton]
+        AM[🎨 AssetManager Singleton]
+        
+        LC -->|creates once| RE
+        LC -->|creates once| DSM
+        LC -->|creates once| TM
+        LC -->|creates once| AR
+        LC -->|creates once| VS
+        LC -->|creates once| PM
+        LC -->|creates once| AM
+        
+        PM -->|loads once| Packs[Builtin Packs]
     end
 
     subgraph "Tier 2: Card A Pipeline"
-        ConfigA[Card A Config] --> ProcessA[Config Processing]
-        ProcessA --> PacksA[Pack Merge]
-        PacksA --> ModelA[Model Building]
+        ConfigA[Card A Config + SVG] --> ProcessA[ConfigProcessor<br/>AnchorProcessor]
+        ProcessA --> ModelA[Model Building]
         ModelA --> SysA[MSD SystemsManager A]
-        SysA --> AnimA[AnimationManager A - Per Card]
+        SysA --> AnimMgrA[AnimationManager A - Per Card]
         SysA --> RenderA[AdvancedRenderer A]
         RenderA --> DisplayA[SVG Display A]
     end
 
     subgraph "Tier 2: Card B Pipeline"
-        ConfigB[Card B Config] --> ProcessB[Config Processing]
-        ProcessB --> PacksB[Pack Merge]
-        PacksB --> ModelB[Model Building]
+        ConfigB[Card B Config + SVG] --> ProcessB[ConfigProcessor<br/>AnchorProcessor]
+        ProcessB --> ModelB[Model Building]
         ModelB --> SysB[MSD SystemsManager B]
-        SysB --> AnimB[AnimationManager B - Per Card]
+        SysB --> AnimMgrB[AnimationManager B - Per Card]
         SysB --> RenderB[AdvancedRenderer B]
         RenderB --> DisplayB[SVG Display B]
     end
 
-    %% Singleton initialization
-    ConfigA --> LC
-    ConfigB --> LC
-    LC --> RE
-    LC --> DSM
-    LC --> TM
-    LC --> AM
-    LC --> VS
+    %% SystemsManager connects to singletons (does NOT create)
+    SysA -.accesses.-> RE
+    SysA -.accesses.-> DSM
+    SysA -.accesses.-> TM
+    SysA -.accesses.-> PM
+    SysA -.accesses.-> AM
+    
+    SysB -.accesses.-> RE
+    SysB -.accesses.-> DSM
+    SysB -.accesses.-> TM
+    SysB -.accesses.-> PM
+    SysB -.accesses.-> AM
 
     %% Singleton to card distribution
     RE -.rule updates.-> SysA
@@ -119,8 +134,8 @@ graph TB
     DSM -.entity data.-> SysB
     TM -.themes.-> RenderA
     TM -.themes.-> RenderB
-    AM -.animations.-> RenderA
-    AM -.animations.-> RenderB
+    AR -.animation cache.-> AnimMgrA
+    AR -.animation cache.-> AnimMgrB
 
     %% Card registration with singletons
     SysA -.register rules.-> RE
@@ -141,9 +156,9 @@ graph TB
     classDef cardA fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
     classDef cardB fill:#458359,stroke:#095320,stroke-width:2px,color:#f3f4f7
 
-    class LC,RE,DSM,TM,AM,VS singleton
-    class ConfigA,ProcessA,PacksA,ModelA,SysA,RenderA,DisplayA,RuntimeA cardA
-    class ConfigB,ProcessB,PacksB,ModelB,SysB,RenderB,DisplayB,RuntimeB cardB
+    class LC,RE,DSM,TM,AR,VS,PM,AM,Packs singleton
+    class ConfigA,ProcessA,ModelA,SysA,AnimMgrA,RenderA,DisplayA,RuntimeA cardA
+    class ConfigB,ProcessB,ModelB,SysB,AnimMgrB,RenderB,DisplayB,RuntimeB cardB
 ```
 
 ---
@@ -154,12 +169,14 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant UserA as Card A Config
-    participant UserB as Card B Config
+    participant ModLoad as Module Load
     participant Core as lcardsCore
     participant DSM as DataSourceManager (Singleton)
     participant RE as RulesEngine (Singleton)
     participant TM as ThemeManager (Singleton)
+    participant PM as PackManager (Singleton)
+    participant UserA as Card A Config + SVG
+    participant UserB as Card B Config + SVG
     participant SysA as MSD SystemsManager A
     participant SysB as MSD SystemsManager B
     participant RendA as AdvancedRenderer A
@@ -167,28 +184,42 @@ sequenceDiagram
     participant SVGA as SVG Output A
     participant SVGB as SVG Output B
 
-    %% First card initialization
-    UserA->>Core: initMsdPipeline(configA, mountElA, hass)
-    Core->>Core: Initialize singletons (first time)
-    Core->>DSM: Initialize DataSourceManager singleton
-    Core->>RE: Initialize RulesEngine singleton
-    Core->>TM: Initialize ThemeManager singleton
+    %% Module load - ONE TIME initialization
+    ModLoad->>Core: initializeLCARdSCore()
+    Core->>DSM: Create DataSourceManager singleton
+    Core->>RE: Create RulesEngine singleton
+    Core->>TM: Create ThemeManager singleton
+    Core->>PM: Create PackManager singleton
+    PM->>PM: loadBuiltinPacks() ONCE
+    Core->>Core: window.lcards.core = singletons
+    
+    Note over Core: Singletons ready - waiting for cards
 
+    %% First card initialization
+    UserA->>Core: initMsdPipeline(configA, svgContentA, mountElA, hass)
+    Core->>Core: ConfigProcessor + AnchorProcessor
+    
     Core->>SysA: new SystemsManager()
-    SysA->>SysA: Connect to singletons
+    SysA->>DSM: Access singleton (window.lcards.core.dataSourceManager)
+    SysA->>RE: Access singleton (window.lcards.core.rulesManager)
+    SysA->>TM: Access singleton (window.lcards.core.themeManager)
+    
     SysA->>DSM: Register card A datasources
     SysA->>RE: Register card A rules with callback
-    SysA->>RendA: Initialize AdvancedRenderer A
+    SysA->>RendA: Initialize AdvancedRenderer A (local)
 
     %% Second card initialization
-    UserB->>Core: initMsdPipeline(configB, mountElB, hass)
-    Core->>Core: Singletons already exist - reuse
-
+    UserB->>Core: initMsdPipeline(configB, svgContentB, mountElB, hass)
+    Core->>Core: ConfigProcessor + AnchorProcessor
+    
     Core->>SysB: new SystemsManager()
-    SysB->>SysB: Connect to existing singletons
+    SysB->>DSM: Access existing singleton
+    SysB->>RE: Access existing singleton
+    SysB->>TM: Access existing singleton
+    
     SysB->>DSM: Register card B datasources
     SysB->>RE: Register card B rules with callback
-    SysB->>RendB: Initialize AdvancedRenderer B
+    SysB->>RendB: Initialize AdvancedRenderer B (local)
 
     %% Initial render
     RendA->>SVGA: Initial render A
@@ -232,14 +263,16 @@ sequenceDiagram
 ```
 
 **Pipeline Flow Summary:**
-1. **Singleton Initialization** - lcardsCore creates shared intelligence systems (first card only)
-2. **Card Registration** - Each card creates MSD SystemsManager, registers with singletons
-3. **Configuration Processing** - Per-card config validation and pack merging
-4. **Model Building** - Each card builds its internal overlay representation
-5. **Systems Coordination** - MSD SystemsManager connects to singletons, creates local systems
-6. **Shared Processing** - Singletons process data once, distribute to all cards
-7. **Distributed Rendering** - Each card renders independently with shared intelligence
-8. **Coordinated Runtime** - Entity changes trigger singleton evaluation, distributed updates
+1. **Module Load** - lcards-core.js initializes singletons ONCE (before any card loads)
+2. **Pack Loading** - PackManager loads builtin packs ONCE at module init
+3. **Card Initialization** - MSD card loads SVG from AssetManager
+4. **Config Processing** - ConfigProcessor + AnchorProcessor extract metadata from SVG
+5. **SystemsManager Creation** - Per-card instance created, connects to singletons
+6. **Card Registration** - Register datasources and rules with singletons
+7. **Local Systems** - Create per-card rendering systems (AdvancedRenderer, RouterCore)
+8. **Shared Processing** - Singletons process data once, distribute to all cards
+9. **Distributed Rendering** - Each card renders independently with shared intelligence
+10. **Coordinated Runtime** - Entity changes trigger singleton evaluation, distributed updates
 
 ---
 

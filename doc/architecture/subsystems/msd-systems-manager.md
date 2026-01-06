@@ -146,19 +146,19 @@ graph TB
     %% SystemsManager to Local Systems
     SMA --> ARA
     SMA --> RCA
-    SMA --> TPA
     SMA --> DRA
     SMA --> CRA
     SMA --> HMA
     SMA --> OUA
+    SMA --> AMA
 
     SMB --> ARB
     SMB --> RCB
-    SMB --> TPB
     SMB --> DRB
     SMB --> CRB
     SMB --> HMB
     SMB --> OUB
+    SMB --> AMB
 
     %% SystemsManager to Singletons (shared)
     SMA -.connects to.-> DSM
@@ -172,10 +172,10 @@ graph TB
     AMB -.uses cache.-> AR
 
     %% Data flow from singletons
-    DSM -.entity data.-> TPA
-    DSM -.entity data.-> TPB
     RE -.rule results.-> SMA
     RE -.rule results.-> SMB
+    DSM -.entity data.-> SMA
+    DSM -.entity data.-> SMB
     TM -.themes.-> ARA
     TM -.themes.-> ARB
     AMA -.animations.-> ARA
