@@ -582,7 +582,7 @@ async function evalJinja2(template, ctx) {
   const { entity, hass } = ctx;
 
   try {
-    // Use UnifiedTemplateEvaluator from template-processor
+    // Use UnifiedTemplateEvaluator from unified template system
     const result = await UnifiedTemplateEvaluator.evaluateAsync(
       template,
       entity,
@@ -1253,5 +1253,5 @@ rulesEngine.setOption('cache_conditions', true);
 
 - **[DataSource System](datasource-system.md)** - Data integration
 - **[Advanced Renderer](advanced-renderer.md)** - Rendering system
-- **[Template Processor](template-processor.md)** - Template evaluation
 - **[MSD Systems Manager](msd-systems-manager.md)** - System coordination
+- Unified Template System (`src/core/templates/`) - Template evaluation

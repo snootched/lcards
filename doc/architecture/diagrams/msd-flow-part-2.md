@@ -258,51 +258,47 @@ sequenceDiagram
 
 ## Template Processing
 
-### Template Resolution Flow (Per Card)
+### Modern Unified Template System
+
+LCARdS uses a **modular template system** with separation of concerns:
 
 ```mermaid
 graph TD
-    Template["Template String<br/>{datasource.value}"] --> Processor[TemplateProcessor]
-
-    Processor --> Parse[Parse Template]
-    Parse --> Tokens[Extract Tokens]
-
-    Tokens --> Type{"Token<br/>Type?"}
-
-    Type -->|datasource| DS[DataSourceManager Singleton]
-    Type -->|function| Func[Built-in Function]
-    Type -->|expression| Expr[JavaScript Expression]
-
-    DS --> Get[Get DataSource Value]
-    Get --> Trans{Transformation<br/>specified?}
-    Trans -->|Yes| TransValue[Get Transformation Value]
-    Trans -->|No| RawValue[Get Raw Value]
-
-    TransValue --> Format[Apply Formatting]
-    RawValue --> Format
-
-    Func --> Eval[Evaluate Function]
-    Eval --> Format
-
-    Expr --> Safe[Safe Eval Context]
-    Safe --> Format
-
-    Format --> Replace[Replace Token]
-    Replace --> More{More<br/>tokens?}
-    More -->|Yes| Tokens
-    More -->|No| Result[Resolved String]
-
+    Template["Template String<br/>{datasource.value} or {{...}}"] --> Detector[TemplateDetector]
+    
+    Detector --> Parse[TemplateParser]
+    Parse --> Tokens[Extract References]
+    
+    Tokens --> Type{"Evaluator<br/>Type?"}
+    
+    Type -->|LCARdS Card| UnifiedEval[UnifiedTemplateEvaluator]
+    Type -->|MSD DataSource| DSMixin[DataSourceMixin]
+    Type -->|HA Jinja2| HAEval[HATemplateEvaluator]
+    
+    UnifiedEval --> Result[Resolved String]
+    DSMixin --> Result
+    HAEval --> Result
+    
     style Template fill:#37a6d1,stroke:#2a7193,color:#f3f4f7
     style Result fill:#266239,stroke:#083717,color:#f3f4f7
 ```
 
+**Template System Components:**
+- **TemplateDetector** (`src/core/templates/`) - Detects MSD `{...}` and HA `{{...}}` templates
+- **TemplateParser** (`src/core/templates/`) - Parses template syntax and extracts references
+- **Card Evaluators** - Handle template evaluation:
+  - `UnifiedTemplateEvaluator` for LCARdS Cards
+  - `DataSourceMixin` for MSD DataSource templates
+  - `HATemplateEvaluator` for HA Jinja2 templates
+
 **Template Features:**
+- **Multiple template types** - JavaScript `[[[...]]]`, Token `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`
 - **DataSource references** - `{datasource.value}`, `{datasource.transformations.key}` (via DataSourceManager singleton)
 - **Aggregation access** - `{datasource.aggregations.avg.value}` (via DataSourceManager singleton)
-- **Built-in functions** - `{@round(datasource.value, 1)}`
-- **Expressions** - `{datasource.value * 2 + 10}`
+- **JavaScript expressions** - `[[[return entity.state.toUpperCase()]]]`
+- **Token substitution** - `{entity.state}`, `{theme:palette.moonlight}`
 - **Formatting** - `{datasource.value:.2f}` (2 decimal places)
-- **Safe evaluation** - Sandboxed JavaScript execution
+- **Safe evaluation** - Sandboxed execution in card context
 
 ---
 
@@ -858,7 +854,6 @@ graph TB
 - **[Advanced Renderer](../subsystems/advanced-renderer.md)** - SVG generation
 - **[Pack System](../subsystems/pack-system.md)** - Configuration merging
 - **[Rules Engine](../subsystems/rules-engine.md)** - Conditional logic
-- **[Template Processor](../subsystems/template-processor.md)** - String resolution
 - **[Architecture Overview](../overview.md)** - Complete system architecture
 
 ---

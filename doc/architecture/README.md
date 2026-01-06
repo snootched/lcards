@@ -39,10 +39,11 @@ Detailed documentation for core systems:
 | System | Type | Purpose | Doc |
 |--------|------|---------|-----|
 | **MSD Systems Manager** | Per MSD card | MSD rendering pipeline orchestration | [Read](./subsystems/msd-systems-manager.md) |
-| **Template Processor** | Per MSD card | Template evaluation for MSD overlays | [Read](./subsystems/template-processor.md) |
 | **Advanced Renderer** | Per MSD card | SVG rendering pipeline | [Read](./subsystems/advanced-renderer.md) |
 | **Style Resolver** | Per MSD card | Style computation | [Read](./subsystems/style-resolver.md) |
 | **Router Core** | Per MSD card | Path routing for line overlays | [Read](./subsystems/router-core.md) |
+
+**Note:** Template processing is handled by the unified template system in `src/core/templates/` (TemplateDetector, TemplateParser, and card-specific evaluators), not as a per-card system.
 
 ### Additional Documentation
 

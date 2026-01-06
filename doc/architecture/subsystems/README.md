@@ -25,18 +25,6 @@
 
 ### Processing Systems
 
-#### [Template Processor](template-processor.md)
-**Unified template processing system** for MSD and Home Assistant templates.
-
-**Key Features:**
-- Dual template support (LCARdSCard tokens `{entity.state}` and Jinja2 `{{states('entity')}}`)
-- Reference extraction
-- Entity dependency tracking
-- Format specification parsing
-- Template validation and caching
-
-**When to use:** Dynamic content, DataSource references, HA entity access.
-
 #### [Rules Engine](rules-engine.md)
 **Conditional logic system** for dynamic overlay styling and behavior.
 
@@ -48,6 +36,19 @@
 - Rule tracing and debugging
 
 **When to use:** Conditional styling, profile switching, alert visualization.
+
+#### Template System (Support System)
+**Modern unified template system** built into the core framework.
+
+**Key Features:**
+- Separation of concerns: detection → parsing → evaluation
+- Multiple template types (JavaScript `[[[...]]]`, Token `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`)
+- Card-specific evaluators (UnifiedTemplateEvaluator for LCARdS Cards, DataSourceMixin for MSD)
+- Shared detection and parsing via TemplateDetector and TemplateParser
+
+**Location:** `src/core/templates/`
+
+**When to use:** Template detection and parsing are automatic. Card evaluators handle execution transparently.
 
 ---
 
@@ -222,7 +223,6 @@ graph TB
 
     subgraph "Data Layer"
         DSM[DataSource Manager]
-        TP[Template Processor]
         RE[Rules Engine]
     end
 
@@ -238,7 +238,6 @@ graph TB
     end
 
     SM --> DSM
-    SM --> TP
     SM --> RE
     SM --> AR
     SM --> Theme
@@ -246,9 +245,7 @@ graph TB
     SM --> APM
     SM --> RC
 
-    DSM -.data.-> TP
     DSM -.data.-> RE
-    TP -.templates.-> AR
     RE -.rules.-> AR
     Theme -.defaults.-> AR
     APM -.points.-> RC
@@ -270,24 +267,24 @@ Entity State Changes
     ↓
 DataSource Manager (subscribe, transform, aggregate)
     ↓
-Template Processor (evaluate templates)
-    ↓
 Rules Engine (evaluate conditions)
     ↓
 Advanced Renderer (apply styles, render overlays)
     ↓
 Visual Output
+
+Note: Template evaluation is handled by card-specific evaluators
+(UnifiedTemplateEvaluator for LCARdS Cards, DataSourceMixin for MSD)
 ```
 
 ### Initialization Order
 
 1. **DataSource Manager** - First (provides data to others)
-2. **Template Processor** - Second (needs data)
-3. **Rules Engine** - Third (needs data)
-4. **Advanced Renderer** - Fourth (needs data, templates, rules)
-5. **Animation Registry** - Fifth (needs renderer)
-6. **Attachment Point Manager** - Sixth (needs overlays)
-7. **Router Core** - Seventh (needs attachment points)
+2. **Rules Engine** - Second (needs data)
+3. **Advanced Renderer** - Third (needs data, rules)
+4. **Animation Registry** - Fourth (needs renderer)
+5. **Attachment Point Manager** - Fifth (needs overlays)
+6. **Router Core** - Sixth (needs attachment points)
 
 ### Common Patterns
 
@@ -331,7 +328,6 @@ rulesEngine.on('rulesChanged', () => {
 |-----------|--------|-------|--------|
 | **Systems Manager** | ✅ Complete | 650 | New |
 | **DataSource System** | ✅ Complete | 1,200 | Phase 3 |
-| **Template Processor** | ✅ Complete | 870 | src/msd/utils/TemplateProcessor.js |
 | **Rules Engine** | ✅ Complete | 850 | user/rules_engine_complete_documentation.md |
 | **Advanced Renderer** | ✅ Complete | 800 | src/msd/renderer/AdvancedRenderer.js |
 | **Theme System** | ✅ Complete | 700 | user/theme_system_complete_reference.md |
@@ -342,7 +338,9 @@ rulesEngine.on('rulesChanged', () => {
 | **Attachment Point Manager** | ✅ Complete | 800 | src/msd/renderer/AttachmentPointManager.js |
 | **Router Core** | ✅ Complete | 1,050 | src/msd/routing/RouterCore.js |
 
-**Total:** 12 subsystems, 10,767 lines of documentation, 100% coverage
+**Total:** 11 subsystems, 9,897 lines of documentation, 100% coverage
+
+**Note:** Template processing is now handled by the unified template system in `src/core/templates/` (TemplateDetector, TemplateParser, and card-specific evaluators).
 
 ---
 

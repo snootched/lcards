@@ -486,10 +486,10 @@ console.log(debug);
 | **Entity Subscriptions** | ✅ Yes | ✅ Yes (via DataSourceManager) |
 | **Overlay Rendering** | ❌ No | ✅ Yes (AdvancedRenderer) |
 | **Routing** | ❌ No | ✅ Yes (RouterCore) |
-| **Template Processing** | ❌ No | ✅ Yes (TemplateProcessor) |
+| **Template Processing** | ✅ Yes (cards via unified system) | ✅ Yes (via unified system) |
 | **Debug Overlays** | ❌ No | ✅ Yes (MsdDebugRenderer) |
 | **Control Overlays** | ❌ No | ✅ Yes (MsdControlsRenderer) |
-| **Memory Footprint** | ~50 KB (global) | ~150 KB (per card) |
+| **Memory Footprint** | ~50 KB (global) | ~105-120 KB (per card) |
 | **Initialization** | `lcardsCore.initialize()` | `new SystemsManager()` per MSD card |
 | **Access Pattern** | `window.lcardsCore.systemsManager` | Created in `initMsdPipeline()` |
 | **Singleton Systems** | N/A | Connects to ThemeManager, RulesEngine, etc. |

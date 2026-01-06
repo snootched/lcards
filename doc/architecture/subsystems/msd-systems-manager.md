@@ -39,13 +39,13 @@ const { systemsManager } = await initMsdPipeline(config, mountEl, hass);
 | **Debug overlays** | ✅ Yes (MsdDebugRenderer) |
 | **Control overlays** | ✅ Yes (MsdControlsRenderer) |
 | **HUD management** | ✅ Yes (MsdHudManager) |
-| **Template processing** | ✅ Yes (TemplateProcessor) |
 | **Overlay updates** | ✅ Yes (BaseOverlayUpdater) |
 | **Singleton connections** | ✅ Yes (bridges to global systems) |
 | Entity state caching | ❌ No (uses DataSourceManager singleton) |
 | Entity subscriptions | ❌ No (uses DataSourceManager singleton) |
 | Theme management | ❌ No (uses ThemeManager singleton) |
 | Rule evaluation | ❌ No (uses RulesEngine singleton) |
+| Template processing | ❌ No (uses unified template system from src/core/templates) |
 
 ---
 
@@ -70,7 +70,6 @@ graph TB
         subgraph "Card A Local Systems"
             ARA[AdvancedRenderer A]
             RCA[RouterCore A]
-            TPA[TemplateProcessor A]
             DRA[MsdDebugRenderer A]
             CRA[MsdControlsRenderer A]
             HMA[MsdHudManager A]
@@ -86,7 +85,6 @@ graph TB
         subgraph "Card B Local Systems"
             ARB[AdvancedRenderer B]
             RCB[RouterCore B]
-            TPB[TemplateProcessor B]
             DRB[MsdDebugRenderer B]
             CRB[MsdControlsRenderer B]
             HMB[MsdHudManager B]
@@ -237,22 +235,23 @@ const path = router.calculatePath(
 
 ### 3. Template Processing
 
-```javascript
-// Card-local template processor
-const processor = systemsManager.templateProcessor;
+Template processing uses the unified template system (`src/core/templates/`):
 
-// Process templates with datasource access
-const resolved = processor.processTemplate(
-  '{datasource.temperature.value}°C',
-  cardModel
-);
+```javascript
+// Cards use card-specific evaluators automatically:
+// - UnifiedTemplateEvaluator for LCARdS Cards
+// - DataSourceMixin for MSD DataSource templates
+// - HATemplateEvaluator for Home Assistant Jinja2 templates
+
+// Templates are evaluated transparently during rendering
+// No direct access needed from SystemsManager
 ```
 
 **Template Features**:
+- Multiple template types (JavaScript, Token, DataSource, Jinja2)
+- Automatic detection and parsing via TemplateDetector/TemplateParser
+- Card-specific evaluation contexts
 - DataSource value substitution
-- Entity state/attribute access
-- Built-in functions (@round, @format, etc.)
-- Expression evaluation
 - Safe sandboxed execution
 
 ---
@@ -539,7 +538,6 @@ systemsManager.updateHass(newHass);
 |----------|------|-------------|
 | `renderer` | AdvancedRenderer | Local SVG rendering engine |
 | `router` | RouterCore | Local line path calculator |
-| `templateProcessor` | TemplateProcessor | Local template resolver |
 | `debugRenderer` | MsdDebugRenderer | Local debug overlay system |
 | `controlsRenderer` | MsdControlsRenderer | Local control overlay system |
 | `hudManager` | MsdHudManager | Local HUD manager |
@@ -548,6 +546,8 @@ systemsManager.updateHass(newHass);
 | `dataSourceManager` | DataSourceManager | **Singleton** - shared datasource system |
 | `rulesEngine` | RulesEngine | **Singleton** - shared rules system |
 | `animationManager` | AnimationManager | **Singleton** - shared animation system |
+
+**Note:** Template processing uses the unified template system (`src/core/templates/`) - not a SystemsManager property.
 
 ---
 
@@ -560,11 +560,11 @@ systemsManager.updateHass(newHass);
 | **Purpose** | Lightweight entity tracking | Full MSD pipeline orchestration |
 | **Overlay Rendering** | ❌ No | ✅ Yes (AdvancedRenderer) |
 | **Routing** | ❌ No | ✅ Yes (RouterCore) |
-| **Template Processing** | ❌ No (cards handle own) | ✅ Yes (TemplateProcessor) |
 | **Debug Overlays** | ❌ No | ✅ Yes (MsdDebugRenderer) |
 | **Control Overlays** | ❌ No | ✅ Yes (MsdControlsRenderer) |
 | **HUD Management** | ❌ No | ✅ Yes (MsdHudManager) |
 | **Incremental Updates** | ❌ No | ✅ Yes (BaseOverlayUpdater) |
+| **Template Processing** | ✅ Yes (cards handle own) | ✅ Yes (via unified template system) |
 | **Entity Tracking** | ✅ Yes (direct) | ✅ Yes (via DataSourceManager singleton) |
 | **Entity Subscriptions** | ✅ Yes (direct) | ✅ Yes (via DataSourceManager singleton) |
 | **Theme Access** | ✅ Via singleton | ✅ Via singleton |
@@ -591,12 +591,11 @@ systemsManager.updateHass(newHass);
 **MSD SystemsManager (Per Card)**:
 - AdvancedRenderer: ~40 KB
 - RouterCore: ~20 KB
-- TemplateProcessor: ~15 KB
 - Debug systems: ~10 KB
 - Control systems: ~10 KB
 - HUD Manager: ~5 KB
 - Overlay registry: ~20 KB
-- **Total per MSD card**: ~120-150 KB
+- **Total per MSD card**: ~105-120 KB
 
 **Singleton Systems (Shared)**:
 - DataSourceManager: ~80 KB
@@ -638,7 +637,6 @@ const sm = window.lcards.debug.msd.pipelineInstance.systemsManager;
 // Check local systems
 console.log('Renderer:', sm.renderer);
 console.log('Router:', sm.router);
-console.log('Template Processor:', sm.templateProcessor);
 
 // Check singleton connections
 console.log('Theme Manager (singleton):', sm.themeManager);

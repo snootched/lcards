@@ -278,7 +278,6 @@ graph TD
     ConnectSingletons --> RegisterRE[Register with RulesEngine]
 
     MSM --> LocalSystems[Initialize Local Systems]
-    LocalSystems --> Template[TemplateProcessor]
     LocalSystems --> Router[RouterCore]
     LocalSystems --> Renderer[AdvancedRenderer]
     LocalSystems --> Debug[MsdDebugRenderer]
@@ -305,7 +304,7 @@ graph TD
 4. **Per-Card Setup** - Each card creates its own MSD SystemsManager instance
 5. **Singleton Connection** - MSD SystemsManager connects to existing singletons
 6. **Card Registration** - Register datasources and rules with appropriate singletons
-7. **Local Systems** - Initialize card-specific systems (TemplateProcessor, AdvancedRenderer, RouterCore, etc.)
+7. **Local Systems** - Initialize card-specific systems (AdvancedRenderer, RouterCore, etc.)
 8. **Initial Render** - Generate first SVG output with singleton intelligence
 9. **Coordinated Runtime** - Enter multi-card event-driven mode with shared processing
 
@@ -492,7 +491,6 @@ graph TD
         RegisterRE --> RE
         AnimMgr --> AR
 
-        LocalInit --> Template[TemplateProcessor]
         LocalInit --> Router[RouterCore]
         LocalInit --> Renderer[AdvancedRenderer]
         LocalInit --> Debug[MsdDebugRenderer]
@@ -500,7 +498,6 @@ graph TD
         LocalInit --> HUD[MsdHudManager]
         LocalInit --> Updater[BaseOverlayUpdater]
 
-        Template --> BuiltInFuncs[Register Built-in Functions]
         Router --> PathLib[Initialize Path Library]
         Renderer --> SVG[Setup SVG Namespace]
         Renderer --> OverlayRenderers[Initialize Overlay Renderers]
@@ -512,7 +509,7 @@ graph TD
     classDef cardLocal fill:#80bb93,stroke:#083717,stroke-width:2px,color:#0c2a15
 
     class LC,DSM,RE,TM,AM,VS,Entities,History,Buffer,RuleStore,Callbacks,Tokens,Defaults,Registry,Triggers singleton
-    class MSM,RegisterDS,RegisterRE,RegisterAM,LocalInit,Template,Router,Renderer,Debug,Controls,HUD,Updater,BuiltInFuncs,PathLib,SVG,OverlayRenderers cardLocal
+    class MSM,RegisterDS,RegisterRE,RegisterAM,LocalInit,Router,Renderer,Debug,Controls,HUD,Updater,PathLib,SVG,OverlayRenderers cardLocal
 ```
 
 **MSD SystemsManager Role:**
@@ -532,13 +529,14 @@ graph TD
 5. **ValidationService** - Schema validation shared across all MSD cards
 
 **Per-Card Local Systems:**
-1. **TemplateProcessor** - Card-specific template resolution
-2. **RouterCore** - Card-specific line path calculation
-3. **AdvancedRenderer** - Card-specific SVG generation
-4. **MsdDebugRenderer** - Card-specific debug overlays
-5. **MsdControlsRenderer** - Card-specific control overlays
-6. **MsdHudManager** - Card-specific HUD management
-7. **BaseOverlayUpdater** - Card-specific incremental updates
+1. **RouterCore** - Card-specific line path calculation
+2. **AdvancedRenderer** - Card-specific SVG generation
+3. **MsdDebugRenderer** - Card-specific debug overlays
+4. **MsdControlsRenderer** - Card-specific control overlays
+5. **MsdHudManager** - Card-specific HUD management
+6. **BaseOverlayUpdater** - Card-specific incremental updates
+
+**Note:** Template processing uses the unified template system (`src/core/templates/`) - not a per-card local system.
 
 **Key Point**: MSD cards do **NOT** use CoreSystemsManager. They bypass it entirely and connect directly to the singleton layer (DataSourceManager, RulesEngine, etc.). CoreSystemsManager is only for LCARdS Cards.
 

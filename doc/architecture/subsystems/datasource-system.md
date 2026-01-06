@@ -1021,7 +1021,7 @@ animations:
 - `src/msd/datasource/aggregations/` - Aggregation engines
 
 **Integration Points:**
-- `src/msd/utils/TemplateProcessor.js` - Template resolution
+- Unified Template System (`src/core/templates/`) - Template resolution
 - `src/msd/rules/RulesEngine.js` - Rules evaluation
 - `src/msd/SystemsManager.js` - Orchestration
 
@@ -1032,7 +1032,6 @@ animations:
 ### Architecture
 - [Architecture Overview](../overview.md)
 - [Systems Manager](../components/systems-manager.md)
-- [Template Processor](../subsystems/template-processor.md)
 - [Rules Engine](../subsystems/rules-engine.md)
 
 ### User Documentation
