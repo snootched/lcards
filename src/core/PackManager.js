@@ -53,7 +53,7 @@ export class PackManager {
    * Register pack contents to core managers
    * Distributes pack data to ThemeManager, StylePresetManager, RulesEngine, etc.
    * 
-   * @param {Object} pack - Pack object with style_presets, animations, rules, themes
+   * @param {Object} pack - Pack object with style_presets, animations, rules, themes, svg_assets
    */
   async registerPack(pack) {
     if (!pack || !pack.id) {
@@ -100,7 +100,12 @@ export class PackManager {
       }
     }
 
-    // ✅ 4. Animations - AnimationRegistry is a cache, no registration needed
+    // ✅ 4. Register assets to AssetManager
+    if ((pack.svg_assets || pack.font_assets || pack.audio_assets) && this.core.assetManager) {
+      await this.core.assetManager.preloadFromPack(pack);
+    }
+
+    // ✅ 5. Animations - AnimationRegistry is a cache, no registration needed
     // Animation definitions in packs are used on-demand via getOrCreateInstance()
 
     // Store pack reference

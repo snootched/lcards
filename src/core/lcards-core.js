@@ -39,6 +39,7 @@ import { ValidationPanel } from './hud/panels/ValidationPanel.js';  // ✅ Valid
 import { DebugFlagsPanel } from './hud/panels/DebugFlagsPanel.js';  // ✅ Debug feature toggles
 import { SystemHealthPanel } from './hud/panels/SystemHealthPanel.js';  // ✅ System health monitoring
 import { PackManager } from './PackManager.js';  // ✅ Pack registration system
+import { AssetManager } from './assets/AssetManager.js';  // ✅ Asset management system
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -66,6 +67,7 @@ class LCARdSCore {
         this.hudManager = null;          // Global HUD system (Phase 3)
         this.hudService = null;          // HUD keyboard shortcuts (Phase 3)
         this.packManager = null;         // Pack loading and registration (Phase 4)
+        this.assetManager = null;        // Asset management system (Phase 4)
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -189,7 +191,12 @@ class LCARdSCore {
             this.actionHandler = new LCARdSActionHandler();
             lcardsLog.debug('[LCARdSCore] ✅ ActionHandler initialized');
 
-            // Initialize PackManager (Phase 2d) - ✅ Centralized pack loading and registration
+            // Initialize AssetManager (Phase 2d) - ✅ Unified asset management system
+            this.assetManager = new AssetManager();
+            await this.assetManager.initialize();
+            lcardsLog.debug('[LCARdSCore] ✅ AssetManager initialized');
+
+            // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
             this.packManager = new PackManager(this);
             await this.packManager.loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']);
@@ -448,6 +455,7 @@ class LCARdSCore {
         const rules = this.rulesManager ? 'CoreRulesManager ready' : 'Not initialized';
         const themes = this.themeManager ? 'ThemeManager ready' : 'Not initialized';
         const actions = this.actionHandler ? 'ActionHandler ready' : 'Not initialized';
+        const assets = this.assetManager ? 'AssetManager ready' : 'Not initialized';
 
         return {
             coreInitialized: this._coreInitialized,
@@ -459,6 +467,7 @@ class LCARdSCore {
             rules,
             themes,
             actions,
+            assets,
 
             systemsManager: this.systemsManager ? this.systemsManager.getDebugInfo() : null,
             dataSourceManager: this.dataSourceManager ? this.dataSourceManager.getDebugInfo() : null,
@@ -471,6 +480,7 @@ class LCARdSCore {
             animationRegistry: this.animationRegistry ? this._getAnimationRegistryDebugInfo() : null,
             actionHandler: this.actionHandler ? this._getActionHandlerDebugInfo() : null,
             configManager: this.configManager ? this.configManager.getDebugInfo() : null,
+            assetManager: this.assetManager ? this._getAssetManagerDebugInfo() : null,
 
             hasHass: !!this._currentHass
         };
@@ -588,6 +598,36 @@ class LCARdSCore {
     }
 
     /**
+     * Get debug info from AssetManager
+     * @private
+     */
+    _getAssetManagerDebugInfo() {
+        if (!this.assetManager) return null;
+
+        try {
+            const registries = {};
+            this.assetManager.listTypes().forEach(type => {
+                const registry = this.assetManager.getRegistry(type);
+                registries[type] = {
+                    assetCount: registry.assets.size,
+                    loadingCount: registry.loadingPromises.size,
+                    assets: registry.list()
+                };
+            });
+
+            return {
+                type: 'AssetManager',
+                registriesCount: this.assetManager.registries.size,
+                supportedTypes: this.assetManager.listTypes(),
+                registries
+            };
+        } catch (error) {
+            lcardsLog.warn('[LCARdSCore] Failed to get AssetManager debug info:', error);
+            return { type: 'AssetManager', error: error.message };
+        }
+    }
+
+    /**
      * PUBLIC API METHODS FOR TESTING AND DEBUGGING
      */
 
@@ -670,6 +710,14 @@ class LCARdSCore {
      */
     getAnimationManager() {
         return this.animationManager || null;
+    }
+
+    /**
+     * Get AssetManager instance
+     * @returns {AssetManager|null} Asset manager or null if not initialized
+     */
+    getAssetManager() {
+        return this.assetManager || null;
     }
 
     /**
