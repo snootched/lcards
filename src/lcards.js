@@ -39,6 +39,10 @@ import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 // Unified API system import
 import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
 
+// Component registration imports (static imports for webpack compatibility)
+import { registerSliderComponents } from './core/packs/components/sliders/index.js';
+import { registerButtonComponents } from './core/packs/components/buttons/index.js';
+
 // Ensure global namespace
 window.lcards = window.lcards || {};
 
@@ -134,12 +138,12 @@ async function initializeCustomCard() {
         window.lcards.theme = lcardsCore.getThemeManager();
         lcardsLog.debug('[lcards.js] ✅ ThemeManager exposed at window.lcards.theme for MSD compatibility');
 
-        // Register slider components with AssetManager after core init
+        // Register button and slider components with AssetManager after core init
         // This enables unified asset discovery without breaking existing patterns
         if (lcardsCore.assetManager) {
-            const { registerSliderComponents } = await import('./core/packs/components/sliders/index.js');
             registerSliderComponents(lcardsCore.assetManager);
-            lcardsLog.debug('[lcards.js] ✅ Slider components registered with AssetManager');
+            registerButtonComponents(lcardsCore.assetManager);
+            lcardsLog.debug('[lcards.js] ✅ Button & slider components registered with AssetManager');
         }
 
         // Preload builtin SVGs into AssetManager
