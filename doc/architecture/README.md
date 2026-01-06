@@ -32,7 +32,8 @@ Detailed documentation for core systems:
 | **Theme System** | Singleton | Color schemes and styling | [Read](./subsystems/theme-system.md) |
 | **Animation Registry** | Singleton | Animation instance caching | [Read](./subsystems/animation-registry.md) |
 | **Validation System** | Singleton | Schema validation | [Read](./subsystems/validation-system.md) |
-| **Pack System** | Singleton | Configuration packs | [Read](./subsystems/pack-system.md) |
+| **Pack System** | Singleton | Pack loading and registration (single authority) | [Read](./subsystems/pack-system.md) |
+| **Asset Manager** | Singleton | Unified asset management (SVG, buttons, sliders, fonts, audio) | [Read](./subsystems/asset-manager.md) |
 
 ### Per-Card Systems (One Instance Per Card)
 
