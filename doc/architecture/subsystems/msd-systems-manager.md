@@ -152,11 +152,21 @@ sequenceDiagram
     participant SM as MSD SystemsManager
     participant Core as lcardsCore
     participant Singletons as Global Singletons
+    participant ASM as AssetManager
+    participant PM as PackManager
     participant Local as Local Systems
 
-    Card->>Pipeline: initMsdPipeline(config, mountEl, hass)
+    Card->>Pipeline: initMsdPipeline(config, svgContent, mountEl, hass)
     Pipeline->>Core: Ensure singletons initialized
     Core->>Singletons: Get/create singletons (first card only)
+    Note over Singletons: Includes PackManager, AssetManager,<br/>ThemeManager, DataSourceManager, etc.
+    
+    Pipeline->>ASM: Load SVG content (if needed)
+    ASM-->>Pipeline: SVG content or cached reference
+    
+    Pipeline->>Pipeline: Extract anchors via AnchorProcessor
+    Pipeline->>PM: Get pack defaults for merging
+    PM-->>Pipeline: Pack defaults and theme tokens
     
     Pipeline->>SM: new SystemsManager()
     SM->>SM: Initialize instance
@@ -166,6 +176,8 @@ sequenceDiagram
     SM->>Singletons: Get DataSourceManager singleton
     SM->>Singletons: Get RulesEngine singleton
     SM->>Singletons: Get AnimationRegistry singleton
+    SM->>Singletons: Get PackManager singleton
+    SM->>Singletons: Get AssetManager singleton
     
     Note over SM: Create Per-Card Systems
     SM->>Local: new AnimationManager() - Per Card
@@ -341,17 +353,50 @@ await overlayUpdater.updateOverlay(overlayId, {
 
 ### 8. Singleton Integration
 
+MSD SystemsManager connects to all core singletons for shared intelligence:
+
 ```javascript
-// Connect to global singleton systems
-systemsManager.themeManager = lcardsCore.themeManager;
-systemsManager.dataSourceManager = lcardsCore.dataSourceManager;
-systemsManager.rulesEngine = lcardsCore.rulesEngine;
-systemsManager.animationManager = lcardsCore.animationManager;
+// Access connected singletons
+const themeManager = systemsManager.themeManager;        // ThemeManager singleton
+const dataSourceManager = systemsManager.dataSourceManager; // DataSourceManager singleton
+const rulesEngine = systemsManager.rulesEngine;          // RulesEngine singleton
+const animationRegistry = systemsManager.animationRegistry; // AnimationRegistry singleton
+const packManager = window.lcards.core.packManager;      // PackManager singleton
+const assetManager = window.lcards.core.assetManager;    // AssetManager singleton
 
 // Use singleton services
-const color = systemsManager.themeManager.getToken('colors.accent.primary');
-const entityState = systemsManager.dataSourceManager.getValue('light.desk');
+const color = themeManager.getToken('colors.accent.primary');
+const entityState = dataSourceManager.getValue('light.desk');
+const svg = await assetManager.get('svg', 'ncc-1701-a-blue');
 ```
+
+**Singleton Connections:**
+
+**Core Singletons (Connected in SystemsManager):**
+- **ThemeManager** - Theme tokens, active theme, component defaults
+- **DataSourceManager** - Entity subscriptions, history data, transformations
+- **RulesEngine** - Rule evaluation, conditional styling, callbacks
+- **AnimationRegistry** - Cached animation definitions
+
+**Global Singletons (Accessed via window.lcards.core):**
+- **PackManager** - Pack loading, registration, defaults distribution (PR #153)
+  - Single authority for all pack operations
+  - Distributes pack contents to appropriate singletons
+  - No per-card pack loading
+  
+- **AssetManager** - Unified asset management (PR #156)
+  - SVG templates and graphics (lazy loading, sanitization)
+  - Button/slider component functions (registered at boot)
+  - Font and audio assets (from packs)
+  - Runtime asset discovery
+
+**Integration Benefits:**
+- ✅ **No duplicate processing** - Data transformed once, used by all cards
+- ✅ **Consistent behavior** - Same rules apply across all cards
+- ✅ **Efficient subscriptions** - Single Home Assistant subscription per entity
+- ✅ **Shared caching** - Animations, themes, and assets cached globally
+- ✅ **Centralized pack management** - PackManager handles all pack operations
+- ✅ **Unified asset loading** - AssetManager provides single API for all assets
 
 ---
 
@@ -361,14 +406,25 @@ const entityState = systemsManager.dataSourceManager.getValue('light.desk');
 
 ```javascript
 // src/msd/pipeline/PipelineCore.js
-export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
-  // Validate configuration
-  const { mergedConfig, issues } = await validateAndMergeConfig(userMsdConfig);
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass) {
+  // Phase 1: Load SVG and extract anchors in pipeline (PR #159)
+  // AssetManager loads SVG (sync if cached, async if external)
+  // AnchorProcessor extracts anchors from SVG elements
+  // ViewBox extracted from SVG
+  
+  // Phase 2: Configuration processing and pack merging WITH anchor extraction
+  const { mergedConfig, issues } = await processAndValidateConfig(userMsdConfig, svgContent);
+  
+  // mergedConfig now includes:
+  // - anchors: merged SVG anchors + user anchors (user overrides SVG)
+  // - view_box: extracted from SVG
+  // - pack defaults: merged via PackManager
+  // - _svgMetadata: provenance tracking
 
-  // Create per-card SystemsManager
+  // Phase 3: Create per-card SystemsManager
   const systemsManager = new SystemsManager();
 
-  // Initialize with pack-based config merging
+  // Phase 4: Initialize with pack-based config merging
   await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
 
   // SystemsManager internally connects to singletons
@@ -379,10 +435,10 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
   // - systemsManager.renderer = new AdvancedRenderer(...) (local)
   // - systemsManager.router = new RouterCore(...) (local)
 
-  // Build card model with overlay processing
+  // Phase 5: Build card model with overlay processing
   const cardModel = await modelBuilder.build(mergedConfig, systemsManager);
 
-  // Register card rules with singleton RulesEngine
+  // Phase 6: Register card rules with singleton RulesEngine
   systemsManager.rulesEngine.registerCardRules(
     cardModel.rules,
     (ruleResults) => {
@@ -391,12 +447,19 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
     }
   );
 
-  // Render using SystemsManager's local renderer
+  // Phase 7: Render using SystemsManager's local renderer
   await systemsManager.renderer.render(cardModel);
 
   return { systemsManager, cardModel };
 }
 ```
+
+**Key Architectural Changes (PRs #153-159):**
+- ✅ **SVG loading via AssetManager** - No card-level SVG management
+- ✅ **Anchor extraction in pipeline** - AnchorProcessor handles SVG parsing
+- ✅ **Raw config → pipeline → processed** - No card-level "enhancement"
+- ✅ **PackManager single authority** - All pack operations centralized
+- ✅ **Full provenance tracking** - All transformations recorded
 
 ---
 
