@@ -43,13 +43,29 @@ export function findSvgAnchors(svgContent) {
 }
 
 export function getSvgContent(base_svg) {
+  const assetManager = window.lcards?.core?.assetManager;
+  if (!assetManager) {
+    // Fallback to legacy method if AssetManager not available
+    let svgKey = null;
+    if (base_svg && base_svg.startsWith('builtin:')) {
+      svgKey = base_svg.replace('builtin:', '');
+    } else if (base_svg && base_svg.startsWith('/local/')) {
+      svgKey = base_svg.split('/').pop().replace('.svg','');
+    }
+    return svgKey && window.lcards?.assets?.svg_templates?.[svgKey];
+  }
+
   let svgKey = null;
   if (base_svg && base_svg.startsWith('builtin:')) {
     svgKey = base_svg.replace('builtin:', '');
   } else if (base_svg && base_svg.startsWith('/local/')) {
     svgKey = base_svg.split('/').pop().replace('.svg','');
   }
-  return svgKey && window.lcards?.assets?.svg_templates?.[svgKey];
+
+  if (!svgKey) return null;
+
+  const registry = assetManager.getRegistry('svg');
+  return registry.get(svgKey);
 }
 
 export function getSvgViewBox(svgContent) {

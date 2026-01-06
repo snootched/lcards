@@ -768,6 +768,7 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
 
     /**
      * Get SVG content for rendering with proper base content wrapping
+     * Uses AssetManager for asset retrieval
      * @private
      */
     _getSvgContentForRender() {
@@ -776,18 +777,45 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             return '';
         }
 
-        let svgContent = '';
-
-        if (source.startsWith('builtin:')) {
-            const svgKey = source.replace('builtin:', '');
-            svgContent = window.lcards?.assets?.svg_templates?.[svgKey] || '';
-        } else if (source.startsWith('/local/')) {
-            const svgKey = source.split('/').pop().replace('.svg', '');
-            svgContent = window.lcards?.getSVGFromCache?.(svgKey) || '';
+        const assetManager = this._singletons?.assetManager;
+        if (!assetManager) {
+            lcardsLog.error('[LCARdSMSDCard] AssetManager not available');
+            return '';
         }
 
-        if (!svgContent) {
+        let svgKey = null;
+
+        if (source.startsWith('builtin:')) {
+            svgKey = source.replace('builtin:', '');
+        } else if (source.startsWith('/local/')) {
+            svgKey = source.split('/').pop().replace('.svg', '');
+            
+            // Register external SVG if not already registered
+            if (!assetManager.getRegistry('svg').has(svgKey)) {
+                assetManager.register('svg', svgKey, null, {
+                    url: source,
+                    source: 'user'
+                });
+            }
+        }
+
+        if (!svgKey) {
+            lcardsLog.warn('[LCARdSMSDCard] Could not determine SVG key from source:', source);
             return '';
+        }
+
+        // Get SVG content (synchronous if cached, async if needs loading)
+        const svgContent = assetManager.getRegistry('svg').get(svgKey);
+        
+        if (!svgContent) {
+            // Trigger async load
+            assetManager.get('svg', svgKey).then(loadedContent => {
+                if (loadedContent) {
+                    lcardsLog.debug('[LCARdSMSDCard] SVG loaded, triggering re-render:', svgKey);
+                    this.requestUpdate();
+                }
+            });
+            return ''; // Return empty until loaded
         }
 
         // Wrap SVG content in #__msd-base-content group (like YAML template did)
@@ -813,9 +841,11 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
                 svgEl.appendChild(wrapperGroup);
 
                 // Serialize back to string
-                svgContent = tempDiv.innerHTML;
+                const wrappedContent = tempDiv.innerHTML;
 
                 lcardsLog.debug('[LCARdSMSDCard] 🎨 Wrapped base SVG content in #__msd-base-content for filter isolation');
+                
+                return wrappedContent;
             }
         } catch (error) {
             lcardsLog.warn('[LCARdSMSDCard] Failed to wrap SVG content in base group:', error);
@@ -829,7 +859,7 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Handle SVG loading
+     * Handle SVG loading (simplified with AssetManager)
      * @private
      */
     _handleSvgLoading(msdConfig) {
@@ -837,107 +867,56 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
             return;
         }
 
-        lcardsLog.trace('[LCARdSMSDCard] Handling SVG loading:', msdConfig.base_svg.source);
-
-        let svgKey = null;
-        let svgUrl = null;
-
-        if (msdConfig.base_svg.source === 'none') {
-            // No SVG source - process anchors immediately for overlay-only mode
-            lcardsLog.debug('[LCARdSMSDCard] Using "none" source - processing anchors immediately');
-            this._processAnchors(msdConfig);
-        } else if (msdConfig.base_svg.source.startsWith('builtin:')) {
-            // Built-in SVG
-            svgKey = msdConfig.base_svg.source.replace('builtin:', '');
-            this._svgKey = svgKey;
-            lcardsLog.debug('[LCARdSMSDCard] Using builtin SVG:', svgKey);
-
-            // Wait for builtin SVG to be loaded before processing anchors
-            this._waitForBuiltinSvg(svgKey, msdConfig);
-
-        } else if (msdConfig.base_svg.source.startsWith('/local/')) {
-            // User SVG
-            svgKey = msdConfig.base_svg.source.split('/').pop().replace('.svg', '');
-            svgUrl = msdConfig.base_svg.source;
-            this._svgKey = svgKey;
-
-            // Load user SVG if not cached
-            if (window.lcards?.getSVGFromCache && !window.lcards.getSVGFromCache(svgKey)) {
-                lcardsLog.debug('[LCARdSMSDCard] Loading user SVG:', svgUrl);
-
-                if (window.lcards?.loadUserSVG) {
-                    window.lcards.loadUserSVG(svgKey, svgUrl)
-                        .then(() => {
-                            lcardsLog.debug('[LCARdSMSDCard] SVG loaded successfully');
-
-                            // Process anchors after SVG loads
-                            this._processAnchors(msdConfig);
-
-                            setTimeout(() => {
-                                if (!this._blockUpdates) {
-                                    this.requestUpdate();
-                                }
-                            }, 100);
-                        })
-                        .catch((error) => {
-                            lcardsLog.error('[LCARdSMSDCard] Failed to load SVG:', error);
-                        });
-                }
-            } else {
-                // SVG already cached, process anchors immediately
-                this._processAnchors(msdConfig);
-            }
-        }
-    }
-
-    /**
-     * Wait for builtin SVG to be loaded before processing anchors
-     * @private
-     */
-    async _waitForBuiltinSvg(svgKey, msdConfig) {
-        const checkSvgLoaded = () => {
-            return window.lcards?.assets?.svg_templates?.[svgKey];
-        };
-
-        if (checkSvgLoaded()) {
-            // SVG already loaded, process immediately
-            lcardsLog.debug('[LCARdSMSDCard] Builtin SVG already loaded:', svgKey);
+        const source = msdConfig.base_svg.source;
+        
+        if (source === 'none') {
+            // No SVG - process anchors immediately
             this._processAnchors(msdConfig);
             return;
         }
 
-        // SVG not loaded yet, wait for it
-        lcardsLog.debug('[LCARdSMSDCard] Waiting for builtin SVG to load:', svgKey);
+        const assetManager = this._singletons?.assetManager;
+        if (!assetManager) {
+            lcardsLog.error('[LCARdSMSDCard] AssetManager not available');
+            return;
+        }
 
-        let attempts = 0;
-        const maxAttempts = 50; // 5 seconds max wait
+        let svgKey = null;
 
-        const waitForSvg = () => {
-            attempts++;
-
-            if (checkSvgLoaded()) {
-                lcardsLog.debug('[LCARdSMSDCard] Builtin SVG loaded after', attempts * 100, 'ms:', svgKey);
-                this._processAnchors(msdConfig);
-
-                // Trigger update after anchors are processed
-                setTimeout(() => {
-                    if (!this._blockUpdates) {
-                        this.requestUpdate();
-                    }
-                }, 50);
-                return;
+        if (source.startsWith('builtin:')) {
+            svgKey = source.replace('builtin:', '');
+        } else if (source.startsWith('/local/')) {
+            svgKey = source.split('/').pop().replace('.svg', '');
+            
+            // Register external SVG
+            if (!assetManager.getRegistry('svg').has(svgKey)) {
+                assetManager.register('svg', svgKey, null, {
+                    url: source,
+                    source: 'user'
+                });
             }
+        }
 
-            if (attempts < maxAttempts) {
-                setTimeout(waitForSvg, 100);
+        if (!svgKey) {
+            return;
+        }
+
+        // Check if SVG is available
+        const registry = assetManager.getRegistry('svg');
+        if (registry.has(svgKey)) {
+            const content = registry.get(svgKey);
+            if (content) {
+                // SVG available - process anchors
+                this._processAnchors(msdConfig);
             } else {
-                lcardsLog.warn('[LCARdSMSDCard] Timeout waiting for builtin SVG:', svgKey);
-                // Process anchors anyway with empty content
-                this._processAnchors(msdConfig);
+                // SVG registered but not loaded - wait for load
+                assetManager.get('svg', svgKey).then(() => {
+                    this._processAnchors(msdConfig);
+                });
             }
-        };
-
-        setTimeout(waitForSvg, 100);
+        } else {
+            lcardsLog.warn('[LCARdSMSDCard] SVG not registered:', svgKey);
+        }
     }
 
     /**

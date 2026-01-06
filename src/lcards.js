@@ -142,12 +142,25 @@ async function initializeCustomCard() {
             lcardsLog.debug('[lcards.js] ✅ Slider components registered with AssetManager');
         }
 
+        // Preload builtin SVGs into AssetManager
+        if (lcardsCore.assetManager) {
+            for (const key of LCARdS.builtin_svg_keys) {
+                const url = `${LCARdS.builtin_svg_basepath}${key}.svg`;
+                lcardsCore.assetManager.register('svg', key, null, {
+                    url,
+                    pack: 'builtin',
+                    source: 'builtin'
+                });
+            }
+            lcardsLog.info(`[lcards.js] ✅ Registered ${LCARdS.builtin_svg_keys.length} builtin SVGs with AssetManager`);
+        }
+
     } catch (error) {
         lcardsLog.warn('[lcards.js] ⚠️ Core singleton initialization deferred (will init on first card):', error);
         // This is okay - singletons will initialize when first card loads with real HASS
     }
 
-    // Await SVG preload
+    // Await SVG preload into legacy cache for backward compatibility
     await preloadSVGs(LCARdS.builtin_svg_keys, LCARdS.builtin_svg_basepath)
         .catch(error => lcardsLog.error('[initializeCustomCard] Error preloading built-in SVGs:', error));
 
