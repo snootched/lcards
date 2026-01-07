@@ -109,7 +109,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @returns {string} Card type identifier
      */
     getCardType() {
-        return 'msd';
+        return this.constructor.CARD_TYPE;
     }
 
     /**
@@ -196,6 +196,11 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @param {Object} newHass - New HASS object
      * @param {Object} oldHass - Old HASS object
      * @protected
+     * 
+     * NOTE: We don't call super._handleHassUpdate() because MSD has its own
+     * sophisticated SystemsManager that handles entity monitoring, rule evaluation,
+     * and template updates internally. The MSD pipeline manages all HASS distribution
+     * to its subsystems (coordinator, renderer, controls) directly.
      */
     _handleHassUpdate(newHass, oldHass) {
         lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
@@ -282,10 +287,8 @@ export class LCARdSMSDCard extends LCARdSCard {
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSMSDCard] HASS updated for ${this._cardGuid}, forwarding to MSD pipeline`);
             
-            // Call the unified handler
-            if (typeof this._handleHassUpdate === 'function') {
-                this._handleHassUpdate(hass, oldHass);
-            }
+            // Call the unified handler directly
+            this._handleHassUpdate(hass, oldHass);
 
             // DON'T call this.requestUpdate() - MSD handles its own updates
         }
