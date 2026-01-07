@@ -49,7 +49,7 @@ export class LCARdSUnifiedAPI {
       // PHASE 1: Debug API
       // ==========================================
       window.lcards.debug = window.lcards.debug || {};
-      // CRITICAL: Preserve existing debug.msd properties (e.g., MsdInstanceManager from index.js)
+      // Preserve existing debug.msd properties (e.g., utility functions from index.js)
       // by merging DebugAPI instead of replacing
       window.lcards.debug.msd = window.lcards.debug.msd || {};
 
