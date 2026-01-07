@@ -1253,5 +1253,5 @@ rulesEngine.setOption('cache_conditions', true);
 
 - **[DataSource System](datasource-system.md)** - Data integration
 - **[Advanced Renderer](advanced-renderer.md)** - Rendering system
-- **[MSD Systems Manager](msd-systems-manager.md)** - System coordination
+- **[MSD Card Coordinator](msd-card-coordinator.md)** - System coordination
 - Unified Template System (`src/core/templates/`) - Template evaluation

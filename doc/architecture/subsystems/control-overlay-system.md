@@ -89,7 +89,7 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant Config as Control Config
-    participant System as SystemsManager
+    participant System as MsdCardCoordinator
     participant Renderer as MsdControlsRenderer
     participant Factory as Card Factory
     participant Card as Card Element
@@ -218,7 +218,7 @@ svgContainer.appendChild(foreignObject);
 sequenceDiagram
     participant HA as Home Assistant
     participant Pipeline as PipelineCore
-    participant Systems as SystemsManager
+    participant Systems as MsdCardCoordinator
     participant Controls as MsdControlsRenderer
     participant Card as Card Element
 
@@ -515,7 +515,7 @@ graph TD
 
 ```mermaid
 graph TB
-    Controls[MsdControlsRenderer] --> Systems[SystemsManager]
+    Controls[MsdControlsRenderer] --> Systems[MsdCardCoordinator]
 
     Systems --> DS[DataSourceManager]
     Systems --> Renderer[AdvancedRenderer]
@@ -541,7 +541,7 @@ graph TB
 
 **Integration Features:**
 
-1. **SystemsManager**
+1. **MsdCardCoordinator**
    - Initializes MsdControlsRenderer
    - Coordinates HASS propagation
    - Manages lifecycle
@@ -627,7 +627,7 @@ z_index: 1000  # Optional layering
 | File | Purpose |
 |------|---------|
 | `MsdControlsRenderer.js` | Main renderer implementation |
-| `SystemsManager.js` | Renderer initialization |
+| `MsdCardCoordinator.js` | Renderer initialization |
 | `AdvancedRenderer.js` | Attachment point delegation |
 | `OverlaysPanel.js` | Debug highlighting support |
 
@@ -660,6 +660,6 @@ z_index: 1000  # Optional layering
 
 **Related Documentation:**
 - [Advanced Renderer](advanced-renderer.md) - SVG rendering system
-- [Systems Manager](systems-manager.md) - System orchestration
+- [MSD Card Coordinator](msd-card-coordinator.md) - System orchestration
 - [Attachment Point Manager](attachment-point-manager.md) - Line attachment system
 - [User Guide: Control Overlays](../../user-guide/configuration/overlays/control-overlay.md) - Usage guide

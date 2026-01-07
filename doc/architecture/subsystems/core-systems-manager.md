@@ -12,7 +12,7 @@
 3. [Key Features](#key-features)
 4. [Usage](#usage)
 5. [API Reference](#api-reference)
-6. [Comparison with MSD SystemsManager](#comparison-with-msd-systemsmanager)
+6. [Comparison with MSD MsdCardCoordinator](#comparison-with-msd-systemsmanager)
 
 ---
 
@@ -27,7 +27,7 @@
 **Access Pattern**:
 ```javascript
 // LCARdS Cards access via lcardsCore
-const systemsManager = window.lcardsCore.systemsManager;
+const coordinator = window.lcardsCore.coordinator;
 ```
 
 ### What CoreSystemsManager Provides
@@ -90,7 +90,7 @@ graph TB
 
 ```javascript
 // LCARdSCard subscribes to entity
-const unsubscribe = window.lcardsCore.systemsManager.subscribeToEntity(
+const unsubscribe = window.lcardsCore.coordinator.subscribeToEntity(
   'light.desk',
   (entityId, newState, oldState) => {
     this._handleEntityChange(newState);
@@ -109,7 +109,7 @@ const unsubscribe = window.lcardsCore.systemsManager.subscribeToEntity(
 
 ```javascript
 // Get cached entity state (fast, no HASS lookup)
-const state = systemsManager.getEntityState('light.desk');
+const state = coordinator.getEntityState('light.desk');
 // Returns: { state: 'on', attributes: {...}, ... }
 ```
 
@@ -125,7 +125,7 @@ const state = systemsManager.getEntityState('light.desk');
 
 ```javascript
 // Subscribe to entity changes
-const unsubscribe = systemsManager.subscribeToEntity(
+const unsubscribe = coordinator.subscribeToEntity(
   'sensor.temperature',
   (entityId, newState, oldState) => {
     console.log(`${entityId} changed to ${newState.state}`);
@@ -151,7 +151,7 @@ unsubscribe();
 
 ```javascript
 // Called automatically by lcardsCore when HASS updates
-systemsManager.updateHass(newHass);
+coordinator.updateHass(newHass);
 
 // Internally:
 // 1. Detects changed entities
@@ -185,7 +185,7 @@ this._notifyEntityChanges(Array.from(changedEntities));
 
 ```javascript
 // Cards register themselves for cleanup tracking
-const cardContext = systemsManager.registerCard(
+const cardContext = coordinator.registerCard(
   'lcards-button-123', // cardId
   cardInstance,        // card reference
   { entity: 'light.desk' } // config
@@ -212,13 +212,13 @@ export class LCARdSLCARdSCard extends LCARdSNativeCard {
   // 1. Initialization - Register with CoreSystemsManager
   _initializeSingletons() {
     this._singletons = {
-      systemsManager: window.lcardsCore?.systemsManager,
+      coordinator: window.lcardsCore?.coordinator,
       // ... other singletons
     };
 
     // Register card with CoreSystemsManager
-    if (this._singletons.systemsManager) {
-      this._singletons.systemsManager.registerCard(
+    if (this._singletons.coordinator) {
+      this._singletons.coordinator.registerCard(
         this._cardGuid,
         this,
         this.config
@@ -233,8 +233,8 @@ export class LCARdSLCARdSCard extends LCARdSNativeCard {
     if (!id) return null;
 
     // Try CoreSystemsManager cache first (fast)
-    if (this._singletons?.systemsManager) {
-      const cached = this._singletons.systemsManager.getEntityState(id);
+    if (this._singletons?.coordinator) {
+      const cached = this._singletons.coordinator.getEntityState(id);
       if (cached) return cached;
     }
 
@@ -244,7 +244,7 @@ export class LCARdSLCARdSCard extends LCARdSNativeCard {
 
   // 3. Subscription API - Reactive entity updates
   subscribeToEntity(entityId, callback) {
-    if (!this._singletons?.systemsManager) {
+    if (!this._singletons?.coordinator) {
       lcardsLog.warn('[LCARdSLCARdSCard] CoreSystemsManager not available');
       return () => {};
     }
@@ -253,7 +253,7 @@ export class LCARdSLCARdSCard extends LCARdSNativeCard {
       this._entitySubscriptions = new Set();
     }
 
-    const unsubscribe = this._singletons.systemsManager.subscribeToEntity(
+    const unsubscribe = this._singletons.coordinator.subscribeToEntity(
       entityId,
       callback
     );
@@ -277,9 +277,9 @@ export class LCARdSLCARdSCard extends LCARdSNativeCard {
     }
 
     // Unregister from CoreSystemsManager
-    if (this._singletons?.systemsManager && this._cardContext) {
+    if (this._singletons?.coordinator && this._cardContext) {
       try {
-        this._singletons.systemsManager.unregisterCard(
+        this._singletons.coordinator.unregisterCard(
           this._cardContext.cardGuid
         );
       } catch (error) {
@@ -320,7 +320,7 @@ new CoreSystemsManager()
 Initialize with HASS instance.
 
 ```javascript
-systemsManager.initialize(hass);
+coordinator.initialize(hass);
 ```
 
 **Parameters**:
@@ -335,7 +335,7 @@ systemsManager.initialize(hass);
 Update with new HASS instance.
 
 ```javascript
-systemsManager.updateHass(newHass);
+coordinator.updateHass(newHass);
 ```
 
 **Parameters**:
@@ -355,7 +355,7 @@ systemsManager.updateHass(newHass);
 Register a card instance.
 
 ```javascript
-const context = systemsManager.registerCard(
+const context = coordinator.registerCard(
   'lcards-button-123',
   cardInstance,
   { entity: 'light.desk' }
@@ -376,7 +376,7 @@ const context = systemsManager.registerCard(
 Unregister a card and cleanup subscriptions.
 
 ```javascript
-systemsManager.unregisterCard('lcards-button-123');
+coordinator.unregisterCard('lcards-button-123');
 ```
 
 **Parameters**:
@@ -391,7 +391,7 @@ systemsManager.unregisterCard('lcards-button-123');
 Get cached entity state.
 
 ```javascript
-const state = systemsManager.getEntityState('light.desk');
+const state = coordinator.getEntityState('light.desk');
 // Returns: { state: 'on', attributes: {...}, ... }
 ```
 
@@ -407,7 +407,7 @@ const state = systemsManager.getEntityState('light.desk');
 Get all cached entity states.
 
 ```javascript
-const allStates = systemsManager.getAllEntityStates();
+const allStates = coordinator.getAllEntityStates();
 // Returns: Map<entityId, state>
 ```
 
@@ -420,7 +420,7 @@ const allStates = systemsManager.getAllEntityStates();
 Subscribe to entity state changes.
 
 ```javascript
-const unsubscribe = systemsManager.subscribeToEntity(
+const unsubscribe = coordinator.subscribeToEntity(
   'sensor.temperature',
   (entityId, newState, oldState) => {
     console.log(`Temperature: ${newState.state}`);
@@ -444,7 +444,7 @@ unsubscribe();
 Unsubscribe from entity changes.
 
 ```javascript
-systemsManager.unsubscribeFromEntity('sensor.temperature', callback);
+coordinator.unsubscribeFromEntity('sensor.temperature', callback);
 ```
 
 **Parameters**:
@@ -460,7 +460,7 @@ systemsManager.unsubscribeFromEntity('sensor.temperature', callback);
 Get debug information.
 
 ```javascript
-const debug = systemsManager.getDebugInfo();
+const debug = coordinator.getDebugInfo();
 console.log(debug);
 // {
 //   initialized: true,
@@ -476,9 +476,9 @@ console.log(debug);
 
 ---
 
-## Comparison with MSD SystemsManager
+## Comparison with MSD MsdCardCoordinator
 
-| Feature | CoreSystemsManager | MSD SystemsManager |
+| Feature | CoreSystemsManager | MSD MsdCardCoordinator |
 |---------|-------------------|-------------------|
 | **Instantiation** | Singleton (one globally) | Per-card instance |
 | **Used By** | LCARdS Cards | MSD cards only |
@@ -490,13 +490,13 @@ console.log(debug);
 | **Debug Overlays** | ❌ No | ✅ Yes (MsdDebugRenderer) |
 | **Control Overlays** | ❌ No | ✅ Yes (MsdControlsRenderer) |
 | **Memory Footprint** | ~50 KB (global) | ~105-120 KB (per card) |
-| **Initialization** | `lcardsCore.initialize()` | `new SystemsManager()` per MSD card |
-| **Access Pattern** | `window.lcardsCore.systemsManager` | Created in `initMsdPipeline()` |
+| **Initialization** | `lcardsCore.initialize()` | `new MsdCardCoordinator()` per MSD card |
+| **Access Pattern** | `window.lcardsCore.coordinator` | Created in `initMsdPipeline()` |
 | **Singleton Systems** | N/A | Connects to ThemeManager, RulesEngine, etc. |
 
 ### When to Use Which
 
-| Card Type | Use CoreSystemsManager | Use MSD SystemsManager |
+| Card Type | Use CoreSystemsManager | Use MSD MsdCardCoordinator |
 |-----------|----------------------|----------------------|
 | **LCARdS Cards (button, label, etc.)** | ✅ Yes | ❌ No |
 | **MSD Cards (multi-overlay)** | ❌ No | ✅ Yes |
@@ -540,7 +540,7 @@ console.log(debug);
 
 ```javascript
 // Access CoreSystemsManager
-const csm = window.lcardsCore.systemsManager;
+const csm = window.lcardsCore.coordinator;
 
 // Check status
 console.log('Initialized:', csm._initialized);
@@ -565,7 +565,7 @@ csm._entityStates.forEach((state, entityId) => {
 
 ## 📚 Related Documentation
 
-- **[MSD SystemsManager](./msd-systems-manager.md)** - Full pipeline coordinator for MSD cards
+- **[MSD MsdCardCoordinator](./msd-systems-manager.md)** - Full pipeline coordinator for MSD cards
 - **[Architecture Overview](../overview.md)** - System architecture
 - **[LCARdSCard Foundation](../simple-card-foundation.md)** - LCARdSCard architecture
 

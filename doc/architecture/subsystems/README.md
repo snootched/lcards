@@ -199,7 +199,7 @@
 
 **NOT for:** MSD cards (use DataSourceManager singleton for advanced data processing).
 
-#### [MSD Systems Manager](msd-systems-manager.md)
+#### [MSD Card Coordinator](msd-card-coordinator.md)
 **Per-card orchestrator** for MSD cards (NOT used by LCARdS Cards).
 
 **Key Features:**
@@ -218,7 +218,7 @@
 ```mermaid
 graph TB
     subgraph "Coordination Layer"
-        SM[Systems Manager]
+        SM[Card Coordinator]
     end
 
     subgraph "Data Layer"
@@ -292,16 +292,16 @@ Note: Template evaluation is handled by card-specific evaluators
 
 ```javascript
 // From card instance
-const systemsManager = this.systemsManager;
-const dataSourceManager = systemsManager.dataSourceManager;
-const renderer = systemsManager.advancedRenderer;
+const coordinator = this.coordinator;
+const dataSourceManager = coordinator.dataSourceManager;
+const renderer = coordinator.advancedRenderer;
 ```
 
 #### Debug Access
 
 ```javascript
 // From browser console
-const sm = window.lcards.debug.msd.pipelineInstance.systemsManager;
+const sm = window.lcards.debug.msd.pipelineInstance.coordinator;
 const dsm = sm.dataSourceManager;
 const renderer = sm.advancedRenderer;
 ```
@@ -326,7 +326,7 @@ rulesEngine.on('rulesChanged', () => {
 
 | Subsystem | Status | Lines | Source |
 |-----------|--------|-------|--------|
-| **Systems Manager** | ✅ Complete | 650 | New |
+| **Card Coordinator** | ✅ Complete | 650 | New |
 | **DataSource System** | ✅ Complete | 1,200 | Phase 3 |
 | **Rules Engine** | ✅ Complete | 850 | user/rules_engine_complete_documentation.md |
 | **Advanced Renderer** | ✅ Complete | 800 | src/msd/renderer/AdvancedRenderer.js |

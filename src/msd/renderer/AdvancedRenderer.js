@@ -16,10 +16,10 @@ import { OverlayBase } from '../overlays/OverlayBase.js';
 import { LineOverlay } from '../overlays/LineOverlay.js';
 
 export class AdvancedRenderer {
-  constructor(mountEl, routerCore, systemsManager = null) {
+  constructor(mountEl, routerCore, coordinator = null) {
     this.mountEl = mountEl;
     this.routerCore = routerCore;
-    this.systemsManager = systemsManager;
+    this.coordinator = coordinator;
     this.overlayElements = new Map();
     this.lastRenderArgs = null;
 
@@ -863,7 +863,7 @@ export class AdvancedRenderer {
 
     // Line overlays use LineOverlay class (SVG-native, MSD-specific)
     if (overlay.type === 'line') {
-      const lineOverlay = new LineOverlay(overlay, this.systemsManager, this.routerCore);
+      const lineOverlay = new LineOverlay(overlay, this.coordinator, this.routerCore);
       this.overlayRenderers.set(overlay.id, lineOverlay);
       return lineOverlay;
     }
@@ -999,7 +999,7 @@ export class AdvancedRenderer {
    * @returns {Promise<string>} Empty string (MsdControlsRenderer handles DOM directly)
    */
   async _renderCardOverlayViaMsdControls(overlay, anchors, viewBox, svgContainer) {
-    if (!this.systemsManager?.controlsRenderer) {
+    if (!this.coordinator?.controlsRenderer) {
       lcardsLog.error('[AdvancedRenderer] No controlsRenderer available for card overlay');
       return this.renderFallbackOverlay(overlay);
     }
@@ -1014,7 +1014,7 @@ export class AdvancedRenderer {
 
       // CRITICAL: Await MsdControlsRenderer to ensure attachment points are registered
       // BEFORE Phase 2b (line overlays) renders - lines need these attachment points!
-      await this.systemsManager.controlsRenderer.renderControlOverlay(overlay, resolvedModel);
+      await this.coordinator.controlsRenderer.renderControlOverlay(overlay, resolvedModel);
 
       // Return empty string - MsdControlsRenderer manipulates DOM directly via foreignObject
       // The SVG markup is handled separately, we just need to trigger the card creation
@@ -1252,7 +1252,7 @@ export class AdvancedRenderer {
     }
 
     // Try systems manager
-    const resolvedModel = this.systemsManager?.getResolvedModel?.();
+    const resolvedModel = this.coordinator?.getResolvedModel?.();
     if (resolvedModel?.overlays) {
       return resolvedModel.overlays.find(o => o.id === overlayId);
     }
@@ -1270,7 +1270,7 @@ export class AdvancedRenderer {
    * @returns {Object|null} Resolved model or null if not found
    */
   _getResolvedModel() {
-    return this.systemsManager?.rulesEngine?.getResolvedModel?.() ||
+    return this.coordinator?.rulesEngine?.getResolvedModel?.() ||
            this.systemManager?.rulesEngine?.getResolvedModel?.() ||
            this.routerCore?.getResolvedModel?.() ||
            null;
@@ -1610,9 +1610,9 @@ export class AdvancedRenderer {
    * @private
    */
   _resolveCardInstance() {
-    // Try SystemsManager first
-    if (this.systemsManager?.cardInstance) {
-      return this.systemsManager.cardInstance;
+    // Try MsdCardCoordinator first
+    if (this.coordinator?.cardInstance) {
+      return this.coordinator.cardInstance;
     }
 
     // Try pipeline instance

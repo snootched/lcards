@@ -675,7 +675,7 @@ styleResolver.config.debug = true;
 
 ```javascript
 // Access StyleResolver
-const sr = window.lcards.debug.msd.pipelineInstance.systemsManager.styleResolver;
+const sr = window.lcards.debug.msd.pipelineInstance.coordinator.styleResolver;
 
 // Check cache stats
 console.log(sr.getCacheStats());

@@ -199,7 +199,7 @@ const overlay = {
 };
 
 // Renderer creates instance
-const instance = new TextOverlay(overlay, systemsManager);
+const instance = new TextOverlay(overlay, coordinator);
 overlayRenderers.set('temp_display', instance);
 
 // Render initial state
@@ -682,8 +682,8 @@ export class MyOverlayRenderer extends BaseRenderer {
     // Try multiple approaches to get DataSource data
     let sourceData = null;
 
-    if (overlay.dataSource && this.systemsManager) {
-      sourceData = this.systemsManager.getDataSourceData?.(overlay.dataSource);
+    if (overlay.dataSource && this.coordinator) {
+      sourceData = this.coordinator.getDataSourceData?.(overlay.dataSource);
     }
 
     if (!sourceData) {
@@ -807,9 +807,9 @@ DataSource Entity Change
 
 ```
 Rules Engine Entity Change
-  → SystemsManager._handleEntityChange()
+  → MsdCardCoordinator._handleEntityChange()
   → RulesEngine.evaluateDirty()
-  → SystemsManager._applyIncrementalUpdates()
+  → MsdCardCoordinator._applyIncrementalUpdates()
   → MyOverlayRenderer.updateIncremental()
   → DOM element updated
 ```
@@ -839,13 +839,13 @@ When implementing a new overlay renderer:
 ### Constructor
 
 ```javascript
-new AdvancedRenderer(mountEl, routerCore, systemsManager)
+new AdvancedRenderer(mountEl, routerCore, coordinator)
 ```
 
 **Parameters:**
 - `mountEl` (Element) - DOM element containing SVG
 - `routerCore` (RouterCore) - Router for line calculations
-- `systemsManager` (SystemsManager) - Access to all systems
+- `coordinator` (MsdCardCoordinator) - Access to all systems
 
 ### Methods
 
@@ -920,7 +920,7 @@ renderer.dispose();
 | `overlayRenderers` | Map | Cached overlay instances |
 | `overlayElementCache` | Map | Cached DOM elements |
 | `attachmentManager` | AttachmentPointManager | Attachment point manager |
-| `systemsManager` | SystemsManager | Systems access |
+| `coordinator` | MsdCardCoordinator | Systems access |
 
 ---
 
@@ -930,7 +930,7 @@ renderer.dispose();
 
 ```javascript
 // Access renderer
-const renderer = window.lcards.debug.msd.pipelineInstance.systemsManager.advancedRenderer;
+const renderer = window.lcards.debug.msd.pipelineInstance.coordinator.advancedRenderer;
 
 // Check overlay instances
 console.log('Cached instances:', renderer.overlayRenderers.size);
@@ -983,7 +983,7 @@ console.log('Slowest overlays:',
 
 - **[Overlay System Hub](../../user-guide/configuration/overlays/README.md)** - Overlay types
 - **[DataSource System](datasource-system.md)** - Data integration
-- **[Systems Manager](systems-manager.md)** - System coordination
+- **[MSD Card Coordinator](msd-card-coordinator.md)** - System coordination
 - **[Rules Engine](rules-engine.md)** - Conditional styling
 
 ---

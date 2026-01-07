@@ -109,7 +109,7 @@ _resolveOverlaySelectors(ruleApply): Array<Patch>
 #### Algorithm
 
 ```
-1. Get all overlays from SystemsManager
+1. Get all overlays from MsdCardCoordinator
 2. Parse 'exclude' list (if present)
 3. For each selector in ruleApply.overlays:
    a. Determine selector type (all, type:, tag:, pattern:, direct)
@@ -226,16 +226,16 @@ if (matched && rule.apply) {
 - ✅ New selectors automatically resolved
 - ✅ No changes to other RulesEngine methods
 
-#### B. SystemsManager Dependency
+#### B. MsdCardCoordinator Dependency
 
 Selector resolution requires access to all overlays:
 
 ```javascript
-const allOverlays = this.systemsManager?.getResolvedModel?.()?.overlays || [];
+const allOverlays = this.coordinator?.getResolvedModel?.()?.overlays || [];
 ```
 
 **Requires:**
-- `systemsManager` reference in RulesEngine (✅ already exists)
+- `coordinator` reference in RulesEngine (✅ already exists)
 - `getResolvedModel()` method (✅ already exists)
 - Overlays must be resolved before rules evaluated (✅ already happens)
 
@@ -372,7 +372,7 @@ try {
 ### Missing Overlays
 
 ```javascript
-const allOverlays = this.systemsManager?.getResolvedModel?.()?.overlays || [];
+const allOverlays = this.coordinator?.getResolvedModel?.()?.overlays || [];
 
 if (allOverlays.length === 0) {
   lcardsLog.debug('[RulesEngine] No overlays available');

@@ -6,10 +6,10 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';
 
 export class ModelBuilder {
-  constructor(mergedConfig, cardModel, systemsManager) {
+  constructor(mergedConfig, cardModel, coordinator) {
     this.mergedConfig = mergedConfig;
     this.cardModel = cardModel;
-    this.systems = systemsManager;
+    this.systems = coordinator;
 
     this.animationIndex = new Map((mergedConfig.animations || []).map(a => [a.id, a]));
     this.timelineDefs = mergedConfig.timelines || [];

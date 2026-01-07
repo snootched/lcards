@@ -25,10 +25,10 @@ export class MsdDebugRenderer {
 
   /**
    * Initialize with systems manager and subscribe to debug changes
-   * @param {SystemsManager} systemsManager - Systems manager instance
+   * @param {MsdCardCoordinator} coordinator - Systems manager instance
    */
-  init(systemsManager) {
-    this.debugManager = systemsManager.debugManager;
+  init(coordinator) {
+    this.debugManager = coordinator.debugManager;
 
     // Subscribe to debug state changes for reactive rendering
     this.unsubscribeDebug = this.debugManager.onChange((event) => {

@@ -1023,7 +1023,7 @@ animations:
 **Integration Points:**
 - Unified Template System (`src/core/templates/`) - Template resolution
 - `src/msd/rules/RulesEngine.js` - Rules evaluation
-- `src/msd/SystemsManager.js` - Orchestration
+- `src/msd/MsdCardCoordinator.js` - Orchestration
 
 ---
 
@@ -1031,7 +1031,7 @@ animations:
 
 ### Architecture
 - [Architecture Overview](../overview.md)
-- [Systems Manager](../components/systems-manager.md)
+- [Systems Manager](../components/msd-card-coordinator.md)
 - [Rules Engine](../subsystems/rules-engine.md)
 
 ### User Documentation

@@ -529,7 +529,7 @@ function updateOverlayPosition(overlayId, newX, newY) {
 
 ```javascript
 class AdvancedRenderer {
-  constructor(mountEl, routerCore, systemsManager) {
+  constructor(mountEl, routerCore, coordinator) {
     this.attachmentPointManager = new AttachmentPointManager();
     // Pass to specialized renderers
   }
@@ -578,7 +578,7 @@ class RouterCore {
 // Global debug access
 window.lcards.debug.msd = {
   pipelineInstance: {
-    systemsManager: {
+    coordinator: {
       advancedRenderer: {
         attachmentPointManager: manager
       }
@@ -587,7 +587,7 @@ window.lcards.debug.msd = {
 };
 
 // Console usage
-const apm = window.lcards.debug.msd.pipelineInstance.systemsManager.advancedRenderer.attachmentPointManager;
+const apm = window.lcards.debug.msd.pipelineInstance.coordinator.advancedRenderer.attachmentPointManager;
 console.log(apm.getAttachmentPoints("title"));
 console.log(apm.getAllAnchors());
 ```
@@ -600,7 +600,7 @@ console.log(apm.getAllAnchors());
 
 ```javascript
 // Get manager instance
-const apm = window.lcards.debug.msd.pipelineInstance.systemsManager.advancedRenderer.attachmentPointManager;
+const apm = window.lcards.debug.msd.pipelineInstance.coordinator.advancedRenderer.attachmentPointManager;
 
 // Check if overlay has attachment points
 console.log(apm.hasAttachmentPoints("title"));  // true
@@ -667,7 +667,7 @@ if (basePoint && anchor) {
 
 - **[Advanced Renderer](advanced-renderer.md)** - Uses attachment points for overlay positioning
 - **[Router Core](router-core.md)** - Uses anchors for line routing
-- **[Systems Manager](systems-manager.md)** - Initializes attachment point manager
+- **[MSD Card Coordinator](msd-card-coordinator.md)** - Initializes attachment point manager
 
 ---
 

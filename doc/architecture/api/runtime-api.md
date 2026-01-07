@@ -57,7 +57,7 @@ console.log('Instance:', instance);
 
 // Access instance properties
 console.log('Has renderer:', !!instance.renderer);
-console.log('Has systemsManager:', !!instance.systemsManager);
+console.log('Has coordinator:', !!instance.coordinator);
 ```
 
 ---

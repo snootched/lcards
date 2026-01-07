@@ -1,4 +1,4 @@
-# MSD SystemsManager
+# MSD Card Coordinator
 
 > **Per-card orchestrator for MSD (Master Systems Display) cards**
 > Coordinates MSD-specific rendering pipeline, overlays, and routing while bridging to global singleton systems.
@@ -18,19 +18,19 @@
 
 ## Overview
 
-**MSD SystemsManager** is a **per-card instance** that orchestrates the complete MSD rendering pipeline for each MSD card. It manages card-specific rendering systems while connecting to global singleton services for shared intelligence.
+**MSD Card Coordinator** is a **per-card instance** that orchestrates the complete MSD rendering pipeline for each MSD card. It manages card-specific rendering systems while connecting to global singleton services for shared intelligence.
 
-**Location**: `src/msd/pipeline/SystemsManager.js`
+**Location**: `src/msd/pipeline/MsdCardCoordinator.js`
 
 **Instantiation**: Once per MSD card instance via `initMsdPipeline()`
 
 **Access Pattern**:
 ```javascript
 // Created during MSD card initialization
-const { systemsManager } = await initMsdPipeline(config, mountEl, hass);
+const { coordinator } = await initMsdPipeline(config, mountEl, hass);
 ```
 
-### What MSD SystemsManager Provides
+### What MSD Card Coordinator Provides
 
 | Feature | Included |
 |---------|----------|
@@ -64,7 +64,7 @@ graph TB
 
     subgraph "MSD Card A Instance"
         CardA[LCARdS MSD Card A]
-        SMA[MSD SystemsManager A]
+        SMA[MSD Card Coordinator A]
         AMA[AnimationManager A - Per Card]
         
         subgraph "Card A Local Systems"
@@ -79,7 +79,7 @@ graph TB
 
     subgraph "MSD Card B Instance"
         CardB[LCARdS MSD Card B]
-        SMB[MSD SystemsManager B]
+        SMB[MSD Card Coordinator B]
         AMB[AnimationManager B - Per Card]
         
         subgraph "Card B Local Systems"
@@ -92,11 +92,11 @@ graph TB
         end
     end
 
-    %% Card to SystemsManager
+    %% Card to MsdCardCoordinator
     CardA --> SMA
     CardB --> SMB
 
-    %% SystemsManager to Local Systems
+    %% MsdCardCoordinator to Local Systems
     SMA --> ARA
     SMA --> RCA
     SMA --> DRA
@@ -111,7 +111,7 @@ graph TB
     SMB --> HMB
     SMB --> OUB
 
-    %% SystemsManager to Singletons (shared)
+    %% MsdCardCoordinator to Singletons (shared)
     SMA -.connects to.-> DSM
     SMA -.connects to.-> RE
     SMA -.connects to.-> TM
@@ -145,7 +145,7 @@ graph TB
 sequenceDiagram
     participant Card as MSD Card
     participant Pipeline as initMsdPipeline
-    participant SM as MSD SystemsManager
+    participant SM as MSD Card Coordinator
     participant Core as lcardsCore
     participant Singletons as Global Singletons
     participant Local as Local Systems
@@ -154,7 +154,7 @@ sequenceDiagram
     Pipeline->>Core: Ensure singletons initialized
     Core->>Singletons: Get/create singletons (first card only)
     
-    Pipeline->>SM: new SystemsManager()
+    Pipeline->>SM: new MsdCardCoordinator()
     SM->>SM: Initialize instance
     
     Note over SM: Connect to Global Singletons
@@ -175,8 +175,8 @@ sequenceDiagram
     SM->>Singletons: Register card rules with RulesEngine
     SM->>Singletons: Register datasources with DataSourceManager
     
-    SM-->>Pipeline: SystemsManager ready
-    Pipeline-->>Card: { systemsManager, cardModel }
+    SM-->>Pipeline: MsdCardCoordinator ready
+    Pipeline-->>Card: { coordinator, cardModel }
 ```
 
 ---
@@ -186,8 +186,8 @@ sequenceDiagram
 ### 1. Advanced Rendering Pipeline
 
 ```javascript
-// MSD SystemsManager owns card-specific renderer
-const renderer = systemsManager.renderer; // AdvancedRenderer instance
+// MSD Card Coordinator owns card-specific renderer
+const renderer = coordinator.renderer; // AdvancedRenderer instance
 
 // Render card with all overlays
 await renderer.render(cardModel);
@@ -208,8 +208,8 @@ await renderer.updateOverlay(overlayId, newData);
 ### 2. Line Routing System
 
 ```javascript
-// MSD SystemsManager owns card-specific router
-const router = systemsManager.router; // RouterCore instance
+// MSD Card Coordinator owns card-specific router
+const router = coordinator.router; // RouterCore instance
 
 // Calculate line path between overlays
 const path = router.calculatePath(
@@ -239,7 +239,7 @@ Template processing uses the unified template system (`src/core/templates/`):
 // - HATemplateEvaluator for Home Assistant Jinja2 templates
 
 // Templates are evaluated transparently during rendering
-// No direct access needed from SystemsManager
+// No direct access needed from MsdCardCoordinator
 ```
 
 **Template Features**:
@@ -255,7 +255,7 @@ Template processing uses the unified template system (`src/core/templates/`):
 
 ```javascript
 // MSD-specific debug renderer
-const debugRenderer = systemsManager.debugRenderer;
+const debugRenderer = coordinator.debugRenderer;
 
 // Enable debug overlays
 debugRenderer.enable();
@@ -276,7 +276,7 @@ debugRenderer.showOverlayBounds(true);
 
 ```javascript
 // Interactive control overlay system
-const controlsRenderer = systemsManager.controlsRenderer;
+const controlsRenderer = coordinator.controlsRenderer;
 
 // Render runtime controls
 controlsRenderer.render(cardModel);
@@ -299,7 +299,7 @@ controlsRenderer.on('overlaySelected', (overlayId) => {
 
 ```javascript
 // Heads-up display overlay manager
-const hudManager = systemsManager.hudManager;
+const hudManager = coordinator.hudManager;
 
 // Show/hide HUD elements
 hudManager.showStatus('Entity count: 42');
@@ -318,7 +318,7 @@ hudManager.showAlert('Warning: High temperature');
 
 ```javascript
 // Efficient overlay update system
-const overlayUpdater = systemsManager.overlayUpdater;
+const overlayUpdater = coordinator.overlayUpdater;
 
 // Update single overlay without full re-render
 await overlayUpdater.updateOverlay(overlayId, {
@@ -339,25 +339,25 @@ await overlayUpdater.updateOverlay(overlayId, {
 
 ```javascript
 // Connect to global singleton systems
-systemsManager.themeManager = lcardsCore.themeManager;
-systemsManager.dataSourceManager = lcardsCore.dataSourceManager;
-systemsManager.rulesEngine = lcardsCore.rulesEngine;
-systemsManager.animationManager = lcardsCore.animationManager;
+coordinator.themeManager = lcardsCore.themeManager;
+coordinator.dataSourceManager = lcardsCore.dataSourceManager;
+coordinator.rulesEngine = lcardsCore.rulesEngine;
+coordinator.animationManager = lcardsCore.animationManager;
 
 // Use singleton services
-const color = systemsManager.themeManager.getToken('colors.accent.primary');
-const entityState = systemsManager.dataSourceManager.getValue('light.desk');
+const color = coordinator.themeManager.getToken('colors.accent.primary');
+const entityState = coordinator.dataSourceManager.getValue('light.desk');
 ```
 
 ---
 
 ## Integration with Core Singletons
 
-SystemsManager accesses pre-initialized singletons from `window.lcards.core`:
+MsdCardCoordinator accesses pre-initialized singletons from `window.lcards.core`:
 
 ```mermaid
 graph LR
-    A[SystemsManager] --> B[window.lcards.core]
+    A[MsdCardCoordinator] --> B[window.lcards.core]
     B --> C[themeManager]
     B --> D[stylePresetManager]
     B --> E[rulesManager]
@@ -367,7 +367,7 @@ graph LR
 
 **Pattern:**
 ```javascript
-class SystemsManager {
+class MsdCardCoordinator {
   async initializeSystemsWithPacksFirst(cardModel, config) {
     const core = window.lcards?.core;
     
@@ -403,55 +403,55 @@ export async function initMsdPipeline(userMsdConfig, mountEl, hass) {
   // Validate configuration
   const { mergedConfig, issues } = await validateAndMergeConfig(userMsdConfig);
 
-  // Create per-card SystemsManager
-  const systemsManager = new SystemsManager();
+  // Create per-card MsdCardCoordinator
+  const coordinator = new MsdCardCoordinator();
 
   // Initialize with pack-based config merging
-  await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
+  await coordinator.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
 
-  // SystemsManager internally connects to singletons
+  // MsdCardCoordinator internally connects to singletons
   // and creates local systems:
-  // - systemsManager.themeManager = lcardsCore.themeManager (singleton)
-  // - systemsManager.dataSourceManager = lcardsCore.dataSourceManager (singleton)
-  // - systemsManager.rulesEngine = lcardsCore.rulesEngine (singleton)
-  // - systemsManager.renderer = new AdvancedRenderer(...) (local)
-  // - systemsManager.router = new RouterCore(...) (local)
+  // - coordinator.themeManager = lcardsCore.themeManager (singleton)
+  // - coordinator.dataSourceManager = lcardsCore.dataSourceManager (singleton)
+  // - coordinator.rulesEngine = lcardsCore.rulesEngine (singleton)
+  // - coordinator.renderer = new AdvancedRenderer(...) (local)
+  // - coordinator.router = new RouterCore(...) (local)
 
   // Build card model with overlay processing
-  const cardModel = await modelBuilder.build(mergedConfig, systemsManager);
+  const cardModel = await modelBuilder.build(mergedConfig, coordinator);
 
   // Register card rules with singleton RulesEngine
-  systemsManager.rulesEngine.registerCardRules(
+  coordinator.rulesEngine.registerCardRules(
     cardModel.rules,
     (ruleResults) => {
       // Callback when rules evaluate
-      systemsManager.overlayUpdater.applyRuleResults(ruleResults);
+      coordinator.overlayUpdater.applyRuleResults(ruleResults);
     }
   );
 
-  // Render using SystemsManager's local renderer
-  await systemsManager.renderer.render(cardModel);
+  // Render using MsdCardCoordinator's local renderer
+  await coordinator.renderer.render(cardModel);
 
-  return { systemsManager, cardModel };
+  return { coordinator, cardModel };
 }
 ```
 
 ---
 
-### Accessing MSD SystemsManager
+### Accessing MSD Card Coordinator
 
 ```javascript
 // From MSD card instance
 class LCARdSMSDCard extends LCARdSNativeCard {
   async initialize() {
-    // Initialize MSD pipeline (creates SystemsManager)
+    // Initialize MSD pipeline (creates MsdCardCoordinator)
     const result = await initMsdPipeline(
       this.config.msd_config,
       this.shadowRoot,
       this.hass
     );
 
-    this._systemsManager = result.systemsManager;
+    this._coordinator = result.coordinator;
     this._cardModel = result.cardModel;
   }
 
@@ -461,13 +461,13 @@ class LCARdSMSDCard extends LCARdSNativeCard {
       lcardsCore.updateHass(this.hass);
 
       // Incremental update for this card
-      await this._systemsManager.overlayUpdater.updateFromHass(this.hass);
+      await this._coordinator.overlayUpdater.updateFromHass(this.hass);
     }
   }
 
   disconnectedCallback() {
     // Cleanup card-specific systems
-    this._systemsManager.dispose();
+    this._coordinator.dispose();
 
     // Singletons remain for other cards
     super.disconnectedCallback();
@@ -484,13 +484,13 @@ class LCARdSMSDCard extends LCARdSNativeCard {
 async _handleEntityChange(entityId, newState, oldState) {
   // DataSourceManager singleton processes change
   // RulesEngine singleton evaluates rules
-  // SystemsManager receives rule results via callback
+  // MsdCardCoordinator receives rule results via callback
 
   // Apply incremental updates to this card's overlays
   const affectedOverlays = this._cardModel.getOverlaysUsingEntity(entityId);
 
   for (const overlay of affectedOverlays) {
-    await this._systemsManager.overlayUpdater.updateOverlay(
+    await this._coordinator.overlayUpdater.updateOverlay(
       overlay.id,
       { entityState: newState }
     );
@@ -505,7 +505,7 @@ async _handleEntityChange(entityId, newState, oldState) {
 ### Constructor
 
 ```javascript
-new SystemsManager()
+new MsdCardCoordinator()
 ```
 
 **Note**: Created by `initMsdPipeline()`, not directly instantiated.
@@ -519,7 +519,7 @@ new SystemsManager()
 Initialize all MSD systems (local + singleton connections).
 
 ```javascript
-await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
+await coordinator.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass);
 ```
 
 **Parameters**:
@@ -541,7 +541,7 @@ await systemsManager.initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass
 Clean up card-specific systems.
 
 ```javascript
-systemsManager.dispose();
+coordinator.dispose();
 ```
 
 **Returns**: void
@@ -559,7 +559,7 @@ systemsManager.dispose();
 Update with new HASS instance (distributes to systems).
 
 ```javascript
-systemsManager.updateHass(newHass);
+coordinator.updateHass(newHass);
 ```
 
 **Parameters**:
@@ -584,13 +584,13 @@ systemsManager.updateHass(newHass);
 | `rulesEngine` | RulesEngine | **Singleton** - shared rules system |
 | `animationManager` | AnimationManager | **Singleton** - shared animation system |
 
-**Note:** Template processing uses the unified template system (`src/core/templates/`) - not a SystemsManager property.
+**Note:** Template processing uses the unified template system (`src/core/templates/`) - not a MsdCardCoordinator property.
 
 ---
 
 ## Comparison with CoreSystemsManager
 
-| Feature | CoreSystemsManager | MSD SystemsManager |
+| Feature | CoreSystemsManager | MSD Card Coordinator |
 |---------|-------------------|-------------------|
 | **Instantiation** | Singleton (one globally) | Per-card instance |
 | **Used By** | LCARdS Cards | MSD cards only |
@@ -608,13 +608,13 @@ systemsManager.updateHass(newHass);
 | **Rules Access** | ✅ Via singleton | ✅ Via singleton |
 | **Memory Footprint** | ~50 KB (global) | ~150 KB (per card) |
 | **Initialization** | `lcardsCore.initialize()` | `initMsdPipeline()` per card |
-| **Access Pattern** | `window.lcardsCore.systemsManager` | Created per card in pipeline |
+| **Access Pattern** | `window.lcardsCore.coordinator` | Created per card in pipeline |
 | **Cleanup** | Never (singleton) | On card destroy |
 | **Singleton Integration** | N/A (is a singleton) | Connects to all singletons |
 
 ### When to Use Which
 
-| Card Type | Use CoreSystemsManager | Use MSD SystemsManager |
+| Card Type | Use CoreSystemsManager | Use MSD Card Coordinator |
 |-----------|----------------------|----------------------|
 | **LCARdS Cards (button, label, etc.)** | ✅ Yes | ❌ No |
 | **MSD Cards (multi-overlay)** | ❌ No | ✅ Yes |
@@ -625,7 +625,7 @@ systemsManager.updateHass(newHass);
 
 ### Memory Usage
 
-**MSD SystemsManager (Per Card)**:
+**MSD Card Coordinator (Per Card)**:
 - AdvancedRenderer: ~40 KB
 - RouterCore: ~20 KB
 - Debug systems: ~10 KB
@@ -668,8 +668,8 @@ systemsManager.updateHass(newHass);
 ### Browser Console Access
 
 ```javascript
-// Access MSD SystemsManager for a card
-const sm = window.lcards.debug.msd.pipelineInstance.systemsManager;
+// Access MSD Card Coordinator for a card
+const sm = window.lcards.debug.msd.pipelineInstance.coordinator;
 
 // Check local systems
 console.log('Renderer:', sm.renderer);
@@ -714,7 +714,7 @@ console.log('Active routes:', sm.router.getActiveRoutes());
 
 ## 📚 Related Documentation
 
-- **[CoreSystemsManager](./core-systems-manager.md)** - Lightweight singleton for LCARdS Cards
+- **[CoreSystemsManager](./core-card-coordinator.md)** - Lightweight singleton for LCARdS Cards
 - **[Architecture Overview](../overview.md)** - System architecture
 - **[Core Initialization](../core-initialization.md)** - Singleton initialization flow ⭐
 - **[MSD Card Architecture](../msd-card-architecture.md)** - MSD pipeline overview ⭐

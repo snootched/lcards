@@ -14,21 +14,21 @@ import { DebugManager } from '../debug/DebugManager.js';
 
 import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
 
-// ✅ ADDED: Import MSD-specific HUD panels
+// Import MSD-specific HUD panels
 import { RoutingPanel } from '../hud/panels/RoutingPanel.js';
 import { OverlaysPanel } from '../hud/panels/OverlaysPanel.js';
 import { ChannelTrendPanel } from '../hud/panels/ChannelTrendPanel.js';
 
-// ✅ ADDED: Import theme system initialization
+// Import theme system initialization
 import { initializeThemeSystem } from '../../core/themes/initializeThemeSystem.js';
 
-// ✨ ADDED: Import animation system components
+// Import animation system components
 // AnimationManager now imported as shared singleton from lcardsCore
 import { processAnimationConfig } from '../../core/animation/AnimationConfigProcessor.js';
 
 import { BaseService } from '../../core/BaseService.js';
 
-export class SystemsManager extends BaseService {
+export class MsdCardCoordinator extends BaseService {
   constructor() {
     super();
     // Initialize core managers
@@ -43,7 +43,7 @@ export class SystemsManager extends BaseService {
     this.hudManager = null;
     this.router = null;
     this.animRegistry = null; // Will be set to shared core AnimationRegistry
-    this.animationManager = null; // ✨ NEW: Phase 5 - Animation system
+    this.animationManager = null; // Animation system
     this.rulesEngine = null;
     this.debugManager = new DebugManager();
     this._renderTimeout = null;
@@ -72,16 +72,16 @@ export class SystemsManager extends BaseService {
 
         // CRITICAL FIX: Execute queued render when render completes (true → false)
         if (oldValue === true && value === false && this._queuedReRender) {
-          lcardsLog.debug('[SystemsManager] 🔄 Executing queued re-render (render completed)');
+          lcardsLog.debug('[MsdCardCoordinator] 🔄 Executing queued re-render (render completed)');
           this._queuedReRender = false;
 
           setTimeout(() => {
             if (!this._internalRenderInProgress && this._reRenderCallback) {
-              lcardsLog.debug('[SystemsManager] 🚀 Executing queued re-render callback');
+              lcardsLog.debug('[MsdCardCoordinator] 🚀 Executing queued re-render callback');
               try {
                 this._reRenderCallback();
               } catch (error) {
-                lcardsLog.error('[SystemsManager] ❌ Queued re-render failed:', error);
+                lcardsLog.error('[MsdCardCoordinator] ❌ Queued re-render failed:', error);
               }
             }
           }, 50);
@@ -96,35 +96,35 @@ export class SystemsManager extends BaseService {
   }
 
   /**
-   * ENHANCED: Initialize systems with pack defaults loading FIRST
+   * Initialize systems with pack defaults loading FIRST
    * This ensures defaults are available before any overlay processing
    * 
-   * ✅ REFACTORED: Now uses global core managers (no local pack loading)
+   * Now uses global core managers (no local pack loading)
    */
   async initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass) {
-    lcardsLog.debug('[SystemsManager] 🚀 Enhanced initialization: using global core managers');
+    lcardsLog.debug('[MsdCardCoordinator] 🚀 Enhanced initialization: using global core managers');
 
     // Store config and HASS context immediately
     this.mergedConfig = mergedConfig;
     this._hass = hass; // PHASE 1: Use single source
 
-    // ✅ PHASE 1A: Use shared core ThemeManager singleton (real MSD class)
-    lcardsLog.debug('[SystemsManager] 🔗 Using shared core ThemeManager singleton');
+    // Use shared core ThemeManager singleton (real MSD class)
+    lcardsLog.debug('[MsdCardCoordinator] 🔗 Using shared core ThemeManager singleton');
     if (!lcardsCore.themeManager) {
       throw new Error('lcardsCore.themeManager is null - core not initialized?');
     }
     this.themeManager = lcardsCore.themeManager;
 
     // PHASE 1: Theme system already initialized by core - just verify
-    lcardsLog.debug('[SystemsManager] 🎨 Phase 1: Verifying theme system from core');
+    lcardsLog.debug('[MsdCardCoordinator] 🎨 Phase 1: Verifying theme system from core');
 
     const activeTheme = this.themeManager.getActiveTheme();
     if (!activeTheme) {
-      lcardsLog.warn('[SystemsManager] ⚠️ No active theme - theme system may not be ready');
+      lcardsLog.warn('[MsdCardCoordinator] ⚠️ No active theme - theme system may not be ready');
     }
 
-    // ✅ ENHANCED: Log theme provenance
-    lcardsLog.info('[SystemsManager] 🎨 Theme system ready (from core):', {
+    // Log theme provenance
+    lcardsLog.info('[MsdCardCoordinator] 🎨 Theme system ready (from core):', {
       active: activeTheme?.name,
       activeId: activeTheme?.id,
       themeCount: this.themeManager.listThemes().length,
@@ -136,22 +136,22 @@ export class SystemsManager extends BaseService {
       window.lcards = window.lcards || {};
       window.lcards.theme = this.themeManager;
       window.lcards.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
-      lcardsLog.debug('[SystemsManager] 🔧 ThemeManager globally accessible via window.lcards.theme');
+      lcardsLog.debug('[MsdCardCoordinator] 🔧 ThemeManager globally accessible via window.lcards.theme');
     }
 
     // PHASE 2: Initialize other critical systems that overlays might need
-    lcardsLog.debug('[SystemsManager] ⚙️ Phase 2: Initializing critical systems');
+    lcardsLog.debug('[MsdCardCoordinator] ⚙️ Phase 2: Initializing critical systems');
 
     // Initialize debug manager early with config
     const debugConfig = mergedConfig.debug || {};
     this.debugManager.init(debugConfig);
-    lcardsLog.debug('[SystemsManager] DebugManager initialized with config:', debugConfig);
+    lcardsLog.debug('[MsdCardCoordinator] DebugManager initialized with config:', debugConfig);
 
     // Initialize data source manager FIRST (overlays may reference it)
     await this._initializeDataSources(hass, mergedConfig);
 
-    // ✅ Use shared StylePresetManager singleton from lcardsCore (already initialized by core)
-    lcardsLog.debug('[SystemsManager] 🎨 Using shared StylePresetManager from lcardsCore');
+    // Use shared StylePresetManager singleton from lcardsCore (already initialized by core)
+    lcardsLog.debug('[MsdCardCoordinator] 🎨 Using shared StylePresetManager from lcardsCore');
     if (!lcardsCore.stylePresetManager) {
       throw new Error('lcardsCore.stylePresetManager is null - core not initialized?');
     }
@@ -159,12 +159,12 @@ export class SystemsManager extends BaseService {
 
     // Verify it's initialized (should already be done by core)
     if (!this.stylePresetManager.initialized) {
-      lcardsLog.warn('[SystemsManager] ⚠️ StylePresetManager not initialized - this should not happen');
+      lcardsLog.warn('[MsdCardCoordinator] ⚠️ StylePresetManager not initialized - this should not happen');
     } else {
-      lcardsLog.debug('[SystemsManager] ✅ Shared StylePresetManager ready (from core)');
+      lcardsLog.debug('[MsdCardCoordinator] ✅ Shared StylePresetManager ready (from core)');
     }
 
-    lcardsLog.debug('[SystemsManager] ✅ Critical systems ready for overlay processing');
+    lcardsLog.debug('[MsdCardCoordinator] ✅ Critical systems ready for overlay processing');
   }
 
   /**
@@ -172,10 +172,10 @@ export class SystemsManager extends BaseService {
    * This is the second phase that happens after overlays can safely be processed
    */
   async completeSystems(mergedConfig, cardModel, mountEl, hass) {
-    lcardsLog.debug('[SystemsManager] 🔧 Completing systems initialization');
+    lcardsLog.debug('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
-    // ✅ Use shared RulesEngine singleton from lcardsCore and add this MSD's rules
-    lcardsLog.debug('[SystemsManager] 🧠 Using shared RulesEngine from lcardsCore');
+    // Use shared RulesEngine singleton from lcardsCore and add this MSD's rules
+    lcardsLog.debug('[MsdCardCoordinator] 🧠 Using shared RulesEngine from lcardsCore');
     if (!lcardsCore.rulesManager) {
       throw new Error('lcardsCore.rulesManager is null - core not initialized?');
     }
@@ -183,7 +183,7 @@ export class SystemsManager extends BaseService {
 
     // CRITICAL: Add this MSD's rules to the shared RulesEngine
     if (mergedConfig.rules && mergedConfig.rules.length > 0) {
-      lcardsLog.debug(`[SystemsManager] 📋 Adding ${mergedConfig.rules.length} rules from this MSD to shared RulesEngine`);
+      lcardsLog.debug(`[MsdCardCoordinator] 📋 Adding ${mergedConfig.rules.length} rules from this MSD to shared RulesEngine`);
 
       // Get card ID for source tracking
       const sourceCardId = this._cardGuid || mergedConfig.id || 'unknown-msd';
@@ -198,9 +198,9 @@ export class SystemsManager extends BaseService {
             rule._sourceCardType = 'msd';
 
             this.rulesEngine.rules.push(rule);
-            lcardsLog.debug(`[SystemsManager] ➕ Added rule: ${rule.id} (from ${sourceCardId})`);
+            lcardsLog.debug(`[MsdCardCoordinator] ➕ Added rule: ${rule.id} (from ${sourceCardId})`);
           } else {
-            lcardsLog.warn(`[SystemsManager] ⚠️ Rule ${rule.id} already exists in shared RulesEngine, skipping`);
+            lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Rule ${rule.id} already exists in shared RulesEngine, skipping`);
           }
         }
       });
@@ -208,10 +208,10 @@ export class SystemsManager extends BaseService {
       // Rebuild the rules index and dependencies
       this.rulesEngine.buildRulesIndex();
       this.rulesEngine.buildDependencyIndex();
-      this.rulesEngine._compileRules();  // ✨ ADDED: Compile newly added rules
-      lcardsLog.debug(`[SystemsManager] ✅ Rules added. Total rules in shared engine: ${this.rulesEngine.rules.length}`);
+      this.rulesEngine._compileRules();  // Compile newly added rules
+      lcardsLog.debug(`[MsdCardCoordinator] ✅ Rules added. Total rules in shared engine: ${this.rulesEngine.rules.length}`);
     } else {
-      lcardsLog.debug('[SystemsManager] ℹ️ No rules to add from this MSD');
+      lcardsLog.debug('[MsdCardCoordinator] ℹ️ No rules to add from this MSD');
     }
 
     // ADDED: Give RulesEngine access to SystemsManager for HASS state lookup
@@ -226,32 +226,32 @@ export class SystemsManager extends BaseService {
 
       // Connect re-evaluation to render pipeline
       // When rules are marked dirty (entity changes), evaluate and apply patches
-      this.rulesEngine.setReEvaluationCallback(async () => {  // ✨ CHANGED: async
-        lcardsLog.debug('[SystemsManager] 🔄 RulesEngine re-evaluation callback triggered');
+      this.rulesEngine.setReEvaluationCallback(async () => {  // async for Jinja2
+        lcardsLog.debug('[MsdCardCoordinator] 🔄 RulesEngine re-evaluation callback triggered');
 
         if (!this._hass) {
-          lcardsLog.warn('[SystemsManager] Cannot evaluate rules - no HASS available');
+          lcardsLog.warn('[MsdCardCoordinator] Cannot evaluate rules - no HASS available');
           return;
         }
 
         // Evaluate dirty rules (now async for Jinja2 conditions)
-        const ruleResults = await this.rulesEngine.evaluateDirty(this._hass);  // ✨ CHANGED: await
+        const ruleResults = await this.rulesEngine.evaluateDirty(this._hass);  // await
 
-        lcardsLog.debug(`[SystemsManager] 🔍 DIRTY RULES RESULT:`, {
+        lcardsLog.debug(`[MsdCardCoordinator] 🔍 DIRTY RULES RESULT:`, {
           hasBaseSvgUpdate: !!ruleResults.baseSvgUpdate,
           baseSvgUpdate: ruleResults.baseSvgUpdate,
           patchCount: ruleResults.overlayPatches?.length || 0
         });
 
         if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-          lcardsLog.debug(`[SystemsManager] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - triggering selective re-render`);
+          lcardsLog.debug(`[MsdCardCoordinator] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - triggering selective re-render`);
 
           // Build failed overlay list for selective re-render
           // Process animations and config merging before re-rendering
           const overlaysToReRender = ruleResults.overlayPatches.map(patch => {
             const overlay = this._findOverlayById(patch.id);
             if (!overlay) {
-              lcardsLog.warn(`[SystemsManager] ⚠️ Overlay not found: ${patch.id}`);
+              lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Overlay not found: ${patch.id}`);
               return { id: patch.id, reason: 'Overlay config not found', patch };
             }
 
@@ -269,7 +269,7 @@ export class SystemsManager extends BaseService {
 
             // Process animations from rule patches
             if (patch.animations && Array.isArray(patch.animations) && patch.animations.length > 0) {
-              lcardsLog.debug(`[SystemsManager] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
+              lcardsLog.debug(`[MsdCardCoordinator] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
               if (this.animationManager) {
                 patch.animations.forEach(animDef => {
                   this.animationManager.playAnimation(patch.id, animDef);
@@ -283,14 +283,14 @@ export class SystemsManager extends BaseService {
           this._scheduleFullReRender();
         }
 
-        // ✅ NEW: Apply base_svg filter updates from rules
+        // Apply base_svg filter updates from rules
         if (ruleResults.baseSvgUpdate) {
-          lcardsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
+          lcardsLog.debug(`[MsdCardCoordinator] � Rules produced base_svg update`);
           this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
         }
       });
 
-      lcardsLog.debug('[SystemsManager] Rules Engine HASS monitoring configured');
+      lcardsLog.debug('[MsdCardCoordinator] Rules Engine HASS monitoring configured');
     }
 
     // Initialize rendering systems
@@ -301,7 +301,7 @@ export class SystemsManager extends BaseService {
 
     // ADDED: Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {
-      lcardsLog.debug('[SystemsManager] Setting initial HASS context on controls renderer');
+      lcardsLog.debug('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
 
@@ -314,38 +314,38 @@ export class SystemsManager extends BaseService {
 
     // Mark router as ready for debug system
     this.debugManager.markRouterReady();
-    lcardsLog.debug('[SystemsManager] RouterCore marked ready for debug system');
+    lcardsLog.debug('[MsdCardCoordinator] RouterCore marked ready for debug system');
 
-    // ✅ Use shared AnimationRegistry singleton from lcardsCore
-    lcardsLog.debug('[SystemsManager] 🎭 Using shared AnimationRegistry from lcardsCore');
+    // Use shared AnimationRegistry singleton from lcardsCore
+    lcardsLog.debug('[MsdCardCoordinator] 🎭 Using shared AnimationRegistry from lcardsCore');
     if (!lcardsCore.animationRegistry) {
       throw new Error('lcardsCore.animationRegistry is null - core not initialized?');
     }
     this.animRegistry = lcardsCore.animationRegistry;
 
-    // ✨ NEW: Phase 5 - Use shared AnimationManager from lcardsCore
-    lcardsLog.debug('[SystemsManager] 🎬 Phase 5: Using shared AnimationManager from lcardsCore');
+    // Use shared AnimationManager from lcardsCore
+    lcardsLog.debug('[MsdCardCoordinator] 🎬 Using shared AnimationManager from lcardsCore');
     if (!lcardsCore.animationManager) {
       throw new Error('lcardsCore.animationManager is null - core not initialized?');
     }
     this.animationManager = lcardsCore.animationManager;
 
-    lcardsLog.debug('[SystemsManager] ✅ Shared AnimationManager connected');
+    lcardsLog.debug('[MsdCardCoordinator] ✅ Shared AnimationManager connected');
 
-    // ✅ ADDED: Register MSD panels with global HUD if card GUID is available
+    // Register MSD panels with global HUD if card GUID is available
     if (this._cardGuid) {
       this._registerMsdPanelsWithHud(this._cardGuid);
     }
 
-    lcardsLog.debug('[SystemsManager] ✅ All systems initialization complete', {
+    lcardsLog.debug('[MsdCardCoordinator] ✅ All systems initialization complete', {
       hasThemeManager: !!this.themeManager,
-      hasStyleResolver: !!this.styleResolver,  // ✅ NEW: Phase 6
+      hasStyleResolver: !!this.styleResolver,
       hasDataSourceManager: !!this.dataSourceManager,
       hasRouter: !!this.router,
       hasRenderer: !!this.renderer,
       hasRulesEngine: !!this.rulesEngine,
       hasAnimRegistry: !!this.animRegistry,
-      hasAnimationManager: !!this.animationManager,  // ✨ NEW
+      hasAnimationManager: !!this.animationManager,
       hasDebugManager: !!this.debugManager,
       hasControlsRenderer: !!this.controlsRenderer,
       hasDebugRenderer: !!this.debugRenderer
@@ -362,7 +362,7 @@ export class SystemsManager extends BaseService {
    */
   setCardGuid(guid) {
     this._cardGuid = guid;
-    lcardsLog.debug('[SystemsManager] Card GUID set:', guid);
+    lcardsLog.debug('[MsdCardCoordinator] Card GUID set:', guid);
     
     // Register with HUD if systems are already initialized
     if (this.renderer && lcardsCore?.hudManager) {
@@ -452,7 +452,7 @@ export class SystemsManager extends BaseService {
         this.rulesEngine.__perfWrapped = true;
       }
     } catch(e){
-      lcardsLog.warn('[SystemsManager][rules instrumentation] failed', e);
+      lcardsLog.warn('[MsdCardCoordinator][rules instrumentation] failed', e);
     }
   }
 
@@ -461,7 +461,7 @@ export class SystemsManager extends BaseService {
 
     // ENHANCED: Better logging and error handling
     if (!hass) {
-      lcardsLog.warn('[SystemsManager] No HASS provided - DataSourceManager will not be initialized');
+      lcardsLog.warn('[MsdCardCoordinator] No HASS provided - DataSourceManager will not be initialized');
       return;
     }
 
@@ -472,33 +472,33 @@ export class SystemsManager extends BaseService {
     // Use configured data sources
     const configuredDataSources = mergedConfig.data_sources || {};
 
-    lcardsLog.debug('[SystemsManager] 🔍 Using configured data sources mode');
-    lcardsLog.debug('[SystemsManager] 🔍 Configured data sources:', Object.keys(configuredDataSources));
+    lcardsLog.debug('[MsdCardCoordinator] 🔍 Using configured data sources mode');
+    lcardsLog.debug('[MsdCardCoordinator] 🔍 Configured data sources:', Object.keys(configuredDataSources));
 
     // Controls use direct HASS - no data sources needed
     const controlEntities = this._extractControlEntities(mergedConfig);
-    lcardsLog.debug('[SystemsManager] 🔍 Control entities (using direct HASS):', controlEntities);
+    lcardsLog.debug('[MsdCardCoordinator] 🔍 Control entities (using direct HASS):', controlEntities);
 
     // Use configured data sources
     const allDataSources = { ...configuredDataSources };
 
-    lcardsLog.debug('[SystemsManager] 📊 Data source summary:', {
+    lcardsLog.debug('[MsdCardCoordinator] 📊 Data source summary:', {
       configured: Object.keys(configuredDataSources).length,
       total: Object.keys(allDataSources).length,
       allDataSourceIds: Object.keys(allDataSources)
     });
 
     if (Object.keys(allDataSources).length === 0) {
-      lcardsLog.debug('[SystemsManager] No data sources configured or auto-created - DataSourceManager will not be initialized');
-      lcardsLog.debug('[SystemsManager] Note: Control overlays will use direct HASS (no data sources needed)');
+      lcardsLog.debug('[MsdCardCoordinator] No data sources configured or auto-created - DataSourceManager will not be initialized');
+      lcardsLog.debug('[MsdCardCoordinator] Note: Control overlays will use direct HASS (no data sources needed)');
       return;
     }
 
-    lcardsLog.debug('[SystemsManager] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
+    lcardsLog.debug('[MsdCardCoordinator] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
 
     try {
       // ✅ Use shared core DataSourceManager singleton (real MSD class)
-      lcardsLog.debug('[SystemsManager] 🔗 Using shared core DataSourceManager singleton');
+      lcardsLog.debug('[MsdCardCoordinator] 🔗 Using shared core DataSourceManager singleton');
       if (!lcardsCore.dataSourceManager) {
         throw new Error('lcardsCore.dataSourceManager is null - core not initialized?');
       }
@@ -527,7 +527,7 @@ export class SystemsManager extends BaseService {
               for (const [sourceId, source] of this.dataSourceManager.sources) {
                 if (source.cfg && source.cfg.entity === entityId) {
                   entitiesToMarkDirty.add(sourceId);
-                  lcardsLog.debug(`[SystemsManager] Mapped entity "${entityId}" to DataSource "${sourceId}"`);
+                  lcardsLog.debug(`[MsdCardCoordinator] Mapped entity "${entityId}" to DataSource "${sourceId}"`);
                 }
               }
             }
@@ -539,7 +539,7 @@ export class SystemsManager extends BaseService {
           // Evaluate rules to check if patches need to be applied
           const ruleResults = this.rulesEngine.evaluateDirty(this._hass);
 
-          lcardsLog.debug('[SystemsManager] 🔍 RULE EVALUATION RESULT:', {
+          lcardsLog.debug('[MsdCardCoordinator] 🔍 RULE EVALUATION RESULT:', {
             patchCount: ruleResults.overlayPatches?.length || 0,
             patches: ruleResults.overlayPatches?.map(p => ({
               overlayId: p.id,
@@ -549,13 +549,13 @@ export class SystemsManager extends BaseService {
           });
 
           if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-            lcardsLog.debug(`[SystemsManager] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - applying to model and triggering re-render`);
+            lcardsLog.debug(`[MsdCardCoordinator] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - applying to model and triggering re-render`);
 
             // Apply patches to overlays in the model
             ruleResults.overlayPatches.forEach(patch => {
               const overlay = this._findOverlayById(patch.id);
               if (!overlay) {
-                lcardsLog.warn(`[SystemsManager] ⚠️ Overlay not found: ${patch.id}`);
+                lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Overlay not found: ${patch.id}`);
                 return;
               }
 
@@ -573,7 +573,7 @@ export class SystemsManager extends BaseService {
 
               // Process animations from rule patches
               if (patch.animations && Array.isArray(patch.animations) && patch.animations.length > 0) {
-                lcardsLog.debug(`[SystemsManager] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
+                lcardsLog.debug(`[MsdCardCoordinator] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
                 if (this.animationManager) {
                   patch.animations.forEach(animDef => {
                     this.animationManager.playAnimation(patch.id, animDef);
@@ -586,30 +586,30 @@ export class SystemsManager extends BaseService {
             // (Cards self-update via Lit lifecycle; lines are cheap to redraw entirely)
             this._scheduleFullReRender();
           } else {
-            lcardsLog.debug('[SystemsManager] ℹ️ No rule patches needed');
+            lcardsLog.debug('[MsdCardCoordinator] ℹ️ No rule patches needed');
           }
 
-          // ✅ NEW: Apply base_svg filter updates from rules
+          // Apply base_svg filter updates from rules
           if (ruleResults.baseSvgUpdate) {
-            lcardsLog.debug(`[SystemsManager] � Rules produced base_svg update`);
+            lcardsLog.debug(`[MsdCardCoordinator] � Rules produced base_svg update`);
             this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
           }
         }
       });
 
-      lcardsLog.debug('[SystemsManager] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
+      lcardsLog.debug('[MsdCardCoordinator] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
       this._entityChangeListenerRegistered = true;
 
       const sourceCount = await this.dataSourceManager.initializeFromConfig(allDataSources);
-      lcardsLog.debug('[SystemsManager] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
+      lcardsLog.debug('[MsdCardCoordinator] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
 
       // ADDED: Verify entities are available
       const entityIds = this.dataSourceManager.listIds();
-      lcardsLog.debug('[SystemsManager] ✅ DataSourceManager entities available:', entityIds);
+      lcardsLog.debug('[MsdCardCoordinator] ✅ DataSourceManager entities available:', entityIds);
 
     } catch (error) {
-      lcardsLog.error('[SystemsManager] ❌ DataSourceManager initialization failed:', error);
-      lcardsLog.error('[SystemsManager] Error details:', error.stack);
+      lcardsLog.error('[MsdCardCoordinator] ❌ DataSourceManager initialization failed:', error);
+      lcardsLog.error('[MsdCardCoordinator] Error details:', error.stack);
       this.dataSourceManager = null;
     }
   }
@@ -662,9 +662,9 @@ export class SystemsManager extends BaseService {
     if (this.styleResolver) {
       try {
         this.styleResolver.invalidateCache('overlay');
-        lcardsLog.debug('[SystemsManager] StyleResolver overlay cache invalidated');
+        lcardsLog.debug('[MsdCardCoordinator] StyleResolver overlay cache invalidated');
       } catch (error) {
-        lcardsLog.error('[SystemsManager] StyleResolver cleanup error:', error);
+        lcardsLog.error('[MsdCardCoordinator] StyleResolver cleanup error:', error);
       }
     }
 
@@ -694,7 +694,7 @@ export class SystemsManager extends BaseService {
   async renderDebugAndControls(resolvedModel, mountEl = null) {
     // ADDED: Early exit if already rendering
     if (this._debugControlsRendering) {
-      lcardsLog.debug('[SystemsManager] renderDebugAndControls already in progress, skipping');
+      lcardsLog.debug('[MsdCardCoordinator] renderDebugAndControls already in progress, skipping');
       return;
     }
 
@@ -703,7 +703,7 @@ export class SystemsManager extends BaseService {
     try {
       const debugState = this.debugManager.getSnapshot();
 
-      lcardsLog.debug('[SystemsManager] renderDebugAndControls called:', {
+      lcardsLog.debug('[MsdCardCoordinator] renderDebugAndControls called:', {
         anyEnabled: this.debugManager.isAnyEnabled(),
         controlOverlays: resolvedModel.overlays.filter(o => o.type === 'control').length,
         hasHass: !!this._hass,
@@ -713,7 +713,7 @@ export class SystemsManager extends BaseService {
 
       // ADDED: Validate resolved model
       if (!resolvedModel || !resolvedModel.overlays) {
-        lcardsLog.warn('[SystemsManager] Invalid resolved model for renderDebugAndControls');
+        lcardsLog.warn('[MsdCardCoordinator] Invalid resolved model for renderDebugAndControls');
         return;
       }
 
@@ -723,7 +723,7 @@ export class SystemsManager extends BaseService {
           const debugOptions = {
             anchors: resolvedModel.anchors || {},
             overlays: resolvedModel.overlays || [],
-            router: this.router,  // ✅ FIXED: Pass router for routing debug visualization
+            router: this.router,  // Pass router for routing debug visualization
             showAnchors: debugState.anchors,
             showBoundingBoxes: debugState.bounding_boxes,
             showRouting: this.debugManager.canRenderRouting(),
@@ -732,9 +732,9 @@ export class SystemsManager extends BaseService {
           };
 
           this.debugRenderer.render(mountEl || this.renderer?.mountEl, resolvedModel.viewBox, debugOptions);
-          lcardsLog.debug('[SystemsManager] ✅ Debug renderer completed');
+          lcardsLog.debug('[MsdCardCoordinator] ✅ Debug renderer completed');
         } catch (error) {
-          lcardsLog.error('[SystemsManager] ❌ Debug renderer failed:', error);
+          lcardsLog.error('[MsdCardCoordinator] ❌ Debug renderer failed:', error);
           // Continue execution - don't fail the entire render
         }
       }
@@ -742,21 +742,21 @@ export class SystemsManager extends BaseService {
       // FIXED: Render control overlays with comprehensive error handling
       const controlOverlays = resolvedModel.overlays.filter(o => o.type === 'control');
       if (controlOverlays.length > 0) {
-        lcardsLog.debug('[SystemsManager] Rendering control overlays:', controlOverlays.map(c => c.id));
+        lcardsLog.debug('[MsdCardCoordinator] Rendering control overlays:', controlOverlays.map(c => c.id));
 
         try {
           // ADDED: Validate controls renderer exists
           if (!this.controlsRenderer) {
-            lcardsLog.error('[SystemsManager] No controls renderer available');
+            lcardsLog.error('[MsdCardCoordinator] No controls renderer available');
             return;
           }
 
           // Ensure controls renderer has current HASS context
           if (this._hass && this.controlsRenderer) {
             this.controlsRenderer.setHass(this._hass);
-            lcardsLog.debug('[SystemsManager] HASS context applied to controls renderer');
+            lcardsLog.debug('[MsdCardCoordinator] HASS context applied to controls renderer');
           } else {
-            lcardsLog.warn('[SystemsManager] No HASS context available for controls');
+            lcardsLog.warn('[MsdCardCoordinator] No HASS context available for controls');
           }
 
           // REMOVED: Defensive container creation - not needed with SVG foreignObject approach
@@ -769,17 +769,17 @@ export class SystemsManager extends BaseService {
           );
 
           await Promise.race([renderPromise, timeoutPromise]);
-          lcardsLog.debug('[SystemsManager] ✅ Controls rendered successfully');
+          lcardsLog.debug('[MsdCardCoordinator] ✅ Controls rendered successfully');
 
         } catch (error) {
-          lcardsLog.error('[SystemsManager] ❌ Controls rendering failed:', error);
-          lcardsLog.error('[SystemsManager] Error stack:', error.stack);
+          lcardsLog.error('[MsdCardCoordinator] ❌ Controls rendering failed:', error);
+          lcardsLog.error('[MsdCardCoordinator] Error stack:', error.stack);
         }
       }
 
     } catch (error) {
-      lcardsLog.error('[SystemsManager] renderDebugAndControls failed completely:', error);
-      lcardsLog.error('[SystemsManager] Error stack:', error.stack);
+      lcardsLog.error('[MsdCardCoordinator] renderDebugAndControls failed completely:', error);
+      lcardsLog.error('[MsdCardCoordinator] Error stack:', error.stack);
     } finally {
       this._debugControlsRendering = false;
     }
@@ -818,7 +818,7 @@ export class SystemsManager extends BaseService {
 
   // Public API methods - now exclusively using DataSourceManager
   ingestHass(hass) {
-    lcardsLog.debug('[SystemsManager] ingestHass called with:', {
+    lcardsLog.debug('[MsdCardCoordinator] ingestHass called with:', {
       hasHass: !!hass,
       hasStates: !!hass?.states,
       entityCount: hass?.states ? Object.keys(hass.states).length : 0,
@@ -828,33 +828,33 @@ export class SystemsManager extends BaseService {
     });
 
     if (!hass || !hass.states) {
-      lcardsLog.warn('[SystemsManager] ingestHass called without valid hass.states');
+      lcardsLog.warn('[MsdCardCoordinator] ingestHass called without valid hass.states');
       return;
     }
 
     // PHASE 1: Update single source of truth
     this._hass = hass;
 
-    lcardsLog.debug('[SystemsManager] Updated _hass with fresh data');
+    lcardsLog.debug('[MsdCardCoordinator] Updated _hass with fresh data');
 
     // ENHANCED: Pass HASS to controls renderer EVERY time to ensure cards get updates
     if (this.controlsRenderer) {
-      lcardsLog.debug('[SystemsManager] Updating HASS context in controls renderer immediately');
+      lcardsLog.debug('[MsdCardCoordinator] Updating HASS context in controls renderer immediately');
       this.controlsRenderer.setHass(hass);
     } else {
-      lcardsLog.warn('[SystemsManager] No controls renderer available for HASS update');
+      lcardsLog.warn('[MsdCardCoordinator] No controls renderer available for HASS update');
     }
 
     // DataSources handle HASS updates automatically via their subscriptions
     // No manual ingestion needed - handled by individual data sources
-    lcardsLog.debug('[SystemsManager] HASS ingestion handled by individual data sources');
+    lcardsLog.debug('[MsdCardCoordinator] HASS ingestion handled by individual data sources');
   }
 
   updateEntities(map) {
     if (!map || typeof map !== 'object') return;
 
-    lcardsLog.debug('[SystemsManager] Manual entity updates not supported in DataSources system');
-    lcardsLog.warn('[SystemsManager] Use direct HASS state updates instead of manual entity updates');
+    lcardsLog.debug('[MsdCardCoordinator] Manual entity updates not supported in DataSources system');
+    lcardsLog.warn('[MsdCardCoordinator] Use direct HASS state updates instead of manual entity updates');
   }
 
   // Entity API methods using DataSourceManager
@@ -896,7 +896,7 @@ export class SystemsManager extends BaseService {
    */
   _registerMsdPanelsWithHud(cardGuid) {
     if (!lcardsCore?.hudManager) {
-      lcardsLog.warn('[SystemsManager] HUD Manager not available, skipping panel registration');
+      lcardsLog.warn('[MsdCardCoordinator] HUD Manager not available, skipping panel registration');
       return;
     }
 
@@ -921,9 +921,9 @@ export class SystemsManager extends BaseService {
       };
 
       lcardsCore.hudManager.registerCard(cardGuid, cardContext);
-      lcardsLog.debug('[SystemsManager] ✅ Registered MSD card with global HUD:', cardGuid);
+      lcardsLog.debug('[MsdCardCoordinator] ✅ Registered MSD card with global HUD:', cardGuid);
     } catch (error) {
-      lcardsLog.error('[SystemsManager] ❌ Failed to register MSD panels with HUD:', error);
+      lcardsLog.error('[MsdCardCoordinator] ❌ Failed to register MSD panels with HUD:', error);
     }
   }
 
@@ -933,7 +933,7 @@ export class SystemsManager extends BaseService {
    * @private
    */
   _setupGlobalHudInterface() {
-    lcardsLog.debug('[SystemsManager] _setupGlobalHudInterface deprecated - using global HUD Manager');
+    lcardsLog.debug('[MsdCardCoordinator] _setupGlobalHudInterface deprecated - using global HUD Manager');
   }
 
   /**
@@ -956,13 +956,13 @@ export class SystemsManager extends BaseService {
     });
 
     if (affectedDataSources.length > 0) {
-      lcardsLog.debug('[SystemsManager] 🎯 DataSource entities affected by changes:', affectedDataSources);
+      lcardsLog.debug('[MsdCardCoordinator] 🎯 DataSource entities affected by changes:', affectedDataSources);
 
       // ADVANCED: Check if the specific rule thresholds might be crossed
       // This is where we could add more sophisticated logic to detect actual rule changes
       const mightCrossThresholds = this._checkThresholdCrossing(changedIds);
 
-      lcardsLog.debug('[SystemsManager] 🌡️ Threshold crossing check:', mightCrossThresholds);
+      lcardsLog.debug('[MsdCardCoordinator] 🌡️ Threshold crossing check:', mightCrossThresholds);
       return mightCrossThresholds;
     }
 
@@ -994,7 +994,7 @@ export class SystemsManager extends BaseService {
           });
 
           if (isDataSourceAffected) {
-            lcardsLog.debug('[SystemsManager] 🎯 Rule condition potentially affected:', {
+            lcardsLog.debug('[MsdCardCoordinator] 🎯 Rule condition potentially affected:', {
               rule: rule.id,
               entity: entityInRule,
               threshold: condition.above || condition.below,
@@ -1012,7 +1012,7 @@ export class SystemsManager extends BaseService {
               // Check if current value satisfies the condition
               const currentlyMatches = condition.above ? isAboveThreshold : isBelowThreshold;
 
-              lcardsLog.debug('[SystemsManager] 🌡️ Detailed threshold analysis:', {
+              lcardsLog.debug('[MsdCardCoordinator] 🌡️ Detailed threshold analysis:', {
                 currentValue,
                 threshold,
                 operator: condition.above ? 'above' : 'below',
@@ -1030,7 +1030,7 @@ export class SystemsManager extends BaseService {
               const ruleKey = `${rule.id}_${condition.entity}`;
               const previouslyMatched = this._previousRuleStates.get(ruleKey);
 
-              lcardsLog.debug('[SystemsManager] 📊 Rule state comparison:', {
+              lcardsLog.debug('[MsdCardCoordinator] 📊 Rule state comparison:', {
                 ruleKey,
                 previouslyMatched,
                 currentlyMatches,
@@ -1042,14 +1042,14 @@ export class SystemsManager extends BaseService {
 
               // Only trigger re-render if the rule state actually changed
               if (previouslyMatched !== undefined && previouslyMatched !== currentlyMatches) {
-                lcardsLog.debug('[SystemsManager] 🔄 Rule state CHANGED - threshold crossing detected!');
+                lcardsLog.debug('[MsdCardCoordinator] 🔄 Rule state CHANGED - threshold crossing detected!');
                 return true;
               } else if (previouslyMatched === undefined) {
-                lcardsLog.debug('[SystemsManager] 🆕 First rule evaluation - storing state');
+                lcardsLog.debug('[MsdCardCoordinator] 🆕 First rule evaluation - storing state');
                 // First time seeing this rule, don't trigger re-render
                 return false;
               } else {
-                lcardsLog.debug('[SystemsManager] 📌 Rule state UNCHANGED - no threshold crossing');
+                lcardsLog.debug('[MsdCardCoordinator] 📌 Rule state UNCHANGED - no threshold crossing');
                 return false;
               }
             }
@@ -1058,7 +1058,7 @@ export class SystemsManager extends BaseService {
       }
     }
 
-    lcardsLog.debug('[SystemsManager] 📊 No threshold crossings detected');
+    lcardsLog.debug('[MsdCardCoordinator] 📊 No threshold crossings detected');
     return false;
   }
 
@@ -1095,7 +1095,7 @@ export class SystemsManager extends BaseService {
       // Find the base SVG content group (not the root SVG element)
       const mountEl = this.renderer?.mountEl;
 
-      lcardsLog.debug('[SystemsManager] 🔍 Searching for base content group:', {
+      lcardsLog.debug('[MsdCardCoordinator] 🔍 Searching for base content group:', {
         hasMountEl: !!mountEl,
         mountElTag: mountEl?.tagName,
         svgExists: !!mountEl?.querySelector('svg'),
@@ -1105,8 +1105,8 @@ export class SystemsManager extends BaseService {
       const baseSvgElement = mountEl?.querySelector('#__msd-base-content');
 
       if (!baseSvgElement) {
-        lcardsLog.warn('[SystemsManager] Cannot update base SVG filters - base content group not found');
-        lcardsLog.debug('[SystemsManager] Available groups in SVG:',
+        lcardsLog.warn('[MsdCardCoordinator] Cannot update base SVG filters - base content group not found');
+        lcardsLog.debug('[MsdCardCoordinator] Available groups in SVG:',
           Array.from(mountEl?.querySelectorAll('svg g') || []).map(g => ({
             id: g.id,
             tagName: g.tagName
@@ -1115,7 +1115,7 @@ export class SystemsManager extends BaseService {
         return;
       }
 
-      lcardsLog.debug('[SystemsManager] ✅ Found base content group:', {
+      lcardsLog.debug('[MsdCardCoordinator] ✅ Found base content group:', {
         id: baseSvgElement.id,
         tagName: baseSvgElement.tagName
       });
@@ -1127,9 +1127,9 @@ export class SystemsManager extends BaseService {
         const preset = this.themeManager?.getFilterPreset(baseSvgConfig.filter_preset);
         if (preset) {
           filters = { ...preset };
-          lcardsLog.debug(`[SystemsManager] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
+          lcardsLog.debug(`[MsdCardCoordinator] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
         } else {
-          lcardsLog.warn(`[SystemsManager] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
+          lcardsLog.warn(`[MsdCardCoordinator] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
           return;
         }
       }
@@ -1149,7 +1149,7 @@ export class SystemsManager extends BaseService {
         // Clear filters (remove all filtering)
         const { clearBaseSvgFilters } = await import('../utils/BaseSvgFilters.js');
         clearBaseSvgFilters(baseSvgElement, transition);
-        lcardsLog.debug(`[SystemsManager] ✅ Cleared base SVG filters`);
+        lcardsLog.debug(`[MsdCardCoordinator] ✅ Cleared base SVG filters`);
         return;
       }
 
@@ -1157,9 +1157,9 @@ export class SystemsManager extends BaseService {
       const { transitionBaseSvgFilters } = await import('../utils/BaseSvgFilters.js');
       await transitionBaseSvgFilters(baseSvgElement, filters, transition);
 
-      lcardsLog.debug(`[SystemsManager] ✅ Applied base SVG filters:`, filters);
+      lcardsLog.debug(`[MsdCardCoordinator] ✅ Applied base SVG filters:`, filters);
     } catch (error) {
-      lcardsLog.error('[SystemsManager] Failed to apply base SVG filter update:', error);
+      lcardsLog.error('[MsdCardCoordinator] Failed to apply base SVG filter update:', error);
     }
   }
 
@@ -1168,10 +1168,10 @@ export class SystemsManager extends BaseService {
    * @private
    */
   _scheduleFullReRender() {
-    lcardsLog.info('[SystemsManager] 📅 SCHEDULED full re-render (100ms delay)');
+    lcardsLog.info('[MsdCardCoordinator] 📅 SCHEDULED full re-render (100ms delay)');
 
     if (this._renderTimeout) {
-      lcardsLog.debug('[SystemsManager] ⏰ Clearing existing render timeout');
+      lcardsLog.debug('[MsdCardCoordinator] ⏰ Clearing existing render timeout');
       clearTimeout(this._renderTimeout);
     }
 
@@ -1180,15 +1180,15 @@ export class SystemsManager extends BaseService {
       if (this._reRenderCallback && !this._renderInProgress) {
         try {
           this._renderInProgress = true;
-          lcardsLog.info('[SystemsManager] 🚀 EXECUTING full re-render from rule change timeout');
+          lcardsLog.info('[MsdCardCoordinator] 🚀 EXECUTING full re-render from rule change timeout');
           this._reRenderCallback();
         } catch (error) {
-          lcardsLog.error('[SystemsManager] ❌ Re-render FAILED in entity change handler:', error);
+          lcardsLog.error('[MsdCardCoordinator] ❌ Re-render FAILED in entity change handler:', error);
         } finally {
           this._renderInProgress = false;
         }
       } else {
-        lcardsLog.warn('[SystemsManager] ⚠️ Re-render NOT triggered:', {
+        lcardsLog.warn('[MsdCardCoordinator] ⚠️ Re-render NOT triggered:', {
           hasCallback: !!this._reRenderCallback,
           renderInProgress: this._renderInProgress
         });
@@ -1223,11 +1223,11 @@ export class SystemsManager extends BaseService {
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      lcardsLog.warn('[SystemsManager] ingestHass: Invalid HASS provided');
+      lcardsLog.warn('[MsdCardCoordinator] ingestHass: Invalid HASS provided');
       return;
     }
 
-    lcardsLog.debug('[SystemsManager] 📥 ingestHass: Ingesting fresh HASS:', {
+    lcardsLog.debug('[MsdCardCoordinator] 📥 ingestHass: Ingesting fresh HASS:', {
       entityCount: Object.keys(hass.states).length,
       timestamp: new Date().toISOString()
     });
@@ -1246,35 +1246,35 @@ export class SystemsManager extends BaseService {
    * @private
    */
   _propagateHassToSystems(hass) {
-    lcardsLog.debug('[SystemsManager] 🔄 _propagateHassToSystems: Starting ordered propagation');
+    lcardsLog.debug('[MsdCardCoordinator] 🔄 _propagateHassToSystems: Starting ordered propagation');
 
     // 1. DataSourceManager first (provides entity values)
     let dataSourceResult = { hasChanges: true, changedCount: 0, totalCount: 0 };
     if (this.dataSourceManager && typeof this.dataSourceManager.ingestHass === 'function') {
-      lcardsLog.debug('[SystemsManager] 📊 Propagating to DataSourceManager');
+      lcardsLog.debug('[MsdCardCoordinator] 📊 Propagating to DataSourceManager');
       dataSourceResult = this.dataSourceManager.ingestHass(hass) || { hasChanges: true, changedCount: 0, totalCount: 0 };
     } else {
-      lcardsLog.debug('[SystemsManager] ⏭️ DataSourceManager not ready or no ingestHass method');
+      lcardsLog.debug('[MsdCardCoordinator] ⏭️ DataSourceManager not ready or no ingestHass method');
     }
 
     // 2. RulesEngine second (evaluates conditions with fresh data) - ONLY if data changed
     if (dataSourceResult.hasChanges) {
       if (this.rulesEngine && typeof this.rulesEngine.ingestHass === 'function') {
-        lcardsLog.debug('[SystemsManager] 📏 Propagating to RulesEngine - entities changed', {
+        lcardsLog.debug('[MsdCardCoordinator] 📏 Propagating to RulesEngine - entities changed', {
           hasRulesEngine: !!this.rulesEngine,
           hasMethod: typeof this.rulesEngine.ingestHass === 'function',
           changedEntities: dataSourceResult.changedCount
         });
         this.rulesEngine.ingestHass(hass);
-        lcardsLog.info('[SystemsManager] ✅ RulesEngine.ingestHass() completed');
+        lcardsLog.info('[MsdCardCoordinator] ✅ RulesEngine.ingestHass() completed');
       } else {
-        lcardsLog.warn('[SystemsManager] ⚠️ RulesEngine not ready or no ingestHass method', {
+        lcardsLog.warn('[MsdCardCoordinator] ⚠️ RulesEngine not ready or no ingestHass method', {
           hasRulesEngine: !!this.rulesEngine,
           hasMethod: this.rulesEngine ? typeof this.rulesEngine.ingestHass : 'no rulesEngine'
         });
       }
     } else {
-      lcardsLog.debug('[SystemsManager] ⏭️ Skipping RulesEngine - no entity changes detected', {
+      lcardsLog.debug('[MsdCardCoordinator] ⏭️ Skipping RulesEngine - no entity changes detected', {
         totalEntities: dataSourceResult.totalCount,
         changedEntities: dataSourceResult.changedCount
       });
@@ -1282,14 +1282,14 @@ export class SystemsManager extends BaseService {
 
     // 3. Controls third (direct HASS access)
     if (this.controlsRenderer) {
-      lcardsLog.debug('[SystemsManager] 🎮 Propagating to Controls');
+      lcardsLog.debug('[MsdCardCoordinator] 🎮 Propagating to Controls');
       this.controlsRenderer.setHass(hass);
     } else {
-      lcardsLog.debug('[SystemsManager] ⏭️ Controls not ready');
+      lcardsLog.debug('[MsdCardCoordinator] ⏭️ Controls not ready');
     }
 
     // 4. Overlays update automatically via DataSource subscriptions
-    lcardsLog.debug('[SystemsManager] ✅ _propagateHassToSystems: Propagation complete');
+    lcardsLog.debug('[MsdCardCoordinator] ✅ _propagateHassToSystems: Propagation complete');
   }
 
   /**

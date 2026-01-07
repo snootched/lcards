@@ -79,14 +79,14 @@ graph TB
             AR[🗂️ AnimationRegistry]
             VS[✅ ValidationService<br/>extends BaseService]
             SL[📚 StyleLibrary]
-            CSM[⚙️ CoreSystemsManager<br/>extends BaseService]
+            CSM[⚙️ CoreMsdCardCoordinator<br/>extends BaseService]
         end
     end
 
     subgraph "Card Instance Layer"
         subgraph "MSD Card A"
             CardA[MSD Card Element A]
-            SMA[Systems Manager A]
+            SMA[Card Coordinator A]
             RendererA[Advanced Renderer A]
             OIA[Overlay Instances A]
         end
@@ -177,7 +177,7 @@ graph TB
 All intelligence is shared across card instances:
 - **RulesEngine** - Conditional logic evaluation
 - **DataSourceManager** - Entity subscriptions and data processing (MSD cards)
-- **CoreSystemsManager** - Entity caching (LCARdS Cards)
+- **CoreMsdCardCoordinator** - Entity caching (LCARdS Cards)
 - **ThemeManager** - Color schemes and styling
 - **AnimationManager** - Animation coordination
 

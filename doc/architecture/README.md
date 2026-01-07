@@ -38,7 +38,7 @@ Detailed documentation for core systems:
 
 | System | Type | Purpose | Doc |
 |--------|------|---------|-----|
-| **MSD Systems Manager** | Per MSD card | MSD rendering pipeline orchestration | [Read](./subsystems/msd-systems-manager.md) |
+| **MSD Card Coordinator** | Per MSD card | MSD rendering pipeline orchestration | [Read](./subsystems/msd-card-coordinator.md) |
 | **Advanced Renderer** | Per MSD card | SVG rendering pipeline | [Read](./subsystems/advanced-renderer.md) |
 | **Style Resolver** | Per MSD card | Style computation | [Read](./subsystems/style-resolver.md) |
 | **Router Core** | Per MSD card | Path routing for line overlays | [Read](./subsystems/router-core.md) |
@@ -103,7 +103,7 @@ LCARdS uses a **hybrid architecture** for optimal performance and flexibility:
 **Per-Card Systems:**
 - **Local Orchestration** - Each card has its own rendering pipeline
 - **Animation Management** - AnimationManager instantiated per card for local control
-- **MSD-Specific** - MSD SystemsManager only used by MSD cards (not LCARdS Cards)
+- **MSD-Specific** - MSD Card Coordinator only used by MSD cards (not LCARdS Cards)
 - **Resource Efficiency** - Local systems only created when needed
 
 ### Card Types
@@ -112,8 +112,8 @@ LCARdS uses a **hybrid architecture** for optimal performance and flexibility:
   - Access core singletons directly (DataSourceManager, RulesEngine, ThemeManager)
   - No heavy MSD rendering pipeline
 - **MSD Cards** (current) - Complex multi-overlay displays
-  - Use MSD SystemsManager per-card for rendering orchestration
-  - MSD SystemsManager connects to core singletons
+  - Use MSD Card Coordinator per-card for rendering orchestration
+  - MSD Card Coordinator connects to core singletons
   - Full SVG rendering pipeline with Advanced Renderer
 
 ### Performance

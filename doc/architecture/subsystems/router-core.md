@@ -665,7 +665,7 @@ console.log('Total routes:', metrics.count);
 
 ```javascript
 // Get router instance
-const router = window.lcards.debug.msd.pipelineInstance.systemsManager.routerCore;
+const router = window.lcards.debug.msd.pipelineInstance.coordinator.routerCore;
 
 // Check router stats
 console.log(router.stats());
@@ -754,7 +754,7 @@ lineOverlay.style.route_mode = 'manhattan';
 
 - **[Attachment Point Manager](attachment-point-manager.md)** - Provides anchor coordinates
 - **[Advanced Renderer](advanced-renderer.md)** - Uses router for line rendering
-- **[Systems Manager](systems-manager.md)** - Initializes router core
+- **[MSD Card Coordinator](msd-card-coordinator.md)** - Initializes router core
 
 ---
 

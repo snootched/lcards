@@ -661,7 +661,7 @@ Create test HTML file:
 | Property | Type | Description |
 |----------|------|-------------|
 | `_entity` | Object | Current entity state (if config.entity set) |
-| `_singletons` | Object | Singleton system references (systemsManager, theme, rules, etc.) |
+| `_singletons` | Object | Singleton system references (coordinator, theme, rules, etc.) |
 | `_initialized` | Boolean | Whether card is fully initialized |
 | `_entitySubscriptions` | Set | Tracked entity subscriptions for cleanup |
 | `_cardContext` | Object | CoreSystemsManager registration context |

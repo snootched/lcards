@@ -50,7 +50,7 @@ sequenceDiagram
     Pipeline->>Pipeline: AnchorProcessor extracts anchors
     Pipeline->>Core: configManager.processConfig()
     
-    Pipeline->>Pipeline: SystemsManager.init
+    Pipeline->>Pipeline: MsdCardCoordinator.init
     Pipeline->>Core: Access singletons
     Pipeline->>Pipeline: Create renderer/router
     
@@ -82,7 +82,7 @@ graph TD
     G --> H
     H --> I[Schema validation + provenance]
     
-    A --> J[SystemsManager.init]
+    A --> J[MsdCardCoordinator.init]
     J --> K[Access core singletons]
     K --> L[themeManager]
     K --> M[stylePresetManager]
@@ -100,7 +100,7 @@ graph TD
 **Key Facts:**
 - ✅ Anchor extraction happens in pipeline (not card)
 - ✅ CoreConfigManager provides provenance tracking
-- ✅ SystemsManager accesses singletons (doesn't create them)
+- ✅ MsdCardCoordinator accesses singletons (doesn't create them)
 
 ---
 
@@ -137,7 +137,7 @@ graph LR
     H --> J[Track provenance]
     H --> K[Apply defaults from theme]
     
-    K --> L[SystemsManager uses config]
+    K --> L[MsdCardCoordinator uses config]
     
     style D fill:#d1ecf1
     style H fill:#e1f5e1
@@ -172,7 +172,7 @@ graph LR
 graph TD
     A[HASS Update] --> B{MSD Card}
     B --> C[Block card re-render]
-    B --> D[Forward to SystemsManager]
+    B --> D[Forward to MsdCardCoordinator]
     
     D --> E[Update DataSourceManager]
     D --> F[Forward to control overlays]
@@ -194,7 +194,7 @@ graph TD
 - Pipeline: `src/msd/pipeline/PipelineCore.js`
 - Config processing: `src/msd/pipeline/ConfigProcessor.js`
 - Anchor processing: `src/msd/pipeline/AnchorProcessor.js`
-- Systems manager: `src/msd/pipeline/SystemsManager.js`
+- Card coordinator: `src/msd/pipeline/MsdCardCoordinator.js`
 - Renderer: `src/msd/renderer/AdvancedRenderer.js`
 - Router: `src/msd/routing/RouterCore.js`
 - Core singletons: [core-initialization.md](./core-initialization.md)

@@ -941,7 +941,7 @@ __msdDebug.charts.listTypes()
 __msdDebug.charts.checkCompatibility('overlay-id')
 
 // Full validation
-const validation = __msdDebug.pipelineInstance.systemsManager.validationService
+const validation = __msdDebug.pipelineInstance.coordinator.validationService
 validation.validateAll(overlays, context)
 validation.getStats()
 

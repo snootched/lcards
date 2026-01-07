@@ -32,9 +32,9 @@ export class OverlayBase extends BaseRenderer {
    * Create an overlay instance
    *
    * @param {Object} overlay - Overlay configuration
-   * @param {Object} systemsManager - Reference to SystemsManager for accessing subsystems
+   * @param {Object} coordinator - Reference to MsdCardCoordinator for accessing subsystems
    */
-  constructor(overlay, systemsManager) {
+  constructor(overlay, coordinator) {
     super();
 
     // Set renderer name for logging
@@ -42,7 +42,7 @@ export class OverlayBase extends BaseRenderer {
 
     // Core properties
     this.overlay = overlay;
-    this.systems = systemsManager;
+    this.systems = coordinator;
     this.element = null;
     this.mountEl = null;
 
