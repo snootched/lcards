@@ -5,18 +5,20 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  */
 export class OverlaysPanel {
   /**
-   * Get the active MSD card instance
+   * Get the active MSD card element
    * @private
-   * @returns {Object|null} Active MSD instance or null
+   * @returns {Element|null} Active MSD card element or null
    */
-  _getActiveMsdInstance() {
+  _getActiveMsdCard() {
     const hudManager = window.lcards?.core?.hudManager;
     if (!hudManager) return null;
 
-    const activeCardGuid = hudManager.state?.activeCard;
-    if (!activeCardGuid) return null;
+    const activeCardId = hudManager.state?.activeCard;
+    if (!activeCardId) return null;
 
-    return window.lcards.cards.msd.getInstance(activeCardGuid);
+    // Query DOM for card by ID
+    const card = document.querySelector(`lcards-msd[id="${activeCardId}"]`);
+    return card;
   }
 
   captureData() {
@@ -24,8 +26,8 @@ export class OverlaysPanel {
     const stats = { total: 0, byType: {} };
 
     try {
-      const instance = this._getActiveMsdInstance();
-      const pipeline = instance?.pipelineInstance;
+      const card = this._getActiveMsdCard();
+      const pipeline = card?._msdPipeline;
       const model = pipeline?.getResolvedModel?.();
       if (model?.overlays) {
         model.overlays.forEach(o => {
@@ -60,9 +62,9 @@ export class OverlaysPanel {
   highlightOverlay(id) {
     try {
       if (!id) return;
-      const instance = this._getActiveMsdInstance();
-      const mount = instance?.pipelineInstance?.mountElement ||
-                    instance?.cardInstance?.getMountElement?.();
+      const card = this._getActiveMsdCard();
+      const mount = card?._msdPipeline?.mountElement ||
+                    card?.getMountElement?.();
       if (!mount) {
         lcardsLog.warn('[OverlaysPanel] ⚠️ No mountElement available for highlight');
         return;
@@ -314,8 +316,8 @@ export class OverlaysPanel {
 
   analyzeOverlay(id) {
     try {
-      const instance = this._getActiveMsdInstance();
-      const pipeline = instance?.pipelineInstance;
+      const card = this._getActiveMsdCard();
+      const pipeline = card?._msdPipeline;
       const model = pipeline?.getResolvedModel?.();
       const overlay = model?.overlays?.find(o => o.id === id);
       if (!overlay) {
@@ -503,8 +505,8 @@ export class OverlaysPanel {
   // NEW helper: locate overlay model object
   _findOverlayModel(id) {
     try {
-      const instance = this._getActiveMsdInstance();
-      const model = instance?.pipelineInstance?.getResolvedModel?.();
+      const card = this._getActiveMsdCard();
+      const model = card?._msdPipeline?.getResolvedModel?.();
       return model?.overlays?.find(o => o.id === id);
     } catch {
       return null;

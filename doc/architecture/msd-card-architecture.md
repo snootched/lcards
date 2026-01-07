@@ -107,6 +107,55 @@ const pipeline = card._msdPipeline;
 const routing = pipeline?.coordinator?.router;
 ```
 
+---
+
+## Migration from Instance Registry (v1.16.x → v1.17.0)
+
+### Removed APIs
+
+**No longer available:**
+- `window.lcards.cards.msd.registerInstance()`
+- `window.lcards.cards.msd.getInstance(guid)`
+- `window.lcards.cards.msd.listInstances()`
+- `window.lcards.debug.msd.getThemeProvenance()`
+- `window.lcards.debug.msd.getPackInfo()`
+- All other `window.lcards.debug.msd.*Provenance()` methods
+
+### Replacement Patterns
+
+```javascript
+// ❌ OLD: Instance registry
+const instances = window.lcards.cards.msd.listInstances();
+const instance = window.lcards.cards.msd.getInstance('msd-bridge');
+const routing = instance.pipelineInstance.coordinator.router;
+
+// ✅ NEW: DOM queries
+const cards = document.querySelectorAll('lcards-msd');
+const card = document.querySelector('lcards-msd[id="bridge"]');
+const routing = card._msdPipeline.coordinator.router;
+
+// ❌ OLD: Debug helpers
+window.lcards.debug.msd.getThemeProvenance();
+
+// ✅ NEW: Card methods
+const card = document.querySelector('lcards-msd');
+card.getProvenance('config.theme');
+card.debugProvenance();
+```
+
+### Why This Is Better
+
+1. **Simpler** - No registry to maintain
+2. **Consistent** - MSD cards work like all other LCARdS cards
+3. **Debuggable** - Standard DOM queries in DevTools
+4. **Smaller** - 647 lines of code removed (-42%)
+
+### User Impact
+
+**None!** All changes are internal. User configs work exactly the same.
+
+---
+
 ### Lifecycle Methods
 
 MSD cards implement standard `LCARdSCard` lifecycle methods:

@@ -207,14 +207,47 @@ console.log(instances.map(i => i.guid));
 
 All GUIDs should be unique (format: `msd_[timestamp]_[random]`).
 
+---
+
+## Final Cleanup (v1.17.0)
+
+The multi-instance registry has been **removed entirely** in favor of standard DOM queries.
+
+### What Was Removed
+- `MsdInstanceManager.js` (~200 lines)
+- `window.lcards.cards.msd.registerInstance()`
+- `window.lcards.cards.msd.getInstance()`
+- `window.lcards.cards.msd.listInstances()`
+- `window.lcards.debug.msd.getThemeProvenance()` (and 6 other helpers)
+
+### Replacement Pattern
+
+```javascript
+// Get MSD cards
+const cards = document.querySelectorAll('lcards-msd');
+const card = document.querySelector('lcards-msd[id="engineering"]');
+
+// Access systems
+const routing = card._msdPipeline?.coordinator?.router;
+const renderer = card._msdPipeline?.coordinator?.renderer;
+
+// Get provenance
+const prov = card.getProvenance();
+card.debugProvenance();
+```
+
+**End of Migration** - MSD is now a standard LCARdS card! 🎉
+
+---
+
 ## Support
 
 For issues or questions:
 1. Check browser console for errors
 2. Use `window.__msdStatus()` for diagnostics
-3. List instances with `window.lcards.debug.msd.listInstances()`
+3. Query DOM with `document.querySelectorAll('lcards-msd')`
 4. Open an issue on GitHub with console output
 
 ---
 
-*Last Updated: January 2026 | LCARdS v1.12.0+*
+*Last Updated: January 2026 | LCARdS v1.17.0+*

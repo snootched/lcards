@@ -25,18 +25,20 @@ export class RoutingPanel {
   }
 
   /**
-   * Get the active MSD card instance
+   * Get the active MSD card element
    * @private
-   * @returns {Object|null} Active MSD instance or null
+   * @returns {Element|null} Active MSD card element or null
    */
-  _getActiveMsdInstance() {
+  _getActiveMsdCard() {
     const hudManager = window.lcards?.core?.hudManager;
     if (!hudManager) return null;
 
-    const activeCardGuid = hudManager.state?.activeCard;
-    if (!activeCardGuid) return null;
+    const activeCardId = hudManager.state?.activeCard;
+    if (!activeCardId) return null;
 
-    return window.lcards.cards.msd.getInstance(activeCardGuid);
+    // Query DOM for card by ID
+    const card = document.querySelector(`lcards-msd[id="${activeCardId}"]`);
+    return card;
   }
 
   // ADDED: Setup global helper functions
@@ -45,8 +47,8 @@ export class RoutingPanel {
     window.__msdAnalyzeRoute = (routeId) => {
       lcardsLog.info('[RoutingPanel] 🔍 Global analyze for:', routeId);
 
-      const instance = this._getActiveMsdInstance();
-      const routing = instance?.pipelineInstance?.coordinator?.router;
+      const card = this._getActiveMsdCard();
+      const routing = card?._msdPipeline?.coordinator?.router;
       if (!routing?.inspect) {
         lcardsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
         return;
@@ -287,11 +289,11 @@ export class RoutingPanel {
     lcardsLog.info('[RoutingPanel] 🎯 Highlighting route:', routeId);
 
     try {
-      // Get the mount element from the active instance
-      const instance = this._getActiveMsdInstance();
-      const mountElement = instance?.pipelineInstance?.mountElement ||
-                          instance?.cardInstance?.getMountElement?.() ||
-                          document.querySelector('lcards-msd-card')?.shadowRoot ||
+      // Get the mount element from the active card
+      const card = this._getActiveMsdCard();
+      const mountElement = card?._msdPipeline?.mountElement ||
+                          card?.getMountElement?.() ||
+                          document.querySelector('lcards-msd')?.shadowRoot ||
                           document;
 
       if (!mountElement) {
@@ -532,8 +534,8 @@ export class RoutingPanel {
     const performance = {};
 
     try {
-      const instance = this._getActiveMsdInstance();
-      const routing = instance?.pipelineInstance?.coordinator?.router;
+      const card = this._getActiveMsdCard();
+      const routing = card?._msdPipeline?.coordinator?.router;
       if (routing) {
         // Get routing statistics
         const routingStats = routing.stats?.() || {};

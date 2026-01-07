@@ -13,23 +13,25 @@ export class ChannelTrendPanel {
   }
 
   /**
-   * Get the active MSD card instance
+   * Get the active MSD card element
    * @private
-   * @returns {Object|null} Active MSD instance or null
+   * @returns {Element|null} Active MSD card element or null
    */
-  _getActiveMsdInstance() {
+  _getActiveMsdCard() {
     const hudManager = window.lcards?.core?.hudManager;
     if (!hudManager) return null;
 
-    const activeCardGuid = hudManager.state?.activeCard;
-    if (!activeCardGuid) return null;
+    const activeCardId = hudManager.state?.activeCard;
+    if (!activeCardId) return null;
 
-    return window.lcards.cards.msd.getInstance(activeCardGuid);
+    // Query DOM for card by ID
+    const card = document.querySelector(`lcards-msd[id="${activeCardId}"]`);
+    return card;
   }
 
   captureData() {
-    const instance = this._getActiveMsdInstance();
-    const routing = instance?.pipelineInstance?.coordinator?.router;
+    const card = this._getActiveMsdCard();
+    const routing = card?._msdPipeline?.coordinator?.router;
     const current = routing?.channels?._occupancy || {};
     const conflicts = [];
     const trends = {};
