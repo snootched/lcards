@@ -8,34 +8,41 @@
 
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { LCARdSNativeCard } from '../base/LCARdSNativeCard.js';
+import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { initMsdPipeline } from '../msd/index.js';
+import { processAndValidateConfig } from '../msd/pipeline/ConfigProcessor.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
 
 /**
  * Native MSD Card implementation
  *
  * Key features:
- * - Direct LitElement inheritance (no button-card dependency)
+ * - Extends LCARdSCard for unified architecture (v1.17.0+)
  * - Full MSD pipeline integration
  * - Template pattern compatibility
  * - SVG loading and caching
  * - Controls and overlay rendering
  * - HASS update management
+ * - Provenance tracking via inherited _provenanceTracker
+ * - Theme token resolution via inherited helpers
  */
-export class LCARdSMSDCard extends LCARdSNativeCard {
+export class LCARdSMSDCard extends LCARdSCard {
+
+    /** Card type identifier for CoreConfigManager */
+    static CARD_TYPE = 'msd';
 
     static get properties() {
         return {
             ...super.properties,
-            _msdConfig: { type: Object, state: true },
+            // MSD-specific state
             _msdPipeline: { type: Object, state: true },
-            _svgKey: { type: String, state: true },
-            _renderContent: { type: String, state: true },
+            _msdConfig: { type: Object, state: true },
+            _fullConfig: { type: Object, state: true },
+            _svgContent: { type: String, state: true },
             _msdInstanceGuid: { type: String, state: true },
             _msdInitialized: { type: Boolean, state: true },
-            _blockUpdates: { type: Boolean, state: true }
+            _configIssues: { type: Object, state: true }
         };
     }
 
@@ -84,21 +91,188 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
 
     constructor() {
         super();
-        // Initialize MSD state
-        this._msdConfig = null;
+        // MSD-specific state
         this._msdPipeline = null;
-        this._svgKey = null;
-        this._renderContent = '';
+        this._msdConfig = null;
+        this._fullConfig = null;
+        this._svgContent = null;
         this._msdInstanceGuid = null;
         this._msdInitialized = false;
-        this._blockUpdates = false;
-        this._componentReady = false;
-        this._initRetryCount = 0;
-        this._maxInitRetries = 5; // Reduced to 5 retries (500ms max) to avoid log spam
+        this._configIssues = null;
     }
 
     // ============================================================================
-    // Configuration and Lifecycle
+    // LCARdSCard Lifecycle Implementation
+    // ============================================================================
+
+    /**
+     * Get card type for CoreConfigManager
+     * @returns {string} Card type identifier
+     */
+    getCardType() {
+        return this.constructor.CARD_TYPE;
+    }
+
+    /**
+     * Process configuration through MSD pipeline
+     * Called by parent LCARdSCard during setConfig
+     * @param {Object} config - Raw card configuration
+     * @returns {Promise<Object>} Processed MSD configuration
+     * @protected
+     */
+    async _processConfig(config) {
+        lcardsLog.debug('[LCARdSMSDCard] _processConfig called');
+
+        // Store full config for MSD pipeline (includes rules, data_sources, etc. at root level)
+        this._fullConfig = {
+            ...config,
+            // Remove HA card infrastructure metadata
+            type: undefined,
+            grid_options: undefined,
+            // Remove CoreConfigManager processed artifacts
+            theme: typeof config.theme === 'string' ? config.theme : undefined
+        };
+
+        // Extract MSD configuration
+        this._msdConfig = config.msd;
+
+        // Skip MSD processing for card picker context
+        const configKeys = Object.keys(config || {});
+        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type';
+
+        if (isCardPicker) {
+            lcardsLog.debug('[LCARdSMSDCard] Card picker context - skipping MSD processing');
+            return config;
+        }
+
+        if (!this._msdConfig) {
+            throw new Error('MSD configuration is required');
+        }
+
+        // Load SVG if needed (before processing)
+        await this._loadBaseSvg(this._msdConfig.base_svg);
+
+        // ✅ CRITICAL: Process through ConfigProcessor to get provenance
+        const { mergedConfig, provenance, issues } = await processAndValidateConfig(
+            this._msdConfig,
+            this._svgContent
+        );
+
+        // ✅ CRITICAL: Track provenance using inherited tracker
+        if (this._provenanceTracker && provenance) {
+            this._provenanceTracker.trackConfig(provenance);
+            lcardsLog.debug('[LCARdSMSDCard] ✅ Provenance tracked:', {
+                layers: provenance.merge_order?.length || 0,
+                fields: Object.keys(provenance.field_sources || {}).length
+            });
+        }
+
+        // Store processed config and issues
+        this._msdConfig = mergedConfig;
+        this._configIssues = issues;
+
+        return mergedConfig;
+    }
+
+    /**
+     * Called on first update after DOM is ready
+     * Initialize MSD pipeline
+     * @param {Map} changedProperties - Changed properties
+     * @protected
+     */
+    async _onFirstUpdated(changedProperties) {
+        lcardsLog.debug('[LCARdSMSDCard] _onFirstUpdated called');
+
+        // Call parent first
+        await super._onFirstUpdated(changedProperties);
+
+        // Check for validation errors
+        if (this._configIssues?.errors?.length > 0) {
+            lcardsLog.error('[LCARdSMSDCard] Validation errors present, skipping initialization');
+            return;
+        }
+
+        // Generate instance GUID
+        if (!this._msdInstanceGuid) {
+            if (this.config.id) {
+                this._msdInstanceGuid = `msd-${this.config.id}`;
+                lcardsLog.debug('[LCARdSMSDCard] Using config.id as instance GUID:', this._msdInstanceGuid);
+            } else {
+                this._msdInstanceGuid = `msd-${this._cardGuid}`;
+                lcardsLog.debug('[LCARdSMSDCard] Generated instance GUID:', this._msdInstanceGuid);
+            }
+        }
+
+        // Initialize MSD pipeline
+        await this._initializeMsdPipeline();
+    }
+
+    /**
+     * Handle HASS updates - forward to MSD coordinator
+     * @param {Object} newHass - New HASS object
+     * @param {Object} oldHass - Old HASS object
+     * @protected
+     * 
+     * NOTE: We don't call super._handleHassUpdate() because MSD has its own
+     * sophisticated SystemsManager that handles entity monitoring, rule evaluation,
+     * and template updates internally. The MSD pipeline manages all HASS distribution
+     * to its subsystems (coordinator, renderer, controls) directly.
+     */
+    _handleHassUpdate(newHass, oldHass) {
+        lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
+
+        // Forward HASS to MSD coordinator
+        // Note: coordinator is the MsdCardCoordinator instance from pipeline
+        if (this._msdPipeline?.coordinator) {
+            this._msdPipeline.coordinator.ingestHass(newHass);
+        }
+
+        // Don't call super - MSD manages its own updates via MsdCardCoordinator
+    }
+
+    /**
+     * Render the MSD card
+     * @returns {import('lit').TemplateResult} Card HTML
+     * @protected
+     */
+    _renderCard() {
+        // Check for preview mode (editor or card picker)
+        const configKeys = Object.keys(this.config || {});
+        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type';
+
+        if (this._isPreviewMode || isCardPicker) {
+            return this._renderPreviewContent();
+        }
+
+        // Check for validation errors
+        if (this._configIssues?.errors?.length > 0) {
+            return this._renderValidationErrors();
+        }
+
+        // Show loading state while pipeline initializes
+        if (!this._msdPipeline || !this._msdInitialized) {
+            return html`
+                <div class="lcards-msd-loading">
+                    <ha-circular-progress active></ha-circular-progress>
+                    <p>Initializing MSD...</p>
+                </div>
+            `;
+        }
+
+        // Render SVG container for MSD mounting
+        return this._renderSvgContainer();
+    }
+
+    /**
+     * Cleanup when card is removed from DOM
+     */
+    disconnectedCallback() {
+        this._cleanupMsdPipeline();
+        super.disconnectedCallback();
+    }
+
+    // ============================================================================
+    // Configuration and Lifecycle (Legacy Support)
     // ============================================================================
 
     /**
@@ -119,10 +293,11 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
         // Forward HASS to MSD pipeline but don't trigger card re-renders
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSMSDCard] HASS updated for ${this._cardGuid}, forwarding to MSD pipeline`);
-            this._onHassChanged(hass, oldHass);
+            
+            // Call the unified handler directly
+            this._handleHassUpdate(hass, oldHass);
 
-            // DON'T call this.requestUpdate() like the base class does
-            // MSD system handles its own updates internally
+            // DON'T call this.requestUpdate() - MSD handles its own updates
         }
     }
 
@@ -130,86 +305,206 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
         return this._hass;
     }
 
+    // ============================================================================
+    // MSD Pipeline Integration
+    // ============================================================================
+
     /**
-     * Set card configuration
-     * @protected
+     * Load base SVG using AssetManager
+     * @param {Object} baseSvgConfig - base_svg configuration
+     * @private
      */
-    _onConfigSet(config) {
-        lcardsLog.trace('[LCARdSMSDCard] Config set:', {
-            configType: config.type,
-            hasExistingConfig: !!this.config,
-            timestamp: new Date().toISOString()
-        });
-
-        // Store full config for MSD pipeline (includes rules, data_sources, etc. at root level)
-        // Exclude Home Assistant metadata (type, grid_options) and processed artifacts (theme objects)
-        this._fullConfig = {
-            ...config,
-            // Remove HA card infrastructure metadata
-            type: undefined,
-            grid_options: undefined,
-            // Remove CoreConfigManager processed artifacts (theme object becomes theme string or undefined)
-            theme: typeof config.theme === 'string' ? config.theme : undefined
-        };
-
-        // Also extract MSD configuration for backward compatibility
-        this._msdConfig = config.msd;
-
-        // Skip MSD processing for card picker context
-        const configKeys = Object.keys(config || {});
-        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type' && config.type === 'custom:lcards-msd-card';
-
-        if (isCardPicker) {
-            lcardsLog.debug('[LCARdSMSDCard] Card picker context detected in _onConfigSet - skipping MSD initialization');
+    async _loadBaseSvg(baseSvgConfig) {
+        if (!baseSvgConfig || baseSvgConfig.source === 'none') {
+            this._svgContent = null;
             return;
         }
 
-        if (!this._msdConfig) {
-            throw new Error('MSD configuration is required');
+        const source = baseSvgConfig.source;
+        const assetManager = window.lcards?.core?.assetManager;
+
+        if (!assetManager) {
+            lcardsLog.warn('[LCARdSMSDCard] AssetManager not available yet');
+            return;
         }
 
-        // Always reinitialize when config changes - simpler and more reliable
-        // This ensures clean state whether user cancels or saves edit mode
-        lcardsLog.debug('[LCARdSMSDCard] Config changed, reinitializing. Resize detection:', {
-          hasWidthVars: !!(config.variables?.card?.width),
-          hasHeightVars: !!(config.variables?.card?.height),
-          cardWidth: config.variables?.card?.width,
-          cardHeight: config.variables?.card?.height,
-          isResizeTriggered: !!(config.variables?.card?.width && config.variables?.card?.height)
-        });
-        this._resetInitializationState();
+        let svgKey = null;
 
-        // SVG loading deferred to _onFirstUpdated when singletons are available
-        // (AssetManager not available yet during setConfig)
+        if (source.startsWith('builtin:')) {
+            svgKey = source.replace('builtin:', '');
+        } else if (source.startsWith('/local/')) {
+            svgKey = source.split('/').pop().replace('.svg', '');
 
-        // Prepare for MSD pipeline initialization
-        this._prepareMsdPipeline();
+            // Register external SVG
+            if (!assetManager.getRegistry('svg').has(svgKey)) {
+                assetManager.register('svg', svgKey, null, {
+                    url: source,
+                    source: 'user'
+                });
+            }
+        }
+
+        if (!svgKey) {
+            lcardsLog.warn('[LCARdSMSDCard] Could not determine SVG key from source:', source);
+            return;
+        }
+
+        try {
+            this._svgContent = await assetManager.get('svg', svgKey);
+            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', svgKey);
+        } catch (error) {
+            lcardsLog.error('[LCARdSMSDCard] Failed to load SVG:', error);
+        }
     }
 
     /**
-     * Reset initialization state for fresh start
+     * Initialize MSD pipeline using initMsdPipeline from pipeline core
      * @private
      */
-    _resetInitializationState() {
-        lcardsLog.debug('[LCARdSMSDCard] Resetting initialization state');
-        this._msdInitialized = false;
-        this._initRetryCount = 0;
-
-        // Clean up existing pipeline if any
-        if (this._msdPipeline) {
-            this._msdPipeline = null;
+    async _initializeMsdPipeline() {
+        if (this._msdInitialized || !this._msdConfig || !this.hass) {
+            lcardsLog.debug('[LCARdSMSDCard] Skipping pipeline init:', {
+                initialized: this._msdInitialized,
+                hasConfig: !!this._msdConfig,
+                hasHass: !!this.hass
+            });
+            return;
         }
 
-        // If component was previously ready, keep it ready for re-initialization
-        // This handles the case where we're resetting after edit mode exit
-        if (this._componentReady) {
-            lcardsLog.debug('[LCARdSMSDCard] Component was ready, will attempt immediate re-initialization');
-            // Use a small delay to ensure DOM has been updated after config change
-            setTimeout(() => {
-                this._tryInitializePipeline();
-            }, 50);
+        try {
+            lcardsLog.info('[LCARdSMSDCard] 🚀 Initializing MSD pipeline');
+
+            // Get mount element
+            const mount = this.renderRoot;
+            if (!mount) {
+                lcardsLog.error('[LCARdSMSDCard] Mount element not found');
+                return;
+            }
+
+            // Build enhanced config with root-level properties
+            const enhancedConfig = {
+                ...this._msdConfig,
+                ...(this._fullConfig?.rules ? { rules: this._fullConfig.rules } : {}),
+                ...(this._fullConfig?.data_sources ? { data_sources: this._fullConfig.data_sources } : {})
+            };
+
+            lcardsLog.debug('[LCARdSMSDCard] Calling initMsdPipeline with config:', {
+                hasRules: !!enhancedConfig.rules,
+                hasDataSources: !!enhancedConfig.data_sources,
+                hasOverlays: !!enhancedConfig.overlays,
+                hasSvgContent: !!this._svgContent
+            });
+
+            // Initialize MSD pipeline directly (not via MsdInstanceManager)
+            const pipelineResult = await initMsdPipeline(
+                enhancedConfig,
+                this._svgContent,
+                mount,
+                this.hass,
+                this._msdInstanceGuid
+            );
+
+            if (!pipelineResult || !pipelineResult.enabled) {
+                lcardsLog.error('[LCARdSMSDCard] Pipeline initialization failed or disabled');
+                this._configIssues = pipelineResult?.issues || { errors: ['Pipeline initialization failed'] };
+                this.requestUpdate();
+                return;
+            }
+
+            // Store pipeline reference
+            this._msdPipeline = pipelineResult;
+
+            // Provenance already tracked in _processConfig() - no need to track again
+
+            // Set card instance for actions
+            if (this._msdPipeline.setCardInstance) {
+                this._msdPipeline.setCardInstance(this);
+            }
+
+            // Mark as initialized
+            this._msdInitialized = true;
+
+            lcardsLog.info('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully');
+
+        } catch (error) {
+            lcardsLog.error('[LCARdSMSDCard] Pipeline initialization error:', error);
+            this._configIssues = {
+                errors: [{ message: `Pipeline initialization failed: ${error.message}` }]
+            };
+            this.requestUpdate();
         }
     }
+
+    /**
+     * Cleanup MSD pipeline
+     * @private
+     */
+    _cleanupMsdPipeline() {
+        if (this._msdPipeline?.coordinator?.destroy) {
+            this._msdPipeline.coordinator.destroy();
+        }
+        this._msdPipeline = null;
+        this._msdInitialized = false;
+        lcardsLog.debug('[LCARdSMSDCard] Pipeline cleaned up');
+    }
+
+    // ============================================================================
+    // Rendering Helpers
+    // ============================================================================
+
+    /**
+     * Render validation errors
+     * @private
+     */
+    _renderValidationErrors() {
+        if (!this._configIssues) {
+            return html`<div class="lcards-msd-loading">No validation errors</div>`;
+        }
+
+        const errors = this._configIssues.errors || [];
+        const warnings = this._configIssues.warnings || [];
+
+        return html`
+            <div style="
+                padding: 20px;
+                background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                border: 2px solid var(--error-color, #f44336);
+                border-radius: 8px;
+            ">
+                <h3 style="margin-top: 0; color: var(--error-color, #f44336);">
+                    MSD Configuration Errors
+                </h3>
+                ${errors.length > 0 ? html`
+                    <div style="margin-bottom: 16px;">
+                        <h4 style="margin: 8px 0; color: var(--error-color, #f44336);">Errors:</h4>
+                        <ul style="margin: 4px 0; padding-left: 20px;">
+                            ${errors.map(err => html`
+                                <li style="color: var(--primary-text-color); margin: 4px 0;">
+                                    ${err.message || err}
+                                </li>
+                            `)}
+                        </ul>
+                    </div>
+                ` : ''}
+                ${warnings.length > 0 ? html`
+                    <div>
+                        <h4 style="margin: 8px 0; color: var(--warning-color, #ff9800);">Warnings:</h4>
+                        <ul style="margin: 4px 0; padding-left: 20px;">
+                            ${warnings.map(warn => html`
+                                <li style="color: var(--primary-text-color); margin: 4px 0;">
+                                    ${warn.message || warn}
+                                </li>
+                            `)}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // ============================================================================
+    // Legacy Support Methods (for compatibility)
+    // ============================================================================
 
     /**
      * Detect if running in preview mode
@@ -261,212 +556,18 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     }
 
     /**
-     * Called when HASS changes
-     * @protected
-     */
-    _onHassChanged(newHass, oldHass) {
-        lcardsLog.trace('[LCARdSMSDCard] HASS changed, forwarding to MSD pipeline');
-
-        // CRITICAL: ALWAYS update SystemsManager with the FRESHEST HASS immediately
-        // This ensures _originalHass is never stale (like legacy card)
-        if (this._msdPipeline && this._msdPipeline.systemsManager) {
-            lcardsLog.info('[LCARdSMSDCard] Immediately updating SystemsManager with fresh HASS');
-
-            // This bypasses the entity change detection delay
-            if (this._msdPipeline.systemsManager.controlsRenderer) {
-                lcardsLog.info('[LCARdSMSDCard] Immediately forwarding fresh HASS to controls');
-                this._msdPipeline.systemsManager.controlsRenderer.setHass(newHass);
-            }
-
-            // Forward HASS to the MSD system directly (primary method)
-            if (typeof this._msdPipeline.systemsManager.ingestHass === 'function') {
-                lcardsLog.info('[LCARdSMSDCard] Forwarding HASS to SystemsManager via ingestHass');
-                this._msdPipeline.systemsManager.ingestHass(newHass);
-            }
-
-            // Also update via setHass for controls renderer
-            this._msdPipeline.systemsManager.setHass?.(newHass);
-        }
-
-        lcardsLog.trace('[LCARdSMSDCard] HASS forwarding completed - SystemsManager should now have fresh HASS');
-    }
-
-    /**
-     * Called on first update
-     * @protected
-     */
-    _onFirstUpdated(changedProperties) {
-        lcardsLog.debug('[LCARdSMSDCard] First updated, marking component ready');
-
-        // Initialize singletons first (inherited method)
-        if (super._onFirstUpdated) {
-            super._onFirstUpdated(changedProperties);
-        }
-
-        // Now that singletons are available, handle SVG loading
-        if (this._msdConfig) {
-            this._handleSvgLoading(this._msdConfig);
-        }
-
-        this._componentReady = true;
-        this._tryInitializePipeline();
-    }
-
-    /**
-     * Called on updates
-     * @protected
-     */
-    _onUpdated(changedProperties) {
-        // Prevent updates during MSD initialization to avoid render loops
-        if (this._blockUpdates) {
-            return;
-        }
-
-        // Only re-render MSD if config changed (not HASS)
-        // HASS changes are handled internally by MSD pipeline
-        if (changedProperties.has('_msdConfig')) {
-            this._updateMsdRendering();
-        }
-    }
-
-    /**
-     * Try to initialize the pipeline if component is ready
-     * @private
-     */
-    _tryInitializePipeline() {
-        if (this._componentReady && !this._msdInitialized) {
-            lcardsLog.debug('[LCARdSMSDCard] Component ready, waiting for DOM render...');
-
-            // Wait for the next frame to ensure DOM is fully rendered
-            requestAnimationFrame(() => {
-                // Double-check that SVG element exists before initializing pipeline
-                const svg = this.shadowRoot?.querySelector('svg');
-                if (svg) {
-                    lcardsLog.debug('[LCARdSMSDCard] SVG element found, initializing MSD pipeline');
-                    this._initRetryCount = 0; // Reset retry count on success
-                    this._initializeMsdPipeline();
-                } else {
-                    this._initRetryCount++;
-                    if (this._initRetryCount >= this._maxInitRetries) {
-                        lcardsLog.error(`[LCARdSMSDCard] SVG element not found after ${this._maxInitRetries} retries, giving up.`);
-                        this._errorState = 'SVG element not found after initialization retries. Try refreshing the page.';
-                        return;
-                    }
-                    lcardsLog.warn(`[LCARdSMSDCard] SVG element not found, retrying in 100ms (attempt ${this._initRetryCount}/${this._maxInitRetries})`);
-                    setTimeout(() => this._tryInitializePipeline(), 100);
-                }
-            });
-        } else {
-            lcardsLog.debug('[LCARdSMSDCard] Pipeline initialization delayed:', {
-                componentReady: this._componentReady,
-                msdInitialized: this._msdInitialized
-            });
-        }
-    }
-
-    /**
-     * Override LitElement updated to prevent HASS-triggered re-renders
-     * @protected
-     */
-    updated(changedProperties) {
-        // Block HASS-triggered updates like legacy card
-        if (changedProperties.has('hass') || changedProperties.has('_hass')) {
-            const isControlTriggered = this._isControlTriggeredUpdate();
-
-            if (isControlTriggered) {
-                lcardsLog.trace('[LCARdSMSDCard] Blocking update for control-triggered HASS change');
-                return; // Don't call super.updated() for control-triggered changes
-            } else {
-                lcardsLog.trace('[LCARdSMSDCard] Allowing update for non-control HASS change');
-            }
-        }
-
-        // Allow other updates (config, etc.)
-        super.updated(changedProperties);
-    }
-
-    /**
-     * Check if this update was triggered by MSD control actions
-     * @private
-     */
-    _isControlTriggeredUpdate() {
-        try {
-            // Method 1: Check stack trace for control action patterns
-            const stackTrace = new Error().stack;
-            if (!stackTrace) return false;
-
-            const controlPatterns = [
-                '_handleAction',
-                'executeActionViaButtonCardBridge',
-                'callService',
-                'fireEvent',
-                'moreInfo',
-                'toggle',
-                'navigate'
-            ];
-
-            const isStackTriggered = controlPatterns.some(pattern => stackTrace.includes(pattern));
-
-            // Method 2: Check MSD system's entity change analysis (like legacy card)
-            if (window.lcards?.debug?.msd?.systemsManager) {
-                const lastAnalysis = window.lcards.debug.msd.systemsManager._lastEntityAnalysis;
-                if (lastAnalysis && lastAnalysis.isControlTriggered) {
-                    const timeSinceAnalysis = Date.now() - lastAnalysis.timestamp;
-                    // If analysis was recent (within 100ms), consider this a control-triggered update
-                    if (timeSinceAnalysis < 100) {
-                        return true;
-                    }
-                }
-            }
-
-            return isStackTriggered;
-        } catch (error) {
-            lcardsLog.warn('[LCARdSMSDCard] Error checking control trigger:', error);
-            return false;
-        }
-    }
-
-    /**
-     * Override requestUpdate to block HASS and action-triggered updates
+     * Override requestUpdate to block HASS-triggered updates
+     * MSD manages its own updates internally
      * @protected
      */
     requestUpdate(name, oldValue, options) {
-        lcardsLog.trace('[LCARdSMSDCard] requestUpdate called:', {
-            timestamp: new Date().toISOString(),
-            name,
-            hasOldValue: oldValue !== undefined,
-            cardGuid: this._cardGuid,
-            stackTrace: new Error().stack.split('\n').slice(1, 4).map(line => line.trim()).join(' → ')
-        });
-
-        // Block ALL HASS-related updates for MSD cards to prevent re-renders
+        // Block HASS-related updates to prevent re-renders
         if (name === 'hass' || name === '_hass') {
-            lcardsLog.trace('[LCARdSMSDCard] BLOCKED requestUpdate for HASS change:', name);
-            return Promise.resolve(); // Block the MSD card from re-rendering
+            lcardsLog.trace('[LCARdSMSDCard] Blocked requestUpdate for HASS change');
+            return Promise.resolve();
         }
 
-        // Block _config updates that come from action bridge execution
-        if (name === 'config' || name === '_config') {
-            const stackTrace = new Error().stack;
-            const isActionTriggered = stackTrace.includes('_handleAction') ||
-                                    stackTrace.includes('executeActionViaButtonCardBridge');
-
-            if (isActionTriggered) {
-                lcardsLog.trace('[LCARdSMSDCard] BLOCKED requestUpdate for action-triggered config change');
-                return Promise.resolve(); // Block action-triggered config changes
-            }
-        }
-
-        lcardsLog.trace('[LCARdSMSDCard] Allowing requestUpdate for:', name);
         return super.requestUpdate(name, oldValue, options);
-    }
-
-    /**
-     * Called when disconnected
-     * @protected
-     */
-    _onDisconnected() {
-        this._cleanupMsdPipeline();
     }
 
     // ============================================================================
@@ -545,37 +646,6 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     // ============================================================================
     // Rendering
     // ============================================================================
-
-    /**
-     * Render the card content
-     * @protected
-     */
-    _renderCard() {
-        // Check for preview mode first (editor or card picker) - before any config checks
-        const mount = this.getMountElement();
-        const isPreview = this._isPreviewMode || window.lcards?.debug?.msd?.MsdInstanceManager?.detectPreviewMode?.(mount);
-
-        // Additional check for card picker context based on config
-        const configKeys = Object.keys(this.config || {});
-        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type' && this.config.type === 'custom:lcards-msd-card';
-
-        if (isPreview || isCardPicker) {
-            lcardsLog.debug('[LCARdSMSDCard] 🔍 Preview mode detected - showing preview content');
-            return this._renderPreviewContent();
-        }
-
-        if (!this._msdConfig) {
-            return html`
-                <div class="lcards-msd-loading">
-                    No MSD configuration provided
-                </div>
-            `;
-        }
-
-        return html`
-            ${this._renderSvgContainer()}
-        `;
-    }
 
     /**
      * Render preview content for editor and card picker
@@ -856,486 +926,67 @@ export class LCARdSMSDCard extends LCARdSNativeCard {
     }
 
     // ============================================================================
-    // MSD Pipeline Integration
+    // Card Utilities
     // ============================================================================
 
     /**
-     * Handle SVG loading (simplified - no anchor processing)
-     * Pipeline will handle anchor extraction
-     * @private
+     * Get mount element for MSD pipeline
+     * @returns {HTMLElement|ShadowRoot} Mount element
+     * @protected
      */
-    _handleSvgLoading(msdConfig) {
-        if (!msdConfig.base_svg?.source) {
-            return;
-        }
-
-        const source = msdConfig.base_svg.source;
-
-        if (source === 'none') {
-            // No SVG - pipeline will use explicit view_box from config
-            lcardsLog.debug('[LCARdSMSDCard] base_svg: "none" - no SVG to load');
-            return;
-        }
-
-        // DESIGN NOTE: MSD accesses core systems directly, not via _singletons
-        // _singletons is a convenience wrapper used by LCARdSCard for simple cards.
-        // MSD extends LCARdSNativeCard (not LCARdSCard) because it has its own
-        // sophisticated pipeline with integrated SystemsManager, DataSourceManager,
-        // RulesEngine, and template evaluation. Direct core access avoids conflicts
-        // with simple card behavior and keeps MSD's architecture clean.
-        const assetManager = window.lcards?.core?.getAssetManager?.();
-        if (!assetManager) {
-            lcardsLog.warn('[LCARdSMSDCard] AssetManager not available yet - core not initialized');
-            return;
-        }
-
-        let svgKey = null;
-
-        if (source.startsWith('builtin:')) {
-            svgKey = source.replace('builtin:', '');
-        } else if (source.startsWith('/local/')) {
-            svgKey = source.split('/').pop().replace('.svg', '');
-
-            // Register external SVG
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
-                assetManager.register('svg', svgKey, null, {
-                    url: source,
-                    source: 'user'
-                });
-            }
-        }
-
-        if (!svgKey) {
-            lcardsLog.warn('[LCARdSMSDCard] Could not determine SVG key from source:', source);
-            return;
-        }
-
-        // Trigger async load if needed (AssetManager handles caching)
-        assetManager.get('svg', svgKey).then(() => {
-            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', svgKey);
-            // SVG loaded - pipeline initialization can proceed
-        }).catch(error => {
-            lcardsLog.error('[LCARdSMSDCard] Failed to load SVG:', error);
-        });
+    getMountElement() {
+        return this.renderRoot || this.shadowRoot;
     }
 
     /**
-     * Prepare MSD pipeline
-     * @private
+     * Get config element (editor)
+     * @returns {HTMLElement} Editor element
      */
-    _prepareMsdPipeline() {
-        // Store configuration for pipeline initialization
-        // This will be used when the element is mounted
-        lcardsLog.debug('[LCARdSMSDCard] MSD pipeline prepared for initialization');
+    static getConfigElement() {
+        return document.createElement('lcards-msd-editor');
     }
 
     /**
-     * Initialize MSD pipeline using MsdInstanceManager
-     * Card now just loads SVG and passes everything to pipeline
-     * @private
+     * Get stub config for card picker
+     * @returns {Object} Stub configuration
      */
-    async _initializeMsdPipeline() {
-        if (this._msdInitialized || !this._msdConfig || !this.hass) {
-            return;
-        }
-
-        try {
-            this._blockUpdates = true;
-            lcardsLog.info('[LCARdSMSDCard] 🚀 Initializing MSD pipeline');
-
-            // Check if MSD system is fully loaded
-            if (!window.lcards?.debug?.msd?.MsdInstanceManager) {
-                lcardsLog.error('[LCARdSMSDCard] MsdInstanceManager not available');
-                this._renderContent = this._createErrorDisplay(
-                    'MSD System Not Loaded',
-                    'MsdInstanceManager is not available. Check browser console for details.',
-                    'This usually means the lcards.js bundle did not load correctly.'
-                );
-                this.requestUpdate();
-                return;
+    static getStubConfig() {
+        return {
+            type: 'custom:lcards-msd-card',
+            msd: {
+                base_svg: {
+                    source: 'none'
+                },
+                view_box: [0, 0, 1920, 1080],
+                overlays: []
             }
-
-            // Generate instance GUID using config.id as primary identifier (matches other LCARdS cards)
-            // Priority: user-provided config.id > auto-generated GUID
-            if (!this._msdInstanceGuid) {
-                if (this.config.id) {
-                    // User provided stable ID - use it directly
-                    this._msdInstanceGuid = `msd-${this.config.id}`;
-                    lcardsLog.debug('[LCARdSMSDCard] Using config.id as instance GUID:', this._msdInstanceGuid);
-                } else {
-                    // Auto-generate GUID for anonymous cards
-                    this._msdInstanceGuid = window.lcards.debug.msd.MsdInstanceManager.generateGuid();
-                    lcardsLog.debug('[LCARdSMSDCard] Generated instance GUID:', this._msdInstanceGuid);
-                }
-            }
-
-            // Register with global system (multi-instance support)
-            // Production multi-instance registration
-            if (window.lcards.cards?.msd?.registerInstance) {
-                window.lcards.cards.msd.registerInstance(this._msdInstanceGuid, this, null);
-            }
-
-            // Get mount element
-            const mount = this.getMountElement();
-            if (!mount) {
-                lcardsLog.error('[LCARdSMSDCard] Mount element not found');
-                return;
-            }
-
-            // Get SVG content (already loaded by AssetManager in _handleSvgLoading)
-            const source = this._msdConfig?.base_svg?.source;
-            let svgContent = null;
-
-            if (source && source !== 'none') {
-                svgContent = window.lcards?.getSvgContent?.(source);
-
-                if (!svgContent) {
-                    lcardsLog.warn('[LCARdSMSDCard] SVG not loaded yet, will retry');
-
-                    // Retry after short delay
-                    if (this._initRetryCount < this._maxInitRetries) {
-                        this._initRetryCount++;
-                        setTimeout(() => this._initializeMsdPipeline(), 100);
-                    }
-                    return;
-                }
-            }
-
-            // Detect preview mode
-            const isPreview = window.lcards.debug.msd.MsdInstanceManager.detectPreviewMode(mount);
-
-            // ✅ SIMPLIFIED: Build config with root-level properties
-            // NO anchor injection - pipeline handles extraction
-            // CRITICAL: Only extract specific root fields (rules, data_sources) to avoid
-            // injecting theme objects or other processed config artifacts from CoreConfigManager
-            const enhancedConfig = {
-                ...this._msdConfig,  // Start with msd section (overlays, base_svg, etc.)
-                ...(this._fullConfig.rules ? { rules: this._fullConfig.rules } : {}),  // Add rules from root
-                ...(this._fullConfig.data_sources ? { data_sources: this._fullConfig.data_sources } : {})  // Add data_sources from root
-            };
-
-            lcardsLog.debug('[LCARdSMSDCard] Passing config to pipeline:', {
-                hasRules: !!enhancedConfig.rules,
-                hasDataSources: !!enhancedConfig.data_sources,
-                hasOverlays: !!enhancedConfig.overlays,
-                hasBaseSvg: !!enhancedConfig.base_svg,
-                hasSvgContent: !!svgContent,
-                svgContentLength: svgContent?.length || 0
-            });
-
-            // ADDED: Cache raw overlays for control recovery (replaces YAML template JavaScript processing)
-            if (this._msdConfig.overlays && Array.isArray(this._msdConfig.overlays)) {
-                window._msdRawOverlays = this._msdConfig.overlays.map(o => JSON.parse(JSON.stringify(o)));
-                const controlOverlays = window._msdRawOverlays.filter(o => o.type === 'control');
-                lcardsLog.debug('[LCARdSMSDCard] Cached raw overlays for controls recovery:', {
-                    totalOverlays: window._msdRawOverlays.length,
-                    controlOverlays: controlOverlays.length,
-                    controlIds: controlOverlays.map(o => o.id)
-                });
-            }
-
-            // ✅ FIXED: Pass card GUID to pipeline for early coordinator setup
-            const pipelineResult = await window.lcards.debug.msd.MsdInstanceManager.requestInstance(
-                enhancedConfig,
-                svgContent,  // ✅ Pipeline will extract anchors from SVG
-                mount,
-                this.hass,
-                isPreview,
-                this._msdInstanceGuid  // ✅ NEW: Pass GUID for HUD registration
-            );
-
-            if (pipelineResult.preview) {
-                lcardsLog.debug('[LCARdSMSDCard] Preview mode detected - showing preview content');
-                this._renderContent = pipelineResult.html;
-                this._msdInitialized = true;
-                this.requestUpdate();
-                return;
-            }
-
-            // Check for validation/configuration errors
-            if (!pipelineResult.enabled && pipelineResult.html) {
-                lcardsLog.warn('[LCARdSMSDCard] MSD validation or configuration error');
-                this._renderContent = pipelineResult.html;
-                this.requestUpdate();
-                return;
-            }
-
-            // Check for unexpected initialization failure
-            if (!pipelineResult.enabled || !pipelineResult) {
-                lcardsLog.error('[LCARdSMSDCard] MSD initialization failed');
-                this._renderContent = this._createErrorDisplay(
-                    'MSD Initialization Failed',
-                    'Pipeline initialization failed without error message.',
-                    'Check your MSD configuration and browser console.'
-                );
-                this.requestUpdate();
-                return;
-            }
-
-            // Normal pipeline initialization completed
-            this._msdPipeline = pipelineResult;
-            lcardsLog.debug('[LCARdSMSDCard] Pipeline initialized successfully via MsdInstanceManager');
-
-            // Update multi-instance registration with pipeline (production namespace)
-            if (window.lcards.cards?.msd?.registerInstance) {
-                window.lcards.cards.msd.registerInstance(this._msdInstanceGuid, this, pipelineResult);
-            }
-
-            // Set up pipeline callbacks
-            this._setupPipelineCallbacks();
-
-            // Set card instance via pipeline API for consistency
-            if (this._msdPipeline.setCardInstance && typeof this._msdPipeline.setCardInstance === 'function') {
-                this._msdPipeline.setCardInstance(this);
-                lcardsLog.debug('[LCARdSMSDCard] Card instance set via pipeline API');
-            }
-
-            // NOTE: Card GUID is set early in pipeline (PipelineCore) BEFORE completeSystems()
-            // to ensure HUD panels register with correct GUID. No need to set it again here.
-
-            // Initialize HASS state
-            if (this._msdPipeline.systemsManager) {
-                this._msdPipeline.systemsManager.ingestHass(this.hass);
-            }
-
-            // Initial render
-            await this._updateMsdRendering();
-
-            this._msdInitialized = true;
-            lcardsLog.info('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully');
-
-        } catch (error) {
-            lcardsLog.error('[LCARdSMSDCard] ❌ Pipeline initialization failed:', error);
-            lcardsLog.error('[LCARdSMSDCard] Error stack:', error.stack);
-            this._renderContent = this._createErrorDisplay(
-                'MSD Pipeline Error',
-                error.message || 'Unknown error occurred during initialization.',
-                'Check browser console for details.'
-            );
-            this.requestUpdate();
-        } finally {
-            this._blockUpdates = false;
-            this.requestUpdate();
-        }
+        };
     }
 
-    /**
-     * Set up pipeline callbacks
-     * @private
-     */
-    _setupPipelineCallbacks() {
-        if (!this._msdPipeline) return;
-
-        // Set up re-render callback
-        if (this._msdPipeline.systemsManager && this._msdPipeline.systemsManager.setReRenderCallback) {
-            this._msdPipeline.systemsManager.setReRenderCallback(() => {
-                if (!this._blockUpdates) {
-                    this._updateMsdRendering();
-                }
-            });
-        }
-    }
-
-    /**
-     * Update MSD rendering after rule changes
-     * Selectively updates affected overlays without full re-render
-     * @private
-     */
-    async _updateMsdRendering() {
-        if (!this._msdPipeline || !this._msdInitialized) {
-            lcardsLog.debug('[LCARdSMSDCard] Cannot update rendering - pipeline not initialized');
-            return;
-        }
-
-        try {
-            // For rule-based style changes, the SystemsManager has already:
-            // 1. Merged patches into overlay.finalStyle
-            // 2. Triggered animations if needed
-            //
-            // For line overlays and other static overlays, we need to update their DOM elements
-            // For card overlays, they self-update via Lit reactivity
-
-            if (this._msdPipeline.systemsManager?.renderer) {
-                const renderer = this._msdPipeline.systemsManager.renderer;
-                const resolvedModel = this._msdPipeline.systemsManager.getResolvedModel();
-
-                if (!resolvedModel) {
-                    lcardsLog.warn('[LCARdSMSDCard] No resolved model available for update');
-                    return;
-                }
-
-                lcardsLog.debug('[LCARdSMSDCard] 🔄 Selectively updating overlays after rule change');
-
-                // Find overlays that need visual updates (lines, shapes, etc - not cards)
-                const staticOverlays = resolvedModel.overlays.filter(o =>
-                    o.type === 'line' || o.type === 'shape' || o.type === 'text'
-                );
-
-                // Update each static overlay's DOM element
-                for (const overlay of staticOverlays) {
-                    if (overlay.finalStyle) {
-                        // Get the overlay container element
-                        let element = renderer.overlayElementCache?.get(overlay.id);
-
-                        // Fallback to DOM query if not in cache
-                        if (!element || !element.isConnected) {
-                            const overlayGroup = this.shadowRoot?.querySelector('#msd-overlay-container');
-                            if (overlayGroup) {
-                                element = overlayGroup.querySelector(`[data-overlay-id="${overlay.id}"]`);
-                            }
-                        }
-
-                        if (element) {
-                            // For line overlays, we need to update the <path> element inside the <g>
-                            let targetElement = element;
-                            if (overlay.type === 'line') {
-                                const pathElement = element.querySelector('path');
-                                if (pathElement) {
-                                    targetElement = pathElement;
-                                }
-                            }
-
-                            // Update stroke/fill attributes directly
-                            if (overlay.finalStyle.stroke) {
-                                targetElement.setAttribute('stroke', overlay.finalStyle.stroke);
-                            }
-                            if (overlay.finalStyle.fill) {
-                                targetElement.setAttribute('fill', overlay.finalStyle.fill);
-                            }
-                            if (overlay.finalStyle.color) {
-                                // color can be used for both stroke and fill
-                                targetElement.setAttribute('stroke', overlay.finalStyle.color);
-                            }
-                            if (overlay.finalStyle.opacity !== undefined) {
-                                targetElement.setAttribute('opacity', overlay.finalStyle.opacity);
-                            }
-                            if (overlay.finalStyle.stroke_width || overlay.finalStyle.strokeWidth) {
-                                targetElement.setAttribute('stroke-width', overlay.finalStyle.stroke_width || overlay.finalStyle.strokeWidth);
-                            }
-
-                            lcardsLog.trace(`[LCARdSMSDCard] ✅ Updated ${overlay.type} overlay ${overlay.id} style directly`, {
-                                hasElement: !!element,
-                                hasPath: overlay.type === 'line' && !!targetElement,
-                                updatedAttrs: Object.keys(overlay.finalStyle)
-                            });
-                        } else {
-                            lcardsLog.warn(`[LCARdSMSDCard] ⚠️ Could not find element for overlay ${overlay.id}`);
-                        }
-                    }
-                }
-
-                lcardsLog.debug(`[LCARdSMSDCard] ✅ Selective update complete for ${staticOverlays.length} static overlays`);
-            }
-        } catch (error) {
-            lcardsLog.error('[LCARdSMSDCard] Failed to update MSD rendering:', error);
-        }
-    }
-
-    /**
-     * Create error display HTML
-     * @private
-     */
-    _createErrorDisplay(title, message, suggestion) {
-        return `
-            <div style="
-                color: #ff6666;
-                padding: 20px;
-                text-align: center;
-                border: 2px solid #ff6666;
-                border-radius: 8px;
-                background: rgba(255, 102, 102, 0.1);
-                font-family: monospace;
-                margin: 10px;
-            ">
-                <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
-                    ❌ ${title}
-                </div>
-                <div style="font-size: 14px; margin-bottom: 8px; color: #ffcccc;">
-                    ${message}
-                </div>
-                <div style="font-size: 12px; opacity: 0.7;">
-                    ${suggestion}
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Cleanup MSD pipeline
-     * @private
-     */
-    _cleanupMsdPipeline() {
-        // Unregister from multi-instance tracking
-        if (this._msdInstanceGuid && window.lcards.debug.msd?.unregisterInstance) {
-            window.lcards.debug.msd.unregisterInstance(this._msdInstanceGuid);
-        }
-
-        if (this._msdPipeline) {
-            try {
-                // Cleanup pipeline resources
-                if (this._msdPipeline.cleanup) {
-                    this._msdPipeline.cleanup();
-                }
-
-                this._msdPipeline = null;
-                this._msdInitialized = false;
-
-                lcardsLog.debug('[LCARdSMSDCard] MSD pipeline cleaned up');
-            } catch (error) {
-                lcardsLog.error('[LCARdSMSDCard] Error during MSD pipeline cleanup:', error);
-            }
-        }
-    }
-
-    /**
-     * Cleanup on disconnect
-     */
-    disconnectedCallback() {
-        super.disconnectedCallback();
-
-        // Unregister from production namespace (multi-instance support)
-        if (this._msdInstanceGuid && window.lcards?.cards?.msd) {
-            window.lcards.cards.msd.unregisterInstance(this._msdInstanceGuid);
-            lcardsLog.debug('[LCARdSMSDCard] Unregistered from MSD registry:', this._msdInstanceGuid);
-        }
-
-        // Unregister from global HUD
-        if (this._msdInstanceGuid && window.lcards?.core?.hudManager) {
-            window.lcards.core.hudManager.unregisterCard(this._msdInstanceGuid);
-            lcardsLog.debug('[LCARdSMSDCard] Unregistered from global HUD:', this._msdInstanceGuid);
-        }
-
-        lcardsLog.debug('[LCARdSMSDCard] Disconnected');
-    }
-
-    /**
     /**
      * Register schema with CoreConfigManager
-     * Called by lcards.js after core initialization
-     * @static
      */
     static registerSchema() {
-        const configManager = window.lcards?.core?.configManager;
-
-        if (!configManager) {
-            lcardsLog.error('[LCARdSMSDCard] CoreConfigManager not available for schema registration');
-            return;
+        // Register MSD schema
+        const core = window.lcards?.core || window.lcardsCore;
+        if (core?.configManager) {
+            core.configManager.registerSchema('msd', getMsdSchema());
+            lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager');
         }
-
-        // Get available filter presets from theme if available
-        const themeManager = window.lcards?.core?.themeManager;
-        const availableFilterPresets = themeManager?.getFilterPresets?.() || [
-            'dimmed', 'subtle', 'backdrop', 'faded', 'red-alert', 'monochrome', 'none'
-        ];
-
-        // Generate schema with options
-        const schema = getMsdSchema({
-            availableFilterPresets
-        });
-
-        // Register with version
-        configManager.registerCardSchema('msd', schema, { version: '1.22.0' });
-
-        lcardsLog.debug('[LCARdSMSDCard] Schema registered with CoreConfigManager (v1.22.0)');
     }
 }
+
+// Register schema on load
+if (typeof window !== 'undefined') {
+    // Defer registration until core is ready
+    if (window.lcards?.core?.configManager) {
+        LCARdSMSDCard.registerSchema();
+    } else {
+        window.addEventListener('lcards-core-ready', () => {
+            LCARdSMSDCard.registerSchema();
+        });
+    }
+}
+
+// Register custom element
+customElements.define('lcards-msd-card', LCARdSMSDCard);

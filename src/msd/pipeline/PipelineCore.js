@@ -517,7 +517,14 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     window.lcards.debug.msd._provenance = provenance;
   }
 
-  lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete');
+  // Store provenance in pipeline API for card access
+  pipelineApi.provenance = provenance;
+
+  lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with provenance:', {
+    hasProvenance: !!provenance,
+    layers: provenance?.merge_order?.length || 0
+  });
+  
   return pipelineApi;
 }
 

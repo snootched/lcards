@@ -2,7 +2,7 @@
 
 **Type:** Advanced coordinator card  
 **Purpose:** Canvas-based multi-overlay system  
-**Base:** `LCARdSNativeCard` → custom initialization
+**Base:** `LCARdSCard` (v1.17.0+) → unified architecture with provenance tracking
 
 ---
 
@@ -27,6 +27,146 @@ graph TD
 ```
 
 **Key Concept:** MSD uses core singletons for intelligence, creates pipeline for rendering/routing.
+
+---
+
+## Unified Architecture (v1.17.0+)
+
+**Status:** ✅ MSD cards now extend `LCARdSCard` for unified architecture
+
+MSD cards have been migrated to extend `LCARdSCard` instead of `LCARdSNativeCard`, providing unified provenance and theme access while preserving all MSD-specific systems.
+
+### Inheritance Hierarchy
+
+```
+LitElement (Lit web component)
+    ↓
+LCARdSNativeCard (HA integration, shadow DOM, actions)
+    ↓
+LCARdSCard (Unified architecture, provenance, theme helpers)
+    ↓
+LCARdSMSDCard (Multi-overlay display with pipeline)
+```
+
+### Provenance Access
+
+MSD cards now have access to standard provenance APIs inherited from `LCARdSCard`:
+
+```javascript
+// Console debugging
+const card = document.querySelector('lcards-msd');
+
+// Get full provenance (like Button cards)
+card.getProvenance();
+// → { config: {...}, merge_order: [...], field_sources: {...} }
+
+// Get config tree
+card.printConfigTree();
+// → Prints hierarchical config tree to console
+
+// Get specific field source
+card.getFieldSource('overlays.0.style.fill');
+// → 'user_config' | 'preset' | 'pack_defaults' | 'schema_defaults'
+
+// Check user overrides
+card.hasUserOverride('overlays.0');
+// → true (user modified this overlay)
+
+// Debug provenance (formatted output)
+card.debugProvenance();
+// → Prints formatted provenance to console
+```
+
+### Theme Token Resolution
+
+MSD cards inherit theme token resolution from `LCARdSCard`:
+
+```javascript
+// In MSD card or overlay code
+const color = this.getThemeToken('colors.accent.primary', '#ff9900');
+// → Resolves to current theme's accent color
+
+// In templates
+'background: {theme:palette.moonlight}'
+// → Resolved automatically
+```
+
+### Multi-Instance Support
+
+No global registry needed - use standard DOM queries:
+
+```javascript
+// Get all MSD cards
+const allMsdCards = document.querySelectorAll('lcards-msd');
+
+// Get specific card by ID
+const card = document.querySelector('lcards-msd[id="engineering"]');
+
+// Access pipeline
+const pipeline = card._msdPipeline;
+const routing = pipeline?.coordinator?.router;
+```
+
+### Lifecycle Methods
+
+MSD cards implement standard `LCARdSCard` lifecycle methods:
+
+```javascript
+export class LCARdSMSDCard extends LCARdSCard {
+  
+  // Get card type for CoreConfigManager
+  getCardType() {
+    return 'msd';
+  }
+
+  // Process config (called automatically)
+  async _processConfig(config) {
+    // Extract MSD config
+    // Load SVG
+    // Prepare for pipeline init
+    return config;
+  }
+
+  // Initialize on first update (called automatically)
+  async _onFirstUpdated(changedProps) {
+    await super._onFirstUpdated(changedProps);
+    // Initialize MSD pipeline
+    await this._initializeMsdPipeline();
+  }
+
+  // Handle HASS updates (called automatically)
+  _handleHassUpdate(newHass, oldHass) {
+    // Forward to MSD coordinator
+    this._msdPipeline?.systemsManager?.ingestHass(newHass);
+  }
+
+  // Render card content (called automatically)
+  _renderCard() {
+    // Return HTML for card
+    return html`${this._renderSvgContainer()}`;
+  }
+}
+```
+
+### Migration from v1.16.x
+
+**No config changes required!** All changes are internal:
+
+✅ **Works immediately:**
+- All MSD features work exactly the same
+- Overlays render correctly
+- Routing works
+- Rules apply
+- HASS updates propagate
+
+✅ **New capabilities:**
+- `card.getProvenance()` now works (previously broken)
+- `card.debugProvenance()` now available (previously unavailable)
+- `card.getFieldSource()` works for debugging
+- Theme tokens resolved via inherited helpers
+- Multi-instance via standard DOM queries
+
+**Breaking changes:** None for users!
 
 ---
 

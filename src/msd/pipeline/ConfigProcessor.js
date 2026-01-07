@@ -125,6 +125,13 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     });
   } catch(_) {}
 
+  lcardsLog.debug('[ConfigProcessor] ✅ Config processed with provenance:', {
+    layers: provenance?.merge_order?.length || 0,
+    fields: Object.keys(provenance?.field_sources || {}).length,
+    errors: issues.errors.length,
+    warnings: issues.warnings.length
+  });
+
   return { mergedConfig, issues, provenance };
 }
 
