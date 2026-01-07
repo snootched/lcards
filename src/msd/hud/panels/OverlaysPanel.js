@@ -4,12 +4,28 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  * 🎯 Lists resolved overlays with quick highlight and structural info
  */
 export class OverlaysPanel {
+  /**
+   * Get the active MSD card instance
+   * @private
+   * @returns {Object|null} Active MSD instance or null
+   */
+  _getActiveMsdInstance() {
+    const hudManager = window.lcards?.core?.hudManager;
+    if (!hudManager) return null;
+
+    const activeCardGuid = hudManager.state?.activeCard;
+    if (!activeCardGuid) return null;
+
+    return window.lcards.cards.msd.getInstance(activeCardGuid);
+  }
+
   captureData() {
     const overlays = [];
     const stats = { total: 0, byType: {} };
 
     try {
-      const pipeline = window.lcards.debug.msd?.pipelineInstance;
+      const instance = this._getActiveMsdInstance();
+      const pipeline = instance?.pipelineInstance;
       const model = pipeline?.getResolvedModel?.();
       if (model?.overlays) {
         model.overlays.forEach(o => {
@@ -44,8 +60,9 @@ export class OverlaysPanel {
   highlightOverlay(id) {
     try {
       if (!id) return;
-      const mount = window.lcards.debug.msd?.pipelineInstance?.mountElement ||
-                    window.lcards.debug.msd?.mountElement;
+      const instance = this._getActiveMsdInstance();
+      const mount = instance?.pipelineInstance?.mountElement ||
+                    instance?.cardInstance?.getMountElement?.();
       if (!mount) {
         lcardsLog.warn('[OverlaysPanel] ⚠️ No mountElement available for highlight');
         return;
@@ -297,7 +314,8 @@ export class OverlaysPanel {
 
   analyzeOverlay(id) {
     try {
-      const pipeline = window.lcards.debug.msd?.pipelineInstance;
+      const instance = this._getActiveMsdInstance();
+      const pipeline = instance?.pipelineInstance;
       const model = pipeline?.getResolvedModel?.();
       const overlay = model?.overlays?.find(o => o.id === id);
       if (!overlay) {
@@ -351,7 +369,8 @@ export class OverlaysPanel {
     if (existing) existing.remove();
 
     // ADDED: Get proportional font sizes for popup
-    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const hudManager = window.lcards?.core?.hudManager;
+    const baseFontSize = hudManager?.state?.fontSize || 14;
     const sectionFontSize = Math.round(baseFontSize * 1.0); // 12px when base is 12px
     const metricFontSize = Math.round(baseFontSize * 0.92); // 11px when base is 12px
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
@@ -484,7 +503,8 @@ export class OverlaysPanel {
   // NEW helper: locate overlay model object
   _findOverlayModel(id) {
     try {
-      const model = window.lcards.debug.msd?.pipelineInstance?.getResolvedModel?.();
+      const instance = this._getActiveMsdInstance();
+      const model = instance?.pipelineInstance?.getResolvedModel?.();
       return model?.overlays?.find(o => o.id === id);
     } catch {
       return null;
@@ -548,7 +568,8 @@ export class OverlaysPanel {
 
   _toast(msg, color = '#ff66ff') {
     // ADDED: Get proportional font size for toast
-    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const hudManager = window.lcards?.core?.hudManager;
+    const baseFontSize = hudManager?.state?.fontSize || 14;
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
 
     const el = document.createElement('div');
@@ -576,7 +597,8 @@ export class OverlaysPanel {
     const { overlays = [], stats = {} } = data;
 
     // ADDED: Get font size from HUD manager context for proportional scaling
-    const baseFontSize = window.lcards.debug.msd?.hud?.manager?.state?.fontSize || 14;
+    const hudManager = window.lcards?.core?.hudManager;
+    const baseFontSize = hudManager?.state?.fontSize || 14;
     const metricFontSize = Math.round(baseFontSize * 0.92); // 11px when base is 12px
     const controlsFontSize = Math.round(baseFontSize * 0.83); // 10px when base is 12px
     const smallFontSize = Math.round(baseFontSize * 0.75); // 9px when base is 12px

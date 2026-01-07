@@ -24,13 +24,29 @@ export class RoutingPanel {
     this._setupGlobalHelpers();
   }
 
+  /**
+   * Get the active MSD card instance
+   * @private
+   * @returns {Object|null} Active MSD instance or null
+   */
+  _getActiveMsdInstance() {
+    const hudManager = window.lcards?.core?.hudManager;
+    if (!hudManager) return null;
+
+    const activeCardGuid = hudManager.state?.activeCard;
+    if (!activeCardGuid) return null;
+
+    return window.lcards.cards.msd.getInstance(activeCardGuid);
+  }
+
   // ADDED: Setup global helper functions
   _setupGlobalHelpers() {
     // Global route analysis function that includes both console and popup
     window.__msdAnalyzeRoute = (routeId) => {
       lcardsLog.info('[RoutingPanel] 🔍 Global analyze for:', routeId);
 
-      const routing = window.lcards.debug.msd?.routing;
+      const instance = this._getActiveMsdInstance();
+      const routing = instance?.pipelineInstance?.coordinator?.router;
       if (!routing?.inspect) {
         lcardsLog.warn('[RoutingPanel] ⚠️ No routing inspector available');
         return;
@@ -271,9 +287,10 @@ export class RoutingPanel {
     lcardsLog.info('[RoutingPanel] 🎯 Highlighting route:', routeId);
 
     try {
-      // Get the mount element from the pipeline/debug interface
-      const mountElement = window.lcards.debug.msd?.pipelineInstance?.mountElement ||
-                          window.lcards.debug.msd?.mountElement ||
+      // Get the mount element from the active instance
+      const instance = this._getActiveMsdInstance();
+      const mountElement = instance?.pipelineInstance?.mountElement ||
+                          instance?.cardInstance?.getMountElement?.() ||
                           document.querySelector('lcards-msd-card')?.shadowRoot ||
                           document;
 
@@ -515,7 +532,8 @@ export class RoutingPanel {
     const performance = {};
 
     try {
-      const routing = window.lcards.debug.msd?.routing;
+      const instance = this._getActiveMsdInstance();
+      const routing = instance?.pipelineInstance?.coordinator?.router;
       if (routing) {
         // Get routing statistics
         const routingStats = routing.stats?.() || {};
@@ -527,7 +545,7 @@ export class RoutingPanel {
         }
 
         // Get route inspections for line overlays
-        const pipeline = window.lcards.debug.msd?.pipelineInstance;
+        const pipeline = instance?.pipelineInstance;
         if (pipeline) {
           const model = pipeline.getResolvedModel?.();
           if (model?.overlays) {

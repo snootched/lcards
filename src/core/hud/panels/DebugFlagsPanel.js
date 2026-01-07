@@ -70,9 +70,13 @@ export class DebugFlagsPanel {
     this.features.verboseLogging.enabled = data.logLevel === 'debug' || data.logLevel === 'trace';
 
     // Check MSD debug status if available
-    if (window.lcards?.debug?.msd?.debugManager) {
+    const hudManager = window.lcards?.core?.hudManager;
+    const activeCardGuid = hudManager?.state?.activeCard;
+    const msdInstance = activeCardGuid ? window.lcards.cards.msd.getInstance(activeCardGuid) : null;
+    
+    if (msdInstance?.pipelineInstance?.coordinator?.debugManager) {
       data.msdAvailable = true;
-      const msdSnapshot = window.lcards.debug.msd.debugManager.getSnapshot?.() || {};
+      const msdSnapshot = msdInstance.pipelineInstance.coordinator.debugManager.getSnapshot?.() || {};
       
       // Update feature states from MSD
       if (msdSnapshot.bounding_boxes !== undefined) {
@@ -163,18 +167,23 @@ export class DebugFlagsPanel {
     const msdFeature = msdFeatureMap[featureKey];
     if (!msdFeature) return;
 
-    if (window.lcards?.debug?.msd?.debug) {
+    const hudManager = window.lcards?.core?.hudManager;
+    const activeCardGuid = hudManager?.state?.activeCard;
+    const msdInstance = activeCardGuid ? window.lcards.cards.msd.getInstance(activeCardGuid) : null;
+    const debugManager = msdInstance?.pipelineInstance?.coordinator?.debugManager;
+
+    if (debugManager) {
       if (enabled) {
-        window.lcards.debug.msd.debug.enable(msdFeature);
+        debugManager.enable?.(msdFeature);
       } else {
-        window.lcards.debug.msd.debug.disable(msdFeature);
+        debugManager.disable?.(msdFeature);
       }
 
       this.features[featureKey].enabled = enabled;
 
       // Trigger re-render if available
       setTimeout(() => {
-        const pipeline = window.lcards.debug.msd?.pipelineInstance;
+        const pipeline = msdInstance?.pipelineInstance;
         if (pipeline?.reRender) {
           pipeline.reRender();
         }
