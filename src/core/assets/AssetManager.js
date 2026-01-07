@@ -414,6 +414,64 @@ export class AssetManager extends BaseService {
   }
 
   /**
+   * Load SVG from source with auto-registration
+   * Handles builtin, /local/, and external URLs automatically
+   * 
+   * @param {string} source - SVG source ('builtin:name', '/local/path.svg', 'http://...')
+   * @returns {Promise<string|null>} SVG content or null
+   * @example
+   * // Load builtin SVG
+   * const svg = await assetManager.loadSvg('builtin:lcars_master_systems_display_002');
+   * 
+   * // Load from /local/
+   * const svg = await assetManager.loadSvg('/local/custom.svg');
+   * 
+   * // Load from external URL
+   * const svg = await assetManager.loadSvg('https://example.com/graphic.svg');
+   */
+  async loadSvg(source) {
+    if (!source || source === 'none') {
+      return null;
+    }
+
+    let key;
+    let url;
+
+    if (source.startsWith('builtin:')) {
+      // Builtin SVGs are pre-registered by packs
+      key = source.replace('builtin:', '');
+    } else if (source.startsWith('/local/') || source.startsWith('http')) {
+      // External/user SVGs: derive key from filename
+      key = source.split('/').pop().replace('.svg', '');
+      url = source;
+
+      // Auto-register if not already registered
+      if (!this.getRegistry('svg').has(key)) {
+        this.register('svg', key, null, {
+          url,
+          source: source.startsWith('http') ? 'external' : 'user'
+        });
+        lcardsLog.debug(`[AssetManager] Auto-registered SVG: ${key} from ${url}`);
+      }
+    } else {
+      // Assume it's already a registered key
+      key = source;
+    }
+
+    if (!key) {
+      lcardsLog.warn('[AssetManager] Could not determine SVG key from source:', source);
+      return null;
+    }
+
+    try {
+      return await this.get('svg', key);
+    } catch (error) {
+      lcardsLog.error(`[AssetManager] Failed to load SVG '${key}':`, error);
+      return null;
+    }
+  }
+
+  /**
    * Get asset size in bytes
    * @private
    */

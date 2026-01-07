@@ -310,50 +310,22 @@ export class LCARdSMSDCard extends LCARdSCard {
     // ============================================================================
 
     /**
-     * Load base SVG using AssetManager
+     * Load base SVG content from config
+     * Delegates to AssetManager for all loading logic
      * @param {Object} baseSvgConfig - base_svg configuration
      * @private
      */
     async _loadBaseSvg(baseSvgConfig) {
-        if (!baseSvgConfig || baseSvgConfig.source === 'none') {
-            this._svgContent = null;
-            return;
-        }
-
-        const source = baseSvgConfig.source;
-        const assetManager = window.lcards?.core?.assetManager;
-
+        const assetManager = this._singletons?.assetManager;
         if (!assetManager) {
-            lcardsLog.warn('[LCARdSMSDCard] AssetManager not available yet');
+            lcardsLog.warn('[LCARdSMSDCard] AssetManager not available');
             return;
         }
 
-        let svgKey = null;
-
-        if (source.startsWith('builtin:')) {
-            svgKey = source.replace('builtin:', '');
-        } else if (source.startsWith('/local/')) {
-            svgKey = source.split('/').pop().replace('.svg', '');
-
-            // Register external SVG
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
-                assetManager.register('svg', svgKey, null, {
-                    url: source,
-                    source: 'user'
-                });
-            }
-        }
-
-        if (!svgKey) {
-            lcardsLog.warn('[LCARdSMSDCard] Could not determine SVG key from source:', source);
-            return;
-        }
-
-        try {
-            this._svgContent = await assetManager.get('svg', svgKey);
-            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', svgKey);
-        } catch (error) {
-            lcardsLog.error('[LCARdSMSDCard] Failed to load SVG:', error);
+        this._svgContent = await assetManager.loadSvg(baseSvgConfig?.source);
+        
+        if (this._svgContent) {
+            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', baseSvgConfig?.source);
         }
     }
 

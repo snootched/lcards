@@ -83,6 +83,48 @@ assetManager.register('svg', 'external-ship', null, {
 });
 ```
 
+### Loading SVGs Dynamically
+
+The `loadSvg(source)` method provides a convenient way to load SVGs with auto-registration:
+
+```javascript
+const assetManager = window.lcards.core.assetManager;
+
+// Load builtin SVG (pre-registered by packs)
+const builtin = await assetManager.loadSvg('builtin:lcars_master_systems_display_002');
+
+// Load from /local/ (auto-registers)
+const local = await assetManager.loadSvg('/local/custom.svg');
+
+// Load from external URL (auto-registers)
+const external = await assetManager.loadSvg('https://example.com/graphic.svg');
+
+// Returns null if source is invalid or 'none'
+const none = await assetManager.loadSvg('none'); // → null
+```
+
+**Auto-registration behavior:**
+- Builtin SVGs must be pre-registered by packs
+- `/local/` and external URLs are automatically registered on first load
+- SVG key is derived from filename (e.g., `/local/custom.svg` → `custom`)
+- Subsequent calls use cached content from registry
+
+**Migration from manual loading:**
+
+```javascript
+// ❌ OLD: Manual registration + loading
+if (!assetManager.getRegistry('svg').has('my-svg')) {
+  assetManager.register('svg', 'my-svg', null, {
+    url: '/local/my.svg',
+    source: 'user'
+  });
+}
+const svg = await assetManager.get('svg', 'my-svg');
+
+// ✅ NEW: Single call with auto-registration
+const svg = await assetManager.loadSvg('/local/my.svg');
+```
+
 ### List Assets
 
 ```javascript
