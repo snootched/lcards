@@ -30,6 +30,162 @@ graph TD
 
 ---
 
+## Multi-Instance Support (v1.17.0+)
+
+**Status:** ✅ Full multi-instance support enabled
+
+MSD cards now support multiple instances on the same dashboard with proper isolation and management.
+
+### Architecture Changes
+
+#### Namespace Structure
+
+```
+window.lcards.cards.msd.*          → Production APIs
+window.lcards.debug.msd.*          → Debug tools (backward compatible)
+```
+
+**Production API** (`window.lcards.cards.msd`):
+- `registerInstance(guid, card, pipeline)` - Register new MSD card instance
+- `unregisterInstance(guid)` - Remove instance from registry
+- `getInstance(guid)` - Get instance data by GUID
+- `listInstances()` - List all registered instances
+- `getInstanceRegistry()` - Access the Map-based registry
+
+**Debug API** (`window.lcards.debug.msd`):
+- `pipelineInstance` - Legacy single-instance reference (backward compat)
+- `getThemeProvenance()` - Theme debugging
+- `getPackInfo()` - Pack loading information
+- `listTrackedOverlays()` - Overlay provenance
+- All production methods (delegated)
+
+#### Card Identification
+
+Each MSD card has a unique GUID:
+
+```yaml
+type: custom:lcards-msd
+id: "engineering-display"    # User-provided stable ID (recommended)
+msd:
+  base_svg:
+    source: "builtin:ncc-1701-d"
+  overlays: [...]
+```
+
+**GUID Resolution:**
+1. **User-provided `config.id`** (e.g., `"engineering-display"`) → `msd-engineering-display`
+2. **Auto-generated** (if no `config.id`) → `msd_1704587423156_a3f9c2b1`
+
+**Why `config.id` matters:**
+- ✅ **Stable identity** across dashboard reloads
+- ✅ **Rules targeting** by card ID
+- ✅ **HUD panel** association
+- ✅ **Debug** via `window.lcards.cards.msd.getInstance('msd-engineering-display')`
+
+### Multi-Instance Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Card as MSD Card
+    participant Registry as window.lcards.cards.msd
+    participant Pipeline as MSD Pipeline
+    participant HUD as HUD Manager
+    
+    Card->>Card: Generate GUID (config.id or auto)
+    Card->>Registry: registerInstance(guid, card, null)
+    
+    Card->>Pipeline: requestInstance(config, svg, mount, hass, guid)
+    Pipeline->>Pipeline: initMsdPipeline(config, svg, mount, hass, guid)
+    Pipeline->>Pipeline: coordinator.setCardGuid(guid) BEFORE completeSystems()
+    
+    Pipeline->>HUD: Register panels with guid
+    Pipeline-->>Card: pipelineAPI
+    
+    Card->>Registry: registerInstance(guid, card, pipeline)
+    
+    Note over Card,HUD: Multiple instances can coexist
+    
+    Card->>Card: disconnectedCallback()
+    Card->>Registry: unregisterInstance(guid)
+    Card->>HUD: Unregister from HUD
+```
+
+**Critical Fix (v1.17.0):** 
+- GUID now passed through: Card → MsdInstanceManager → PipelineCore → Coordinator
+- `coordinator.setCardGuid(cardGuid)` called **BEFORE** `completeSystems()`
+- HUD panels register with correct GUID (no longer undefined)
+
+### Rules Targeting
+
+MSD cards can now be targeted by rules using their `config.id`:
+
+```yaml
+# Rule targeting specific MSD card
+rules:
+  - condition:
+      entity: "binary_sensor.alert"
+      state: "on"
+    targets:
+      - id: "engineering-display"    # Matches MSD card with config.id
+    patches:
+      - path: "overlays[0].style.stroke"
+        value: "var(--lcars-alert-red)"
+```
+
+### HUD Panel Integration
+
+HUD Manager now tracks multiple MSD cards:
+
+```javascript
+// Get specific card's pipeline
+const instance = window.lcards.cards.msd.getInstance('msd-engineering-display');
+const pipeline = instance?.pipelineInstance;
+
+// List all MSD cards
+window.lcards.cards.msd.listInstances();
+// Output: [{ guid: 'msd-engineering-display', ... }, { guid: 'msd-bridge', ... }]
+
+// Switch HUD to specific card
+window.lcards.core.hudManager.setActiveCard('msd-engineering-display');
+```
+
+### Backward Compatibility
+
+Legacy code accessing `window.lcards.debug.msd` continues to work:
+
+```javascript
+// ✅ WORKS: Legacy single-instance reference (uses first registered card)
+window.lcards.debug.msd.pipelineInstance
+
+// ✅ WORKS: Debug methods delegated to production namespace
+window.lcards.debug.msd.listInstances()
+
+// ✅ WORKS: Legacy instance map access (read-only)
+window.lcards.debug.msd.instances
+```
+
+### Migration Guide
+
+**For Users:**
+- ✅ No config changes required
+- ✅ Multiple MSD cards work automatically
+- ✅ Optional: Add `id` field for stable identity and rule targeting
+
+**For Developers:**
+```javascript
+// ❌ OLD: Legacy debug namespace
+window.lcards.debug.msd.registerInstance(...)
+
+// ✅ NEW: Production namespace
+window.lcards.cards.msd.registerInstance(...)
+
+// ✅ RECOMMENDED: Get instance by GUID
+const instance = window.lcards.cards.msd.getInstance(cardGuid);
+const router = instance.pipelineInstance.coordinator?.router;
+```
+
+---
+
 ## Card Initialization Flow
 
 ```mermaid
