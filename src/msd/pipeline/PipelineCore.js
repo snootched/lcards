@@ -123,36 +123,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     throw new Error(`MsdCardCoordinator initialization failed: ${error.message}`);
   }
 
-  // Verify theme manager is ready with enhanced validation
-  if (!coordinator.themeManager) {
-    throw new Error('ThemeManager initialization failed - cannot proceed with overlay rendering');
-  }
-
-  // Validate theme is loaded
-  const activeTheme = coordinator.themeManager.getActiveTheme();
-
-  lcardsLog.debug('[PipelineCore] 🔍 Theme validation:', {
-    activeTheme: activeTheme?.name || 'none',
-    themeId: activeTheme?.id || 'none',
-    availableThemes: coordinator.themeManager.listThemes(),
-    initialized: coordinator.themeManager.initialized
-  });
-
-  if (!activeTheme) {
-    lcardsLog.warn('[PipelineCore] ⚠️ No theme active - some features may not work properly');
-  } else {
-    lcardsLog.debug('[PipelineCore] ✅ Theme validated:', {
-      name: activeTheme.name,
-      id: activeTheme.id,
-      packId: activeTheme.packId
-    });
-  }
-
-  lcardsLog.debug('[PipelineCore] ✅ Theme system loaded and ready:', {
-    hasThemeManager: !!coordinator.themeManager,
-    activeTheme: activeTheme?.name,
-    themeCount: coordinator.themeManager.listThemes().length
-  });
+  // Theme manager singleton is always initialized by Core before cards load
+  // Coordinator references it directly (no validation needed)
+  lcardsLog.debug('[PipelineCore] ✅ Theme system ready');
 
   // Pre-render validation of overlays
   if (coordinator.validationService && mergedConfig.overlays && mergedConfig.overlays.length > 0) {
@@ -516,9 +489,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     window.lcards.debug.msd.pipelineInstance = pipelineApi;
     window.lcards.debug.msd._provenance = provenance;
   }
-
-  // Store provenance in pipeline API for card access
-  pipelineApi.provenance = provenance;
 
   lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with provenance:', {
     hasProvenance: !!provenance,

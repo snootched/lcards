@@ -677,7 +677,7 @@ export class MsdCardCoordinator extends BaseService {
 
     this.styleResolver = null;
 
-    //*** clean up other systems */
+    // Clean up other systems
 
     // Remove global references
     if (typeof window !== 'undefined' && window.lcards.debug.msd) {

@@ -53,6 +53,16 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
   // DEBUG NAMESPACE: window.lcards.debug.msd.*
   // ============================================================================
   
+  /**
+   * MSD Debug Namespace
+   * 
+   * Stable utilities (safe to use):
+   * - mergePacks, buildCardModel, initMsdPipeline
+   * 
+   * Debug-only helpers (may change):
+   * - getProvenance, debugProvenance
+   */
+  
   window.lcards.debug = window.lcards.debug || {};
   window.lcards.debug.msd = {
     // Utility functions for testing/development
