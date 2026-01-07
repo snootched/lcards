@@ -213,7 +213,7 @@ export class AdvancedRenderer {
 
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
-        lcardsLog.debug(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
+        lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
           resultType: typeof result,
           isObject: result && typeof result === 'object',
           hasMarkup: result?.markup,
@@ -296,7 +296,7 @@ export class AdvancedRenderer {
 
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
-        lcardsLog.debug(`[AdvancedRenderer] 📊 Phase 2b overlay ${ov.id} result:`, {
+        lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 2b overlay ${ov.id} result:`, {
           resultType: typeof result,
           isObject: result && typeof result === 'object',
           hasMarkup: result?.markup,
