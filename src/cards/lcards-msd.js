@@ -11,6 +11,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { initMsdPipeline } from '../msd/index.js';
+import { processAndValidateConfig } from '../msd/pipeline/ConfigProcessor.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
 
 /**
@@ -151,11 +152,26 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Load SVG if needed (before processing)
         await this._loadBaseSvg(this._msdConfig.base_svg);
 
-        // Process MSD config through ConfigProcessor
-        // This will be called by PipelineCore, but we do a lightweight check here
-        lcardsLog.debug('[LCARdSMSDCard] MSD config prepared for pipeline initialization');
+        // ✅ CRITICAL: Process through ConfigProcessor to get provenance
+        const { mergedConfig, provenance, issues } = await processAndValidateConfig(
+            this._msdConfig,
+            this._svgContent
+        );
 
-        return config;
+        // ✅ CRITICAL: Track provenance using inherited tracker
+        if (this._provenanceTracker && provenance) {
+            this._provenanceTracker.trackConfig(provenance);
+            lcardsLog.debug('[LCARdSMSDCard] ✅ Provenance tracked:', {
+                layers: provenance.merge_order?.length || 0,
+                fields: Object.keys(provenance.field_sources || {}).length
+            });
+        }
+
+        // Store processed config and issues
+        this._msdConfig = mergedConfig;
+        this._configIssues = issues;
+
+        return mergedConfig;
     }
 
     /**
@@ -205,22 +221,13 @@ export class LCARdSMSDCard extends LCARdSCard {
     _handleHassUpdate(newHass, oldHass) {
         lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
 
-        // Forward HASS to MSD pipeline coordinator
-        if (this._msdPipeline?.systemsManager) {
-            // Update SystemsManager with fresh HASS
-            if (this._msdPipeline.systemsManager.controlsRenderer) {
-                this._msdPipeline.systemsManager.controlsRenderer.setHass(newHass);
-            }
-
-            // Forward via ingestHass method
-            if (typeof this._msdPipeline.systemsManager.ingestHass === 'function') {
-                this._msdPipeline.systemsManager.ingestHass(newHass);
-            }
-
-            this._msdPipeline.systemsManager.setHass?.(newHass);
+        // Forward HASS to MSD coordinator
+        // Note: coordinator is the MsdCardCoordinator instance from pipeline
+        if (this._msdPipeline?.coordinator) {
+            this._msdPipeline.coordinator.ingestHass(newHass);
         }
 
-        // Don't call super - MSD handles its own updates internally
+        // Don't call super - MSD manages its own updates via MsdCardCoordinator
     }
 
     /**
@@ -407,13 +414,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             // Store pipeline reference
             this._msdPipeline = pipelineResult;
 
-            // Track provenance if available
-            if (pipelineResult.provenance && this._provenanceTracker) {
-                this._provenanceTracker.trackConfig(pipelineResult.provenance);
-                lcardsLog.debug('[LCARdSMSDCard] ✅ Provenance tracked:', {
-                    layers: pipelineResult.provenance.merge_order?.length || 0
-                });
-            }
+            // Provenance already tracked in _processConfig() - no need to track again
 
             // Set card instance for actions
             if (this._msdPipeline.setCardInstance) {
@@ -441,9 +442,6 @@ export class LCARdSMSDCard extends LCARdSCard {
     _cleanupMsdPipeline() {
         if (this._msdPipeline?.coordinator?.destroy) {
             this._msdPipeline.coordinator.destroy();
-        }
-        if (this._msdPipeline?.systemsManager?.destroy) {
-            this._msdPipeline.systemsManager.destroy();
         }
         this._msdPipeline = null;
         this._msdInitialized = false;
