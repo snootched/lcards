@@ -2,6 +2,7 @@ import { initMsdPipeline as initMsdPipelineCore } from './pipeline/PipelineCore.
 import { processMsdConfig } from './pipeline/ConfigProcessor.js';
 import { buildCardModel } from './model/CardModel.js';
 import { mergePacks } from '../core/packs/mergePacks.js';
+import { MsdDebugAPI } from '../api/MsdDebugAPI.js';
 
 import "./hud/MsdHudUtilities.js";
 
@@ -31,19 +32,47 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
   window.lcards.cards.msd = {
     /**
      * Get all MSD cards on the page
-     * @returns {NodeList} MSD card elements
+     * Uses SystemsManager for reliable card discovery across shadow DOM boundaries
+     * @returns {Array<Element>} MSD card elements
      */
     getAll() {
-      return document.querySelectorAll('lcards-msd');
+      const core = window.lcards?.core;
+      if (!core?.systemsManager) {
+        // Fallback to DOM query if SystemsManager not available
+        console.warn('[MSD Production] SystemsManager not available, using fallback');
+        return Array.from(document.querySelectorAll('lcards-msd'));
+      }
+      
+      const cards = [];
+      core.systemsManager._registeredCards.forEach((cardData) => {
+        if (cardData.card?.tagName === 'LCARDS-MSD-CARD') {
+          cards.push(cardData.card);
+        }
+      });
+      return cards;
     },
 
     /**
-     * Get MSD card by ID
-     * @param {string} id - Card ID attribute
+     * Get MSD card by config ID
+     * Uses SystemsManager for reliable card lookup
+     * @param {string} id - Card config ID attribute
      * @returns {Element|null} MSD card element
      */
     getById(id) {
-      return document.querySelector(`lcards-msd[id="${id}"]`);
+      const core = window.lcards?.core;
+      if (!core?.systemsManager) {
+        // Fallback to DOM query if SystemsManager not available
+        console.warn('[MSD Production] SystemsManager not available, using fallback');
+        return document.querySelector(`lcards-msd[id="${id}"]`);
+      }
+      
+      let found = null;
+      core.systemsManager._registeredCards.forEach((cardData) => {
+        if (cardData.card?.tagName === 'LCARDS-MSD-CARD' && cardData.config?.id === id) {
+          found = cardData.card;
+        }
+      });
+      return found;
     }
   };
 
@@ -56,49 +85,41 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
   /**
    * MSD Debug Namespace
    * 
-   * Stable utilities (safe to use):
-   * - mergePacks, buildCardModel, initMsdPipeline
-   * 
-   * Debug-only helpers (may change):
-   * - getProvenance, debugProvenance
+   * Instantiate MsdDebugAPI for comprehensive debugging tools.
+   * Also preserve legacy utilities for backwards compatibility.
    */
   
   window.lcards.debug = window.lcards.debug || {};
-  window.lcards.debug.msd = {
-    // Utility functions for testing/development
-    mergePacks,
-    buildCardModel,
-    initMsdPipeline: initMsdPipelineCore,
+  
+  // Create and assign MsdDebugAPI instance
+  const msdDebugAPI = MsdDebugAPI.create();
+  window.lcards.debug.msd = msdDebugAPI;
 
-    /**
-     * Get provenance from MSD card element
-     * @param {string} selector - CSS selector (default: 'lcards-msd')
-     * @returns {Object|null} Provenance data
-     */
-    getProvenance(selector = 'lcards-msd') {
-      const card = document.querySelector(selector);
-      if (!card?.getProvenance) {
-        console.warn(`[MSD Debug] Card not found or no provenance: ${selector}`);
-        return null;
-      }
-      return card.getProvenance();
-    },
+  // Preserve legacy utilities for backwards compatibility
+  window.lcards.debug.msd.mergePacks = mergePacks;
+  window.lcards.debug.msd.buildCardModel = buildCardModel;
+  window.lcards.debug.msd.initMsdPipeline = initMsdPipelineCore;
 
-    /**
-     * Print provenance for MSD card
-     * @param {string} selector - CSS selector (default: 'lcards-msd')
-     */
-    debugProvenance(selector = 'lcards-msd') {
-      const card = document.querySelector(selector);
-      if (!card?.debugProvenance) {
-        console.warn(`[MSD Debug] Card not found: ${selector}`);
-        return;
-      }
-      card.debugProvenance();
+  // Preserve legacy DOM-based helpers (will be replaced by SystemsManager internally)
+  window.lcards.debug.msd.getProvenance = function(selector = 'lcards-msd') {
+    const card = document.querySelector(selector);
+    if (!card?.getProvenance) {
+      console.warn(`[MSD Debug] Card not found or no provenance: ${selector}`);
+      return null;
     }
+    return card.getProvenance();
   };
 
-  console.log('[MSD index.js] ✅ Debug namespace initialized');
+  window.lcards.debug.msd.debugProvenance = function(selector = 'lcards-msd') {
+    const card = document.querySelector(selector);
+    if (!card?.debugProvenance) {
+      console.warn(`[MSD Debug] Card not found: ${selector}`);
+      return;
+    }
+    card.debugProvenance();
+  };
+
+  console.log('[MSD index.js] ✅ Debug namespace initialized with MsdDebugAPI');
 
   // ============================================================================
   // GLOBAL DEBUG HELPERS

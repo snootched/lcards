@@ -12,29 +12,81 @@
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
- * Get MSD card pipeline from DOM
- * @param {string} cardSelector - CSS selector for card
+ * Get all MSD card instances from SystemsManager
+ * @returns {Array} Array of {card, config, cardId} objects
+ * @private
+ */
+function _getAllMsdCards() {
+  const core = window.lcards?.core;
+  if (!core?.systemsManager) {
+    lcardsLog.warn('[MsdDebugAPI] SystemsManager not available');
+    return [];
+  }
+  
+  const registered = core.systemsManager._registeredCards;
+  const msdCards = [];
+  
+  registered.forEach((cardData, cardId) => {
+    // Check if it's an MSD card
+    if (cardData.card?.tagName === 'LCARDS-MSD-CARD') {
+      msdCards.push({
+        card: cardData.card,
+        config: cardData.config,
+        cardId: cardId
+      });
+    }
+  });
+  
+  return msdCards;
+}
+
+/**
+ * Get MSD card by config ID or return first card if no ID specified
+ * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
+ * @returns {Element|null} MSD card element
+ * @private
+ */
+function _getMsdCard(cardId = null) {
+  const allCards = _getAllMsdCards();
+  
+  if (allCards.length === 0) {
+    return null;
+  }
+  
+  // If no ID specified, return first card
+  if (!cardId) {
+    return allCards[0].card;
+  }
+  
+  // Find by config ID
+  const found = allCards.find(c => c.config?.id === cardId);
+  return found ? found.card : null;
+}
+
+/**
+ * Get MSD card pipeline using SystemsManager
+ * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
  * @returns {Object|null} Pipeline API or null
  * @private
  */
-function _getMsdPipeline(cardSelector = 'lcards-msd') {
-  const card = document.querySelector(cardSelector);
+function _getMsdPipeline(cardId = null) {
+  const card = _getMsdCard(cardId);
   
   if (!card?._msdPipeline) {
     lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not initialized');
     return null;
   }
   
-  // Warn if using default selector with multiple cards
-  if (cardSelector === 'lcards-msd') {
-    const allCards = document.querySelectorAll('lcards-msd');
+  // Warn if using default (null) selector with multiple cards
+  if (cardId === null) {
+    const allCards = _getAllMsdCards();
     if (allCards.length > 1) {
-      const cardIds = Array.from(allCards).map(c => c.id || 'unnamed').join(', ');
+      const cardIds = allCards.map(c => c.config?.id || 'unnamed').join(', ');
       lcardsLog.warn(
         `[MsdDebugAPI] ⚠️ Multiple MSD cards detected (${allCards.length}: ${cardIds}). ` +
         `Using first card. To list all cards: listMsdCards(). ` +
-        `To target specific card, pass selector as second parameter: ` +
-        `methodName(arg, 'lcards-msd[id="your-card-id"]')`
+        `To target specific card, pass card ID as second parameter: ` +
+        `methodName(arg, 'bridge')`
       );
     }
   }
@@ -43,35 +95,35 @@ function _getMsdPipeline(cardSelector = 'lcards-msd') {
 }
 
 /**
- * Get MSD card coordinator from DOM
- * @param {string} cardSelector - CSS selector for card
+ * Get MSD card coordinator using SystemsManager
+ * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
  * @returns {Object|null} Coordinator or null
  * @private
  */
-function _getMsdCoordinator(cardSelector = 'lcards-msd') {
-  const card = document.querySelector(cardSelector);
+function _getMsdCoordinator(cardId = null) {
+  const card = _getMsdCard(cardId);
   return card?._msdPipeline?.coordinator || null;
 }
 
 /**
- * Get resolved model from DOM
- * @param {string} cardSelector - CSS selector for card
+ * Get resolved model using SystemsManager
+ * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
  * @returns {Object|null} Resolved model or null
  * @private
  */
-function _getMsdModel(cardSelector = 'lcards-msd') {
-  const pipeline = _getMsdPipeline(cardSelector);
+function _getMsdModel(cardId = null) {
+  const pipeline = _getMsdPipeline(cardId);
   return typeof pipeline?.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
 }
 
 /**
- * Get config from DOM  
- * @param {string} cardSelector - CSS selector for card
+ * Get config using SystemsManager
+ * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
  * @returns {Object|null} Config or null
  * @private
  */
-function _getMsdConfig(cardSelector = 'lcards-msd') {
-  return _getMsdPipeline(cardSelector)?.config || null;
+function _getMsdConfig(cardId = null) {
+  return _getMsdPipeline(cardId)?.config || null;
 }
 
 /**
@@ -79,7 +131,7 @@ function _getMsdConfig(cardSelector = 'lcards-msd') {
  * Provides debugging utilities for MSD cards
  * 
  * Supports multiple MSD card instances on the same dashboard.
- * All methods accept an optional cardSelector parameter.
+ * All methods accept an optional cardId parameter for multi-card targeting.
  * 
  * @example
  * // Single MSD card - use default selector
@@ -196,6 +248,7 @@ export class MsdDebugAPI {
       /**
        * List all MSD cards on the page
        * Useful for discovering card IDs when debugging multiple instances
+       * Uses SystemsManager for reliable card discovery
        * 
        * @returns {Array<Object>} Array of card info objects
        * 
@@ -206,40 +259,45 @@ export class MsdDebugAPI {
        * // [
        * //   {
        * //     id: 'bridge',
+       * //     systemId: 'lcards-abc123',
        * //     hasConfig: true,
        * //     hasPipeline: true,
        * //     overlayCount: 15,
-       * //     selector: 'lcards-msd[id="bridge"]'
+       * //     routingChannels: 10,
+       * //     element: <lcards-msd-card>
        * //   },
        * //   {
        * //     id: 'engineering',
+       * //     systemId: 'lcards-xyz789',
        * //     hasConfig: true,
        * //     hasPipeline: true,
        * //     overlayCount: 8,
-       * //     selector: 'lcards-msd[id="engineering"]'
+       * //     routingChannels: 5,
+       * //     element: <lcards-msd-card>
        * //   }
        * // ]
        */
       listMsdCards() {
-        const cards = document.querySelectorAll('lcards-msd');
+        const cards = _getAllMsdCards();
         
         if (cards.length === 0) {
           lcardsLog.warn('[MsdDebugAPI] No MSD cards found on page');
           return [];
         }
         
-        const cardInfo = Array.from(cards).map((card, index) => {
-          const id = card.id || `unnamed-${index}`;
+        const cardInfo = cards.map((cardData) => {
+          const { card, config, cardId } = cardData;
           const pipeline = card._msdPipeline;
+          const configId = config?.id || 'unnamed';
           
           return {
-            id,
-            hasConfig: !!card.config,
+            id: configId,
+            systemId: cardId,
+            hasConfig: !!config,
             hasPipeline: !!pipeline,
             overlayCount: pipeline?.coordinator?.cardModel?.overlays?.length || 0,
             routingChannels: pipeline?.coordinator?.router?.channels?.size || 0,
-            selector: card.id ? `lcards-msd[id="${card.id}"]` : 'lcards-msd',
-            element: card // Include reference for advanced debugging
+            element: card
           };
         });
         
@@ -729,7 +787,7 @@ export class MsdDebugAPI {
          * from entities to the overlay.
          *
          * @param {string} overlayId - Overlay ID to inspect
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
          * @returns {Object|null} Routing info or null if not found
          *
          * @example
@@ -737,13 +795,13 @@ export class MsdDebugAPI {
          * window.lcards.debug.msd.routing.inspect('status-line')
          *
          * @example
-         * // Multiple cards - target specific card
-         * window.lcards.debug.msd.routing.inspect('status-line', 'lcards-msd[id="bridge"]')
+         * // Multiple cards - target specific card by config ID
+         * window.lcards.debug.msd.routing.inspect('status-line', 'bridge')
          */
-        inspect(overlayId, cardSelector = 'lcards-msd') {
+        inspect(overlayId, cardId = null) {
           try {
-            // Get MSD card via DOM (modern multi-instance pattern)
-            const pipeline = _getMsdPipeline(cardSelector);
+            // Get MSD card via SystemsManager (modern multi-instance pattern)
+            const pipeline = _getMsdPipeline(cardId);
             if (!pipeline) {
               lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
               return null;
@@ -768,7 +826,7 @@ export class MsdDebugAPI {
          * Returns cache hits, paths computed, invalidations, and other
          * routing performance metrics.
          *
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
          * @returns {Object|null} Performance metrics or null if router unavailable
          *
          * @example
@@ -777,13 +835,13 @@ export class MsdDebugAPI {
          *
          * @example
          * // Multiple cards - compare metrics
-         * const bridge = window.lcards.debug.msd.routing.stats('lcards-msd[id="bridge"]')
-         * const eng = window.lcards.debug.msd.routing.stats('lcards-msd[id="engineering"]')
+         * const bridge = window.lcards.debug.msd.routing.stats('bridge')
+         * const eng = window.lcards.debug.msd.routing.stats('engineering')
          * console.table([bridge, eng])
          */
-        stats(cardSelector = 'lcards-msd') {
+        stats(cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             if (!coordinator?.router) {
               lcardsLog.warn('[MsdDebugAPI] No MSD router found');
               return null;
@@ -807,19 +865,19 @@ export class MsdDebugAPI {
          * or provide specific overlay ID to invalidate just that overlay.
          *
          * @param {string} [id='*'] - Overlay ID or '*' for all
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
+         * @param {string|null} [cardId=null] - Config ID for MSD card (e.g. 'bridge')
          * @returns {boolean} Success status
          *
          * @example
          * // Invalidate all routing
          * msd.routing.invalidate();
          *
-         * // Invalidate specific overlay
-         * msd.routing.invalidate('button_1');
+         * // Invalidate specific overlay on specific card
+         * msd.routing.invalidate('button_1', 'bridge');
          */
-        invalidate(id = '*', cardSelector = 'lcards-msd') {
+        invalidate(id = '*', cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             if (!coordinator?.router) {
               lcardsLog.warn('[MsdDebugAPI] No MSD router found');
               return false;
@@ -847,15 +905,16 @@ export class MsdDebugAPI {
          *
          * @param {string} overlayId - Overlay ID to inspect
          * @param {string} [mode='smart'] - Route mode to test ('smart', 'full', 'minimal')
+         * @param {string|null} [cardId=null] - Config ID for MSD card (e.g. 'bridge')
          * @returns {Object|null} Routing inspection with tested mode
          *
          * @example
-         * const routing = msd.routing.inspectAs('button_1', 'full');
+         * const routing = msd.routing.inspectAs('button_1', 'full', 'bridge');
          * console.log('Full mode routing:', routing);
          */
-        inspectAs(overlayId, mode = 'smart', cardSelector = 'lcards-msd') {
+        inspectAs(overlayId, mode = 'smart', cardId = null) {
           try {
-            const pipeline = _getMsdPipeline(cardSelector);
+            const pipeline = _getMsdPipeline(cardId);
             if (!pipeline) {
               lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
               return null;
@@ -879,12 +938,12 @@ export class MsdDebugAPI {
             const original = ov._raw.route_mode_full;
             ov._raw.route_mode_full = mode;
             
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             if (coordinator?.router?.invalidate) {
               coordinator.router.invalidate('*');
             }
             
-            const result = this.inspect(overlayId, cardSelector);
+            const result = this.inspect(overlayId, cardId);
             
             // Restore original
             ov._raw.route_mode_full = original;
@@ -1049,9 +1108,9 @@ export class MsdDebugAPI {
          * const trace = window.lcards.debug.msd.data.trace('sensor.temperature');
          * console.log('Used by overlays:', trace.overlays);
          */
-        trace(entityId, cardSelector = 'lcards-msd') {
+        trace(entityId, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const dataManager = coordinator?.dataSourceManager;
 
             if (!dataManager) {
@@ -1066,7 +1125,7 @@ export class MsdDebugAPI {
             }
 
             // Find overlays using this entity
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
             const overlays = model?.overlays.filter(ov => {
               const route = ov.route || ov._raw?.route;
               return route && JSON.stringify(route).includes(entityId);
@@ -1485,10 +1544,10 @@ export class MsdDebugAPI {
          * // Get detailed rule information
          * const detailed = window.lcards.debug.msd.rules.listActive({ verbose: true });
          */
-        listActive(options = {}, cardSelector = 'lcards-msd') {
+        listActive(options = {}, cardId = null) {
           try {
             const { includeDisabled = false, verbose = false } = options;
-            const config = _getMsdConfig(cardSelector);
+            const config = _getMsdConfig(cardId);
             const rules = config?.rules || [];
 
             // Filter based on enabled state
@@ -1557,9 +1616,9 @@ export class MsdDebugAPI {
          * const active = window.lcards.debug.msd.animations.active();
          * active.forEach(anim => console.log(anim.overlayId, anim.state, anim.progress));
          */
-        active(cardSelector = 'lcards-msd') {
+        active(cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
@@ -1588,9 +1647,9 @@ export class MsdDebugAPI {
          * console.log('Overlay animations:', dump.overlayAnimations);
          * console.log('Timelines:', dump.timelines);
          */
-        dump(cardSelector = 'lcards-msd') {
+        dump(cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
@@ -1617,9 +1676,9 @@ export class MsdDebugAPI {
          * console.log('Cache hit rate:', stats.hitRate);
          * console.log('Stored animations:', stats.size);
          */
-        registryStats(cardSelector = 'lcards-msd') {
+        registryStats(cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const registry = coordinator?.animRegistry;
 
             if (!registry) {
@@ -1649,9 +1708,9 @@ export class MsdDebugAPI {
          * console.log('Active animations:', state.activeAnimations);
          * console.log('Triggers:', state.triggers);
          */
-        inspect(overlayId, cardSelector = 'lcards-msd') {
+        inspect(overlayId, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
@@ -1677,9 +1736,9 @@ export class MsdDebugAPI {
          * @example
          * const timeline = window.lcards.debug.msd.animations.timeline('startup_sequence');
          */
-        timeline(timelineId, cardSelector = 'lcards-msd') {
+        timeline(timelineId, cardId = null) {
           try {
-            const config = _getMsdConfig(cardSelector);
+            const config = _getMsdConfig(cardId);
             const timelines = config?.timelines || [];
             return timelines.find(tl => tl.id === timelineId) || null;
           } catch (error) {
@@ -1701,9 +1760,9 @@ export class MsdDebugAPI {
          * @example
          * window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 });
          */
-        trigger(overlayId, presetName, params = {}, cardSelector = 'lcards-msd') {
+        trigger(overlayId, presetName, params = {}, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
@@ -2063,9 +2122,9 @@ export class MsdDebugAPI {
          * console.log('BBox:', overlay.bbox);
          * console.log('Config:', overlay.config);
          */
-        inspect(overlayId, cardSelector = 'lcards-msd') {
+        inspect(overlayId, cardId = null) {
           try {
-            const pipeline = _getMsdPipeline(cardSelector);
+            const pipeline = _getMsdPipeline(cardId);
             if (!pipeline) {
               lcardsLog.warn('[DebugAPI] Pipeline instance not available');
               return null;
@@ -2078,7 +2137,7 @@ export class MsdDebugAPI {
             if (!overlay) return null;
 
             // Get renderer to access mountEl
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
@@ -2116,9 +2175,9 @@ export class MsdDebugAPI {
          * console.log(`Position: (${bbox.x}, ${bbox.y})`);
          * console.log(`Size: ${bbox.w} x ${bbox.h}`);
          */
-        getBBox(overlayId, cardSelector = 'lcards-msd') {
+        getBBox(overlayId, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
@@ -2154,9 +2213,9 @@ export class MsdDebugAPI {
          *   console.log(`Translate: (${transform.translate.x}, ${transform.translate.y})`);
          * }
          */
-        getTransform(overlayId, cardSelector = 'lcards-msd') {
+        getTransform(overlayId, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const coordinator = _getMsdCoordinator(cardId);
             const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
@@ -2221,9 +2280,9 @@ export class MsdDebugAPI {
          * @example
          * const state = window.lcards.debug.msd.overlays.getState('temp_display');
          */
-        getState(overlayId, cardSelector = 'lcards-msd') {
+        getState(overlayId, cardId = null) {
           try {
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
 
             if (!model) return null;
 
@@ -2251,9 +2310,9 @@ export class MsdDebugAPI {
          * console.log('Found buttons:', buttons.length);
          * buttons.forEach(btn => console.log(btn.id));
          */
-        findByType(type, cardSelector = 'lcards-msd') {
+        findByType(type, cardId = null) {
           try {
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
 
             if (!model) return [];
 
@@ -2282,9 +2341,9 @@ export class MsdDebugAPI {
          * @example
          * const overlays = window.lcards.debug.msd.overlays.findByEntity('sensor.temperature');
          */
-        findByEntity(entityId, cardSelector = 'lcards-msd') {
+        findByEntity(entityId, cardId = null) {
           try {
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
 
             if (!model) return [];
 
@@ -2314,9 +2373,9 @@ export class MsdDebugAPI {
          * @example
          * const tree = window.lcards.debug.msd.overlays.tree();
          */
-        tree(cardSelector = 'lcards-msd') {
+        tree(cardId = null) {
           try {
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
 
             if (!model) return [];
 
@@ -2349,9 +2408,9 @@ export class MsdDebugAPI {
          * const all = window.lcards.debug.msd.overlays.list();
          * console.log('Total overlays:', all.length);
          */
-        list(cardSelector = 'lcards-msd') {
+        list(cardId = null) {
           try {
-            const model = _getMsdModel(cardSelector);
+            const model = _getMsdModel(cardId);
 
             if (!model) return [];
 
@@ -2385,10 +2444,10 @@ export class MsdDebugAPI {
          *   console.log(`${stage.name}: ${stage.status}`);
          * });
          */
-        stages(cardSelector = 'lcards-msd') {
+        stages(cardId = null) {
           try {
-            const pipeline = _getMsdPipeline(cardSelector);
-            const coordinator = _getMsdCoordinator(cardSelector);
+            const pipeline = _getMsdPipeline(cardId);
+            const coordinator = _getMsdCoordinator(cardId);
 
             if (!pipeline) return [];
 
@@ -2417,7 +2476,7 @@ export class MsdDebugAPI {
          *
          * Returns timing information for pipeline execution.
          *
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
          * @returns {Object|null} Performance summary or null
          *
          * @example
@@ -2433,9 +2492,9 @@ export class MsdDebugAPI {
          * }))
          * console.table(perfData)
          */
-        timing(cardSelector = 'lcards-msd') {
+        timing(cardId = null) {
           try {
-            const config = _getMsdConfig(cardSelector);
+            const config = _getMsdConfig(cardId);
 
             if (!config?.__provenance) return null;
 
@@ -2473,9 +2532,9 @@ export class MsdDebugAPI {
          * console.log('Anchors:', config.anchors);
          * console.log('ViewBox:', config.viewBox);
          */
-        config(cardSelector = 'lcards-msd') {
+        config(cardId = null) {
           try {
-            return _getMsdConfig(cardSelector);
+            return _getMsdConfig(cardId);
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting pipeline config:', error);
             return null;
@@ -2495,9 +2554,9 @@ export class MsdDebugAPI {
          *   errors.forEach(err => console.error(err.message));
          * }
          */
-        errors(cardSelector = 'lcards-msd') {
+        errors(cardId = null) {
           try {
-            const config = _getMsdConfig(cardSelector);
+            const config = _getMsdConfig(cardId);
 
             // Check validation errors
             const validation = config?.__validation || {};
@@ -2539,9 +2598,9 @@ export class MsdDebugAPI {
          * @example
          * window.lcards.debug.msd.pipeline.rerun();
          */
-        rerun(cardSelector = 'lcards-msd') {
+        rerun(cardId = null) {
           try {
-            const pipeline = _getMsdPipeline(cardSelector);
+            const pipeline = _getMsdPipeline(cardId);
 
             if (!pipeline?.reRender) {
               lcardsLog.warn('[DebugAPI] Pipeline rerun not available');
@@ -2567,9 +2626,9 @@ export class MsdDebugAPI {
          * @example
          * const pipeline = window.lcards.debug.msd.pipeline.getInstance();
          */
-        getInstance(cardSelector = 'lcards-msd') {
+        getInstance(cardId = null) {
           try {
-            return _getMsdPipeline(cardSelector);
+            return _getMsdPipeline(cardId);
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting pipeline instance:', error);
             return null;

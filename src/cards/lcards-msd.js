@@ -105,6 +105,20 @@ export class LCARdSMSDCard extends LCARdSCard {
     // ============================================================================
 
     /**
+     * Called when element is inserted into DOM
+     * Apply config ID to element if present
+     */
+    connectedCallback() {
+        super.connectedCallback();
+        
+        // Apply config ID to element if present and element doesn't already have one
+        if (this.config?.id && !this.id) {
+            this.id = this.config.id;
+            lcardsLog.debug(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
+        }
+    }
+
+    /**
      * Get card type for CoreConfigManager
      * @returns {string} Card type identifier
      */
