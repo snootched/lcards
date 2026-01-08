@@ -11,6 +11,49 @@
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 
+/**
+ * Get MSD card pipeline from DOM
+ * @param {string} cardSelector - CSS selector for card
+ * @returns {Object|null} Pipeline API or null
+ * @private
+ */
+function _getMsdPipeline(cardSelector = 'lcards-msd') {
+  const card = document.querySelector(cardSelector);
+  return card?._msdPipeline || null;
+}
+
+/**
+ * Get MSD card coordinator from DOM
+ * @param {string} cardSelector - CSS selector for card
+ * @returns {Object|null} Coordinator or null
+ * @private
+ */
+function _getMsdCoordinator(cardSelector = 'lcards-msd') {
+  const card = document.querySelector(cardSelector);
+  return card?._msdPipeline?.coordinator || null;
+}
+
+/**
+ * Get resolved model from DOM
+ * @param {string} cardSelector - CSS selector for card
+ * @returns {Object|null} Resolved model or null
+ * @private
+ */
+function _getMsdModel(cardSelector = 'lcards-msd') {
+  const pipeline = _getMsdPipeline(cardSelector);
+  return typeof pipeline?.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
+}
+
+/**
+ * Get config from DOM  
+ * @param {string} cardSelector - CSS selector for card
+ * @returns {Object|null} Config or null
+ * @private
+ */
+function _getMsdConfig(cardSelector = 'lcards-msd') {
+  return _getMsdPipeline(cardSelector)?.config || null;
+}
+
 export class MsdDebugAPI {
   /**
    * Create Debug API instance
@@ -592,22 +635,30 @@ export class MsdDebugAPI {
          * from entities to the overlay.
          *
          * @param {string} overlayId - Overlay ID to inspect
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
          * @returns {Object|null} Routing inspection data
          *
          * @example
-         * const routing = window.lcards.debug.msd.routing.inspect('button_1');
+         * const routing = msd.routing.inspect('button_1');
          * console.log('Route mode:', routing.route_mode);
          * console.log('Paths:', routing.paths);
          */
-        inspect(overlayId) {
+        inspect(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.routing?.inspect) {
-              lcardsLog.warn('[DebugAPI] Routing inspect not available');
+            // Get MSD card via DOM (modern multi-instance pattern)
+            const pipeline = _getMsdPipeline(cardSelector);
+            if (!pipeline) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
               return null;
             }
-
-            return dbg.routing.inspect(overlayId);
+            
+            // Access routing inspect method
+            if (typeof pipeline.routingInspect === 'function') {
+              return pipeline.routingInspect(overlayId);
+            }
+            
+            lcardsLog.warn('[MsdDebugAPI] routingInspect method not available');
+            return null;
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error inspecting routing:', error);
             return null;
@@ -620,22 +671,27 @@ export class MsdDebugAPI {
          * Returns cache hits, paths computed, invalidations, and other
          * routing performance metrics.
          *
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
          * @returns {Object|null} Routing statistics
          *
          * @example
-         * const stats = window.lcards.debug.msd.routing.stats();
+         * const stats = msd.routing.stats();
          * console.log('Cache hits:', stats.cacheHits);
          * console.log('Paths computed:', stats.pathsComputed);
          */
-        stats() {
+        stats(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.routing?.stats) {
-              lcardsLog.warn('[DebugAPI] Routing stats not available');
+            const coordinator = _getMsdCoordinator(cardSelector);
+            if (!coordinator?.router) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD router found');
               return null;
             }
 
-            return dbg.routing.stats();
+            if (typeof coordinator.router.stats === 'function') {
+              return coordinator.router.stats();
+            }
+            
+            return { cacheHits: 0, pathsComputed: 0, invalidations: 0, error: 'stats method not available' };
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting routing stats:', error);
             return null;
@@ -649,26 +705,32 @@ export class MsdDebugAPI {
          * or provide specific overlay ID to invalidate just that overlay.
          *
          * @param {string} [id='*'] - Overlay ID or '*' for all
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
          * @returns {boolean} Success status
          *
          * @example
          * // Invalidate all routing
-         * window.lcards.debug.msd.routing.invalidate();
+         * msd.routing.invalidate();
          *
          * // Invalidate specific overlay
-         * window.lcards.debug.msd.routing.invalidate('button_1');
+         * msd.routing.invalidate('button_1');
          */
-        invalidate(id = '*') {
+        invalidate(id = '*', cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.routing?.invalidate) {
-              lcardsLog.warn('[DebugAPI] Routing invalidate not available');
+            const coordinator = _getMsdCoordinator(cardSelector);
+            if (!coordinator?.router) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD router found');
               return false;
             }
 
-            dbg.routing.invalidate(id);
-            lcardsLog.debug(`[DebugAPI] Invalidated routing cache: ${id}`);
-            return true;
+            if (typeof coordinator.router.invalidate === 'function') {
+              coordinator.router.invalidate(id);
+              lcardsLog.debug(`[DebugAPI] Invalidated routing cache: ${id}`);
+              return true;
+            }
+            
+            lcardsLog.warn('[MsdDebugAPI] Router invalidate method not available');
+            return false;
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error invalidating routing:', error);
             return false;
@@ -686,18 +748,49 @@ export class MsdDebugAPI {
          * @returns {Object|null} Routing inspection with tested mode
          *
          * @example
-         * const routing = window.lcards.debug.msd.routing.inspectAs('button_1', 'full');
+         * const routing = msd.routing.inspectAs('button_1', 'full');
          * console.log('Full mode routing:', routing);
          */
-        inspectAs(overlayId, mode = 'smart') {
+        inspectAs(overlayId, mode = 'smart', cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.routing?.inspectAs) {
-              lcardsLog.warn('[DebugAPI] Routing inspectAs not available');
+            const pipeline = _getMsdPipeline(cardSelector);
+            if (!pipeline) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
               return null;
             }
-
-            return dbg.routing.inspectAs(overlayId, mode);
+            
+            // Try to get the model and manipulate routing mode
+            const model = typeof pipeline.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
+            if (!model) {
+              lcardsLog.warn('[MsdDebugAPI] Could not get resolved model');
+              return null;
+            }
+            
+            const ov = model.overlays.find(o => o.id === overlayId);
+            if (!ov) {
+              lcardsLog.warn('[MsdDebugAPI] Overlay not found:', overlayId);
+              return null;
+            }
+            
+            // Temporarily change routing mode and inspect
+            ov._raw = ov._raw || {};
+            const original = ov._raw.route_mode_full;
+            ov._raw.route_mode_full = mode;
+            
+            const coordinator = _getMsdCoordinator(cardSelector);
+            if (coordinator?.router?.invalidate) {
+              coordinator.router.invalidate('*');
+            }
+            
+            const result = this.inspect(overlayId, cardSelector);
+            
+            // Restore original
+            ov._raw.route_mode_full = original;
+            if (coordinator?.router?.invalidate) {
+              coordinator.router.invalidate('*');
+            }
+            
+            return result;
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error in inspectAs:', error);
             return null;
@@ -854,10 +947,10 @@ export class MsdDebugAPI {
          * const trace = window.lcards.debug.msd.data.trace('sensor.temperature');
          * console.log('Used by overlays:', trace.overlays);
          */
-        trace(entityId) {
+        trace(entityId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const dataManager = dbg?.pipelineInstance?.systemsManager?.dataSourceManager;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const dataManager = coordinator?.dataSourceManager;
 
             if (!dataManager) {
               lcardsLog.warn('[DebugAPI] DataSourceManager not available');
@@ -871,7 +964,7 @@ export class MsdDebugAPI {
             }
 
             // Find overlays using this entity
-            const model = dbg?.pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
             const overlays = model?.overlays.filter(ov => {
               const route = ov.route || ov._raw?.route;
               return route && JSON.stringify(route).includes(entityId);
@@ -1290,11 +1383,10 @@ export class MsdDebugAPI {
          * // Get detailed rule information
          * const detailed = window.lcards.debug.msd.rules.listActive({ verbose: true });
          */
-        listActive(options = {}) {
+        listActive(options = {}, cardSelector = 'lcards-msd') {
           try {
             const { includeDisabled = false, verbose = false } = options;
-            const dbg = window.lcards.debug.msd;
-            const config = dbg?.pipelineInstance?.config;
+            const config = _getMsdConfig(cardSelector);
             const rules = config?.rules || [];
 
             // Filter based on enabled state
@@ -1363,10 +1455,10 @@ export class MsdDebugAPI {
          * const active = window.lcards.debug.msd.animations.active();
          * active.forEach(anim => console.log(anim.overlayId, anim.state, anim.progress));
          */
-        active() {
+        active(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
               lcardsLog.warn('[DebugAPI] AnimationManager not available');
@@ -1394,10 +1486,10 @@ export class MsdDebugAPI {
          * console.log('Overlay animations:', dump.overlayAnimations);
          * console.log('Timelines:', dump.timelines);
          */
-        dump() {
+        dump(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
               lcardsLog.warn('[DebugAPI] AnimationManager not available');
@@ -1423,10 +1515,10 @@ export class MsdDebugAPI {
          * console.log('Cache hit rate:', stats.hitRate);
          * console.log('Stored animations:', stats.size);
          */
-        registryStats() {
+        registryStats(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const registry = dbg?.pipelineInstance?.systemsManager?.animRegistry;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const registry = coordinator?.animRegistry;
 
             if (!registry) {
               lcardsLog.warn('[DebugAPI] AnimationRegistry not available');
@@ -1455,10 +1547,10 @@ export class MsdDebugAPI {
          * console.log('Active animations:', state.activeAnimations);
          * console.log('Triggers:', state.triggers);
          */
-        inspect(overlayId) {
+        inspect(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
               lcardsLog.warn('[DebugAPI] AnimationManager not available');
@@ -1483,10 +1575,9 @@ export class MsdDebugAPI {
          * @example
          * const timeline = window.lcards.debug.msd.animations.timeline('startup_sequence');
          */
-        timeline(timelineId) {
+        timeline(timelineId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const config = dbg?.pipelineInstance?.config;
+            const config = _getMsdConfig(cardSelector);
             const timelines = config?.timelines || [];
             return timelines.find(tl => tl.id === timelineId) || null;
           } catch (error) {
@@ -1508,10 +1599,10 @@ export class MsdDebugAPI {
          * @example
          * window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 });
          */
-        trigger(overlayId, presetName, params = {}) {
+        trigger(overlayId, presetName, params = {}, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const animationManager = dbg?.pipelineInstance?.systemsManager?.animationManager;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const animationManager = coordinator?.animationManager;
 
             if (!animationManager) {
               lcardsLog.warn('[DebugAPI] AnimationManager not available');
@@ -1870,23 +1961,23 @@ export class MsdDebugAPI {
          * console.log('BBox:', overlay.bbox);
          * console.log('Config:', overlay.config);
          */
-        inspect(overlayId) {
+        inspect(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const pipelineInstance = dbg?.pipelineInstance;
-            if (!pipelineInstance) {
+            const pipeline = _getMsdPipeline(cardSelector);
+            if (!pipeline) {
               lcardsLog.warn('[DebugAPI] Pipeline instance not available');
               return null;
             }
 
-            const model = pipelineInstance.getResolvedModel?.();
+            const model = typeof pipeline.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
             if (!model) return null;
 
             const overlay = model.overlays.find(o => o.id === overlayId);
             if (!overlay) return null;
 
             // Get renderer to access mountEl
-            const renderer = pipelineInstance.systemsManager?.renderer;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
             // Import MsdIntrospection dynamically to get bbox
@@ -1923,10 +2014,10 @@ export class MsdDebugAPI {
          * console.log(`Position: (${bbox.x}, ${bbox.y})`);
          * console.log(`Size: ${bbox.w} x ${bbox.h}`);
          */
-        getBBox(overlayId) {
+        getBBox(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const renderer = dbg?.pipelineInstance?.systemsManager?.renderer;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
             if (!root) {
@@ -1961,10 +2052,10 @@ export class MsdDebugAPI {
          *   console.log(`Translate: (${transform.translate.x}, ${transform.translate.y})`);
          * }
          */
-        getTransform(overlayId) {
+        getTransform(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const renderer = dbg?.pipelineInstance?.systemsManager?.renderer;
+            const coordinator = _getMsdCoordinator(cardSelector);
+            const renderer = coordinator?.renderer;
             const root = renderer?.mountEl;
 
             if (!root) return null;
@@ -2028,11 +2119,9 @@ export class MsdDebugAPI {
          * @example
          * const state = window.lcards.debug.msd.overlays.getState('temp_display');
          */
-        getState(overlayId) {
+        getState(overlayId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const pipelineInstance = dbg?.pipelineInstance;
-            const model = pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
 
             if (!model) return null;
 
@@ -2060,10 +2149,9 @@ export class MsdDebugAPI {
          * console.log('Found buttons:', buttons.length);
          * buttons.forEach(btn => console.log(btn.id));
          */
-        findByType(type) {
+        findByType(type, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const model = dbg?.pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
 
             if (!model) return [];
 
@@ -2092,10 +2180,9 @@ export class MsdDebugAPI {
          * @example
          * const overlays = window.lcards.debug.msd.overlays.findByEntity('sensor.temperature');
          */
-        findByEntity(entityId) {
+        findByEntity(entityId, cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const model = dbg?.pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
 
             if (!model) return [];
 
@@ -2125,10 +2212,9 @@ export class MsdDebugAPI {
          * @example
          * const tree = window.lcards.debug.msd.overlays.tree();
          */
-        tree() {
+        tree(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const model = dbg?.pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
 
             if (!model) return [];
 
@@ -2161,10 +2247,9 @@ export class MsdDebugAPI {
          * const all = window.lcards.debug.msd.overlays.list();
          * console.log('Total overlays:', all.length);
          */
-        list() {
+        list(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const model = dbg?.pipelineInstance?.getResolvedModel?.();
+            const model = _getMsdModel(cardSelector);
 
             if (!model) return [];
 
@@ -2198,18 +2283,18 @@ export class MsdDebugAPI {
          *   console.log(`${stage.name}: ${stage.status}`);
          * });
          */
-        stages() {
+        stages(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const pipelineInstance = dbg?.pipelineInstance;
+            const pipeline = _getMsdPipeline(cardSelector);
+            const coordinator = _getMsdCoordinator(cardSelector);
 
-            if (!pipelineInstance) return [];
+            if (!pipeline) return [];
 
             // Define known pipeline stages
             const stages = [
-              { name: 'PipelineCore', status: 'complete', component: pipelineInstance },
-              { name: 'SystemsManager', status: 'complete', component: pipelineInstance.systemsManager },
-              { name: 'ModelBuilder', status: 'complete', component: pipelineInstance.systemsManager?.modelBuilder },
+              { name: 'PipelineCore', status: 'complete', component: pipeline },
+              { name: 'SystemsManager', status: 'complete', component: coordinator },
+              { name: 'ModelBuilder', status: 'complete', component: coordinator?.modelBuilder },
               { name: 'AdvancedRenderer', status: 'complete', component: pipelineInstance.systemsManager?.renderer }
             ];
 
@@ -2236,10 +2321,9 @@ export class MsdDebugAPI {
          * const timing = window.lcards.debug.msd.pipeline.timing();
          * console.log('Total time:', timing.total_ms, 'ms');
          */
-        timing() {
+        timing(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const config = dbg?.pipelineInstance?.config;
+            const config = _getMsdConfig(cardSelector);
 
             if (!config?.__provenance) return null;
 
@@ -2277,10 +2361,9 @@ export class MsdDebugAPI {
          * console.log('Anchors:', config.anchors);
          * console.log('ViewBox:', config.viewBox);
          */
-        config() {
+        config(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            return dbg?.pipelineInstance?.config || null;
+            return _getMsdConfig(cardSelector);
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting pipeline config:', error);
             return null;
@@ -2300,10 +2383,9 @@ export class MsdDebugAPI {
          *   errors.forEach(err => console.error(err.message));
          * }
          */
-        errors() {
+        errors(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const config = dbg?.pipelineInstance?.config;
+            const config = _getMsdConfig(cardSelector);
 
             // Check validation errors
             const validation = config?.__validation || {};
@@ -2345,12 +2427,11 @@ export class MsdDebugAPI {
          * @example
          * window.lcards.debug.msd.pipeline.rerun();
          */
-        rerun() {
+        rerun(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            const pipelineInstance = dbg?.pipelineInstance;
+            const pipeline = _getMsdPipeline(cardSelector);
 
-            if (!pipelineInstance?.reRender) {
+            if (!pipeline?.reRender) {
               lcardsLog.warn('[DebugAPI] Pipeline rerun not available');
               return false;
             }
@@ -2374,10 +2455,9 @@ export class MsdDebugAPI {
          * @example
          * const pipeline = window.lcards.debug.msd.pipeline.getInstance();
          */
-        getInstance() {
+        getInstance(cardSelector = 'lcards-msd') {
           try {
-            const dbg = window.lcards.debug.msd;
-            return dbg?.pipelineInstance || null;
+            return _getMsdPipeline(cardSelector);
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting pipeline instance:', error);
             return null;
