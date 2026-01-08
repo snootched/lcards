@@ -166,15 +166,41 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Call parent first
         await super._onFirstUpdated(changedProperties);
 
+        // ✅ FIX: Wait for async config processing to complete
+        // LCARdSCard.setConfig() starts _processConfigAsync() in background
+        // but doesn't block. We need to wait for it before proceeding.
+        if (this._configProcessingPromise) {
+            lcardsLog.debug('[LCARdSMSDCard] Waiting for config processing to complete...');
+            try {
+                await this._configProcessingPromise;
+                lcardsLog.debug('[LCARdSMSDCard] Config processing complete');
+            } catch (error) {
+                lcardsLog.error('[LCARdSMSDCard] Config processing failed:', error);
+                this._configIssues = { errors: [`Config processing failed: ${error.message}`] };
+                this.requestUpdate();
+                return;
+            }
+        }
+
         // Check for validation errors
         if (this._configIssues?.errors?.length > 0) {
             lcardsLog.error('[LCARdSMSDCard] Validation errors present, skipping initialization');
             return;
         }
 
-        // Load SVG now that singletons are initialized
+        // Now _msdConfig is guaranteed to be set by _onConfigUpdated()
+        // Load SVG now that singletons are initialized AND config is processed
         if (this._msdConfig?.base_svg && !this._svgContent) {
+            lcardsLog.debug('[LCARdSMSDCard] Loading base SVG:', this._msdConfig.base_svg.source);
             await this._loadBaseSvg(this._msdConfig.base_svg);
+            
+            if (!this._svgContent) {
+                lcardsLog.error('[LCARdSMSDCard] Failed to load SVG, aborting pipeline init');
+                this._configIssues = { errors: ['Failed to load base SVG'] };
+                this.requestUpdate();
+                return;
+            }
+            lcardsLog.debug('[LCARdSMSDCard] SVG loaded successfully, length:', this._svgContent.length);
         }
 
         // Generate instance GUID
@@ -188,7 +214,15 @@ export class LCARdSMSDCard extends LCARdSCard {
             }
         }
 
-        // Initialize MSD pipeline
+        // Initialize MSD pipeline with detailed logging
+        lcardsLog.debug('[LCARdSMSDCard] About to initialize pipeline with:', {
+            hasConfig: !!this._msdConfig,
+            hasSvg: !!this._svgContent,
+            hasHass: !!this.hass,
+            svgLength: this._svgContent?.length,
+            instanceGuid: this._msdInstanceGuid
+        });
+        
         await this._initializeMsdPipeline();
     }
 
