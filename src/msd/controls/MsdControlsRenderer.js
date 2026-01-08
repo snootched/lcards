@@ -180,14 +180,15 @@ export class MsdControlsRenderer {
     }
 
     // ✅ NEW: Check if already rendered with same config to avoid duplicate creation
+    // Generate signature from sorted overlay IDs to detect duplicate configurations
     const signature = controlOverlays.map(o => o.id).sort().join('|');
     
     // Verify that all overlay IDs exist in controlElements (robust duplicate detection)
-    const allOverlaysExist = this._lastSignature === signature &&
+    const controlsAlreadyRendered = this._lastSignature === signature &&
       this.controlElements.size === controlOverlays.length &&
       controlOverlays.every(overlay => this.controlElements.has(overlay.id));
     
-    if (allOverlaysExist) {
+    if (controlsAlreadyRendered) {
       lcardsLog.debug('[MsdControlsRenderer] Skipped duplicate creation - controls already exist', {
         signature,
         elementCount: this.controlElements.size,
