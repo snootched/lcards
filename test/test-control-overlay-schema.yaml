@@ -1,0 +1,175 @@
+# Test Control Overlay Schema Validation
+# Tests for single nested card pattern enforcement
+
+# ✅ TEST 1: Correct pattern - nested card with flat properties
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_correct_flat
+      card:
+        type: button
+        entity: light.test
+        name: "Test Light"
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ✅ TEST 2: Correct pattern - nested card with nested config
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_correct_nested
+      card:
+        type: button
+        config:
+          entity: light.test
+          name: "Test Light"
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ✅ TEST 3: Correct pattern - LCARdS card
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_correct_lcards
+      card:
+        type: custom:lcards-button
+        entity: switch.test
+        preset: lozenge
+        text:
+          label:
+            content: "TEST"
+      position: [100, 100]
+      size: [200, 180]
+
+---
+
+# ❌ TEST 4: Wrong pattern - flat/direct (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    # This should FAIL - type should be 'control', not card type
+    - type: custom:lcards-button
+      id: test_wrong_flat
+      entity: switch.test
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ❌ TEST 5: Wrong pattern - legacy card_config (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_wrong_card_config
+      card_config:  # Should be 'card', not 'card_config'
+        type: button
+        entity: light.test
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ❌ TEST 6: Wrong pattern - legacy cardConfig (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_wrong_cardConfig
+      cardConfig:   # Should be 'card', not 'cardConfig'
+        type: button
+        entity: light.test
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ❌ TEST 7: Wrong pattern - missing card property (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_missing_card
+      # Missing 'card' property entirely
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ❌ TEST 8: Wrong pattern - card missing type (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_missing_card_type
+      card:
+        # Missing 'type' property in card
+        entity: light.test
+        name: "Test"
+      position: [100, 100]
+      size: [200, 100]
+
+---
+
+# ❌ TEST 9: Wrong pattern - missing position (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_missing_position
+      card:
+        type: button
+        entity: light.test
+      # Missing position property
+      size: [200, 100]
+
+---
+
+# ❌ TEST 10: Wrong pattern - missing size (should fail validation)
+type: custom:lcards-msd
+msd:
+  base_svg:
+    source: 'none'
+  view_box: [0, 0, 1920, 1080]
+  overlays:
+    - type: control
+      id: test_missing_size
+      card:
+        type: button
+        entity: light.test
+      position: [100, 100]
+      # Missing size property

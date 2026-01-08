@@ -257,71 +257,56 @@ export class MsdControlsRenderer {
     this.controlElements.set(overlay.id, controlElement);
   }
 
-  // ADDED: recover original card definition even if pipeline stripped it
+  /**
+   * Resolve card definition from control overlay
+   * 
+   * ENFORCES SINGLE PATTERN: Nested card property only
+   * 
+   * Correct pattern:
+   *   { type: 'control', card: { type: 'custom:some-card', ... } }
+   * 
+   * Rejected patterns:
+   *   - Flat/direct: { type: 'custom:lcards-button', entity: '...' }
+   *   - Legacy: { type: 'control', card_config: {...} }
+   *   - Legacy: { type: 'control', cardConfig: {...} }
+   * 
+   * @param {Object} overlay - Control overlay configuration
+   * @returns {Object|null} Card definition or null if invalid
+   */
   resolveCardDefinition(overlay) {
-    // DEBUGGING: Log the overlay structure to understand what properties are available
     lcardsLog.debug('[MsdControlsRenderer] Resolving card definition for', overlay.id, {
       hasCard: !!overlay.card,
-      hasCardConfig: !!overlay.card_config,
-      hasCardConfigProp: !!overlay.cardConfig,
-      hasPrivateCard: !!overlay._card,
-      hasMetaCard: !!overlay.meta?.card,
-      hasExtensionCard: !!overlay.extension?.card,
-      overlayKeys: Object.keys(overlay),
       overlayType: overlay.type
     });
 
-    // Pattern 1: Nested card definition (traditional control pattern)
+    // ONLY PATTERN: Nested card definition (required by schema)
     // { type: 'control', card: { type: 'custom:some-card', ... } }
-    if (overlay.card) return overlay.card;
-    if (overlay.card_config) return overlay.card_config;
-    if (overlay.cardConfig) return overlay.cardConfig;
-    if (overlay._card) return overlay._card;
-    if (overlay.meta?.card) return overlay.meta.card;
-    if (overlay.extension?.card) return overlay.extension.card;
-
-    // Pattern 2: Overlay IS the card definition (new unified pattern)
-    // { type: 'custom:lcards-button', entity: '...', position: [...], size: [...] }
-    // This supports LCARdS cards and HA cards directly as overlays
-    if (overlay.type && overlay.type !== 'control' && overlay.type !== 'line') {
-      lcardsLog.debug('[MsdControlsRenderer] Using unified pattern - overlay IS card definition for', overlay.id);
-
-      // Build card definition from overlay itself
-      // Exclude MSD-specific positioning/metadata properties
-      const { id, position, size, z_index, tags, anchor, anchors, ...cardProps } = overlay;
-
-      lcardsLog.debug('[MsdControlsRenderer] Built card definition from overlay:', {
-        overlayId: id,
-        cardType: overlay.type,
-        cardPropsKeys: Object.keys(cardProps),
-        hasEntities: !!cardProps.entities,
-        entitiesValue: cardProps.entities,
-        fullCardProps: JSON.stringify(cardProps, null, 2)
-      });
-
-      return cardProps;  // Everything except positioning metadata
+    if (overlay.card) {
+      if (typeof overlay.card !== 'object') {
+        lcardsLog.error('[MsdControlsRenderer] Card property must be an object for', overlay.id);
+        return null;
+      }
+      
+      if (!overlay.card.type) {
+        lcardsLog.error('[MsdControlsRenderer] Card definition missing required "type" property for', overlay.id);
+        return null;
+      }
+      
+      return overlay.card;
     }
 
-    // Pattern 3: Try raw overlay cache (backward compat during transition)
-    // Build raw overlay index once from global cache if available
-    if (!this._rawOverlayIndex) {
-      const raw = (window && window._msdRawOverlays) ? window._msdRawOverlays : [];
-      this._rawOverlayIndex = new Map(raw.map(o => [o.id, o]));
-      lcardsLog.debug('[MsdControlsRenderer] Built raw overlay index:', {
-        totalRaw: raw.length,
-        controlRaw: raw.filter(o => o.type === 'control').length,
-        indexSize: this._rawOverlayIndex.size,
-        hasWindow: !!window,
-        hasRawOverlays: !!window._msdRawOverlays
-      });
-    }
-    const rawEntry = this._rawOverlayIndex?.get(overlay.id);
-    if (rawEntry?.card) {
-      lcardsLog.debug('[MsdControlsRenderer] Found card definition in raw overlay cache for', overlay.id);
-      return rawEntry.card;
-    }
-
-    lcardsLog.warn('[MsdControlsRenderer] No card definition found anywhere for', overlay.id);
+    // Error: No card property found
+    lcardsLog.error('[MsdControlsRenderer] Control overlay missing required "card" property:', overlay.id, {
+      suggestion: 'Use nested card pattern:\n' +
+                  '  - type: control\n' +
+                  '    id: ' + overlay.id + '\n' +
+                  '    card:\n' +
+                  '      type: custom:lcards-button\n' +
+                  '      entity: light.example\n' +
+                  '    position: [x, y]\n' +
+                  '    size: [width, height]'
+    });
+    
     return null;
   }
 
@@ -410,42 +395,6 @@ export class MsdControlsRenderer {
 
     return builtInCardMap[cardType] || cardType;
   }
-
-  // ADDED: normalize card type to an actual custom element tag name
-  /* TO BE REMOVED - no longer needed
-  normalizeCardTag(cardType) {
-    if (!cardType) return null;
-    if (cardType.startsWith('custom:')) return cardType.slice(7); // HA style -> real tag
-    return cardType;
-  }
-  */
-
-  // ADDED: schedule retries for setConfig / hass once element upgrades
-  /* TO BE REMOVED - no longer needed
-  _scheduleDeferredConfig(cardElement, finalConfig, overlayId, attempt = 0) {
-    if (!finalConfig) return;
-    const maxAttempts = 8;
-    if (typeof cardElement.setConfig === 'function') {
-      try {
-        cardElement.setConfig(finalConfig);
-        cardElement._config = finalConfig;
-        if (this.hass) {
-          try { cardElement.hass = this.hass; } catch { cardElement._hass = this.hass; }
-        }
-        lcardsLog.debug('[MSD Controls] Deferred setConfig applied', overlayId, { attempt });
-      } catch (e) {
-        lcardsLog.warn('[MSD Controls] Deferred setConfig failed', overlayId, e);
-      }
-      return;
-    }
-    if (attempt >= maxAttempts) {
-      lcardsLog.warn('[MSD Controls] Gave up waiting for setConfig', overlayId);
-      return;
-    }
-    const delay = 150 * (attempt + 1);
-    setTimeout(() => this._scheduleDeferredConfig(cardElement, finalConfig, overlayId, attempt + 1), delay);
-  }
-    */
 
   async createControlElement(overlay) {
     const cardDef = this.resolveCardDefinition(overlay);

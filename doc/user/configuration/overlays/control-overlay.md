@@ -71,17 +71,108 @@ type: custom:lcards-msd-card
         id: my_light_control
         card:
           type: button
-          config:
-            entity: light.living_room
-            name: "Living Room"
-            show_icon: true
-            tap_action:
-              action: toggle
+          entity: light.living_room
+          name: "Living Room"
+          show_icon: true
+          tap_action:
+            action: toggle
         position: [100, 100]
         size: [200, 100]
 ```
 
 **Result:** A standard Home Assistant button card positioned at coordinates (100, 100) with size 200×100.
+
+### Alternative: Nested Config
+
+You can also nest card properties inside a `config` key (both patterns work):
+
+```yaml
+- type: control
+  id: my_light_control
+  card:
+    type: button
+    config:
+      entity: light.living_room
+      name: "Living Room"
+      show_icon: true
+      tap_action:
+        action: toggle
+  position: [100, 100]
+  size: [200, 100]
+```
+
+**Note:** Both flat and nested card property patterns are valid HA patterns. Use whichever you prefer.
+
+---
+
+## ❌ NOT Supported Patterns
+
+The following patterns are **NOT supported** and will cause validation errors:
+
+### ❌ Flat/Direct Pattern (WRONG)
+
+```yaml
+# ❌ WRONG - Do not use card type directly as overlay type
+overlays:
+  - type: custom:lcards-button    # ❌ Wrong
+    id: my_button
+    entity: light.kitchen
+    position: [100, 100]
+    size: [200, 100]
+```
+
+**Error:** `type` must be `control`, not a card type.
+
+**Fix:** Use the nested `card` property:
+```yaml
+# ✅ CORRECT
+overlays:
+  - type: control                  # ✅ Correct
+    id: my_button
+    card:
+      type: custom:lcards-button   # Card type goes here
+      entity: light.kitchen
+    position: [100, 100]
+    size: [200, 100]
+```
+
+### ❌ Legacy card_config Pattern (WRONG)
+
+```yaml
+# ❌ WRONG - Legacy field names not supported
+- type: control
+  id: my_control
+  card_config:      # ❌ Wrong - deprecated
+    type: button
+    entity: light.kitchen
+```
+
+**Error:** Field `card_config` is deprecated.
+
+**Fix:** Use `card` instead:
+```yaml
+# ✅ CORRECT
+- type: control
+  id: my_control
+  card:             # ✅ Correct
+    type: button
+    entity: light.kitchen
+```
+
+### ❌ Legacy cardConfig Pattern (WRONG)
+
+```yaml
+# ❌ WRONG - camelCase variant not supported
+- type: control
+  id: my_control
+  cardConfig:       # ❌ Wrong - deprecated
+    type: button
+    entity: light.kitchen
+```
+
+**Error:** Field `cardConfig` is deprecated.
+
+**Fix:** Use `card` instead (same as above).
 
 ---
 
@@ -98,19 +189,22 @@ graph TD
     Overlay --> Size[size: width, height]
 
     Card --> CardType[type: card-type]
-    Card --> CardConfig[config: {...}]
+    Card --> CardProps[Card Properties]
 
     CardType --> Custom[custom:card-name]
     CardType --> Builtin[built-in-type]
 
-    CardConfig --> Entity[entity]
-    CardConfig --> Actions[tap_action, etc.]
-    CardConfig --> Options[card-specific options]
+    CardProps --> Entity[entity]
+    CardProps --> Actions[tap_action, etc.]
+    CardProps --> Options[card-specific options]
+    CardProps --> ConfigNest[OR: config: {...}]
 
     style Overlay fill:#4d94ff,stroke:#0066cc,color:#fff
     style Card fill:#ff9933,stroke:#cc6600,color:#fff
-    style CardConfig fill:#00cc66,stroke:#009944,color:#fff
+    style CardProps fill:#00cc66,stroke:#009944,color:#fff
 ```
+
+**Note:** Card properties can be flat (e.g., `entity: light.example`) or nested under `config:`. Both patterns work.
 
 ### Required Properties
 
@@ -160,47 +254,44 @@ Embed any LCARdS button or custom card:
 
 ### Built-in Home Assistant Cards
 
-Use standard HA cards with simplified syntax:
+Use standard HA cards with simplified syntax (both flat and nested patterns work):
 
 ```yaml
-# Button Card
+# Button Card (flat properties)
 - type: control
   id: button_control
   card:
     type: button
-    config:
-      entity: light.bedroom
-      name: "Bedroom"
-      icon: mdi:lightbulb
-      show_name: true
-      show_icon: true
-      tap_action:
-        action: toggle
+    entity: light.bedroom
+    name: "Bedroom"
+    icon: mdi:lightbulb
+    show_name: true
+    show_icon: true
+    tap_action:
+      action: toggle
   position: [400, 200]
   size: [150, 80]
 
-# Light Card
+# Light Card (flat properties)
 - type: control
   id: light_control
   card:
     type: light
-    config:
-      entity: light.kitchen
-      name: "Kitchen Light"
+    entity: light.kitchen
+    name: "Kitchen Light"
   position: [600, 200]
   size: [200, 120]
 
-# Entities Card
+# Entities Card (flat properties)
 - type: control
   id: entities_control
   card:
     type: entities
-    config:
-      entities:
-        - light.living_room
-        - light.bedroom
-        - light.kitchen
-      title: "All Lights"
+    entities:
+      - light.living_room
+      - light.bedroom
+      - light.kitchen
+    title: "All Lights"
   position: [100, 400]
   size: [300, 200]
 ```
@@ -210,33 +301,31 @@ Use standard HA cards with simplified syntax:
 Embed popular custom cards:
 
 ```yaml
-# mini-graph-card
+# mini-graph-card (flat properties)
 - type: control
   id: temp_graph
   card:
     type: custom:mini-graph-card
-    config:
-      entities:
-        - sensor.temperature
-      hours_to_show: 24
-      line_width: 2
-      font_size: 75
+    entities:
+      - sensor.temperature
+    hours_to_show: 24
+    line_width: 2
+    font_size: 75
   position: [800, 100]
   size: [400, 250]
 
-# apexcharts-card
+# apexcharts-card (flat properties)
 - type: control
   id: power_chart
   card:
     type: custom:apexcharts-card
-    config:
-      graph_span: 24h
-      series:
-        - entity: sensor.power_consumption
-          name: Power
-      apex_config:
-        chart:
-          height: 200
+    graph_span: 24h
+    series:
+      - entity: sensor.power_consumption
+        name: Power
+    apex_config:
+      chart:
+        height: 200
   position: [100, 700]
   size: [500, 250]
 ```
@@ -334,9 +423,8 @@ overlays:
     id: light_control
     card:
       type: button
-      config:
-        entity: light.bedroom
-        name: "Bedroom"
+      entity: light.bedroom
+      name: "Bedroom"
     position: [400, 200]
     size: [150, 80]
 
@@ -370,12 +458,11 @@ overlays:
     id: main_control
     card:
       type: entities
-      config:
-        entities:
-          - light.living_room
-          - light.bedroom
-          - light.kitchen
-        title: "Light Control"
+      entities:
+        - light.living_room
+        - light.bedroom
+        - light.kitchen
+      title: "Light Control"
     position: [800, 400]
     size: [300, 200]
 
@@ -437,13 +524,12 @@ overlays:
     id: temp_graph
     card:
       type: custom:mini-graph-card
-      config:
-        entities:
-          - sensor.temperature
-          - sensor.humidity
-        hours_to_show: 12
-        line_width: 2
-        animate: true
+      entities:
+        - sensor.temperature
+        - sensor.humidity
+      hours_to_show: 12
+      line_width: 2
+      animate: true
     position: [100, 100]
     size: [600, 300]
 
@@ -452,8 +538,7 @@ overlays:
     id: climate_control
     card:
       type: thermostat
-      config:
-        entity: climate.living_room
+      entity: climate.living_room
     position: [750, 100]
     size: [300, 300]
 
@@ -462,12 +547,11 @@ overlays:
     id: fan_button
     card:
       type: button
-      config:
-        entity: switch.fan
-        name: "Fan"
-        icon: mdi:fan
-        tap_action:
-          action: toggle
+      entity: switch.fan
+      name: "Fan"
+      icon: mdi:fan
+      tap_action:
+        action: toggle
     position: [1100, 100]
     size: [150, 100]
 
@@ -475,12 +559,11 @@ overlays:
     id: humidifier_button
     card:
       type: button
-      config:
-        entity: switch.humidifier
-        name: "Humidifier"
-        icon: mdi:air-humidifier
-        tap_action:
-          action: toggle
+      entity: switch.humidifier
+      name: "Humidifier"
+      icon: mdi:air-humidifier
+      tap_action:
+        action: toggle
     position: [1100, 220]
     size: [150, 100]
 
@@ -558,15 +641,14 @@ overlays:
     id: status_entities
     card:
       type: entities
-      config:
-        entities:
-          - entity: sensor.warp_speed
-            name: "Warp Speed"
-          - entity: sensor.shield_strength
-            name: "Shield Strength"
-          - entity: sensor.weapon_charge
-            name: "Weapon Charge"
-        title: "System Status"
+      entities:
+        - entity: sensor.warp_speed
+          name: "Warp Speed"
+        - entity: sensor.shield_strength
+          name: "Shield Strength"
+        - entity: sensor.weapon_charge
+          name: "Weapon Charge"
+      title: "System Status"
     position: [100, 400]
     size: [640, 200]
 ```
@@ -595,8 +677,7 @@ graph LR
   id: control
   card:
     type: button
-    config:
-      entity: light.bedroom
+    entity: light.bedroom
   position: [300, 200]
   size: [150, 80]
 
@@ -634,38 +715,38 @@ graph TD
 # Row 1
 - type: control
   id: light_1
-  card: { type: button, config: { entity: light.room_1 } }
+  card: { type: button, entity: light.room_1 }
   position: [100, 120]
   size: [150, 80]
 
 - type: control
   id: light_2
-  card: { type: button, config: { entity: light.room_2 } }
+  card: { type: button, entity: light.room_2 }
   position: [270, 120]
   size: [150, 80]
 
 - type: control
   id: light_3
-  card: { type: button, config: { entity: light.room_3 } }
+  card: { type: button, entity: light.room_3 }
   position: [440, 120]
   size: [150, 80]
 
 # Row 2
 - type: control
   id: light_4
-  card: { type: button, config: { entity: light.room_4 } }
+  card: { type: button, entity: light.room_4 }
   position: [100, 220]
   size: [150, 80]
 
 - type: control
   id: light_5
-  card: { type: button, config: { entity: light.room_5 } }
+  card: { type: button, entity: light.room_5 }
   position: [270, 220]
   size: [150, 80]
 
 - type: control
   id: light_6
-  card: { type: button, config: { entity: light.room_6 } }
+  card: { type: button, entity: light.room_6 }
   position: [440, 220]
   size: [150, 80]
 ```
@@ -678,8 +759,7 @@ graph TD
   id: main_graph
   card:
     type: custom:mini-graph-card
-    config:
-      entities: [sensor.temperature]
+    entities: [sensor.temperature]
   position: [100, 100]
   size: [600, 300]
 

@@ -11,11 +11,13 @@
 
 import { commonSchema } from './common.js';
 import { lineOverlaySchema } from './lineOverlay.js';
+import { controlOverlaySchema } from './controlOverlay.js';
 
 // Re-export all schemas
 export {
   commonSchema,
-  lineOverlaySchema
+  lineOverlaySchema,
+  controlOverlaySchema
 };
 
 /**
@@ -35,6 +37,7 @@ export function registerAllSchemas(schemaRegistry) {
 
   // Register overlay type schemas
   schemaRegistry.register('line', lineOverlaySchema);
+  schemaRegistry.register('control', controlOverlaySchema);
 
   // Card schemas self-register via static registerSchema() methods
   // Called by lcards.js after core init:
