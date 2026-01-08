@@ -166,29 +166,64 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Call parent first
         await super._onFirstUpdated(changedProperties);
 
+        // ✅ FIX: Wait for async config processing to complete
+        // LCARdSCard.setConfig() starts _processConfigAsync() in background.
+        // We must wait for it before accessing this.config or derived properties.
+        if (this._configProcessingPromise) {
+            lcardsLog.debug('[LCARdSMSDCard] Waiting for config processing...');
+            try {
+                await this._configProcessingPromise;
+                lcardsLog.debug('[LCARdSMSDCard] Config processing complete');
+            } catch (error) {
+                lcardsLog.error('[LCARdSMSDCard] Config processing failed:', error);
+                this._configIssues = { errors: [`Config processing failed: ${error.message}`] };
+                this.requestUpdate();
+                return;
+            }
+        }
+
         // Check for validation errors
         if (this._configIssues?.errors?.length > 0) {
             lcardsLog.error('[LCARdSMSDCard] Validation errors present, skipping initialization');
             return;
         }
 
-        // Load SVG now that singletons are initialized
+        // NOW _msdConfig is guaranteed to be set by _onConfigUpdated()
+        // Load SVG now that config is processed
         if (this._msdConfig?.base_svg && !this._svgContent) {
+            lcardsLog.debug('[LCARdSMSDCard] Loading base SVG:', this._msdConfig.base_svg.source);
             await this._loadBaseSvg(this._msdConfig.base_svg);
+            
+            if (!this._svgContent) {
+                lcardsLog.error('[LCARdSMSDCard] Failed to load SVG');
+                this._configIssues = { errors: ['Failed to load base SVG'] };
+                this.requestUpdate();
+                return;
+            }
+            
+            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', this._svgContent.length, 'bytes');
         }
 
         // Generate instance GUID
         if (!this._msdInstanceGuid) {
             if (this.config.id) {
                 this._msdInstanceGuid = `msd-${this.config.id}`;
-                lcardsLog.debug('[LCARdSMSDCard] Using config.id as instance GUID:', this._msdInstanceGuid);
+                lcardsLog.debug('[LCARdSMSDCard] Using config.id as GUID:', this._msdInstanceGuid);
             } else {
                 this._msdInstanceGuid = `msd-${this._cardGuid}`;
-                lcardsLog.debug('[LCARdSMSDCard] Generated instance GUID:', this._msdInstanceGuid);
+                lcardsLog.debug('[LCARdSMSDCard] Generated GUID:', this._msdInstanceGuid);
             }
         }
 
-        // Initialize MSD pipeline
+        // Initialize MSD pipeline (now with config guaranteed ready)
+        lcardsLog.debug('[LCARdSMSDCard] Initializing pipeline:', {
+            hasConfig: !!this._msdConfig,
+            hasSvg: !!this._svgContent,
+            hasHass: !!this.hass,
+            svgLength: this._svgContent?.length,
+            guid: this._msdInstanceGuid
+        });
+        
         await this._initializeMsdPipeline();
     }
 
