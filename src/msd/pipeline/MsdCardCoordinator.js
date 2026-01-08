@@ -116,7 +116,7 @@ export class MsdCardCoordinator extends BaseService {
     this.themeManager = lcardsCore.themeManager;
 
     // PHASE 1: Theme system already initialized by core - just verify
-    lcardsLog.debug('[MsdCardCoordinator] 🎨 Phase 1: Verifying theme system from core');
+    lcardsLog.debug('[MsdCardCoordinator] 🎨 Initializing theme system');
 
     const activeTheme = this.themeManager.getActiveTheme();
     if (!activeTheme) {
@@ -124,11 +124,10 @@ export class MsdCardCoordinator extends BaseService {
     }
 
     // Log theme provenance
-    lcardsLog.info('[MsdCardCoordinator] 🎨 Theme system ready (from core):', {
-      active: activeTheme?.name,
-      activeId: activeTheme?.id,
-      themeCount: this.themeManager.listThemes().length,
-      provenance: mergedConfig.__provenance?.theme
+    lcardsLog.debug('[MsdCardCoordinator] 🎨 Initializing theme system');
+    lcardsLog.debug('[MsdCardCoordinator] ✅ Theme system ready', {
+      active: this.themeManager.getActiveTheme()?.name || 'none',
+      themeCount: this.themeManager.listThemes().length
     });
 
     // Store in global namespace for access by overlays
@@ -136,11 +135,10 @@ export class MsdCardCoordinator extends BaseService {
       window.lcards = window.lcards || {};
       window.lcards.theme = this.themeManager;
       window.lcards.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
-      lcardsLog.debug('[MsdCardCoordinator] 🔧 ThemeManager globally accessible via window.lcards.theme');
     }
 
     // PHASE 2: Initialize other critical systems that overlays might need
-    lcardsLog.debug('[MsdCardCoordinator] ⚙️ Phase 2: Initializing critical systems');
+    lcardsLog.debug('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
 
     // Initialize debug manager early with config
     const debugConfig = mergedConfig.debug || {};
@@ -151,7 +149,6 @@ export class MsdCardCoordinator extends BaseService {
     await this._initializeDataSources(hass, mergedConfig);
 
     // Use shared StylePresetManager singleton from lcardsCore (already initialized by core)
-    lcardsLog.debug('[MsdCardCoordinator] 🎨 Using shared StylePresetManager from lcardsCore');
     if (!lcardsCore.stylePresetManager) {
       throw new Error('lcardsCore.stylePresetManager is null - core not initialized?');
     }
@@ -160,9 +157,13 @@ export class MsdCardCoordinator extends BaseService {
     // Verify it's initialized (should already be done by core)
     if (!this.stylePresetManager.initialized) {
       lcardsLog.warn('[MsdCardCoordinator] ⚠️ StylePresetManager not initialized - this should not happen');
-    } else {
-      lcardsLog.debug('[MsdCardCoordinator] ✅ Shared StylePresetManager ready (from core)');
     }
+    
+    lcardsLog.debug('[MsdCardCoordinator] ✅ Connected to core singletons', {
+      theme: !!this.themeManager,
+      stylePresets: !!this.stylePresetManager,
+      dataSourceManager: !!this.dataSourceManager
+    });
 
     lcardsLog.debug('[MsdCardCoordinator] ✅ Critical systems ready for overlay processing');
   }
@@ -175,7 +176,6 @@ export class MsdCardCoordinator extends BaseService {
     lcardsLog.debug('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
     // Use shared RulesEngine singleton from lcardsCore and add this MSD's rules
-    lcardsLog.debug('[MsdCardCoordinator] 🧠 Using shared RulesEngine from lcardsCore');
     if (!lcardsCore.rulesManager) {
       throw new Error('lcardsCore.rulesManager is null - core not initialized?');
     }
@@ -314,23 +314,17 @@ export class MsdCardCoordinator extends BaseService {
 
     // Mark router as ready for debug system
     this.debugManager.markRouterReady();
-    lcardsLog.debug('[MsdCardCoordinator] RouterCore marked ready for debug system');
 
-    // Use shared AnimationRegistry singleton from lcardsCore
-    lcardsLog.debug('[MsdCardCoordinator] 🎭 Using shared AnimationRegistry from lcardsCore');
+    // Use shared AnimationRegistry and AnimationManager from lcardsCore
     if (!lcardsCore.animationRegistry) {
       throw new Error('lcardsCore.animationRegistry is null - core not initialized?');
     }
     this.animRegistry = lcardsCore.animationRegistry;
 
-    // Use shared AnimationManager from lcardsCore
-    lcardsLog.debug('[MsdCardCoordinator] 🎬 Using shared AnimationManager from lcardsCore');
     if (!lcardsCore.animationManager) {
       throw new Error('lcardsCore.animationManager is null - core not initialized?');
     }
     this.animationManager = lcardsCore.animationManager;
-
-    lcardsLog.debug('[MsdCardCoordinator] ✅ Shared AnimationManager connected');
 
     // Register MSD panels with global HUD if card GUID is available
     if (this._cardGuid) {
@@ -472,25 +466,23 @@ export class MsdCardCoordinator extends BaseService {
     // Use configured data sources
     const configuredDataSources = mergedConfig.data_sources || {};
 
-    lcardsLog.debug('[MsdCardCoordinator] 🔍 Using configured data sources mode');
-    lcardsLog.debug('[MsdCardCoordinator] 🔍 Configured data sources:', Object.keys(configuredDataSources));
-
     // Controls use direct HASS - no data sources needed
     const controlEntities = this._extractControlEntities(mergedConfig);
-    lcardsLog.debug('[MsdCardCoordinator] 🔍 Control entities (using direct HASS):', controlEntities);
 
     // Use configured data sources
     const allDataSources = { ...configuredDataSources };
 
-    lcardsLog.debug('[MsdCardCoordinator] 📊 Data source summary:', {
-      configured: Object.keys(configuredDataSources).length,
-      total: Object.keys(allDataSources).length,
-      allDataSourceIds: Object.keys(allDataSources)
-    });
+    // Only log if data sources actually configured (avoid noise for common case)
+    if (Object.keys(configuredDataSources).length > 0 || controlEntities.length > 0) {
+      lcardsLog.debug('[MsdCardCoordinator] 📊 Data sources configured', {
+        configured: Object.keys(configuredDataSources).length,
+        controls: controlEntities.length,
+        total: Object.keys(allDataSources).length
+      });
+    }
 
     if (Object.keys(allDataSources).length === 0) {
       lcardsLog.debug('[MsdCardCoordinator] No data sources configured or auto-created - DataSourceManager will not be initialized');
-      lcardsLog.debug('[MsdCardCoordinator] Note: Control overlays will use direct HASS (no data sources needed)');
       return;
     }
 
@@ -676,9 +668,24 @@ export class MsdCardCoordinator extends BaseService {
     }
     this._reRenderCallback = null;
 
+    // Clear per-card references only
+    this.mountElement = null;
+    this.cardModel = null;
     this.styleResolver = null;
-
-    // Clean up other systems
+    this.renderer = null;
+    this.debugRenderer = null;
+    this.controlsRenderer = null;
+    this.router = null;
+    this.debugManager = null;
+    
+    // DO NOT null singleton references - they are shared across all cards!
+    // These remain accessible from window.lcards.core for other cards:
+    // - this.dataSourceManager
+    // - this.rulesEngine  
+    // - this.themeManager
+    // - this.animationManager
+    // - this.stylePresetManager
+    // - this.animRegistry
 
     // Remove global references
     if (typeof window !== 'undefined' && window.lcards.debug.msd) {

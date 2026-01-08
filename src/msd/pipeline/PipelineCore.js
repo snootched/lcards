@@ -1,9 +1,9 @@
 import { processAndValidateConfig } from './ConfigProcessor.js';
 import { MsdCardCoordinator } from './MsdCardCoordinator.js';
 import { ModelBuilder } from './ModelBuilder.js';
-import { setupDebugInterface } from '../debug/DebugInterface.js';
+// UnifiedAPI and DebugInterface removed - legacy architecture
+// Use DOM queries to access cards: document.querySelector('lcards-msd')
 import { buildCardModel } from '../model/CardModel.js';
-import { LCARdSUnifiedAPI } from '../../api/LCARdSUnifiedAPI.js';
 import { perfGetAll } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 // ✅ CONSOLIDATED: Use Core ValidationService singleton instead of MSD-specific ValidationService
@@ -433,27 +433,24 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     mergedConfig, cardModel, coordinator, modelBuilder, reRender
   );
 
-  // Setup debug interface with DebugManager integration
-  setupDebugInterface(pipelineApi, mergedConfig, provenance, coordinator, modelBuilder);
-
   // Initialize HUD service with mount element
   if (typeof window !== 'undefined' && window.lcards.debug.msd?.hud?.setMountElement) {
     window.lcards.debug.msd.hud.setMountElement(mountEl);
   }
 
-  // Attach unified API AFTER DebugInterface setup
-  // This ensures modern namespaces overwrite legacy properties
-  lcardsLog.debug('[PipelineCore] Attaching unified API after DebugInterface setup');
-  LCARdSUnifiedAPI.attach();
+  // Legacy debug interface removed - use DOM-based card access
+  // Example: document.querySelector('lcards-msd')._msdPipeline.coordinator.router
+  lcardsLog.debug('[PipelineCore] ✅ Pipeline API created (access via card._msdPipeline)');
 
-  // Augment debug tracking (now that pipelineApi exists)
+  // Provenance tracked in card via _provenanceTracker (PR #165)
+  // Access via: card.getProvenance()
+  
+  // Augment debug tracking with validation issues helper
   if (typeof window !== 'undefined') {
     window.lcards = window.lcards || {};
     window.lcards.debug = window.lcards.debug || {};
     window.lcards.debug.msd = window.lcards.debug.msd || {};
     window.lcards.debug.msd.validation = { issues: () => mergedConfig.__issues };
-    window.lcards.debug.msd.pipelineInstance = pipelineApi;
-    window.lcards.debug.msd._provenance = provenance;
   }
 
   lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with provenance:', {
@@ -489,8 +486,8 @@ function createDisabledPipeline(mergedConfig, issues, provenance) {
     window.lcards.debug = window.lcards.debug || {};
     window.lcards.debug.msd = window.lcards.debug.msd || {};
     window.lcards.debug.msd.validation = { issues: () => mergedConfig.__issues };
-    window.lcards.debug.msd.pipelineInstance = disabledPipeline;
-    window.lcards.debug.msd._provenance = provenance;
+    // Provenance tracked in card via _provenanceTracker (PR #165)
+    // Access via: card.getProvenance()
   }
   return disabledPipeline;
 }

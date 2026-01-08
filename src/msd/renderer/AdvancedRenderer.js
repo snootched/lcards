@@ -84,7 +84,8 @@ export class AdvancedRenderer {
     // Phase rendering requires live SVG early
     const svg = this.mountEl?.querySelector('svg');
     if (!svg) {
-      lcardsLog.warn('[AdvancedRenderer] ❌ SVG element not found in container');
+      // Trace level - this is expected during initial mount timing
+      lcardsLog.trace('[AdvancedRenderer] SVG not yet mounted, skipping render');
       return { svgMarkup: '', overlayCount: 0 };
     }
 

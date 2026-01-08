@@ -36,8 +36,8 @@ import { LCARdSChart } from './cards/lcards-chart.js';
 import { LCARdSSlider } from './cards/lcards-slider.js';
 import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 
-// Unified API system import
-import { LCARdSUnifiedAPI } from './api/LCARdSUnifiedAPI.js';
+// Unified API system removed - legacy architecture
+// Use DOM queries: document.querySelector('lcards-msd')._msdPipeline
 
 // Component registration imports (static imports for webpack compatibility)
 import { registerSliderComponents } from './core/packs/components/sliders/index.js';
