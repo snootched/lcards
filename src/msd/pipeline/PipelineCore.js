@@ -27,8 +27,8 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     cardGuid
   });
 
-  // ✅ NEW: Preserve full config before extraction
-  const fullUserConfig = userMsdConfig;  // Store full config with __provenance
+  // ✅ NEW: Preserve full config before extraction (deep clone to ensure immutability)
+  const fullUserConfig = structuredClone(userMsdConfig);  // Store full config with __provenance
 
   // Configuration processing and pack merging WITH anchor extraction
   lcardsLog.trace('[PipelineCore] 🔧 Config processing with SVG extraction');
@@ -687,24 +687,25 @@ function createValidationErrorDisplay(issues, mergedConfig) {
 
 /**
  * Creates and returns the MSD pipeline external API.
- * @param {Object} mergedConfig
- * @param {Object} cardModel
- * @param {MsdCardCoordinator} coordinator
- * @param {ModelBuilder} modelBuilder
- * @param {Function} reRender
- * @param {Object} fullUserConfig - Full card config with provenance
- * @returns {Object} API
+ * 
+ * @param {Object} mergedConfig - Processed MSD config with flat structure: {base_svg, overlays, anchors, ...}
+ * @param {Object} cardModel - Built card model
+ * @param {MsdCardCoordinator} coordinator - Card coordinator instance
+ * @param {ModelBuilder} modelBuilder - Model builder instance
+ * @param {Function} reRender - Re-render callback function
+ * @param {Object} fullUserConfig - Full card config with nested structure: {type, id, msd: {...}, __provenance}
+ * @returns {Object} Pipeline API with config and msdConfig properties
  */
 function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, reRender, fullUserConfig) {
   const api = {
     enabled: true,
     version: mergedConfig.version || 1,
     
-    // ✅ FIX: Return full config with provenance
-    config: fullUserConfig,  // Full card config: {type, id, msd: {...}, __provenance}
+    // Full card config with provenance metadata
+    config: fullUserConfig,
     
-    // ✅ NEW: Add msdConfig for backward compatibility
-    msdConfig: mergedConfig,  // Processed MSD config: {base_svg, overlays, anchors, ...}
+    // Processed MSD config for backward compatibility
+    msdConfig: mergedConfig,
 
     // Core systems
     coordinator,
