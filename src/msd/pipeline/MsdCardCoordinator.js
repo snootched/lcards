@@ -98,7 +98,7 @@ export class MsdCardCoordinator extends BaseService {
   /**
    * Initialize systems with pack defaults loading FIRST
    * This ensures defaults are available before any overlay processing
-   * 
+   *
    * Now uses global core managers (no local pack loading)
    */
   async initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass) {
@@ -363,7 +363,7 @@ export class MsdCardCoordinator extends BaseService {
   setCardGuid(guid) {
     this._cardGuid = guid;
     lcardsLog.debug('[MsdCardCoordinator] Card GUID set:', guid);
-    
+
     // Register with HUD if systems are already initialized
     if (this.renderer && lcardsCore?.hudManager) {
       this._registerMsdPanelsWithHud(guid);
@@ -643,8 +643,6 @@ export class MsdCardCoordinator extends BaseService {
 
 
   async destroy() {
-    // DEPRECATED: ApexChartsOverlayRenderer.cleanupAll() removed (v1.16.22+)
-    // SimpleChart instances are cleaned up by their own lifecycle
 
     // Clean up rules engine first
     if (this.rulesEngine) {
@@ -655,9 +653,12 @@ export class MsdCardCoordinator extends BaseService {
     this.dataSourceManager?.destroy();
     this.animRegistry?.clear();
     this.debugRenderer?.destroy();
-    this.controlsRenderer?.destroy();
-    this.renderer?.destroy();
-    this.rulesEngine?.destroy();
+    if (this.controlsRenderer && typeof this.controlsRenderer.destroy === 'function') {
+      this.controlsRenderer.destroy();
+    }
+    if (this.renderer && typeof this.renderer.destroy === 'function') {
+      this.renderer.destroy();
+    }
 
     if (this.styleResolver) {
       try {
