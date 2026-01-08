@@ -155,13 +155,21 @@ export class CoreConfigManager {
     lcardsLog.debug(`[CoreConfigManager] Processing config for ${cardType}`, {
       hasPreset: !!userConfig.preset,
       hasEntity: !!userConfig.entity,
-      hasStyle: !!userConfig.style
+      hasStyle: !!userConfig.style,
+      isMsdNested: cardType === 'msd' && !!userConfig.msd  // ✅ NEW: Detect MSD
     });
 
     this.stats.configurationsProcessed++;
 
     try {
-      // All cards use standard four-layer merge (defaults, theme, preset/component, user)
+      // ✅ NEW: Special handling for MSD nested structure
+      // MSD cards have { type, id, grid_options, msd: {...} } instead of flat config
+      if (cardType === 'msd' && userConfig.msd) {
+        lcardsLog.trace('[CoreConfigManager] Detected MSD nested structure, using _processMsdConfig()');
+        return await this._processMsdConfig(userConfig, context);
+      }
+      
+      // Standard four-layer merge for flat-structure cards
       // PackManager handles packs globally - no per-card pack merging needed
       return await this._processLCARdSCardConfig(userConfig, cardType, context);
 
@@ -169,6 +177,117 @@ export class CoreConfigManager {
       lcardsLog.error(`[CoreConfigManager] Processing failed for ${cardType}:`, error);
       this.stats.validationErrors++;
       return this._createErrorResult(userConfig, error.message);
+    }
+  }
+
+  /**
+   * Process MSD card config with nested structure
+   * 
+   * MSD cards have a unique nested structure: { type, id, grid_options, msd: {...} }
+   * This method processes the nested msd object through the standard config pipeline
+   * and reconstructs the top-level structure with provenance attached.
+   * 
+   * @param {Object} userConfig - Full user config with nested msd object
+   * @param {Object} context - Processing context { hass, entity, ... }
+   * @returns {Promise<ConfigResult>} Result with merged config and provenance
+   * @private
+   * 
+   * @example
+   * // Input:
+   * {
+   *   type: 'custom:lcards-msd-card',
+   *   id: 'bridge',
+   *   grid_options: { columns: 'full', rows: 8 },
+   *   msd: {
+   *     base_svg: { source: 'builtin:ncc-1701-a' },
+   *     overlays: [...]
+   *   }
+   * }
+   * 
+   * // Output:
+   * {
+   *   valid: true,
+   *   mergedConfig: {
+   *     type: 'custom:lcards-msd-card',
+   *     id: 'bridge',
+   *     grid_options: {...},
+   *     msd: { <processed with theme tokens, validation> },
+   *     __provenance: { merge_order: [...], field_sources: {...} }
+   *   },
+   *   provenance: {...},
+   *   errors: [],
+   *   warnings: []
+   * }
+   */
+  async _processMsdConfig(userConfig, context) {
+    lcardsLog.debug('[CoreConfigManager] Processing MSD nested config', {
+      hasId: !!userConfig.id,
+      hasMsd: !!userConfig.msd,
+      hasGridOptions: !!userConfig.grid_options
+    });
+
+    // Validate nested structure
+    if (!userConfig.msd || typeof userConfig.msd !== 'object') {
+      lcardsLog.error('[CoreConfigManager] Invalid MSD config: missing or invalid msd object');
+      return this._createErrorResult(userConfig, 'MSD config must contain a "msd" object');
+    }
+
+    try {
+      // Process the nested msd object through standard four-layer merge
+      const msdResult = await this._processLCARdSCardConfig(
+        userConfig.msd,
+        'msd',
+        context
+      );
+
+      // Track that we processed nested structure
+      if (msdResult.provenance) {
+        msdResult.provenance.nested_structure = {
+          type: 'msd',
+          processed_path: 'msd',
+          top_level_fields: ['type', 'id', 'grid_options']
+        };
+      }
+
+      // Reconstruct top-level structure with processed msd config
+      const processedConfig = {
+        type: userConfig.type,
+        id: userConfig.id,
+        grid_options: userConfig.grid_options,
+        
+        // ✅ Processed msd object (with theme tokens resolved, validation applied)
+        msd: msdResult.mergedConfig,
+        
+        // ✅ CRITICAL: Attach provenance at top level (this is what was missing!)
+        __provenance: msdResult.provenance,
+        
+        // ✅ Attach validation results
+        __validation: {
+          errors: msdResult.errors || [],
+          warnings: msdResult.warnings || [],
+          valid: msdResult.valid
+        }
+      };
+
+      lcardsLog.debug('[CoreConfigManager] MSD config processed successfully', {
+        hasProvenance: !!processedConfig.__provenance,
+        validationErrors: msdResult.errors?.length || 0,
+        validationWarnings: msdResult.warnings?.length || 0,
+        mergeOrder: msdResult.provenance?.merge_order
+      });
+
+      // Return in standard ConfigResult format
+      return {
+        valid: msdResult.valid,
+        mergedConfig: processedConfig,
+        provenance: msdResult.provenance,
+        errors: msdResult.errors || [],
+        warnings: msdResult.warnings || []
+      };
+
+    } catch (error) {
+      lcardsLog.error('[CoreConfigManager] Error processing MSD nested config:', error);
+      return this._createErrorResult(userConfig, `MSD config processing failed: ${error.message}`);
     }
   }
 

@@ -135,16 +135,18 @@ export class LCARdSMSDCard extends LCARdSCard {
         lcardsLog.debug('[LCARdSMSDCard] _onConfigUpdated called');
 
         // Extract MSD config from processed config
-        // After CoreConfigManager processing, config structure is: { type, msd: {...}, data_sources, rules }
+        // Config is ALREADY processed by parent's _processConfigAsync() with provenance
+        // After CoreConfigManager processing, config structure is: { type, msd: {...}, __provenance }
         if (this.config?.msd) {
-            this._msdConfig = this.config.msd;
-            this._fullConfig = this.config;
+            this._msdConfig = this.config.msd;  // ✅ Now has processed config with tokens resolved
+            this._fullConfig = this.config;     // ✅ Now has __provenance attached
 
             lcardsLog.debug('[LCARdSMSDCard] Extracted MSD config:', {
                 hasBaseSvg: !!this._msdConfig.base_svg,
                 hasViewBox: !!this._msdConfig.view_box,
                 hasOverlays: !!this._msdConfig.overlays,
-                overlayCount: this._msdConfig.overlays?.length || 0
+                overlayCount: this._msdConfig.overlays?.length || 0,
+                hasProvenance: !!this._fullConfig.__provenance  // ✅ Should now be true
             });
 
             // DON'T load SVG here - singletons may not be initialized yet

@@ -89,8 +89,9 @@ console.log('Found cards:', cards);
 
 **Test**:
 ```javascript
-// Call a method without specifying card ID
-window.lcards.debug.msd.perf.summary();
+// Call a lightweight method without specifying card ID (triggers warning)
+const result = window.lcards.debug.msd.overlays.list();
+console.log('Overlays from first card:', result.length);
 ```
 
 **Expected Console Output**:
@@ -98,6 +99,18 @@ window.lcards.debug.msd.perf.summary();
 ⚠️ Multiple MSD cards detected (2: bridge, engineering). 
 Using first card. To list all cards: listMsdCards(). 
 To target specific card, pass card ID as second parameter: methodName(arg, 'bridge')
+
+Overlays from first card: 0 (or however many overlays exist)
+```
+
+**Then test targeting specific cards**:
+```javascript
+const bridgeOverlays = window.lcards.debug.msd.overlays.list('bridge');
+const engOverlays = window.lcards.debug.msd.overlays.list('engineering');
+
+console.log('Bridge overlays:', bridgeOverlays.length);
+console.log('Engineering overlays:', engOverlays.length);
+// ✅ Expected: No warning, returns correct overlays for each card
 ```
 
 ### Test 4: Target Specific Card
@@ -175,6 +188,57 @@ mergePacks exists: true  ✅
 buildCardModel exists: true  ✅
 initMsdPipeline exists: true  ✅
 ```
+
+### Test 8: Provenance Tracking Works
+
+**Setup**: MSD card with `id: bridge` in YAML config
+
+**Test**:
+```javascript
+// Get the card
+const card = window.lcards.cards.msd.getById('bridge');
+
+// Check provenance via config
+console.log('Config has __provenance:', !!card.config.__provenance);
+console.log('Provenance merge_order:', card.config.__provenance?.merge_order);
+
+// Check provenance via card method
+const provenance = card.getProvenance();
+console.log('Card provenance:', provenance);
+
+// Test performance methods now work
+const perfSummary = window.lcards.debug.msd.perf.summary('bridge');
+console.log('Performance summary:', perfSummary);
+```
+
+**Expected Output**:
+```javascript
+Config has __provenance: true  ✅
+Provenance merge_order: ['card-defaults', 'theme-defaults', 'user-config']  ✅
+
+Card provenance: {
+  config: {
+    merge_order: [...],
+    field_sources: {...},
+    card_type: 'msd',
+    timestamp: 1704729600000
+  },
+  theme_tokens: {...},
+  rule_patches: {}
+}  ✅
+
+Performance summary: {
+  stage: 'complete',
+  totalTime: 145.2,
+  phases: {...}
+}  ✅
+```
+
+**What This Tests:**
+- ✅ Config has `__provenance` attached (the main fix)
+- ✅ Provenance accessible via `card.getProvenance()`
+- ✅ Debug API methods that require provenance now work
+- ✅ MSD aligned with other LCARdS cards
 
 ## Common Issues
 
