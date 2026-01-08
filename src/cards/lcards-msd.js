@@ -110,7 +110,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     connectedCallback() {
         super.connectedCallback();
-        
+
         // Apply config ID to element if present and element doesn't already have one
         if (this.config?.id && !this.id) {
             this.id = this.config.id;
@@ -309,7 +309,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         });
 
         // Get AssetManager from singletons or global core
-        const assetManager = this._singletons?.assetManager || window.lcards?.core?.assetManager;
+        const assetManager = this._singletons?. assetManager || window.lcards?. core?.assetManager;
         if (!assetManager) {
             lcardsLog.warn('[LCARdSMSDCard] AssetManager not available (neither from singletons nor global core)');
             return;
@@ -318,18 +318,31 @@ export class LCARdSMSDCard extends LCARdSCard {
         const svgSource = baseSvgConfig?.source;
         lcardsLog.debug('[LCARdSMSDCard] Loading SVG from source:', svgSource);
 
-        this._svgContent = await assetManager.loadSvg(svgSource);
+        // ✅ FIX: Parse source to extract asset key
+        // Source format: "builtin:ncc-1701-a-blue" → asset key: "ncc-1701-a-blue"
+        let assetKey = svgSource;
+        if (svgSource?. startsWith('builtin:')) {
+            assetKey = svgSource.replace('builtin:', '');
+        }
+
+        lcardsLog.debug('[LCARdSMSDCard] Resolved asset key:', assetKey);
+
+        // ✅ FIX: Use get() method, not loadSvg()
+        this._svgContent = await assetManager.get('svg', assetKey);
 
         if (this._svgContent) {
             lcardsLog.debug('[LCARdSMSDCard] SVG loaded successfully:', {
                 source: svgSource,
-                contentLength: this._svgContent?.length || 0
+                assetKey: assetKey,
+                contentLength: this._svgContent?. length || 0
             });
         } else {
-            lcardsLog.warn('[LCARdSMSDCard] SVG load returned null/undefined for:', svgSource);
+            lcardsLog.warn('[LCARdSMSDCard] SVG load returned null/undefined for:', {
+                source: svgSource,
+                assetKey: assetKey
+            });
         }
     }
-
     /**
      * Initialize MSD pipeline using initMsdPipeline from pipeline core
      * @private
