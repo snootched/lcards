@@ -215,6 +215,13 @@ export class LCARdSMSDCard extends LCARdSCard {
             }
         }
 
+        // ✅ FIX: Wait for Lit's render to complete before initializing pipeline
+        // This ensures the SVG container from _renderSvgContainer() is mounted to DOM
+        // before MsdControlsRenderer tries to find it with getSvgControlsContainer()
+        lcardsLog.debug('[LCARdSMSDCard] Waiting for Lit render to complete...');
+        await this.updateComplete;
+        lcardsLog.debug('[LCARdSMSDCard] Lit render complete');
+
         // Initialize MSD pipeline (now with config guaranteed ready)
         lcardsLog.debug('[LCARdSMSDCard] Initializing pipeline:', {
             hasConfig: !!this._msdConfig,

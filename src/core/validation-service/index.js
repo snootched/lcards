@@ -626,6 +626,14 @@ export class CoreValidationService {
    * @private
    */
   _findEntityReferences(obj, path, result) {
+    // ✅ FIX: Skip validation for control overlay card properties
+    // Nested cards (button, lcards-button, etc.) validate their own entities
+    // This prevents false warnings for entities in msd.overlays[].card.*
+    if (path.includes('.card.') || path.includes('.card_config.') || path.includes('.cardConfig.')) {
+      lcardsLog.trace(`[CoreValidationService] Skipping entity validation for nested card property: ${path}`);
+      return;
+    }
+
     if (typeof obj === 'string') {
       // Check if it looks like an entity ID
       if (/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z0-9_]+$/.test(obj)) {
