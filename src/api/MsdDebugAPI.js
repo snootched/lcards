@@ -19,7 +19,27 @@ import { lcardsLog } from '../utils/lcards-logging.js';
  */
 function _getMsdPipeline(cardSelector = 'lcards-msd') {
   const card = document.querySelector(cardSelector);
-  return card?._msdPipeline || null;
+  
+  if (!card?._msdPipeline) {
+    lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not initialized');
+    return null;
+  }
+  
+  // Warn if using default selector with multiple cards
+  if (cardSelector === 'lcards-msd') {
+    const allCards = document.querySelectorAll('lcards-msd');
+    if (allCards.length > 1) {
+      const cardIds = Array.from(allCards).map(c => c.id || 'unnamed').join(', ');
+      lcardsLog.warn(
+        `[MsdDebugAPI] ⚠️ Multiple MSD cards detected (${allCards.length}: ${cardIds}). ` +
+        `Using first card. To list all cards: listMsdCards(). ` +
+        `To target specific card, pass selector as second parameter: ` +
+        `methodName(arg, 'lcards-msd[id="your-card-id"]')`
+      );
+    }
+  }
+  
+  return card._msdPipeline;
 }
 
 /**
@@ -54,6 +74,26 @@ function _getMsdConfig(cardSelector = 'lcards-msd') {
   return _getMsdPipeline(cardSelector)?.config || null;
 }
 
+/**
+ * MSD Debug API
+ * Provides debugging utilities for MSD cards
+ * 
+ * Supports multiple MSD card instances on the same dashboard.
+ * All methods accept an optional cardSelector parameter.
+ * 
+ * @example
+ * // Single MSD card - use default selector
+ * window.lcards.debug.msd.inspect('overlay1')
+ * 
+ * @example
+ * // Multiple MSD cards - discover available cards first
+ * const cards = window.lcards.debug.msd.listMsdCards()
+ * // Returns: [{id: 'bridge', selector: '...', overlayCount: 15}, ...]
+ * 
+ * // Then target specific card
+ * window.lcards.debug.msd.inspect('overlay1', 'lcards-msd[id="bridge"]')
+ * window.lcards.debug.msd.getRouterMetrics('lcards-msd[id="engineering"]')
+ */
 export class MsdDebugAPI {
   /**
    * Create Debug API instance
@@ -151,6 +191,60 @@ export class MsdDebugAPI {
           coreInitialized: core._coreInitialized,
           directAccess: 'window.lcards.core or window.lcards.debug.singletons'
         };
+      },
+
+      /**
+       * List all MSD cards on the page
+       * Useful for discovering card IDs when debugging multiple instances
+       * 
+       * @returns {Array<Object>} Array of card info objects
+       * 
+       * @example
+       * // Discover all MSD cards
+       * window.lcards.debug.msd.listMsdCards()
+       * // Returns:
+       * // [
+       * //   {
+       * //     id: 'bridge',
+       * //     hasConfig: true,
+       * //     hasPipeline: true,
+       * //     overlayCount: 15,
+       * //     selector: 'lcards-msd[id="bridge"]'
+       * //   },
+       * //   {
+       * //     id: 'engineering',
+       * //     hasConfig: true,
+       * //     hasPipeline: true,
+       * //     overlayCount: 8,
+       * //     selector: 'lcards-msd[id="engineering"]'
+       * //   }
+       * // ]
+       */
+      listMsdCards() {
+        const cards = document.querySelectorAll('lcards-msd');
+        
+        if (cards.length === 0) {
+          lcardsLog.warn('[MsdDebugAPI] No MSD cards found on page');
+          return [];
+        }
+        
+        const cardInfo = Array.from(cards).map((card, index) => {
+          const id = card.id || `unnamed-${index}`;
+          const pipeline = card._msdPipeline;
+          
+          return {
+            id,
+            hasConfig: !!card.config,
+            hasPipeline: !!pipeline,
+            overlayCount: pipeline?.coordinator?.cardModel?.overlays?.length || 0,
+            routingChannels: pipeline?.coordinator?.router?.channels?.size || 0,
+            selector: card.id ? `lcards-msd[id="${card.id}"]` : 'lcards-msd',
+            element: card // Include reference for advanced debugging
+          };
+        });
+        
+        lcardsLog.info(`[MsdDebugAPI] Found ${cards.length} MSD card(s):`, cardInfo.map(c => c.id));
+        return cardInfo;
       },
 
       /**
@@ -635,13 +729,16 @@ export class MsdDebugAPI {
          * from entities to the overlay.
          *
          * @param {string} overlayId - Overlay ID to inspect
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
-         * @returns {Object|null} Routing inspection data
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @returns {Object|null} Routing info or null if not found
          *
          * @example
-         * const routing = msd.routing.inspect('button_1');
-         * console.log('Route mode:', routing.route_mode);
-         * console.log('Paths:', routing.paths);
+         * // Single card (default)
+         * window.lcards.debug.msd.routing.inspect('status-line')
+         *
+         * @example
+         * // Multiple cards - target specific card
+         * window.lcards.debug.msd.routing.inspect('status-line', 'lcards-msd[id="bridge"]')
          */
         inspect(overlayId, cardSelector = 'lcards-msd') {
           try {
@@ -671,13 +768,18 @@ export class MsdDebugAPI {
          * Returns cache hits, paths computed, invalidations, and other
          * routing performance metrics.
          *
-         * @param {string} [cardSelector='lcards-msd'] - CSS selector for MSD card
-         * @returns {Object|null} Routing statistics
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @returns {Object|null} Performance metrics or null if router unavailable
          *
          * @example
-         * const stats = msd.routing.stats();
-         * console.log('Cache hits:', stats.cacheHits);
-         * console.log('Paths computed:', stats.pathsComputed);
+         * // Single card
+         * window.lcards.debug.msd.routing.stats()
+         *
+         * @example
+         * // Multiple cards - compare metrics
+         * const bridge = window.lcards.debug.msd.routing.stats('lcards-msd[id="bridge"]')
+         * const eng = window.lcards.debug.msd.routing.stats('lcards-msd[id="engineering"]')
+         * console.table([bridge, eng])
          */
         stats(cardSelector = 'lcards-msd') {
           try {
@@ -2315,11 +2417,21 @@ export class MsdDebugAPI {
          *
          * Returns timing information for pipeline execution.
          *
-         * @returns {Object|null} Pipeline timing
+         * @param {string} [cardSelector='lcards-msd'] - CSS selector for target MSD card
+         * @returns {Object|null} Performance summary or null
          *
          * @example
-         * const timing = window.lcards.debug.msd.pipeline.timing();
-         * console.log('Total time:', timing.total_ms, 'ms');
+         * // Single card
+         * window.lcards.debug.msd.pipeline.timing()
+         *
+         * @example
+         * // Multiple cards - get all performance data
+         * const cards = window.lcards.debug.msd.listMsdCards()
+         * const perfData = cards.map(c => ({
+         *   id: c.id,
+         *   perf: window.lcards.debug.msd.pipeline.timing(c.selector)
+         * }))
+         * console.table(perfData)
          */
         timing(cardSelector = 'lcards-msd') {
           try {
