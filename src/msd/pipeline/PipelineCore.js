@@ -27,6 +27,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     cardGuid
   });
 
+  // ✅ NEW: Preserve full config before extraction (deep clone to ensure immutability)
+  const fullUserConfig = structuredClone(userMsdConfig);  // Store full config with __provenance
+
   // Configuration processing and pack merging WITH anchor extraction
   lcardsLog.trace('[PipelineCore] 🔧 Config processing with SVG extraction');
   const { mergedConfig, issues, provenance } = await processAndValidateConfig(userMsdConfig, svgContent);
@@ -41,7 +44,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Handle validation errors early
   if (issues.errors.length) {
     lcardsLog.error('[PipelineCore] Validation errors – pipeline disabled', issues.errors);
-    return createDisabledPipeline(mergedConfig, issues, provenance);
+    return createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig);
   }
 
   // Initialize MsdCardCoordinator with theme loading BEFORE any overlay processing
@@ -430,7 +433,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Create pipeline API and finalize
   lcardsLog.debug('[PipelineCore] 🔌 Creating pipeline API');
   const pipelineApi = createPipelineApi(
-    mergedConfig, cardModel, coordinator, modelBuilder, reRender
+    mergedConfig, cardModel, coordinator, modelBuilder, reRender, fullUserConfig
   );
 
   // Initialize HUD service with mount element
@@ -461,7 +464,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   return pipelineApi;
 }
 
-function createDisabledPipeline(mergedConfig, issues, provenance) {
+function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig) {
   // Create styled error content
   const errorHtml = createValidationErrorDisplay(issues, mergedConfig);
 
@@ -470,6 +473,11 @@ function createDisabledPipeline(mergedConfig, issues, provenance) {
     errors: issues.errors,
     warnings: issues.warnings,
     html: errorHtml, // ADDED: HTML content for rendering
+    
+    // ✅ FIX: Return full config with provenance
+    config: fullUserConfig,
+    msdConfig: mergedConfig,
+    
     getResolvedModel: () => null,
     ingestHass: () => {},
     updateEntities: () => {},
@@ -679,18 +687,25 @@ function createValidationErrorDisplay(issues, mergedConfig) {
 
 /**
  * Creates and returns the MSD pipeline external API.
- * @param {Object} mergedConfig
- * @param {Object} cardModel
- * @param {MsdCardCoordinator} coordinator
- * @param {ModelBuilder} modelBuilder
- * @param {Function} reRender
- * @returns {Object} API
+ * 
+ * @param {Object} mergedConfig - Processed MSD config with flat structure: {base_svg, overlays, anchors, ...}
+ * @param {Object} cardModel - Built card model
+ * @param {MsdCardCoordinator} coordinator - Card coordinator instance
+ * @param {ModelBuilder} modelBuilder - Model builder instance
+ * @param {Function} reRender - Re-render callback function
+ * @param {Object} fullUserConfig - Full card config with nested structure: {type, id, msd: {...}, __provenance}
+ * @returns {Object} Pipeline API with config and msdConfig properties
  */
-function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, reRender) {
+function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, reRender, fullUserConfig) {
   const api = {
     enabled: true,
     version: mergedConfig.version || 1,
-    config: mergedConfig,
+    
+    // Full card config with provenance metadata
+    config: fullUserConfig,
+    
+    // Processed MSD config for backward compatibility
+    msdConfig: mergedConfig,
 
     // Core systems
     coordinator,
