@@ -844,6 +844,7 @@ export class MsdControlsRenderer {
       }
 
       // Then apply configuration
+      // For LCARdS cards, pass overlay ID to ensure consistent rule targeting
       await this._configureCard(cardElement, cardDef, overlay);
 
       // Create wrapper for positioning
@@ -1071,7 +1072,7 @@ export class MsdControlsRenderer {
    */
   async _configureCard(cardElement, cardDef, overlay) {
     // Build the final configuration
-    const config = this._buildCardConfig(cardDef);
+    const config = this._buildCardConfig(cardDef, overlay.id);
 
     lcardsLog.debug('[MsdControls] Configuring card:', {
       overlayId: overlay.id,
@@ -1168,7 +1169,7 @@ export class MsdControlsRenderer {
   /**
    * Build card configuration from card definition
    */
-  _buildCardConfig(cardDef) {
+  _buildCardConfig(cardDef, overlayId) {
     if (!cardDef) return null;
 
     lcardsLog.debug('[MsdControls] Building card config from cardDef:', {
@@ -1176,7 +1177,8 @@ export class MsdControlsRenderer {
       cardDefType: cardDef.type,
       hasConfig: !!cardDef.config,
       hasEntities: !!cardDef.entities,
-      entitiesValue: cardDef.entities
+      entitiesValue: cardDef.entities,
+      overlayId
     });
 
     let finalConfig;
@@ -1205,6 +1207,14 @@ export class MsdControlsRenderer {
         hasEntities: !!finalConfig.entities,
         entitiesValue: finalConfig.entities
       });
+    }
+
+    // CRITICAL: For LCARdS cards, inject overlay ID as card ID if not already specified
+    // This ensures the card registers with RulesEngine using the overlay ID from config
+    const isLCARdSCard = finalConfig.type?.startsWith('custom:lcards-');
+    if (isLCARdSCard && overlayId && !finalConfig.id) {
+      finalConfig.id = overlayId;
+      lcardsLog.debug(`[MsdControls] Injected overlay ID as card ID: ${overlayId}`);
     }
 
     // FIXED: More precise detection for LCARdS and custom-button-card based cards
