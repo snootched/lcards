@@ -52,9 +52,6 @@ export class MsdCardCoordinator extends BaseService {
     // PHASE 1: Single source of truth for HASS (old properties removed in Step 3C)
     this._hass = null;
 
-    // Keep _previousRuleStates for threshold crossing detection
-    this._previousRuleStates = new Map();
-
     this.styleResolver = null;
 
     // ADDED: Render progress tracking with automatic queue execution
@@ -694,99 +691,7 @@ export class MsdCardCoordinator extends BaseService {
 
   // Rules are now evaluated by core rulesManager singleton
   // MSD card receives callbacks via _onRulePatchesChanged() when rules affect it
-
-  /**
-   * Check if entity changes might cross rule thresholds
-   * @param {Array} changedIds - Entity IDs that changed
-   * @returns {boolean} True if thresholds might be crossed
-   * @private
-   */
-  _checkThresholdCrossing(changedIds) {
-    // For temperature example: check if we're crossing the 70°F threshold
-    const rules = this.mergedConfig.rules || [];
-
-    for (const rule of rules) {
-      const conditions = rule.when?.any || rule.when?.all || [];
-
-      for (const condition of conditions) {
-        if (condition.entity && (condition.above !== undefined || condition.below !== undefined)) {
-          // Check if this entity or its DataSource is in changedIds
-          const entityInRule = condition.entity;
-          const isDataSourceAffected = changedIds.some(id => {
-            // Check if changed entity maps to the DataSource used in the rule
-            const dataSourceId = entityInRule.split('.')[0]; // e.g., "temperature_enhanced"
-            const source = this.dataSourceManager?.getSource(dataSourceId);
-            return source && source.cfg?.entity === id;
-          });
-
-          if (isDataSourceAffected) {
-            lcardsLog.debug('[MsdCardCoordinator] 🎯 Rule condition potentially affected:', {
-              rule: rule.id,
-              entity: entityInRule,
-              threshold: condition.above || condition.below,
-              operator: condition.above ? 'above' : 'below'
-            });
-
-            // IMPROVED: Check actual threshold crossing instead of always returning true
-            const currentEntity = this.dataSourceManager?.getEntity(entityInRule);
-            if (currentEntity && currentEntity.state !== undefined) {
-              const currentValue = parseFloat(currentEntity.state);
-              const threshold = condition.above || condition.below;
-              const isAboveThreshold = currentValue > threshold;
-              const isBelowThreshold = currentValue < threshold;
-
-              // Check if current value satisfies the condition
-              const currentlyMatches = condition.above ? isAboveThreshold : isBelowThreshold;
-
-              lcardsLog.debug('[MsdCardCoordinator] 🌡️ Detailed threshold analysis:', {
-                currentValue,
-                threshold,
-                operator: condition.above ? 'above' : 'below',
-                isAboveThreshold,
-                isBelowThreshold,
-                currentlyMatches,
-                ruleId: rule.id
-              });
-
-              // Store the current rule state for next comparison
-              if (!this._previousRuleStates) {
-                this._previousRuleStates = new Map();
-              }
-
-              const ruleKey = `${rule.id}_${condition.entity}`;
-              const previouslyMatched = this._previousRuleStates.get(ruleKey);
-
-              lcardsLog.debug('[MsdCardCoordinator] 📊 Rule state comparison:', {
-                ruleKey,
-                previouslyMatched,
-                currentlyMatches,
-                stateChanged: previouslyMatched !== currentlyMatches
-              });
-
-              // Update the stored state
-              this._previousRuleStates.set(ruleKey, currentlyMatches);
-
-              // Only trigger re-render if the rule state actually changed
-              if (previouslyMatched !== undefined && previouslyMatched !== currentlyMatches) {
-                lcardsLog.debug('[MsdCardCoordinator] 🔄 Rule state CHANGED - threshold crossing detected!');
-                return true;
-              } else if (previouslyMatched === undefined) {
-                lcardsLog.debug('[MsdCardCoordinator] 🆕 First rule evaluation - storing state');
-                // First time seeing this rule, don't trigger re-render
-                return false;
-              } else {
-                lcardsLog.debug('[MsdCardCoordinator] 📌 Rule state UNCHANGED - no threshold crossing');
-                return false;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    lcardsLog.debug('[MsdCardCoordinator] 📊 No threshold crossings detected');
-    return false;
-  }
+  // Entity change tracking and dirty marking handled by core RulesEngine._handleRuleEntityChange()
 
   // ============================================================================
   // INCREMENTAL UPDATE SYSTEM (Phase 1)
