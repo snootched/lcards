@@ -1,51 +1,52 @@
 /**
  * [MsdControlsRenderer] Home Assistant card controls renderer - handles HA card embedding with SVG foreignObject positioning
  * 🎮 Provides sophisticated card creation, HASS context management, and SVG-based positioning for proper scaling
- * 
+ *
  * === WHY MANUAL HASS FORWARDING IS REQUIRED ===
- * 
+ *
  * Cards embedded in MSD control overlays are rendered in MSD's shadow root,
  * which isolates them from Home Assistant's component tree. This isolation
  * means cards don't automatically receive HASS updates from HA.
- * 
+ *
  * Without manual forwarding:
  * - Cards can execute actions (toggle switch, turn on light)
  * - But cards don't see the resulting state changes
  * - UI becomes out of sync (switch looks OFF but light is ON)
  * - Cards become unusable until page refresh
- * 
+ *
  * Testing confirmed this on 2026-01-09 with:
  * - Standard HA cards (entities, button, light)
  * - LCARdS cards (lcards-button)
  * - Custom cards (button-card, mini-graph-card)
- * 
+ *
  * === OPTIMIZATION STRATEGY ===
- * 
+ *
  * Rather than updating ALL controls on every HASS change, we:
  * 1. Track which entities each control uses (_controlEntityMap)
  * 2. Detect which entities changed in HASS update (_detectEntityChanges)
  * 3. Only update controls affected by changed entities (_getAffectedControls)
  * 4. Batch updates to minimize reflows (_batchUpdateControls)
- * 
+ *
  * This reduces unnecessary updates by 80-95% in typical dashboards.
- * 
+ *
  * === PERFORMANCE CHARACTERISTICS ===
- * 
+ *
  * - First HASS update: All controls updated (no previous state to compare)
  * - Subsequent updates: Only controls using changed entities
  * - No entity changes: Early exit, zero control updates
  * - Single entity change: Typically 1-2 controls updated (not all 10+)
- * 
+ *
  * === USAGE ===
- * 
- * Enable manual HASS forwarding (default: false for automatic propagation):
+ *
+ * Manual HASS forwarding is ENABLED by default (required for foreignObject isolation).
+ * To disable and rely on automatic propagation (not recommended):
  *   const msdCard = document.querySelector('lcards-msd');
- *   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = true;
- * 
+ *   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = false;
+ *
  * Enable performance tracking:
  *   renderer._perfTracking.enabled = true;
  *   console.log(renderer.getPerformanceStats());
- * 
+ *
  * View entity tracking:
  *   console.log(renderer._controlEntityMap);
  */
@@ -63,13 +64,14 @@ export class MsdControlsRenderer {
     this._lastSignature = null;
 
     // ⚠️ FEATURE FLAG: Manual HASS Forwarding (v1.17.0+)
-    // Default: false (automatic propagation via HA component tree)
-    // Set to true to enable legacy manual HASS forwarding behavior
-    // 
+    // Default: true (required for foreignObject-embedded cards)
+    // Cards in SVG foreignObjects are isolated from HA's component tree
+    // and need explicit HASS forwarding to receive state updates
+    //
     // Testing: Toggle via console:
     //   const msdCard = document.querySelector('lcards-msd');
-    //   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = true;
-    this._manualHassForwarding = false;
+    //   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = false;
+    this._manualHassForwarding = true;
 
     // NEW: Entity tracking for optimized HASS updates
     // Maps control overlay ID to Set of entity IDs it uses
@@ -100,17 +102,17 @@ export class MsdControlsRenderer {
    */
   _extractControlEntities(overlay) {
     const entities = new Set();
-    
+
     if (!overlay.card) return entities;
-    
+
     const cardConfig = overlay.card;
-    
+
     // Pattern 1: Direct entity reference (most common)
     // Example: { type: 'light', entity: 'light.kitchen' }
     if (cardConfig.entity) {
       entities.add(cardConfig.entity);
     }
-    
+
     // Pattern 2: Entities array (entities card, glance card, etc.)
     // Example: { type: 'entities', entities: ['light.kitchen', 'light.living_room'] }
     if (Array.isArray(cardConfig.entities)) {
@@ -119,14 +121,14 @@ export class MsdControlsRenderer {
         if (entityId) entities.add(entityId);
       });
     }
-    
+
     // Pattern 3: Nested config object (some card patterns)
     // Example: { type: 'custom:my-card', config: { entity: 'light.kitchen' } }
     if (cardConfig.config) {
       if (cardConfig.config.entity) {
         entities.add(cardConfig.config.entity);
       }
-      
+
       if (Array.isArray(cardConfig.config.entities)) {
         cardConfig.config.entities.forEach(e => {
           const entityId = typeof e === 'string' ? e : e.entity;
@@ -134,7 +136,7 @@ export class MsdControlsRenderer {
         });
       }
     }
-    
+
     return entities;
   }
 
@@ -148,7 +150,7 @@ export class MsdControlsRenderer {
    */
   _detectEntityChanges(oldHass, newHass) {
     const changed = new Set();
-    
+
     if (!oldHass || !oldHass.states) {
       // First HASS update - consider all entities changed
       return new Set(Object.keys(newHass.states));
@@ -158,9 +160,9 @@ export class MsdControlsRenderer {
     Object.keys(newHass.states).forEach(entityId => {
       const oldState = oldHass.states[entityId];
       const newState = newHass.states[entityId];
-      
+
       // Entity is new or state/attributes changed
-      if (!oldState || 
+      if (!oldState ||
           oldState.state !== newState.state ||
           oldState.last_changed !== newState.last_changed) {
         changed.add(entityId);
@@ -179,21 +181,21 @@ export class MsdControlsRenderer {
    */
   _getAffectedControls(changedEntities) {
     const affected = [];
-    
+
     this._controlEntityMap.forEach((entities, overlayId) => {
       // Check if this control uses any changed entities
-      const hasChangedEntity = Array.from(entities).some(e => 
+      const hasChangedEntity = Array.from(entities).some(e =>
         changedEntities.has(e)
       );
-      
+
       if (hasChangedEntity) {
-        const controlData = this.controlElements.get(overlayId);
-        if (controlData) {
-          affected.push({ overlayId, ...controlData });
+        const element = this.controlElements.get(overlayId);
+        if (element) {
+          affected.push({ overlayId, element });
         }
       }
     });
-    
+
     return affected;
   }
 
@@ -206,24 +208,24 @@ export class MsdControlsRenderer {
     if (!this._perfTracking.enabled) {
       return { message: 'Performance tracking not enabled' };
     }
-    
+
     const avgUpdateTime = this._perfTracking.updateCount > 0
       ? this._perfTracking.totalUpdateTime / this._perfTracking.updateCount
       : 0;
-    
+
     const avgEntitiesChanged = this._perfTracking.updateCount > 0
       ? this._perfTracking.entityChangeCount / this._perfTracking.updateCount
       : 0;
-    
+
     const avgControlsUpdated = this._perfTracking.updateCount > 0
       ? this._perfTracking.controlUpdateCount / this._perfTracking.updateCount
       : 0;
-    
+
     const totalPossibleUpdates = this._perfTracking.updateCount * this.controlElements.size;
     const efficiencyPercent = totalPossibleUpdates > 0
       ? ((totalPossibleUpdates - this._perfTracking.controlUpdateCount) / totalPossibleUpdates * 100)
       : 0;
-    
+
     return {
       totalUpdates: this._perfTracking.updateCount,
       avgUpdateTimeMs: avgUpdateTime.toFixed(2),
@@ -253,16 +255,16 @@ export class MsdControlsRenderer {
     if (this._manualHassForwarding) {
       // 🔄 MANUAL MODE: Optimized entity-based forwarding
       lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - using entity-based optimization');
-      
+
       // Detect which entities changed
       const changedEntities = this._detectEntityChanges(oldHass, hass);
-      
+
       // Track performance metrics
       if (this._perfTracking.enabled) {
         this._perfTracking.updateCount++;
         this._perfTracking.entityChangeCount += changedEntities.size;
       }
-      
+
       if (changedEntities.size === 0) {
         lcardsLog.trace('[MsdControlsRenderer] No entity changes, skipping control updates');
         return;
@@ -270,7 +272,7 @@ export class MsdControlsRenderer {
 
       // Only update controls that use changed entities
       const affectedControls = this._getAffectedControls(changedEntities);
-      
+
       if (affectedControls.length === 0) {
         lcardsLog.trace('[MsdControlsRenderer] No controls affected by entity changes');
         return;
@@ -285,7 +287,7 @@ export class MsdControlsRenderer {
 
       // Update only affected controls
       this._batchUpdateControls(affectedControls, hass);
-      
+
     } else {
       // ✨ AUTOMATIC MODE: Let HA component tree propagate HASS naturally
       // - LCARdS cards: Receive HASS via their own setters + singleton integration
@@ -304,7 +306,7 @@ export class MsdControlsRenderer {
    */
   _batchUpdateControls(controls, hass) {
     const startTime = performance.now();
-    
+
     controls.forEach(({ overlayId, element }) => {
       try {
         // Find the actual card element inside the wrapper
@@ -318,15 +320,15 @@ export class MsdControlsRenderer {
         lcardsLog.error(`[MsdControlsRenderer] Failed to update control ${overlayId}:`, error);
       }
     });
-    
+
     const duration = performance.now() - startTime;
-    
+
     // Track performance metrics
     if (this._perfTracking.enabled) {
       this._perfTracking.totalUpdateTime += duration;
       this._perfTracking.controlUpdateCount += controls.length;
     }
-    
+
     lcardsLog.trace(`[MsdControlsRenderer] Batch update completed in ${duration.toFixed(2)}ms`, {
       controlsUpdated: controls.length
     });
@@ -565,11 +567,11 @@ export class MsdControlsRenderer {
   _registerControl(overlayId, element, overlay) {
     // Store control element
     this.controlElements.set(overlayId, element);
-    
+
     // Extract and track entities
     const entities = this._extractControlEntities(overlay);
     this._controlEntityMap.set(overlayId, entities);
-    
+
     lcardsLog.debug(`[MsdControlsRenderer] Registered control ${overlayId}`, {
       entityCount: entities.size,
       entities: Array.from(entities)
