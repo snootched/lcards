@@ -27,20 +27,18 @@ export class ModelBuilder {
     // Subscribe overlays with triggers_update to data sources
     this._subscribeOverlaysToUpdates(baseOverlays);
 
-    // Apply rules
-    const ruleResult = await this._applyRules(baseOverlays);  // ✨ CHANGED: Pass overlays for selector resolution
+    // REMOVED: Rule evaluation - now handled by core rulesManager singleton
+    // Rules are evaluated globally and applied via card's _onRulePatchesChanged() callback
+    // MSD card receives patches automatically when rules affecting it change
 
-    // Apply overlay patches
-    const overlaysWithPatches = this._applyOverlayPatches(baseOverlays, ruleResult);
-
-    // Process animations
-    const { activeAnimations, animDiff, tlDiff } = this._processAnimations(overlaysWithPatches, ruleResult);
+    // Process animations (no rule result needed)
+    const { activeAnimations, animDiff, tlDiff } = this._processAnimations(baseOverlays, { overlayPatches: [] });
 
     // Build final resolved model
     const resolved = {
       viewBox: this.cardModel.viewBox,
       anchors: { ...this.cardModel.anchors },
-      overlays: overlaysWithPatches,
+      overlays: baseOverlays,
       animations: animDiff.active,
       timelines: tlDiff.active,
       config: this.mergedConfig
@@ -153,99 +151,11 @@ export class ModelBuilder {
   // Deleted in Phase 0 of architecture refactor.
 
 
-  async _applyRules(baseOverlays = []) {  // ✨ CHANGED: Accept overlays parameter
-    lcardsLog.debug('[ModelBuilder] 🔍 _applyRules() called');
+  // REMOVED: _applyRules() - rules now evaluated by core rulesManager singleton
+  // Rules are applied via card's _onRulePatchesChanged() callback, not during model building
 
-    // FIXED: Always evaluate rules during render, not just when dirty
-    // This ensures rule patches are generated even if rules weren't marked dirty externally
-    this.systems.rulesEngine.markAllDirty();
-    lcardsLog.debug('[ModelBuilder] 📏 Marked all rules dirty');
-
-    // Use DataSourceManager's getEntity for comprehensive entity resolution
-    const getEntity = (entityId) => {
-      // Use DataSourceManager's getEntity which handles:
-      // - DataSource references with dot notation (temperature_enhanced.transformations.celsius)
-      // - Regular Home Assistant entities
-      // - Fallback to HASS states
-      if (this.systems.dataSourceManager && this.systems.dataSourceManager.getEntity) {
-        return this.systems.dataSourceManager.getEntity(entityId);
-      }
-
-      // Fallback to direct HASS access if no DataSourceManager (Phase 1: use new _hass property)
-      if (this.systems._hass?.states?.[entityId]) {
-        const hassState = this.systems._hass.states[entityId];
-        return {
-          state: hassState.state,
-          attributes: hassState.attributes || {}
-        };
-      }
-
-      return null;
-    };
-
-    const ruleResult = await this.systems.rulesEngine.evaluateDirty({ getEntity, overlays: baseOverlays });  // ✨ CHANGED: Pass overlays
-    lcardsLog.debug('[ModelBuilder] 📏 Rule evaluation result:', {
-      overlayPatches: ruleResult.overlayPatches.length,
-      patches: ruleResult.overlayPatches
-    });
-
-    return ruleResult;
-  }
-
-  _applyOverlayPatches(baseOverlays, ruleResult) {
-    lcardsLog.debug('[ModelBuilder] 🎨 _applyOverlayPatches() ENTRY:', {
-      overlayCount: baseOverlays.length,
-      patchCount: ruleResult.overlayPatches.length,
-      patches: ruleResult.overlayPatches.map(p => ({
-        overlayId: p.overlayId,
-        ruleId: p.ruleId,
-        changeKeys: Object.keys(p.changes || {})
-      }))
-    });
-
-    const result = perfTime('styles.patch', () =>
-      applyOverlayPatches(baseOverlays, ruleResult.overlayPatches)
-    );
-
-    lcardsLog.debug('[ModelBuilder] 🎨 _applyOverlayPatches() COMPLETE - patches applied to overlays');
-
-    // Log specific statusgrid overlays if patches were for statusgrid
-    const statusgridPatches = ruleResult.overlayPatches.filter(p =>
-      baseOverlays.find(o => o.id === p.overlayId && o.type === 'statusgrid')
-    );
-
-    if (statusgridPatches.length > 0) {
-      lcardsLog.info('[ModelBuilder] 🔲 STATUSGRID patches detected:', {
-        count: statusgridPatches.length,
-        patchedOverlayIds: statusgridPatches.map(p => p.overlayId)
-      });
-
-      statusgridPatches.forEach(patch => {
-        const overlay = result.find(o => o.id === patch.overlayId);
-        if (overlay) {
-          lcardsLog.info(`[ModelBuilder] 🔍 Statusgrid overlay "${patch.overlayId}" after patching:`, {
-            id: overlay.id,
-            type: overlay.type,
-            hasButtons: !!overlay.buttons,
-            buttonCount: overlay.buttons?.length || 0,
-            patchChanges: patch.changes
-          });
-        }
-      });
-    }
-
-    lcardsLog.debug('[ModelBuilder] 🎨 Checking title_overlay:');
-    const titleOverlay = result.find(o => o.id === 'title_overlay');
-    if (titleOverlay) {
-      lcardsLog.debug('[ModelBuilder] 🎯 Title overlay after patching:', {
-        id: titleOverlay.id,
-        color: titleOverlay.style?.color,
-        status_indicator: titleOverlay.style?.status_indicator
-      });
-    }
-
-    return result;
-  }
+  // REMOVED: _applyOverlayPatches() - patches applied via core rulesManager callback
+  // MSD card receives rule patches through _onRulePatchesChanged() lifecycle hook
 
   _processAnimations(overlaysWithPatches, ruleResult) {
     const desiredAnimations = resolveDesiredAnimations(overlaysWithPatches, this.animationIndex, ruleResult.animations);

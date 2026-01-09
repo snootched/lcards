@@ -9,7 +9,6 @@ import { lcardsCore } from '../../core/lcards-core.js';
 import { AnimationRegistry } from '../../core/animation/AnimationRegistry.js';
 import { ThemeManager } from '../../core/themes/ThemeManager.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
-import { RulesEngine } from '../../core/rules/RulesEngine.js';
 import { DebugManager } from '../debug/DebugManager.js';
 
 import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
@@ -44,7 +43,6 @@ export class MsdCardCoordinator extends BaseService {
     this.router = null;
     this.animRegistry = null; // Will be set to shared core AnimationRegistry
     this.animationManager = null; // Animation system
-    this.rulesEngine = null;
     this.debugManager = new DebugManager();
     this._renderTimeout = null;
     this._reRenderCallback = null;
@@ -175,123 +173,13 @@ export class MsdCardCoordinator extends BaseService {
   async completeSystems(mergedConfig, cardModel, mountEl, hass) {
     lcardsLog.debug('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
-    // Use shared RulesEngine singleton from lcardsCore and add this MSD's rules
-    if (!lcardsCore.rulesManager) {
-      throw new Error('lcardsCore.rulesManager is null - core not initialized?');
-    }
-    this.rulesEngine = lcardsCore.rulesManager;
+    // REMOVED: RulesEngine setup - now handled by card via _registerOverlayForRules()
+    // The MSD card registers its overlays with the core rulesManager singleton,
+    // which evaluates rules globally and notifies cards via callbacks.
+    // This matches the pattern used by all other LCARdS cards (button, slider, etc.)
 
-    // CRITICAL: Add this MSD's rules to the shared RulesEngine
-    if (mergedConfig.rules && mergedConfig.rules.length > 0) {
-      lcardsLog.debug(`[MsdCardCoordinator] 📋 Adding ${mergedConfig.rules.length} rules from this MSD to shared RulesEngine`);
-
-      // Get card ID for source tracking
-      const sourceCardId = this._cardGuid || mergedConfig.id || 'unknown-msd';
-
-      // Add rules to the shared engine's rules array
-      mergedConfig.rules.forEach(rule => {
-        if (rule.id) {
-          // Check if rule already exists to avoid duplicates
-          if (!this.rulesEngine.rulesById.has(rule.id)) {
-            // Add metadata for tracking which card registered this rule
-            rule._sourceCardId = sourceCardId;
-            rule._sourceCardType = 'msd';
-
-            this.rulesEngine.rules.push(rule);
-            lcardsLog.debug(`[MsdCardCoordinator] ➕ Added rule: ${rule.id} (from ${sourceCardId})`);
-          } else {
-            lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Rule ${rule.id} already exists in shared RulesEngine, skipping`);
-          }
-        }
-      });
-
-      // Rebuild the rules index and dependencies
-      this.rulesEngine.buildRulesIndex();
-      this.rulesEngine.buildDependencyIndex();
-      this.rulesEngine._compileRules();  // Compile newly added rules
-      lcardsLog.debug(`[MsdCardCoordinator] ✅ Rules added. Total rules in shared engine: ${this.rulesEngine.rules.length}`);
-    } else {
-      lcardsLog.debug('[MsdCardCoordinator] ℹ️ No rules to add from this MSD');
-    }
-
-    // ADDED: Give RulesEngine access to SystemsManager for HASS state lookup
-    this.rulesEngine.systemsManager = this;
-
-    this.rulesEngine.markAllDirty();
-    this._instrumentRulesEngine(mergedConfig);
-
-    // NEW: Set up rules engine HASS monitoring
-    if (hass) {
-      await this.rulesEngine.setupHassMonitoring(hass);
-
-      // Connect re-evaluation to render pipeline
-      // When rules are marked dirty (entity changes), evaluate and apply patches
-      this.rulesEngine.setReEvaluationCallback(async () => {  // async for Jinja2
-        lcardsLog.debug('[MsdCardCoordinator] 🔄 RulesEngine re-evaluation callback triggered');
-
-        if (!this._hass) {
-          lcardsLog.warn('[MsdCardCoordinator] Cannot evaluate rules - no HASS available');
-          return;
-        }
-
-        // Evaluate dirty rules (now async for Jinja2 conditions)
-        const ruleResults = await this.rulesEngine.evaluateDirty(this._hass);  // await
-
-        lcardsLog.debug(`[MsdCardCoordinator] 🔍 DIRTY RULES RESULT:`, {
-          hasBaseSvgUpdate: !!ruleResults.baseSvgUpdate,
-          baseSvgUpdate: ruleResults.baseSvgUpdate,
-          patchCount: ruleResults.overlayPatches?.length || 0
-        });
-
-        if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-          lcardsLog.debug(`[MsdCardCoordinator] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - triggering selective re-render`);
-
-          // Build failed overlay list for selective re-render
-          // Process animations and config merging before re-rendering
-          const overlaysToReRender = ruleResults.overlayPatches.map(patch => {
-            const overlay = this._findOverlayById(patch.id);
-            if (!overlay) {
-              lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Overlay not found: ${patch.id}`);
-              return { id: patch.id, reason: 'Overlay config not found', patch };
-            }
-
-            // Deep merge entire patch into overlay config (not just style)
-            // This allows rules to patch text, dpad, icon, and other properties
-            deepMerge(overlay, patch);
-
-            // Also update finalStyle if style property exists in patch
-            if (patch.style && Object.keys(patch.style).length > 0) {
-              overlay.finalStyle = {
-                ...(overlay.finalStyle || overlay.style || {}),
-                ...patch.style
-              };
-            }
-
-            // Process animations from rule patches
-            if (patch.animations && Array.isArray(patch.animations) && patch.animations.length > 0) {
-              lcardsLog.debug(`[MsdCardCoordinator] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
-              if (this.animationManager) {
-                patch.animations.forEach(animDef => {
-                  this.animationManager.playAnimation(patch.id, animDef);
-                });
-              }
-            }
-          });
-
-          // Trigger full re-render when rules update overlays
-          // (Cards self-update via Lit lifecycle; lines are cheap to redraw entirely)
-          this._scheduleFullReRender();
-        }
-
-        // Apply base_svg filter updates from rules
-        if (ruleResults.baseSvgUpdate) {
-          lcardsLog.debug(`[MsdCardCoordinator] � Rules produced base_svg update`);
-          this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
-        }
-      });
-
-      lcardsLog.debug('[MsdCardCoordinator] Rules Engine HASS monitoring configured');
-    }
+    // REMOVED: RulesEngine callback setup - now handled by core rulesManager singleton
+    // MSD card registers overlays via _registerOverlayForRules() and receives callbacks
 
     // Initialize rendering systems
     this.router = new RouterCore(mergedConfig.routing, cardModel.anchors, cardModel.viewBox);
@@ -337,7 +225,7 @@ export class MsdCardCoordinator extends BaseService {
       hasDataSourceManager: !!this.dataSourceManager,
       hasRouter: !!this.router,
       hasRenderer: !!this.renderer,
-      hasRulesEngine: !!this.rulesEngine,
+      // hasRulesEngine: managed by core singleton
       hasAnimRegistry: !!this.animRegistry,
       hasAnimationManager: !!this.animationManager,
       hasDebugManager: !!this.debugManager,
@@ -405,50 +293,8 @@ export class MsdCardCoordinator extends BaseService {
   //
   // Reason for removal: Multiple HASS copies caused state synchronization issues
   // ============================================================================
-  _instrumentRulesEngine(mergedConfig) {
-    // Skip performance instrumentation unless explicitly enabled
-    if (!mergedConfig?.debug?.performance) {
-      return;
-    }
-
-    try {
-      const depIndex = new Map();
-      (mergedConfig.rules||[]).forEach(r=>{
-        const condBlocks = (r.when && (r.when.all || r.when.any)) || [];
-        condBlocks.forEach(c=>{
-          const ent = c?.entity;
-            if (ent) {
-              if (!depIndex.has(ent)) depIndex.set(ent, new Set());
-              depIndex.get(ent).add(r.id);
-            }
-        });
-      });
-      this.rulesEngine.__hudDeps = depIndex;
-
-      const W = typeof window!=='undefined'?window:{};
-      W.__msdDebug = W.__msdDebug || {};
-      const perfStore = W.__msdDebug.__perfStore = W.__msdDebug.__perfStore || { counters:{}, timings:{} };
-      function perfCount(k,inc=1){ perfStore.counters[k]=(perfStore.counters[k]||0)+inc; }
-
-      if (!this.rulesEngine.__perfWrapped && typeof this.rulesEngine.evaluateDirty === 'function'){
-        const orig = this.rulesEngine.evaluateDirty;
-        this.rulesEngine.evaluateDirty = function(){
-          const ruleCount = (mergedConfig.rules||[]).length;
-          perfCount('rules.eval.count', ruleCount||0);
-          const res = orig.apply(this, arguments);
-          try {
-            const trace = (this.getTrace && this.getTrace()) || [];
-            const matched = Array.isArray(trace) ? trace.filter(t=>t && t.matched).length : 0;
-            perfCount('rules.match.count', matched);
-          } catch { /* ignore */ }
-          return res;
-        };
-        this.rulesEngine.__perfWrapped = true;
-      }
-    } catch(e){
-      lcardsLog.warn('[MsdCardCoordinator][rules instrumentation] failed', e);
-    }
-  }
+  // REMOVED: _instrumentRulesEngine - RulesEngine now managed by core singleton
+  // Performance tracking should be added to core rulesManager if needed globally
 
   async _initializeDataSources(hass, mergedConfig) {
     this.dataSourceManager = null;
@@ -506,87 +352,8 @@ export class MsdCardCoordinator extends BaseService {
           this._hass = this.dataSourceManager.hass;
         }
 
-        // Mark rules dirty for changed entities
-        if (this.rulesEngine && changedIds.length > 0) {
-          // Map entity IDs to DataSource IDs for rules
-          const entitiesToMarkDirty = new Set();
-
-          changedIds.forEach(entityId => {
-            entitiesToMarkDirty.add(entityId);
-
-            // Check if this entity corresponds to any DataSources used in rules
-            if (this.dataSourceManager) {
-              for (const [sourceId, source] of this.dataSourceManager.sources) {
-                if (source.cfg && source.cfg.entity === entityId) {
-                  entitiesToMarkDirty.add(sourceId);
-                  lcardsLog.debug(`[MsdCardCoordinator] Mapped entity "${entityId}" to DataSource "${sourceId}"`);
-                }
-              }
-            }
-          });
-
-          const finalEntityList = Array.from(entitiesToMarkDirty);
-          this.rulesEngine.markEntitiesDirty(finalEntityList);
-
-          // Evaluate rules to check if patches need to be applied
-          const ruleResults = this.rulesEngine.evaluateDirty(this._hass);
-
-          lcardsLog.debug('[MsdCardCoordinator] 🔍 RULE EVALUATION RESULT:', {
-            patchCount: ruleResults.overlayPatches?.length || 0,
-            patches: ruleResults.overlayPatches?.map(p => ({
-              overlayId: p.id,
-              cellTarget: p.cell_target || p.cellTarget || null,
-              styleKeys: Object.keys(p.style || {})
-            }))
-          });
-
-          if (ruleResults.overlayPatches && ruleResults.overlayPatches.length > 0) {
-            lcardsLog.debug(`[MsdCardCoordinator] 🎨 Rules produced ${ruleResults.overlayPatches.length} patch(es) - applying to model and triggering re-render`);
-
-            // Apply patches to overlays in the model
-            ruleResults.overlayPatches.forEach(patch => {
-              const overlay = this._findOverlayById(patch.id);
-              if (!overlay) {
-                lcardsLog.warn(`[MsdCardCoordinator] ⚠️ Overlay not found: ${patch.id}`);
-                return;
-              }
-
-              // Deep merge entire patch into overlay config (not just style)
-              // This allows rules to patch text, dpad, icon, and other properties
-              deepMerge(overlay, patch);
-
-              // Also update finalStyle if style property exists in patch
-              if (patch.style && Object.keys(patch.style).length > 0) {
-                overlay.finalStyle = {
-                  ...(overlay.finalStyle || overlay.style || {}),
-                  ...patch.style
-                };
-              }
-
-              // Process animations from rule patches
-              if (patch.animations && Array.isArray(patch.animations) && patch.animations.length > 0) {
-                lcardsLog.debug(`[MsdCardCoordinator] 🎬 Triggering ${patch.animations.length} animation(s) for ${patch.id}`);
-                if (this.animationManager) {
-                  patch.animations.forEach(animDef => {
-                    this.animationManager.playAnimation(patch.id, animDef);
-                  });
-                }
-              }
-            });
-
-            // Trigger full re-render when rules update overlays
-            // (Cards self-update via Lit lifecycle; lines are cheap to redraw entirely)
-            this._scheduleFullReRender();
-          } else {
-            lcardsLog.debug('[MsdCardCoordinator] ℹ️ No rule patches needed');
-          }
-
-          // Apply base_svg filter updates from rules
-          if (ruleResults.baseSvgUpdate) {
-            lcardsLog.debug(`[MsdCardCoordinator] � Rules produced base_svg update`);
-            this._applyBaseSvgUpdate(ruleResults.baseSvgUpdate);
-          }
-        }
+        // REMOVED: RulesEngine dirty marking - now handled by core rulesManager singleton
+        // Core rulesManager receives entity changes via BaseService and evaluates globally
       });
 
       lcardsLog.debug('[MsdCardCoordinator] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
@@ -636,10 +403,7 @@ export class MsdCardCoordinator extends BaseService {
 
   async destroy() {
 
-    // Clean up rules engine first
-    if (this.rulesEngine) {
-      await this.rulesEngine.destroy();
-    }
+    // REMOVED: RulesEngine cleanup - managed by core singleton, not per-card
 
     // Stop all subscriptions and clean up resources
     this.dataSourceManager?.destroy();
@@ -942,38 +706,8 @@ export class MsdCardCoordinator extends BaseService {
     lcardsLog.debug('[MsdCardCoordinator] _setupGlobalHudInterface deprecated - using global HUD Manager');
   }
 
-  /**
-   * Check if entity changes might affect rule conditions (requiring full re-render)
-   * @param {Array} changedIds - Entity IDs that changed
-   * @returns {boolean} True if rules might need re-evaluation
-   * @private
-   */
-  _checkIfRulesNeedReRender(changedIds) {
-    if (!this.rulesEngine || !this.mergedConfig?.rules) {
-      return false; // No rules to evaluate
-    }
-
-    // For now, be conservative and assume any DataSource change might affect rules
-    // TODO: In the future, we could be more sophisticated and check specific rule conditions
-    const affectedDataSources = changedIds.filter(id => {
-      // Check if this entity maps to a DataSource used in rules
-      return this.dataSourceManager?.getEntity(id) ||
-             changedIds.some(entityId => this.dataSourceManager?.getSource(entityId));
-    });
-
-    if (affectedDataSources.length > 0) {
-      lcardsLog.debug('[MsdCardCoordinator] 🎯 DataSource entities affected by changes:', affectedDataSources);
-
-      // ADVANCED: Check if the specific rule thresholds might be crossed
-      // This is where we could add more sophisticated logic to detect actual rule changes
-      const mightCrossThresholds = this._checkThresholdCrossing(changedIds);
-
-      lcardsLog.debug('[MsdCardCoordinator] 🌡️ Threshold crossing check:', mightCrossThresholds);
-      return mightCrossThresholds;
-    }
-
-    return false;
-  }
+  // REMOVED: _checkIfRulesNeedReRender - rules now evaluated by core rulesManager singleton
+  // MSD card receives callbacks via _onRulePatchesChanged() when rules affect it
 
   /**
    * Check if entity changes might cross rule thresholds
@@ -1263,28 +997,9 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.debug('[MsdCardCoordinator] ⏭️ DataSourceManager not ready or no ingestHass method');
     }
 
-    // 2. RulesEngine second (evaluates conditions with fresh data) - ONLY if data changed
-    if (dataSourceResult.hasChanges) {
-      if (this.rulesEngine && typeof this.rulesEngine.ingestHass === 'function') {
-        lcardsLog.debug('[MsdCardCoordinator] 📏 Propagating to RulesEngine - entities changed', {
-          hasRulesEngine: !!this.rulesEngine,
-          hasMethod: typeof this.rulesEngine.ingestHass === 'function',
-          changedEntities: dataSourceResult.changedCount
-        });
-        this.rulesEngine.ingestHass(hass);
-        lcardsLog.info('[MsdCardCoordinator] ✅ RulesEngine.ingestHass() completed');
-      } else {
-        lcardsLog.warn('[MsdCardCoordinator] ⚠️ RulesEngine not ready or no ingestHass method', {
-          hasRulesEngine: !!this.rulesEngine,
-          hasMethod: this.rulesEngine ? typeof this.rulesEngine.ingestHass : 'no rulesEngine'
-        });
-      }
-    } else {
-      lcardsLog.debug('[MsdCardCoordinator] ⏭️ Skipping RulesEngine - no entity changes detected', {
-        totalEntities: dataSourceResult.totalCount,
-        changedEntities: dataSourceResult.changedCount
-      });
-    }
+    // 2. REMOVED: RulesEngine propagation - now handled by core singleton via BaseService.updateHass()
+    // The core rulesManager receives HASS updates automatically and evaluates rules globally
+    // MSD overlays are registered via _registerOverlayForRules() and receive callbacks
 
     // 3. Controls third (direct HASS access)
     if (this.controlsRenderer) {

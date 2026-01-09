@@ -235,15 +235,54 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
+     * Handle first update (lifecycle hook)
+     * Register MSD overlays with core rulesManager for rule evaluation
+     * @param {Map} changedProps - Changed properties
+     * @protected
+     */
+    _handleFirstUpdate(changedProps) {
+        // NOTE: Don't call super._handleFirstUpdate() - it doesn't exist
+        // The base class _onFirstUpdated() calls this method if it's defined
+
+        lcardsLog.debug('[LCARdSMSDCard] _handleFirstUpdate - registering MSD with rules engine');
+
+        // Register MSD card with core rulesManager
+        // This allows rules to target the entire MSD card or individual overlays
+        this._registerOverlayForRules(this._cardGuid);
+
+        lcardsLog.debug('[LCARdSMSDCard] ✅ MSD card registered with core rulesManager');
+    }
+
+    /**
+     * Handle rule patches changed callback
+     * Called by core rulesManager when rules affecting this MSD are re-evaluated
+     * @protected
+     */
+    _onRulePatchesChanged() {
+        lcardsLog.debug('[LCARdSMSDCard] _onRulePatchesChanged - rules updated for MSD card');
+
+        // Get merged config with rule patches applied
+        const patchedConfig = this._getMergedStyleWithRules(this.config);
+
+        // Check if any patches affect base SVG or overlays that require re-render
+        if (this._msdPipeline?.coordinator) {
+            // Request MSD pipeline to re-render with updated config
+            this._msdPipeline.coordinator.render();
+        }
+
+        // Request Lit update to re-render card
+        this.requestUpdate();
+    }
+
+    /**
      * Handle HASS updates - forward to MSD coordinator
      * @param {Object} newHass - New HASS object
      * @param {Object} oldHass - Old HASS object
      * @protected
      *
      * NOTE: We don't call super._handleHassUpdate() because MSD has its own
-     * sophisticated SystemsManager that handles entity monitoring, rule evaluation,
-     * and template updates internally. The MSD pipeline manages all HASS distribution
-     * to its subsystems (coordinator, renderer, controls) directly.
+     * coordinator that handles HASS distribution to subsystems (renderer, controls).
+     * The core rulesManager receives HASS automatically via BaseService.updateHass().
      */
     _handleHassUpdate(newHass, oldHass) {
         lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
@@ -314,13 +353,13 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Override HASS setter to prevent automatic re-renders
      * MSD system manages its own HASS updates internally
-     * 
+     *
      * NOTE: With automatic HASS propagation (v1.17.0+), embedded control cards
      * receive HASS updates via Home Assistant's component tree:
      * - LCARdS cards: Via their own hass setters + singleton integration
      * - Standard HA cards (hui-*): Via HA's automatic parent-child propagation
      * - Third-party cards: Via their base class implementations
-     * 
+     *
      * Manual HASS forwarding is only needed if the feature flag is enabled in
      * MsdControlsRenderer._manualHassForwarding = true
      */
