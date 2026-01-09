@@ -15,8 +15,19 @@ export class MsdControlsRenderer {
     this._isRendering = false;
     this._lastSignature = null;
 
+    // ⚠️ FEATURE FLAG: Manual HASS Forwarding (v1.17.0+)
+    // Default: false (automatic propagation via HA component tree)
+    // Set to true to enable legacy manual HASS forwarding behavior
+    // 
+    // Testing: Toggle via console:
+    //   const msdCard = document.querySelector('lcards-msd');
+    //   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = true;
+    this._manualHassForwarding = false;
+
     // DEBUGGING: Log when MsdControlsRenderer is created
-    lcardsLog.debug('[MsdControlsRenderer] 🎮 Constructor called');
+    lcardsLog.debug('[MsdControlsRenderer] 🎮 Constructor called', {
+      manualHassForwarding: this._manualHassForwarding
+    });
   }
 
   setHass(hass) {
@@ -26,20 +37,36 @@ export class MsdControlsRenderer {
       hasLightDesk: !!hass?.states?.['light.desk'],
       lightDeskState: hass?.states?.['light.desk']?.state,
       previousHass: !!this.hass,
-      controlElementsCount: this.controlElements.size
+      controlElementsCount: this.controlElements.size,
+      manualHassForwarding: this._manualHassForwarding
     });
 
     this.hass = hass;
 
-    // ADDED: Immediately update all existing control cards with new HASS context
-    if (this.controlElements.size > 0) {
-      lcardsLog.debug('[MsdControlsRenderer] Updating HASS context for', this.controlElements.size, 'control cards');
-      this._updateAllControlsHass(hass);
+    // ⚠️ FEATURE FLAG: Manual HASS Forwarding
+    if (this._manualHassForwarding) {
+      // 🔄 MANUAL MODE: Legacy behavior - explicitly forward HASS to all controls
+      // This was necessary in older architecture to ensure controls received updates
+      lcardsLog.info('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - distributing to controls');
+      
+      if (this.controlElements.size > 0) {
+        lcardsLog.debug('[MsdControlsRenderer] Updating HASS context for', this.controlElements.size, 'control cards');
+        this._updateAllControlsHass(hass);
+      } else {
+        lcardsLog.debug('[MsdControlsRenderer] No control elements to update');
+      }
     } else {
-      lcardsLog.debug('[MsdControlsRenderer] No control elements to update');
-
-      // Try to find and update any LCARdS cards that might exist but aren't tracked
-      //this._updateUnmanagedCards(hass);
+      // ✨ AUTOMATIC MODE: Let HA component tree propagate HASS naturally
+      // - LCARdS cards: Receive HASS via their own setters + singleton integration
+      // - Standard HA cards (hui-*): Receive HASS via HA's component tree
+      // - Third-party cards: Receive HASS via their base class implementation
+      lcardsLog.info('[MsdControlsRenderer] ✨ Automatic HASS propagation ENABLED - relying on HA component tree');
+      lcardsLog.debug('[MsdControlsRenderer] Controls will receive HASS via:', {
+        lcardsCards: 'LCARdSCard.hass setter + singleton propagation',
+        standardHACards: 'HA component tree (hui-* elements)',
+        thirdPartyCards: 'Custom card base class implementations',
+        controlCount: this.controlElements.size
+      });
     }
   }
 
@@ -192,14 +219,23 @@ export class MsdControlsRenderer {
       lcardsLog.debug('[MsdControlsRenderer] Skipped duplicate creation - controls already exist', {
         signature,
         elementCount: this.controlElements.size,
-        controlIds: controlOverlays.map(o => o.id)
+        controlIds: controlOverlays.map(o => o.id),
+        manualHassForwarding: this._manualHassForwarding
       });
 
-      // CRITICAL: Update HASS context even when skipping recreation
-      // Controls need fresh HASS state for entity updates, state changes, and card reactivity
-      // Without this, cards would display stale data from previous render cycle
-      // _updateAllControlsHass() iterates through controlElements and applies new HASS to each card
-      this._updateAllControlsHass(this.hass);
+      // ⚠️ FEATURE FLAG: Manual HASS Forwarding
+      if (this._manualHassForwarding) {
+        // CRITICAL: Update HASS context even when skipping recreation (MANUAL MODE)
+        // Controls need fresh HASS state for entity updates, state changes, and card reactivity
+        // Without this, cards would display stale data from previous render cycle
+        // _updateAllControlsHass() iterates through controlElements and applies new HASS to each card
+        lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual mode: Updating HASS for existing controls');
+        this._updateAllControlsHass(this.hass);
+      } else {
+        // ✨ AUTOMATIC MODE: Cards receive HASS updates via HA component tree
+        // No manual forwarding needed - Lit lifecycle handles updates
+        lcardsLog.debug('[MsdControlsRenderer] ✨ Automatic mode: Controls update via HA component tree');
+      }
       return;
     }
 

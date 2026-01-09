@@ -314,6 +314,15 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Override HASS setter to prevent automatic re-renders
      * MSD system manages its own HASS updates internally
+     * 
+     * NOTE: With automatic HASS propagation (v1.17.0+), embedded control cards
+     * receive HASS updates via Home Assistant's component tree:
+     * - LCARdS cards: Via their own hass setters + singleton integration
+     * - Standard HA cards (hui-*): Via HA's automatic parent-child propagation
+     * - Third-party cards: Via their base class implementations
+     * 
+     * Manual HASS forwarding is only needed if the feature flag is enabled in
+     * MsdControlsRenderer._manualHassForwarding = true
      */
     set hass(hass) {
         lcardsLog.trace('[LCARdSMSDCard] HASS setter called:', {
@@ -326,7 +335,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const oldHass = this._hass;
         this._hass = hass;
 
-        // Forward HASS to MSD pipeline but don't trigger card re-renders
+        // Forward HASS to MSD pipeline (which may forward to controls based on feature flag)
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSMSDCard] HASS updated for ${this._cardGuid}, forwarding to MSD pipeline`);
 

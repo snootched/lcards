@@ -826,7 +826,8 @@ export class MsdCardCoordinator extends BaseService {
       entityCount: hass?.states ? Object.keys(hass.states).length : 0,
       hasLightDesk: !!hass?.states?.['light.desk'],
       lightDeskState: hass?.states?.['light.desk']?.state,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      manualHassForwarding: this.controlsRenderer?._manualHassForwarding
     });
 
     if (!hass || !hass.states) {
@@ -839,9 +840,12 @@ export class MsdCardCoordinator extends BaseService {
 
     lcardsLog.debug('[MsdCardCoordinator] Updated _hass with fresh data');
 
-    // ENHANCED: Pass HASS to controls renderer EVERY time to ensure cards get updates
+    // ⚠️ FEATURE FLAG: Manual HASS Forwarding
+    // Pass HASS to controls renderer - behavior depends on feature flag
     if (this.controlsRenderer) {
-      lcardsLog.debug('[MsdCardCoordinator] Updating HASS context in controls renderer immediately');
+      const mode = this.controlsRenderer._manualHassForwarding ? 'MANUAL' : 'AUTOMATIC';
+      lcardsLog.info(`[MsdCardCoordinator] 📡 HASS propagation mode: ${mode}`);
+      lcardsLog.debug('[MsdCardCoordinator] Calling controlsRenderer.setHass() - see MsdControlsRenderer logs for distribution details');
       this.controlsRenderer.setHass(hass);
     } else {
       lcardsLog.warn('[MsdCardCoordinator] No controls renderer available for HASS update');
@@ -849,7 +853,7 @@ export class MsdCardCoordinator extends BaseService {
 
     // DataSources handle HASS updates automatically via their subscriptions
     // No manual ingestion needed - handled by individual data sources
-    lcardsLog.debug('[MsdCardCoordinator] HASS ingestion handled by individual data sources');
+    lcardsLog.debug('[MsdCardCoordinator] HASS ingestion complete - data sources handle updates via subscriptions');
   }
 
   updateEntities(map) {
