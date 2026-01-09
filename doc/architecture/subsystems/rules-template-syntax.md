@@ -627,6 +627,179 @@ when:
 
 ---
 
+## Templates in Apply Blocks (v1.20.13+)
+
+**Status:** ✅ Fully Implemented
+
+Templates can now be used in `apply` blocks to dynamically compute overlay property values based on entity states. The RulesEngine evaluates templates **server-side** (for Jinja2) or **client-side** (for JavaScript/Tokens) before sending patches to cards.
+
+### How It Works
+
+1. Rule condition matches
+2. RulesEngine generates patches from `apply` block
+3. **NEW:** RulesEngine detects and evaluates templates in patch values
+4. Cards receive **pre-evaluated values** (no template strings)
+5. Cards apply evaluated values and re-render
+
+### Supported Template Types
+
+- ✅ **Jinja2** - `{{ ... }}` evaluated server-side via HA
+- ✅ **JavaScript** - `[[[...]]]` evaluated client-side
+- ✅ **Tokens** - `{token.path}` resolved client-side
+- ✅ **DataSources** - `{datasource:name}` resolved client-side
+
+### Examples
+
+#### Jinja2 Conditional Values
+
+```yaml
+rules:
+  - id: line_color_by_tv_state
+    when:
+      entity: light.tv
+      state: "on"
+    apply:
+      overlays:
+        eng_to_bridge:
+          style:
+            # Jinja2 inline conditional - evaluated server-side
+            stroke: "{{ 'var(--lcars-african-violet)' if is_state('light.tv', 'on') else 'var(--lcars-red)' }}"
+```
+
+**Result:** When `light.tv` is `on`, stroke becomes `var(--lcars-african-violet)`, otherwise `var(--lcars-red)`.
+
+#### Jinja2 with Numeric Calculation
+
+```yaml
+rules:
+  - id: opacity_by_brightness
+    when:
+      entity: light.desk
+      state: "on"
+    apply:
+      overlays:
+        indicator:
+          style:
+            # Calculate opacity from brightness (0-255 → 0.3-1.0)
+            opacity: "{{ (state_attr('light.desk', 'brightness') | float / 255 * 0.7) + 0.3 }}"
+```
+
+#### JavaScript Expression
+
+```yaml
+rules:
+  - id: color_by_temp
+    when:
+      entity: sensor.temperature
+    apply:
+      overlays:
+        temp_display:
+          style:
+            # JavaScript expression - computed client-side
+            color: "[[[return parseFloat(entity.state) > 25 ? 'var(--lcars-red)' : 'var(--lcars-blue)']]]"
+```
+
+#### Token Resolution
+
+```yaml
+rules:
+  - id: display_friendly_name
+    when:
+      entity: light.living_room
+    apply:
+      overlays:
+        label:
+          # Token resolved to entity's friendly_name attribute
+          text: "{entity.attributes.friendly_name}"
+```
+
+### Template Evaluation Context
+
+**Jinja2 (Server-Side):**
+- Full Home Assistant context
+- All states via `states()`, `is_state()`, `state_attr()`
+- Time functions: `now()`, `as_timestamp()`
+- All Jinja2 filters
+
+**JavaScript (Client-Side):**
+- `entity` - Rule's entity object
+- `hass` - Full HASS object
+- `config` - Card configuration
+
+**Token (Client-Side):**
+- `entity` - Rule's entity object
+- `config` - Card configuration
+- `theme` - Current theme tokens
+
+### Detection Logic
+
+Templates are detected using simplified logic:
+
+```javascript
+// Jinja2: ANY occurrence of {{ or {% or {#
+if (content.includes('{{') || content.includes('{%') || content.includes('{#')) {
+  return 'jinja2'; // Server-side evaluation
+}
+
+// JavaScript: Triple bracket markers
+if (content.includes('[[[') && content.includes(']]]')) {
+  return 'javascript'; // Client-side evaluation
+}
+
+// Tokens: Single braces (not Jinja2)
+if (content.includes('{') && content.includes('}')) {
+  return 'token'; // Client-side resolution
+}
+```
+
+**Rationale:** Since LCARdS tokens use single braces `{token}`, any double braces `{{` MUST be Jinja2. This eliminates false negatives from complex pattern matching.
+
+### Connection Handling
+
+The RulesEngine ensures fresh `hass` object with active connection before evaluating Jinja2 templates:
+
+```javascript
+// Before each evaluation
+const freshHass = systemsManager.getHass();
+templateEvaluator.hass = freshHass;
+templateEvaluator.context.hass = freshHass;
+
+// If connection not ready, wait 100ms and retry
+if (!hass.connection) {
+  await sleep(100);
+  // Retry or throw error
+}
+```
+
+This prevents "connection not available" errors during startup.
+
+### Performance Considerations
+
+- **Jinja2:** Async WebSocket call to HA (~5-50ms latency)
+- **JavaScript:** Sync evaluation in browser (~<1ms)
+- **Tokens:** Sync property access (~<1ms)
+
+**Recommendation:** Use Jinja2 for HA-specific logic, JavaScript for complex client-side calculations.
+
+### MSD Integration
+
+MSD cards override `_applyRulePatches()` to handle patches for **multiple overlays**:
+
+```javascript
+// MSD card receives pre-evaluated patches
+_onRulePatchesChanged(patches) {
+  // patches = [{ id: 'eng_to_bridge', style: { stroke: 'var(--lcars-red)' } }]
+  // Template ALREADY evaluated - stroke has actual CSS value
+
+  this._applyPatchesToOverlays(patches);
+  this._triggerReRender();
+}
+```
+
+No template evaluation needed in cards - RulesEngine handles it centrally.
+
+---
+
 ## Future Enhancements
 
 Planned for future versions:
@@ -643,10 +816,11 @@ Planned for future versions:
 ## References
 
 - [TemplateDetector.js](../../src/core/templates/TemplateDetector.js) - Auto-detection implementation
-- [compileConditions.js](../../src/core/rules/compileConditions.js) - Condition compiler
-- [RulesEngine.js](../../src/core/rules/RulesEngine.js) - Rule evaluation engine
+- [HATemplateEvaluator.js](../../src/core/templates/HATemplateEvaluator.js) - Jinja2 server-side evaluation
 - [UnifiedTemplateEvaluator.js](../../src/core/templates/UnifiedTemplateEvaluator.js) - Template orchestration
+- [RulesEngine.js](../../src/core/rules/RulesEngine.js) - Rule evaluation engine with template evaluation
+- [compileConditions.js](../../src/core/rules/compileConditions.js) - Condition compiler
 
 ---
 
-*Document version: 2.0 (November 13, 2025)*
+*Document version: 2.1 (January 9, 2026)*

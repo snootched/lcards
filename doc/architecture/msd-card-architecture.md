@@ -1,7 +1,7 @@
 # MSD Card Architecture
 
-**Type:** Advanced coordinator card  
-**Purpose:** Canvas-based multi-overlay system  
+**Type:** Advanced coordinator card
+**Purpose:** Canvas-based multi-overlay system
 **Base:** `LCARdSCard` (v1.17.0+) → unified architecture with provenance tracking
 
 ---
@@ -15,13 +15,13 @@ graph TD
     B --> D[stylePresetManager]
     B --> E[assetManager]
     B --> F[rulesManager]
-    
+
     A --> G[MSD-Specific Systems]
     G --> H[Pipeline]
     H --> I[AdvancedRenderer]
     H --> J[RouterCore]
     H --> K[AnimationManager per-card]
-    
+
     style B fill:#e1f5e1
     style G fill:#d1ecf1
 ```
@@ -162,7 +162,7 @@ MSD cards implement standard `LCARdSCard` lifecycle methods:
 
 ```javascript
 export class LCARdSMSDCard extends LCARdSCard {
-  
+
   // Get card type for CoreConfigManager
   getCardType() {
     return 'msd';
@@ -279,45 +279,228 @@ sequenceDiagram
     participant Registry as window.lcards.cards.msd
     participant Pipeline as MSD Pipeline
     participant HUD as HUD Manager
-    
+
     Card->>Card: Generate GUID (config.id or auto)
     Card->>Registry: registerInstance(guid, card, null)
-    
+
     Card->>Pipeline: requestInstance(config, svg, mount, hass, guid)
     Pipeline->>Pipeline: initMsdPipeline(config, svg, mount, hass, guid)
     Pipeline->>Pipeline: coordinator.setCardGuid(guid) BEFORE completeSystems()
-    
+
     Pipeline->>HUD: Register panels with guid
     Pipeline-->>Card: pipelineAPI
-    
+
     Card->>Registry: registerInstance(guid, card, pipeline)
-    
+
     Note over Card,HUD: Multiple instances can coexist
-    
+
     Card->>Card: disconnectedCallback()
     Card->>Registry: unregisterInstance(guid)
     Card->>HUD: Unregister from HUD
 ```
 
-**Critical Fix (v1.17.0):** 
+**Critical Fix (v1.17.0):**
 - GUID now passed through: Card → MsdInstanceManager → PipelineCore → Coordinator
 - `coordinator.setCardGuid(cardGuid)` called **BEFORE** `completeSystems()`
 - HUD panels register with correct GUID (no longer undefined)
 
-### Rules Targeting
+### Rules Targeting (v1.20.13+)
 
-MSD cards can now be targeted by rules using their `config.id`:
+**Status:** ✅ MSD fully integrated with core RulesManager singleton
+
+MSD cards now use the **core `rulesManager` singleton** instead of local RulesEngine instances. This provides consistent rule evaluation, template support, and cross-card targeting.
+
+#### Architecture Changes
+
+**Before v1.20.13:**
+- ❌ MSD maintained local RulesEngine in MsdCardCoordinator (500+ lines)
+- ❌ Duplicate rule evaluation logic vs core
+- ❌ No Jinja2 template support in apply blocks
+- ❌ Manual HASS propagation to local engine
+
+**After v1.20.13:**
+- ✅ Uses `window.lcards.core.rulesManager` singleton
+- ✅ Standard `_registerOverlayForRules()` pattern
+- ✅ Jinja2 templates evaluated server-side in apply blocks
+- ✅ Consistent with all LCARdS cards
+- ✅ ~500 lines removed from MSD codebase
+
+#### Overlay Registration
+
+MSD cards register all overlays with the core RulesEngine during initialization:
+
+```javascript
+// In lcards-msd.js
+_registerOverlaysWithRulesEngine() {
+  const rulesManager = window.lcards.core.rulesManager;
+  const systemsManager = this._msdPipeline?.systemsManager;
+
+  if (!rulesManager || !systemsManager) return;
+
+  // Get all overlays from systemsManager
+  const allOverlays = systemsManager.getAllOverlays();
+
+  for (const [overlayId, overlayData] of allOverlays) {
+    rulesManager.registerOverlay({
+      id: overlayId,
+      type: overlayData.type,
+      tags: overlayData.tags || []
+    });
+  }
+}
+```
+
+Called automatically:
+- On first render after overlays created
+- When new overlays added dynamically
+
+#### Rule Patches Application
+
+MSD overrides `_applyRulePatches()` to handle **multiple overlays**:
+
+```javascript
+// Override base class (which expects single overlay)
+_applyRulePatches(overlayPatches) {
+  if (!overlayPatches || overlayPatches.length === 0) return;
+
+  // Accept ALL patches (not filtered by _overlayId like base class)
+  // MSD manages multiple overlays, so we process all
+
+  const patchMap = {};
+  for (const patch of overlayPatches) {
+    if (patch.id) {
+      patchMap[patch.id] = patch;
+    }
+  }
+
+  this._lastRulePatches = patchMap;
+  this._onRulePatchesChanged();
+}
+
+_onRulePatchesChanged() {
+  // Merge patches into cardModel.overlaysBase
+  for (const [overlayId, patch] of Object.entries(this._lastRulePatches)) {
+    if (patch.style) {
+      // Create new object (immutable pattern)
+      this._cardModel.overlaysBase[overlayId] = {
+        ...this._cardModel.overlaysBase[overlayId],
+        style: {
+          ...this._cardModel.overlaysBase[overlayId]?.style,
+          ...patch.style
+        }
+      };
+    }
+  }
+
+  // Trigger re-render with updated overlaysBase
+  this._coordinator._reRenderCallback?.();
+}
+```
+
+**Key Difference from LCARdSCard:**
+- Base class filters patches by `this._overlayId` (single overlay)
+- MSD accepts **all patches** and routes to correct overlays
+- Preserves overlay positions while updating styles
+
+#### Template Support in Rules
+
+MSD rules now support **Jinja2 templates in apply blocks**:
 
 ```yaml
-# Rule targeting specific MSD card
+msd:
+  overlays:
+    - id: eng_to_bridge
+      type: line
+      anchor: engineering
+      attach_to: ship_status
+      style:
+        stroke_width: 22
+
+  rules:
+    - id: line_color_by_tv_state
+      when:
+        entity: light.tv
+      apply:
+        overlays:
+          eng_to_bridge:
+            style:
+              # Jinja2 evaluated SERVER-SIDE by RulesEngine
+              stroke: "{{ 'var(--lcars-african-violet)' if is_state('light.tv', 'on') else 'var(--lcars-red)' }}"
+```
+
+**Evaluation Flow:**
+1. Rule condition matches
+2. RulesEngine generates patch with template: `{ id: 'eng_to_bridge', style: { stroke: "{{ ... }}" } }`
+3. **RulesEngine evaluates template** → `{ id: 'eng_to_bridge', style: { stroke: "var(--lcars-african-violet)" } }`
+4. Pre-evaluated patch sent to MSD card
+5. MSD applies evaluated value and re-renders
+
+**No template evaluation needed in MSD** - RulesEngine handles it centrally.
+
+#### Targeting MSD Overlays
+
+Rules can target MSD overlays by ID or tags:
+
+```yaml
 rules:
-  - condition:
-      entity: "binary_sensor.alert"
+  # Target specific overlay by ID
+  - id: highlight_warp_core
+    when:
+      entity: binary_sensor.alert
       state: "on"
-    targets:
-      - id: "engineering-display"    # Matches MSD card with config.id
-    patches:
-      - path: "overlays[0].style.stroke"
+    apply:
+      overlays:
+        warp_core:              # Direct overlay ID
+          style:
+            fill: var(--lcars-alert-red)
+
+  # Target multiple overlays by tag
+  - id: dim_all_lines
+    when:
+      entity: sun.sun
+      state: "below_horizon"
+    apply:
+      overlays:
+        "@tag:line":            # All line overlays
+          style:
+            opacity: 0.5
+```
+
+#### Cross-Card Targeting
+
+Rules from one MSD card can affect overlays on other cards:
+
+```yaml
+# Card A defines global alert rule
+msd:
+  id: bridge_display
+  rules:
+    - id: global_red_alert
+      when:
+        entity: binary_sensor.red_alert
+        state: "on"
+      apply:
+        overlays:
+          # Target overlay on ANOTHER card (if accessible via shared registry)
+          warp_core:
+            style:
+              fill: var(--lcars-alert-red)
+
+# Card B's overlay gets updated
+msd:
+  id: engineering_display
+  overlays:
+    - id: warp_core
+      type: circle
+      # Will turn red when global rule matches
+```
+
+**Benefits:**
+- Coordinated styling across multiple MSD cards
+- Global alert states affect all displays
+- Single rule definition for multiple targets
+
+---
         value: "var(--lcars-alert-red)"
 ```
 
@@ -368,22 +551,22 @@ sequenceDiagram
     participant Core as window.lcards.core
     participant Asset as AssetManager
     participant Pipeline as MSD Pipeline
-    
+
     Card->>Card: _onConfigSet(config)
     Card->>Asset: get('svg', base_svg.source)
     Asset-->>Card: svgContent
-    
+
     Card->>Card: _onFirstUpdated()
     Card->>Pipeline: initialize(config, svgContent, hass)
-    
+
     Pipeline->>Pipeline: ConfigProcessor
     Pipeline->>Pipeline: AnchorProcessor extracts anchors
     Pipeline->>Core: configManager.processConfig()
-    
+
     Pipeline->>Pipeline: MsdCardCoordinator.init
     Pipeline->>Core: Access singletons
     Pipeline->>Pipeline: Create renderer/router
-    
+
     Pipeline-->>Card: pipelineAPI
     Card->>Card: render()
 ```
@@ -403,26 +586,26 @@ graph TD
     A[Pipeline.init] --> B[ConfigProcessor]
     B --> C[Extract viewBox from svgContent]
     B --> D[AnchorProcessor.processAnchors]
-    
+
     D --> E[findSvgAnchors from SVG]
     D --> F[Merge with user anchors]
     D --> G[Resolve percentages]
-    
+
     C --> H[CoreConfigManager.processConfig]
     G --> H
     H --> I[Schema validation + provenance]
-    
+
     A --> J[MsdCardCoordinator.init]
     J --> K[Access core singletons]
     K --> L[themeManager]
     K --> M[stylePresetManager]
     K --> N[rulesManager]
-    
+
     J --> O[Create MSD systems]
     O --> P[AdvancedRenderer]
     O --> Q[RouterCore]
     O --> R[AnimationManager]
-    
+
     style B fill:#d1ecf1
     style J fill:#e1f5e1
 ```
@@ -456,19 +639,19 @@ graph TD
 graph LR
     A[User YAML] --> B[Card receives config]
     B --> C[Load SVG from AssetManager]
-    
+
     C --> D[Pass to Pipeline]
     D --> E[AnchorProcessor]
     E --> F[Extract SVG anchors]
     E --> G[Merge user anchors]
-    
+
     G --> H[CoreConfigManager]
     H --> I[Validate schema]
     H --> J[Track provenance]
     H --> K[Apply defaults from theme]
-    
+
     K --> L[MsdCardCoordinator uses config]
-    
+
     style D fill:#d1ecf1
     style H fill:#e1f5e1
 ```
@@ -503,20 +686,20 @@ graph TD
     A[HASS Update] --> B{MSD Card}
     B --> C[Block card re-render]
     B --> D[Forward to MsdCardCoordinator]
-    
+
     D --> E[Update DataSourceManager]
     D --> F[Forward to MsdControlsRenderer]
-    
+
     F --> G{Entity-based filtering}
     G --> H[Detect changed entities]
     H --> I{Any changes?}
-    
+
     I -->|No| J[Early exit - no updates]
     I -->|Yes| K[Filter affected controls]
-    
+
     K --> L[Update 1-2 controls only]
     L --> M[Embedded cards update themselves]
-    
+
     style C fill:#ffe4b5
     style J fill:#90EE90
     style L fill:#87CEEB
