@@ -11,7 +11,6 @@ export class MsdDebugRenderer {
     this.anchorMarkers = new Map();
     this.boundingBoxes = new Map();
     this.routingOverlays = new Map();
-    this.performanceOverlays = new Map();
 
     this.scale = 1.0;
 
@@ -122,10 +121,6 @@ export class MsdDebugRenderer {
         routerOverlays: opts.router?.overlays?.length
       });
       this.renderRoutingGuides(opts);
-    }
-
-    if (debugState.performance) {
-      this.renderPerformanceOverlays(opts);
     }
 
     // Show debug layer
@@ -398,102 +393,7 @@ export class MsdDebugRenderer {
     return { rect, label };
   }
 
-  /**
-   * Render performance overlays - with proper value formatting
-   * @param {Object} opts
-   */
-  renderPerformanceOverlays(opts) {
-    if (!this.debugLayer) return;
 
-    this.performanceOverlays.forEach(o => o.remove());
-    this.performanceOverlays.clear();
-
-    const perf = window.lcards.debug.msd?.getPerf?.() || {};
-    const perfEntries = [];
-
-    if (perf.timers) {
-      Object.entries(perf.timers).forEach(([key, data]) => {
-        if (data && typeof data === 'object') {
-          const avg = data.count > 0 ? (data.total / data.count) : 0;
-            perfEntries.push(`${key}: ${avg.toFixed(2)}ms avg`);
-        }
-      });
-    }
-
-    if (perf.counters) {
-      Object.entries(perf.counters).forEach(([key, value]) => {
-        perfEntries.push(`${key}: ${value}`);
-      });
-    }
-
-    if (perfEntries.length === 0) {
-      Object.entries(perf).slice(0, 10).forEach(([key, value]) => {
-        let displayValue;
-        if (typeof value === 'object' && value !== null) {
-          if (value.count !== undefined && value.total !== undefined) {
-            const avg = value.count > 0 ? (value.total / value.count) : 0;
-            displayValue = `${avg.toFixed(2)}ms avg`;
-          } else {
-            displayValue = JSON.stringify(value);
-          }
-        } else {
-          displayValue = String(value);
-        }
-        perfEntries.push(`${key}: ${displayValue}`);
-      });
-    }
-
-    if (perfEntries.length === 0) {
-      lcardsLog.debug('[MsdDebugRenderer] No performance data available');
-      return;
-    }
-
-    const doc = this.debugLayer.ownerDocument;
-    const perfGroup = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
-    perfGroup.setAttribute('class', 'msd-debug-performance');
-
-    const baseX = 10 * this.scale;
-    const baseY = 10 * this.scale;
-    const width = 200 * this.scale;
-    const padding = 5 * this.scale;
-
-    const bg = doc.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bg.setAttribute('x', baseX);
-    bg.setAttribute('y', baseY);
-    bg.setAttribute('width', width);
-    bg.setAttribute('height', (20 + perfEntries.slice(0, 8).length * 15) * this.scale);
-    bg.setAttribute('fill', 'rgba(0,0,0,0.8)');
-    bg.setAttribute('stroke', 'yellow');
-    bg.setAttribute('stroke-width', 1 * this.scale);
-    bg.setAttribute('rx', 4 * this.scale);
-    perfGroup.appendChild(bg);
-
-    const title = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
-    title.setAttribute('x', baseX + padding);
-    title.setAttribute('y', baseY + (15 * this.scale));
-    title.setAttribute('fill', 'yellow');
-    title.setAttribute('font-size', 12 * this.scale);
-    title.setAttribute('font-family', 'monospace');
-    title.setAttribute('font-weight', 'bold');
-    title.textContent = 'Performance';
-    perfGroup.appendChild(title);
-
-    perfEntries.slice(0, 8).forEach((entryText, index) => {
-      const entry = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
-      entry.setAttribute('x', baseX + padding);
-      entry.setAttribute('y', baseY + (30 + index * 15) * this.scale);
-      entry.setAttribute('fill', 'yellow');
-      entry.setAttribute('font-size', 10 * this.scale);
-      entry.setAttribute('font-family', 'monospace');
-      entry.textContent = entryText;
-      perfGroup.appendChild(entry);
-    });
-
-    this.debugLayer.appendChild(perfGroup);
-    this.performanceOverlays.set('perf-info', perfGroup);
-
-    lcardsLog.debug(`[MsdDebugRenderer] Rendered performance overlay with ${perfEntries.length} metrics at scale ${this.scale}`);
-  }
 
   /**
    * Connect to AdvancedRenderer's SVG structure
@@ -579,8 +479,7 @@ export class MsdDebugRenderer {
       hasDebugLayer: Boolean(this.debugLayer),
       markerCount: this.anchorMarkers.size,
       boundingBoxCount: this.boundingBoxes.size,
-      routingOverlayCount: this.routingOverlays.size,
-      performanceOverlayCount: this.performanceOverlays.size
+      routingOverlayCount: this.routingOverlays.size
     };
   }
 
