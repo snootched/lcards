@@ -39,7 +39,6 @@ export class MsdCardCoordinator extends BaseService {
     this.renderer = null;
     this.debugRenderer = null;
     this.controlsRenderer = null;
-    this.hudManager = null;
     this.router = null;
     this.animRegistry = null; // Will be set to shared core AnimationRegistry
     this.animationManager = null; // Animation system
@@ -192,10 +191,6 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.debug('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
-
-    // REMOVED: MsdHudManager - now using global HudManager from core
-    // MSD-specific panels will be registered by the card via lcardsCore.hudManager
-    this.hudManager = null; // Deprecated - use window.lcards.core.hudManager
 
     // Initialize debug renderer with systems manager reference
     this.debugRenderer.init(this);
@@ -403,7 +398,7 @@ export class MsdCardCoordinator extends BaseService {
 
   async destroy() {
 
-    // REMOVED: RulesEngine cleanup - managed by core singleton, not per-card
+
 
     // Stop all subscriptions and clean up resources
     this.dataSourceManager?.destroy();
@@ -517,7 +512,7 @@ export class MsdCardCoordinator extends BaseService {
       const controlOverlays = resolvedModel.overlays.filter(o => o.type === 'control');
       if (controlOverlays.length > 0) {
         lcardsLog.debug('[MsdCardCoordinator] Control overlays detected (rendered by AdvancedRenderer):', controlOverlays.map(c => c.id));
-        // REMOVED: Duplicate rendering - AdvancedRenderer handles this in Phase 2a
+
         // The code below is disabled to prevent duplicate foreignObjects in SVG
         /*
         try {
@@ -697,16 +692,7 @@ export class MsdCardCoordinator extends BaseService {
     }
   }
 
-  /**
-   * Deprecated - replaced by global HUD Manager
-   * @deprecated Use window.lcards.core.hudManager instead
-   * @private
-   */
-  _setupGlobalHudInterface() {
-    lcardsLog.debug('[MsdCardCoordinator] _setupGlobalHudInterface deprecated - using global HUD Manager');
-  }
-
-  // REMOVED: _checkIfRulesNeedReRender - rules now evaluated by core rulesManager singleton
+  // Rules are now evaluated by core rulesManager singleton
   // MSD card receives callbacks via _onRulePatchesChanged() when rules affect it
 
   /**
@@ -806,9 +792,7 @@ export class MsdCardCoordinator extends BaseService {
   // INCREMENTAL UPDATE SYSTEM (Phase 1)
   // ============================================================================
 
-  // DEPRECATED: _getRendererForType removed (v1.16.22+)
-  // Old pattern: Custom overlay renderer registry for incremental updates
-  // New pattern: All overlays use unified card pattern, no custom renderers needed
+
 
   /**
    * Find overlay configuration by ID
@@ -997,7 +981,7 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.debug('[MsdCardCoordinator] ⏭️ DataSourceManager not ready or no ingestHass method');
     }
 
-    // 2. REMOVED: RulesEngine propagation - now handled by core singleton via BaseService.updateHass()
+
     // The core rulesManager receives HASS updates automatically and evaluates rules globally
     // MSD overlays are registered via _registerOverlayForRules() and receive callbacks
 
