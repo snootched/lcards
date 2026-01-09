@@ -116,6 +116,18 @@ export class LCARdSMSDCard extends LCARdSCard {
             this.id = this.config.id;
             lcardsLog.debug(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
         }
+
+        // Re-detect preview mode now that we're in the DOM
+        // setConfig() is called before element is mounted, so parentElement was null
+        const newPreviewMode = this._detectPreviewMode();
+        if (newPreviewMode !== this._isPreviewMode) {
+            lcardsLog.debug('[LCARdSMSDCard] Preview mode re-detected after mount:', {
+                before: this._isPreviewMode,
+                after: newPreviewMode
+            });
+            this._isPreviewMode = newPreviewMode;
+            this.requestUpdate(); // Trigger re-render with correct mode
+        }
     }
 
     /**
@@ -484,19 +496,38 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @protected
      */
     _renderCard() {
-        lcardsLog.trace('[LCARdSMSDCard] _renderCard called:', {
+        const configKeys = Object.keys(this.config || {});
+        const isStubConfig = configKeys.length === 1 && configKeys[0] === 'type';
+
+        lcardsLog.debug('[LCARdSMSDCard] _renderCard called - TIER DECISION:', {
             isPreviewMode: this._isPreviewMode,
+            isPreviewModeType: typeof this._isPreviewMode,
+            configKeys: configKeys,
+            isStubConfig: isStubConfig,
             hasConfigIssues: !!this._configIssues?.errors?.length,
             msdInitialized: this._msdInitialized,
             hasPipeline: !!this._msdPipeline
         });
 
-        // Check for preview mode (editor or card picker)
-        const configKeys = Object.keys(this.config || {});
-        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type';
+        // Tiered render strategy based on context
 
-        if (this._isPreviewMode || isCardPicker) {
-            return this._renderPreviewContent();
+        // Tier 3: Card picker placeholder (stub config or picker context)
+        if (this._isPreviewMode === 'picker' || isStubConfig) {
+            lcardsLog.info('[LCARdSMSDCard] ✅ Rendering TIER 3: Card picker placeholder');
+            return this._renderCardPickerPlaceholder();
+        }
+
+        // Tier 2: Editor stats display (editor dialog context)
+        if (this._isPreviewMode === 'editor') {
+            lcardsLog.info('[LCARdSMSDCard] ✅ Rendering TIER 2: Editor stats display');
+            return this._renderEditorStats();
+        }
+
+        // Tier 1: Full render (studio dialog, dashboard, or _isPreviewMode === false)
+        // Note: Legacy boolean true also falls through to maintain compatibility
+        if (this._isPreviewMode === true) {
+            // Legacy preview mode (shouldn't happen with new detection, but handle gracefully)
+            return this._renderEditorStats();
         }
 
         // Check for validation errors
@@ -797,52 +828,72 @@ export class LCARdSMSDCard extends LCARdSCard {
     // ============================================================================
 
     /**
-     * Detect if running in preview mode
-     * Override to handle card editor vs dashboard edit mode distinction
+     * Check for ancestor element, traversing shadow DOM boundaries
+     * Required for detecting studio dialogs which may be in shadow DOM
+     * @private
+     */
+    _checkForAncestor(selectors) {
+        let current = this;
+        const maxLevels = 20;
+
+        for (let i = 0; i < maxLevels && current; i++) {
+            for (const selector of selectors) {
+                if (current.tagName?.toLowerCase() === selector.toLowerCase()) {
+                    return true;
+                }
+            }
+            // Traverse shadow DOM boundaries: try parentElement, then host
+            current = current.parentElement || current.parentNode?.host || current.getRootNode()?.host;
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect if running in preview mode with tiered strategy
+     * Returns: false (full render), 'picker' (Tier 3), 'editor' (Tier 2)
      * @private
      */
     _detectPreviewMode() {
-        const parentElement = this.parentElement;
-        lcardsLog.debug('[LCARdSMSDCard] Preview mode detection debug:', {
-            hasParent: !!parentElement,
-            parentTag: parentElement?.tagName,
-            parentClass: parentElement?.className,
-            isConnected: this.isConnected
-        });
-
-        if (!parentElement) {
+        if (!this.parentElement) {
             lcardsLog.debug('[LCARdSMSDCard] No parent element - deferring preview mode detection');
-            // If we don't have a parent yet, we can't determine preview mode
-            // This will be re-evaluated when the card is actually mounted
             return false;
         }
 
-        // Check for card editor dialog (this is true preview mode)
-        const cardEditorDialog = parentElement.closest('hui-dialog-edit-card, hui-card-preview, hui-card-picker');
-        if (cardEditorDialog) {
-            lcardsLog.debug('[LCARdSMSDCard] In card editor dialog - true preview mode:', {
-                dialogTag: cardEditorDialog.tagName
+        // Tier 3: Card picker (always block with placeholder)
+        const isInCardPicker = this._checkForAncestor(['hui-card-picker']);
+        if (isInCardPicker) {
+            lcardsLog.debug('[LCARdSMSDCard] Card picker detected - Tier 3: placeholder mode');
+            return 'picker';
+        }
+
+        // Tier 1: Studio editor (always allow full render for live preview)
+        const isInStudioDialog = this._checkForAncestor(['lcards-msd-studio-dialog']);
+        if (isInStudioDialog) {
+            lcardsLog.debug('[LCARdSMSDCard] Studio dialog detected - Tier 1: live preview mode');
+            return false; // NOT preview - allow full render
+        }
+
+        // Tier 2: Card editor dialog (block with stats display)
+        const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-preview']);
+        if (isInEditDialog) {
+            lcardsLog.debug('[LCARdSMSDCard] Card editor dialog detected - Tier 2: stats display mode');
+            return 'editor';
+        }
+
+        // Dashboard (edit mode or view mode) - always allow full render
+        // Note: Do NOT call super._detectPreviewMode() as base class blocks dashboard edit mode
+        const dashboardEl = this.parentElement.closest('hui-root, ha-panel-lovelace');
+        if (dashboardEl) {
+            lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render', {
+                editMode: dashboardEl.editMode
             });
-            return true;
-        }
-
-        // Check for card picker
-        const cardPickerEl = parentElement.closest('hui-card-picker');
-        if (cardPickerEl) {
-            lcardsLog.debug('[LCARdSMSDCard] In card picker - preview mode');
-            return true;
-        }
-
-        // If we're in dashboard edit mode but NOT in a dialog, we're on the actual dashboard
-        const dashboardEl = parentElement.closest('hui-root, ha-panel-lovelace');
-        if (dashboardEl && dashboardEl.editMode) {
-            lcardsLog.debug('[LCARdSMSDCard] Dashboard edit mode but not in dialog - normal mode');
             return false;
         }
 
-        lcardsLog.debug('[LCARdSMSDCard] Using parent class preview detection');
-        // Fall back to parent detection for other cases
-        return super._detectPreviewMode();
+        // Fallback: not in any recognized context, allow full render
+        lcardsLog.debug('[LCARdSMSDCard] No recognized context - defaulting to Tier 1: full render');
+        return false;
     }
 
     /**
@@ -938,82 +989,75 @@ export class LCARdSMSDCard extends LCARdSCard {
     // ============================================================================
 
     /**
-     * Render preview content for editor and card picker
+     * Render placeholder for card picker (Tier 3)
+     * Shows LCARS-styled SVG graphic for visual recognition
      * @private
      */
-    _renderPreviewContent() {
-        // Check for card picker context first
-        const configKeys = Object.keys(this.config || {});
-        const isCardPicker = configKeys.length === 1 && configKeys[0] === 'type';
+    _renderCardPickerPlaceholder() {
+        lcardsLog.debug('[LCARdSMSDCard] Rendering Tier 3: card picker placeholder');
+        return html`
+            <div style="
+                width: 100%;
+                height: 300px;
+                background: linear-gradient(135deg, #001122 0%, #000611 100%);
+                border: 1px solid var(--lcars-cyan, #00ffff);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+            ">
+                <svg viewBox="0 0 400 200" style="width: 80%; height: 80%; max-width: 320px;">
+                    <!-- LCARS-style interface mockup -->
+                    <defs>
+                        <linearGradient id="lcarsGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#00ffff;stop-opacity:0.3" />
+                            <stop offset="50%" style="stop-color:#00ffff;stop-opacity:0.8" />
+                            <stop offset="100%" style="stop-color:#00ffff;stop-opacity:0.3" />
+                        </linearGradient>
+                    </defs>
 
-        if (isCardPicker) {
-            lcardsLog.debug('[LCARdSMSDCard] Rendering card picker SVG placeholder');
-            return html`
-                <div style="
-                    width: 100%;
-                    height: 300px;
-                    background: linear-gradient(135deg, #001122 0%, #000611 100%);
-                    border: 1px solid var(--lcars-cyan, #00ffff);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    overflow: hidden;
-                ">
-                    <svg viewBox="0 0 400 200" style="width: 80%; height: 80%; max-width: 320px;">
-                        <!-- LCARS-style interface mockup -->
-                        <defs>
-                            <linearGradient id="lcarsGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" style="stop-color:#00ffff;stop-opacity:0.3" />
-                                <stop offset="50%" style="stop-color:#00ffff;stop-opacity:0.8" />
-                                <stop offset="100%" style="stop-color:#00ffff;stop-opacity:0.3" />
-                            </linearGradient>
-                        </defs>
+                    <!-- Main panel -->
+                    <rect x="20" y="20" width="360" height="160" rx="8" fill="#000611" stroke="var(--lcars-cyan, #00ffff)" stroke-width="1" opacity="0.7"/>
 
-                        <!-- Main panel -->
-                        <rect x="20" y="20" width="360" height="160" rx="8" fill="#000611" stroke="var(--lcars-cyan, #00ffff)" stroke-width="1" opacity="0.7"/>
+                    <!-- LCARS-style bars -->
+                    <rect x="30" y="30" width="80" height="12" rx="6" fill="var(--lcars-orange, #ff9900)" opacity="0.8"/>
+                    <rect x="30" y="50" width="120" height="12" rx="6" fill="var(--lcars-cyan, #00ffff)" opacity="0.6"/>
+                    <rect x="30" y="70" width="60" height="12" rx="6" fill="var(--lcars-blue, #0099ff)" opacity="0.8"/>
 
-                        <!-- LCARS-style bars -->
-                        <rect x="30" y="30" width="80" height="12" rx="6" fill="var(--lcars-orange, #ff9900)" opacity="0.8"/>
-                        <rect x="30" y="50" width="120" height="12" rx="6" fill="var(--lcars-cyan, #00ffff)" opacity="0.6"/>
-                        <rect x="30" y="70" width="60" height="12" rx="6" fill="var(--lcars-blue, #0099ff)" opacity="0.8"/>
+                    <!-- Right side bars -->
+                    <rect x="290" y="30" width="80" height="12" rx="6" fill="var(--lcars-red, #ff6600)" opacity="0.6"/>
+                    <rect x="270" y="50" width="100" height="12" rx="6" fill="var(--lcars-cyan, #00ffff)" opacity="0.8"/>
+                    <rect x="310" y="70" width="60" height="12" rx="6" fill="var(--lcars-orange, #ff9900)" opacity="0.6"/>
 
-                        <!-- Right side bars -->
-                        <rect x="290" y="30" width="80" height="12" rx="6" fill="var(--lcars-red, #ff6600)" opacity="0.6"/>
-                        <rect x="270" y="50" width="100" height="12" rx="6" fill="var(--lcars-cyan, #00ffff)" opacity="0.8"/>
-                        <rect x="310" y="70" width="60" height="12" rx="6" fill="var(--lcars-orange, #ff9900)" opacity="0.6"/>
+                    <!-- Center display area -->
+                    <rect x="60" y="100" width="280" height="60" rx="4" fill="none" stroke="var(--lcars-cyan, #00ffff)" stroke-width="1" opacity="0.4"/>
 
-                        <!-- Center display area -->
-                        <rect x="60" y="100" width="280" height="60" rx="4" fill="none" stroke="var(--lcars-cyan, #00ffff)" stroke-width="1" opacity="0.4"/>
+                    <!-- Text -->
+                    <text x="200" y="125" text-anchor="middle" fill="var(--lcars-cyan, #00ffff)"
+                          font-family="Antonio, monospace" font-size="14" opacity="0.8">
+                        LCARdS MSD
+                    </text>
+                    <text x="200" y="145" text-anchor="middle" fill="var(--lcars-orange, #ff9900)"
+                          font-family="Antonio, monospace" font-size="10" opacity="0.6">
+                        Master Systems Display
+                    </text>
+                </svg>
+            </div>
+        `;
+    }
 
-                        <!-- Text -->
-                        <text x="200" y="125" text-anchor="middle" fill="var(--lcars-cyan, #00ffff)"
-                              font-family="Antonio, monospace" font-size="14" opacity="0.8">
-                            LCARdS MSD
-                        </text>
-                        <text x="200" y="145" text-anchor="middle" fill="var(--lcars-orange, #ff9900)"
-                              font-family="Antonio, monospace" font-size="10" opacity="0.6">
-                            Master Systems Display
-                        </text>
-                    </svg>
-                </div>
-            `;
-        }
-
-        // Generate preview content for editor mode
-        try {
-            const mount = this.getMountElement();
-            // Preview content will be generated by the fallback below
-        } catch (error) {
-            lcardsLog.warn('[LCARdSMSDCard] Failed to prepare preview:', error);
-        }
-
-        // Preview content for editor mode
+    /**
+     * Render stats display for editor dialog (Tier 2)
+     * Shows configuration summary for YAML editing context
+     * @private
+     */
+    _renderEditorStats() {
+        lcardsLog.debug('[LCARdSMSDCard] Rendering Tier 2: editor stats display');
         const hasConfig = this._msdConfig && Object.keys(this._msdConfig).length > 0;
         const baseSvgSource = this._msdConfig?.base_svg?.source || 'Not configured';
 
-        // For editor with actual config, show detailed info
         return html`
             <div style="
                 width: 100%;
