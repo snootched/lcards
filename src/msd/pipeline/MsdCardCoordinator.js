@@ -484,9 +484,22 @@ export class MsdCardCoordinator extends BaseService {
       // Render debug visualizations with error boundary
       if (this.debugManager.isAnyEnabled()) {
         try {
+          // ✅ FIX: Resolve anchor names to coordinates for debug renderer
+          // Debug renderer expects position: [x, y] but overlays have position: 'anchor_name'
+          const resolvedOverlays = resolvedModel.overlays.map(overlay => {
+            if (overlay.position && typeof overlay.position === 'string') {
+              // Position is anchor name - resolve to coordinates
+              const coords = resolvedModel.anchors[overlay.position];
+              if (coords) {
+                return { ...overlay, position: coords };
+              }
+            }
+            return overlay;
+          });
+
           const debugOptions = {
             anchors: resolvedModel.anchors || {},
-            overlays: resolvedModel.overlays || [],
+            overlays: resolvedOverlays,  // Use resolved overlays
             router: this.router,  // Pass router for routing debug visualization
             showAnchors: debugState.anchors,
             showBoundingBoxes: debugState.bounding_boxes,
@@ -494,6 +507,20 @@ export class MsdCardCoordinator extends BaseService {
             showPerformance: debugState.performance,
             scale: debugState.scale
           };
+
+          lcardsLog.debug('[MsdCardCoordinator] 🔍 DEBUG - Debug options:', {
+            overlayCount: debugOptions.overlays.length,
+            hasRouter: !!debugOptions.router,
+            routerHasOverlays: !!this.router?.overlays,
+            routerHasInspect: typeof this.router?.inspect === 'function',
+            canRenderRouting: this.debugManager.canRenderRouting(),
+            flags: {
+              anchors: debugState.anchors,
+              boundingBoxes: debugState.bounding_boxes,
+              routing: debugState.routing,
+              performance: debugState.performance
+            }
+          });
 
           this.debugRenderer.render(mountEl || this.renderer?.mountEl, resolvedModel.viewBox, debugOptions);
           lcardsLog.debug('[MsdCardCoordinator] ✅ Debug renderer completed');

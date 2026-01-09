@@ -89,6 +89,33 @@ export class RouterCore {
     };
   }
 
+  /**
+   * Debug introspection: get route info for an overlay ID
+   * @param {string} overlayId - The overlay identifier
+   * @returns {object|null} Route info with pts, d, meta, or null if not found
+   */
+  inspect(overlayId) {
+    if (!overlayId) return null;
+
+    // Cache keys are formatted as: `${req.id}@${x1},${y1}-${x2},${y2}|...`
+    // Find the most recent cache entry for this overlay ID
+    for (const [key, routeResult] of this._cache.entries()) {
+      if (key.startsWith(`${overlayId}@`)) {
+        // Found a cached route for this overlay
+        return {
+          overlayId,
+          pts: routeResult.pts || [],
+          d: routeResult.d || '',
+          meta: routeResult.meta || {},
+          cacheKey: key
+        };
+      }
+    }
+
+    // No cached route found
+    return null;
+  }
+
 
   /**
    * Build a route request object with both entry and exit direction hints.

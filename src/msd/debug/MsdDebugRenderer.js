@@ -108,10 +108,19 @@ export class MsdDebugRenderer {
     }
 
     if (debugState.bounding_boxes && opts.overlays) {
+      lcardsLog.debug('[MsdDebugRenderer] 🔍 Bounding boxes:', {
+        overlayCount: opts.overlays.length,
+        overlayTypes: opts.overlays.map(o => o.type)
+      });
       this.renderOverlayBounds(opts.overlays);
     }
 
     if (debugState.routing && this.debugManager.canRenderRouting()) {
+      lcardsLog.debug('[MsdDebugRenderer] 🔍 Routing guides:', {
+        canRender: this.debugManager.canRenderRouting(),
+        hasRouter: !!opts.router,
+        routerOverlays: opts.router?.overlays?.length
+      });
       this.renderRoutingGuides(opts);
     }
 
@@ -152,6 +161,13 @@ export class MsdDebugRenderer {
 
     // Get routing system from window.lcards.debug.msd (set by pipeline)
     const routing = opts.router || window.lcards.debug.msd?.routing;
+
+    lcardsLog.debug('[MsdDebugRenderer] Routing debug:', {
+      hasOptsRouter: !!opts.router,
+      hasWindowRouter: !!window.lcards.debug.msd?.routing,
+      routerHasInspect: !!(routing?.inspect),
+      routerType: routing?.constructor?.name
+    });
 
     if (!routing || typeof routing.inspect !== 'function') {
       lcardsLog.debug('[MsdDebugRenderer] Routing system not available for debug rendering');
@@ -317,12 +333,23 @@ export class MsdDebugRenderer {
 
     let bboxCount = 0;
     overlays.forEach(overlay => {
+      lcardsLog.debug('[MsdDebugRenderer] Checking overlay for bbox:', {
+        id: overlay.id,
+        type: overlay.type,
+        hasPosition: !!overlay.position,
+        position: overlay.position,
+        hasSize: !!overlay.size
+      });
+
       if (overlay.position && Array.isArray(overlay.position)) {
         const [x, y] = overlay.position;
 
         // Get actual dimensions based on overlay type
         const dimensions = this._getOverlayDimensions(overlay, x, y);
-        if (!dimensions) return;
+        if (!dimensions) {
+          lcardsLog.debug('[MsdDebugRenderer] No dimensions for overlay:', overlay.id);
+          return;
+        }
 
         const bboxObj = this.createBoundingBox(overlay.id, dimensions.x, dimensions.y, dimensions.width, dimensions.height);
         this.debugLayer.appendChild(bboxObj.rect);
