@@ -77,6 +77,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _gridSpacing: { type: Number, state: true },
             _snapToGrid: { type: Boolean, state: true },
             _cursorPosition: { type: Object, state: true },  // For crosshair guidelines
+            _highlightedAnchor: { type: String, state: true },  // For anchor highlight animation
             // Controls Tab Properties
             _showControlForm: { type: Boolean, state: true },
             _editingControlId: { type: String, state: true },
@@ -149,6 +150,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._gridSpacing = 50;
         this._snapToGrid = false;
         this._cursorPosition = null;
+        this._highlightedAnchor = null;
 
         // Controls Tab State
         this._showControlForm = false;
@@ -1477,9 +1479,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _highlightAnchorInPreview(name) {
-        // TODO: Implement highlight animation in preview
         lcardsLog.debug('[MSDStudio] Highlight anchor in preview:', name);
-        // This would trigger a temporary highlight effect in the live preview
+
+        // Set highlighted anchor (triggers re-render with highlight overlay)
+        this._highlightedAnchor = name;
+        this.requestUpdate();
+
+        // Clear highlight after 2.5 seconds
+        setTimeout(() => {
+            this._highlightedAnchor = null;
+            this.requestUpdate();
+        }, 2500);
     }
 
     /**
@@ -1982,6 +1992,152 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render anchor highlight overlay
+     * Shows pulsing highlight around selected anchor
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderAnchorHighlight() {
+        if (!this._highlightedAnchor) return '';
+
+        // Find the anchor in the config
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const anchorPosition = anchors[this._highlightedAnchor];
+        if (!anchorPosition || !Array.isArray(anchorPosition)) return '';
+
+        const [vbX, vbY] = anchorPosition;
+
+        // We need to convert viewBox coordinates to pixel position
+        // This requires finding the SVG element in the live preview
+        // For simplicity, we'll use a setTimeout approach to calculate after render
+
+        // Try to find the SVG to calculate pixel position
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        // Get SVG rect and calculate position
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale accounting for aspect ratio
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        // Calculate rendered dimensions
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+
+        // Calculate offset due to centering
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Convert viewBox coords to SVG pixel position
+        const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+        const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+
+        // Convert to preview panel coordinates
+        const pixelX = (rect.left - panelRect.left) + svgPixelX;
+        const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 998;
+            ">
+                <!-- Pulsing circle around anchor -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    transform: translate(-50%, -50%);
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid #FF9900;
+                    border-radius: 50%;
+                    box-shadow: 0 0 20px rgba(255, 153, 0, 0.8);
+                    animation: anchor-pulse 1s ease-in-out infinite;
+                "></div>
+
+                <!-- Center dot -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    transform: translate(-50%, -50%);
+                    width: 8px;
+                    height: 8px;
+                    background: #FF9900;
+                    border-radius: 50%;
+                    box-shadow: 0 0 10px rgba(255, 153, 0, 0.8);
+                "></div>
+
+                <!-- Anchor name label -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY - 35}px;
+                    transform: translateX(-50%);
+                    background: rgba(255, 153, 0, 0.95);
+                    color: black;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                ">
+                    ${this._highlightedAnchor}
+                </div>
+            </div>
+
+            <style>
+                @keyframes anchor-pulse {
+                    0%, 100% {
+                        transform: translate(-50%, -50%) scale(1);
+                        opacity: 1;
+                    }
+                    50% {
+                        transform: translate(-50%, -50%) scale(1.5);
+                        opacity: 0.3;
+                    }
+                }
+            </style>
+        `;
+    }
+
+    /**
      * Render draw channel overlay (Phase 5)
      * Shows temporary rectangle while drawing
      * @returns {TemplateResult}
@@ -2042,7 +2198,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             gridSpacing: this._gridSpacing,
             grid_spacing: this._gridSpacing,  // Also pass with underscore for consistency
             snap_to_grid: this._snapToGrid,   // FIXED: Include snap toggle state
-            routing_channels: true  // Always show channels in editor
+            routing_channels: true,  // Always show channels in editor
+            highlighted_anchor: this._highlightedAnchor  // Pass highlighted anchor for pulse animation
         };
 
         // Force bounding boxes when Controls tab is active (Phase 3)
@@ -4532,6 +4689,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Crosshair Guidelines -->
                             ${this._renderCrosshairGuidelines()}
+
+                            <!-- Anchor Highlight -->
+                            ${this._renderAnchorHighlight()}
                         </div>
                     </div>
                 </div>
