@@ -91,7 +91,7 @@ export class LCARdSMSDLivePreview extends LitElement {
                 background: var(--primary-background-color, #fafafa);
             }
 
-            lcards-msd {
+            lcards-msd-card {
                 max-width: 100%;
                 max-height: 100%;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -259,7 +259,7 @@ export class LCARdSMSDLivePreview extends LitElement {
 
         try {
             // Manually create card element
-            const card = document.createElement('lcards-msd');
+            const card = document.createElement('lcards-msd-card');
 
             lcardsLog.debug('[MSDLivePreview] Creating preview card with config:', previewConfig);
             lcardsLog.debug('[MSDLivePreview] HASS object available:', !!this.hass);

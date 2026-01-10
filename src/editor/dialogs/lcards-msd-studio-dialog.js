@@ -1357,13 +1357,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         lcardsLog.debug('[MSDStudio] Place anchor at:', coords);
 
-        // Apply snap-to-grid if enabled
-        let [x, y] = coords;
-        if (this._snapToGrid && this._gridSpacing > 0) {
-            x = Math.round(x / this._gridSpacing) * this._gridSpacing;
-            y = Math.round(y / this._gridSpacing) * this._gridSpacing;
-            lcardsLog.debug('[MSDStudio] Snapped to grid:', [x, y]);
-        }
+        // Coordinates are already snapped to grid if enabled in _getPreviewCoordinates
+        const { x, y } = coords;
 
         // Open anchor form with pre-filled position
         this._showAnchorForm = true;
@@ -1380,47 +1375,102 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     /**
      * Get preview coordinates from click event
-     * Converts click position to viewBox coordinates
+     * Converts screen coordinates to ViewBox coordinates
      * @param {MouseEvent} event - Click event
-     * @returns {Array|null} [x, y] in viewBox coordinates or null
+     * @returns {Object|null} {x, y} in ViewBox coordinates, or null
      * @private
      */
     _getPreviewCoordinates(event) {
-        // Find the SVG element in the preview
+        // Find the preview panel and then the lcards-msd-live-preview component
         const previewPanel = event.currentTarget;
-        const svgElement = previewPanel.querySelector('svg');
+        const livePreview = previewPanel.querySelector('lcards-msd-live-preview');
         
-        if (!svgElement) {
+        if (!livePreview) {
+            lcardsLog.warn('[MSDStudio] No live preview component found');
+            return null;
+        }
+
+        // Access the live preview's shadow root to find the card container
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) {
+            lcardsLog.warn('[MSDStudio] No shadow root on live preview');
+            return null;
+        }
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) {
+            lcardsLog.warn('[MSDStudio] No card container in live preview');
+            return null;
+        }
+
+        // Find the MSD card element in the container
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) {
+            lcardsLog.warn('[MSDStudio] No MSD card in preview');
+            return null;
+        }
+
+        // Access shadow root to find SVG element
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) {
+            lcardsLog.warn('[MSDStudio] No shadow root on MSD card');
+            return null;
+        }
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) {
             lcardsLog.warn('[MSDStudio] No SVG found in preview');
             return null;
         }
 
-        // Get click position relative to SVG
-        const rect = svgElement.getBoundingClientRect();
-        const clickX = event.clientX - rect.left;
-        const clickY = event.clientY - rect.top;
+        // Get bounding rect of SVG element
+        const rect = svg.getBoundingClientRect();
+        
+        // Calculate click position relative to SVG
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
 
-        // Get viewBox
-        const viewBoxAttr = svgElement.getAttribute('viewBox');
-        let viewBox = [0, 0, 400, 200]; // fallback
-        if (viewBoxAttr) {
-            const parts = viewBoxAttr.split(/\s+/).map(parseFloat);
-            if (parts.length === 4) {
-                viewBox = parts;
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let vbX = 0, vbY = 0, vbWidth = 1920, vbHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [vbX, vbY, vbWidth, vbHeight] = viewBox;
+        } else if (viewBox === 'auto') {
+            // Try to extract from SVG viewBox attribute
+            const svgViewBox = svg.getAttribute('viewBox');
+            if (svgViewBox) {
+                const parts = svgViewBox.split(/\s+/).map(Number);
+                if (parts.length === 4) {
+                    [vbX, vbY, vbWidth, vbHeight] = parts;
+                }
             }
         }
 
-        const [vbMinX, vbMinY, vbWidth, vbHeight] = viewBox;
-
-        // Calculate scale factors
+        // Calculate scale from screen pixels to viewBox units
         const scaleX = vbWidth / rect.width;
         const scaleY = vbHeight / rect.height;
 
         // Convert to viewBox coordinates
-        const x = vbMinX + (clickX * scaleX);
-        const y = vbMinY + (clickY * scaleY);
+        let coordX = vbX + (x * scaleX);
+        let coordY = vbY + (y * scaleY);
 
-        return [x, y];
+        // Apply snap-to-grid if enabled
+        const debugSettings = this._getDebugSettings();
+        if (debugSettings.snap_to_grid) {
+            const gridSpacing = debugSettings.grid_spacing || 50;
+            coordX = Math.round(coordX / gridSpacing) * gridSpacing;
+            coordY = Math.round(coordY / gridSpacing) * gridSpacing;
+        }
+
+        lcardsLog.debug('[MSDStudio] Converted coordinates:', {
+            screen: { x, y },
+            viewBox: { x: coordX, y: coordY },
+            scale: { x: scaleX, y: scaleY },
+            rect: { width: rect.width, height: rect.height }
+        });
+
+        return { x: Math.round(coordX), y: Math.round(coordY) };
     }
 
     // ============================
@@ -1461,12 +1511,152 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderControlsTab() {
-        return this._renderPlaceholder(
-            'Control Overlays',
-            'Add and configure control overlays to embed Home Assistant cards into your MSD display. Position controls visually, select card types, and configure card properties.',
-            'Phase 3',
-            'mdi:widgets'
-        );
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const controlOverlays = overlays.filter(o => o.type === 'control');
+        const controlCount = controlOverlays.length;
+
+        return html`
+            <lcards-form-section
+                header="Control Overlays"
+                description="Manage card overlays positioned on the MSD canvas"
+                icon="mdi:card-multiple"
+                ?expanded=${true}>
+
+                ${controlCount === 0 ? html`
+                    <lcards-message type="info">
+                        <strong>No control overlays defined yet.</strong>
+                        <p style="margin: 8px 0; font-size: 13px;">
+                            Control overlays are Home Assistant cards (buttons, sensors, etc.) 
+                            positioned on your MSD display. Click "Add Control" to create your first overlay.
+                        </p>
+                    </lcards-message>
+                ` : html`
+                    <div class="control-list">
+                        ${controlOverlays.map(overlay => this._renderControlItem(overlay))}
+                    </div>
+                `}
+
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <ha-button @click=${this._openControlForm}>
+                        <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                        Add Control
+                    </ha-button>
+                    <ha-button @click=${() => this._setMode('place_control')}>
+                        <ha-icon icon="mdi:cursor-default-click" slot="icon"></ha-icon>
+                        Place on Canvas
+                    </ha-button>
+                </div>
+            </lcards-form-section>
+
+            ${this._renderControlHelp()}
+        `;
+    }
+
+    /**
+     * Render control item in list
+     * @param {Object} overlay - Control overlay config
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlItem(overlay) {
+        const cardType = overlay.card?.type || 'unknown';
+        const position = overlay.position || overlay.anchor || 'not set';
+        const positionStr = Array.isArray(position) ? `[${position[0]}, ${position[1]}]` : position;
+
+        return html`
+            <div class="control-item" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+                border: 1px solid var(--divider-color);
+                border-radius: 4px;
+                margin-bottom: 8px;
+            ">
+                <ha-icon icon="mdi:card" style="color: var(--primary-color);"></ha-icon>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600;">${overlay.id || 'Unnamed'}</div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color);">
+                        ${cardType} @ ${positionStr}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <ha-icon-button
+                        icon="mdi:pencil"
+                        @click=${() => this._editControl(overlay)}
+                        title="Edit control">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:content-duplicate"
+                        @click=${() => this._duplicateControl(overlay)}
+                        title="Duplicate control">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:delete"
+                        @click=${() => this._deleteControl(overlay)}
+                        title="Delete control">
+                    </ha-icon-button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render control help section
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlHelp() {
+        return html`
+            <lcards-message type="info" style="margin-top: 16px;">
+                <strong>About Control Overlays:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                    <li>Control overlays are Home Assistant cards positioned on your MSD</li>
+                    <li>Use any HA card type: button, sensor, gauge, custom cards, etc.</li>
+                    <li>Position using anchors or absolute coordinates</li>
+                    <li>Configure size, card properties, and visual styling</li>
+                </ul>
+            </lcards-message>
+        `;
+    }
+
+    // Placeholder methods for Phase 3 full implementation
+    /**
+     * Open control form dialog (Phase 3 full)
+     * @private
+     */
+    _openControlForm() {
+        alert('Control form dialog will be implemented in Phase 3 full version');
+    }
+
+    /**
+     * Edit control overlay (Phase 3 full)
+     * @param {Object} overlay - Control overlay config
+     * @private
+     */
+    _editControl(overlay) {
+        lcardsLog.debug('[MSDStudio] Edit control:', overlay);
+        alert('Control editor will be implemented in Phase 3 full version');
+    }
+
+    /**
+     * Duplicate control overlay (Phase 3 full)
+     * @param {Object} overlay - Control overlay config
+     * @private
+     */
+    _duplicateControl(overlay) {
+        lcardsLog.debug('[MSDStudio] Duplicate control:', overlay);
+        alert('Control duplication will be implemented in Phase 3 full version');
+    }
+
+    /**
+     * Delete control overlay (Phase 3 full)
+     * @param {Object} overlay - Control overlay config
+     * @private
+     */
+    _deleteControl(overlay) {
+        lcardsLog.debug('[MSDStudio] Delete control:', overlay);
+        alert('Control deletion will be implemented in Phase 3 full version');
     }
 
     /**
