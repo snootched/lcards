@@ -103,6 +103,7 @@ export class MsdDebugRenderer {
 
     // Render grid if enabled (Phase 3)
     if (opts.grid || debugState.grid) {
+      lcardsLog.debug('[MsdDebugRenderer] Rendering grid with settings:', { opts, debugState });
       this.renderCoordinateGrid(viewBox, {
         spacing: opts.gridSpacing || opts.grid_spacing || debugState.grid_spacing || debugState.gridSpacing || 50,
         showLabels: true
@@ -335,9 +336,11 @@ export class MsdDebugRenderer {
     if (!this.debugLayer) return '';
 
     const spacing = options.spacing || 50;
-    const color = options.color || 'rgba(255, 255, 255, 0.2)';
-    const strokeWidth = options.strokeWidth || 0.5;
+    const color = options.color || 'rgba(255, 255, 255, 0.8)';
+    const strokeWidth = options.strokeWidth || 2;
     const showLabels = options.showLabels !== false;
+    
+    lcardsLog.debug('[MsdDebugRenderer] Grid rendering with:', { viewBox, spacing, color, strokeWidth });
 
     const [minX, minY, width, height] = viewBox;
     const maxX = minX + width;

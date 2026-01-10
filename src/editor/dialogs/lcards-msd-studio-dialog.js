@@ -83,7 +83,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormSize: { type: Array, state: true },
             _controlFormAttachment: { type: String, state: true },
             _controlFormCard: { type: Object, state: true },
-            _controlFormActiveSubtab: { type: String, state: true } // 'msd_config' or 'card_config'
+            _controlFormActiveSubtab: { type: String, state: true }, // 'msd_config' or 'card_config'
+            // Lines Tab Properties (Phase 4)
+            _showLineForm: { type: Boolean, state: true },
+            _editingLineId: { type: String, state: true },
+            _lineFormId: { type: String, state: true },
+            _lineFormSource: { type: Object, state: true }, // { type: 'anchor'|'control'|'coords', id: string, point?: string, gap?: number }
+            _lineFormTarget: { type: Object, state: true }, // same structure as source
+            _lineFormRouting: { type: Object, state: true },
+            _lineFormStyle: { type: Object, state: true },
+            _lineFormAnimation: { type: Object, state: true },
+            _lineFormActiveSubtab: { type: String, state: true }, // 'connection' or 'style'
+            _connectLineState: { type: Object, state: true } // { source: null, tempLineElement: null }
         };
     }
 
@@ -130,6 +141,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormAttachment = 'center';
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'msd_config';
+
+        // Lines Tab State (Phase 4)
+        this._showLineForm = false;
+        this._editingLineId = null;
+        this._lineFormId = '';
+        this._lineFormSource = { type: 'anchor', id: '', point: null, gap: 0 };
+        this._lineFormTarget = { type: 'anchor', id: '', point: null, gap: 0 };
+        this._lineFormRouting = { mode: 'direct', avoid_obstacles: false, channel: '' };
+        this._lineFormStyle = { stroke: '#FF9900', stroke_width: 2, stroke_dasharray: '', marker_end: 'none' };
+        this._lineFormAnimation = { preset: 'none', speed: 1 };
+        this._lineFormActiveSubtab = 'connection';
+        this._connectLineState = { source: null, tempLineElement: null };
 
         lcardsLog.debug('[MSDStudio] Initialized');
     }
@@ -276,16 +299,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 cursor: default;
             }
 
-            .preview-panel.mode-place-anchor,
-            .preview-panel.mode-place-control {
+            .preview-panel.mode-place_anchor,
+            .preview-panel.mode-place_control {
                 cursor: crosshair;
             }
 
-            .preview-panel.mode-connect-line {
+            .preview-panel.mode-connect_line {
                 cursor: crosshair;
             }
 
-            .preview-panel.mode-draw-channel {
+            .preview-panel.mode-draw_channel {
                 cursor: crosshair;
             }
 
@@ -1371,8 +1394,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         } else if (this._activeMode === MODES.PLACE_CONTROL) {
             this._handlePlaceControlClick(event);
         } else if (this._activeMode === MODES.CONNECT_LINE) {
-            // Phase 4: Handle line connection
-            lcardsLog.debug('[MSDStudio] Connect Line mode - Phase 4');
+            this._handleConnectLineClick(event);
         }
     }
 
@@ -2051,27 +2073,73 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderControlFormCardConfig() {
+        const cardType = this._controlFormCard?.type || '';
+        
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{ ui: {} }}
-                    .value=${this._controlFormCard}
-                    .label=${'Card Configuration'}
-                    @value-changed=${(e) => {
-                        this._controlFormCard = e.detail.value || { type: '' };
-                        this.requestUpdate();
-                    }}>
-                </ha-selector>
+                <!-- Card Type Picker -->
+                <lcards-form-section
+                    header="Card Type"
+                    description="Select the type of Home Assistant card to display"
+                    ?expanded=${true}>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: '', label: 'Select card type...' },
+                                    { value: 'button', label: 'Button Card' },
+                                    { value: 'entities', label: 'Entities Card' },
+                                    { value: 'entity', label: 'Entity Card' },
+                                    { value: 'glance', label: 'Glance Card' },
+                                    { value: 'light', label: 'Light Card' },
+                                    { value: 'custom:lcards-button', label: 'LCARdS Button' },
+                                    { value: 'custom:lcards-gauge', label: 'LCARdS Gauge' },
+                                    { value: 'custom:lcards-slider', label: 'LCARdS Slider' },
+                                    { value: 'custom:lcards-label', label: 'LCARdS Label' }
+                                ],
+                                mode: 'dropdown'
+                            }
+                        }}
+                        .value=${cardType}
+                        .label=${'Card Type'}
+                        @value-changed=${(e) => {
+                            const newType = e.detail.value;
+                            if (newType) {
+                                this._controlFormCard = { type: newType };
+                            } else {
+                                this._controlFormCard = { type: '' };
+                            }
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+                </lcards-form-section>
 
-                ${!this._controlFormCard?.type ? html`
+                <!-- Full Card Configuration Editor -->
+                ${cardType ? html`
+                    <lcards-form-section
+                        header="Card Configuration"
+                        description="Configure the card properties using HA's UI card editor"
+                        ?expanded=${true}>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ ui: {} }}
+                            .value=${this._controlFormCard}
+                            .label=${'Full Card Config'}
+                            @value-changed=${(e) => {
+                                this._controlFormCard = e.detail.value || { type: cardType };
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                    </lcards-form-section>
+                ` : html`
                     <lcards-message type="info">
-                        <strong>Select a card type to configure</strong>
+                        <strong>Select a card type above to configure</strong>
                         <p style="margin: 8px 0; font-size: 13px;">
-                            Use the selector above to choose which Home Assistant card to display at this position.
+                            Choose a card type from the dropdown, then configure its properties below.
                         </p>
                     </lcards-message>
-                ` : ''}
+                `}
             </div>
         `;
     }
@@ -2082,12 +2150,180 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderLinesTab() {
-        return this._renderPlaceholder(
-            'Line Overlays',
-            'Connect controls and anchors with lines. Configure routing modes (Manhattan, smart, bezier), line styles, and animations. Use the Connect Line mode to visually connect elements.',
-            'Phase 4',
-            'mdi:vector-line'
-        );
+        const lines = this._getLineOverlays();
+        const lineCount = lines.length;
+
+        return html`
+            <!-- Lines Management -->
+            <lcards-form-section
+                header="Line Overlays"
+                description="Connect controls and anchors with lines"
+                icon="mdi:vector-line"
+                ?expanded=${true}>
+
+                ${lineCount === 0 ? html`
+                    <lcards-message type="info">
+                        <strong>No line overlays defined yet.</strong>
+                        <p style="margin: 8px 0; font-size: 13px;">
+                            Line overlays connect anchors and controls on your MSD canvas.
+                            Click "Add Line" to create your first connection.
+                        </p>
+                    </lcards-message>
+                ` : html`
+                    <div class="line-list">
+                        ${lines.map(line => this._renderLineItem(line))}
+                    </div>
+                `}
+
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <ha-button @click=${this._openLineForm}>
+                        <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                        Add Line
+                    </ha-button>
+                    <ha-button @click=${() => this._setMode('connect_line')}>
+                        <ha-icon icon="mdi:vector-line" slot="icon"></ha-icon>
+                        Enter Connect Mode
+                    </ha-button>
+                </div>
+            </lcards-form-section>
+
+            ${this._renderLineHelp()}
+        `;
+    }
+
+    /**
+     * Get line overlays from config
+     * @returns {Array}
+     * @private
+     */
+    _getLineOverlays() {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        return overlays.filter(o => o.type === 'line');
+    }
+
+    /**
+     * Render single line item
+     * @param {Object} line - Line overlay config
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineItem(line) {
+        const id = line.id || 'unnamed';
+        const sourceStr = this._formatConnectionPoint(line.source || line.anchor);
+        const targetStr = this._formatConnectionPoint(line.target || line.attach_to);
+        const routingMode = line.routing?.mode || 'direct';
+        const strokeColor = line.style?.stroke || '#FF9900';
+        const strokeWidth = line.style?.stroke_width || 2;
+
+        return html`
+            <div class="line-item" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+                border: 1px solid var(--divider-color);
+                border-radius: 4px;
+                margin-bottom: 8px;
+            ">
+                <!-- Line Style Preview -->
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid var(--divider-color);
+                    border-radius: 4px;
+                    background: var(--card-background-color);
+                ">
+                    <svg width="30" height="20" style="overflow: visible;">
+                        <line
+                            x1="0" y1="10"
+                            x2="30" y2="10"
+                            stroke="${strokeColor}"
+                            stroke-width="${strokeWidth}"
+                            stroke-dasharray="${line.style?.stroke_dasharray || ''}">
+                        </line>
+                    </svg>
+                </div>
+
+                <!-- Line Info -->
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        ${id}
+                        <span style="
+                            font-size: 10px;
+                            padding: 2px 6px;
+                            background: var(--primary-color);
+                            color: var(--text-primary-color);
+                            border-radius: 3px;
+                            font-weight: 500;
+                        ">${routingMode}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                        ${sourceStr} → ${targetStr}
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 4px;">
+                    <ha-icon-button
+                        icon="mdi:pencil"
+                        @click=${() => this._editLine(line)}
+                        title="Edit line">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:eye"
+                        @click=${() => this._highlightLineInPreview(line)}
+                        title="Highlight in preview">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:delete"
+                        @click=${() => this._deleteLine(line)}
+                        title="Delete line">
+                    </ha-icon-button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Format connection point for display
+     * @param {string|Object} point - Connection point (anchor name, control ref, or coords)
+     * @returns {string}
+     * @private
+     */
+    _formatConnectionPoint(point) {
+        if (!point) return 'not set';
+        if (typeof point === 'string') return point;
+        if (point.type === 'anchor') return `anchor:${point.id}`;
+        if (point.type === 'control') {
+            const attachPoint = point.point ? `@${point.point}` : '';
+            return `control:${point.id}${attachPoint}`;
+        }
+        if (point.type === 'coords' && Array.isArray(point.position)) {
+            return `[${point.position[0]}, ${point.position[1]}]`;
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Render line help documentation
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineHelp() {
+        return html`
+            <lcards-message type="info" style="margin-top: 16px;">
+                <strong>About Line Overlays:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                    <li>Lines connect anchors and controls to show relationships or data flow</li>
+                    <li>Use "Enter Connect Mode" to click source → target for easy line creation</li>
+                    <li>Routing modes: direct (straight), manhattan (90° angles), bezier (curved), etc.</li>
+                    <li>Customize line style: color, width, dash pattern, markers, animations</li>
+                </ul>
+            </lcards-message>
+        `;
     }
 
     /**
@@ -2116,6 +2352,670 @@ export class LCARdSMSDStudioDialog extends LitElement {
             'Phase 6',
             'mdi:bug'
         );
+    }
+
+    // ============================
+    // Lines Tab Methods (Phase 4)
+    // ============================
+
+    /**
+     * Open line form for creating new line
+     * @private
+     */
+    _openLineForm() {
+        // Generate new line ID
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let lineNum = overlays.filter(o => o.type === 'line').length + 1;
+        let lineId = `line_${lineNum}`;
+        while (overlays.find(o => o.id === lineId)) {
+            lineNum++;
+            lineId = `line_${lineNum}`;
+        }
+
+        this._editingLineId = null;
+        this._lineFormId = lineId;
+        this._lineFormSource = { type: 'anchor', id: '', point: null, gap: 0 };
+        this._lineFormTarget = { type: 'anchor', id: '', point: null, gap: 0 };
+        this._lineFormRouting = { mode: 'direct', avoid_obstacles: false, channel: '' };
+        this._lineFormStyle = { stroke: '#FF9900', stroke_width: 2, stroke_dasharray: '', marker_end: 'none' };
+        this._lineFormAnimation = { preset: 'none', speed: 1 };
+        this._lineFormActiveSubtab = 'connection';
+        this._showLineForm = true;
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Edit existing line
+     * @param {Object} line - Line to edit
+     * @private
+     */
+    _editLine(line) {
+        this._editingLineId = line.id;
+        this._lineFormId = line.id;
+        
+        // Parse source
+        this._lineFormSource = this._parseConnectionPoint(line.source || line.anchor || '');
+        
+        // Parse target
+        this._lineFormTarget = this._parseConnectionPoint(line.target || line.attach_to || '');
+        
+        // Parse routing
+        this._lineFormRouting = {
+            mode: line.routing?.mode || 'direct',
+            avoid_obstacles: line.routing?.avoid_obstacles || false,
+            channel: line.routing?.channel || ''
+        };
+        
+        // Parse style
+        this._lineFormStyle = {
+            stroke: line.style?.stroke || '#FF9900',
+            stroke_width: line.style?.stroke_width || 2,
+            stroke_dasharray: line.style?.stroke_dasharray || '',
+            marker_end: line.style?.marker_end || 'none'
+        };
+        
+        // Parse animation
+        this._lineFormAnimation = {
+            preset: line.animation?.preset || 'none',
+            speed: line.animation?.speed || 1
+        };
+        
+        this._lineFormActiveSubtab = 'connection';
+        this._showLineForm = true;
+        this.requestUpdate();
+    }
+
+    /**
+     * Parse connection point from config
+     * @param {string|Object} point - Connection point
+     * @returns {Object}
+     * @private
+     */
+    _parseConnectionPoint(point) {
+        if (!point) return { type: 'anchor', id: '', point: null, gap: 0 };
+        
+        // If it's already an object (new format)
+        if (typeof point === 'object') {
+            return {
+                type: point.type || 'anchor',
+                id: point.id || '',
+                point: point.point || null,
+                gap: point.gap || 0
+            };
+        }
+        
+        // If it's a string (legacy format - anchor name)
+        return { type: 'anchor', id: point, point: null, gap: 0 };
+    }
+
+    /**
+     * Save line form
+     * @private
+     */
+    _saveLine() {
+        if (!this._lineFormId) {
+            lcardsLog.warn('[MSDStudio] Cannot save line without ID');
+            return;
+        }
+
+        // Build line overlay object
+        const lineOverlay = {
+            type: 'line',
+            id: this._lineFormId,
+            source: this._lineFormSource,
+            target: this._lineFormTarget,
+            routing: this._lineFormRouting,
+            style: this._lineFormStyle,
+            animation: this._lineFormAnimation
+        };
+
+        // Ensure overlays array exists
+        if (!this._workingConfig.msd) {
+            this._workingConfig.msd = {};
+        }
+        if (!this._workingConfig.msd.overlays) {
+            this._workingConfig.msd.overlays = [];
+        }
+
+        // Update or add
+        const existingIndex = this._workingConfig.msd.overlays.findIndex(o => o.id === this._lineFormId);
+        if (existingIndex >= 0) {
+            this._workingConfig.msd.overlays[existingIndex] = lineOverlay;
+            lcardsLog.info('[MSDStudio] Updated line:', this._lineFormId);
+        } else {
+            this._workingConfig.msd.overlays.push(lineOverlay);
+            lcardsLog.info('[MSDStudio] Added line:', this._lineFormId);
+        }
+
+        this._closeLineForm();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Close line form dialog
+     * @private
+     */
+    _closeLineForm() {
+        this._showLineForm = false;
+        this._editingLineId = null;
+        this.requestUpdate();
+    }
+
+    /**
+     * Delete line overlay
+     * @param {Object} line - Line to delete
+     * @private
+     */
+    _deleteLine(line) {
+        if (!confirm(`Delete line "${line.id}"?`)) {
+            return;
+        }
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const index = overlays.findIndex(o => o.id === line.id);
+        if (index >= 0) {
+            overlays.splice(index, 1);
+            lcardsLog.info('[MSDStudio] Deleted line:', line.id);
+            this.requestUpdate();
+            this._schedulePreviewUpdate();
+        }
+    }
+
+    /**
+     * Highlight line in preview (temporary visual feedback)
+     * @param {Object} line - Line to highlight
+     * @private
+     */
+    _highlightLineInPreview(line) {
+        // TODO: Implement highlight via preview component
+        lcardsLog.info('[MSDStudio] Highlight line:', line.id);
+        // This would need to communicate with the preview component
+        // For now, just log
+    }
+
+    /**
+     * Open line form with pre-filled connection from connect mode
+     * @param {Object} source - Source connection point
+     * @param {Object} target - Target connection point
+     * @private
+     */
+    _openLineFormWithConnection(source, target) {
+        this._openLineForm();
+        this._lineFormSource = source;
+        this._lineFormTarget = target;
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle preview click in connect_line mode
+     * @param {Event} e - Click event
+     * @private
+     */
+    _handleConnectLineClick(e) {
+        // Get clicked element info from event
+        const clickedElement = e.target.closest('[data-connection-type]');
+        if (!clickedElement) {
+            lcardsLog.debug('[MSDStudio] Connect line click on non-connection element');
+            return;
+        }
+
+        const connectionInfo = {
+            type: clickedElement.dataset.connectionType, // 'anchor' or 'control'
+            id: clickedElement.dataset.connectionId,
+            point: clickedElement.dataset.connectionPoint || null,
+            gap: 0
+        };
+
+        if (!this._connectLineState.source) {
+            // First click - set source
+            this._connectLineState.source = connectionInfo;
+            lcardsLog.info('[MSDStudio] Connect line source set:', connectionInfo);
+            // TODO: Create temp line that follows cursor
+            this.requestUpdate();
+        } else {
+            // Second click - set target and open form
+            lcardsLog.info('[MSDStudio] Connect line target set:', connectionInfo);
+            this._openLineFormWithConnection(this._connectLineState.source, connectionInfo);
+            this._clearConnectLineState();
+        }
+    }
+
+    /**
+     * Clear connect line state
+     * @private
+     */
+    _clearConnectLineState() {
+        this._connectLineState = { source: null, tempLineElement: null };
+        this.requestUpdate();
+    }
+
+    /**
+     * Render line form dialog (Phase 4)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineFormDialog() {
+        const isEditing = !!this._editingLineId;
+        const title = isEditing ? `Edit Line: ${this._lineFormId}` : 'Add Line';
+
+        return html`
+            <ha-dialog
+                open
+                @closed=${this._closeLineForm}
+                .heading=${title}>
+                
+                <!-- Subtabs -->
+                <div style="display: flex; gap: 8px; padding: 0 24px; border-bottom: 1px solid var(--divider-color);">
+                    <button
+                        class="tab-button ${this._lineFormActiveSubtab === 'connection' ? 'active' : ''}"
+                        @click=${() => { this._lineFormActiveSubtab = 'connection'; this.requestUpdate(); }}
+                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'connection' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                        Connection & Routing
+                    </button>
+                    <button
+                        class="tab-button ${this._lineFormActiveSubtab === 'style' ? 'active' : ''}"
+                        @click=${() => { this._lineFormActiveSubtab = 'style'; this.requestUpdate(); }}
+                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'style' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                        Style & Animation
+                    </button>
+                </div>
+
+                <!-- Subtab Content -->
+                <div style="padding: 16px; max-height: 60vh; overflow-y: auto;">
+                    ${this._lineFormActiveSubtab === 'connection' 
+                        ? this._renderLineFormConnection() 
+                        : this._renderLineFormStyle()
+                    }
+                </div>
+
+                <div slot="primaryAction">
+                    <ha-button @click=${this._saveLine}>
+                        <ha-icon icon="mdi:content-save" slot="icon"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
+
+                <div slot="secondaryAction">
+                    <ha-button @click=${this._closeLineForm}>
+                        <ha-icon icon="mdi:close" slot="icon"></ha-icon>
+                        Cancel
+                    </ha-button>
+                </div>
+            </ha-dialog>
+        `;
+    }
+
+    /**
+     * Render Connection & Routing subtab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineFormConnection() {
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const controls = this._getControlOverlays();
+
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <ha-textfield
+                    label="Line ID"
+                    .value=${this._lineFormId}
+                    ?disabled=${!!this._editingLineId}
+                    @input=${(e) => this._lineFormId = e.target.value}
+                    required
+                    helper-text="Unique identifier for this line">
+                </ha-textfield>
+
+                <!-- Source Selection -->
+                ${this._renderConnectionPointSelector('Source', this._lineFormSource, (value) => {
+                    this._lineFormSource = value;
+                    this.requestUpdate();
+                }, anchors, controls)}
+
+                <!-- Target Selection -->
+                ${this._renderConnectionPointSelector('Target', this._lineFormTarget, (value) => {
+                    this._lineFormTarget = value;
+                    this.requestUpdate();
+                }, anchors, controls)}
+
+                <!-- Routing Configuration -->
+                <lcards-form-section
+                    header="Routing"
+                    description="Configure how the line is drawn between points"
+                    ?expanded=${true}>
+                    
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'direct', label: 'Direct (straight line)' },
+                                    { value: 'manhattan', label: 'Manhattan (90° angles)' },
+                                    { value: 'orthogonal', label: 'Orthogonal (right angles)' },
+                                    { value: 'bezier', label: 'Bezier (curved)' },
+                                    { value: 'smart', label: 'Smart (auto-route)' },
+                                    { value: 'grid', label: 'Grid-aligned' }
+                                ]
+                            }
+                        }}
+                        .value=${this._lineFormRouting.mode}
+                        .label=${'Routing Mode'}
+                        @value-changed=${(e) => {
+                            this._lineFormRouting = { ...this._lineFormRouting, mode: e.detail.value };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    <ha-formfield label="Avoid Obstacles" style="margin-top: 12px;">
+                        <ha-switch
+                            ?checked=${this._lineFormRouting.avoid_obstacles}
+                            @change=${(e) => {
+                                this._lineFormRouting = { ...this._lineFormRouting, avoid_obstacles: e.target.checked };
+                                this.requestUpdate();
+                            }}>
+                        </ha-switch>
+                    </ha-formfield>
+
+                    <ha-textfield
+                        label="Channel (optional)"
+                        .value=${this._lineFormRouting.channel || ''}
+                        @input=${(e) => {
+                            this._lineFormRouting = { ...this._lineFormRouting, channel: e.target.value };
+                            this.requestUpdate();
+                        }}
+                        helper-text="Assign to a routing channel"
+                        style="margin-top: 12px; width: 100%;">
+                    </ha-textfield>
+                </lcards-form-section>
+
+                <!-- Enter Connect Mode Button -->
+                <ha-button @click=${() => {
+                    this._closeLineForm();
+                    this._setMode('connect_line');
+                }}>
+                    <ha-icon icon="mdi:vector-line" slot="icon"></ha-icon>
+                    Enter Connect Mode
+                </ha-button>
+            </div>
+        `;
+    }
+
+    /**
+     * Render connection point selector
+     * @param {string} label - Label for the selector
+     * @param {Object} value - Current value
+     * @param {Function} onChange - Change handler
+     * @param {Object} anchors - Available anchors
+     * @param {Array} controls - Available controls
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConnectionPointSelector(label, value, onChange, anchors, controls) {
+        const anchorOptions = Object.keys(anchors).map(name => ({ value: name, label: name }));
+        const controlOptions = controls.map(c => ({ value: c.id, label: c.id }));
+
+        return html`
+            <lcards-form-section
+                header="${label} Point"
+                description="Select where the line ${label.toLowerCase()} connects"
+                ?expanded=${true}>
+                
+                <!-- Connection Type -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{
+                        select: {
+                            options: [
+                                { value: 'anchor', label: 'Named Anchor' },
+                                { value: 'control', label: 'Control Overlay' },
+                                { value: 'coords', label: 'Coordinates' }
+                            ]
+                        }
+                    }}
+                    .value=${value.type}
+                    .label=${'Connection Type'}
+                    @value-changed=${(e) => {
+                        onChange({ ...value, type: e.detail.value, id: '', point: null });
+                    }}>
+                </ha-selector>
+
+                <!-- Anchor Selection -->
+                ${value.type === 'anchor' ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: anchorOptions
+                            }
+                        }}
+                        .value=${value.id}
+                        .label=${'Anchor'}
+                        @value-changed=${(e) => {
+                            onChange({ ...value, id: e.detail.value });
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+                ` : ''}
+
+                <!-- Control Selection -->
+                ${value.type === 'control' ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: controlOptions
+                            }
+                        }}
+                        .value=${value.id}
+                        .label=${'Control'}
+                        @value-changed=${(e) => {
+                            onChange({ ...value, id: e.detail.value });
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+
+                    <!-- Attachment Point (9-point selector) -->
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'top-left', label: 'Top Left' },
+                                    { value: 'top', label: 'Top Center' },
+                                    { value: 'top-right', label: 'Top Right' },
+                                    { value: 'left', label: 'Middle Left' },
+                                    { value: 'center', label: 'Center' },
+                                    { value: 'right', label: 'Middle Right' },
+                                    { value: 'bottom-left', label: 'Bottom Left' },
+                                    { value: 'bottom', label: 'Bottom Center' },
+                                    { value: 'bottom-right', label: 'Bottom Right' }
+                                ]
+                            }
+                        }}
+                        .value=${value.point || 'center'}
+                        .label=${'Attachment Point'}
+                        @value-changed=${(e) => {
+                            onChange({ ...value, point: e.detail.value });
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+                ` : ''}
+
+                <!-- Coordinates Input -->
+                ${value.type === 'coords' ? html`
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <ha-textfield
+                            type="number"
+                            label="X"
+                            .value=${String((value.position && value.position[0]) || 0)}
+                            @input=${(e) => {
+                                const pos = value.position || [0, 0];
+                                onChange({ ...value, position: [Number(e.target.value), pos[1]] });
+                            }}>
+                        </ha-textfield>
+                        <ha-textfield
+                            type="number"
+                            label="Y"
+                            .value=${String((value.position && value.position[1]) || 0)}
+                            @input=${(e) => {
+                                const pos = value.position || [0, 0];
+                                onChange({ ...value, position: [pos[0], Number(e.target.value)] });
+                            }}>
+                        </ha-textfield>
+                    </div>
+                ` : ''}
+
+                <!-- Gap Input -->
+                <ha-textfield
+                    type="number"
+                    label="Gap (pixels)"
+                    .value=${String(value.gap || 0)}
+                    @input=${(e) => {
+                        onChange({ ...value, gap: Number(e.target.value) });
+                    }}
+                    helper-text="Distance from connection point"
+                    style="margin-top: 12px; width: 100%;">
+                </ha-textfield>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render Style & Animation subtab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineFormStyle() {
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Style Section -->
+                <lcards-form-section
+                    header="Line Style"
+                    description="Configure the visual appearance of the line"
+                    ?expanded=${true}>
+                    
+                    <ha-textfield
+                        type="color"
+                        label="Color"
+                        .value=${this._lineFormStyle.stroke}
+                        @input=${(e) => {
+                            this._lineFormStyle = { ...this._lineFormStyle, stroke: e.target.value };
+                            this.requestUpdate();
+                        }}
+                        style="width: 100%;">
+                    </ha-textfield>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            number: {
+                                min: 1,
+                                max: 10,
+                                step: 0.5,
+                                mode: 'slider'
+                            }
+                        }}
+                        .value=${this._lineFormStyle.stroke_width}
+                        .label=${'Stroke Width'}
+                        @value-changed=${(e) => {
+                            this._lineFormStyle = { ...this._lineFormStyle, stroke_width: e.detail.value };
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: '', label: 'Solid' },
+                                    { value: '5,5', label: 'Dashed' },
+                                    { value: '2,2', label: 'Dotted' },
+                                    { value: '10,5,2,5', label: 'Dash-Dot' }
+                                ]
+                            }
+                        }}
+                        .value=${this._lineFormStyle.stroke_dasharray || ''}
+                        .label=${'Line Style'}
+                        @value-changed=${(e) => {
+                            this._lineFormStyle = { ...this._lineFormStyle, stroke_dasharray: e.detail.value };
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'none', label: 'None' },
+                                    { value: 'arrow', label: 'Arrow at End' },
+                                    { value: 'arrow-start', label: 'Arrow at Start' },
+                                    { value: 'arrow-both', label: 'Arrows at Both Ends' }
+                                ]
+                            }
+                        }}
+                        .value=${this._lineFormStyle.marker_end || 'none'}
+                        .label=${'Markers'}
+                        @value-changed=${(e) => {
+                            this._lineFormStyle = { ...this._lineFormStyle, marker_end: e.detail.value };
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+                </lcards-form-section>
+
+                <!-- Animation Section -->
+                <lcards-form-section
+                    header="Animation"
+                    description="Add motion effects to the line"
+                    ?expanded=${false}>
+                    
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'none', label: 'None' },
+                                    { value: 'data_flow', label: 'Data Flow' },
+                                    { value: 'pulse', label: 'Pulse' },
+                                    { value: 'glow', label: 'Glow' }
+                                ]
+                            }
+                        }}
+                        .value=${this._lineFormAnimation.preset}
+                        .label=${'Animation Preset'}
+                        @value-changed=${(e) => {
+                            this._lineFormAnimation = { ...this._lineFormAnimation, preset: e.detail.value };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    ${this._lineFormAnimation.preset !== 'none' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                number: {
+                                    min: 0.1,
+                                    max: 5,
+                                    step: 0.1,
+                                    mode: 'slider'
+                                }
+                            }}
+                            .value=${this._lineFormAnimation.speed}
+                            .label=${'Speed'}
+                            @value-changed=${(e) => {
+                                this._lineFormAnimation = { ...this._lineFormAnimation, speed: e.detail.value };
+                                this.requestUpdate();
+                            }}
+                            style="margin-top: 12px;">
+                        </ha-selector>
+                    ` : ''}
+                </lcards-form-section>
+            </div>
+        `;
     }
 
     /**
@@ -2178,6 +3078,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             <!-- Control Form Dialog (Phase 3) -->
             ${this._showControlForm ? this._renderControlFormDialog() : ''}
+
+            <!-- Line Form Dialog (Phase 4) -->
+            ${this._showLineForm ? this._renderLineFormDialog() : ''}
         `;
     }
 }
