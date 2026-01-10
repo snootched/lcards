@@ -1,0 +1,339 @@
+/**
+ * LCARdS MSD Live Preview
+ * 
+ * Renders a live preview of the MSD card with current configuration.
+ * Updates automatically when config changes (debounced 300ms).
+ * Integrates with MSD debug system for editor-specific visualizations.
+ * 
+ * @element lcards-msd-live-preview
+ * 
+ * @property {Object} hass - Home Assistant instance
+ * @property {Object} config - Current MSD card configuration
+ * @property {Object} debugSettings - Debug visualization settings
+ * @property {Boolean} showRefreshButton - Show manual refresh button (default: true)
+ * 
+ * @example
+ * <lcards-msd-live-preview
+ *   .hass=${this.hass}
+ *   .config=${this._workingConfig}
+ *   .debugSettings=${{ anchors: true, bounding_boxes: true }}
+ *   .showRefreshButton=${true}>
+ * </lcards-msd-live-preview>
+ */
+
+import { LitElement, html, css } from 'lit';
+import { lcardsLog } from '../../utils/lcards-logging.js';
+import '../../cards/lcards-msd.js';  // Import the MSD card component
+
+export class LCARdSMSDLivePreview extends LitElement {
+
+    static properties = {
+        hass: { type: Object },
+        config: { type: Object },
+        debugSettings: { type: Object },
+        showRefreshButton: { type: Boolean },
+        _renderKey: { type: Number, state: true },
+        _debounceTimer: { state: true }
+    };
+
+    constructor() {
+        super();
+        this.hass = null;
+        this.config = null;
+        this.debugSettings = {};
+        this.showRefreshButton = true;
+        this._renderKey = 0;
+        this._debounceTimer = null;
+    }
+
+    static get styles() {
+        return css`
+            :host {
+                display: block;
+                height: 100%;
+            }
+
+            .preview-container {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                background: var(--secondary-background-color, #fafafa);
+                border: 2px solid var(--divider-color, #e0e0e0);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            .preview-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background: var(--card-background-color, white);
+                border-bottom: 2px solid var(--divider-color, #e0e0e0);
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .preview-title {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .preview-card-container {
+                flex: 1;
+                padding: 16px;
+                overflow: auto;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--primary-background-color, #fafafa);
+            }
+
+            lcards-msd {
+                max-width: 100%;
+                max-height: 100%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border-radius: 4px;
+            }
+
+            .preview-footer {
+                padding: 8px 16px;
+                background: var(--card-background-color, white);
+                border-top: 1px solid var(--divider-color, #e0e0e0);
+                font-size: 12px;
+                color: var(--secondary-text-color, #727272);
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .preview-empty {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 48px 24px;
+                color: var(--disabled-text-color, #9e9e9e);
+                text-align: center;
+                height: 100%;
+            }
+
+            .preview-empty ha-icon {
+                --mdc-icon-size: 64px;
+                margin-bottom: 16px;
+            }
+
+            .empty-message {
+                font-size: 16px;
+                font-weight: 500;
+                margin: 0 0 8px 0;
+            }
+
+            .empty-helper {
+                font-size: 14px;
+                margin: 0;
+            }
+
+            .preview-error {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 48px 24px;
+                color: var(--error-color, #ff0000);
+                text-align: center;
+                height: 100%;
+            }
+
+            .preview-error ha-icon {
+                --mdc-icon-size: 64px;
+                margin-bottom: 16px;
+            }
+
+            .error-message {
+                font-size: 16px;
+                font-weight: 500;
+                margin: 0 0 8px 0;
+            }
+
+            .error-details {
+                font-size: 14px;
+                margin: 0;
+                font-family: monospace;
+            }
+        `;
+    }
+
+    /**
+     * Lifecycle: Property changed
+     * Schedule preview update on config change
+     */
+    updated(changedProps) {
+        if (changedProps.has('config') || changedProps.has('debugSettings')) {
+            this._schedulePreviewUpdate();
+        }
+    }
+
+    /**
+     * Schedule debounced preview update (300ms)
+     * @private
+     */
+    _schedulePreviewUpdate() {
+        if (this._debounceTimer) {
+            clearTimeout(this._debounceTimer);
+        }
+
+        this._debounceTimer = setTimeout(() => {
+            this._renderKey++;
+            this._debounceTimer = null;
+            lcardsLog.debug('[MSDLivePreview] Preview updated (debounced)');
+        }, 300);
+    }
+
+    /**
+     * Force immediate preview refresh
+     * @private
+     */
+    _forceRefresh() {
+        if (this._debounceTimer) {
+            clearTimeout(this._debounceTimer);
+            this._debounceTimer = null;
+        }
+        this._renderKey++;
+        lcardsLog.debug('[MSDLivePreview] Preview refreshed (manual)');
+    }
+
+    /**
+     * Get preview config with debug settings merged
+     * @returns {Object} MSD card config with debug overlay
+     * @private
+     */
+    _getPreviewConfig() {
+        const previewConfig = JSON.parse(JSON.stringify(this.config || {}));
+
+        // Ensure MSD config structure exists
+        if (!previewConfig.msd) {
+            previewConfig.msd = {};
+        }
+
+        // Merge debug settings into MSD config
+        if (this.debugSettings && Object.keys(this.debugSettings).length > 0) {
+            if (!previewConfig.msd.debug) {
+                previewConfig.msd.debug = {};
+            }
+            
+            // Merge debug settings
+            Object.assign(previewConfig.msd.debug, this.debugSettings);
+        }
+
+        return previewConfig;
+    }
+
+    /**
+     * Check if config has base SVG configured
+     * @returns {boolean}
+     * @private
+     */
+    _hasBaseSvg() {
+        return !!(this.config?.msd?.base_svg);
+    }
+
+    /**
+     * Render preview content
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderPreview() {
+        if (!this.config || !this._hasBaseSvg()) {
+            return this._renderEmptyState();
+        }
+
+        try {
+            const previewConfig = this._getPreviewConfig();
+            
+            return html`
+                <lcards-msd
+                    .hass=${this.hass}
+                    .config=${previewConfig}
+                    key=${this._renderKey}>
+                </lcards-msd>
+            `;
+        } catch (error) {
+            lcardsLog.error('[MSDLivePreview] Error rendering preview:', error);
+            return this._renderErrorState(error);
+        }
+    }
+
+    /**
+     * Render empty state (no base SVG configured)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderEmptyState() {
+        return html`
+            <div class="preview-empty">
+                <ha-icon icon="mdi:image-off"></ha-icon>
+                <p class="empty-message">No base SVG configured</p>
+                <p class="empty-helper">
+                    Configure a base SVG in the "Base SVG" tab to see the preview
+                </p>
+            </div>
+        `;
+    }
+
+    /**
+     * Render error state
+     * @param {Error} error - Error object
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderErrorState(error) {
+        return html`
+            <div class="preview-error">
+                <ha-icon icon="mdi:alert-circle"></ha-icon>
+                <p class="error-message">Preview Error</p>
+                <p class="error-details">${error.message}</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Render component
+     */
+    render() {
+        return html`
+            <div class="preview-container">
+                <!-- Header -->
+                <div class="preview-header">
+                    <div class="preview-title">
+                        <ha-icon icon="mdi:eye"></ha-icon>
+                        <span>Live Preview</span>
+                    </div>
+                    ${this.showRefreshButton ? html`
+                        <ha-icon-button
+                            @click=${this._forceRefresh}
+                            title="Refresh preview">
+                            <ha-icon icon="mdi:refresh"></ha-icon>
+                        </ha-icon-button>
+                    ` : ''}
+                </div>
+
+                <!-- Preview Card -->
+                <div class="preview-card-container">
+                    ${this._renderPreview()}
+                </div>
+
+                <!-- Footer -->
+                <div class="preview-footer">
+                    <ha-icon icon="mdi:information"></ha-icon>
+                    <span>Preview updates automatically (300ms debounce)</span>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Register the custom element
+customElements.define('lcards-msd-live-preview', LCARdSMSDLivePreview);

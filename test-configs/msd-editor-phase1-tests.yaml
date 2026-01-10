@@ -1,0 +1,279 @@
+# MSD Editor Phase 1 - Test Configurations
+
+## Test Config 1: Basic MSD with Builtin SVG
+
+```yaml
+type: custom:lcards-msd
+id: test_msd_basic
+name: Basic MSD Test
+msd:
+  base_svg:
+    builtin: ncc-1701-a
+  view_box: [0, 0, 1920, 1200]
+  anchors:
+    warp_core: [960, 600]
+    bridge: [960, 200]
+    engineering: [500, 800]
+    sickbay: [1400, 800]
+  overlays:
+    - id: warp_status
+      type: control
+      position: [100, 100]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: sensor.time
+        name: Warp Core
+```
+
+**Purpose**: Test basic editor loading with minimal config
+**Expected**: Editor opens, metadata shows 1 control, 0 lines, 4 anchors
+
+---
+
+## Test Config 2: MSD with Controls and Lines
+
+```yaml
+type: custom:lcards-msd
+id: test_msd_complex
+name: Complex MSD Test
+msd:
+  base_svg:
+    builtin: ncc-1701-a
+  view_box: [0, 0, 1920, 1200]
+  anchors:
+    warp_core: [960, 600]
+    bridge: [960, 200]
+    engineering: [500, 800]
+    sickbay: [1400, 800]
+    transporter: [1200, 400]
+  overlays:
+    # Control Overlays
+    - id: warp_status
+      type: control
+      position: [100, 100]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: sensor.time
+        name: Warp Core
+        
+    - id: bridge_status
+      type: control
+      position: [800, 50]
+      size: [180, 50]
+      card:
+        type: custom:lcards-button
+        entity: sensor.date
+        name: Bridge
+        
+    - id: engineering_status
+      type: control
+      position: [400, 750]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: binary_sensor.workday_sensor
+        name: Engineering
+        
+    # Line Overlays
+    - id: warp_to_bridge
+      type: line
+      source:
+        anchor: warp_core
+      target:
+        overlay: bridge_status
+        attachment: bottom
+      style:
+        stroke: cyan
+        stroke_width: 2
+        
+    - id: bridge_to_engineering
+      type: line
+      source:
+        overlay: bridge_status
+        attachment: bottom-left
+      target:
+        anchor: engineering
+      style:
+        stroke: orange
+        stroke_width: 2
+```
+
+**Purpose**: Test editor with multiple overlays
+**Expected**: Metadata shows 3 controls, 2 lines, 5 anchors
+
+---
+
+## Test Config 3: Empty MSD (No Base SVG)
+
+```yaml
+type: custom:lcards-msd
+id: test_msd_empty
+name: Empty MSD Test
+msd: {}
+```
+
+**Purpose**: Test empty state in preview
+**Expected**: Preview shows "No base SVG configured" message
+
+---
+
+## Test Config 4: MSD with Debug Enabled
+
+```yaml
+type: custom:lcards-msd
+id: test_msd_debug
+name: MSD Debug Test
+msd:
+  base_svg:
+    builtin: ncc-1701-a
+  view_box: [0, 0, 1920, 1200]
+  debug:
+    enabled: true
+    anchors: true
+    bounding_boxes: true
+    line_paths: true
+  anchors:
+    warp_core: [960, 600]
+    bridge: [960, 200]
+  overlays:
+    - id: warp_status
+      type: control
+      position: [100, 100]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: sensor.time
+        name: Warp Core
+    - id: warp_line
+      type: line
+      source:
+        anchor: warp_core
+      target:
+        overlay: warp_status
+        attachment: right
+      style:
+        stroke: cyan
+        stroke_width: 2
+```
+
+**Purpose**: Test debug visualization in preview
+**Expected**: Preview shows debug overlays (anchor markers, bounding boxes)
+
+---
+
+## Test Config 5: MSD with Routing Channels (Phase 5 Preview)
+
+```yaml
+type: custom:lcards-msd
+id: test_msd_channels
+name: MSD Channels Test
+msd:
+  base_svg:
+    builtin: ncc-1701-a
+  view_box: [0, 0, 1920, 1200]
+  anchors:
+    warp_core: [960, 600]
+    bridge: [960, 200]
+  routing_channels:
+    - id: primary_corridor
+      type: bundling
+      bounds: [800, 300, 400, 100]
+      priority: 1
+    - id: avoid_zone
+      type: avoiding
+      bounds: [600, 500, 200, 150]
+      priority: 2
+  overlays:
+    - id: warp_status
+      type: control
+      position: [100, 100]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: sensor.time
+        name: Warp Core
+```
+
+**Purpose**: Test with routing channels (for future Phase 5)
+**Expected**: Editor loads, preview renders (channels not visualized yet)
+
+---
+
+## Installation Instructions
+
+1. **Copy test config to clipboard**
+2. **In Home Assistant:**
+   - Open dashboard in edit mode
+   - Add new card → Manual card
+   - Paste YAML
+   - Save
+3. **Edit the card** to open visual editor
+4. **Click "Open Configuration Studio"**
+
+## Testing Workflow
+
+For each test config:
+
+1. ✅ Editor opens successfully
+2. ✅ Metadata summary shows correct counts
+3. ✅ Studio dialog opens on button click
+4. ✅ Preview renders (or shows empty state)
+5. ✅ Mode toolbar functional
+6. ✅ Tab navigation works
+7. ✅ Save/Cancel/Reset buttons work
+8. ✅ No console errors
+
+## Troubleshooting
+
+### Editor doesn't appear
+- Check browser console for errors
+- Verify `lcards.js` is loaded (Network tab)
+- Clear browser cache and hard refresh
+
+### Studio doesn't open
+- Check console for "MSDStudio" errors
+- Verify `lcards-msd-studio-dialog.js` imported
+- Check if dialog element appended to body
+
+### Preview shows error
+- Verify MSD card works standalone (outside editor)
+- Check if base_svg path/builtin is valid
+- Verify HASS object available
+
+### Styles look wrong
+- Verify CSS custom properties available
+- Check if editor-styles.js loaded
+- Test in different HA themes
+
+## Expected Console Logs
+
+When opening studio, you should see:
+```
+[LCARdSMSDEditor] Opening MSD Configuration Studio
+[MSDStudio] Initialized
+[MSDStudio] Opened with config: {...}
+[MSDLivePreview] Preview updated (debounced)
+```
+
+When switching modes:
+```
+[MSDStudio] Mode changed: place_anchor
+```
+
+When switching tabs:
+```
+[MSDStudio] Tab changed: controls
+```
+
+## Next Steps
+
+After Phase 1 testing complete:
+- **Phase 2**: Base SVG configuration and anchor management
+- **Phase 3**: Control overlay CRUD operations
+- **Phase 4**: Line overlay connection workflow
+- **Phase 5**: Routing channel drawing
+- **Phase 6**: Debug visualization controls
+
+Happy testing! 🎉
