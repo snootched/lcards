@@ -101,10 +101,10 @@ export class MsdDebugRenderer {
     // REDUCED: Only log when actually rendering features
     lcardsLog.debug('[MsdDebugRenderer] 🔍 Rendering debug features', debugState);
 
-    // Render grid if enabled (Phase 2)
+    // Render grid if enabled (Phase 3)
     if (opts.grid || debugState.grid) {
       this.renderCoordinateGrid(viewBox, {
-        spacing: opts.gridSpacing || debugState.gridSpacing || 50,
+        spacing: opts.gridSpacing || opts.grid_spacing || debugState.grid_spacing || debugState.gridSpacing || 50,
         showLabels: true
       });
     }

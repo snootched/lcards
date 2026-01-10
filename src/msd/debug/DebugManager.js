@@ -13,6 +13,8 @@ export class DebugManager {
       bounding_boxes: false,
       routing: false,
       performance: false,
+      grid: false,
+      grid_spacing: 50,
       scale: 1.0
     };
 
@@ -144,6 +146,22 @@ export class DebugManager {
   }
 
   /**
+   * Set grid spacing
+   * @param {number} spacing - Grid spacing in pixels (default 50)
+   */
+  setGridSpacing(spacing) {
+    const action = () => {
+      const newSpacing = Math.max(5, Math.min(200, Number(spacing) || 50));
+      if (newSpacing !== this.state.grid_spacing) {
+        this.state.grid_spacing = newSpacing;
+        this._scheduleNotification('grid_spacing', { spacing: newSpacing });
+      }
+    };
+
+    this._executeWhenReady(action, false); // Grid spacing doesn't need router
+  }
+
+  /**
    * Get current debug state snapshot (silent - no console output)
    * @returns {Object} Current state
    */
@@ -171,7 +189,7 @@ export class DebugManager {
    * @returns {boolean} True if any feature enabled
    */
   isAnyEnabled() {
-    return ['anchors', 'bounding_boxes', 'routing', 'performance']
+    return ['anchors', 'bounding_boxes', 'routing', 'performance', 'grid']
       .some(feature => this.state[feature]);
   }
 
@@ -281,7 +299,7 @@ export class DebugManager {
    * @private
    */
   _setFeature(feature, enabled) {
-    if (!this.state.hasOwnProperty(feature) || feature === 'scale') {
+    if (!this.state.hasOwnProperty(feature) || feature === 'scale' || feature === 'grid_spacing') {
       lcardsLog.warn(`[DebugManager] ⚠️ Invalid debug feature: ${feature}`);
       return;
     }

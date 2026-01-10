@@ -74,7 +74,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _anchorFormUnit: { type: String, state: true },
             _showGrid: { type: Boolean, state: true },
             _gridSpacing: { type: Number, state: true },
-            _snapToGrid: { type: Boolean, state: true }
+            _snapToGrid: { type: Boolean, state: true },
+            // Controls Tab Properties
+            _showControlForm: { type: Boolean, state: true },
+            _editingControlId: { type: String, state: true },
+            _controlFormId: { type: String, state: true },
+            _controlFormPosition: { type: Array, state: true },
+            _controlFormSize: { type: Array, state: true },
+            _controlFormAttachment: { type: String, state: true },
+            _controlFormCard: { type: Object, state: true },
+            _controlFormActiveSubtab: { type: String, state: true } // 'msd_config' or 'card_config'
         };
     }
 
@@ -111,6 +120,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._showGrid = false;
         this._gridSpacing = 50;
         this._snapToGrid = false;
+
+        // Controls Tab State
+        this._showControlForm = false;
+        this._editingControlId = null;
+        this._controlFormId = '';
+        this._controlFormPosition = [0, 0];
+        this._controlFormSize = [100, 100];
+        this._controlFormAttachment = 'center';
+        this._controlFormCard = { type: '' };
+        this._controlFormActiveSubtab = 'msd_config';
 
         lcardsLog.debug('[MSDStudio] Initialized');
     }
@@ -250,6 +269,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
+            }
+
+            /* Cursor feedback based on mode */
+            .preview-panel.mode-view {
+                cursor: default;
+            }
+
+            .preview-panel.mode-place-anchor,
+            .preview-panel.mode-place-control {
+                cursor: crosshair;
+            }
+
+            .preview-panel.mode-connect-line {
+                cursor: crosshair;
+            }
+
+            .preview-panel.mode-draw-channel {
+                cursor: crosshair;
             }
 
             /* Tab Navigation */
@@ -1332,8 +1369,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._activeMode === MODES.PLACE_ANCHOR) {
             this._handlePlaceAnchorClick(event);
         } else if (this._activeMode === MODES.PLACE_CONTROL) {
-            // Phase 3: Handle control placement
-            lcardsLog.debug('[MSDStudio] Place Control mode - Phase 3');
+            this._handlePlaceControlClick(event);
         } else if (this._activeMode === MODES.CONNECT_LINE) {
             // Phase 4: Handle line connection
             lcardsLog.debug('[MSDStudio] Connect Line mode - Phase 4');
@@ -1366,6 +1402,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._anchorFormUnit = 'vb';
 
         // Exit Place Anchor mode
+        this._activeMode = MODES.VIEW;
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle place control click (Phase 3)
+     * @param {MouseEvent} event - Click event
+     * @private
+     */
+    _handlePlaceControlClick(event) {
+        // Get coordinates from click
+        const coords = this._getPreviewCoordinates(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get preview coordinates');
+            return;
+        }
+
+        lcardsLog.debug('[MSDStudio] Place control at:', coords);
+
+        // Generate control ID
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let controlNum = overlays.filter(o => o.type === 'control').length + 1;
+        let controlId = `control_${controlNum}`;
+        while (overlays.find(o => o.id === controlId)) {
+            controlNum++;
+            controlId = `control_${controlNum}`;
+        }
+
+        // Open control form with pre-filled position
+        this._editingControlId = controlId;
+        this._controlFormId = controlId;
+        this._controlFormPosition = [coords.x, coords.y];
+        this._controlFormSize = [100, 100];
+        this._controlFormAttachment = 'center';
+        this._controlFormCard = { type: '' };
+        this._controlFormActiveSubtab = 'msd_config';
+        this._showControlForm = true;
+
+        // Exit Place Control mode
         this._activeMode = MODES.VIEW;
 
         this.requestUpdate();
@@ -1481,11 +1557,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getDebugSettings() {
-        return {
+        const settings = {
             ...this._debugSettings,
             grid: this._showGrid,
-            gridSpacing: this._gridSpacing
+            gridSpacing: this._gridSpacing,
+            grid_spacing: this._gridSpacing  // Also pass with underscore for consistency
         };
+
+        // Force bounding boxes when Controls tab is active (Phase 3)
+        if (this._activeTab === TABS.CONTROLS) {
+            settings.bounding_boxes = true;
+        }
+
+        return settings;
     }
 
     /**
@@ -1629,42 +1713,86 @@ export class LCARdSMSDStudioDialog extends LitElement {
         `;
     }
 
-    // Placeholder methods for Phase 3 full implementation
+    // ============================
+    // Controls Tab Methods
+    // ============================
+
     /**
-     * Open control form (placeholder)
+     * Open control form for creating new control
      * @private
      */
     _openControlForm() {
-        alert('Control form coming in next PR (Phase 3 full implementation)');
+        // Generate new control ID
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let controlNum = overlays.filter(o => o.type === 'control').length + 1;
+        let controlId = `control_${controlNum}`;
+        while (overlays.find(o => o.id === controlId)) {
+            controlNum++;
+            controlId = `control_${controlNum}`;
+        }
+
+        this._editingControlId = controlId;
+        this._controlFormId = controlId;
+        this._controlFormPosition = [0, 0];
+        this._controlFormSize = [100, 100];
+        this._controlFormAttachment = 'center';
+        this._controlFormCard = { type: '' };
+        this._controlFormActiveSubtab = 'msd_config';
+        this._showControlForm = true;
+
+        this.requestUpdate();
     }
 
     /**
-     * Edit control (placeholder)
+     * Edit existing control
      * @param {Object} control - Control to edit
      * @private
      */
     _editControl(control) {
-        alert(`Edit control: ${control.id} (coming in next PR)`);
+        this._editingControlId = control.id;
+        this._controlFormId = control.id;
+        this._controlFormPosition = control.position || control.anchor || [0, 0];
+        this._controlFormSize = control.size || [100, 100];
+        this._controlFormAttachment = control.attachment || 'center';
+        this._controlFormCard = control.card || { type: '' };
+        this._controlFormActiveSubtab = 'msd_config';
+        this._showControlForm = true;
+
+        this.requestUpdate();
     }
 
     /**
-     * Highlight control in preview (placeholder)
+     * Highlight control in preview (Phase 3)
      * @param {Object} control - Control to highlight
      * @private
      */
     _highlightControlInPreview(control) {
-        alert(`Highlight control: ${control.id} (coming in next PR)`);
+        // Update debug settings to highlight this control
+        this._debugSettings = {
+            ...this._debugSettings,
+            bounding_boxes: true,
+            highlighted_control: control.id
+        };
+        
+        this._schedulePreviewUpdate();
+        
+        // Remove highlight after 2 seconds
+        setTimeout(() => {
+            const { highlighted_control, ...settings } = this._debugSettings;
+            this._debugSettings = settings;
+            this._schedulePreviewUpdate();
+        }, 2000);
     }
 
     /**
-     * Delete control (placeholder)
+     * Delete control (Phase 3)
      * @param {Object} control - Control to delete
      * @private
      */
     async _deleteControl(control) {
         const confirmed = await this._showConfirmDialog(
             'Delete Control',
-            `Delete control "${control.id}"? This may affect lines connected to this control.`
+            `Delete control "${control.id}"? This will remove the overlay and its configuration.`
         );
         if (!confirmed) return;
 
@@ -1674,6 +1802,278 @@ export class LCARdSMSDStudioDialog extends LitElement {
             overlays.splice(index, 1);
             this._setNestedValue('msd.overlays', overlays);
         }
+    }
+
+    /**
+     * Save control form
+     * @private
+     */
+    _saveControl() {
+        const overlays = [...(this._workingConfig.msd?.overlays || [])];
+        
+        const controlOverlay = {
+            type: 'control',
+            id: this._controlFormId,
+            position: this._controlFormPosition,
+            size: this._controlFormSize,
+            attachment: this._controlFormAttachment,
+            card: this._controlFormCard
+        };
+        
+        // Add or update
+        const existingIndex = overlays.findIndex(o => o.id === this._controlFormId);
+        if (existingIndex >= 0) {
+            overlays[existingIndex] = controlOverlay;
+        } else {
+            overlays.push(controlOverlay);
+        }
+        
+        this._setNestedValue('msd.overlays', overlays);
+        this._closeControlForm();
+    }
+
+    /**
+     * Close control form
+     * @private
+     */
+    _closeControlForm() {
+        this._showControlForm = false;
+        this._editingControlId = null;
+        this.requestUpdate();
+    }
+
+    /**
+     * Generate unique control ID
+     * @returns {string}
+     * @private
+     */
+    _generateControlId() {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let controlNum = overlays.filter(o => o.type === 'control').length + 1;
+        let controlId = `control_${controlNum}`;
+        while (overlays.find(o => o.id === controlId)) {
+            controlNum++;
+            controlId = `control_${controlNum}`;
+        }
+        return controlId;
+    }
+
+    /**
+     * Render control form dialog (Phase 3)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlFormDialog() {
+        const isEditing = !!this._editingControlId && 
+                         (this._workingConfig.msd?.overlays || []).some(o => o.id === this._editingControlId);
+        const title = isEditing ? `Edit Control: ${this._controlFormId}` : 'Add Control';
+
+        return html`
+            <ha-dialog
+                open
+                @closed=${this._closeControlForm}
+                .heading=${title}>
+                
+                <!-- Subtabs -->
+                <div style="display: flex; gap: 8px; padding: 0 24px; border-bottom: 1px solid var(--divider-color);">
+                    <button
+                        class="tab-button ${this._controlFormActiveSubtab === 'msd_config' ? 'active' : ''}"
+                        @click=${() => { this._controlFormActiveSubtab = 'msd_config'; this.requestUpdate(); }}
+                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'msd_config' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                        MSD Config
+                    </button>
+                    <button
+                        class="tab-button ${this._controlFormActiveSubtab === 'card_config' ? 'active' : ''}"
+                        @click=${() => { this._controlFormActiveSubtab = 'card_config'; this.requestUpdate(); }}
+                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'card_config' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                        Card Config
+                    </button>
+                </div>
+
+                <!-- Subtab Content -->
+                <div style="padding: 16px; max-height: 60vh; overflow-y: auto;">
+                    ${this._controlFormActiveSubtab === 'msd_config' 
+                        ? this._renderControlFormMSDConfig() 
+                        : this._renderControlFormCardConfig()
+                    }
+                </div>
+
+                <div slot="primaryAction">
+                    <ha-button @click=${this._saveControl}>
+                        <ha-icon icon="mdi:content-save" slot="icon"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
+
+                <div slot="secondaryAction">
+                    <ha-button @click=${this._closeControlForm}>
+                        <ha-icon icon="mdi:close" slot="icon"></ha-icon>
+                        Cancel
+                    </ha-button>
+                </div>
+            </ha-dialog>
+        `;
+    }
+
+    /**
+     * Render MSD Config subtab (Phase 3)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlFormMSDConfig() {
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const anchorOptions = [
+            { value: '', label: 'Use Coordinates' },
+            ...Object.keys(anchors).map(name => ({ value: name, label: name }))
+        ];
+
+        const useAnchor = typeof this._controlFormPosition === 'string';
+        const selectedAnchor = useAnchor ? this._controlFormPosition : '';
+
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <ha-textfield
+                    label="Control ID"
+                    .value=${this._controlFormId}
+                    ?disabled=${!!this._editingControlId}
+                    @input=${(e) => this._controlFormId = e.target.value}
+                    required
+                    helper-text="Unique identifier for this control">
+                </ha-textfield>
+
+                <lcards-form-section
+                    header="Position"
+                    description="Set control position using anchor or coordinates"
+                    ?expanded=${true}>
+                    
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: anchorOptions
+                            }
+                        }}
+                        .value=${selectedAnchor}
+                        .label=${'Anchor (or use coordinates)'}
+                        @value-changed=${(e) => {
+                            if (e.detail.value) {
+                                this._controlFormPosition = e.detail.value;
+                            } else {
+                                this._controlFormPosition = [0, 0];
+                            }
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    ${!useAnchor ? html`
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                            <ha-textfield
+                                type="number"
+                                label="X Position"
+                                .value=${String(this._controlFormPosition[0] || 0)}
+                                @input=${(e) => {
+                                    this._controlFormPosition = [Number(e.target.value), this._controlFormPosition[1]];
+                                    this.requestUpdate();
+                                }}>
+                            </ha-textfield>
+                            <ha-textfield
+                                type="number"
+                                label="Y Position"
+                                .value=${String(this._controlFormPosition[1] || 0)}
+                                @input=${(e) => {
+                                    this._controlFormPosition = [this._controlFormPosition[0], Number(e.target.value)];
+                                    this.requestUpdate();
+                                }}>
+                            </ha-textfield>
+                        </div>
+                    ` : ''}
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Size"
+                    description="Control dimensions in pixels"
+                    ?expanded=${true}>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <ha-textfield
+                            type="number"
+                            label="Width"
+                            .value=${String(this._controlFormSize[0] || 100)}
+                            @input=${(e) => {
+                                this._controlFormSize = [Number(e.target.value), this._controlFormSize[1]];
+                                this.requestUpdate();
+                            }}>
+                        </ha-textfield>
+                        <ha-textfield
+                            type="number"
+                            label="Height"
+                            .value=${String(this._controlFormSize[1] || 100)}
+                            @input=${(e) => {
+                                this._controlFormSize = [this._controlFormSize[0], Number(e.target.value)];
+                                this.requestUpdate();
+                            }}>
+                        </ha-textfield>
+                    </div>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Attachment Point"
+                    description="How control aligns to position"
+                    ?expanded=${false}>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'top-left', label: 'Top Left' },
+                                    { value: 'top', label: 'Top Center' },
+                                    { value: 'top-right', label: 'Top Right' },
+                                    { value: 'left', label: 'Middle Left' },
+                                    { value: 'center', label: 'Center' },
+                                    { value: 'right', label: 'Middle Right' },
+                                    { value: 'bottom-left', label: 'Bottom Left' },
+                                    { value: 'bottom', label: 'Bottom Center' },
+                                    { value: 'bottom-right', label: 'Bottom Right' }
+                                ]
+                            }
+                        }}
+                        .value=${this._controlFormAttachment}
+                        .label=${'Attachment'}
+                        @value-changed=${(e) => this._controlFormAttachment = e.detail.value}>
+                    </ha-selector>
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Render Card Config subtab (Phase 3)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlFormCardConfig() {
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ ui: {} }}
+                    .value=${this._controlFormCard}
+                    .label=${'Card Configuration'}
+                    @value-changed=${(e) => {
+                        this._controlFormCard = e.detail.value || { type: '' };
+                        this.requestUpdate();
+                    }}>
+                </ha-selector>
+
+                ${!this._controlFormCard?.type ? html`
+                    <lcards-message type="info">
+                        <strong>Select a card type to configure</strong>
+                        <p style="margin: 8px 0; font-size: 13px;">
+                            Use the selector above to choose which Home Assistant card to display at this position.
+                        </p>
+                    </lcards-message>
+                ` : ''}
+            </div>
+        `;
     }
 
     /**
@@ -1761,7 +2161,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
 
                         <!-- Preview Panel (40%) -->
-                        <div class="preview-panel" @click=${this._handlePreviewClick}>
+                        <div class="preview-panel mode-${this._activeMode}" @click=${this._handlePreviewClick}>
                             <lcards-msd-live-preview
                                 .hass=${this.hass}
                                 .config=${this._workingConfig}
@@ -1775,6 +2175,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             <!-- Anchor Form Dialog (outside main dialog, always available) -->
             ${this._showAnchorForm ? this._renderAnchorFormDialog() : ''}
+
+            <!-- Control Form Dialog (Phase 3) -->
+            ${this._showControlForm ? this._renderControlFormDialog() : ''}
         `;
     }
 }
