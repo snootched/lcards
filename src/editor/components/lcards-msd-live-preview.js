@@ -1,17 +1,17 @@
 /**
  * LCARdS MSD Live Preview
- * 
+ *
  * Renders a live preview of the MSD card with current configuration.
  * Updates automatically when config changes (debounced 300ms).
  * Integrates with MSD debug system for editor-specific visualizations.
- * 
+ *
  * @element lcards-msd-live-preview
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} config - Current MSD card configuration
  * @property {Object} debugSettings - Debug visualization settings
  * @property {Boolean} showRefreshButton - Show manual refresh button (default: true)
- * 
+ *
  * @example
  * <lcards-msd-live-preview
  *   .hass=${this.hass}
@@ -67,7 +67,7 @@ export class LCARdSMSDLivePreview extends LitElement {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 12px 16px;
+                padding: 0px 16px;
                 background: var(--card-background-color, white);
                 border-bottom: 2px solid var(--divider-color, #e0e0e0);
                 font-weight: 600;
@@ -182,7 +182,7 @@ export class LCARdSMSDLivePreview extends LitElement {
      */
     updated(changedProps) {
         super.updated(changedProps);
-        
+
         if (changedProps.has('config') || changedProps.has('debugSettings') || changedProps.has('hass')) {
             this._schedulePreviewUpdate();
         }
@@ -313,7 +313,7 @@ export class LCARdSMSDLivePreview extends LitElement {
             if (!previewConfig.msd.debug) {
                 previewConfig.msd.debug = {};
             }
-            
+
             // Merge debug settings
             Object.assign(previewConfig.msd.debug, this.debugSettings);
         }
