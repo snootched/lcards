@@ -80,6 +80,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _snapToGrid: { type: Boolean, state: true },
             _cursorPosition: { type: Object, state: true },  // For crosshair guidelines
             _highlightedAnchor: { type: String, state: true },  // For anchor highlight animation
+            _highlightedControl: { type: String, state: true },  // For control highlight animation
+            _highlightedLine: { type: String, state: true },  // For line highlight animation
+            _highlightedChannel: { type: String, state: true },  // For channel highlight animation
+            // Persistent debug overlays
+            _showAnchorMarkers: { type: Boolean, state: true },  // Show all anchor markers
+            _showBoundingBoxes: { type: Boolean, state: true },  // Show all control bounding boxes
+            _showRoutingPaths: { type: Boolean, state: true },  // Show all line routing paths
+            _showAttachmentPoints: { type: Boolean, state: true },  // Show 9-point attachment grid
             // Controls Tab Properties
             _showControlForm: { type: Boolean, state: true },
             _editingControlId: { type: String, state: true },
@@ -153,6 +161,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._snapToGrid = false;
         this._cursorPosition = null;
         this._highlightedAnchor = null;
+        this._showAnchorMarkers = false;
+        this._showBoundingBoxes = false;
+        this._showRoutingPaths = false;
 
         // Controls Tab State
         this._showControlForm = false;
@@ -1099,6 +1110,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const anchors = this._workingConfig.msd.anchors;
         const anchorEntries = Object.entries(anchors);
 
+        // Get base_svg extracted anchors (if any)
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const baseSvgEntries = Object.entries(baseSvgAnchors);
+
         return html`
             <div style="padding: 8px;">
                 <!-- Anchor Actions -->
@@ -1117,15 +1132,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Coordinate Helpers -->
                 ${this._renderCoordinateHelpers()}
 
-                <!-- Anchor List -->
+                <!-- Base SVG Anchors (Read-Only) -->
+                ${baseSvgEntries.length > 0 ? html`
+                    <lcards-form-section
+                        header="Base SVG Anchors"
+                        description="Anchors extracted from base SVG (read-only)"
+                        icon="mdi:image-marker"
+                        ?expanded=${false}
+                        style="margin-bottom: 16px;">
+                        <lcards-message type="info" style="margin-bottom: 12px;">
+                            These anchors are automatically extracted from your base SVG file.
+                            You can reference them in control/line overlays but cannot edit them here.
+                            <strong>Define custom anchors with the same name to override.</strong>
+                        </lcards-message>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            ${baseSvgEntries.map(([name, position]) => this._renderBaseSvgAnchorItem(name, position))}
+                        </div>
+                    </lcards-form-section>
+                ` : ''}
+
+                <!-- User Anchors (Editable) -->
                 <lcards-form-section
-                    header="Anchors"
+                    header="User Anchors"
                     description="Named reference points for positioning overlays"
                     ?expanded=${true}>
                     ${anchorEntries.length === 0 ? html`
                         <div style="text-align: center; padding: 24px; color: var(--secondary-text-color);">
                             <ha-icon icon="mdi:map-marker-off" style="--mdc-icon-size: 48px; opacity: 0.5;"></ha-icon>
-                            <p>No anchors defined. Click "Add Anchor" or "Place on Canvas" to create one.</p>
+                            <p>No user anchors defined. Click "Add Anchor" or "Place on Canvas" to create one.</p>
                         </div>
                     ` : html`
                         <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -1143,6 +1177,95 @@ export class LCARdSMSDStudioDialog extends LitElement {
     // ============================
 
     /**
+     * Get anchors extracted from base SVG
+     * @returns {Object} Base SVG anchors { name: [x, y] }
+     * @private
+     */
+    _getBaseSvgAnchors() {
+        const baseSvgSource = this._workingConfig.msd?.base_svg?.source;
+
+        // Only extract from builtin sources
+        if (!baseSvgSource || !baseSvgSource.startsWith('builtin:')) {
+            return {};
+        }
+
+        // Check if findSvgAnchors is available
+        if (!window.lcards?.findSvgAnchors) {
+            lcardsLog.warn('[MSDStudio] window.lcards.findSvgAnchors not available');
+            return {};
+        }
+
+        // Get the SVG content from the live preview
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return {};
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return {};
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return {};
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return {};
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return {};
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return {};
+
+        // Extract SVG content
+        const svgContent = svg.outerHTML;
+        const extractedAnchors = window.lcards.findSvgAnchors(svgContent);
+
+        // Filter out any anchors that are overridden by user
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = {};
+        for (const [name, position] of Object.entries(extractedAnchors)) {
+            if (!userAnchors[name]) {
+                baseSvgAnchors[name] = position;
+            }
+        }
+
+        return baseSvgAnchors;
+    }
+
+    /**
+     * Render base SVG anchor item (read-only)
+     * @param {string} name - Anchor name
+     * @param {Array} position - Anchor position [x, y]
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderBaseSvgAnchorItem(name, position) {
+        const [x, y] = Array.isArray(position) ? position : [0, 0];
+
+        return html`
+            <ha-card style="padding: 12px; background: var(--card-background-color, #fff); opacity: 0.85;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <ha-icon icon="mdi:image-marker" style="--mdc-icon-size: 32px; color: var(--info-color, #2196F3);"></ha-icon>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                            ${name}
+                            <span style="font-size: 11px; background: var(--info-color, #2196F3); color: white; padding: 2px 6px; border-radius: 4px;">BASE SVG</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--secondary-text-color);">
+                            Position: [${x}, ${y}]
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <ha-icon-button
+                            @click=${() => this._highlightAnchorInPreview(name)}
+                            .label=${'Highlight'}
+                            .path=${'M12,2A7,7 0 0,1 19,9C19,11.38 17.19,13.47 14.39,17.31C13.57,18.45 12.61,19.74 12,20.65C11.39,19.74 10.43,18.45 9.61,17.31C6.81,13.47 5,11.38 5,9A7,7 0 0,1 12,2M12,6A3,3 0 0,0 9,9A3,3 0 0,0 12,12A3,3 0 0,0 15,9A3,3 0 0,0 12,6Z'}>
+                        </ha-icon-button>
+                    </div>
+                </div>
+            </ha-card>
+        `;
+    }
+
+    /**
      * Render coordinate helpers
      * @returns {TemplateResult}
      * @private
@@ -1154,15 +1277,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 description="Visual aids for precise anchor placement"
                 ?expanded=${false}>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <ha-formfield label="Show Anchors">
-                        <ha-switch
-                            ?checked=${this._debugSettings.anchors}
-                            @change=${(e) => {
-                                this._updateDebugSetting('anchors', e.target.checked);
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
-
                     <ha-formfield label="Show Grid Overlay">
                         <ha-switch
                             ?checked=${this._showGrid}
@@ -1173,28 +1287,75 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-switch>
                     </ha-formfield>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{
-                            number: {
-                                min: 10,
-                                max: 150,
-                                step: 5,
-                                mode: 'slider'
-                            }
-                        }}
-                        .value=${this._gridSpacing}
-                        .label=${'Grid Spacing (px)'}
-                        @value-changed=${(e) => {
-                            this._gridSpacing = e.detail.value;
-                            this._updateDebugSetting('gridSpacing', e.detail.value);
-                        }}>
-                    </ha-selector>
+                    <!-- Grid Settings (when enabled) -->
+                    ${this._showGrid ? html`
+                        <div style="margin-left: 20px; margin-top: 8px; padding: 12px; background: var(--card-background-color, #fff); border-radius: 8px; border: 1px solid var(--divider-color, #e0e0e0);">
+                            <!-- Grid Spacing -->
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    number: {
+                                        min: 10,
+                                        max: 150,
+                                        step: 5,
+                                        mode: 'slider'
+                                    }
+                                }}
+                                .value=${this._gridSpacing}
+                                .label=${'Grid Spacing (px)'}
+                                @value-changed=${(e) => {
+                                    this._gridSpacing = e.detail.value;
+                                    this._updateDebugSetting('gridSpacing', e.detail.value);
+                                }}>
+                            </ha-selector>
 
-                    <ha-formfield label="Snap to Grid">
+                            <!-- Snap to Grid -->
+                            <ha-formfield label="Snap to Grid" style="margin-top: 12px;">
+                                <ha-switch
+                                    ?checked=${this._snapToGrid}
+                                    @change=${(e) => this._snapToGrid = e.target.checked}>
+                                </ha-switch>
+                            </ha-formfield>
+
+                            <!-- Grid Color -->
+                            <div style="margin-top: 12px;">
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ ui_color: {} }}
+                                    .value=${this._debugSettings.grid_color || '#cccccc'}
+                                    .label=${'Grid Color'}
+                                    @value-changed=${(e) => this._updateDebugSetting('grid_color', e.detail.value)}>
+                                </ha-selector>
+                            </div>
+
+                            <!-- Grid Opacity -->
+                            <div style="margin-top: 12px;">
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{
+                                        number: {
+                                            min: 0.1,
+                                            max: 1.0,
+                                            step: 0.1,
+                                            mode: 'slider'
+                                        }
+                                    }}
+                                    .value=${this._debugSettings.grid_opacity ?? 0.3}
+                                    .label=${`Grid Opacity (${(this._debugSettings.grid_opacity ?? 0.3).toFixed(1)})`}
+                                    @value-changed=${(e) => this._updateDebugSetting('grid_opacity', e.detail.value)}>
+                                </ha-selector>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Show Anchor Markers -->
+                    <ha-formfield label="Show Anchor Markers" style="margin-top: 12px;">
                         <ha-switch
-                            ?checked=${this._snapToGrid}
-                            @change=${(e) => this._snapToGrid = e.target.checked}>
+                            ?checked=${this._showAnchorMarkers}
+                            @change=${(e) => {
+                                this._showAnchorMarkers = e.target.checked;
+                                this.requestUpdate();
+                            }}>
                         </ha-switch>
                     </ha-formfield>
                 </div>
@@ -2000,9 +2161,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _renderAnchorHighlight() {
         if (!this._highlightedAnchor) return '';
 
-        // Find the anchor in the config
-        const anchors = this._workingConfig.msd?.anchors || {};
-        const anchorPosition = anchors[this._highlightedAnchor];
+        // Find the anchor in user-defined anchors first
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        let anchorPosition = userAnchors[this._highlightedAnchor];
+
+        // If not found in user anchors, check base_svg anchors
+        if (!anchorPosition) {
+            const baseSvgAnchors = this._getBaseSvgAnchors();
+            anchorPosition = baseSvgAnchors[this._highlightedAnchor];
+        }
+
         if (!anchorPosition || !Array.isArray(anchorPosition)) return '';
 
         const [vbX, vbY] = anchorPosition;
@@ -2138,13 +2306,954 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render control highlight overlay
+     * Shows pulsing highlight around selected control
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlHighlight() {
+        if (!this._highlightedControl) return '';
+
+        // Find the control
+        const controls = this._workingConfig.msd?.overlays || [];
+        const control = controls.find(c => c.id === this._highlightedControl);
+        if (!control) return '';
+
+        // Resolve position for both anchored and explicitly positioned controls
+        const anchors = this._workingConfig.msd?.anchors || {};
+        let resolvedPosition;
+        if (control.position && Array.isArray(control.position)) {
+            // Explicitly positioned
+            resolvedPosition = control.position;
+        } else if (control.anchor) {
+            // Anchored to a named anchor - resolve using OverlayUtils
+            resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
+            if (!resolvedPosition) return '';
+        } else {
+            return '';
+        }
+
+        // Get size - default to 100x100 if not specified
+        const size = control.size || [100, 100];
+        if (!Array.isArray(size)) return '';
+
+        const [vbX, vbY] = resolvedPosition;
+        const [width, height] = size;
+
+        // Get SVG element and calculate pixel positions
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        // Get SVG rect and calculate position
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale accounting for aspect ratio
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        // Calculate rendered dimensions
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+
+        // Calculate offset due to centering
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Convert viewBox coords to SVG pixel position
+        const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+        const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+        const pixelWidth = width / scale;
+        const pixelHeight = height / scale;
+
+        // Convert to preview panel coordinates
+        const pixelX = (rect.left - panelRect.left) + svgPixelX;
+        const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 998;
+            ">
+                <!-- Pulsing rectangle around control -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    width: ${pixelWidth}px;
+                    height: ${pixelHeight}px;
+                    border: 3px solid #FF0099;
+                    box-shadow: 0 0 20px rgba(255, 0, 153, 0.8);
+                    animation: control-pulse 1s ease-in-out infinite;
+                "></div>
+
+                <!-- Control ID label -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX + pixelWidth / 2}px;
+                    top: ${pixelY - 10}px;
+                    transform: translate(-50%, -100%);
+                    background: rgba(255, 0, 153, 0.95);
+                    color: white;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                ">
+                    ${control.id}
+                </div>
+            </div>
+
+            <style>
+                @keyframes control-pulse {
+                    0%, 100% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                    50% {
+                        opacity: 0.5;
+                        transform: scale(1.05);
+                    }
+                }
+            </style>
+        `;
+    }
+
+    /**
+     * Render line highlight overlay
+     * Shows pulsing highlight along selected line path
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineHighlight() {
+        if (!this._highlightedLine) return '';
+
+        // Find the line
+        const lines = this._workingConfig.msd?.lines || [];
+        const line = lines.find(l => l.id === this._highlightedLine);
+        if (!line || !line.anchor || !line.attach_to) return '';
+
+        // Get anchor positions
+        const allAnchors = { ...this._workingConfig.msd?.anchors || {} };
+
+        // Add base_svg anchors
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        Object.assign(allAnchors, baseSvgAnchors);
+
+        // Resolve anchor positions (anchor could be an anchor name or overlay ID)
+        let startPos = allAnchors[line.anchor];
+        if (!startPos) {
+            // Try to find in overlays
+            const overlays = this._workingConfig.msd?.overlays || [];
+            const overlay = overlays.find(o => o.id === line.anchor);
+            if (overlay && overlay.position) {
+                startPos = overlay.position;
+            }
+        }
+
+        let endPos = allAnchors[line.attach_to];
+        if (!endPos) {
+            // Try to find in overlays
+            const overlays = this._workingConfig.msd?.overlays || [];
+            const overlay = overlays.find(o => o.id === line.attach_to);
+            if (overlay && overlay.position) {
+                endPos = overlay.position;
+            }
+        }
+
+        if (!startPos || !endPos) return '';
+
+        const [startX, startY] = startPos;
+        const [endX, endY] = endPos;
+
+        // Get SVG element and calculate pixel positions
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        // Get SVG rect and calculate position
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale accounting for aspect ratio
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        // Calculate rendered dimensions
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+
+        // Calculate offset due to centering
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Convert viewBox coords to SVG pixel position
+        const pixelStartX = (startX - viewBoxX) / scale + offsetX + (rect.left - panelRect.left);
+        const pixelStartY = (startY - viewBoxY) / scale + offsetY + (rect.top - panelRect.top);
+        const pixelEndX = (endX - viewBoxX) / scale + offsetX + (rect.left - panelRect.left);
+        const pixelEndY = (endY - viewBoxY) / scale + offsetY + (rect.top - panelRect.top);
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 998;
+            ">
+                <svg style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                ">
+                    <!-- Pulsing line path -->
+                    <line
+                        x1="${pixelStartX}"
+                        y1="${pixelStartY}"
+                        x2="${pixelEndX}"
+                        y2="${pixelEndY}"
+                        stroke="#00FFFF"
+                        stroke-width="4"
+                        opacity="0.9"
+                        style="
+                            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+                            animation: line-pulse 1s ease-in-out infinite;
+                        "
+                    />
+
+                    <!-- Start point marker -->
+                    <circle
+                        cx="${pixelStartX}"
+                        cy="${pixelStartY}"
+                        r="6"
+                        fill="#00FFFF"
+                        stroke="white"
+                        stroke-width="2"
+                    />
+
+                    <!-- End point marker -->
+                    <circle
+                        cx="${pixelEndX}"
+                        cy="${pixelEndY}"
+                        r="6"
+                        fill="#00FFFF"
+                        stroke="white"
+                        stroke-width="2"
+                    />
+                </svg>
+
+                <!-- Line ID label at midpoint -->
+                <div style="
+                    position: absolute;
+                    left: ${(pixelStartX + pixelEndX) / 2}px;
+                    top: ${(pixelStartY + pixelEndY) / 2 - 10}px;
+                    transform: translate(-50%, -100%);
+                    background: rgba(0, 255, 255, 0.95);
+                    color: black;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                ">
+                    ${line.id}
+                </div>
+            </div>
+
+            <style>
+                @keyframes line-pulse {
+                    0%, 100% {
+                        opacity: 0.9;
+                    }
+                    50% {
+                        opacity: 0.4;
+                    }
+                }
+            </style>
+        `;
+    }
+
+    /**
+     * Render persistent grid overlay
+     * Shows coordinate grid when toggled on in Anchors tab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderGridOverlay() {
+        if (!this._showGrid) return '';
+
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        const gridColor = this._debugSettings.grid_color || '#cccccc';
+        const spacing = this._gridSpacing || 50;
+
+        // Generate grid lines - iterate over entire viewBox range
+        const verticalLines = [];
+        const maxX = viewBoxX + viewBoxWidth;
+        for (let x = Math.ceil(viewBoxX / spacing) * spacing; x <= maxX; x += spacing) {
+            verticalLines.push(x);
+        }
+
+        const horizontalLines = [];
+        const maxY = viewBoxY + viewBoxHeight;
+        for (let y = Math.ceil(viewBoxY / spacing) * spacing; y <= maxY; y += spacing) {
+            horizontalLines.push(y);
+        }
+
+        // Get SVG for coordinate conversion
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return html`
+            <svg style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 996;
+            ">
+                ${verticalLines.map(x => {
+                    const svgPixelX = (x - viewBoxX) / scale + offsetX;
+                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
+                    return html`
+                        <line
+                            x1="${pixelX}"
+                            y1="0"
+                            x2="${pixelX}"
+                            y2="100%"
+                            stroke="${gridColor}"
+                            stroke-width="1"
+                            opacity="0.3"
+                        />
+                    `;
+                })}
+                ${horizontalLines.map(y => {
+                    const svgPixelY = (y - viewBoxY) / scale + offsetY;
+                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
+                    return html`
+                        <line
+                            x1="0"
+                            y1="${pixelY}"
+                            x2="100%"
+                            y2="${pixelY}"
+                            stroke="${gridColor}"
+                            stroke-width="1"
+                            opacity="0.3"
+                        />
+                    `;
+                })}
+            </svg>
+        `;
+    }
+
+    /**
+     * Render persistent anchor markers
+     * Shows all anchor positions when toggled on in Anchors tab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderAnchorMarkers() {
+        if (!this._showAnchorMarkers) return '';
+
+        // Get all anchors (user + base_svg)
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const allAnchors = { ...userAnchors, ...baseSvgAnchors };
+
+        if (Object.keys(allAnchors).length === 0) return '';
+
+        // Get SVG for coordinate conversion
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 997;
+            ">
+                ${Object.entries(allAnchors).map(([name, position]) => {
+                    if (!Array.isArray(position)) return '';
+
+                    const [vbX, vbY] = position;
+                    const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+                    const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
+                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+                    const isBaseSvg = !userAnchors[name];
+                    const color = isBaseSvg ? '#888888' : '#FFFF00';
+
+                    return html`
+                        <!-- Anchor marker -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelX}px;
+                            top: ${pixelY}px;
+                            transform: translate(-50%, -50%);
+                            width: 12px;
+                            height: 12px;
+                            background: ${color};
+                            border: 2px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+                        "></div>
+                        <!-- Anchor label -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelX}px;
+                            top: ${pixelY + 8}px;
+                            transform: translateX(-50%);
+                            background: rgba(0, 0, 0, 0.7);
+                            color: ${color};
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 10px;
+                            white-space: nowrap;
+                        ">
+                            ${name}
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
+     * Render persistent bounding boxes
+     * Shows all control bounding boxes when toggled on in Controls tab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderBoundingBoxes() {
+        if (!this._showBoundingBoxes) return '';
+
+        const controls = this._workingConfig.msd?.overlays || [];
+        if (controls.length === 0) return '';
+
+        // Get SVG for coordinate conversion
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Get all anchors for resolving anchored controls
+        const anchors = this._workingConfig.msd?.anchors || {};
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 997;
+            ">
+                ${controls.map(control => {
+                    // Resolve position for both anchored and explicitly positioned controls
+                    let resolvedPosition;
+                    if (control.position && Array.isArray(control.position)) {
+                        // Explicitly positioned
+                        resolvedPosition = control.position;
+                    } else if (control.anchor) {
+                        // Anchored to a named anchor - resolve using OverlayUtils
+                        resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
+                        if (!resolvedPosition) return '';
+                    } else {
+                        return '';
+                    }
+
+                    // Get size - default to 100x100 if not specified
+                    const size = control.size || [100, 100];
+                    if (!Array.isArray(size)) return '';
+
+                    const [vbX, vbY] = resolvedPosition;
+                    const [width, height] = size;
+
+                    const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+                    const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+                    const pixelWidth = width / scale;
+                    const pixelHeight = height / scale;
+
+                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
+                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+                    return html`
+                        <!-- Bounding box -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelX}px;
+                            top: ${pixelY}px;
+                            width: ${pixelWidth}px;
+                            height: ${pixelHeight}px;
+                            border: 2px solid #0088FF;
+                            opacity: 0.6;
+                        "></div>
+                        <!-- Control ID label -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelX + 4}px;
+                            top: ${pixelY + 4}px;
+                            background: rgba(0, 136, 255, 0.8);
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 10px;
+                            white-space: nowrap;
+                        ">
+                            ${control.id}
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
+     * Render persistent routing paths
+     * Shows all line routing paths when toggled on in Lines tab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRoutingPaths() {
+        if (!this._showRoutingPaths) return '';
+
+        const lines = this._workingConfig.msd?.lines || [];
+        if (lines.length === 0) return '';
+
+        // Get all anchors (user + base_svg)
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const allAnchors = { ...userAnchors, ...baseSvgAnchors };
+        const overlays = this._workingConfig.msd?.overlays || [];
+
+        // Get SVG for coordinate conversion
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return html`
+            <svg style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 997;
+            ">
+                ${lines.map(line => {
+                    // Resolve start position
+                    let startPos = allAnchors[line.anchor];
+                    if (!startPos) {
+                        const overlay = overlays.find(o => o.id === line.anchor);
+                        if (overlay) {
+                            startPos = overlay.position || overlay.anchor;
+                        }
+                    }
+
+                    // Resolve end position
+                    let endPos = allAnchors[line.attach_to];
+                    if (!endPos) {
+                        const overlay = overlays.find(o => o.id === line.attach_to);
+                        if (overlay) {
+                            endPos = overlay.position || overlay.anchor;
+                        }
+                    }
+
+                    if (!startPos || !endPos) return '';
+
+                    const [startX, startY] = startPos;
+                    const [endX, endY] = endPos;
+
+                    const pixelStartX = (startX - viewBoxX) / scale + offsetX + (rect.left - panelRect.left);
+                    const pixelStartY = (startY - viewBoxY) / scale + offsetY + (rect.top - panelRect.top);
+                    const pixelEndX = (endX - viewBoxX) / scale + offsetX + (rect.left - panelRect.left);
+                    const pixelEndY = (endY - viewBoxY) / scale + offsetY + (rect.top - panelRect.top);
+
+                    const color = line.style?.color || '#00FFAA';
+
+                    return html`
+                        <line
+                            x1="${pixelStartX}"
+                            y1="${pixelStartY}"
+                            x2="${pixelEndX}"
+                            y2="${pixelEndY}"
+                            stroke="${color}"
+                            stroke-width="2"
+                            opacity="0.7"
+                        />
+                        <circle
+                            cx="${pixelStartX}"
+                            cy="${pixelStartY}"
+                            r="4"
+                            fill="${color}"
+                        />
+                        <circle
+                            cx="${pixelEndX}"
+                            cy="${pixelEndY}"
+                            r="4"
+                            fill="${color}"
+                        />
+                    `;
+                })}
+            </svg>
+        `;
+    }
+
+    /**
+     * Render channel highlight overlay
+     * Shows pulsing highlight around selected channel
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelHighlight() {
+        if (!this._highlightedChannel) return '';
+
+        // Find the channel
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[this._highlightedChannel];
+        if (!channel || !channel.rect) return '';
+
+        const [x, y, width, height] = channel.rect;
+
+        // Get SVG element and calculate pixel positions
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return '';
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return '';
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return '';
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return '';
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return '';
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return '';
+
+        // Get viewBox from config
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        // Get SVG rect and calculate position
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale accounting for aspect ratio
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        // Calculate rendered dimensions
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+
+        // Calculate offset due to centering
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Convert viewBox coords to SVG pixel position
+        const svgPixelX = (x - viewBoxX) / scale + offsetX;
+        const svgPixelY = (y - viewBoxY) / scale + offsetY;
+        const pixelWidth = width / scale;
+        const pixelHeight = height / scale;
+
+        // Convert to preview panel coordinates
+        const pixelX = (rect.left - panelRect.left) + svgPixelX;
+        const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 998;
+            ">
+                <!-- Pulsing rectangle around channel -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    width: ${pixelWidth}px;
+                    height: ${pixelHeight}px;
+                    border: 3px solid #FFAA00;
+                    box-shadow: 0 0 20px rgba(255, 170, 0, 0.8);
+                    animation: channel-pulse 1s ease-in-out infinite;
+                "></div>
+
+                <!-- Channel ID label -->
+                <div style="
+                    position: absolute;
+                    left: ${pixelX + pixelWidth / 2}px;
+                    top: ${pixelY - 10}px;
+                    transform: translate(-50%, -100%);
+                    background: rgba(255, 170, 0, 0.95);
+                    color: black;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                ">
+                    ${this._highlightedChannel}
+                </div>
+            </div>
+
+            <style>
+                @keyframes channel-pulse {
+                    0%, 100% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                    50% {
+                        opacity: 0.5;
+                        transform: scale(1.03);
+                    }
+                }
+            </style>
+        `;
+    }
+
+    /**
      * Render connection attachment points overlay
      * Shows 9-point attachment grid for anchors and controls in connect line mode
      * @returns {TemplateResult}
      * @private
      */
     _renderAttachmentPointsOverlay() {
-        if (this._activeMode !== MODES.CONNECT_LINE) return '';
+        // Show attachment points when in connect line mode OR when toggle is on
+        if (this._activeMode !== MODES.CONNECT_LINE && !this._showAttachmentPoints) return '';
 
         // Get all anchors and controls
         const anchors = this._workingConfig.msd?.anchors || {};
@@ -2504,9 +3613,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <ha-formfield label="Show Bounding Boxes">
                             <ha-switch
-                                ?checked=${this._debugSettings.bounding_boxes}
+                                ?checked=${this._showBoundingBoxes}
                                 @change=${(e) => {
-                                    this._updateDebugSetting('bounding_boxes', e.target.checked);
+                                    this._showBoundingBoxes = e.target.checked;
+                                    this.requestUpdate();
+                                }}>
+                            </ha-switch>
+                        </ha-formfield>
+                        <ha-formfield label="Show Attachment Points">
+                            <ha-switch
+                                ?checked=${this._showAttachmentPoints}
+                                @change=${(e) => {
+                                    this._showAttachmentPoints = e.target.checked;
+                                    this.requestUpdate();
                                 }}>
                             </ha-switch>
                         </ha-formfield>
@@ -2667,7 +3786,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _highlightControlInPreview(control) {
-        // Update debug settings to highlight this control
+        // Set highlighted control for overlay rendering
+        this._highlightedControl = control.id;
+
+        // Also update debug settings for MSD card's bounding box rendering
         this._debugSettings = {
             ...this._debugSettings,
             bounding_boxes: true,
@@ -2675,13 +3797,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
 
         this._schedulePreviewUpdate();
+        this.requestUpdate();
 
         // Remove highlight after 2 seconds
         setTimeout(() => {
+            this._highlightedControl = null;
             const { highlighted_control, ...settings } = this._debugSettings;
             this._debugSettings = settings;
             this._schedulePreviewUpdate();
-        }, 2000);
+            this.requestUpdate();
+        }, 2500);
     }
 
     /**
@@ -3053,11 +4178,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <ha-formfield label="Show Line Paths">
+                        <ha-formfield label="Show Routing Paths">
                             <ha-switch
-                                ?checked=${this._debugSettings.line_paths}
+                                ?checked=${this._showRoutingPaths}
                                 @change=${(e) => {
-                                    this._updateDebugSetting('line_paths', e.target.checked);
+                                    this._showRoutingPaths = e.target.checked;
+                                    this.requestUpdate();
                                 }}>
                             </ha-switch>
                         </ha-formfield>
@@ -3662,16 +4788,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _highlightChannelInPreview(id) {
-        // Highlight channel in preview for 2 seconds
-        const debugSettings = this._getDebugSettings();
-        debugSettings.highlighted_channel = id;
-        this._schedulePreviewUpdate();
+        // Highlight channel in preview for 2.5 seconds
+        this._highlightedChannel = id;
+        this.requestUpdate();
 
         setTimeout(() => {
-            const settings = this._getDebugSettings();
-            delete settings.highlighted_channel;
-            this._schedulePreviewUpdate();
-        }, 2000);
+            this._highlightedChannel = null;
+            this.requestUpdate();
+        }, 2500);
     }
 
     /**
@@ -3698,154 +4822,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _renderDebugTab() {
         return html`
             <div style="padding: 8px;">
-                <!-- Debug Toggles Section -->
-                <lcards-form-section
-                    header="Debug Visualization Toggles"
-                    description="Show/hide debug overlays in the preview panel"
-                    icon="mdi:eye-settings"
-                    ?expanded=${true}>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 12px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.anchors}
-                                @change=${(e) => this._updateDebugSetting('anchors', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Anchors</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.bounding_boxes}
-                                @change=${(e) => this._updateDebugSetting('bounding_boxes', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Bounding Boxes</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.attachment_points}
-                                @change=${(e) => this._updateDebugSetting('attachment_points', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Attachment Points</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.routing_channels}
-                                @change=${(e) => this._updateDebugSetting('routing_channels', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Routing Channels</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.line_paths}
-                                @change=${(e) => this._updateDebugSetting('line_paths', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Line Paths</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.grid}
-                                @change=${(e) => this._updateDebugSetting('grid', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Grid</span>
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input
-                                type="checkbox"
-                                ?checked=${this._debugSettings.show_coordinates}
-                                @change=${(e) => this._updateDebugSetting('show_coordinates', e.target.checked)}
-                                style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Show Coordinates</span>
-                        </label>
-                    </div>
-                </lcards-form-section>
-
-                <!-- Grid Settings (when enabled) -->
-                ${this._debugSettings.grid ? html`
-                    <lcards-form-section
-                        header="Grid Settings"
-                        description="Configure grid appearance and behavior"
-                        icon="mdi:grid"
-                        ?expanded=${true}
-                        style="margin-top: 16px;">
-
-                        <!-- Grid Spacing -->
-                        <div style="margin-top: 12px;">
-                            <label class="form-label">Grid Spacing (${this._gridSpacing}px)</label>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{
-                                    number: {
-                                        min: 10,
-                                        max: 100,
-                                        step: 5,
-                                        mode: 'slider'
-                                    }
-                                }}
-                                .value=${this._gridSpacing}
-                                @value-changed=${(e) => {
-                                    this._gridSpacing = e.detail.value;
-                                    this._schedulePreviewUpdate();
-                                }}>
-                            </ha-selector>
-                        </div>
-
-                        <!-- Snap to Grid -->
-                        <div style="margin-top: 16px;">
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input
-                                    type="checkbox"
-                                    ?checked=${this._snapToGrid}
-                                    @change=${(e) => {
-                                        this._snapToGrid = e.target.checked;
-                                        this.requestUpdate();
-                                    }}
-                                    style="width: 18px; height: 18px; cursor: pointer;">
-                                <span>Snap to Grid</span>
-                            </label>
-                        </div>
-
-                        <!-- Grid Color -->
-                        <div style="margin-top: 16px;">
-                            <label class="form-label">Grid Color</label>
-                            <ha-textfield
-                                type="color"
-                                .value=${this._debugSettings.grid_color || '#cccccc'}
-                                @input=${(e) => this._updateDebugSetting('grid_color', e.target.value)}
-                                style="width: 100%;">
-                            </ha-textfield>
-                        </div>
-
-                        <!-- Grid Opacity -->
-                        <div style="margin-top: 16px;">
-                            <label class="form-label">Grid Opacity (${(this._debugSettings.grid_opacity ?? 0.3).toFixed(1)})</label>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{
-                                    number: {
-                                        min: 0.1,
-                                        max: 1.0,
-                                        step: 0.1,
-                                        mode: 'slider'
-                                    }
-                                }}
-                                .value=${this._debugSettings.grid_opacity ?? 0.3}
-                                @value-changed=${(e) => this._updateDebugSetting('grid_opacity', e.detail.value)}>
-                            </ha-selector>
-                        </div>
-                    </lcards-form-section>
-                ` : ''}
+                <!-- Info Message about Distributed Settings -->
+                <lcards-message type="info" style="margin-bottom: 16px;">
+                    <strong>Quick Access:</strong> Common visualization settings have been moved to their related tabs:
+                    <ul style="margin: 8px 0 0 20px; font-size: 13px;">
+                        <li><strong>Anchors Tab:</strong> Show Anchors, Grid Settings</li>
+                        <li><strong>Controls Tab:</strong> Bounding Boxes, Attachment Points</li>
+                        <li><strong>Lines Tab:</strong> Line Paths, Routing Channels</li>
+                        <li><strong>Channels Tab:</strong> Routing Channels</li>
+                    </ul>
+                </lcards-message>
 
                 <!-- Scale Settings -->
                 <lcards-form-section
@@ -4213,10 +5199,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _highlightLineInPreview(line) {
-        // TODO: Implement highlight via preview component
         lcardsLog.info('[MSDStudio] Highlight line:', line.id);
-        // This would need to communicate with the preview component
-        // For now, just log
+
+        // Set highlighted line for overlay rendering
+        this._highlightedLine = line.id;
+
+        // Also update debug settings for MSD card's line path rendering
+        this._debugSettings = {
+            ...this._debugSettings,
+            line_paths: true,
+            highlighted_line: line.id
+        };
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+
+        // Remove highlight after 2 seconds
+        setTimeout(() => {
+            this._highlightedLine = null;
+            const { highlighted_line, ...settings } = this._debugSettings;
+            this._debugSettings = settings;
+            this._schedulePreviewUpdate();
+            this.requestUpdate();
+        }, 2500);
     }
 
     /**
@@ -4872,6 +5877,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 open
                 @closed=${this._handleClose}
+                .scrimClickAction=${''}
+                .escapeKeyAction=${''}
                 .heading=${'MSD Configuration Studio'}>
 
                 <div slot="primaryAction">
@@ -4944,8 +5951,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <!-- Crosshair Guidelines -->
                             ${this._renderCrosshairGuidelines()}
 
-                            <!-- Anchor Highlight -->
+                            <!-- Persistent Debug Overlays -->
+                            ${this._renderGridOverlay()}
+                            ${this._renderAnchorMarkers()}
+                            ${this._renderBoundingBoxes()}
+                            ${this._renderRoutingPaths()}
+
+                            <!-- Temporary Highlights -->
                             ${this._renderAnchorHighlight()}
+                            ${this._renderControlHighlight()}
+                            ${this._renderLineHighlight()}
+                            ${this._renderChannelHighlight()}
 
                             <!-- Attachment Points (Connect Line Mode) -->
                             ${this._renderAttachmentPointsOverlay()}

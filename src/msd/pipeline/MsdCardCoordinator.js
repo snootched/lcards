@@ -1,5 +1,4 @@
 import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
-import { MsdDebugRenderer } from '../debug/MsdDebugRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 // REMOVED: MsdHudManager - now using global HudManager from core
 import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js';
@@ -37,7 +36,6 @@ export class MsdCardCoordinator extends BaseService {
 
     this.dataSourceManager = null;
     this.renderer = null;
-    this.debugRenderer = null;
     this.controlsRenderer = null;
     this.router = null;
     this.animRegistry = null; // Will be set to shared core AnimationRegistry
@@ -180,7 +178,6 @@ export class MsdCardCoordinator extends BaseService {
     // Initialize rendering systems
     this.router = new RouterCore(mergedConfig.routing, cardModel.anchors, cardModel.viewBox);
     this.renderer = new AdvancedRenderer(mountEl, this.router, this); // Pass 'this' as systemsManager
-    this.debugRenderer = new MsdDebugRenderer();
     this.controlsRenderer = new MsdControlsRenderer(this.renderer);
 
     // ADDED: Set HASS context on controls renderer immediately if available
@@ -188,9 +185,6 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.debug('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
-
-    // Initialize debug renderer with systems manager reference
-    this.debugRenderer.init(this);
 
     // Mark router as ready for debug system
     this.debugManager.markRouterReady();
@@ -221,8 +215,7 @@ export class MsdCardCoordinator extends BaseService {
       hasAnimRegistry: !!this.animRegistry,
       hasAnimationManager: !!this.animationManager,
       hasDebugManager: !!this.debugManager,
-      hasControlsRenderer: !!this.controlsRenderer,
-      hasDebugRenderer: !!this.debugRenderer
+      hasControlsRenderer: !!this.controlsRenderer
     });
   }
 
@@ -400,7 +393,6 @@ export class MsdCardCoordinator extends BaseService {
     // Stop all subscriptions and clean up resources
     this.dataSourceManager?.destroy();
     this.animRegistry?.clear();
-    this.debugRenderer?.destroy();
     if (this.controlsRenderer && typeof this.controlsRenderer.destroy === 'function') {
       this.controlsRenderer.destroy();
     }
@@ -429,7 +421,6 @@ export class MsdCardCoordinator extends BaseService {
     this.cardModel = null;
     this.styleResolver = null;
     this.renderer = null;
-    this.debugRenderer = null;
     this.controlsRenderer = null;
     this.router = null;
     this.debugManager = null;
@@ -522,10 +513,12 @@ export class MsdCardCoordinator extends BaseService {
             }
           });
 
-          this.debugRenderer.render(mountEl || this.renderer?.mountEl, resolvedModel.viewBox, debugOptions);
-          lcardsLog.debug('[MsdCardCoordinator] ✅ Debug renderer completed');
+          // REMOVED: Debug rendering now handled by Studio dialog overlays
+          // MsdDebugRenderer.js has been deleted - all debug visualization
+          // is done via HTML overlays in lcards-msd-studio-dialog.js
+          lcardsLog.debug('[MsdCardCoordinator] ✅ Debug state updated (rendering in Studio)');
         } catch (error) {
-          lcardsLog.error('[MsdCardCoordinator] ❌ Debug renderer failed:', error);
+          lcardsLog.error('[MsdCardCoordinator] ❌ Debug state update failed:', error);
           // Continue execution - don't fail the entire render
         }
       }
