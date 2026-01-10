@@ -745,6 +745,253 @@ export class MsdDebugRenderer {
   }
 
   /**
+   * Render anchor markers for editor (editor-specific visualization)
+   * @param {Object} anchors - Anchor name to position map
+   * @param {Object} options - Rendering options
+   * @param {string} options.color - Marker color (default: '#FF9900')
+   * @param {boolean} options.showLabels - Display anchor names (default: true)
+   * @param {number} options.markerSize - Marker radius in pixels (default: 6)
+   */
+  renderAnchorsForEditor(anchors, options = {}) {
+    if (!anchors || !this.debugLayer) return;
+
+    const {
+      color = '#FF9900',
+      showLabels = true,
+      markerSize = 6
+    } = options;
+
+    let markerCount = 0;
+    for (const [name, pt] of Object.entries(anchors)) {
+      if (Array.isArray(pt) && pt.length >= 2) {
+        const marker = this._createEditorAnchorMarker(name, pt[0], pt[1], color, showLabels, markerSize);
+        this.debugLayer.appendChild(marker);
+        markerCount++;
+      }
+    }
+
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered ${markerCount} editor anchor markers`);
+  }
+
+  /**
+   * Create editor anchor marker with outer ring + inner dot + label
+   * @private
+   */
+  _createEditorAnchorMarker(name, x, y, color, showLabels, markerSize) {
+    const group = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('transform', `translate(${x}, ${y})`);
+    group.setAttribute('class', 'msd-debug-editor-anchor');
+
+    const outerRadius = markerSize * this.scale;
+    const innerRadius = (markerSize / 2) * this.scale;
+    const fontSize = 11 * this.scale;
+    const labelOffset = (markerSize + 4) * this.scale;
+
+    // Outer ring for visibility
+    const outerRing = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    outerRing.setAttribute('cx', 0);
+    outerRing.setAttribute('cy', 0);
+    outerRing.setAttribute('r', outerRadius);
+    outerRing.setAttribute('fill', 'none');
+    outerRing.setAttribute('stroke', color);
+    outerRing.setAttribute('stroke-width', 2 * this.scale);
+    outerRing.setAttribute('opacity', '0.8');
+
+    // Inner dot for precise position
+    const innerDot = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    innerDot.setAttribute('cx', 0);
+    innerDot.setAttribute('cy', 0);
+    innerDot.setAttribute('r', innerRadius);
+    innerDot.setAttribute('fill', color);
+    innerDot.setAttribute('opacity', '0.9');
+
+    group.appendChild(outerRing);
+    group.appendChild(innerDot);
+
+    // Label with background
+    if (showLabels) {
+      // Background rect for label
+      const labelText = `${name}`;
+      const labelWidth = labelText.length * 7 * this.scale;
+      const labelHeight = 14 * this.scale;
+
+      const labelBg = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      labelBg.setAttribute('x', labelOffset);
+      labelBg.setAttribute('y', -labelHeight / 2);
+      labelBg.setAttribute('width', labelWidth);
+      labelBg.setAttribute('height', labelHeight);
+      labelBg.setAttribute('fill', 'rgba(0, 0, 0, 0.7)');
+      labelBg.setAttribute('rx', 2 * this.scale);
+
+      const label = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', labelOffset + 2 * this.scale);
+      label.setAttribute('y', 4 * this.scale);
+      label.setAttribute('fill', color);
+      label.setAttribute('font-size', fontSize);
+      label.setAttribute('font-family', 'monospace');
+      label.setAttribute('font-weight', 'bold');
+      label.setAttribute('opacity', '0.95');
+      label.textContent = labelText;
+
+      group.appendChild(labelBg);
+      group.appendChild(label);
+    }
+
+    return group;
+  }
+
+  /**
+   * Render 9-point attachment grid on control overlay (editor-specific)
+   * @param {Object} overlay - Control overlay object with position and size
+   * @param {Object} options - Rendering options
+   * @param {string} options.color - Point color (default: '#00FF00')
+   * @param {boolean} options.showLabels - Display point names (default: false)
+   * @param {number} options.pointSize - Point radius in pixels (default: 4)
+   */
+  render9PointAttachments(overlay, options = {}) {
+    if (!overlay || !overlay.position || !this.debugLayer) return;
+
+    const {
+      color = '#00FF00',
+      showLabels = false,
+      pointSize = 4
+    } = options;
+
+    const [x, y] = overlay.position;
+    const size = overlay.size || [100, 50];
+    const [width, height] = size;
+
+    // Calculate 9 attachment points
+    const points = {
+      'top-left': [x, y],
+      'top': [x + width / 2, y],
+      'top-right': [x + width, y],
+      'left': [x, y + height / 2],
+      'center': [x + width / 2, y + height / 2],
+      'right': [x + width, y + height / 2],
+      'bottom-left': [x, y + height],
+      'bottom': [x + width / 2, y + height],
+      'bottom-right': [x + width, y + height]
+    };
+
+    // Render each attachment point
+    for (const [name, [px, py]] of Object.entries(points)) {
+      const point = this._create9PointMarker(name, px, py, color, showLabels, pointSize);
+      this.debugLayer.appendChild(point);
+    }
+
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered 9-point attachments for overlay ${overlay.id}`);
+  }
+
+  /**
+   * Create 9-point attachment marker
+   * @private
+   */
+  _create9PointMarker(name, x, y, color, showLabels, pointSize) {
+    const group = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('class', 'msd-debug-9point');
+
+    const circle = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x);
+    circle.setAttribute('cy', y);
+    circle.setAttribute('r', pointSize * this.scale);
+    circle.setAttribute('fill', color);
+    circle.setAttribute('stroke', 'white');
+    circle.setAttribute('stroke-width', 1 * this.scale);
+    circle.setAttribute('opacity', '0.8');
+
+    group.appendChild(circle);
+
+    // Optional label
+    if (showLabels) {
+      const label = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', x + (6 * this.scale));
+      label.setAttribute('y', y + (3 * this.scale));
+      label.setAttribute('fill', color);
+      label.setAttribute('font-size', 9 * this.scale);
+      label.setAttribute('font-family', 'monospace');
+      label.setAttribute('opacity', '0.9');
+      label.textContent = name;
+      group.appendChild(label);
+    }
+
+    return group;
+  }
+
+  /**
+   * Render routing channel rectangle (editor-specific)
+   * @param {Object} channel - Channel object with bounds and type
+   * @param {Object} options - Rendering options
+   * @param {boolean} options.showLabel - Display channel name/type (default: true)
+   */
+  renderRoutingChannel(channel, options = {}) {
+    if (!channel || !channel.bounds || !this.debugLayer) return;
+
+    const { showLabel = true } = options;
+
+    const bounds = channel.bounds;
+    const [x, y, width, height] = bounds;
+
+    // Color-code by channel type
+    const typeColors = {
+      bundling: 'rgba(0, 255, 0, 0.2)',   // Green
+      avoiding: 'rgba(255, 0, 0, 0.2)',   // Red
+      waypoint: 'rgba(0, 0, 255, 0.2)'    // Blue
+    };
+
+    const typeStrokeColors = {
+      bundling: '#00FF00',
+      avoiding: '#FF0000',
+      waypoint: '#0000FF'
+    };
+
+    const fillColor = typeColors[channel.type] || 'rgba(128, 128, 128, 0.2)';
+    const strokeColor = typeStrokeColors[channel.type] || '#808080';
+
+    // Create channel rectangle
+    const rect = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', width);
+    rect.setAttribute('height', height);
+    rect.setAttribute('fill', fillColor);
+    rect.setAttribute('stroke', strokeColor);
+    rect.setAttribute('stroke-width', 2 * this.scale);
+    rect.setAttribute('stroke-dasharray', `${4 * this.scale},${4 * this.scale}`);
+    rect.setAttribute('class', 'msd-debug-channel');
+
+    this.debugLayer.appendChild(rect);
+
+    // Label with channel name and type
+    if (showLabel && channel.id) {
+      const labelText = `${channel.id} (${channel.type || 'unknown'})`;
+      const label = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', x + (4 * this.scale));
+      label.setAttribute('y', y + (14 * this.scale));
+      label.setAttribute('fill', strokeColor);
+      label.setAttribute('font-size', 11 * this.scale);
+      label.setAttribute('font-family', 'monospace');
+      label.setAttribute('font-weight', 'bold');
+      label.setAttribute('opacity', '0.9');
+      label.textContent = labelText;
+
+      // Label background for readability
+      const labelBg = this.debugLayer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      labelBg.setAttribute('x', x + (2 * this.scale));
+      labelBg.setAttribute('y', y + (2 * this.scale));
+      labelBg.setAttribute('width', labelText.length * 7 * this.scale);
+      labelBg.setAttribute('height', 14 * this.scale);
+      labelBg.setAttribute('fill', 'rgba(0, 0, 0, 0.7)');
+      labelBg.setAttribute('rx', 2 * this.scale);
+
+      this.debugLayer.appendChild(labelBg);
+      this.debugLayer.appendChild(label);
+    }
+
+    lcardsLog.debug(`[MsdDebugRenderer] Rendered routing channel ${channel.id}`);
+  }
+
+  /**
    * Essential cleanup to prevent memory leaks
    */
   destroy() {

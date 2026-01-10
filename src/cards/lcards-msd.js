@@ -31,6 +31,17 @@ export class LCARdSMSDCard extends LCARdSCard {
     /** Card type identifier for CoreConfigManager */
     static CARD_TYPE = 'msd';
 
+    /**
+     * Get config element (editor) for Home Assistant GUI
+     * @static
+     * @returns {HTMLElement} Editor element
+     */
+    static getConfigElement() {
+        // Import editor dynamically to avoid circular dependencies
+        import('../editor/cards/lcards-msd-editor.js');
+        return document.createElement('lcards-msd-editor');
+    }
+
     static get properties() {
         return {
             ...super.properties,
