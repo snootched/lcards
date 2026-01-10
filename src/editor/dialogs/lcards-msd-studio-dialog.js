@@ -1320,13 +1320,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Grid Color -->
                             <div style="margin-top: 12px;">
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{ ui_color: {} }}
+                                <label style="display: block; margin-bottom: 4px; font-size: 14px; color: var(--primary-text-color);">
+                                    Grid Color
+                                </label>
+                                <input
+                                    type="color"
                                     .value=${this._debugSettings.grid_color || '#cccccc'}
-                                    .label=${'Grid Color'}
-                                    @value-changed=${(e) => this._updateDebugSetting('grid_color', e.detail.value)}>
-                                </ha-selector>
+                                    @input=${(e) => this._updateDebugSetting('grid_color', e.target.value)}
+                                    style="width: 100%; height: 36px; border: 1px solid var(--divider-color); border-radius: 4px; cursor: pointer;">
                             </div>
 
                             <!-- Grid Opacity -->
@@ -2749,48 +2750,66 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         console.log('[MSDStudio] Rendering grid with', verticalLines.length, 'vertical and', horizontalLines.length, 'horizontal lines');
 
+        // Calculate base_svg boundary position
+        const baseSvgLeft = (rect.left - panelRect.left) + offsetX;
+        const baseSvgTop = (rect.top - panelRect.top) + offsetY;
+        const baseSvgWidth = renderedWidth;
+        const baseSvgHeight = renderedHeight;
+
+        // Get grid opacity from settings
+        const gridOpacity = this._debugSettings.grid_opacity ?? 0.3;
+
         return html`
             <div style="
                 position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
+                left: ${baseSvgLeft}px;
+                top: ${baseSvgTop}px;
+                width: ${baseSvgWidth}px;
+                height: ${baseSvgHeight}px;
                 pointer-events: none;
                 z-index: 996;
             ">
+                <!-- Base SVG Boundary -->
+                <div style="
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    border: 2px dashed ${gridColor};
+                    opacity: ${Math.min(gridOpacity + 0.2, 1.0)};
+                "></div>
+
+                <!-- Grid Lines -->
                 ${verticalLines.map(x => {
-                    const svgPixelX = (x - viewBoxX) / scale + offsetX;
-                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
+                    const svgPixelX = (x - viewBoxX) / scale;
                     return html`
                         <div style="
                             position: absolute;
-                            left: ${pixelX}px;
+                            left: ${svgPixelX}px;
                             top: 0;
                             width: 1px;
                             height: 100%;
                             background: ${gridColor};
-                            opacity: 0.3;
+                            opacity: ${gridOpacity};
                         "></div>
                     `;
                 })}
                 ${horizontalLines.map(y => {
-                    const svgPixelY = (y - viewBoxY) / scale + offsetY;
-                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
+                    const svgPixelY = (y - viewBoxY) / scale;
                     return html`
                         <div style="
                             position: absolute;
                             left: 0;
-                            top: ${pixelY}px;
+                            top: ${svgPixelY}px;
                             width: 100%;
                             height: 1px;
                             background: ${gridColor};
-                            opacity: 0.3;
+                            opacity: ${gridOpacity};
                         "></div>
                     `;
                 })}
             </div>
-            </svg>
         `;
     }
 
