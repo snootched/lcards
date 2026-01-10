@@ -940,8 +940,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     `}
                 </lcards-form-section>
 
-                <!-- Anchor Form Dialog -->
-                ${this._showAnchorForm ? this._renderAnchorFormDialog() : ''}
             </div>
         `;
     }
@@ -1506,19 +1504,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Controls tab (Phase 3)
+     * Render Controls tab (Phase 3 placeholder)
      * @returns {TemplateResult}
      * @private
      */
     _renderControlsTab() {
-        const overlays = this._workingConfig.msd?.overlays || [];
-        const controlOverlays = overlays.filter(o => o.type === 'control');
-        const controlCount = controlOverlays.length;
+        const controls = this._getControlOverlays();
+        const controlCount = controls.length;
 
         return html`
+            <!-- Controls Management -->
             <lcards-form-section
                 header="Control Overlays"
-                description="Manage card overlays positioned on the MSD canvas"
+                description="HA cards positioned on the MSD canvas"
                 icon="mdi:card-multiple"
                 ?expanded=${true}>
 
@@ -1526,13 +1524,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-message type="info">
                         <strong>No control overlays defined yet.</strong>
                         <p style="margin: 8px 0; font-size: 13px;">
-                            Control overlays are Home Assistant cards (buttons, sensors, etc.) 
-                            positioned on your MSD display. Click "Add Control" to create your first overlay.
+                            Control overlays are Home Assistant cards positioned on your MSD canvas.
+                            Click "Add Control" to place your first control.
                         </p>
                     </lcards-message>
                 ` : html`
                     <div class="control-list">
-                        ${controlOverlays.map(overlay => this._renderControlItem(overlay))}
+                        ${controls.map(control => this._renderControlItem(control))}
                     </div>
                 `}
 
@@ -1553,14 +1551,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render control item in list
-     * @param {Object} overlay - Control overlay config
+     * Get control overlays from config
+     * @returns {Array}
+     * @private
+     */
+    _getControlOverlays() {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        return overlays.filter(o => o.type === 'control');
+    }
+
+    /**
+     * Render single control item (placeholder)
+     * @param {Object} control - Control overlay config
      * @returns {TemplateResult}
      * @private
      */
-    _renderControlItem(overlay) {
-        const cardType = overlay.card?.type || 'unknown';
-        const position = overlay.position || overlay.anchor || 'not set';
+    _renderControlItem(control) {
+        const id = control.id || 'unnamed';
+        const cardType = control.card?.type || 'unknown';
+        const position = control.position || control.anchor || 'not set';
         const positionStr = Array.isArray(position) ? `[${position[0]}, ${position[1]}]` : position;
 
         return html`
@@ -1573,27 +1582,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 border-radius: 4px;
                 margin-bottom: 8px;
             ">
-                <ha-icon icon="mdi:card" style="color: var(--primary-color);"></ha-icon>
+                <ha-icon icon="mdi:card-outline" style="color: var(--primary-color);"></ha-icon>
                 <div style="flex: 1;">
-                    <div style="font-weight: 600;">${overlay.id || 'Unnamed'}</div>
-                    <div style="font-size: 12px; color: var(--secondary-text-color);">
+                    <div style="font-weight: 600;">${id}</div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
                         ${cardType} @ ${positionStr}
                     </div>
                 </div>
                 <div style="display: flex; gap: 4px;">
                     <ha-icon-button
                         icon="mdi:pencil"
-                        @click=${() => this._editControl(overlay)}
+                        @click=${() => this._editControl(control)}
                         title="Edit control">
                     </ha-icon-button>
                     <ha-icon-button
-                        icon="mdi:content-duplicate"
-                        @click=${() => this._duplicateControl(overlay)}
-                        title="Duplicate control">
+                        icon="mdi:eye"
+                        @click=${() => this._highlightControlInPreview(control)}
+                        title="Highlight in preview">
                     </ha-icon-button>
                     <ha-icon-button
                         icon="mdi:delete"
-                        @click=${() => this._deleteControl(overlay)}
+                        @click=${() => this._deleteControl(control)}
                         title="Delete control">
                     </ha-icon-button>
                 </div>
@@ -1602,7 +1611,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render control help section
+     * Render control help documentation
      * @returns {TemplateResult}
      * @private
      */
@@ -1611,10 +1620,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <lcards-message type="info" style="margin-top: 16px;">
                 <strong>About Control Overlays:</strong>
                 <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                    <li>Control overlays are Home Assistant cards positioned on your MSD</li>
-                    <li>Use any HA card type: button, sensor, gauge, custom cards, etc.</li>
-                    <li>Position using anchors or absolute coordinates</li>
-                    <li>Configure size, card properties, and visual styling</li>
+                    <li>Control overlays are HA cards (buttons, entities, custom cards) positioned on your MSD</li>
+                    <li>Use anchors or coordinates to position controls</li>
+                    <li>Controls can be connected with lines for visual flow</li>
+                    <li>Example: Button card at anchor "warp_drive" showing power status</li>
                 </ul>
             </lcards-message>
         `;
@@ -1622,41 +1631,49 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     // Placeholder methods for Phase 3 full implementation
     /**
-     * Open control form dialog (Phase 3 full)
+     * Open control form (placeholder)
      * @private
      */
     _openControlForm() {
-        alert('Control form dialog will be implemented in Phase 3 full version');
+        alert('Control form coming in next PR (Phase 3 full implementation)');
     }
 
     /**
-     * Edit control overlay (Phase 3 full)
-     * @param {Object} overlay - Control overlay config
+     * Edit control (placeholder)
+     * @param {Object} control - Control to edit
      * @private
      */
-    _editControl(overlay) {
-        lcardsLog.debug('[MSDStudio] Edit control:', overlay);
-        alert('Control editor will be implemented in Phase 3 full version');
+    _editControl(control) {
+        alert(`Edit control: ${control.id} (coming in next PR)`);
     }
 
     /**
-     * Duplicate control overlay (Phase 3 full)
-     * @param {Object} overlay - Control overlay config
+     * Highlight control in preview (placeholder)
+     * @param {Object} control - Control to highlight
      * @private
      */
-    _duplicateControl(overlay) {
-        lcardsLog.debug('[MSDStudio] Duplicate control:', overlay);
-        alert('Control duplication will be implemented in Phase 3 full version');
+    _highlightControlInPreview(control) {
+        alert(`Highlight control: ${control.id} (coming in next PR)`);
     }
 
     /**
-     * Delete control overlay (Phase 3 full)
-     * @param {Object} overlay - Control overlay config
+     * Delete control (placeholder)
+     * @param {Object} control - Control to delete
      * @private
      */
-    _deleteControl(overlay) {
-        lcardsLog.debug('[MSDStudio] Delete control:', overlay);
-        alert('Control deletion will be implemented in Phase 3 full version');
+    async _deleteControl(control) {
+        const confirmed = await this._showConfirmDialog(
+            'Delete Control',
+            `Delete control "${control.id}"? This may affect lines connected to this control.`
+        );
+        if (!confirmed) return;
+
+        const overlays = [...(this._workingConfig.msd?.overlays || [])];
+        const index = overlays.findIndex(o => o.id === control.id);
+        if (index > -1) {
+            overlays.splice(index, 1);
+            this._setNestedValue('msd.overlays', overlays);
+        }
     }
 
     /**
@@ -1755,6 +1772,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
             </ha-dialog>
+
+            <!-- Anchor Form Dialog (outside main dialog, always available) -->
+            ${this._showAnchorForm ? this._renderAnchorFormDialog() : ''}
         `;
     }
 }
