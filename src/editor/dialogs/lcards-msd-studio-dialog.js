@@ -2464,8 +2464,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _renderLineHighlight() {
         if (!this._highlightedLine) return '';
 
-        // Find the line
-        const lines = this._workingConfig.msd?.lines || [];
+        // Find the line in overlays array
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const lines = overlays.filter(o => o.type === 'line');
         const line = lines.find(l => l.id === this._highlightedLine);
         if (!line || !line.anchor || !line.attach_to) return '';
 
@@ -3119,7 +3120,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const offsetY = (rect.height - renderedHeight) / 2;
 
         return html`
-            <svg style="
+            <div style="
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -3166,32 +3167,47 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const pixelEndY = (endY - viewBoxY) / scale + offsetY + (rect.top - panelRect.top);
 
                     const color = line.style?.color || '#00FFAA';
+                    const length = Math.sqrt(Math.pow(pixelEndX - pixelStartX, 2) + Math.pow(pixelEndY - pixelStartY, 2));
+                    const angle = Math.atan2(pixelEndY - pixelStartY, pixelEndX - pixelStartX) * 180 / Math.PI;
 
                     return html`
-                        <line
-                            x1="${pixelStartX}"
-                            y1="${pixelStartY}"
-                            x2="${pixelEndX}"
-                            y2="${pixelEndY}"
-                            stroke="${color}"
-                            stroke-width="2"
-                            opacity="0.7"
-                        />
-                        <circle
-                            cx="${pixelStartX}"
-                            cy="${pixelStartY}"
-                            r="4"
-                            fill="${color}"
-                        />
-                        <circle
-                            cx="${pixelEndX}"
-                            cy="${pixelEndY}"
-                            r="4"
-                            fill="${color}"
-                        />
+                        <!-- Line -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelStartX}px;
+                            top: ${pixelStartY}px;
+                            width: ${length}px;
+                            height: 2px;
+                            background: ${color};
+                            opacity: 0.7;
+                            transform-origin: 0 0;
+                            transform: rotate(${angle}deg);
+                        "></div>
+                        <!-- Start marker -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelStartX}px;
+                            top: ${pixelStartY}px;
+                            width: 8px;
+                            height: 8px;
+                            background: ${color};
+                            border-radius: 50%;
+                            transform: translate(-50%, -50%);
+                        "></div>
+                        <!-- End marker -->
+                        <div style="
+                            position: absolute;
+                            left: ${pixelEndX}px;
+                            top: ${pixelEndY}px;
+                            width: 8px;
+                            height: 8px;
+                            background: ${color};
+                            border-radius: 50%;
+                            transform: translate(-50%, -50%);
+                        "></div>
                     `;
                 })}
-            </svg>
+            </div>
         `;
     }
 
