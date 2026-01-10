@@ -105,12 +105,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._activeMode = MODES.VIEW;
         this._validationErrors = [];
         this._debugSettings = {
+            // Debug toggles
             anchors: true,
             bounding_boxes: true,
             attachment_points: false,
             routing_channels: false,
             line_paths: true,
-            grid: false
+            grid: false,
+            show_coordinates: false,
+            // Grid settings
+            grid_color: '#cccccc',
+            grid_opacity: 0.3,
+            // Scale settings
+            debug_scale: 1.0,
+            // Preview settings
+            auto_refresh: true,
+            interactive_preview: false,
+            // Visualization colors
+            anchor_color: '#00FFFF',
+            bbox_color: '#FFA500',
+            attachment_color: '#00FF00',
+            bundling_color: '#00FF00',
+            avoiding_color: '#FF0000',
+            waypoint_color: '#0000FF'
         };
 
         // Debounce timer for preview updates
@@ -214,6 +231,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._workingConfig.msd = {};
         }
 
+        // Add keyboard event listener (Phase 7)
+        this._boundKeyDownHandler = this._handleKeyDown.bind(this);
+        document.addEventListener('keydown', this._boundKeyDownHandler);
+
         lcardsLog.debug('[MSDStudio] Opened with config:', this._workingConfig);
 
         // Schedule initial preview update
@@ -224,6 +245,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         super.disconnectedCallback();
         if (this._previewUpdateTimer) {
             clearTimeout(this._previewUpdateTimer);
+        }
+        // Remove keyboard event listener (Phase 7)
+        if (this._boundKeyDownHandler) {
+            document.removeEventListener('keydown', this._boundKeyDownHandler);
         }
     }
 
@@ -500,10 +525,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle save button click
+     * Handle save button click (Phase 7 enhanced with validation)
      * @private
      */
     _handleSave() {
+        // Run validation
+        this._validationErrors = this._validateConfiguration();
+        
+        if (this._validationErrors.length > 0) {
+            this.requestUpdate();
+            this._showValidationErrors();
+            return;
+        }
+
         lcardsLog.debug('[MSDStudio] Saving config:', this._workingConfig);
 
         // Dispatch config-changed event
@@ -513,26 +547,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
             composed: true
         }));
 
+        this._showSuccessToast('Configuration saved successfully!');
         // Close dialog
         this._handleClose();
     }
 
     /**
-     * Handle cancel button click
+     * Handle cancel button click (Phase 7 enhanced with confirmation)
      * @private
      */
     _handleCancel() {
+        if (this._configHasChanges() && !this._confirmAction('Discard unsaved changes?')) {
+            return;
+        }
         lcardsLog.debug('[MSDStudio] Cancelled');
         this._handleClose();
     }
 
     /**
-     * Handle reset button click
+     * Check if config has changes
+     * @returns {boolean}
+     * @private
+     */
+    _configHasChanges() {
+        const initial = JSON.stringify(this._initialConfig);
+        const current = JSON.stringify(this._workingConfig);
+        return initial !== current;
+    }
+
+    /**
+     * Handle reset button click (Phase 7 enhanced with confirmation)
      * @private
      */
     _handleReset() {
+        if (!this._confirmAction('Reset to initial configuration? All changes will be lost.')) {
+            return;
+        }
         lcardsLog.debug('[MSDStudio] Resetting to initial config');
         this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig));
+        this._validationErrors = [];
+        this._showSuccessToast('Configuration reset to initial state');
         this._schedulePreviewUpdate();
         this.requestUpdate();
     }
@@ -563,6 +617,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
             [MODES.DRAW_CHANNEL]: 'Draw Channel'
         };
         return labels[mode] || 'Unknown';
+    }
+
+    /**
+     * Get mode tooltip (Phase 7)
+     * @param {string} mode - Mode constant
+     * @returns {string}
+     * @private
+     */
+    _getModeTooltip(mode) {
+        const tooltips = {
+            [MODES.VIEW]: 'Default mode - navigate and select items',
+            [MODES.PLACE_ANCHOR]: 'Click on preview to place named anchors (Tab: Anchors)',
+            [MODES.PLACE_CONTROL]: 'Click on preview to place control overlays (Tab: Controls)',
+            [MODES.CONNECT_LINE]: 'Click source → target to create line connections (Tab: Lines)',
+            [MODES.DRAW_CHANNEL]: 'Click and drag to draw routing channel rectangles (Tab: Channels)'
+        };
+        return tooltips[mode] || '';
     }
 
     /**
@@ -602,7 +673,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div
                         class="mode-button ${this._activeMode === mode ? 'active' : ''}"
                         @click=${() => this._setMode(mode)}
-                        title=${this._getModeLabel(mode)}>
+                        title="${this._getModeTooltip(mode)}">
                         <ha-icon icon=${this._getModeIcon(mode)}></ha-icon>
                         <span class="mode-button-label">${this._getModeLabel(mode)}</span>
                     </div>
@@ -2852,12 +2923,336 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderDebugTab() {
-        return this._renderPlaceholder(
-            'Debug Visualization',
-            'Control debug overlays in the preview panel. Toggle anchor markers, bounding boxes, attachment points, routing channels, and line paths to better understand your MSD configuration.',
-            'Phase 6',
-            'mdi:bug'
-        );
+        return html`
+            <div style="padding: 8px;">
+                <!-- Debug Toggles Section -->
+                <lcards-form-section
+                    header="Debug Visualization Toggles"
+                    description="Show/hide debug overlays in the preview panel"
+                    icon="mdi:eye-settings"
+                    ?expanded=${true}>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.anchors}
+                                @change=${(e) => this._updateDebugSetting('anchors', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Anchors</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.bounding_boxes}
+                                @change=${(e) => this._updateDebugSetting('bounding_boxes', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Bounding Boxes</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.attachment_points}
+                                @change=${(e) => this._updateDebugSetting('attachment_points', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Attachment Points</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.routing_channels}
+                                @change=${(e) => this._updateDebugSetting('routing_channels', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Routing Channels</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.line_paths}
+                                @change=${(e) => this._updateDebugSetting('line_paths', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Line Paths</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.grid}
+                                @change=${(e) => this._updateDebugSetting('grid', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Grid</span>
+                        </label>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.show_coordinates}
+                                @change=${(e) => this._updateDebugSetting('show_coordinates', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Show Coordinates</span>
+                        </label>
+                    </div>
+                </lcards-form-section>
+
+                <!-- Grid Settings (when enabled) -->
+                ${this._debugSettings.grid ? html`
+                    <lcards-form-section
+                        header="Grid Settings"
+                        description="Configure grid appearance and behavior"
+                        icon="mdi:grid"
+                        ?expanded=${true}
+                        style="margin-top: 16px;">
+                        
+                        <!-- Grid Spacing -->
+                        <div style="margin-top: 12px;">
+                            <label class="form-label">Grid Spacing (${this._gridSpacing}px)</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    number: {
+                                        min: 10,
+                                        max: 100,
+                                        step: 5,
+                                        mode: 'slider'
+                                    }
+                                }}
+                                .value=${this._gridSpacing}
+                                @value-changed=${(e) => {
+                                    this._gridSpacing = e.detail.value;
+                                    this._schedulePreviewUpdate();
+                                }}>
+                            </ha-selector>
+                        </div>
+
+                        <!-- Snap to Grid -->
+                        <div style="margin-top: 16px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input
+                                    type="checkbox"
+                                    ?checked=${this._snapToGrid}
+                                    @change=${(e) => {
+                                        this._snapToGrid = e.target.checked;
+                                        this.requestUpdate();
+                                    }}
+                                    style="width: 18px; height: 18px; cursor: pointer;">
+                                <span>Snap to Grid</span>
+                            </label>
+                        </div>
+
+                        <!-- Grid Color -->
+                        <div style="margin-top: 16px;">
+                            <label class="form-label">Grid Color</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.grid_color || '#cccccc'}
+                                @input=${(e) => this._updateDebugSetting('grid_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Grid Opacity -->
+                        <div style="margin-top: 16px;">
+                            <label class="form-label">Grid Opacity (${(this._debugSettings.grid_opacity ?? 0.3).toFixed(1)})</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    number: {
+                                        min: 0.1,
+                                        max: 1.0,
+                                        step: 0.1,
+                                        mode: 'slider'
+                                    }
+                                }}
+                                .value=${this._debugSettings.grid_opacity ?? 0.3}
+                                @value-changed=${(e) => this._updateDebugSetting('grid_opacity', e.detail.value)}>
+                            </ha-selector>
+                        </div>
+                    </lcards-form-section>
+                ` : ''}
+
+                <!-- Scale Settings -->
+                <lcards-form-section
+                    header="Debug Scale"
+                    description="Adjust size of debug markers and labels"
+                    icon="mdi:magnify"
+                    ?expanded=${true}
+                    style="margin-top: 16px;">
+                    
+                    <div style="margin-top: 12px;">
+                        <label class="form-label">Debug Scale (${(this._debugSettings.debug_scale ?? 1.0).toFixed(1)}x)</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                number: {
+                                    min: 0.5,
+                                    max: 3.0,
+                                    step: 0.1,
+                                    mode: 'slider'
+                                }
+                            }}
+                            .value=${this._debugSettings.debug_scale ?? 1.0}
+                            @value-changed=${(e) => this._updateDebugSetting('debug_scale', e.detail.value)}>
+                        </ha-selector>
+                    </div>
+                </lcards-form-section>
+
+                <!-- Preview Settings -->
+                <lcards-form-section
+                    header="Preview Settings"
+                    description="Control preview behavior"
+                    icon="mdi:monitor-eye"
+                    ?expanded=${true}
+                    style="margin-top: 16px;">
+                    
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.auto_refresh ?? true}
+                                @change=${(e) => this._updateDebugSetting('auto_refresh', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Auto-refresh (300ms debounce)</span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                ?checked=${this._debugSettings.interactive_preview ?? false}
+                                @change=${(e) => this._updateDebugSetting('interactive_preview', e.target.checked)}
+                                style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Interactive Preview (click to select)</span>
+                        </label>
+                    </div>
+
+                    <ha-button @click=${() => this._schedulePreviewUpdate()} style="margin-top: 12px;">
+                        <ha-icon icon="mdi:refresh" slot="icon"></ha-icon>
+                        Manual Refresh
+                    </ha-button>
+                </lcards-form-section>
+
+                <!-- Visualization Colors -->
+                <lcards-form-section
+                    header="Visualization Colors"
+                    description="Customize debug visualization colors"
+                    icon="mdi:palette"
+                    ?expanded=${false}
+                    style="margin-top: 16px;">
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 12px;">
+                        <!-- Anchor Marker Color -->
+                        <div>
+                            <label class="form-label">Anchor Markers</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.anchor_color || '#00FFFF'}
+                                @input=${(e) => this._updateDebugSetting('anchor_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Bounding Box Color -->
+                        <div>
+                            <label class="form-label">Bounding Boxes</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.bbox_color || '#FFA500'}
+                                @input=${(e) => this._updateDebugSetting('bbox_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Attachment Point Color -->
+                        <div>
+                            <label class="form-label">Attachment Points</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.attachment_color || '#00FF00'}
+                                @input=${(e) => this._updateDebugSetting('attachment_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Bundling Channel Color -->
+                        <div>
+                            <label class="form-label">Bundling Channels</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.bundling_color || '#00FF00'}
+                                @input=${(e) => this._updateDebugSetting('bundling_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Avoiding Channel Color -->
+                        <div>
+                            <label class="form-label">Avoiding Channels</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.avoiding_color || '#FF0000'}
+                                @input=${(e) => this._updateDebugSetting('avoiding_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+
+                        <!-- Waypoint Channel Color -->
+                        <div>
+                            <label class="form-label">Waypoint Channels</label>
+                            <ha-textfield
+                                type="color"
+                                .value=${this._debugSettings.waypoint_color || '#0000FF'}
+                                @input=${(e) => this._updateDebugSetting('waypoint_color', e.target.value)}
+                                style="width: 100%;">
+                            </ha-textfield>
+                        </div>
+                    </div>
+                </lcards-form-section>
+
+                <!-- Help Section -->
+                ${this._renderDebugHelp()}
+            </div>
+        `;
+    }
+
+    /**
+     * Render debug help documentation
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDebugHelp() {
+        return html`
+            <lcards-message type="info" style="margin-top: 16px;">
+                <strong>About Debug Visualizations:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                    <li><strong>Anchors</strong>: Cyan crosshairs with labels showing named anchor positions</li>
+                    <li><strong>Bounding Boxes</strong>: Orange dashed rectangles showing control overlay bounds</li>
+                    <li><strong>Attachment Points</strong>: Green dots showing 9-point attachment grid on controls</li>
+                    <li><strong>Routing Channels</strong>: Colored translucent rectangles showing routing regions</li>
+                    <li><strong>Line Paths</strong>: Magenta waypoint markers showing line routing</li>
+                    <li><strong>Grid</strong>: Coordinate grid overlay with snap-to-grid support</li>
+                    <li><strong>Coordinates</strong>: Mouse position tooltip for precise placement</li>
+                </ul>
+            </lcards-message>
+        `;
+    }
+
+    /**
+     * Update debug setting
+     * @param {string} key - Setting key
+     * @param {*} value - New value
+     * @private
+     */
+    _updateDebugSetting(key, value) {
+        this._debugSettings = {
+            ...this._debugSettings,
+            [key]: value
+        };
+        this._schedulePreviewUpdate();
     }
 
     // ============================
@@ -3462,6 +3857,243 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </lcards-form-section>
             </div>
         `;
+    }
+
+    // ============================
+    // Phase 7: Keyboard Shortcuts & Validation
+    // ============================
+
+    /**
+     * Handle keyboard shortcuts (Phase 7)
+     * @param {KeyboardEvent} e - Keyboard event
+     * @private
+     */
+    _handleKeyDown(e) {
+        // Don't interfere with input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'HA-TEXTFIELD') {
+            return;
+        }
+
+        // Esc - Exit mode or close dialogs
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            if (this._showLineForm) {
+                this._closeLineForm();
+            } else if (this._showControlForm) {
+                this._closeControlForm();
+            } else if (this._showAnchorForm) {
+                this._closeAnchorForm();
+            } else if (this._editingChannelId !== null) {
+                this._closeChannelForm();
+            } else if (this._activeMode !== MODES.VIEW) {
+                this._setMode(MODES.VIEW);
+            }
+            return;
+        }
+
+        // Ctrl+S / Cmd+S - Save config
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            this._handleSave();
+            return;
+        }
+
+        // Delete - Delete selected item (placeholder for future)
+        if (e.key === 'Delete') {
+            e.preventDefault();
+            // Could implement: delete currently selected anchor/control/line
+            lcardsLog.info('[MSDStudio] Delete key pressed - no item selected');
+            return;
+        }
+
+        // G - Toggle grid
+        if (e.key === 'g' || e.key === 'G') {
+            e.preventDefault();
+            this._debugSettings.grid = !this._debugSettings.grid;
+            this._schedulePreviewUpdate();
+            return;
+        }
+
+        // 1-6 - Switch tabs
+        const tabKeys = {
+            '1': TABS.BASE_SVG,
+            '2': TABS.ANCHORS,
+            '3': TABS.CONTROLS,
+            '4': TABS.LINES,
+            '5': TABS.CHANNELS,
+            '6': TABS.DEBUG
+        };
+        if (tabKeys[e.key]) {
+            e.preventDefault();
+            this._activeTab = tabKeys[e.key];
+            this.requestUpdate();
+            return;
+        }
+    }
+
+    /**
+     * Validate current configuration (Phase 7)
+     * @returns {Array} Array of validation error objects
+     * @private
+     */
+    _validateConfiguration() {
+        const errors = [];
+        const msd = this._workingConfig.msd || {};
+
+        // Validate line connections
+        const anchors = msd.anchors || {};
+        const overlays = msd.overlays || [];
+        const lineOverlays = overlays.filter(o => o.type === 'line');
+
+        lineOverlays.forEach(line => {
+            // Check if anchor exists
+            if (line.anchor && typeof line.anchor === 'string') {
+                const anchorExists = anchors[line.anchor] || overlays.find(o => o.id === line.anchor && o.type !== 'line');
+                if (!anchorExists) {
+                    errors.push({
+                        type: 'line',
+                        id: line.id,
+                        field: 'anchor',
+                        message: `Line "${line.id}": Source anchor "${line.anchor}" does not exist`
+                    });
+                }
+            }
+
+            // Check if attach_to exists
+            if (line.attach_to && typeof line.attach_to === 'string') {
+                const targetExists = anchors[line.attach_to] || overlays.find(o => o.id === line.attach_to && o.type !== 'line');
+                if (!targetExists) {
+                    errors.push({
+                        type: 'line',
+                        id: line.id,
+                        field: 'attach_to',
+                        message: `Line "${line.id}": Target "${line.attach_to}" does not exist`
+                    });
+                }
+            }
+        });
+
+        // Validate channel bounds (basic check for positive dimensions)
+        const channels = msd.channels || {};
+        Object.entries(channels).forEach(([id, channel]) => {
+            if (channel.bounds && Array.isArray(channel.bounds)) {
+                const [x, y, width, height] = channel.bounds;
+                if (width <= 0 || height <= 0) {
+                    errors.push({
+                        type: 'channel',
+                        id,
+                        field: 'bounds',
+                        message: `Channel "${id}": Width and height must be positive (got ${width}×${height})`
+                    });
+                }
+            }
+        });
+
+        // Validate control sizes
+        const controlOverlays = overlays.filter(o => o.type === 'control');
+        controlOverlays.forEach(control => {
+            if (control.size && Array.isArray(control.size)) {
+                const [width, height] = control.size;
+                if (width <= 0 || height <= 0) {
+                    errors.push({
+                        type: 'control',
+                        id: control.id,
+                        field: 'size',
+                        message: `Control "${control.id}": Width and height must be positive (got ${width}×${height})`
+                    });
+                }
+            }
+        });
+
+        return errors;
+    }
+
+    /**
+     * Get validation error count (Phase 7)
+     * @returns {number}
+     * @private
+     */
+    _getValidationErrorCount() {
+        return this._validationErrors.length;
+    }
+
+    /**
+     * Render validation errors footer (Phase 7)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderValidationFooter() {
+        const errorCount = this._getValidationErrorCount();
+        if (errorCount === 0) return '';
+
+        return html`
+            <div style="
+                padding: 12px 24px;
+                background: var(--error-color, #f44336);
+                color: white;
+                border-top: 1px solid var(--divider-color);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 14px;
+            ">
+                <ha-icon icon="mdi:alert-circle" style="--mdc-icon-size: 20px;"></ha-icon>
+                <span><strong>${errorCount}</strong> validation error${errorCount > 1 ? 's' : ''} found</span>
+                <ha-button @click=${this._showValidationErrors} style="margin-left: auto;">
+                    View Details
+                </ha-button>
+            </div>
+        `;
+    }
+
+    /**
+     * Show validation errors dialog (Phase 7)
+     * @private
+     */
+    _showValidationErrors() {
+        const errorsList = this._validationErrors.map(err => 
+            `• ${err.message}`
+        ).join('\n');
+        
+        alert(`Validation Errors:\n\n${errorsList}\n\nPlease fix these issues before saving.`);
+    }
+
+    /**
+     * Show success toast (Phase 7)
+     * @param {string} message - Success message
+     * @private
+     */
+    _showSuccessToast(message) {
+        // Simple implementation using alert (can be enhanced with mwc-snackbar)
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success-color, #4caf50);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 10000;
+            font-weight: 500;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    /**
+     * Confirm destructive action (Phase 7)
+     * @param {string} message - Confirmation message
+     * @returns {boolean}
+     * @private
+     */
+    _confirmAction(message) {
+        return confirm(message);
     }
 
     /**
