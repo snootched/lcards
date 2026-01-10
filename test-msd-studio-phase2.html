@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSD Studio Phase 2 Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>MSD Configuration Studio - Phase 2 Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Overview</h2>
+        <p>This page tests the Phase 2 implementation of the MSD Configuration Studio:</p>
+        <ul>
+            <li><strong>Base SVG Tab:</strong> SVG source, viewBox, and filters configuration</li>
+            <li><strong>Anchors Tab:</strong> Create, edit, delete anchors with visual placement</li>
+            <li><strong>Place Anchor Mode:</strong> Click canvas to place anchors</li>
+            <li><strong>Coordinate Helpers:</strong> Grid overlay and snap-to-grid</li>
+            <li><strong>Live Preview:</strong> Real-time preview with debug visualizations</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Build Status</h2>
+        <div id="buildStatus" class="status">Checking build...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Quick Test</h2>
+        <button onclick="openStudioDialog()">Open MSD Studio Dialog</button>
+        <p id="testResult"></p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Config</h2>
+        <pre id="configDisplay">Loading...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Testing Checklist</h2>
+        <h3>Base SVG Tab</h3>
+        <ul>
+            <li>☐ SVG source input updates config.msd.base_svg.source</li>
+            <li>☐ Builtin templates work (e.g., builtin:ncc-1701-a)</li>
+            <li>☐ ViewBox mode toggle switches between auto and custom</li>
+            <li>☐ Custom viewBox inputs work correctly</li>
+            <li>☐ Filter preset selector updates config.msd.base_svg.filter_preset</li>
+            <li>☐ Custom filters toggle enables filter inputs</li>
+            <li>☐ Custom filter sliders update values</li>
+            <li>☐ Preview updates when base_svg changes</li>
+        </ul>
+
+        <h3>Anchors Tab</h3>
+        <ul>
+            <li>☐ "Add Anchor" button opens anchor form dialog</li>
+            <li>☐ Anchor form validates name (required, no duplicates)</li>
+            <li>☐ Position inputs (X, Y) work correctly</li>
+            <li>☐ Unit selector works (px, %, vb)</li>
+            <li>☐ "Save" button creates new anchor in config.msd.anchors</li>
+            <li>☐ Edit button opens form with existing anchor values</li>
+            <li>☐ Delete button removes anchor from config</li>
+            <li>☐ Anchor list displays all anchors</li>
+        </ul>
+
+        <h3>Place Anchor Mode</h3>
+        <ul>
+            <li>☐ "Place on Canvas" button enters Place Anchor Mode</li>
+            <li>☐ Mode toolbar shows "Place Anchor" as active</li>
+            <li>☐ Clicking preview canvas opens anchor form</li>
+            <li>☐ Click coordinates converted to viewBox coordinates</li>
+            <li>☐ Position pre-filled in anchor form from click</li>
+            <li>☐ Auto-generated anchor names (anchor_1, anchor_2, etc.)</li>
+            <li>☐ Mode exits after opening anchor form</li>
+        </ul>
+
+        <h3>Coordinate Helpers</h3>
+        <ul>
+            <li>☐ "Show Grid Overlay" checkbox toggles grid</li>
+            <li>☐ Grid spacing selector works (10px, 20px, 50px, 100px)</li>
+            <li>☐ Grid renders in preview when enabled</li>
+            <li>☐ "Snap to Grid" checkbox toggles snapping</li>
+            <li>☐ Snap applies to anchor placement clicks</li>
+        </ul>
+
+        <h3>Live Preview</h3>
+        <ul>
+            <li>☐ Preview shows "No base SVG configured" when empty</li>
+            <li>☐ Preview renders MSD card when base_svg present</li>
+            <li>☐ Preview updates with 300ms debounce on config changes</li>
+            <li>☐ Preview shows anchor markers from config.msd.anchors</li>
+            <li>☐ Preview shows grid overlay when enabled</li>
+            <li>☐ Manual refresh button works</li>
+        </ul>
+    </div>
+
+    <script type="module">
+        // Check if build artifacts exist
+        fetch('/local/community/lcards/lcards.js')
+            .then(response => {
+                const status = document.getElementById('buildStatus');
+                if (response.ok) {
+                    status.className = 'status success';
+                    status.textContent = '✓ Build successful - lcards.js found';
+                    loadTestConfig();
+                } else {
+                    status.className = 'status error';
+                    status.textContent = '✗ Build file not found. Run: npm run build';
+                }
+            })
+            .catch(error => {
+                const status = document.getElementById('buildStatus');
+                status.className = 'status error';
+                status.textContent = '✗ Error checking build: ' + error.message;
+            });
+
+        // Load test config
+        function loadTestConfig() {
+            const testConfig = {
+                type: 'custom:lcards-msd',
+                msd: {
+                    base_svg: {
+                        source: 'builtin:ncc-1701-a',
+                        filter_preset: 'dimmed'
+                    },
+                    view_box: [0, 0, 400, 200],
+                    anchors: {
+                        nav_1: [50, 50],
+                        nav_2: [350, 50],
+                        eng_1: [50, 150],
+                        eng_2: [350, 150]
+                    },
+                    debug: {
+                        anchors: true,
+                        grid: true,
+                        gridSpacing: 50
+                    }
+                }
+            };
+            
+            document.getElementById('configDisplay').textContent = JSON.stringify(testConfig, null, 2);
+            window.testConfig = testConfig;
+        }
+    </script>
+
+    <script>
+        function openStudioDialog() {
+            const result = document.getElementById('testResult');
+            try {
+                // Check if MSD studio dialog is registered
+                const studioElement = document.createElement('lcards-msd-studio-dialog');
+                if (!studioElement) {
+                    throw new Error('MSD Studio Dialog element not registered');
+                }
+
+                // Create and open dialog
+                studioElement.hass = {
+                    states: {},
+                    config: {},
+                    connection: { haVersion: '2024.1.0' }
+                };
+                studioElement.config = window.testConfig || {
+                    type: 'custom:lcards-msd',
+                    msd: {}
+                };
+
+                document.body.appendChild(studioElement);
+
+                result.innerHTML = '<span style="color: green;">✓ Dialog opened successfully! Check for Phase 2 features.</span>';
+            } catch (error) {
+                result.innerHTML = '<span style="color: red;">✗ Error: ' + error.message + '</span>';
+                console.error('Error opening dialog:', error);
+            }
+        }
+    </script>
+</body>
+</html>
