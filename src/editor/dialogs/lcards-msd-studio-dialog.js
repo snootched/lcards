@@ -1418,6 +1418,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._handlePlaceControlClick(event);
         } else if (this._activeMode === MODES.CONNECT_LINE) {
             this._handleConnectLineClick(event);
+        } else if (this._activeMode === MODES.DRAW_CHANNEL) {
+            this._handleDrawChannelClick(event);
         }
     }
 
@@ -1592,6 +1594,58 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return { x: Math.round(coordX), y: Math.round(coordY) };
     }
 
+    /**
+     * Handle draw channel click (Phase 5)
+     * @param {MouseEvent} event - Click event
+     * @private
+     */
+    _handleDrawChannelClick(event) {
+        const coords = this._getPreviewCoordinates(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get preview coordinates');
+            return;
+        }
+
+        if (!this._drawChannelState.startPoint) {
+            // First click: start drawing
+            this._drawChannelState.startPoint = [coords.x, coords.y];
+            this._drawChannelState.drawing = true;
+            lcardsLog.debug('[MSDStudio] Draw channel started at:', coords);
+        } else {
+            // Second click: finish drawing
+            const startX = this._drawChannelState.startPoint[0];
+            const startY = this._drawChannelState.startPoint[1];
+            const endX = coords.x;
+            const endY = coords.y;
+
+            // Calculate bounds [x, y, width, height]
+            const x = Math.min(startX, endX);
+            const y = Math.min(startY, endY);
+            const width = Math.abs(endX - startX);
+            const height = Math.abs(endY - startY);
+
+            lcardsLog.debug('[MSDStudio] Draw channel finished:', { x, y, width, height });
+
+            // Reset draw state
+            this._drawChannelState.startPoint = null;
+            this._drawChannelState.drawing = false;
+
+            // Open channel form with pre-filled bounds
+            this._editingChannelId = '';
+            this._channelFormData = {
+                id: this._generateChannelId(),
+                type: 'bundling',
+                bounds: [x, y, width, height],
+                priority: 10,
+                color: '#00FF00'
+            };
+
+            // Exit draw mode
+            this._activeMode = MODES.VIEW;
+            this.requestUpdate();
+        }
+    }
+
     // ============================
     // Debug Settings Methods
     // ============================
@@ -1606,7 +1660,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ...this._debugSettings,
             grid: this._showGrid,
             gridSpacing: this._gridSpacing,
-            grid_spacing: this._gridSpacing  // Also pass with underscore for consistency
+            grid_spacing: this._gridSpacing,  // Also pass with underscore for consistency
+            routing_channels: true  // Always show channels in editor
         };
 
         // Force bounding boxes when Controls tab is active (Phase 3)
@@ -2355,12 +2410,440 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderChannelsTab() {
-        return this._renderPlaceholder(
-            'Routing Channels',
-            'Define routing channels to control line behavior. Create bundling channels to group lines, avoiding channels to keep lines out of specific areas, or waypoint channels to guide line routing.',
-            'Phase 5',
-            'mdi:chart-timeline-variant'
-        );
+        const channels = this._workingConfig.msd?.channels || {};
+        const channelCount = Object.keys(channels).length;
+
+        return html`
+            <div style="padding: 8px;">
+                <!-- Channels List -->
+                <lcards-form-section
+                    header="Routing Channels"
+                    description="Define regions that influence line routing behavior"
+                    ?expanded=${true}>
+                    
+                    ${channelCount === 0 ? html`
+                        <lcards-message type="info">
+                            <strong>No routing channels defined.</strong>
+                            <p style="margin: 8px 0; font-size: 13px;">
+                                Channels are rectangular regions that guide line routing:
+                                <br/>• <strong>Bundling</strong>: Lines prefer to route through these areas
+                                <br/>• <strong>Avoiding</strong>: Lines try to avoid these areas
+                                <br/>• <strong>Waypoint</strong>: Lines must pass through these areas
+                            </p>
+                        </lcards-message>
+                    ` : html`
+                        <div class="channel-list">
+                            ${Object.entries(channels).map(([id, channel]) => 
+                                this._renderChannelItem(id, channel)
+                            )}
+                        </div>
+                    `}
+
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <ha-button @click=${this._openChannelForm}>
+                            <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                            Add Channel
+                        </ha-button>
+                        <ha-button @click=${() => this._setMode('draw_channel')}>
+                            <ha-icon icon="mdi:vector-rectangle" slot="icon"></ha-icon>
+                            Draw on Canvas
+                        </ha-button>
+                    </div>
+                </lcards-form-section>
+
+                <!-- Channel Help -->
+                ${this._renderChannelHelp()}
+            </div>
+
+            <!-- Channel Form Dialog -->
+            ${this._editingChannelId !== null ? this._renderChannelFormDialog() : ''}
+        `;
+    }
+
+    /**
+     * Render individual channel item in list
+     * @param {string} id - Channel ID
+     * @param {Object} channel - Channel config
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelItem(id, channel) {
+        const typeColors = {
+            bundling: '#00FF00',
+            avoiding: '#FF0000',
+            waypoint: '#0000FF'
+        };
+        const typeLabels = {
+            bundling: 'Bundling',
+            avoiding: 'Avoiding',
+            waypoint: 'Waypoint'
+        };
+
+        const [x, y, width, height] = channel.bounds || [0, 0, 0, 0];
+        const boundsStr = `[${x}, ${y}] ${width}×${height}`;
+
+        return html`
+            <div class="channel-item" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+                border: 2px solid ${typeColors[channel.type] || '#888'};
+                border-radius: 4px;
+                margin-bottom: 8px;
+                background: ${typeColors[channel.type]}22;
+            ">
+                <!-- Type Indicator -->
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    background: ${typeColors[channel.type] || '#888'};
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #000;
+                    font-weight: bold;
+                    font-size: 10px;
+                    text-align: center;
+                    line-height: 1.2;
+                ">
+                    ${typeLabels[channel.type]}
+                </div>
+
+                <!-- Channel Info -->
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">${id}</div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                        ${boundsStr}
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div style="display: flex; gap: 4px;">
+                    <ha-icon-button
+                        icon="mdi:pencil"
+                        @click=${() => this._editChannel(id, channel)}
+                        title="Edit channel">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:eye"
+                        @click=${() => this._highlightChannelInPreview(id)}
+                        title="Highlight in preview">
+                    </ha-icon-button>
+                    <ha-icon-button
+                        icon="mdi:delete"
+                        @click=${() => this._deleteChannel(id)}
+                        title="Delete channel">
+                    </ha-icon-button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render channel help message
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelHelp() {
+        return html`
+            <lcards-message type="info" style="margin-top: 16px;">
+                <strong>About Routing Channels:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                    <li><strong>Bundling</strong>: Lines prefer to route through these areas (cable management, power corridors)</li>
+                    <li><strong>Avoiding</strong>: Lines try to stay out of these areas (sensitive equipment, obstructions)</li>
+                    <li><strong>Waypoint</strong>: Lines must pass through these areas (routing hubs, junctions)</li>
+                    <li><strong>Priority</strong>: Higher priority channels have stronger influence (1-100)</li>
+                </ul>
+            </lcards-message>
+        `;
+    }
+
+    /**
+     * Render channel form dialog
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelFormDialog() {
+        const isNew = this._editingChannelId === '';
+        const channelId = isNew ? '' : this._editingChannelId;
+        const data = this._channelFormData;
+
+        return html`
+            <ha-dialog
+                open
+                @closed=${this._closeChannelForm}
+                .heading=${isNew ? 'Add Routing Channel' : `Edit Channel: ${channelId}`}>
+                
+                <div style="padding: 16px;">
+                    <!-- Channel ID -->
+                    <div class="form-field">
+                        <label class="form-label">Channel ID</label>
+                        <ha-textfield
+                            .value=${data.id}
+                            ?disabled=${!isNew}
+                            @input=${(e) => this._updateChannelFormField('id', e.target.value)}
+                            placeholder="power_corridor"
+                            style="width: 100%;">
+                        </ha-textfield>
+                        ${isNew ? html`
+                            <div class="form-helper">Unique identifier (e.g., power_corridor, avoid_zone_1)</div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Channel Type -->
+                    <div class="form-field" style="margin-top: 12px;">
+                        <label class="form-label">Channel Type</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                select: {
+                                    options: [
+                                        { value: 'bundling', label: 'Bundling (lines prefer)' },
+                                        { value: 'avoiding', label: 'Avoiding (lines avoid)' },
+                                        { value: 'waypoint', label: 'Waypoint (lines must pass through)' }
+                                    ]
+                                }
+                            }}
+                            .value=${data.type}
+                            @value-changed=${(e) => this._updateChannelFormField('type', e.detail.value)}>
+                        </ha-selector>
+                    </div>
+
+                    <!-- Bounds Configuration -->
+                    <div class="form-field" style="margin-top: 12px;">
+                        <label class="form-label">Channel Bounds</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px;">
+                            <div>
+                                <label class="form-label" style="font-size: 12px;">X</label>
+                                <ha-textfield
+                                    type="number"
+                                    .value=${String(data.bounds[0])}
+                                    @input=${(e) => this._updateChannelBounds(0, Number(e.target.value))}
+                                    style="width: 100%;">
+                                </ha-textfield>
+                            </div>
+                            <div>
+                                <label class="form-label" style="font-size: 12px;">Y</label>
+                                <ha-textfield
+                                    type="number"
+                                    .value=${String(data.bounds[1])}
+                                    @input=${(e) => this._updateChannelBounds(1, Number(e.target.value))}
+                                    style="width: 100%;">
+                                </ha-textfield>
+                            </div>
+                            <div>
+                                <label class="form-label" style="font-size: 12px;">Width</label>
+                                <ha-textfield
+                                    type="number"
+                                    .value=${String(data.bounds[2])}
+                                    @input=${(e) => this._updateChannelBounds(2, Number(e.target.value))}
+                                    style="width: 100%;">
+                                </ha-textfield>
+                            </div>
+                            <div>
+                                <label class="form-label" style="font-size: 12px;">Height</label>
+                                <ha-textfield
+                                    type="number"
+                                    .value=${String(data.bounds[3])}
+                                    @input=${(e) => this._updateChannelBounds(3, Number(e.target.value))}
+                                    style="width: 100%;">
+                                </ha-textfield>
+                            </div>
+                        </div>
+                        <div class="form-helper">Rectangle in ViewBox coordinates [x, y, width, height]</div>
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="form-field" style="margin-top: 12px;">
+                        <label class="form-label">Priority (1-100)</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 1, max: 100, mode: 'slider' } }}
+                            .value=${data.priority || 10}
+                            @value-changed=${(e) => this._updateChannelFormField('priority', e.detail.value)}>
+                        </ha-selector>
+                        <div class="form-helper">Higher priority = stronger influence on routing</div>
+                    </div>
+
+                    <!-- Visualization Color -->
+                    <div class="form-field" style="margin-top: 12px;">
+                        <label class="form-label">Visualization Color</label>
+                        <ha-textfield
+                            type="color"
+                            .value=${data.color}
+                            @input=${(e) => this._updateChannelFormField('color', e.target.value)}
+                            style="width: 100%;">
+                        </ha-textfield>
+                        <div class="form-helper">Color for debug visualization in editor</div>
+                    </div>
+                </div>
+
+                <!-- Dialog Actions -->
+                <div slot="primaryAction">
+                    <ha-button @click=${this._saveChannel}>
+                        ${isNew ? 'Add' : 'Save'}
+                    </ha-button>
+                </div>
+                <div slot="secondaryAction">
+                    <ha-button @click=${this._closeChannelForm}>
+                        Cancel
+                    </ha-button>
+                </div>
+            </ha-dialog>
+        `;
+    }
+
+    // ============================
+    // Channels Tab Methods (Phase 5)
+    // ============================
+
+    /**
+     * Open channel form for creating new channel
+     * @private
+     */
+    _openChannelForm() {
+        this._editingChannelId = '';
+        this._channelFormData = {
+            id: '',
+            type: 'bundling',
+            bounds: [0, 0, 100, 50],
+            priority: 10,
+            color: '#00FF00'
+        };
+        this.requestUpdate();
+    }
+
+    /**
+     * Edit existing channel
+     * @param {string} id - Channel ID
+     * @param {Object} channel - Channel config
+     * @private
+     */
+    _editChannel(id, channel) {
+        this._editingChannelId = id;
+        this._channelFormData = {
+            id,
+            type: channel.type || 'bundling',
+            bounds: [...(channel.bounds || [0, 0, 100, 50])],
+            priority: channel.priority || 10,
+            color: channel.color || '#00FF00'
+        };
+        this.requestUpdate();
+    }
+
+    /**
+     * Close channel form dialog
+     * @private
+     */
+    _closeChannelForm() {
+        this._editingChannelId = null;
+        this.requestUpdate();
+    }
+
+    /**
+     * Update channel form field
+     * @param {string} field - Field name
+     * @param {*} value - New value
+     * @private
+     */
+    _updateChannelFormField(field, value) {
+        this._channelFormData[field] = value;
+        this.requestUpdate();
+    }
+
+    /**
+     * Update channel bounds array
+     * @param {number} index - Array index
+     * @param {number} value - New value
+     * @private
+     */
+    _updateChannelBounds(index, value) {
+        this._channelFormData.bounds[index] = value;
+        this.requestUpdate();
+    }
+
+    /**
+     * Save channel
+     * @private
+     */
+    _saveChannel() {
+        const id = this._channelFormData.id;
+        if (!id || id.trim() === '') {
+            alert('Channel ID is required');
+            return;
+        }
+
+        // Ensure channels object exists
+        if (!this._workingConfig.msd) {
+            this._workingConfig.msd = {};
+        }
+        if (!this._workingConfig.msd.channels) {
+            this._workingConfig.msd.channels = {};
+        }
+
+        // Save channel
+        this._workingConfig.msd.channels[id] = {
+            type: this._channelFormData.type,
+            bounds: this._channelFormData.bounds,
+            priority: this._channelFormData.priority,
+            color: this._channelFormData.color
+        };
+
+        this._setNestedValue('msd.channels', this._workingConfig.msd.channels);
+        this._closeChannelForm();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Delete channel
+     * @param {string} id - Channel ID
+     * @private
+     */
+    async _deleteChannel(id) {
+        if (!confirm(`Delete routing channel "${id}"? Lines using this channel may be affected.`)) {
+            return;
+        }
+
+        const channels = { ...(this._workingConfig.msd?.channels || {}) };
+        delete channels[id];
+        this._setNestedValue('msd.channels', channels);
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Highlight channel in preview
+     * @param {string} id - Channel ID
+     * @private
+     */
+    _highlightChannelInPreview(id) {
+        // Highlight channel in preview for 2 seconds
+        const debugSettings = this._getDebugSettings();
+        debugSettings.highlighted_channel = id;
+        this._schedulePreviewUpdate();
+
+        setTimeout(() => {
+            const settings = this._getDebugSettings();
+            delete settings.highlighted_channel;
+            this._schedulePreviewUpdate();
+        }, 2000);
+    }
+
+    /**
+     * Generate unique channel ID
+     * @returns {string}
+     * @private
+     */
+    _generateChannelId() {
+        const channels = this._workingConfig.msd?.channels || {};
+        let num = Object.keys(channels).length + 1;
+        let id = `channel_${num}`;
+        while (channels[id]) {
+            num++;
+            id = `channel_${num}`;
+        }
+        return id;
     }
 
     /**
