@@ -1,8 +1,8 @@
 # MSD (Master Systems Display) Card - Official Schema Definition
 
-**Date:** January 11, 2026  
-**Purpose:** Single source of truth for MSD card configuration  
-**Status:** 🎯 DEFINITIVE - All implementations must match this  
+**Date:** January 11, 2026
+**Purpose:** Single source of truth for MSD card configuration
+**Status:** 🎯 DEFINITIVE - All implementations must match this
 **Version:** 1.22+
 
 **Architecture:** Complex multi-overlay SVG display system with intelligent routing, channels, rules, and animations
@@ -18,7 +18,7 @@
 LCARdSMSDCard.registerSchema();  // Called by lcards.js
 ```
 
-**Schema Location:** `src/cards/schemas/msd-schema.js`  
+**Schema Location:** `src/cards/schemas/msd-schema.js`
 **Overlay Schemas:** Line and control overlay schemas in `src/core/validation-service/schemas/` (rendering infrastructure)
 
 ---
@@ -68,12 +68,12 @@ msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
     filter_preset: dimmed
-  
+
   anchors:
     cpu_core: [120, 80]
     memory_bank: [400, 80]
     temp_display: [50, 50]
-  
+
   overlays:
     # Line connecting two anchors
     - id: cpu_memory_line
@@ -83,7 +83,7 @@ msd:
       style:
         color: var(--lcars-orange)
         width: 2
-    
+
     # Embedded LCARdS button card
     - id: temp_button
       type: control
@@ -111,10 +111,10 @@ msd:
   # ==========================================================================
   # BASE SVG CONFIGURATION
   # ==========================================================================
-  
+
   base_svg:
     # Required: Base SVG configuration
-    
+
     source: <svg-source>
       # Required: SVG source
       # Values:
@@ -125,48 +125,48 @@ msd:
       #   source: builtin:ncc-1701-a-blue
       #   source: /local/my-ship.svg
       #   source: none
-    
+
     filter_preset: <preset-name>
       # Optional: CSS filter preset to apply
       # Values: dimmed | subtle | backdrop | faded | red-alert | monochrome | none
       # Default: none
       # Example:
       #   filter_preset: dimmed
-    
+
     filters:
       # Optional: Custom filter values (overrides preset)
       opacity: <0-1>
         # Optional: Opacity value (0 = transparent, 1 = opaque)
         # Example: opacity: 0.3
-      
+
       blur: <css-length>
         # Optional: Blur radius
         # Example: blur: "3px"
-      
+
       brightness: <number>
         # Optional: Brightness multiplier (1 = normal)
         # Example: brightness: 0.8
-      
+
       contrast: <number>
         # Optional: Contrast multiplier (1 = normal)
         # Example: contrast: 1.2
-      
+
       grayscale: <0-1>
         # Optional: Grayscale amount (0 = color, 1 = grayscale)
         # Example: grayscale: 0.5
-      
+
       hue_rotate: <css-angle>
         # Optional: Hue rotation angle
         # Example: hue_rotate: "90deg"
-      
+
       invert: <0-1>
         # Optional: Invert amount (0 = normal, 1 = inverted)
         # Example: invert: 0.8
-      
+
       saturate: <number>
         # Optional: Saturation multiplier (1 = normal)
         # Example: saturate: 1.5
-      
+
       sepia: <0-1>
         # Optional: Sepia tone amount (0 = none, 1 = full sepia)
         # Example: sepia: 0.6
@@ -174,7 +174,7 @@ msd:
   # ==========================================================================
   # VIEW BOX CONFIGURATION
   # ==========================================================================
-  
+
   view_box: auto | [minX, minY, width, height]
     # Optional: SVG viewBox for coordinate system
     # Default: auto (extracted from base_svg)
@@ -189,12 +189,12 @@ msd:
   # ==========================================================================
   # ANCHORS - NAMED POSITIONING POINTS
   # ==========================================================================
-  
+
   anchors:
     # Optional: Named anchor points for overlay positioning
     # Format: anchor_name: [x, y]
     # Coordinates: Absolute pixels or percentages
-    
+
     <anchor_id>: [x, y]
       # Position: [x, y] coordinates
       # Values: Numbers (pixels) or strings with % (percentage)
@@ -206,28 +206,28 @@ msd:
   # ==========================================================================
   # ROUTING - GLOBAL LINE ROUTING CONFIGURATION
   # ==========================================================================
-  
+
   routing:
     # Optional: Global routing configuration for all lines
     # Lines can override these with per-line properties
-    
+
     clearance: <number>
       # Optional: Minimum clearance around obstacles (pixels)
       # Default: 0
       # Used in: Grid and smart routing modes
       # Example: clearance: 10
-    
+
     grid_resolution: <number>
       # Optional: Grid cell size for grid-based routing (pixels)
       # Default: 64
       # Min: 5
       # Used in: Grid and smart routing modes
       # Example: grid_resolution: 32
-    
+
     # ----------------------------------------------------------------------
     # Path Smoothing Configuration
     # ----------------------------------------------------------------------
-    
+
     smoothing_mode: none | chaikin
       # Optional: Path smoothing algorithm
       # Default: none
@@ -235,12 +235,12 @@ msd:
       #   - none: No smoothing (sharp corners)
       #   - chaikin: Chaikin corner-cutting algorithm (smooth curves)
       # Example: smoothing_mode: chaikin
-    
+
     smoothing:
       # Optional: Nested smoothing configuration (alternate format)
       mode: none | chaikin
         # Same as smoothing_mode
-      
+
       iterations: <number>
         # Optional: Number of smoothing iterations
         # Default: 1
@@ -248,122 +248,122 @@ msd:
         # Max: 5 (clamped)
         # More iterations = smoother but more points
         # Example: iterations: 2
-      
+
       max_points: <number>
         # Optional: Maximum points after smoothing
         # Default: 160
         # Min: 1
         # Prevents excessive subdivision
         # Example: max_points: 400
-    
+
     smoothing_iterations: <number>
       # Optional: Smoothing iterations (flat format)
       # Same as smoothing.iterations
       # Example: smoothing_iterations: 2
-    
+
     smoothing_max_points: <number>
       # Optional: Max points after smoothing (flat format)
       # Same as smoothing.max_points
       # Example: smoothing_max_points: 200
-    
+
     # ----------------------------------------------------------------------
     # Smart Routing Configuration
     # ----------------------------------------------------------------------
-    
+
     smart_proximity: <number>
       # Optional: Proximity band for smart routing optimization (pixels)
       # Default: 0
       # When > 0, smart routing tries to avoid getting close to obstacles
       # Works with clearance to create avoidance bands
       # Example: smart_proximity: 20
-    
+
     smart_detour_span: <number>
       # Optional: Maximum detour distance for smart routing (pixels)
       # Default: 48
       # Min: 1
       # How far smart routing can shift elbows to avoid obstacles
       # Example: smart_detour_span: 64
-    
+
     smart_max_extra_bends: <number>
       # Optional: Maximum additional bends allowed by smart routing
       # Default: 3
       # Min: 0
       # Limits path complexity during optimization
       # Example: smart_max_extra_bends: 5
-    
+
     smart_min_improvement: <number>
       # Optional: Minimum cost improvement to accept detour (pixels)
       # Default: 4
       # Min: 0
       # Threshold for accepting routing optimizations
       # Example: smart_min_improvement: 8
-    
+
     smart_max_detours_per_elbow: <number>
       # Optional: Maximum detour attempts per elbow
       # Default: 4
       # Min: 1
       # Limits computation during smart routing
       # Example: smart_max_detours_per_elbow: 6
-    
+
     # ----------------------------------------------------------------------
     # Channel Configuration
     # ----------------------------------------------------------------------
-    
+
     channel_force_penalty: <number>
       # Optional: Penalty for lines outside forced channels
       # Default: 800
       # Min: 0
       # Applied when route_channel_mode is 'force' and line exits channel
       # Example: channel_force_penalty: 1000
-    
+
     channel_avoid_multiplier: <number>
       # Optional: Multiplier for avoid channel penalties
       # Default: 1.0
       # Min: 0
       # Applied when route_channel_mode is 'avoid'
       # Example: channel_avoid_multiplier: 1.5
-    
+
     channel_target_coverage: <number>
       # Optional: Target channel coverage for prefer mode (0-1)
       # Default: 0.6 (60%)
       # Min: 0, Max: 1
       # When route_channel_mode is 'prefer', routing tries to achieve this coverage
       # Example: channel_target_coverage: 0.8
-    
+
     channel_shaping_max_attempts: <number>
       # Optional: Maximum attempts for channel shaping
       # Default: 12
       # Min: 1
       # Number of iterations to improve channel coverage
       # Example: channel_shaping_max_attempts: 20
-    
+
     channel_shaping_span: <number>
       # Optional: Maximum shift distance during channel shaping (pixels)
       # Default: 32
       # Min: 1
       # How far shaping can move elbows to enter channels
       # Example: channel_shaping_span: 48
-    
+
     channel_min_coverage_gain: <number>
       # Optional: Minimum coverage improvement to accept shaping (0-1)
       # Default: 0.04 (4%)
       # Min: 0, Max: 1
       # Threshold for accepting shaping iterations
       # Example: channel_min_coverage_gain: 0.1
-    
+
     # ----------------------------------------------------------------------
     # Cost Function Weights
     # ----------------------------------------------------------------------
-    
+
     cost_defaults:
       # Optional: Cost function weights for routing algorithms
-      
+
       bend: <number>
         # Optional: Cost weight for each bend/elbow in path
         # Default: 10
         # Higher values prefer straighter paths with fewer bends
         # Example: bend: 15
-      
+
       proximity: <number>
         # Optional: Cost weight for proximity to obstacles
         # Default: 4
@@ -374,19 +374,19 @@ msd:
   # ==========================================================================
   # CHANNELS - ROUTING CHANNEL DEFINITIONS
   # ==========================================================================
-  
+
   channels:
     # Optional: Named routing channels that influence line behavior
     # Channels are rectangular regions with bundling/avoiding behavior
-    
+
     <channel_id>:
       # Channel identifier (used in line route_channels)
-      
+
       bounds: [x, y, width, height]
         # Required: Channel rectangle
         # Format: [x, y, width, height] in pixels
         # Example: bounds: [100, 50, 200, 100]
-      
+
       type: bundling | avoiding | waypoint
         # Required: Channel behavior type
         # Values:
@@ -394,20 +394,20 @@ msd:
         #   - avoiding: Lines try to avoid this area
         #   - waypoint: Lines must pass through this area
         # Example: type: bundling
-      
+
       weight: <number>
         # Optional: Channel influence weight
         # Default: 0.5
         # Min: 0
         # Higher values = stronger influence
         # Example: weight: 0.8
-    
+
     # Examples:
     power_corridor:
       bounds: [100, 200, 300, 50]
       type: bundling
       weight: 0.7
-    
+
     equipment_area:
       bounds: [500, 100, 200, 200]
       type: avoiding
@@ -416,23 +416,23 @@ msd:
   # ==========================================================================
   # OVERLAYS - LINE AND CONTROL OVERLAYS
   # ==========================================================================
-  
+
   overlays:
     # Optional: Array of overlay configurations
     # Each overlay is either a line (SVG path) or control (embedded card)
     # See separate schema docs for detailed overlay properties:
     #   - line-overlay-schema-definition.md
     #   - control-overlay-schema-definition.md
-    
+
     - id: <overlay-id>
       # Required: Unique overlay identifier
-      
+
       type: line | control
         # Required: Overlay type
         # Values:
         #   - line: SVG line/path with routing
         #   - control: Embedded Home Assistant card
-    
+
     # Line Overlay Example:
     - id: power_line
       type: line
@@ -443,11 +443,7 @@ msd:
       style:
         color: '#ff9900'
         width: 3
-        glow:
-          color: '#ff9900'
-          size: 8
-          opacity: 0.6
-    
+
     # Control Overlay Example:
     - id: status_button
       type: control
@@ -461,34 +457,34 @@ msd:
   # ==========================================================================
   # DEBUG CONFIGURATION
   # ==========================================================================
-  
+
   debug:
     # Optional: Debug visualization and logging
-    
+
     enabled: <boolean>
       # Optional: Enable debug mode
       # Default: false
       # Shows debug overlays and enables verbose logging
       # Example: enabled: true
-    
+
     show_anchors: <boolean>
       # Optional: Show anchor points visually
       # Default: false
       # Renders anchor markers on canvas
       # Example: show_anchors: true
-    
+
     show_routing: <boolean>
       # Optional: Show routing grid visualization
       # Default: false
       # Renders routing grid and obstacles
       # Example: show_routing: true
-    
+
     validation: <boolean>
       # Optional: Enable validation debug logging
       # Default: false
       # Logs detailed validation results
       # Example: validation: true
-    
+
     strictValidation: <boolean>
       # Optional: Use strict validation mode
       # Default: false
@@ -505,7 +501,7 @@ data_sources:
     entity: <entity_id>
       # Required: Entity ID to fetch data from
       # Example: entity: sensor.temperature
-    
+
     windowSeconds: <number>
       # Optional: Time window for historical data (seconds)
       # Min: 1
@@ -765,12 +761,12 @@ channels:
     bounds: [100, 200, 300, 50]
     type: bundling
     weight: 0.7
-  
+
   equipment_zone:
     bounds: [500, 100, 200, 200]
     type: avoiding
     weight: 0.8
-  
+
   data_trunk:
     bounds: [50, 400, 700, 80]
     type: bundling
@@ -790,15 +786,15 @@ msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
     filter_preset: dimmed
-  
+
   view_box: auto
-  
+
   anchors:
     cpu_1: [120, 100]
     cpu_2: [120, 200]
     gpu: [400, 150]
     status: [50, 50]
-  
+
   overlays:
     # Simple line
     - id: cpu_gpu_line
@@ -808,7 +804,7 @@ msd:
       style:
         color: '#ff9900'
         width: 2
-    
+
     # Status display
     - id: status_card
       type: control
@@ -829,14 +825,14 @@ msd:
   base_svg:
     source: builtin:defiant-blue
     filter_preset: subtle
-  
+
   anchors:
     power_source: [100, 100]
     power_load_1: [600, 100]
     power_load_2: [600, 300]
     data_in: [100, 500]
     data_out: [700, 500]
-  
+
   routing:
     clearance: 10
     grid_resolution: 32
@@ -848,23 +844,23 @@ msd:
     cost_defaults:
       bend: 12
       proximity: 6
-  
+
   channels:
     power_trunk:
       bounds: [150, 80, 400, 60]
       type: bundling
       weight: 0.8
-    
+
     data_corridor:
       bounds: [150, 480, 500, 60]
       type: bundling
       weight: 0.7
-    
+
     sensitive_equipment:
       bounds: [300, 200, 200, 150]
       type: avoiding
       weight: 0.9
-  
+
   overlays:
     # Power distribution with channel routing
     - id: power_1
@@ -877,11 +873,7 @@ msd:
       style:
         color: '#ff0000'
         width: 3
-        glow:
-          color: '#ff0000'
-          size: 10
-          opacity: 0.7
-    
+
     - id: power_2
       type: line
       anchor: power_source
@@ -892,7 +884,7 @@ msd:
       style:
         color: '#ff0000'
         width: 3
-    
+
     # Data flow avoiding sensitive areas
     - id: data_line
       type: line
@@ -919,9 +911,9 @@ msd:
     filters:
       opacity: 0.4
       brightness: 0.7
-  
+
   view_box: [0, 0, 1000, 600]
-  
+
   anchors:
     server_1: [200, 150]
     server_2: [200, 300]
@@ -929,7 +921,7 @@ msd:
     storage: [800, 300]
     monitor_area: [50, 50]
     chart_area: [600, 50]
-  
+
   routing:
     clearance: 12
     grid_resolution: 24
@@ -944,13 +936,13 @@ msd:
     cost_defaults:
       bend: 15
       proximity: 8
-  
+
   channels:
     network_trunk:
       bounds: [250, 100, 500, 400]
       type: bundling
       weight: 0.9
-  
+
   overlays:
     # Server connections with animations
     - id: server1_storage
@@ -963,12 +955,8 @@ msd:
       style:
         color: '#00ff00'
         width: 2
-        glow:
-          color: '#00ff00'
-          size: 8
-          opacity: 0.6
       animation_ref: pulse
-    
+
     - id: server2_storage
       type: line
       anchor: server_2
@@ -978,7 +966,7 @@ msd:
       style:
         color: '#00ff00'
         width: 2
-    
+
     - id: server3_storage
       type: line
       anchor: server_3
@@ -988,7 +976,7 @@ msd:
       style:
         color: '#00ff00'
         width: 2
-    
+
     # Status monitor
     - id: system_monitor
       type: control
@@ -1001,7 +989,7 @@ msd:
         name: Cluster Status
         style:
           background: var(--lcars-blue)
-    
+
     # Performance chart
     - id: perf_chart
       type: control
@@ -1027,7 +1015,7 @@ overlays:
   - id: label
     type: text              # ❌ REMOVED
     text: "System Status"
-  
+
   - id: btn
     type: button            # ❌ REMOVED
     entity: light.kitchen
@@ -1043,7 +1031,7 @@ overlays:
     card:
       type: custom:lcards-button
       name: "System Status"
-  
+
   - id: btn
     type: control
     position: [100, 100]
@@ -1183,6 +1171,6 @@ window.__msdDebug?.routing?.inspect('line_id');
 
 ---
 
-*Last Updated: January 11, 2026*  
-*Schema Version: 1.22+*  
+*Last Updated: January 11, 2026*
+*Schema Version: 1.22+*
 *Programmatic Schema: `src/cards/schemas/msd-schema.js`*

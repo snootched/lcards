@@ -289,27 +289,6 @@ overlays:
         color: <color>
         rotate: <boolean>
 
-      # --- Effects ---
-      glow:
-        color: <color>
-          # Glow color
-
-        size: <number>
-          # Glow blur radius (pixels)
-
-        opacity: <number>
-          # Glow opacity (0-1)
-
-      shadow:
-        color: <color>
-          # Shadow color
-
-        offset: [<x>, <y>]
-          # Shadow offset [x, y] in pixels
-
-        blur: <number>
-          # Shadow blur radius (pixels)
-
     # ==========================================================================
     # ANIMATION
     # ==========================================================================
@@ -518,10 +497,6 @@ overlays:
         size: large
         color: var(--lcars-yellow)
         rotate: true
-      glow:
-        color: var(--lcars-yellow)
-        size: 6
-        opacity: 0.5
 ```
 
 ### Example 4: Animated Gradient Line
@@ -557,7 +532,7 @@ overlays:
     animation_ref: trace_flow
 ```
 
-### Example 5: Dashed Line with Shadow
+### Example 5: Dashed Line
 
 ```yaml
 overlays:
@@ -573,10 +548,6 @@ overlays:
       width: 2
       dash_array: "8,4"
       dash_offset: 0
-      shadow:
-        color: "rgba(0,0,0,0.3)"
-        offset: [2, 2]
-        blur: 4
 ```
 
 ---

@@ -29,11 +29,10 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  *
  * Features:
  * - Multiple routing strategies (direct, smart, channel, arc)
- * - Advanced styling (gradients, patterns, markers, effects)
+ * - Advanced styling (gradients, patterns, markers)
  * - Overlay-to-overlay attachment with gap support
  * - Theme token integration
- * - Animation hooks
- * - Glow and shadow effects
+ * - Animation hooks (via AnimationManager)
  * - Segment colors
  * - Dash patterns
  */
@@ -229,8 +228,7 @@ export class LineOverlay extends OverlayBase {
       const svgParts = [
         this._buildDefinitions(lineStyle, overlay.id),
         this._buildMainPath(pathResult.d, lineStyle, overlay.id, animationAttributes),
-        this._buildMarkers(pathResult, lineStyle, overlay.id),
-        this._buildEffects(pathResult, lineStyle, overlay.id)
+        this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
 
       lcardsLog.debug(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
@@ -384,10 +382,6 @@ export class LineOverlay extends OverlayBase {
       markerMid: this._parseMarkerConfig(style.marker_mid),
       markerEnd: this._parseMarkerConfig(style.marker_end),
 
-      // Effects
-      glow: this._parseGlowConfig(style.glow),
-      shadow: this._parseShadowConfig(style.shadow),
-
       // Animation states
       animatable: style.animatable !== false,
       pulseSpeed: Number(style.pulse_speed || 0),
@@ -405,8 +399,6 @@ export class LineOverlay extends OverlayBase {
     if (lineStyle.gradient) lineStyle.features.push('gradient');
     if (lineStyle.pattern) lineStyle.features.push('pattern');
     if (lineStyle.markerStart || lineStyle.markerMid || lineStyle.markerEnd) lineStyle.features.push('markers');
-    if (lineStyle.glow) lineStyle.features.push('glow');
-    if (lineStyle.shadow) lineStyle.features.push('shadow');
     if (lineStyle.segment_colors) lineStyle.features.push('segments');
     if (lineStyle.pulseSpeed > 0) lineStyle.features.push('pulse');
     if (lineStyle.flowSpeed > 0) lineStyle.features.push('flow');
@@ -727,15 +719,7 @@ export class LineOverlay extends OverlayBase {
     return null;
   }
 
-  /**
-   * Build effects (glow, shadow - placeholder - simplified)
-   *
-   * @private
-   */
-  _buildEffects(pathResult, lineStyle, overlayId) {
-    // Effects would add filter elements
-    return null;
-  }
+
 
   /**
    * Render fallback line for error cases
@@ -818,16 +802,6 @@ export class LineOverlay extends OverlayBase {
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
     return markerConfig; // Simplified
-  }
-
-  _parseGlowConfig(glowConfig) {
-    if (!glowConfig) return null;
-    return glowConfig; // Simplified
-  }
-
-  _parseShadowConfig(shadowConfig) {
-    if (!shadowConfig) return null;
-    return shadowConfig; // Simplified
   }
 
   _parseSegmentColors(segmentColors) {
