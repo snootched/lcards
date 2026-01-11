@@ -36,6 +36,7 @@ import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
+import '../components/lcards-animation-editor.js';
 
 // Mode constants
 const MODES = {
@@ -5783,8 +5784,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Channel routing
             route_channels: line.route_channels || [],
             channel_mode: line.channel_mode || 'prefer',
-            // Animation
-            animation_ref: line.animation_ref || '',
+            // Animations
+            animations: line.animations || [],
             // Style (load with backward compatibility for old property names)
             style: {
                 color: line.style?.color || line.style?.stroke || 'var(--lcars-orange)',
@@ -5904,9 +5905,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
-        // Animation reference
-        if (this._lineFormData.animation_ref) {
-            lineOverlay.animation_ref = this._lineFormData.animation_ref;
+        // Animations (save if present)
+        if (this._lineFormData.animations && this._lineFormData.animations.length > 0) {
+            lineOverlay.animations = this._lineFormData.animations;
         }
 
         // Ensure overlays array exists
@@ -6721,59 +6722,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 ${this._renderLineStylePreview()}
 
                 <!-- Animation Section (Full Width) -->
-                ${animations.length > 0 ? html`
-                    <lcards-form-section
-                        header="Animation"
-                        description="Add motion effects to the line"
-                        ?expanded=${false}>
-
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    options: animationOptions
-                                }
-                            }}
-                            .value=${this._lineFormData.animation_ref || ''}
-                            .label=${'Animation'}
-                            @value-changed=${(e) => {
-                                const animRef = e.detail.value;
-                                if (animRef && animRef !== '') {
-                                    this._lineFormData.animation_ref = animRef;
-                                } else {
-                                    delete this._lineFormData.animation_ref;
-                                }
-                                this.requestUpdate();
-                            }}
-                            helper-text="Select an animation from config.msd.animations">
-                        </ha-selector>
-
-                        ${this._lineFormData.animation_ref ? html`
-                            <div style="margin-top: 12px; padding: 12px; background: var(--card-background-color, #1c1c1c); border-radius: 8px; border: 1px solid var(--divider-color, #444);">
-                                <ha-icon icon="mdi:information-outline" style="color: var(--lcars-blue); margin-right: 8px;"></ha-icon>
-                                <span style="font-size: 13px; color: var(--secondary-text-color);">Animation "${this._lineFormData.animation_ref}" will be applied to this line</span>
-                            </div>
-                        ` : html`
-                            <div style="margin-top: 12px; padding: 12px; background: var(--card-background-color, #1c1c1c); border-radius: 8px; border: 1px solid var(--divider-color, #444);">
-                                <ha-icon icon="mdi:animation" style="color: var(--secondary-text-color); margin-right: 8px;"></ha-icon>
-                                <span style="font-size: 13px; color: var(--secondary-text-color);">Define animations in <code>config.msd.animations</code> to enable line animation effects</span>
-                            </div>
-                        `}
-                    </lcards-form-section>
-                ` : html`
-                    <lcards-form-section
-                        header="Animation"
-                        description="Add motion effects to the line"
-                        ?expanded=${false}>
-                        <div style="padding: 16px; background: var(--card-background-color, #1c1c1c); border-radius: 8px; border: 1px solid var(--divider-color, #444); text-align: center;">
-                            <ha-icon icon="mdi:animation-outline" style="color: var(--secondary-text-color); font-size: 32px; margin-bottom: 8px; display: block;"></ha-icon>
-                            <div style="font-size: 14px; color: var(--secondary-text-color); margin-bottom: 8px;">No animations defined</div>
-                            <div style="font-size: 12px; color: var(--secondary-text-color); line-height: 1.5;">
-                                To add line animations, define them in <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px;">config.msd.animations</code>
-                            </div>
-                        </div>
-                    </lcards-form-section>
-                `}
+                <lcards-form-section
+                    header="Animations"
+                    description="Configure animations for this line"
+                    ?expanded=${false}>
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${this._lineFormData.animations || []}
+                        @animations-changed=${(e) => {
+                            this._lineFormData.animations = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                    ></lcards-animation-editor>
+                </lcards-form-section>
             </div>
         `;
     }
