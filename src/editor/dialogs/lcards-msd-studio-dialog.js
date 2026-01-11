@@ -3752,8 +3752,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Show attachment points when in connect line mode OR when toggle is on
         if (this._activeMode !== MODES.CONNECT_LINE && !this._showAttachmentPoints) return '';
 
-        // Get all anchors and controls
-        const anchors = this._workingConfig.msd?.anchors || {};
+        // Get all anchors (user-defined + base SVG) and controls
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const anchors = { ...baseSvgAnchors, ...userAnchors };  // Merge, user anchors override
         const controls = this._getControlOverlays();
 
         // Try to find the SVG to calculate pixel positions
@@ -4278,18 +4280,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderChannelRoutingOptions() {
         // Get available channels from channels config
-        const channels = Object.values(this._workingConfig.msd?.channels || {});
-        const channelOptions = channels.map(ch => ({
-            value: ch.id,
-            label: ch.id
-        }));
+        // Channels are stored as object with ID as key: { channel1: {...}, channel2: {...} }
+        const channelsObj = this._workingConfig.msd?.channels || {};
+        const channelOptions = Object.keys(channelsObj);
 
         // Initialize route_channels if not set
         if (!this._lineFormData.route_channels) {
             this._lineFormData.route_channels = [];
         }
 
-        if (channels.length === 0) {
+        if (channelOptions.length === 0) {
             return html`
                 <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px; font-size: 13px; color: var(--secondary-text-color);">
                     <ha-icon icon="mdi:information" style="vertical-align: middle; --mdc-icon-size: 18px;"></ha-icon>
@@ -4303,22 +4303,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <div style="font-weight: 600; font-size: 13px; color: var(--primary-text-color); margin-bottom: 8px;">
                     Channel Routing
                 </div>
+                <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 12px;">
+                    Select which routing channels this line should use. Channels are rectangular regions defined in the Routing tab.
+                </div>
 
                 <ha-selector
                     .hass=${this.hass}
                     .selector=${{
                         select: {
                             options: channelOptions,
-                            multiple: true
+                            multiple: true,
+                            mode: 'list'
                         }
                     }}
                     .value=${this._lineFormData.route_channels || []}
-                    .label=${'Route Channels'}
+                    .label=${'Select Channels'}
                     @value-changed=${(e) => {
                         this._lineFormData.route_channels = e.detail.value || [];
                         this.requestUpdate();
-                    }}
-                    style="margin-top: 8px;">
+                    }}>
                 </ha-selector>
 
                 ${(this._lineFormData.route_channels && this._lineFormData.route_channels.length > 0) ? html`
@@ -5298,7 +5301,64 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </lcards-form-section>
 
+                <!-- Routing Modes Reference -->
+                <lcards-form-section
+                    header="📖 Routing Modes Reference"
+                    description="Quick reference for routing behavior"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
 
+                    <!-- Mode selector for reference display -->
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'auto', label: 'Auto (Smart Pathfinding)' },
+                                    { value: 'direct', label: 'Direct (Straight Line)' },
+                                    { value: 'manhattan', label: 'Manhattan (90° Angles)' },
+                                    { value: 'grid', label: 'Grid (A* Pathfinding)' },
+                                    { value: 'smart', label: 'Smart (Cost-Optimized)' }
+                                ]
+                            }
+                        }}
+                        .value=${this._routingModeReference || 'auto'}
+                        .label=${'Show Info For'}
+                        @value-changed=${(e) => {
+                            this._routingModeReference = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        style="margin-bottom: 16px;">
+                    </ha-selector>
+
+                    <!-- Display routing info panel -->
+                    ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
+                </lcards-form-section>
+
+        `;
+    }
+
+    /**
+     * Render routing mode information panel (reusable component)
+     * @param {string} mode - Routing mode
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRoutingModeInfoPanel(mode) {
+        const info = this._getRoutingModeInfo(mode);
+        return html`
+            <div class="routing-info-panel">
+                <div class="routing-info-header">
+                    <ha-icon icon="${info.icon}"></ha-icon>
+                    <span>${info.title}</span>
+                </div>
+                <div class="routing-info-description">
+                    ${info.description}
+                </div>
+                <div class="routing-info-diagram">
+                    ${info.diagram}
+                </div>
+            </div>
         `;
     }
 
@@ -6400,6 +6460,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Visual Line Preview at Top -->
+                ${this._renderLineStylePreview()}
+
                 <!-- Two Column Layout for Style Controls -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;">
 
@@ -6680,6 +6743,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     style="margin-top: 12px; width: 100%;">
                                 </ha-textfield>
                             ` : ''}
+
+                            ${(this._lineFormData.corner_style === 'miter') ? html`
+                                <ha-textfield
+                                    type="number"
+                                    label="Miter Limit"
+                                    .value=${String(this._lineFormData.miter_limit || 4)}
+                                    @input=${(e) => {
+                                        this._lineFormData.miter_limit = Number(e.target.value) || 4;
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="Max ratio before clipping sharp corners (default: 4)"
+                                    style="margin-top: 12px; width: 100%;">
+                                </ha-textfield>
+                            ` : ''}
                         </div>
 
                         <!-- Right Column: Smoothing Settings -->
@@ -6716,9 +6793,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
                 </lcards-form-section>
-
-                <!-- Visual Line Preview (Full Width) -->
-                ${this._renderLineStylePreview()}
 
                 <!-- Animation Section (Full Width) -->
                 <lcards-form-section
