@@ -347,7 +347,7 @@ export class LineOverlay extends OverlayBase {
       ),
 
       width: Number(this._resolveStyleProperty(
-        style.width || style.stroke_width || style.strokeWidth,
+        style.width || style.stroke_width,
         'defaultWidth',
         resolveToken,
         2,
@@ -363,26 +363,26 @@ export class LineOverlay extends OverlayBase {
       )),
 
       // Advanced stroke styling
-      lineCap: (style.line_cap || style.lineCap || style.strokeLinecap || 'round').toLowerCase(),
-      lineJoin: (style.line_join || style.lineJoin || style.strokeLinejoin || 'round').toLowerCase(),
-      miterLimit: Number(style.miter_limit || style.miterLimit || 4),
+      lineCap: (style.line_cap || 'round').toLowerCase(),
+      lineJoin: (style.line_join || 'round').toLowerCase(),
+      miterLimit: Number(style.miter_limit || 4),
 
       // Dash patterns
-      dashArray: style.dash_array || style.dashArray || style.strokeDasharray || null,
-      dashOffset: Number(style.dash_offset || style.dashOffset || style.strokeDashoffset || 0),
+      dashArray: style.dash_array || null,
+      dashOffset: Number(style.dash_offset || 0),
 
       // Fill properties
       fill: style.fill || 'none',
-      fillOpacity: Number(style.fill_opacity || style.fillOpacity || 1),
+      fillOpacity: Number(style.fill_opacity || 1),
 
       // Gradient and pattern support
       gradient: this._parseGradientConfig(style.gradient),
       pattern: this._parsePatternConfig(style.pattern),
 
       // Markers (arrowheads, dots, etc.)
-      markerStart: this._parseMarkerConfig(style.marker_start || style.markerStart),
-      markerMid: this._parseMarkerConfig(style.marker_mid || style.markerMid),
-      markerEnd: this._parseMarkerConfig(style.marker_end || style.markerEnd),
+      markerStart: this._parseMarkerConfig(style.marker_start),
+      markerMid: this._parseMarkerConfig(style.marker_mid),
+      markerEnd: this._parseMarkerConfig(style.marker_end),
 
       // Effects
       glow: this._parseGlowConfig(style.glow),
@@ -410,6 +410,15 @@ export class LineOverlay extends OverlayBase {
     if (lineStyle.segment_colors) lineStyle.features.push('segments');
     if (lineStyle.pulseSpeed > 0) lineStyle.features.push('pulse');
     if (lineStyle.flowSpeed > 0) lineStyle.features.push('flow');
+
+    // Debug logging for dash_array
+    if (lineStyle.dashArray) {
+      lcardsLog.debug(`[LineOverlay] Dash array configured for ${overlayId}:`, {
+        input: style.dash_array,
+        resolved: lineStyle.dashArray,
+        willRender: true
+      });
+    }
 
     return lineStyle;
   }
@@ -843,10 +852,62 @@ export class LineOverlay extends OverlayBase {
   }
 
   _createMarkerDefinition(marker, markerId) {
-    // Simplified marker definition
-    return `<marker id="${markerId}" markerWidth="10" markerHeight="10" refX="5" refY="5">
-              <circle cx="5" cy="5" r="3" fill="currentColor" />
-            </marker>`;
+    if (!marker || !marker.type) return '';
+
+    // Size mapping (viewBox-relative)
+    const sizeMap = {
+      small: { viewBox: 8, scale: 0.7 },
+      medium: { viewBox: 10, scale: 1.0 },
+      large: { viewBox: 14, scale: 1.3 }
+    };
+
+    const sizeConfig = sizeMap[marker.size || 'medium'];
+    const vb = sizeConfig.viewBox;
+    const scale = sizeConfig.scale;
+    const center = vb / 2;
+    const color = marker.color || 'currentColor';
+
+    let shape = '';
+
+    switch (marker.type) {
+      case 'arrow':
+        shape = `<path d="M 0 0 L ${vb} ${center} L 0 ${vb} Z" fill="${color}" />`;
+        break;
+
+      case 'dot':
+        const radius = (vb / 3) * scale;
+        shape = `<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" />`;
+        break;
+
+      case 'diamond':
+        shape = `<path d="M ${center} 0 L ${vb} ${center} L ${center} ${vb} L 0 ${center} Z" fill="${color}" />`;
+        break;
+
+      case 'square':
+        const size = vb * 0.6;
+        const offset = (vb - size) / 2;
+        shape = `<rect x="${offset}" y="${offset}" width="${size}" height="${size}" fill="${color}" />`;
+        break;
+
+      case 'triangle':
+        shape = `<path d="M ${center} 0 L ${vb} ${vb} L 0 ${vb} Z" fill="${color}" />`;
+        break;
+
+      default:
+        // Fallback to dot
+        shape = `<circle cx="${center}" cy="${center}" r="${vb/3}" fill="${color}" />`;
+    }
+
+    return `<marker
+      id="${markerId}"
+      viewBox="0 0 ${vb} ${vb}"
+      markerWidth="${vb}"
+      markerHeight="${vb}"
+      refX="${center}"
+      refY="${center}"
+      orient="auto">
+      ${shape}
+    </marker>`;
   }
 }
 

@@ -158,6 +158,29 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     throw new Error(`Systems completion failed: ${error.message}`);
   }
 
+  // ✅ NEW: Initialize AnimationManager with overlays to register animations
+  if (coordinator.animationManager && mergedConfig.overlays) {
+    lcardsLog.debug('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
+    try {
+      // ⚠️ CRITICAL: Set mountEl explicitly so AnimationManager can find overlay elements
+      coordinator.animationManager.mountEl = mountEl;
+
+      await coordinator.animationManager.initialize(mergedConfig.overlays, {
+        customPresets: mergedConfig.animation_presets || {},
+        timelines: mergedConfig.timelines || {},
+        suppressMountWarning: true // mountEl already set by core singleton init
+      });
+      lcardsLog.info('[PipelineCore] ✅ AnimationManager initialized:', {
+        overlaysWithAnimations: coordinator.animationManager.registeredAnimations.size,
+        overlayIds: Array.from(coordinator.animationManager.registeredAnimations.keys()),
+        mountEl: !!coordinator.animationManager.mountEl
+      });
+    } catch (animError) {
+      lcardsLog.error('[PipelineCore] ❌ AnimationManager initialization failed:', animError);
+      // Don't fail pipeline - animations are optional
+    }
+  }
+
   // Initialize HASS state
   if (hass) {
     lcardsLog.debug('[PipelineCore] 📥 Initializing HASS via ingestHass');
@@ -220,7 +243,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       // ADDED: Defensive rendering with error boundary
       let renderResult;
       try {
-        renderResult = coordinator.renderer.render(resolvedModel);
+        renderResult = await coordinator.renderer.render(resolvedModel);
         lcardsLog.debug('[PipelineCore] ✅ AdvancedRenderer.render() completed successfully:', renderResult);
       } catch (renderError) {
         lcardsLog.error('[PipelineCore] ❌ AdvancedRenderer.render() FAILED:', renderError);

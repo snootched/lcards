@@ -6374,69 +6374,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         style="margin-top: 12px; width: 100%;">
                     </ha-textfield>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {
-                            options: [
-                                { value: 'miter', label: 'Miter (Sharp)' },
-                                { value: 'round', label: 'Round (Arc)' },
-                                { value: 'bevel', label: 'Bevel (Cut)' }
-                            ]
-                        }}}
-                        .value=${this._lineFormData.corner_style || 'miter'}
-                        .label=${'Corner Style'}
-                        @value-changed=${(e) => {
-                            this._lineFormData.corner_style = e.detail.value;
-                            this.requestUpdate();
-                        }}
-                        style="margin-top: 12px;">
-                    </ha-selector>
-
-                    ${(this._lineFormData.corner_style === 'round') ? html`
-                        <ha-textfield
-                            type="number"
-                            label="Corner Radius (pixels)"
-                            .value=${String(this._lineFormData.corner_radius || 12)}
-                            @input=${(e) => {
-                                this._lineFormData.corner_radius = Number(e.target.value) || 12;
-                                this.requestUpdate();
-                            }}
-                            helper-text="Arc radius for rounded corners"
-                            style="margin-top: 12px; width: 100%;">
-                        </ha-textfield>
-                    ` : ''}
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {
-                            options: [
-                                { value: 'none', label: 'None' },
-                                { value: 'chaikin', label: 'Chaikin (Corner-cutting)' }
-                            ]
-                        }}}
-                        .value=${this._lineFormData.smoothing_mode || 'none'}
-                        .label=${'Smoothing Mode'}
-                        @value-changed=${(e) => {
-                            this._lineFormData.smoothing_mode = e.detail.value;
-                            this.requestUpdate();
-                        }}
-                        style="margin-top: 12px;">
-                    </ha-selector>
-
-                    ${(this._lineFormData.smoothing_mode === 'chaikin') ? html`
-                        <ha-textfield
-                            type="number"
-                            label="Smoothing Iterations"
-                            .value=${String(this._lineFormData.smoothing_iterations || 0)}
-                            @input=${(e) => {
-                                this._lineFormData.smoothing_iterations = Number(e.target.value) || 0;
-                                this.requestUpdate();
-                            }}
-                            helper-text="More iterations = smoother curves"
-                            style="margin-top: 12px; width: 100%;">
-                        </ha-textfield>
-                    ` : ''}
-
                             <!-- Channel Routing -->
                             ${this._renderChannelRoutingOptions()}
                         </div>
@@ -6588,6 +6525,68 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         description="Line endpoints"
                         ?expanded=${true}>
 
+                        <!-- Start Marker -->
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                select: {
+                                    options: [
+                                        { value: 'none', label: 'None' },
+                                        { value: 'arrow', label: 'Arrow' },
+                                        { value: 'dot', label: 'Dot' },
+                                        { value: 'diamond', label: 'Diamond' },
+                                        { value: 'square', label: 'Square' },
+                                        { value: 'triangle', label: 'Triangle' }
+                                    ]
+                                }
+                            }}
+                            .value=${this._lineFormData.style?.marker_start?.type || 'none'}
+                            .label=${'Start Marker'}
+                            @value-changed=${(e) => {
+                                const markerType = e.detail.value;
+                                if (markerType === 'none') {
+                                    const { marker_start, ...styleWithoutMarkerStart } = this._lineFormData.style || {};
+                                    this._lineFormData.style = styleWithoutMarkerStart;
+                                } else {
+                                    const existingSize = this._lineFormData.style?.marker_start?.size || 'medium';
+                                    this._lineFormData.style = {
+                                        ...this._lineFormData.style,
+                                        marker_start: { type: markerType, size: existingSize }
+                                    };
+                                }
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+
+                        <!-- Start Marker Size (conditional) -->
+                        ${this._lineFormData.style?.marker_start?.type && this._lineFormData.style.marker_start.type !== 'none' ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    select: {
+                                        options: [
+                                            { value: 'small', label: 'Small' },
+                                            { value: 'medium', label: 'Medium' },
+                                            { value: 'large', label: 'Large' }
+                                        ]
+                                    }
+                                }}
+                                .value=${this._lineFormData.style.marker_start.size || 'medium'}
+                                .label=${'Start Size'}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.style = {
+                                        ...this._lineFormData.style,
+                                        marker_start: {
+                                            ...this._lineFormData.style.marker_start,
+                                            size: e.detail.value
+                                        }
+                                    };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+                        ` : ''}
+
                         <!-- End Marker -->
                         <ha-selector
                             .hass=${this.hass}
@@ -6598,7 +6597,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         { value: 'arrow', label: 'Arrow' },
                                         { value: 'dot', label: 'Dot' },
                                         { value: 'diamond', label: 'Diamond' },
-                                        { value: 'square', label: 'Square' }
+                                        { value: 'square', label: 'Square' },
+                                        { value: 'triangle', label: 'Triangle' }
                                     ]
                                 }
                             }}
@@ -6633,7 +6633,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                 }}
                                 .value=${this._lineFormData.style.marker_end.size || 'medium'}
-                                .label=${'Size'}
+                                .label=${'End Size'}
                                 @value-changed=${(e) => {
                                     this._lineFormData.style = {
                                         ...this._lineFormData.style,
@@ -6650,6 +6650,82 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </lcards-form-section>
                 </div>
 
+                <!-- Line Shape Section (Full Width) -->
+                <lcards-form-section
+                    header="Line Shape"
+                    description="Corner and smoothing settings"
+                    ?expanded=${false}>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <!-- Left Column: Corner Settings -->
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    options: [
+                                        { value: 'miter', label: 'Miter (Sharp)' },
+                                        { value: 'round', label: 'Round (Arc)' },
+                                        { value: 'bevel', label: 'Bevel (Cut)' }
+                                    ]
+                                }}}
+                                .value=${this._lineFormData.corner_style || 'miter'}
+                                .label=${'Corner Style'}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.corner_style = e.detail.value;
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+
+                            ${(this._lineFormData.corner_style === 'round') ? html`
+                                <ha-textfield
+                                    type="number"
+                                    label="Corner Radius (pixels)"
+                                    .value=${String(this._lineFormData.corner_radius || 12)}
+                                    @input=${(e) => {
+                                        this._lineFormData.corner_radius = Number(e.target.value) || 12;
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="Arc radius for rounded corners"
+                                    style="margin-top: 12px; width: 100%;">
+                                </ha-textfield>
+                            ` : ''}
+                        </div>
+
+                        <!-- Right Column: Smoothing Settings -->
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    options: [
+                                        { value: 'none', label: 'None' },
+                                        { value: 'chaikin', label: 'Chaikin (Corner-cutting)' }
+                                    ]
+                                }}}
+                                .value=${this._lineFormData.smoothing_mode || 'none'}
+                                .label=${'Smoothing Mode'}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.smoothing_mode = e.detail.value;
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+
+                            ${(this._lineFormData.smoothing_mode === 'chaikin') ? html`
+                                <ha-textfield
+                                    type="number"
+                                    label="Smoothing Iterations"
+                                    .value=${String(this._lineFormData.smoothing_iterations || 0)}
+                                    @input=${(e) => {
+                                        this._lineFormData.smoothing_iterations = Number(e.target.value) || 0;
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="More iterations = smoother curves"
+                                    style="margin-top: 12px; width: 100%;">
+                                </ha-textfield>
+                            ` : ''}
+                        </div>
+                    </div>
+                </lcards-form-section>
+
                 <!-- Visual Line Preview (Full Width) -->
                 ${this._renderLineStylePreview()}
 
@@ -6661,27 +6737,48 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Glow Effect -->
                     <div style="margin-bottom: 16px;">
-                        <ha-textfield
-                            label="Glow Color"
-                            .value=${this._lineFormData.style?.glow?.color || ''}
-                            @input=${(e) => {
-                                const glow = this._lineFormData.style?.glow || {};
-                                if (e.target.value) {
-                                    this._lineFormData.style = {
-                                        ...this._lineFormData.style,
-                                        glow: { ...glow, color: e.target.value }
-                                    };
-                                } else {
-                                    const { glow: _, ...styleWithoutGlow } = this._lineFormData.style || {};
-                                    this._lineFormData.style = Object.keys(glow).length === 1 ? styleWithoutGlow : { ...this._lineFormData.style, glow };
-                                }
-                                this.requestUpdate();
-                            }}
-                            helper-text="Color for glow effect (e.g., #ff9900)"
-                            style="width: 100%;">
-                        </ha-textfield>
+                        <div style="font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span>Glow Effect</span>
+                            <ha-switch
+                                ?checked=${!!this._lineFormData.style?.glow?.color}
+                                @change=${(e) => {
+                                    if (e.target.checked) {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            glow: {
+                                                color: this._lineFormData.style?.color || 'var(--lcars-orange)',
+                                                size: 8,
+                                                opacity: 0.6
+                                            }
+                                        };
+                                    } else {
+                                        const { glow, ...styleWithoutGlow } = this._lineFormData.style || {};
+                                        this._lineFormData.style = styleWithoutGlow;
+                                    }
+                                    this.requestUpdate();
+                                }}
+                                style="--mdc-theme-secondary: var(--primary-color);">
+                            </ha-switch>
+                        </div>
 
                         ${this._lineFormData.style?.glow?.color ? html`
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 13px;">Glow Color</label>
+                                <lcards-color-picker
+                                    .value=${this._lineFormData.style.glow.color}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            glow: {
+                                                ...this._lineFormData.style.glow,
+                                                color: e.detail.value
+                                            }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </lcards-color-picker>
+                            </div>
+
                             <ha-selector
                                 .hass=${this.hass}
                                 .selector=${{
@@ -6693,7 +6790,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                 }}
                                 .value=${this._lineFormData.style.glow.size || 8}
-                                .label=${'Glow Size'}
+                                .label=${'Glow Size (px)'}
                                 @value-changed=${(e) => {
                                     this._lineFormData.style = {
                                         ...this._lineFormData.style,
@@ -6736,27 +6833,48 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Shadow Effect -->
                     <div>
-                        <ha-textfield
-                            label="Shadow Color"
-                            .value=${this._lineFormData.style?.shadow?.color || ''}
-                            @input=${(e) => {
-                                const shadow = this._lineFormData.style?.shadow || {};
-                                if (e.target.value) {
-                                    this._lineFormData.style = {
-                                        ...this._lineFormData.style,
-                                        shadow: { ...shadow, color: e.target.value }
-                                    };
-                                } else {
-                                    const { shadow: _, ...styleWithoutShadow } = this._lineFormData.style || {};
-                                    this._lineFormData.style = Object.keys(shadow).length === 1 ? styleWithoutShadow : { ...this._lineFormData.style, shadow };
-                                }
-                                this.requestUpdate();
-                            }}
-                            helper-text="Color for drop shadow (e.g., rgba(0,0,0,0.5))"
-                            style="width: 100%;">
-                        </ha-textfield>
+                        <div style="font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span>Drop Shadow</span>
+                            <ha-switch
+                                ?checked=${!!this._lineFormData.style?.shadow?.color}
+                                @change=${(e) => {
+                                    if (e.target.checked) {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            shadow: {
+                                                color: 'rgba(0,0,0,0.5)',
+                                                offset: [2, 2],
+                                                blur: 4
+                                            }
+                                        };
+                                    } else {
+                                        const { shadow, ...styleWithoutShadow } = this._lineFormData.style || {};
+                                        this._lineFormData.style = styleWithoutShadow;
+                                    }
+                                    this.requestUpdate();
+                                }}
+                                style="--mdc-theme-secondary: var(--primary-color);">
+                            </ha-switch>
+                        </div>
 
                         ${this._lineFormData.style?.shadow?.color ? html`
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 13px;">Shadow Color</label>
+                                <lcards-color-picker
+                                    .value=${this._lineFormData.style.shadow.color}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            shadow: {
+                                                ...this._lineFormData.style.shadow,
+                                                color: e.detail.value
+                                            }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </lcards-color-picker>
+                            </div>
+
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <ha-textfield
                                     label="Offset X"
@@ -6889,46 +7007,79 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const width = this._lineFormData.style?.width || 2;
         const opacity = this._lineFormData.style?.opacity ?? 1;
         const dashArray = this._lineFormData.style?.dash_array || '';
+        const markerStart = this._lineFormData.style?.marker_start;
         const markerEnd = this._lineFormData.style?.marker_end;
+        const cornerStyle = this._lineFormData.corner_style || 'miter';
+        const cornerRadius = this._lineFormData.corner_radius || 12;
+
+        // Helper function to create marker definition
+        const createMarker = (marker, id) => {
+            if (!marker?.type || marker.type === 'none') return '';
+
+            const sizeScale = marker.size === 'small' ? 0.7 : marker.size === 'large' ? 1.3 : 1.0;
+            const baseSize = 10;
+            const size = baseSize * sizeScale;
+            const half = size / 2;
+
+            let shape = '';
+            switch (marker.type) {
+                case 'arrow':
+                    shape = `<path d="M 0 0 L ${size} ${half} L 0 ${size} z" fill="${color}" opacity="${opacity}" />`;
+                    break;
+                case 'dot':
+                    shape = `<circle cx="${half}" cy="${half}" r="${half * 0.6}" fill="${color}" opacity="${opacity}" />`;
+                    break;
+                case 'diamond':
+                    shape = `<path d="M ${half} 0 L ${size} ${half} L ${half} ${size} L 0 ${half} z" fill="${color}" opacity="${opacity}" />`;
+                    break;
+                case 'square':
+                    const offset = size * 0.15;
+                    const sqSize = size * 0.7;
+                    shape = `<rect x="${offset}" y="${offset}" width="${sqSize}" height="${sqSize}" fill="${color}" opacity="${opacity}" />`;
+                    break;
+                case 'triangle':
+                    shape = `<path d="M ${half} 0 L ${size} ${size} L 0 ${size} z" fill="${color}" opacity="${opacity}" />`;
+                    break;
+            }
+
+            // Embed shape directly - it's safe static SVG content
+            return `
+                <marker id="${id}" viewBox="0 0 ${size} ${size}"
+                    markerWidth="${size}" markerHeight="${size}"
+                    refX="${half}" refY="${half}" orient="auto">
+                    ${shape}
+                </marker>
+            `;
+        };
+
+        // Create path with corners (L-shaped route)
+        let pathD = 'M 20,35 L 80,35 L 80,15 L 220,15 L 220,35 L 280,35';
+
+        // Apply corner rounding if round style is selected
+        if (cornerStyle === 'round' && cornerRadius > 0) {
+            const r = Math.min(cornerRadius, 15); // Cap radius for preview
+            pathD = `M 20,35 L ${80-r},35 Q 80,35 80,${35-r} L 80,${15+r} Q 80,15 ${80+r},15 L ${220-r},15 Q 220,15 220,${15+r} L 220,${35-r} Q 220,35 ${220+r},35 L 280,35`;
+        }
 
         return html`
             <div style="margin-top: 0; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333;">
                 <div style="font-size: 12px; font-weight: 500; margin-bottom: 12px; color: #999;">Preview</div>
-                <svg viewBox="0 0 300 50" style="width: 100%; height: 50px; background: #000;">
+                <svg viewBox="0 0 300 50" style="width: 100%; height: 60px; background: #000;">
                     <defs>
-                        <!-- Arrow marker -->
-                        ${markerEnd?.type === 'arrow' ? html`
-                            <marker id="arrow-preview" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-                                <path d="M 0 0 L 10 5 L 0 10 z" fill="${color}" opacity="${opacity}" />
-                            </marker>
-                        ` : ''}
-                        <!-- Dot marker -->
-                        ${markerEnd?.type === 'dot' ? html`
-                            <marker id="dot-preview" markerWidth="8" markerHeight="8" refX="4" refY="4">
-                                <circle cx="4" cy="4" r="3" fill="${color}" opacity="${opacity}" />
-                            </marker>
-                        ` : ''}
-                        <!-- Diamond marker -->
-                        ${markerEnd?.type === 'diamond' ? html`
-                            <marker id="diamond-preview" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-                                <path d="M 5 0 L 10 5 L 5 10 L 0 5 z" fill="${color}" opacity="${opacity}" />
-                            </marker>
-                        ` : ''}
-                        <!-- Square marker -->
-                        ${markerEnd?.type === 'square' ? html`
-                            <marker id="square-preview" markerWidth="8" markerHeight="8" refX="4" refY="4">
-                                <rect x="1" y="1" width="6" height="6" fill="${color}" opacity="${opacity}" />
-                            </marker>
-                        ` : ''}
+                        ${createMarker(markerStart, 'start-preview')}
+                        ${createMarker(markerEnd, 'end-preview')}
                     </defs>
-                    <line
-                        x1="20" y1="25"
-                        x2="280" y2="25"
+                    <path
+                        d="${pathD}"
                         stroke="${color}"
                         stroke-width="${width}"
                         stroke-opacity="${opacity}"
                         stroke-dasharray="${dashArray}"
-                        marker-end="${markerEnd?.type && markerEnd.type !== 'none' ? `url(#${markerEnd.type}-preview)` : ''}"
+                        stroke-linecap="${cornerStyle === 'round' ? 'round' : 'butt'}"
+                        stroke-linejoin="${cornerStyle}"
+                        fill="none"
+                        marker-start="${markerStart?.type && markerStart.type !== 'none' ? 'url(#start-preview)' : ''}"
+                        marker-end="${markerEnd?.type && markerEnd.type !== 'none' ? 'url(#end-preview)' : ''}"
                     />
                 </svg>
             </div>

@@ -61,8 +61,10 @@ export class AnimationManager extends BaseService {
     lcardsLog.info('[AnimationManager] 🎬 Initializing animation system');
 
     try {
-      // Store mount element for reliable DOM queries
-      this.mountEl = this.systemsManager?.renderer?.mountEl;
+      // Store mount element for reliable DOM queries (only if not already set)
+      if (!this.mountEl) {
+        this.mountEl = this.systemsManager?.renderer?.mountEl;
+      }
       if (!this.mountEl && !options.suppressMountWarning) {
         lcardsLog.warn('[AnimationManager] No mountEl available - DOM queries may fail');
       }
