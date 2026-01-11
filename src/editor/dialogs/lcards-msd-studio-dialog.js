@@ -2266,6 +2266,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     box-shadow: 0 0 4px ${lineColor};
                 "></div>
 
+                <!-- X coordinate label on vertical line -->
+                <div style="
+                    position: absolute;
+                    left: ${snappedPixelX}px;
+                    top: 8px;
+                    transform: translateX(-50%);
+                    background: rgba(0, 0, 0, 0.75);
+                    color: ${snapEnabled ? '#00FF00' : '#FF9900'};
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+                ">
+                    X: ${displayX}
+                </div>
+
                 <!-- Horizontal guideline -->
                 <div style="
                     position: absolute;
@@ -2277,24 +2296,42 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     box-shadow: 0 0 4px ${lineColor};
                 "></div>
 
-                <!-- Coordinate display at cursor -->
+                <!-- Y coordinate label on horizontal line -->
                 <div style="
                     position: absolute;
-                    background: rgba(0, 0, 0, 0.85);
+                    left: 8px;
+                    top: ${snappedPixelY}px;
+                    transform: translateY(-50%);
+                    background: rgba(0, 0, 0, 0.75);
                     color: ${snapEnabled ? '#00FF00' : '#FF9900'};
-                    padding: 6px 10px;
-                    border-radius: 4px;
+                    padding: 2px 6px;
+                    border-radius: 3px;
                     font-family: 'Courier New', monospace;
-                    font-size: 13px;
+                    font-size: 11px;
                     font-weight: 600;
                     white-space: nowrap;
-                    border: 2px solid ${snapEnabled ? '#00FF00' : '#FF9900'};
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                    bottom: 20px;
-                    right: 20px;
+                    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
                 ">
-                    [${displayX}, ${displayY}]
-                    ${snapEnabled ? html`<span style="margin-left: 8px;">⊞ SNAP</span>` : ''}
+                    Y: ${displayY}
+                </div>
+
+                <!-- Floating coordinate tooltip near cursor -->
+                <div style="
+                    position: absolute;
+                    left: ${snappedPixelX + 15}px;
+                    top: ${snappedPixelY - 30}px;
+                    background: rgba(0, 0, 0, 0.85);
+                    color: ${snapEnabled ? '#00FF00' : '#FF9900'};
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                    pointer-events: none;
+                ">
+                    ${displayX}, ${displayY}${snapEnabled ? ' ⊞' : ''}
                 </div>
             </div>
         `;
