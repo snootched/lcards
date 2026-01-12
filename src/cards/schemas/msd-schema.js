@@ -509,6 +509,41 @@ export function getMsdSchema(options = {}) {
         }
       },
 
+      // ============================================================================
+      // CORE METADATA PROPERTIES
+      // ============================================================================
+
+      id: {
+        type: 'string',
+        description: 'Custom card ID for rule targeting (optional - auto-generated if omitted)',
+        'x-ui-hints': {
+          label: 'Card ID',
+          helper: 'Unique identifier for targeting with rules (auto-generated if not specified)',
+          selector: {
+            text: {
+              placeholder: 'msd-main'
+            }
+          }
+        }
+      },
+
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Tags for bulk rule targeting',
+        'x-ui-hints': {
+          label: 'Tags',
+          helper: 'Tags for grouping and targeting multiple cards with rules',
+          selector: {
+            select: {
+              multiple: true,
+              custom_value: true
+            }
+          },
+          examples: ['dashboard-main', 'navigation', 'status']
+        }
+      },
+
       msd: msdConfigSchema,
 
       // Root-level properties (shared across cards)

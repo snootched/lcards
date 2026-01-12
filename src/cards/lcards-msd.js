@@ -214,19 +214,26 @@ export class LCARdSMSDCard extends LCARdSCard {
         }
 
         // NOW _msdConfig is guaranteed to be set by _onConfigUpdated()
-        // Load SVG now that config is processed
+        // Load SVG now that config is processed (skip if source is "none")
         if (this._msdConfig?.base_svg && !this._svgContent) {
-            lcardsLog.debug('[LCARdSMSDCard] Loading base SVG:', this._msdConfig.base_svg.source);
-            await this._loadBaseSvg(this._msdConfig.base_svg);
+            const svgSource = this._msdConfig.base_svg.source;
 
-            if (!this._svgContent) {
-                lcardsLog.error('[LCARdSMSDCard] Failed to load SVG');
-                this._configIssues = { errors: ['Failed to load base SVG'] };
-                this.requestUpdate();
-                return;
+            // Skip loading if source is "none" (viewBox-only mode)
+            if (svgSource === 'none') {
+                lcardsLog.debug('[LCARdSMSDCard] Skipping SVG load - source is "none" (viewBox-only mode)');
+            } else {
+                lcardsLog.debug('[LCARdSMSDCard] Loading base SVG:', svgSource);
+                await this._loadBaseSvg(this._msdConfig.base_svg);
+
+                if (!this._svgContent) {
+                    lcardsLog.error('[LCARdSMSDCard] Failed to load SVG');
+                    this._configIssues = { errors: ['Failed to load base SVG'] };
+                    this.requestUpdate();
+                    return;
+                }
+
+                lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', this._svgContent.length, 'bytes');
             }
-
-            lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', this._svgContent.length, 'bytes');
         }
 
         // Generate instance GUID

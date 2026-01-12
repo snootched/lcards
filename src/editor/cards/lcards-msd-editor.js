@@ -110,11 +110,6 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                     helper: 'Unique identifier for rules engine targeting'
                 })}
 
-                ${FormField.renderField(this, 'name', {
-                    label: 'Name',
-                    helper: 'Display name for the MSD card (optional)'
-                })}
-
                 ${FormField.renderField(this, 'tags', {
                     label: 'Tags',
                     helper: 'Tags for rules engine categorization'

@@ -69,6 +69,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _debugSettings: { type: Object, state: true },
             // Base SVG Tab Properties
             _viewBoxMode: { type: String, state: true }, // 'auto' or 'custom'
+            _svgSourceMode: { type: String, state: true }, // 'asset', 'custom', or 'none'
             _customFiltersEnabled: { type: Boolean, state: true },
             // Anchors Tab Properties
             _showAnchorForm: { type: Boolean, state: true },
@@ -154,6 +155,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Base SVG Tab State
         this._viewBoxMode = 'auto';
+        this._svgSourceMode = 'asset'; // Default to asset library
         this._customFiltersEnabled = false;
 
         // Anchors Tab State
@@ -258,6 +260,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Add keyboard event listener (Phase 7)
         this._boundKeyDownHandler = this._handleKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyDownHandler);
+
+        // Detect SVG source mode from config
+        this._detectSvgSourceMode();
 
         lcardsLog.debug('[MSDStudio] Opened with config:', this._workingConfig);
 
@@ -714,6 +719,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Detect SVG source mode from config
+     * @private
+     */
+    _detectSvgSourceMode() {
+        const source = this._workingConfig.msd?.base_svg?.source || '';
+
+        if (source === 'none' || source === '') {
+            this._svgSourceMode = 'none';
+        } else if (source.startsWith('builtin:') || (!source.includes('/') && !source.includes('http'))) {
+            this._svgSourceMode = 'asset';
+        } else {
+            this._svgSourceMode = 'custom';
+        }
+    }
+
+    /**
      * Handle save button click (Phase 7 enhanced with validation)
      * @private
      */
@@ -1146,6 +1167,64 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle SVG source mode change
+     * @param {string} mode - 'asset', 'custom', or 'none'
+     * @private
+     */
+    _handleSvgSourceModeChange(mode) {
+        this._svgSourceMode = mode;
+
+        if (mode === 'none') {
+            this._setNestedValue('msd.base_svg.source', 'none');
+            // Switch viewBox to custom mode when using none
+            if (this._viewBoxMode === 'auto') {
+                this._handleViewBoxModeChange('custom');
+            }
+        } else if (mode === 'asset') {
+            // Set to first available SVG or empty
+            const svgs = this._getAvailableSvgs();
+            if (svgs.length > 0 && this._workingConfig.msd?.base_svg?.source === 'none') {
+                this._setNestedValue('msd.base_svg.source', svgs[0].value);
+            }
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Get available SVGs from AssetManager
+     * @returns {Array} Array of {value, label} options
+     * @private
+     */
+    _getAvailableSvgs() {
+        const assetManager = window.lcards?.core?.assetManager;
+        if (!assetManager) {
+            return [{ value: '', label: 'AssetManager not available' }];
+        }
+
+        try {
+            const svgKeys = assetManager.listAssets('svg');
+            const options = svgKeys.map(key => ({
+                value: `builtin:${key}`,
+                label: key
+            }));
+
+            // Sort alphabetically
+            options.sort((a, b) => a.label.localeCompare(b.label));
+
+            if (options.length === 0) {
+                return [{ value: '', label: 'No SVG assets available' }];
+            }
+
+            return options;
+        } catch (error) {
+            lcardsLog.error('[MSDStudio] Error listing SVG assets:', error);
+            return [{ value: '', label: 'Error loading SVG assets' }];
+        }
+    }
+
+    /**
      * Render Base SVG tab (Phase 2)
      * @returns {TemplateResult}
      * @private
@@ -1170,12 +1249,50 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     description="Configure the base SVG template for your MSD display"
                     ?expanded=${true}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <ha-textfield
-                            label="SVG Source"
-                            .value=${baseSvg.source || ''}
-                            @input=${(e) => this._setNestedValue('msd.base_svg.source', e.target.value)}
-                            helper-text="Enter builtin template (e.g., builtin:ncc-1701-a) or custom path (e.g., /local/my-ship.svg)">
-                        </ha-textfield>
+                        <!-- Source Mode Selector -->
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                select: {
+                                    options: [
+                                        { value: 'asset', label: 'Asset Library' },
+                                        { value: 'custom', label: 'Custom Path' },
+                                        { value: 'none', label: 'None (ViewBox Only)' }
+                                    ]
+                                }
+                            }}
+                            .value=${this._svgSourceMode}
+                            .label=${'SVG Source Mode'}
+                            @value-changed=${(e) => this._handleSvgSourceModeChange(e.detail.value)}>
+                        </ha-selector>
+
+                        <!-- Conditional Content Based on Mode -->
+                        ${this._svgSourceMode === 'asset' ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    select: {
+                                        mode: 'dropdown',
+                                        options: this._getAvailableSvgs()
+                                    }
+                                }}
+                                .value=${baseSvg.source || ''}
+                                .label=${'SVG Asset'}
+                                @value-changed=${(e) => this._setNestedValue('msd.base_svg.source', e.detail.value)}>
+                            </ha-selector>
+                        ` : this._svgSourceMode === 'custom' ? html`
+                            <ha-textfield
+                                label="Custom SVG Path"
+                                .value=${baseSvg.source || ''}
+                                @input=${(e) => this._setNestedValue('msd.base_svg.source', e.target.value)}
+                                helper-text="Enter custom path (e.g., /local/my-ship.svg)">
+                            </ha-textfield>
+                        ` : html`
+                            <ha-alert alert-type="info">
+                                No base SVG will be rendered. Overlays will be drawn on a transparent canvas using the viewBox coordinates below.
+                                <strong>ViewBox must be configured manually.</strong>
+                            </ha-alert>
+                        `}
                         ${this._renderSvgSourceHelper()}
                     </div>
                 </lcards-form-section>

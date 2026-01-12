@@ -134,18 +134,6 @@ export function getChartSchema(options = {}) {
                 }
             },
 
-            name: {
-                type: 'string',
-                description: 'Display name for the card (optional)',
-                'x-ui-hints': {
-                    label: 'Name',
-                    helper: 'Optional display name for the chart',
-                    selector: {
-                        text: {}
-                    }
-                }
-            },
-
             // ====================================================================
             // DATA SOURCE CONFIGURATION (3 LEVELS)
             // ====================================================================
@@ -556,7 +544,7 @@ export function getChartSchema(options = {}) {
                             background: simpleColorSchema,
                             foreground: simpleColorSchema,
                             grid: simpleColorSchema,
-                            
+
                             marker: {
                                 type: 'object',
                                 description: 'Marker colors',
@@ -571,7 +559,7 @@ export function getChartSchema(options = {}) {
                                     stroke: colorArraySchema
                                 }
                             },
-                            
+
                             axis: {
                                 type: 'object',
                                 description: 'Axis colors',
@@ -588,7 +576,7 @@ export function getChartSchema(options = {}) {
                                     ticks: simpleColorSchema
                                 }
                             },
-                            
+
                             legend: {
                                 type: 'object',
                                 description: 'Legend colors',
@@ -603,7 +591,7 @@ export function getChartSchema(options = {}) {
                                     items: colorArraySchema
                                 }
                             },
-                            
+
                             data_labels: simpleColorSchema
                         }
                     },
