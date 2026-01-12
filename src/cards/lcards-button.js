@@ -59,7 +59,6 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { getComponent } from '../core/packs/components/index.js';
-import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent } from '../utils/lcards-svg-helpers.js';
 
@@ -243,25 +242,39 @@ export class LCARdSButton extends LCARdSCard {
             return;
         }
 
-        // Load shape SVG
-        const shapeName = componentPreset.shape;
-        const shapeContent = getShape(shapeName);
-        if (!shapeContent) {
-            lcardsLog.error(`[LCARdSButton] Shape not found for component: ${shapeName}`);
+        // Get SVG content from component (unified format uses inline svg property)
+        let svgContent;
+        if (componentPreset.svg) {
+            // Unified format - inline SVG
+            svgContent = componentPreset.svg;
+            lcardsLog.debug(`[LCARdSButton] Loaded component SVG (unified format)`, {
+                id: componentPreset.metadata?.id || componentName,
+                hasSegments: !!componentPreset.segments
+            });
+        } else if (componentPreset.shape) {
+            // Legacy format - external shape reference (should not happen with new unified d-pad)
+            lcardsLog.warn(`[LCARdSButton] Component uses legacy shape reference: ${componentPreset.shape}`);
+            lcardsLog.error(`[LCARdSButton] Legacy shape format no longer supported`);
+            this._processedSvg = null;
+            this._processedSegments = null;
+            return;
+        } else {
+            lcardsLog.error(`[LCARdSButton] Component has no SVG content or shape reference`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
         }
 
-        lcardsLog.debug(`[LCARdSButton] Loaded component shape`, {
-            id: componentPreset.id,
-            shape: shapeName,
-            mergedSegmentCount: Object.keys(mergedComponentConfig.segments).length
-        });
+        if (!svgContent) {
+            lcardsLog.error(`[LCARdSButton] No SVG content found for component: ${componentName}`);
+            this._processedSvg = null;
+            this._processedSegments = null;
+            return;
+        }
 
         // Create SVG config from merged segments
         const svgConfig = {
-            content: shapeContent,
+            content: svgContent,
             enable_tokens: true,
             segments: []
         };
@@ -417,8 +430,8 @@ export class LCARdSButton extends LCARdSCard {
         if (svgConfig.segments) {
             // Check if it's object-based (new format) or array-based (legacy)
             if (typeof svgConfig.segments === 'object' && !Array.isArray(svgConfig.segments)) {
-                // New object-based format - auto-discover segment IDs from SVG
-                const availableSegmentIds = this._extractSegmentIdsFromSvg(withTokens);
+                // New object-based format - auto-discover segment IDs from SVG (inherited method)
+                const availableSegmentIds = this._extractSegmentIds(withTokens);
 
                 // Convert object-based config to internal array format
                 const segmentsArray = this._convertSegmentsObjectToArray(
@@ -431,40 +444,6 @@ export class LCARdSButton extends LCARdSCard {
                 // Legacy array-based format - process directly
                 this._processSegmentConfig(svgConfig.segments);
             }
-        }
-    }
-
-    /**
-     * Extract segment IDs from SVG content
-     * Scans for elements with id attributes to enable auto-discovery
-     * @private
-     * @param {string} svgContent - SVG markup
-     * @returns {Array<string>} Array of discovered segment IDs
-     */
-    _extractSegmentIdsFromSvg(svgContent) {
-        if (!svgContent) return [];
-
-        try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
-
-            // Check for parse errors
-            const parseError = doc.querySelector('parsererror');
-            if (parseError) {
-                lcardsLog.warn('[LCARdSButton] SVG parse error during ID extraction:', parseError.textContent);
-                return [];
-            }
-
-            // Find all elements with ID attributes
-            const elementsWithIds = doc.querySelectorAll('[id]');
-            const segmentIds = Array.from(elementsWithIds).map(el => el.id);
-
-            lcardsLog.debug(`[LCARdSButton] Discovered ${segmentIds.length} segment IDs from SVG:`, segmentIds);
-
-            return segmentIds;
-        } catch (error) {
-            lcardsLog.error('[LCARdSButton] Failed to extract segment IDs from SVG:', error);
-            return [];
         }
     }
 

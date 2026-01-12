@@ -666,8 +666,8 @@ export class LCARdSSlider extends LCARdSButton {
             // Replace color placeholders
             this._injectComponentColors();
 
-            // Extract zone definitions
-            this._extractZones();
+            // Extract zone definitions (inherited method from LCARdSCard)
+            this._extractZones(this._componentSvg);
 
             this._componentLoaded = true;
 
@@ -1213,48 +1213,6 @@ export class LCARdSSlider extends LCARdSButton {
         });
 
         lcardsLog.debug(`[LCARdSSlider] Injected ${processedFields.length} text fields into text-zone`);
-    }
-
-    /**
-     * Extract zone elements and bounds from component SVG
-     * @private
-     */
-    _extractZones() {
-        if (!this._componentSvg) {
-            this._zones.clear();
-            return;
-        }
-
-        this._zones.clear();
-
-        const zoneElements = this._componentSvg.querySelectorAll('[data-zone]');
-
-        zoneElements.forEach(el => {
-            const zoneName = el.getAttribute('data-zone');
-            const boundsStr = el.getAttribute('data-bounds');
-
-            if (!boundsStr) {
-                lcardsLog.warn(`[LCARdSSlider] Zone "${zoneName}" missing data-bounds attribute`);
-                // Use sensible defaults for zones without explicit bounds
-                // Note: getBBox() is unreliable before SVG is rendered, so we use defaults
-                const defaultBounds = { x: 0, y: 0, width: 100, height: 20 };
-                this._zones.set(zoneName, {
-                    element: el,
-                    bounds: defaultBounds
-                });
-                return;
-            }
-
-            // Parse bounds: "x,y,width,height"
-            const [x, y, width, height] = boundsStr.split(',').map(v => parseFloat(v.trim()));
-
-            this._zones.set(zoneName, {
-                element: el,
-                bounds: { x, y, width, height }
-            });
-
-            lcardsLog.trace(`[LCARdSSlider] Zone "${zoneName}" bounds:`, { x, y, width, height });
-        });
     }
 
     /**

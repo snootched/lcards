@@ -2,9 +2,7 @@ import { lcarsClassicTokens } from '../themes/tokens/lcarsClassicTokens.js';
 import { lcarsDs9Tokens } from '../themes/tokens/lcarsDs9Tokens.js';
 import { lcarsVoyagerTokens } from '../themes/tokens/lcarsVoyagerTokens.js';
 import { lcarsHighContrastTokens } from '../themes/tokens/lcarsHighContrastTokens.js';
-import * as shapesRegistry from './shapes/index.js';
 import * as componentsRegistry from './components/index.js';
-import { dpadComponentPreset } from './components/dpad.js';
 
 /**
  * Core Builtin Pack
@@ -789,9 +787,9 @@ const LCARDS_BUTTONS_PACK = {
 
   },
 
-  // COMPONENT PRESETS: Reusable UI components with SVG shapes
+  // COMPONENT PRESETS: Removed - components are now registered via unified components registry
   component_presets: {
-    dpad: dpadComponentPreset
+    // Legacy component_presets structure removed - all components now use unified format
   }
 };
 

@@ -1,751 +1,610 @@
 # Component Registry System
 
-**Version:** 1.0  
+**Version:** 2.0 (Unified Format)  
 **Module:** `src/core/packs/components/`  
 **Status:** ✅ Production Ready
 
 ## Overview
 
-The Component Registry is the **centralized lookup system** for all reusable UI components across LCARdS card types. Components provide pre-built SVG shapes, segment configurations, and theme token references that cards can use for consistent visual patterns.
+The Component Registry is the **centralized lookup system** for all reusable UI components across LCARdS card types. Components provide pre-built SVG shapes, segment configurations, zone injection points, and theme token references that cards can use for consistent visual patterns.
 
-The registry is used by `CoreConfigManager` to resolve component configurations during the card initialization process.
+**Major Change in v2.0:** All components now use a **unified inline SVG format**. The legacy shapes registry and external shape references have been removed, simplifying the architecture and making components self-contained.
 
 ---
 
-## Architecture
+## Quick Start
 
-### Unified Registry Pattern
-
-All components are exported through a **single unified registry** (`index.js`) that cards import from:
+### Using Components in Cards
 
 ```javascript
-// Cards import from unified registry
 import { getComponent } from '../core/packs/components/index.js';
 
-// CoreConfigManager dynamically imports
-const { getComponent } = await import('../packs/components/index.js');
-const componentPreset = getComponent(userConfig.component);
+// Get a component
+const component = getComponent('dpad');
+
+// Component structure (unified format)
+{
+  svg: '<svg>...</svg>',           // Inline SVG content
+  orientation: 'square',            // Layout direction
+  features: ['multi-segment'],      // Supported features
+  segments: { /* ... */ },          // Interactive segments config
+  metadata: { /* ... */ }           // Documentation & examples
+}
 ```
 
-**Key Benefits:**
-- Single source of truth for all component lookups
-- No need to know which sub-registry a component lives in
-- Easy to add new component types without changing consumer code
-- Consistent API across all card types
+### Available Components
+
+- **D-Pad Components** (`dpad`): 9-segment directional control
+- **Slider Components** (`basic`, `picard`, `picard-vertical`): Track backgrounds with zones
+- **Button Components**: Registered via AssetManager (metadata only)
 
 ---
 
-## Component Structure Types
+## Unified Component Format
 
-The registry supports **two component structure types** for backward compatibility and flexibility:
-
-### 1. Legacy Preset Structure (D-Pad)
-
-Used by components with complex segment-based configurations:
+All components follow this structure (as of v2.0):
 
 ```javascript
-export const dpadComponentPreset = {
-    // Metadata
-    id: 'dpad',
-    name: 'D-Pad Control',
-    description: 'Interactive directional control with 9 segments',
+export const componentName = {
+  // 1. INLINE SVG CONTENT (required)
+  svg: `<svg viewBox="0 0 100 100">
+    <!-- SVG paths with IDs for segments -->
+    <path id="segment1" d="..." />
+    <path id="segment2" d="..." />
+    
+    <!-- Groups with data-zone for content injection -->
+    <g id="track-zone" data-zone="track" data-bounds="10,10,80,80">
+      <!-- Card injects dynamic content here -->
+    </g>
+  </svg>`,
+  
+  // 2. ORIENTATION (required)
+  // 'auto' - Adapts to container
+  // 'horizontal' | 'vertical' - Fixed layout
+  // 'square' - Equal width/height
+  orientation: 'auto',
+  
+  // 3. FEATURES (optional)
+  // Array of feature flags for capability detection
+  features: ['multi-segment', 'zones', 'state-based-styling'],
+  
+  // 4. SEGMENTS (optional)
+  // Pre-defined interactive regions with default styles
+  segments: {
+    segment1: {
+      style: {
+        fill: 'theme:components.component.segment.fill',
+        stroke: 'theme:components.component.segment.stroke'
+      },
+      tap_action: { /* ... */ },
+      hold_action: { /* ... */ }
+    }
+  },
+  
+  // 5. METADATA (optional)
+  // Discovery, documentation, and examples
+  metadata: {
+    id: 'component-id',
+    name: 'Component Name',
+    description: 'What this component does',
     version: '1.0.0',
-    
-    // Shape reference
-    shape: 'dpad',
-    
-    // Segment configurations with theme tokens
-    segments: {
-        up: {
-            style: {
-                fill: 'theme:components.dpad.segment.directional.fill',
-                stroke: 'theme:components.dpad.segment.directional.stroke'
-            }
-        },
-        down: { /* ... */ },
-        // ... more segments
-    }
+    examples: { /* ... */ }
+  }
 };
 ```
-
-**When to use:**
-- Component has multiple interactive segments
-- Needs complex metadata (id, name, description, version)
-- Integrates deeply with theme system via component tokens
-- Segment-based interactions (buttons, switches, controls)
-
-### 2. Component Registry Structure (Sliders, Buttons, Future)
-
-Used by simpler components focused on SVG shape rendering:
-
-```javascript
-export const sliderComponents = {
-    'basic': {
-        svg: '<svg viewBox="0 0 100 100">...</svg>',
-        orientation: 'auto',  // 'auto' | 'horizontal' | 'vertical'
-        features: []          // Optional feature flags
-    },
-    
-    'picard': {
-        svg: '<svg viewBox="0 0 80 300">...</svg>',
-        orientation: 'vertical',
-        features: ['decorative-borders', 'segmented-elbows']
-    }
-};
-```
-
-**When to use:**
-- Component is primarily an SVG shape with data zones
-- Multiple variants exist (basic, styled, themed)
-- Simple structure without complex segment interactions
-- Cards handle interaction logic independently
 
 ---
 
-## Creating a New Component Type
+## Zones vs Segments
 
-Follow this step-by-step guide to add a new component type (e.g., buttons, elbows, MSD frames).
+Components can define two types of interactive regions:
 
-### Step 1: Create Component Directory
+### Zones (Content Injection Points)
 
-Create a new directory under `src/core/packs/components/`:
+**Purpose:** Empty SVG groups where cards inject runtime content (tracks, gauges, text, etc.)
 
-```bash
-mkdir src/core/packs/components/buttons/
+**Attributes:**
+- `data-zone="name"` - Zone identifier
+- `data-bounds="x,y,width,height"` - Bounding box for layout calculations
+
+**Common Zones:**
+- `track` - Slider/progress content
+- `control` - Interactive overlays
+- `text` - Text labels
+- `icon` - Icon placeholders
+- `range` - Range backgrounds
+
+**Example:**
+```svg
+<g id="track-zone" data-zone="track" data-bounds="10,10,80,80">
+  <!-- Card injects pills/gauge here at runtime -->
+</g>
 ```
 
-### Step 2: Define Component Structure
-
-Create `index.js` in your new directory:
-
+**Card Usage:**
 ```javascript
-/**
- * Button Component Registry
- *
- * SVG components for LCARdS Button cards with data-zone attributes
- * for dynamic content injection. Each component defines:
- * - Static visual structure (borders, elbows, backgrounds)
- * - Zone markers (data-zone="icon", "text", "segment") with bounds
- *
- * @module core/packs/components/buttons
- */
+// Base class provides zone methods (as of v2.0)
+async _initialize() {
+  const component = getComponent('basic');
+  await this._loadComponent(component);  // Extracts zones automatically
+}
 
-/**
- * Basic button SVG (rounded rectangle)
- */
-const buttonBasicSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
-  <metadata>
-    <title>LCARdS Basic Button Component</title>
-    <description>Simple rounded rectangle button shell</description>
-  </metadata>
-  
-  <!-- Background zone -->
-  <rect id="bg-zone"
-        data-zone="background"
-        data-bounds="0,0,200,50"
-        x="0" y="0"
-        width="200" height="50"
-        rx="25" ry="25"
-        fill="{{BACKGROUND_COLOR}}" />
-  
-  <!-- Icon zone (left side) -->
-  <g id="icon-zone"
-     data-zone="icon"
-     data-bounds="10,10,30,30">
-    <!-- Card injects icon here -->
-  </g>
-  
-  <!-- Text zone (center) -->
-  <g id="text-zone"
-     data-zone="text"
-     data-bounds="50,10,100,30">
-    <!-- Card injects text here -->
-  </g>
-</svg>`;
+_renderCard() {
+  const trackZone = this._getZone('track');
+  if (trackZone) {
+    this._injectIntoZone('track', this._generateTrackContent());
+  }
+}
+```
 
-/**
- * Lozenge button SVG (LCARS-style pill shape)
- */
-const buttonLozengeSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
-  <metadata>
-    <title>LCARdS Lozenge Button</title>
-    <description>LCARS-style pill-shaped button with end caps</description>
-  </metadata>
-  
-  <!-- Lozenge path -->
-  <path id="bg-zone"
-        data-zone="background"
-        d="M 25,0 L 175,0 A 25,25 0 0 1 175,50 L 25,50 A 25,25 0 0 1 25,0 Z"
-        fill="{{BACKGROUND_COLOR}}" />
-  
-  <g id="text-zone" data-zone="text" data-bounds="40,12,120,26">
-    <!-- Text injected here -->
-  </g>
-</svg>`;
+### Segments (Pre-Defined Interactive Regions)
 
-/**
- * Button component registry
- *
- * @type {Object.<string, {svg: string, orientation: string, features: string[]}>}
- */
-export const buttonComponents = {
-    // Basic rectangular button
-    'basic': {
-        svg: buttonBasicSvg,
-        orientation: 'auto',  // Works in any layout
-        features: ['icon-zone', 'text-zone']
+**Purpose:** SVG paths/shapes with IDs that map to styles + actions
+
+**Attributes:**
+- `id="segment-name"` - Element ID for selector targeting
+
+**Common Segments:**
+- Directional controls (d-pad: up/down/left/right)
+- Multi-button layouts (keypad, remote)
+- State indicators (status grid cells)
+
+**Example:**
+```javascript
+{
+  svg: `<path id="up" d="..."/><path id="down" d="..."/>`,
+  segments: {
+    up: {
+      style: { fill: 'theme:colors.lcars.blue' },
+      tap_action: { action: 'call-service', service: 'media_player.volume_up' }
     },
-    
-    // LCARS-style lozenge
-    'lozenge': {
-        svg: buttonLozengeSvg,
-        orientation: 'horizontal',  // Locked to horizontal
-        features: ['text-zone', 'lcars-style']
+    down: {
+      style: { fill: 'theme:colors.lcars.red' },
+      tap_action: { action: 'call-service', service: 'media_player.volume_down' }
     }
-};
-
-/**
- * Get a button component by name
- * @param {string} name - Component name
- * @returns {Object|undefined} Component object or undefined if not found
- */
-export function getButtonComponent(name) {
-    return buttonComponents[name];
-}
-
-/**
- * Check if a button component exists
- * @param {string} name - Component name
- * @returns {boolean} True if component exists
- */
-export function hasButtonComponent(name) {
-    return name in buttonComponents;
-}
-
-/**
- * Get all available button component names
- * @returns {string[]} Array of component names
- */
-export function getButtonComponentNames() {
-    return Object.keys(buttonComponents);
+  }
 }
 ```
 
-### Step 3: Register in Unified Registry
+**Card Usage:**
+```javascript
+// Base class provides segment methods (as of v2.0)
+_finalizeSvgProcessing(svgContent, svgConfig) {
+  if (svgConfig.segments) {
+    const ids = this._extractSegmentIds(svgContent);  // Auto-discover IDs
+    this._processedSegments = this._processSegmentConfig(svgConfig.segments, ids);
+  }
+}
 
-**CRITICAL:** Update `src/core/packs/components/index.js` to include your new components:
+firstUpdated() {
+  const svg = this.shadowRoot.querySelector('.component-svg');
+  this._setupSegmentInteractivity(this._processedSegments, svg);
+}
+```
+
+---
+
+## Base Class Integration (v2.0)
+
+As of v2.0, `LCARdSCard` provides built-in methods for zone and segment handling, eliminating code duplication:
+
+### Zone Methods
 
 ```javascript
-/**
- * Component Registry
- * ... (existing JSDoc)
- */
+// Load component and extract zones/segments
+await this._loadComponent(componentDef);
 
-import { dpadComponentPreset } from './dpad.js';
-import { sliderComponents } from './sliders/index.js';
-import { buttonComponents } from './buttons/index.js';  // ← ADD IMPORT
+// Extract zones from rendered SVG
+this._extractZones(svgElement);
 
-/**
- * Component registry mapping component names to their presets
- * @type {Object.<string, Object>}
- */
-export const components = {
-    dpad: dpadComponentPreset,      // D-Pad preset (legacy structure)
-    ...sliderComponents,             // Slider registry (basic, picard)
-    ...buttonComponents              // ← ADD SPREAD HERE
+// Get zone metadata
+const zone = this._getZone('track');
+// Returns: { element: <g>, bounds: { x, y, width, height } }
+
+// Inject content into zone
+this._injectIntoZone('track', '<rect x="0" y="0" width="100" height="20" />');
+```
+
+### Segment Methods
+
+```javascript
+// Auto-discover segment IDs from SVG
+const ids = this._extractSegmentIds(svgContent);
+// Returns: ['up', 'down', 'left', 'right', 'center']
+
+// Process segment configuration
+const segments = this._processSegmentConfig(segmentsObject, ids);
+// Merges defaults + per-segment config, validates IDs
+
+// Setup interactivity (styles + event listeners)
+this._setupSegmentInteractivity(segments, svgContainer);
+// Applies initial styles, attaches click/hold handlers
+```
+
+**Migration from v1.0:**
+- Slider cards: Remove duplicate `_extractZones()` method → use inherited
+- Button cards: Remove duplicate `_extractSegmentIdsFromSvg()` → use inherited `_extractSegmentIds()`
+- Custom cards: Extend `LCARdSCard` to get zones + segments for free
+
+---
+
+## Creating New Components
+
+### Step 1: Create Component File
+
+```javascript
+// src/core/packs/components/mycomponent/index.js
+export const myComponents = {
+  'basic': {
+    svg: `<svg viewBox="0 0 100 100">
+      <g id="content-zone" data-zone="content" data-bounds="0,0,100,100"></g>
+    </svg>`,
+    orientation: 'auto',
+    features: [],
+    metadata: {
+      id: 'my-component-basic',
+      name: 'My Component (Basic)',
+      description: 'A basic component for my card',
+      version: '1.0.0'
+    }
+  }
 };
-
-// Keep existing getComponent, hasComponent, etc. functions unchanged
 ```
 
-**Why this matters:**
-- `CoreConfigManager` uses `getComponent()` from this file
-- Forgetting this step = "Component preset 'X' not found" errors
-- All component types MUST be merged into the unified registry
+### Step 2: Register in Unified Registry
 
-### Step 4: Use in Card Implementation
+```javascript
+// src/core/packs/components/index.js
+import { myComponents } from './mycomponent/index.js';
 
-Cards can now reference your components in their config:
-
-```yaml
-type: custom:lcards-button
-component: lozenge  # Uses buttonComponents['lozenge']
-entity: light.kitchen
+export const components = {
+  ...dpadComponents,
+  ...sliderComponents,
+  ...myComponents  // ← Add here
+};
 ```
 
-Card implementation:
+### Step 3: Use in Card
 
 ```javascript
 import { getComponent } from '../core/packs/components/index.js';
 
-// In card's render logic
-const componentDef = getComponent(this.config.component);
-if (componentDef && componentDef.svg) {
-    // Inject SVG and populate data zones
-    return html`${unsafeHTML(componentDef.svg)}`;
+export class MyCard extends LCARdSCard {
+  async _initialize() {
+    super._initialize();
+    
+    const component = getComponent('basic');
+    await this._loadComponent(component);  // Zones extracted automatically
+  }
+  
+  _renderCard() {
+    const contentZone = this._getZone('content');
+    if (contentZone) {
+      this._injectIntoZone('content', this._generateContent());
+    }
+    return this._renderSvg();
+  }
 }
-```
-
-### Step 5: Update JSDoc (Optional but Recommended)
-
-Update the main `index.js` JSDoc to list your new component type:
-
-```javascript
-/**
- * Component Registry
- *
- * Centralized registry for all card component types...
- *
- * 1. **Legacy preset structure** (D-Pad):
- *    ...
- *
- * 2. **Component registry structure** (Sliders, Buttons, Elbows, MSD):
- *    ...                                      ^^^^^^^ ADD HERE
- *
- * Future component types will be added using the same spread pattern.
- */
 ```
 
 ---
 
-## Component Naming Conventions
+## External SVG Files (Build-Time Enhancement)
 
-### Registry Keys (Component IDs)
+### Current Implementation
 
-Use lowercase with hyphens for multi-word component names:
+SVG content is inlined as JavaScript strings for webpack/rollup compatibility:
 
 ```javascript
+const componentSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80mm" height="80mm">...</svg>`;
+```
+
+### Optional: Load from External Files
+
+For easier SVG editing, you can load external `.svg` files at build time.
+
+#### Option 1: Vite Asset Imports (Recommended for LCARdS)
+
+```javascript
+// vite.config.js (already configured)
+export default {
+  assetsInclude: ['**/*.svg']
+};
+
+// Component file
+import componentSvg from './component.svg?raw';  // ← ?raw loads as string
+
 export const myComponents = {
-    'basic': { /* ... */ },           // ✅ Single word
-    'picard-vertical': { /* ... */ }, // ✅ Multi-word hyphenated
-    'lcars-alert': { /* ... */ },     // ✅ Prefix with style name
-    'tng-style-panel': { /* ... */ }  // ✅ Clear, descriptive
+  'basic': {
+    svg: componentSvg,  // ← No inline string needed
+    orientation: 'auto',
+    features: []
+  }
 };
 ```
 
-**Avoid:**
-```javascript
-'BasicButton': { /* ... */ },  // ❌ PascalCase
-'picard_vertical': { /* ... */ }, // ❌ Snake_case
-'pv': { /* ... */ }             // ❌ Unclear abbreviations
-```
-
-### Registry Variable Names
-
-Use plural noun + "Components":
+#### Option 2: Webpack Raw Loader
 
 ```javascript
-export const buttonComponents = { /* ... */ };    // ✅
-export const sliderComponents = { /* ... */ };    // ✅
-export const elbowComponents = { /* ... */ };     // ✅
-export const msdFrameComponents = { /* ... */ };  // ✅
-```
-
-### File Structure
-
-```
-src/core/packs/components/
-├── index.js              # Unified registry (all components merged)
-├── dpad.js               # Legacy preset (single file)
-├── sliders/
-│   └── index.js          # Slider component registry
-├── buttons/              # ← Your new component type
-│   └── index.js          # Button component registry
-└── README.md             # This file
-```
-
----
-
-## SVG Best Practices
-
-### Data Zones
-
-Use `data-zone` attributes to mark areas where cards inject dynamic content:
-
-```svg
-<!-- Zone for text injection -->
-<g id="text-zone"
-   data-zone="text"
-   data-bounds="10,10,100,30">
-  <!-- Card injects text here -->
-</g>
-
-<!-- Zone for icon injection -->
-<g id="icon-zone"
-   data-zone="icon"
-   data-bounds="120,15,20,20">
-  <!-- Card injects icon here -->
-</g>
-
-<!-- Zone for interactive overlay -->
-<rect id="control-zone"
-      data-zone="control"
-      data-bounds="0,0,200,50"
-      fill="none"
-      pointer-events="none" />
-```
-
-**Zone Types:**
-- `text` - Text label injection point
-- `icon` - Icon/image injection point
-- `control` - Interactive overlay (buttons, sliders)
-- `track` - Progress/slider track area
-- `background` - Background fill area
-- `segment` - Individual button/control segment
-
-### ViewBox Sizing
-
-Choose appropriate viewBox for your component:
-
-```svg
-<!-- Square components (adapts to any orientation) -->
-<svg viewBox="0 0 100 100" preserveAspectRatio="none">
-
-<!-- Horizontal components (buttons, headers) -->
-<svg viewBox="0 0 200 50">
-
-<!-- Vertical components (sliders, side panels) -->
-<svg viewBox="0 0 80 300">
-
-<!-- Fixed aspect ratio (icons, logos) -->
-<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
-```
-
-### Theme Token Placeholders
-
-Use `{{TOKEN_NAME}}` placeholders for theme-aware colors:
-
-```svg
-<rect fill="{{BACKGROUND_COLOR}}" />
-<path stroke="{{BORDER_COLOR}}" />
-<text fill="{{TEXT_COLOR}}">Label</text>
-```
-
-Cards replace these at runtime with theme values.
-
----
-
-## Testing Your Components
-
-### 1. Syntax Verification
-
-```bash
-# Build the project to check for syntax errors
-npm run build
-```
-
-### 2. Registry Lookup Test
-
-Create a test file `/tmp/test-my-components.js`:
-
-```javascript
-const components = {
-    dpad: { id: 'dpad' },  // Existing
-    ...{ 'basic': { svg: '...' }, 'lozenge': { svg: '...' } }  // Your new components
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [{
+      test: /\.svg$/,
+      use: 'raw-loader'
+    }]
+  }
 };
 
-function getComponent(name) {
-    return components[name];
+// Component file
+import componentSvg from './component.svg';  // ← Loaded as string at build time
+```
+
+**File Structure:**
+```
+src/core/packs/components/mycomponent/
+├── component.svg       # Source file (edit this)
+├── index.js            # Component definition (imports component.svg)
+└── README.md           # Component documentation
+```
+
+**Recommendation:**
+- **Development**: Keep `.svg` files in component directories for easy editing
+- **Build**: Use Vite `?raw` imports (already configured in LCARdS)
+- **Source Control**: Commit both `.svg` files and `.js` files for transparency
+
+---
+
+## Theme Token Integration
+
+Components should reference theme tokens instead of hardcoded values:
+
+```javascript
+segments: {
+  up: {
+    style: {
+      fill: 'theme:components.dpad.segment.directional.fill',  // ← Theme token
+      stroke: 'theme:components.dpad.segment.directional.stroke',
+      'stroke-width': 'theme:components.dpad.segment.directional.stroke-width'
+    }
+  }
+}
+```
+
+**Token Resolution Flow:**
+1. Card loads component with theme tokens
+2. CoreConfigManager merges component → preset → user config
+3. Template engine resolves `theme:*` tokens to actual values
+4. Final config applied to SVG elements
+
+**Benefits:**
+- Consistent styling across themes
+- Automatic theme switching support
+- Centralized color management
+
+---
+
+## Migration Guide
+
+### Migrating from Legacy Format (v1.0 → v2.0)
+
+**Before (Legacy):**
+```javascript
+// Component with external shape reference
+{
+  id: 'my-component',
+  shape: 'my-shape',  // ❌ No longer supported
+  segments: {...}
 }
 
-// Test lookups
-console.log('Test: getComponent("basic"):', getComponent('basic') ? 'PASS ✓' : 'FAIL ✗');
-console.log('Test: getComponent("lozenge"):', getComponent('lozenge') ? 'PASS ✓' : 'FAIL ✗');
-console.log('Test: getComponent("dpad"):', getComponent('dpad') ? 'PASS ✓' : 'FAIL ✗');
+// Separate shapes registry
+export const shapes = {
+  'my-shape': '<svg>...</svg>'
+};
 ```
 
-### 3. Integration Test in Home Assistant
+**After (Unified):**
+```javascript
+// Component with inline SVG
+{
+  'my-component': {
+    svg: '<svg>...</svg>',  // ✅ Inline SVG
+    orientation: 'auto',
+    features: ['multi-segment'],
+    segments: {...},
+    metadata: {
+      id: 'my-component',
+      name: 'My Component',
+      description: '...',
+      version: '1.0.0'
+    }
+  }
+}
+```
 
-1. Build: `npm run build`
-2. Copy `dist/lcards.js` to Home Assistant `www/community/lcards/`
-3. Create test card:
-   ```yaml
-   type: custom:lcards-button
-   component: basic
-   entity: light.test
-   ```
-4. Check browser console for errors
-5. Verify no "Component preset 'X' not found" warnings
+**Migration Steps:**
+1. Move SVG content from shapes registry to component's `svg` property
+2. Change from single preset object to registry map (`{ 'name': { ... } }`)
+3. Add `orientation` and `features` properties
+4. Nest metadata under `metadata` property
+5. Delete shapes registry import/reference
 
 ---
 
 ## Troubleshooting
 
-### "Component preset 'X' not found"
+### Component Not Found
 
-**Cause:** Component not merged into unified registry  
-**Solution:** Check that you added the spread operator in `index.js`:
+**Error:** `Component preset not found: my-component`
 
-```javascript
-export const components = {
-    dpad: dpadComponentPreset,
-    ...sliderComponents,
-    ...buttonComponents  // ← Make sure this exists!
-};
-```
+**Solution:**
+1. Check component is exported in its `index.js`
+2. Check component is spread into unified registry (`src/core/packs/components/index.js`)
+3. Verify component name matches exactly (case-sensitive)
 
-### Component Doesn't Render
+### Segments Not Interactive
 
-**Cause:** SVG syntax error or missing data zones  
-**Solution:** Validate SVG in browser dev tools:
+**Error:** Segments render but don't respond to clicks
 
-```javascript
-// In browser console
-const svg = `<svg>...</svg>`;
-const parser = new DOMParser();
-const doc = parser.parseFromString(svg, 'image/svg+xml');
-console.log(doc.querySelector('parsererror')); // Should be null
-```
+**Solution:**
+1. Ensure SVG elements have `id` attributes matching segment names
+2. Check `_setupSegmentInteractivity()` is called after SVG renders
+3. Verify segments have `tap_action` or `hold_action` configured
+4. Check card extends `LCARdSCard` (provides segment methods)
 
-### Build Errors After Adding Component
+### Zones Not Found
 
-**Cause:** Import path incorrect or circular dependency  
-**Solution:** Verify import path:
+**Error:** `Cannot inject into unknown zone: track`
 
-```javascript
-// ✅ CORRECT: Relative path from index.js to your registry
-import { buttonComponents } from './buttons/index.js';
-
-// ❌ WRONG: Absolute path or missing .js extension
-import { buttonComponents } from 'src/core/packs/components/buttons';
-```
-
----
-
-## Migration Guide: Existing Components → Unified Registry
-
-If you have components in separate files that need to be added:
-
-### Before (Separate, Unused)
-
-```javascript
-// src/cards/my-card.js
-import { mySpecialComponent } from './components/my-special.js';
-
-// Component not in unified registry
-```
-
-### After (Unified Registry)
-
-1. Move component to `src/core/packs/components/my-type/index.js`
-2. Export as registry:
-   ```javascript
-   export const myTypeComponents = {
-       'special': mySpecialComponent
-   };
-   ```
-3. Merge into unified registry (`src/core/packs/components/index.js`):
-   ```javascript
-   import { myTypeComponents } from './my-type/index.js';
-   
-   export const components = {
-       dpad: dpadComponentPreset,
-       ...sliderComponents,
-       ...buttonComponents,
-       ...myTypeComponents  // ← Add here
-   };
-   ```
-4. Update card to use unified import:
-   ```javascript
-   import { getComponent } from '../core/packs/components/index.js';
-   const comp = getComponent('special');
-   ```
+**Solution:**
+1. Ensure SVG has `<g>` with `data-zone="track"` attribute
+2. Check `_extractZones()` is called after SVG is in DOM
+3. Verify zone name matches exactly (case-sensitive)
+4. Check SVG is rendered before zone injection
 
 ---
 
 ## Real-World Examples
 
-### Example 1: D-Pad (Legacy Preset)
+### Example 1: D-Pad Component
 
-**File:** `src/core/packs/components/dpad.js`
+**File:** `src/core/packs/components/dpad/index.js`
 
-```javascript
-export const dpadComponentPreset = {
-    id: 'dpad',
-    name: 'D-Pad Control',
-    segments: {
-        up: { style: { fill: 'theme:components.dpad.segment.directional.fill' } },
-        // ... 8 more segments
-    }
-};
+**Features:**
+- 9 interactive segments (directional + diagonals + center)
+- Theme token integration for consistent styling
+- Comprehensive metadata with usage examples
+
+**Usage:**
+```yaml
+type: custom:lcards-button
+component: dpad
+entity: media_player.living_room
+dpad:
+  segments:
+    up: { tap_action: { action: call-service, service: media_player.volume_up } }
+    down: { tap_action: { action: call-service, service: media_player.volume_down } }
+    center: { tap_action: { action: call-service, service: media_player.media_play_pause } }
 ```
 
-**Registration:** Direct object (not spread)
-```javascript
-export const components = {
-    dpad: dpadComponentPreset,  // Single entry
-    // ...
-};
-```
-
-### Example 2: Sliders (Registry)
+### Example 2: Slider Component
 
 **File:** `src/core/packs/components/sliders/index.js`
 
+**Features:**
+- Data zones for track and control injection
+- Orientation flexibility (auto/horizontal/vertical)
+- Multiple variants (basic, picard, picard-vertical)
+
+**Usage:**
+```yaml
+type: custom:lcards-slider
+component: basic
+entity: light.bedroom
+preset: pills-basic
+```
+
+### Example 3: Custom Keypad
+
+**Hypothetical component for numeric input:**
+
 ```javascript
-export const sliderComponents = {
-    'basic': {
-        svg: sliderBasicSvg,
-        orientation: 'auto',
-        features: []
+export const keypadComponents = {
+  'numeric': {
+    svg: `<svg viewBox="0 0 120 160">
+      <path id="key-1" d="M 10,10 L 30,10 L 30,30 L 10,30 Z"/>
+      <path id="key-2" d="M 45,10 L 65,10 L 65,30 L 45,30 Z"/>
+      <!-- ... more keys -->
+    </svg>`,
+    orientation: 'square',
+    features: ['multi-segment'],
+    segments: {
+      'key-1': { 
+        style: { fill: 'theme:colors.lcars.blue' },
+        tap_action: { action: 'call-service', service: 'input_number.set_value', data: { value: 1 } }
+      },
+      // ... more segments
     },
-    'picard': {
-        svg: sliderPicardVerticalSvg,
-        orientation: 'vertical',
-        features: ['decorative-borders']
+    metadata: {
+      id: 'keypad-numeric',
+      name: 'Numeric Keypad',
+      description: 'Interactive numeric input keypad',
+      version: '1.0.0'
     }
+  }
 };
 ```
 
-**Registration:** Spread operator (multiple entries)
-```javascript
-export const components = {
-    dpad: dpadComponentPreset,
-    ...sliderComponents,  // Adds 'basic' and 'picard'
-    // ...
-};
-```
+---
 
-### Example 3: Future Elbows (Registry)
+## Future Enhancements
 
-**File:** `src/core/packs/components/elbows/index.js` (not yet created)
+### Planned Features
 
-```javascript
-export const elbowComponents = {
-    'rounded': {
-        svg: elbowRoundedSvg,
-        orientation: 'auto',
-        features: ['smooth-corners']
-    },
-    'angular': {
-        svg: elbowAngularSvg,
-        orientation: 'auto',
-        features: ['sharp-corners', 'lcars-style']
-    }
-};
-```
+1. **Dynamic Component Loading** - Load components from external URLs
+2. **Component Validation** - JSON Schema validation for component structure
+3. **Component Preview Tool** - Visual component browser in editor
+4. **Animation Presets** - Built-in animation configurations per component
+5. **Responsive Components** - Breakpoint-based component variants
 
-**Registration:**
-```javascript
-import { elbowComponents } from './elbows/index.js';
+### Contributing
 
-export const components = {
-    dpad: dpadComponentPreset,
-    ...sliderComponents,
-    ...buttonComponents,
-    ...elbowComponents  // Future addition
-};
-```
+When adding new components:
+1. Follow the unified format specification
+2. Include comprehensive metadata and examples
+3. Use theme tokens for all colors
+4. Document zones and segments clearly
+5. Test with multiple themes
 
 ---
 
 ## API Reference
 
-### `getComponent(name)`
+### getComponent(name)
 
-Get a component by name from unified registry.
+**Returns:** Component object or undefined
 
-**Parameters:**
-- `name` (string) - Component identifier
-
-**Returns:** `Object | undefined`
-- Legacy preset: `{ id, name, description, version, segments }`
-- Registry entry: `{ svg, orientation, features }`
-
-**Example:**
 ```javascript
-import { getComponent } from '../core/packs/components/index.js';
+const component = getComponent('dpad');
+// { svg, orientation, features, segments, metadata }
+```
 
-const comp = getComponent('basic');
-if (comp && comp.svg) {
-    // Render component SVG
+### hasComponent(name)
+
+**Returns:** Boolean
+
+```javascript
+if (hasComponent('custom-keypad')) {
+  // Component exists
 }
 ```
 
-### `hasComponent(name)`
+### getComponentNames()
 
-Check if a component exists in registry.
+**Returns:** Array of component names
 
-**Parameters:**
-- `name` (string) - Component identifier
-
-**Returns:** `boolean`
-
-**Example:**
 ```javascript
-if (hasComponent('lozenge')) {
-    console.log('Lozenge component available');
-}
-```
-
-### `getComponentNames()`
-
-Get all registered component names.
-
-**Returns:** `string[]`
-
-**Example:**
-```javascript
-const allComponents = getComponentNames();
-// ['dpad', 'basic', 'picard', 'lozenge', ...]
-```
-
-### `getComponentMetadata(name)`
-
-Get component metadata (legacy presets only).
-
-**Parameters:**
-- `name` (string) - Component identifier
-
-**Returns:** `Object | null`
-```javascript
-{
-    id: string,
-    name: string,
-    description: string,
-    version: string
-}
-```
-
-**Example:**
-```javascript
-const meta = getComponentMetadata('dpad');
-console.log(meta.name);  // "D-Pad Control"
+const names = getComponentNames();
+// ['dpad', 'basic', 'picard', 'picard-vertical']
 ```
 
 ---
 
-## Checklist: Adding a New Component Type
+## Version History
 
-Use this checklist when adding new component types:
+### v2.0.0 (Current)
+- ✅ Unified inline SVG format for all components
+- ✅ Removed legacy shapes registry
+- ✅ Added base class zone/segment methods
+- ✅ Simplified component structure
+- ✅ Comprehensive documentation
 
-- [ ] Create directory: `src/core/packs/components/[type]/`
-- [ ] Create `index.js` with component registry
-- [ ] Define SVG strings with data zones
-- [ ] Export registry object (e.g., `buttonComponents`)
-- [ ] Export helper functions (`getButtonComponent`, etc.)
-- [ ] Import registry in `src/core/packs/components/index.js`
-- [ ] Add spread to `components` object: `...buttonComponents`
-- [ ] Update JSDoc in unified registry
-- [ ] Run `npm run build` to verify no errors
-- [ ] Test component lookup in browser console
-- [ ] Create example card using new component
-- [ ] Verify no "Component preset not found" errors
-- [ ] Document component in card's schema/editor (if applicable)
+### v1.0.0
+- Initial component registry system
+- Dual structure support (preset + registry)
+- External shapes registry
 
 ---
 
-## See Also
-
-- [CoreConfigManager README](../../config-manager/README.md) - Component resolution and config processing
-- [LCARdS Card Guide](../../../../doc/architecture/lcards-card-foundation.md) - Card implementation patterns
-- [Theme System](../themes/README.md) - Theme token integration
-- [Style Presets](../presets/README.md) - Preset system architecture
-
----
-
-**Last Updated:** December 29, 2024  
-**Version:** 1.0  
-**Authors:** LCARdS Development Team
+**For questions or issues, see:** `doc/architecture/subsystems/components.md`
