@@ -417,8 +417,8 @@ export class LCARdSButton extends LCARdSCard {
         if (svgConfig.segments) {
             // Check if it's object-based (new format) or array-based (legacy)
             if (typeof svgConfig.segments === 'object' && !Array.isArray(svgConfig.segments)) {
-                // New object-based format - auto-discover segment IDs from SVG
-                const availableSegmentIds = this._extractSegmentIdsFromSvg(withTokens);
+                // New object-based format - auto-discover segment IDs from SVG (inherited method)
+                const availableSegmentIds = this._extractSegmentIds(withTokens);
 
                 // Convert object-based config to internal array format
                 const segmentsArray = this._convertSegmentsObjectToArray(
@@ -431,40 +431,6 @@ export class LCARdSButton extends LCARdSCard {
                 // Legacy array-based format - process directly
                 this._processSegmentConfig(svgConfig.segments);
             }
-        }
-    }
-
-    /**
-     * Extract segment IDs from SVG content
-     * Scans for elements with id attributes to enable auto-discovery
-     * @private
-     * @param {string} svgContent - SVG markup
-     * @returns {Array<string>} Array of discovered segment IDs
-     */
-    _extractSegmentIdsFromSvg(svgContent) {
-        if (!svgContent) return [];
-
-        try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
-
-            // Check for parse errors
-            const parseError = doc.querySelector('parsererror');
-            if (parseError) {
-                lcardsLog.warn('[LCARdSButton] SVG parse error during ID extraction:', parseError.textContent);
-                return [];
-            }
-
-            // Find all elements with ID attributes
-            const elementsWithIds = doc.querySelectorAll('[id]');
-            const segmentIds = Array.from(elementsWithIds).map(el => el.id);
-
-            lcardsLog.debug(`[LCARdSButton] Discovered ${segmentIds.length} segment IDs from SVG:`, segmentIds);
-
-            return segmentIds;
-        } catch (error) {
-            lcardsLog.error('[LCARdSButton] Failed to extract segment IDs from SVG:', error);
-            return [];
         }
     }
 
