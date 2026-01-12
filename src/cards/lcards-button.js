@@ -59,7 +59,6 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { getComponent } from '../core/packs/components/index.js';
-import { getShape } from '../core/packs/shapes/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent } from '../utils/lcards-svg-helpers.js';
 
@@ -243,25 +242,39 @@ export class LCARdSButton extends LCARdSCard {
             return;
         }
 
-        // Load shape SVG
-        const shapeName = componentPreset.shape;
-        const shapeContent = getShape(shapeName);
-        if (!shapeContent) {
-            lcardsLog.error(`[LCARdSButton] Shape not found for component: ${shapeName}`);
+        // Get SVG content from component (unified format uses inline svg property)
+        let svgContent;
+        if (componentPreset.svg) {
+            // Unified format - inline SVG
+            svgContent = componentPreset.svg;
+            lcardsLog.debug(`[LCARdSButton] Loaded component SVG (unified format)`, {
+                id: componentPreset.metadata?.id || componentName,
+                hasSegments: !!componentPreset.segments
+            });
+        } else if (componentPreset.shape) {
+            // Legacy format - external shape reference (should not happen with new unified d-pad)
+            lcardsLog.warn(`[LCARdSButton] Component uses legacy shape reference: ${componentPreset.shape}`);
+            lcardsLog.error(`[LCARdSButton] Legacy shape format no longer supported`);
+            this._processedSvg = null;
+            this._processedSegments = null;
+            return;
+        } else {
+            lcardsLog.error(`[LCARdSButton] Component has no SVG content or shape reference`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
         }
 
-        lcardsLog.debug(`[LCARdSButton] Loaded component shape`, {
-            id: componentPreset.id,
-            shape: shapeName,
-            mergedSegmentCount: Object.keys(mergedComponentConfig.segments).length
-        });
+        if (!svgContent) {
+            lcardsLog.error(`[LCARdSButton] No SVG content found for component: ${componentName}`);
+            this._processedSvg = null;
+            this._processedSegments = null;
+            return;
+        }
 
         // Create SVG config from merged segments
         const svgConfig = {
-            content: shapeContent,
+            content: svgContent,
             enable_tokens: true,
             segments: []
         };
