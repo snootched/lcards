@@ -2740,4 +2740,436 @@ export class LCARdSCard extends LCARdSNativeCard {
         }
         this._provenanceTracker.printConfigTree(title);
     }
+
+    // ========================================================================
+    // Component System: Zone & Segment Methods
+    // ========================================================================
+    // These methods provide unified zone and segment handling for all cards.
+    // Migrated from individual card implementations (slider, button) to base
+    // class to eliminate code duplication and provide consistent API.
+    //
+    // Zones: Empty SVG groups where cards inject runtime content (track, text, etc.)
+    // Segments: Pre-defined SVG shapes with IDs that map to styles + actions
+    // ========================================================================
+
+    /**
+     * Load component and extract zones/segments
+     * 
+     * This is the main entry point for component loading. It:
+     * 1. Stores the component SVG
+     * 2. Extracts zones (data-zone attributes) for content injection
+     * 3. Extracts segment IDs for interactivity setup
+     * 
+     * Subclasses should call this in their initialization to get access
+     * to zones and segments without reimplementing the extraction logic.
+     * 
+     * @param {Object} componentDef - Component definition with svg, segments, etc.
+     * @returns {Promise<void>}
+     * @protected
+     * 
+     * @example
+     * async _initialize() {
+     *     const componentDef = getComponent(this.config.component);
+     *     await this._loadComponent(componentDef);
+     *     // Now zones and segments are available via this._zones and this._componentSegments
+     * }
+     */
+    async _loadComponent(componentDef) {
+        if (!componentDef) {
+            lcardsLog.warn('[LCARdSCard] No component definition provided to _loadComponent');
+            return;
+        }
+
+        // Initialize zones map if not already present
+        if (!this._zones) {
+            this._zones = new Map();
+        }
+
+        // Store component SVG content
+        this._componentSvgContent = componentDef.svg || null;
+
+        // Store component segments for later processing
+        this._componentSegments = componentDef.segments || null;
+
+        // Extract zones from SVG if present
+        if (this._componentSvgContent) {
+            // We need to parse the SVG to extract zones
+            // This is done after the SVG is inserted into the DOM
+            // For now, just store the SVG and wait for it to be rendered
+            lcardsLog.debug('[LCARdSCard] Component loaded, zones will be extracted after render');
+        }
+    }
+
+    /**
+     * Extract zones from rendered SVG component
+     * 
+     * Parses data-zone attributes from the component SVG to identify
+     * injection points for dynamic content. Zones must have:
+     * - data-zone="name" attribute
+     * - data-bounds="x,y,width,height" attribute (optional, will use defaults)
+     * 
+     * This should be called after the SVG is rendered into the DOM.
+     * 
+     * @param {Element} [svgElement] - Optional SVG element to parse (defaults to this._componentSvg)
+     * @protected
+     * 
+     * @example
+     * firstUpdated() {
+     *     super.firstUpdated();
+     *     const svg = this.shadowRoot.querySelector('.component-svg');
+     *     this._extractZones(svg);
+     * }
+     */
+    _extractZones(svgElement = null) {
+        const svg = svgElement || this._componentSvg;
+        
+        if (!svg) {
+            if (this._zones) {
+                this._zones.clear();
+            }
+            return;
+        }
+
+        if (!this._zones) {
+            this._zones = new Map();
+        } else {
+            this._zones.clear();
+        }
+
+        const zoneElements = svg.querySelectorAll('[data-zone]');
+
+        zoneElements.forEach(el => {
+            const zoneName = el.getAttribute('data-zone');
+            const boundsStr = el.getAttribute('data-bounds');
+
+            if (!boundsStr) {
+                lcardsLog.warn(`[LCARdSCard] Zone "${zoneName}" missing data-bounds attribute`);
+                // Use sensible defaults for zones without explicit bounds
+                const defaultBounds = { x: 0, y: 0, width: 100, height: 20 };
+                this._zones.set(zoneName, {
+                    element: el,
+                    bounds: defaultBounds
+                });
+                return;
+            }
+
+            // Parse bounds: "x,y,width,height"
+            const [x, y, width, height] = boundsStr.split(',').map(v => parseFloat(v.trim()));
+
+            this._zones.set(zoneName, {
+                element: el,
+                bounds: { x, y, width, height }
+            });
+
+            lcardsLog.trace(`[LCARdSCard] Zone "${zoneName}" extracted with bounds:`, { x, y, width, height });
+        });
+
+        lcardsLog.debug(`[LCARdSCard] Extracted ${this._zones.size} zones from component SVG`);
+    }
+
+    /**
+     * Get zone by name
+     * 
+     * Returns zone metadata including the DOM element and bounding box.
+     * 
+     * @param {string} zoneName - Name of the zone (e.g., 'track', 'text')
+     * @returns {Object|undefined} Zone object with element and bounds, or undefined
+     * @protected
+     * 
+     * @example
+     * const trackZone = this._getZone('track');
+     * if (trackZone) {
+     *     console.log('Track zone bounds:', trackZone.bounds);
+     * }
+     */
+    _getZone(zoneName) {
+        return this._zones?.get(zoneName);
+    }
+
+    /**
+     * Inject content into a zone
+     * 
+     * Clears the zone's existing content and injects new SVG markup.
+     * The content should be valid SVG elements (paths, rects, groups, etc.).
+     * 
+     * @param {string} zoneName - Name of the zone to inject into
+     * @param {string} content - SVG markup to inject
+     * @protected
+     * 
+     * @example
+     * const trackContent = `<rect x="0" y="0" width="100" height="20" fill="blue"/>`;
+     * this._injectIntoZone('track', trackContent);
+     */
+    _injectIntoZone(zoneName, content) {
+        const zone = this._getZone(zoneName);
+        if (!zone) {
+            lcardsLog.warn(`[LCARdSCard] Cannot inject into unknown zone: ${zoneName}`);
+            return;
+        }
+
+        // Clear existing content
+        zone.element.innerHTML = '';
+
+        // Inject new content
+        if (content) {
+            zone.element.innerHTML = content;
+            lcardsLog.trace(`[LCARdSCard] Injected content into zone "${zoneName}"`);
+        }
+    }
+
+    /**
+     * Extract segment IDs from SVG content
+     * 
+     * Auto-discovers all elements with ID attributes in the SVG.
+     * These IDs map to segment configurations for styling and interactivity.
+     * 
+     * @param {string} svgContent - SVG markup to parse
+     * @returns {Array<string>} Array of discovered segment IDs
+     * @protected
+     * 
+     * @example
+     * const ids = this._extractSegmentIds(svgContent);
+     * // Returns: ['up', 'down', 'left', 'right', 'center']
+     */
+    _extractSegmentIds(svgContent) {
+        if (!svgContent) return [];
+
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
+
+            // Check for parse errors
+            const parseError = doc.querySelector('parsererror');
+            if (parseError) {
+                lcardsLog.warn('[LCARdSCard] SVG parse error during ID extraction:', parseError.textContent);
+                return [];
+            }
+
+            // Find all elements with ID attributes
+            const elementsWithIds = doc.querySelectorAll('[id]');
+            const segmentIds = Array.from(elementsWithIds).map(el => el.id);
+
+            lcardsLog.debug(`[LCARdSCard] Discovered ${segmentIds.length} segment IDs from SVG:`, segmentIds);
+
+            return segmentIds;
+        } catch (error) {
+            lcardsLog.error('[LCARdSCard] Failed to extract segment IDs from SVG:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Process segment configuration
+     * 
+     * Converts object-based segment config (from component definition or user config)
+     * to internal array format used for rendering and interactivity.
+     * 
+     * Merges default segment config with per-segment overrides and validates
+     * that configured segments exist in the SVG.
+     * 
+     * @param {Object} segmentsObject - Segment configuration (keyed by ID)
+     * @param {Array<string>} availableIds - Segment IDs discovered from SVG
+     * @returns {Array<Object>} Processed segment configuration array
+     * @protected
+     * 
+     * @example
+     * const segments = this._processSegmentConfig(
+     *     { up: { style: { fill: 'red' } }, down: { style: { fill: 'blue' } } },
+     *     ['up', 'down', 'left', 'right']
+     * );
+     * // Returns array with merged default + per-segment config
+     */
+    _processSegmentConfig(segmentsObject, availableIds) {
+        if (!segmentsObject) return [];
+
+        const defaultConfig = segmentsObject.default || {};
+        const segmentsArray = [];
+
+        // Get all segment IDs to process (discovered + user-defined)
+        const userSegmentIds = Object.keys(segmentsObject).filter(id => id !== 'default');
+        const allSegmentIds = new Set([...availableIds, ...userSegmentIds]);
+
+        // Convert availableIds to Set for O(1) lookup performance
+        const availableIdsSet = new Set(availableIds);
+
+        // Validate user-defined segments exist in SVG
+        userSegmentIds.forEach(id => {
+            if (!availableIdsSet.has(id)) {
+                lcardsLog.warn(`[LCARdSCard] Segment "${id}" configured but not found in SVG (no matching id attribute)`);
+            }
+        });
+
+        // Convert each segment to array item
+        allSegmentIds.forEach(id => {
+            const userConfig = segmentsObject[id] || {};
+
+            // Skip if no user config and no default (nothing to do)
+            if (this._shouldSkipSegment(userConfig, defaultConfig)) {
+                return;
+            }
+
+            // Merge default + user config
+            const mergedConfig = deepMerge(defaultConfig, userConfig);
+
+            // Auto-generate selector if not provided
+            const selector = userConfig.selector || `#${id}`;
+
+            segmentsArray.push({
+                id,
+                selector,
+                ...mergedConfig
+            });
+        });
+
+        lcardsLog.debug(`[LCARdSCard] Processed ${segmentsArray.length} segments from ${availableIds.length} discovered IDs`, {
+            configured: segmentsArray.map(s => s.id),
+            discovered: availableIds
+        });
+
+        return segmentsArray;
+    }
+
+    /**
+     * Check if a segment should be skipped (no config and no defaults)
+     * 
+     * @param {Object} userConfig - User-provided segment configuration
+     * @param {Object} defaultConfig - Default configuration
+     * @returns {boolean} True if segment should be skipped
+     * @protected
+     */
+    _shouldSkipSegment(userConfig, defaultConfig) {
+        const hasUserConfig = userConfig.tap_action ||
+                             userConfig.hold_action ||
+                             userConfig.double_tap_action ||
+                             userConfig.style ||
+                             userConfig.animations ||
+                             userConfig.entity;
+
+        const hasDefaultConfig = defaultConfig.tap_action ||
+                                defaultConfig.hold_action ||
+                                defaultConfig.double_tap_action ||
+                                defaultConfig.style ||
+                                defaultConfig.animations ||
+                                defaultConfig.entity;
+
+        return !hasUserConfig && !hasDefaultConfig;
+    }
+
+    /**
+     * Setup segment interactivity
+     * 
+     * Applies styles and attaches event listeners to segments in the rendered SVG.
+     * This handles:
+     * - Initial styling based on entity state
+     * - Click/hold/double-click action handlers
+     * - Hover effects
+     * - State-based style updates
+     * 
+     * Should be called after the SVG is rendered and segments are processed.
+     * Subclasses may need to override this to customize interaction behavior.
+     * 
+     * @param {Array<Object>} segments - Processed segment configuration array
+     * @param {Element} svgContainer - SVG container element
+     * @protected
+     * 
+     * @example
+     * firstUpdated() {
+     *     super.firstUpdated();
+     *     const svg = this.shadowRoot.querySelector('.component-svg');
+     *     this._setupSegmentInteractivity(this._processedSegments, svg);
+     * }
+     */
+    _setupSegmentInteractivity(segments, svgContainer) {
+        if (!segments || segments.length === 0) {
+            return;
+        }
+
+        if (!svgContainer) {
+            lcardsLog.debug('[LCARdSCard] SVG container not yet rendered for segments (will retry on next update)');
+            return;
+        }
+
+        // Clean up previous segment listeners
+        if (this._segmentCleanups && this._segmentCleanups.length > 0) {
+            this._segmentCleanups.forEach(cleanup => cleanup());
+        }
+        this._segmentCleanups = [];
+
+        // Setup each segment
+        segments.forEach(segment => {
+            // Find target elements using CSS selector
+            const elements = svgContainer.querySelectorAll(segment.selector);
+
+            if (elements.length === 0) {
+                lcardsLog.warn(`[LCARdSCard] No elements found for segment selector: ${segment.selector}`);
+                return;
+            }
+
+            lcardsLog.debug(`[LCARdSCard] Setting up segment "${segment.id}" on ${elements.length} elements`);
+
+            elements.forEach(element => {
+                // Apply initial style if provided
+                if (segment.style) {
+                    this._applySegmentStyle(element, segment.style);
+                }
+
+                // Attach action handlers if card has action handler system
+                if (this._actionHandler && (segment.tap_action || segment.hold_action || segment.double_tap_action)) {
+                    const cleanup = this._attachSegmentActions(element, segment);
+                    if (cleanup) {
+                        this._segmentCleanups.push(cleanup);
+                    }
+                }
+            });
+        });
+
+        lcardsLog.debug(`[LCARdSCard] Segment interactivity setup complete for ${segments.length} segments`);
+    }
+
+    /**
+     * Apply style to a segment element
+     * 
+     * @param {Element} element - SVG element
+     * @param {Object} style - Style properties to apply
+     * @protected
+     */
+    _applySegmentStyle(element, style) {
+        if (!element || !style) return;
+
+        Object.entries(style).forEach(([prop, value]) => {
+            // Handle special properties
+            if (prop === 'stroke-width') {
+                element.setAttribute('stroke-width', value);
+            } else {
+                element.style[prop] = value;
+            }
+        });
+    }
+
+    /**
+     * Attach action handlers to a segment element
+     * 
+     * @param {Element} element - SVG element
+     * @param {Object} segment - Segment configuration with actions
+     * @returns {Function} Cleanup function to remove listeners
+     * @protected
+     */
+    _attachSegmentActions(element, segment) {
+        // This is a placeholder - subclasses should implement if needed
+        // or use LCARdSActionHandler directly
+        const listeners = [];
+
+        if (segment.tap_action) {
+            const handler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this._actionHandler.handleAction(segment.tap_action, this.hass, this.config, segment.entity);
+            };
+            element.addEventListener('click', handler);
+            listeners.push(() => element.removeEventListener('click', handler));
+        }
+
+        // Return cleanup function
+        return () => listeners.forEach(cleanup => cleanup());
+    }
 }

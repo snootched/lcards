@@ -5,23 +5,19 @@
  * used by CoreConfigManager to resolve component configurations for all card types.
  *
  * Components provide reusable UI patterns with SVG shapes, segment configurations,
- * and theme token references. The registry supports two structure types:
+ * and theme token references. All components now use the unified structure:
  *
- * 1. **Legacy preset structure** (D-Pad):
- *    - Object with id, name, description, version, segments
- *    - Example: { dpad: { id: 'dpad', segments: {...} } }
- *
- * 2. **Component registry structure** (Sliders, future types):
+ * **Unified component structure**:
  *    - Object with svg, orientation, features properties
  *    - Example: { basic: { svg: '...', orientation: 'auto', features: [] } }
  *
- * Future component types (button, elbow, MSD) will be added here using the same
+ * Future component types (elbow, MSD) will be added here using the same
  * spread pattern for seamless integration.
  *
  * @module core/packs/components
  */
 
-import { dpadComponentPreset } from './dpad.js';
+import { dpadComponents } from './dpad/index.js';
 import { sliderComponents } from './sliders/index.js';
 
 /**
@@ -29,8 +25,8 @@ import { sliderComponents } from './sliders/index.js';
  * @type {Object.<string, Object>}
  */
 export const components = {
-    dpad: dpadComponentPreset,  // D-Pad preset (legacy structure)
-    ...sliderComponents          // Slider registry (basic, picard)
+    ...dpadComponents,           // D-Pad components (dpad)
+    ...sliderComponents          // Slider components (basic, picard, picard-vertical)
 };
 
 /**
