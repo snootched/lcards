@@ -1,12 +1,32 @@
 # Asset Manager
 
 **Type:** Singleton  
-**Purpose:** Unified asset management system  
+**Purpose:** External binary/media file management  
 **File:** `src/core/assets/AssetManager.js`
+
+## Purpose
+
+AssetManager handles **external binary/media files** that need to be:
+- Fetched from URLs or disk
+- Lazy-loaded on demand  
+- Sanitized and validated
+- Cached for performance
+
+**AssetManager is NOT for:**
+- ❌ Component metadata (use Component Registry)
+- ❌ Style presets (use StylePresetManager)
+- ❌ Theme tokens (use ThemeManager)
+- ❌ JavaScript objects bundled with code
+
+**Use AssetManager when:**
+- ✅ Loading large SVG files (>50KB, like MSD backgrounds)
+- ✅ Loading user-provided graphics from /local/
+- ✅ Loading external fonts (future)
+- ✅ Loading audio files (future)
 
 ## Overview
 
-AssetManager is a singleton that manages all asset types (SVG, components, fonts, audio) with:
+AssetManager is a singleton that manages external asset types with:
 - Lazy loading for external assets
 - Validation and sanitization
 - Pack integration
@@ -14,13 +34,13 @@ AssetManager is a singleton that manages all asset types (SVG, components, fonts
 
 ## Supported Asset Types
 
-| Type | Description | Lazy Load | Sanitize | Max Size |
-|------|-------------|-----------|----------|----------|
-| `svg` | SVG templates and graphics | ✅ | ✅ | 2 MB |
-| `button` | Button component functions | ❌ | ❌ | N/A |
-| `slider` | Slider component functions | ❌ | ❌ | N/A |
-| `font` | Custom font files | ✅ | ❌ | 500 KB |
-| `audio` | Sound effects | ✅ | ❌ | 1 MB |
+| Type | Description | Lazy Load | Sanitize | Max Size | Example |
+|------|-------------|-----------|----------|----------|---------|
+| `svg` | **External** SVG files | ✅ | ✅ | 2 MB | MSD backgrounds, user graphics |
+| `font` | Custom font files | ✅ | ❌ | 500 KB | Custom LCARS fonts |
+| `audio` | Sound effects | ✅ | ❌ | 1 MB | Alert sounds |
+
+**Note**: Component definitions (button, slider) are accessed via Component Registry, not AssetManager. They are JavaScript objects bundled with code, not external files.
 
 ## Architecture
 

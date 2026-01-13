@@ -5,6 +5,75 @@ All notable changes to LCARdS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **AssetManager Cleanup**: Removed component registration from AssetManager
+  - Components are now accessed exclusively via Component Registry
+  - AssetManager now focuses solely on external binary/media files (SVG, fonts, audio)
+  - Removed `registerButtonComponents()` and `registerSliderComponents()` functions
+  - Updated documentation to clarify AssetManager scope and usage patterns
+
+### Documentation
+- **Pack System Guide**: Added decision tree for "When to Use What" to help developers choose the right system
+- **Pack System Guide**: Updated Core Managers table to clarify AssetManager handles external files only
+- **Asset Manager Docs**: Added purpose clarification and "Use AssetManager when" guidelines
+- **Asset Manager Docs**: Updated supported asset types table to remove button/slider component types
+
+### Migration Notes
+
+#### AssetManager Component Registration Removal
+
+**Summary**: Removed component registration from AssetManager. Components are now accessed **exclusively** via Component Registry.
+
+**What Changed**:
+- `registerButtonComponents()` function removed from `components/buttons/index.js`
+- `registerSliderComponents()` function removed from `components/sliders/index.js`
+- Component registration calls removed from `lcards.js`
+
+**For Card Developers**:
+
+**BEFORE (incorrect pattern)**:
+```javascript
+// ❌ This never worked correctly anyway
+const components = assetManager.listAssets('button');
+```
+
+**AFTER (correct pattern)**:
+```javascript
+// ✅ Direct import from component registry
+import { getComponentNames } from '../core/packs/components/index.js';
+const components = getComponentNames();
+```
+
+**For External Pack Developers**:
+
+If you created external packs that registered components with AssetManager (unlikely), use Component Registry instead:
+
+**BEFORE**:
+```javascript
+assetManager.register('button', 'custom', myComponent);
+```
+
+**AFTER**:
+```javascript
+// Add to your pack's component registry
+export const myComponents = {
+  'custom': { svg: '...', segments: {...} }
+};
+```
+
+**Migration Impact**:
+- ✅ **No breaking changes** - This removes unused/confusing code
+- ✅ Direct component imports still work (existing pattern)
+- ✅ AssetManager's primary use (`loadSvg()`) unchanged
+
+**Questions?** See updated documentation:
+- `doc/architecture/pack-system-guide.md` - Decision tree for adding content
+- `doc/architecture/subsystems/asset-manager.md` - AssetManager scope clarification
+
+---
+
 ## [1.0.0] - 2024-12-23
 
 ### 🎉 Initial Release - LCARdS Evolution

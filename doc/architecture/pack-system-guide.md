@@ -231,7 +231,7 @@ await this.themeManager.activateTheme('lcars-classic');
 | **StylePresetManager** | `pack.style_presets` | `getPreset('button', 'lozenge')` |
 | **AnimationManager** | Animation preset functions | `play()`, animation coordination |
 | **AnimationRegistry** | Animation instances | Animation caching and reuse |
-| **AssetManager** | Component registry | `get('svg', 'component-name')` |
+| **AssetManager** | `pack.svg_assets` (external files only) | `loadSvg('/local/file.svg')`, external asset loading |
 
 ---
 
@@ -565,12 +565,14 @@ export const components = {
 **Key Change**: Legacy shapes registry removed in PR #195. All components now use unified inline SVG format.
 
 **Card Usage**:
-```yaml
-type: custom:lcards-button
-component: lozenge  # ← SVG component from pack
+```javascript
+// Direct import from component registry
+import { getComponent } from '../core/packs/components/index.js';
+const component = getComponent('dpad');
+// Returns: { svg, segments, metadata }
 ```
 
-**Resolution**: `AssetManager.get('button', 'lozenge')` → returns component metadata
+**Note**: Components are JavaScript objects bundled with code, **NOT external files**. They are accessed via direct imports, not AssetManager.
 
 ---
 
@@ -638,10 +640,10 @@ export class LCARdSButton extends LCARdSCard {
       this._mergedConfig = deepMerge(preset, this.config);
     }
     
-    // 2. Get component from pack (via AssetManager)
+    // 2. Get component directly from component registry (not AssetManager)
     if (this.config.component) {
-      const component = core.assetManager.get('button', this.config.component);
-      this._component = component;
+      const { getButtonComponent } = await import('../core/packs/components/buttons/index.js');
+      this._component = getButtonComponent(this.config.component);
     }
     
     // 3. Resolve theme tokens
@@ -756,6 +758,116 @@ component: picard        # ← Pack provides SVG shell
 preset: pills-basic      # ← Pack provides style preset
 entity: light.bedroom_brightness
 ```
+
+---
+
+## When to Use What: Decision Tree
+
+Understanding what system to use when adding new content to LCARdS is critical. Use this decision tree to guide your choices:
+
+```mermaid
+graph TD
+    START[I want to add something to LCARdS]
+    
+    START --> Q1{What type of content?}
+    
+    Q1 -->|Visual shell/control| COMPONENT[Component<br>Inline SVG + metadata]
+    Q1 -->|Style configuration| PRESET[Style Preset<br>Button/slider styles]
+    Q1 -->|Large background SVG| ASSET[AssetManager<br>External file]
+    Q1 -->|Theme colors/fonts| THEME[Theme Tokens]
+    Q1 -->|Animation effect| ANIM[Animation Preset]
+    
+    COMPONENT --> CQ1{Interactive?}
+    CQ1 -->|Yes - buttons/controls| CSEG[Define segments<br>src/core/packs/components/mycard/]
+    CQ1 -->|No - static background| CZONE[Define zones<br>src/core/packs/components/mycard/]
+    
+    CSEG --> CSIZE{SVG size?}
+    CZONE --> CSIZE
+    CSIZE -->|Small &lt;50KB| CINLINE[✅ Inline SVG in component]
+    CSIZE -->|Large &gt;50KB| CASSET[❌ Use AssetManager instead]
+    
+    PRESET --> PQ1{Button or slider?}
+    PQ1 -->|Button| PBUTTON[Add to<br>style-presets/buttons/]
+    PQ1 -->|Slider| PSLIDER[Add to<br>style-presets/sliders/]
+    
+    ASSET --> AQ1{Where is file?}
+    AQ1 -->|Bundled with code| ABUILTIN[Register in lcards.js<br>assetManager.register]
+    AQ1 -->|User provides| AUSER[Use loadSvg<br>auto-registers]
+    
+    THEME --> TQ1{What theme?}
+    TQ1 -->|Existing theme| TTOKEN[Add tokens to<br>themes/tokens/]
+    TQ1 -->|New theme| TPACK[Create new theme pack]
+    
+    ANIM --> AREG[Add to<br>animations/presets/]
+    
+    style COMPONENT fill:#d1ecf1
+    style PRESET fill:#ffd1dc
+    style ASSET fill:#ffe4b5
+    style THEME fill:#ffd1dc
+    style ANIM fill:#ffd1dc
+    style CINLINE fill:#90EE90
+    style CASSET fill:#FFB6C1
+```
+
+### Quick Reference: What Goes Where
+
+| I want to... | System | Location | Access Pattern |
+|-------------|--------|----------|----------------|
+| **Create interactive control** (d-pad, keypad) | Component Registry | `components/mycard/index.js` | `import { getComponent } from '../core/packs/components/index.js'` |
+| **Create slider background** | Component Registry | `components/sliders/myslider.js` | `getSliderComponent('name')` |
+| **Add button style** (lozenge, bullet) | Style Presets | `style-presets/buttons/index.js` | `stylePresetManager.getPreset('button', 'name')` |
+| **Add slider style** (pills, gauge) | Style Presets | `style-presets/sliders/index.js` | `stylePresetManager.getPreset('slider', 'name')` |
+| **Load large MSD background** (>50KB) | AssetManager | External `.svg` file | `await assetManager.loadSvg(source)` |
+| **Add theme colors** | Theme Tokens | `themes/tokens/myTheme.js` | `themeManager.getToken(path)` |
+| **Add animation effect** | Animation Presets | `animations/presets/index.js` | `animationManager.play()` |
+
+### Example: Creating a D-Pad v2 Component
+
+**Scenario**: You want a new 9-segment directional control.
+
+**Question**: *"If I want to add a new complex shaped button card like dpad-v2, what do I do?"*
+
+**Answer**: Create a component with inline SVG. Here's how:
+
+**Steps**:
+
+1. **Create component file**: `src/core/packs/components/dpad-v2/index.js`
+   ```javascript
+   const dpadV2Svg = `<svg>...</svg>`;  // Your inline SVG
+   
+   export const dpadV2Components = {
+     'dpad-v2': {
+       svg: dpadV2Svg,
+       orientation: 'square',
+       features: ['multi-segment'],
+       segments: {
+         up: { style: {...}, tap_action: {...} },
+         down: { style: {...}, tap_action: {...} },
+         // ... 7 more segments
+       }
+     }
+   };
+   ```
+
+2. **Register in unified registry**: `src/core/packs/components/index.js`
+   ```diff
+   +import { dpadV2Components } from './dpad-v2/index.js';
+   
+   export const components = {
+     ...dpadComponents,
+     ...sliderComponents,
+   + ...dpadV2Components
+   };
+   ```
+
+3. **Use in card config**:
+   ```yaml
+   type: custom:lcards-button
+   component: dpad-v2
+   entity: media_player.living_room
+   ```
+
+**That's it!** No AssetManager registration needed. Components are bundled JavaScript objects, not external assets.
 
 ---
 
