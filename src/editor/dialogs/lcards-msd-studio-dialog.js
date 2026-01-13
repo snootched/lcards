@@ -103,7 +103,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormSize: { type: Array, state: true },
             _controlFormAttachment: { type: String, state: true },
             _controlFormCard: { type: Object, state: true },
-            _controlFormActiveSubtab: { type: String, state: true }, // 'msd_config' or 'card_config'
+            _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
             // Lines Tab Properties (Phase 4 - Fixed to use correct schema)
             _showLineForm: { type: Boolean, state: true },
             _editingLineId: { type: String, state: true },
@@ -182,7 +182,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
         this._controlFormCard = { type: '' };
-        this._controlFormActiveSubtab = 'msd_config';
+        this._controlFormActiveSubtab = 'placement';
 
         // Lines Tab State (Phase 4)
         this._showLineForm = false;
@@ -2122,7 +2122,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
         this._controlFormCard = { type: '' };
-        this._controlFormActiveSubtab = 'msd_config';
+        this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
         // Exit Place Control mode
@@ -4554,7 +4554,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
         this._controlFormCard = { type: '' };
-        this._controlFormActiveSubtab = 'msd_config';
+        this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
         this.requestUpdate();
@@ -4572,7 +4572,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormSize = control.size || [100, 100];
         this._controlFormAttachment = control.attachment || 'center';
         this._controlFormCard = control.card || { type: '' };
-        this._controlFormActiveSubtab = 'msd_config';
+        this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
         this.requestUpdate();
@@ -4695,30 +4695,44 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 open
                 @closed=${this._closeControlForm}
-                .heading=${title}>
+                .heading=${title}
+                style="--mdc-dialog-min-width: 900px; --mdc-dialog-max-width: 1200px;">
 
-                <!-- Subtabs -->
-                <div style="display: flex; gap: 8px; padding: 0 24px; border-bottom: 1px solid var(--divider-color);">
-                    <button
-                        class="tab-button ${this._controlFormActiveSubtab === 'msd_config' ? 'active' : ''}"
-                        @click=${() => { this._controlFormActiveSubtab = 'msd_config'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'msd_config' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
-                        MSD Config
-                    </button>
-                    <button
-                        class="tab-button ${this._controlFormActiveSubtab === 'card_config' ? 'active' : ''}"
-                        @click=${() => { this._controlFormActiveSubtab = 'card_config'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'card_config' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
-                        Card Config
-                    </button>
-                </div>
+                <!-- Two-Column Layout: Config (Left) + Preview (Right) -->
+                <div style="display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 16px;">
 
-                <!-- Subtab Content -->
-                <div style="padding: 16px; max-height: 60vh; overflow-y: auto;">
-                    ${this._controlFormActiveSubtab === 'msd_config'
-                        ? this._renderControlFormMSDConfig()
-                        : this._renderControlFormCardConfig()
-                    }
+                    <!-- LEFT COLUMN: Configuration Panel -->
+                    <div class="config-panel">
+                        <!-- Subtabs -->
+                        <div style="display: flex; gap: 8px; padding: 0 0 12px 0; border-bottom: 1px solid var(--divider-color); margin-bottom: 16px;">
+                            <button
+                                class="tab-button ${this._controlFormActiveSubtab === 'placement' ? 'active' : ''}"
+                                @click=${() => { this._controlFormActiveSubtab = 'placement'; this.requestUpdate(); }}
+                                style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'placement' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                                Placement
+                            </button>
+                            <button
+                                class="tab-button ${this._controlFormActiveSubtab === 'card' ? 'active' : ''}"
+                                @click=${() => { this._controlFormActiveSubtab = 'card'; this.requestUpdate(); }}
+                                style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'card' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
+                                Card
+                            </button>
+                        </div>
+
+                        <!-- Subtab Content -->
+                        <div style="max-height: 60vh; overflow-y: auto;">
+                            ${this._controlFormActiveSubtab === 'placement'
+                                ? this._renderControlFormPlacement()
+                                : this._renderControlFormCard()
+                            }
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Preview Panel (Sticky) -->
+                    <div class="preview-panel" style="position: sticky; top: 0; height: fit-content;">
+                        ${this._renderControlPreview()}
+                    </div>
+
                 </div>
 
                 <div slot="primaryAction">
@@ -4739,15 +4753,40 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render MSD Config subtab (Phase 3)
+     * Get all available anchors (base_svg + user + control IDs)
+     * @returns {Object} Merged anchor map
+     * @private
+     */
+    _getAllAvailableAnchors() {
+        // Get base SVG anchors
+        const baseSvgAnchors = this._getBaseSvgAnchors() || {};
+
+        // Get user-defined anchors
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+
+        // Get control IDs (for attaching to other controls)
+        const controlIds = (this._workingConfig.msd?.overlays || [])
+            .filter(o => o.type === 'control')
+            .map(o => o.id);
+
+        // Merge all sources
+        return {
+            ...baseSvgAnchors,
+            ...userAnchors,
+            ...Object.fromEntries(controlIds.map(id => [id, null]))
+        };
+    }
+
+    /**
+     * Render Placement subtab (formerly MSD Config)
      * @returns {TemplateResult}
      * @private
      */
-    _renderControlFormMSDConfig() {
-        const anchors = this._workingConfig.msd?.anchors || {};
+    _renderControlFormPlacement() {
+        const allAnchors = this._getAllAvailableAnchors();
         const anchorOptions = [
             { value: '', label: 'Use Coordinates' },
-            ...Object.keys(anchors).map(name => ({ value: name, label: name }))
+            ...Object.keys(allAnchors).sort().map(name => ({ value: name, label: name }))
         ];
 
         const useAnchor = typeof this._controlFormPosition === 'string';
@@ -4869,11 +4908,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Card Config subtab (Phase 3)
+     * Render Card subtab (formerly Card Config)
      * @returns {TemplateResult}
      * @private
      */
-    _renderControlFormCardConfig() {
+    _renderControlFormCard() {
         const cardType = this._controlFormCard?.type || '';
 
         return html`
@@ -4942,6 +4981,130 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </lcards-message>
                 `}
             </div>
+        `;
+    }
+
+    /**
+     * Render Control Preview Panel (Right Side)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlPreview() {
+        const position = this._controlFormPosition;
+        const size = this._controlFormSize;
+        const attachment = this._controlFormAttachment;
+        const cardType = this._controlFormCard?.type || 'none';
+
+        // Format position display
+        const positionDisplay = typeof position === 'string'
+            ? `Anchor: ${position}`
+            : `Coords: [${position[0]}, ${position[1]}]`;
+
+        return html`
+            <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 8px; padding: 16px;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">Control Preview</h3>
+
+                <!-- Preview Info -->
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <strong>Card Type:</strong>
+                        <span style="color: var(--primary-color);">${cardType || 'Not selected'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <strong>Position:</strong>
+                        <span>${positionDisplay}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <strong>Size:</strong>
+                        <span>${size[0]}px × ${size[1]}px</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <strong>Attachment:</strong>
+                        <span>${attachment}</span>
+                    </div>
+                </div>
+
+                <!-- Visual Preview -->
+                <div style="background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 4px; padding: 8px;">
+                    <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">Visual Preview:</div>
+                    ${this._renderControlVisualization()}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render Control Visualization (Simplified)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlVisualization() {
+        const size = this._controlFormSize;
+        const attachment = this._controlFormAttachment;
+
+        // Calculate attachment point indicator position
+        let attachX = 0, attachY = 0;
+        if (attachment.includes('left')) attachX = 0;
+        else if (attachment.includes('right')) attachX = 100;
+        else attachX = 50;
+
+        if (attachment.includes('top')) attachY = 0;
+        else if (attachment.includes('bottom')) attachY = 100;
+        else attachY = 50;
+
+        return html`
+            <svg viewBox="0 0 280 180" style="width: 100%; height: auto; display: block;">
+                <!-- Background -->
+                <rect x="0" y="0" width="280" height="180" fill="var(--card-background-color)" stroke="var(--divider-color)" stroke-width="1" />
+
+                <!-- Center reference point -->
+                <circle cx="140" cy="90" r="3" fill="var(--secondary-text-color)" opacity="0.3" />
+                <text x="140" y="100" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)" opacity="0.5">MSD Center</text>
+
+                <!-- Control box (scaled to fit) -->
+                <g transform="translate(140, 90)">
+                    <!-- Scale control to fit preview -->
+                    ${(() => {
+                        const scale = Math.min(200 / size[0], 140 / size[1], 1);
+                        const scaledW = size[0] * scale;
+                        const scaledH = size[1] * scale;
+                        const offsetX = -(scaledW * attachX / 100);
+                        const offsetY = -(scaledH * attachY / 100);
+
+                        return html`
+                            <!-- Control outline -->
+                            <rect
+                                x="${offsetX}"
+                                y="${offsetY}"
+                                width="${scaledW}"
+                                height="${scaledH}"
+                                fill="var(--primary-color)"
+                                opacity="0.2"
+                                stroke="var(--primary-color)"
+                                stroke-width="2" />
+
+                            <!-- Attachment point indicator -->
+                            <circle
+                                cx="0"
+                                cy="0"
+                                r="4"
+                                fill="var(--error-color)" />
+
+                            <!-- Size label -->
+                            <text
+                                x="${offsetX + scaledW/2}"
+                                y="${offsetY + scaledH/2}"
+                                text-anchor="middle"
+                                dominant-baseline="middle"
+                                font-size="11"
+                                fill="var(--primary-text-color)"
+                                font-weight="600">
+                                ${size[0]}×${size[1]}
+                            </text>
+                        `;
+                    })()}
+                </g>
+            </svg>
         `;
     }
 
