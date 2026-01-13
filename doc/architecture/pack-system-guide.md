@@ -402,11 +402,19 @@ registerAnimationPreset('pulse', (def) => {
 - `pulse` - Breathing effect with scale and brightness
 - `fade` - Opacity transition
 - `glow` - Brightness and box-shadow pulsing
-- `shake` - Horizontal vibration
-- `bounce` - Vertical bounce
-- `spin` - Rotation animation
-- `slide` - Position transition
-- `flash` - Rapid opacity blinking
+- `draw` - SVG path drawing animation
+- `march` - Marching animation effect
+- `blink` - Rapid on/off blinking
+- `shimmer` - Subtle shimmer effect
+- `strobe` - Strobe light effect
+- `flicker` - Random flicker animation
+- `cascade` - Cascading animation
+- `cascade-color` - Color cascade effect
+- `ripple` - Ripple effect
+- `scale` - Scale transformation
+- `scale-reset` - Scale with reset to original
+- `set` - Set properties directly (no animation)
+- `motionpath` - Follow motion path
 
 **Card Usage**:
 ```yaml
@@ -644,11 +652,19 @@ animations:
 - `pulse` - Scale + brightness breathing
 - `fade` - Opacity transition
 - `glow` - Brightness + shadow pulsing
-- `shake` - Horizontal vibration
-- `bounce` - Vertical bounce
-- `spin` - Rotation
-- `slide` - Position transition
-- `flash` - Rapid opacity blinking
+- `draw` - SVG path drawing animation
+- `march` - Marching effect
+- `blink` - Rapid on/off blinking
+- `shimmer` - Subtle shimmer effect
+- `strobe` - Strobe light effect
+- `flicker` - Random flicker
+- `cascade` - Cascading animation
+- `cascade-color` - Color cascade
+- `ripple` - Ripple effect
+- `scale` - Scale animation
+- `scale-reset` - Scale with reset
+- `set` - Set properties directly
+- `motionpath` - Motion path animation
 
 ### Using Components
 
@@ -702,13 +718,13 @@ entity: light.bedroom
 
 ```javascript
 // Add to the file (registers during module load)
-registerAnimationPreset('bounce', (def) => {
+registerAnimationPreset('shake', (def) => {
   const p = def.params || def;
   return {
     anime: {
-      translateY: [0, -30, 0],
-      duration: p.duration || 1000,
-      easing: 'easeOutBounce',
+      translateX: [0, -10, 10, -10, 10, 0],
+      duration: p.duration || 500,
+      easing: 'easeInOutQuad',
       loop: p.loop || false
     },
     styles: {}
@@ -719,9 +735,9 @@ registerAnimationPreset('bounce', (def) => {
 **Usage**:
 ```yaml
 animations:
-  - preset: bounce
+  - preset: shake
     trigger: on_tap
-    duration: 800
+    duration: 400
 ```
 
 ### Adding a New Theme
