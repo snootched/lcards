@@ -4,7 +4,7 @@
  * Accessibility-focused high contrast theme.
  * Maximum color differentiation for visibility.
  *
- * @module msd/themes/tokens/lcarsHighContrastTokens
+ * @module core/packs/themes/tokens/lcarsHighContrastTokens
  */
 
 export const lcarsHighContrastTokens = {
