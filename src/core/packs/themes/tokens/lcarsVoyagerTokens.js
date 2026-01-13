@@ -1,112 +1,112 @@
 /**
- * @fileoverview LCARS DS9 Theme Tokens
+ * @fileoverview LCARS Voyager Theme Tokens
  *
- * Deep Space Nine era LCARS styling - darker, more muted colors.
- * Emphasizes blues and purples over orange.
+ * Voyager era LCARS styling - brighter colors, higher contrast.
+ * Emphasizes gold/yellow tones.
  *
- * @module msd/themes/tokens/lcarsDs9Tokens
+ * @module core/packs/themes/tokens/lcarsVoyagerTokens
  */
 
-export const lcarsDs9Tokens = {
+export const lcarsVoyagerTokens = {
   colors: {
     accent: {
-      primary: 'var(--lcars-blue, #6688CC)',
-      secondary: 'var(--lcars-purple, #9966CC)',
-      tertiary: 'var(--lcars-teal, #6699CC)',
+      primary: 'var(--lcars-gold, #FFAA00)',
+      secondary: 'var(--lcars-blue, #0099FF)',
+      tertiary: 'var(--lcars-cyan, #00CCFF)',
 
       primaryDark: 'darken(colors.accent.primary, 0.25)',
       primaryLight: 'lighten(colors.accent.primary, 0.15)',
-      primaryMuted: 'alpha(colors.accent.primary, 0.7)',
+      primaryMuted: 'alpha(colors.accent.primary, 0.65)',
 
       secondaryDark: 'darken(colors.accent.secondary, 0.2)',
       secondaryLight: 'lighten(colors.accent.secondary, 0.2)'
     },
 
     status: {
-      info: 'var(--lcars-blue, #6688CC)',
-      success: 'var(--lcars-green, #88AA88)',
-      warning: 'var(--lcars-amber, #CC9966)',
-      danger: 'var(--lcars-red, #AA6666)',
-      unknown: 'var(--lcars-gray, #888888)',
+      info: 'var(--lcars-blue, #0099FF)',
+      success: 'var(--lcars-green, #00CC88)',
+      warning: 'var(--lcars-gold, #FFAA00)',
+      danger: 'var(--lcars-red, #FF3366)',
+      unknown: 'var(--lcars-gray, #AAAAAA)',
 
-      alert1: 'var(--lcars-amber, #CC9966)',
+      alert1: 'var(--lcars-yellow, #FFDD00)',
       alert2: 'colors.status.warning',
-      alert3: 'darken(colors.status.error, 0.15)',
-      alert4: 'saturate(colors.status.error, 0.4)'
+      alert3: 'darken(colors.status.error, 0.1)',
+      alert4: 'saturate(colors.status.error, 0.5)'
     },
 
     ui: {
       background: 'var(--lcars-black, #000000)',
-      foreground: 'var(--lcars-white, #CCCCCC)',
-      border: 'var(--lcars-gray, #666666)',
-      disabled: 'var(--lcars-dark-gray, #444444)',
+      foreground: 'var(--lcars-white, #FFFFFF)',
+      border: 'var(--lcars-gray, #AAAAAA)',
+      disabled: 'var(--lcars-dark-gray, #777777)',
 
-      surface: 'alpha(colors.ui.foreground, 0.08)',
+      surface: 'alpha(colors.ui.foreground, 0.06)',
       surfaceHover: 'alpha(colors.ui.foreground, 0.12)',
       surfaceActive: 'alpha(colors.ui.foreground, 0.18)'
     },
 
     chart: {
       series: [
-        'var(--lcars-blue, #6688CC)',
-        'var(--lcars-purple, #9966CC)',
-        'var(--lcars-teal, #6699CC)',
-        'var(--lcars-amber, #CC9966)',
-        'var(--lcars-green, #88AA88)',
-        'var(--lcars-red, #AA6666)'
+        'var(--lcars-gold, #FFAA00)',
+        'var(--lcars-blue, #0099FF)',
+        'var(--lcars-cyan, #00CCFF)',
+        'var(--lcars-green, #00CC88)',
+        'var(--lcars-purple, #CC66FF)',
+        'var(--lcars-red, #FF3366)'
       ],
-      grid: 'var(--lcars-gray, #666666)',
-      axis: 'var(--lcars-white, #CCCCCC)',
-      gridMuted: 'alpha(colors.chart.grid, 0.4)'
+      grid: 'var(--lcars-gray, #AAAAAA)',
+      axis: 'var(--lcars-white, #FFFFFF)',
+      gridMuted: 'alpha(colors.chart.grid, 0.35)'
     },
 
     alert: {
-      base: 'var(--lcars-red, #AA6666)',
-      critical: 'saturate(lighten(colors.alert.base, 0.15), 0.4)',
-      warning: 'mix(colors.alert.base, colors.status.warning, 0.5)',
-      caution: 'desaturate(darken(colors.alert.base, 0.15), 0.3)'
+      base: 'var(--lcars-red, #FF3366)',
+      critical: 'saturate(lighten(colors.alert.base, 0.1), 0.5)',
+      warning: 'mix(colors.alert.base, colors.status.warning, 0.7)',
+      caution: 'desaturate(darken(colors.alert.base, 0.1), 0.25)'
     },
 
     grid: {
       // Cell defaults
-      cellText: 'var(--lcars-blue, #8899CC)',
+      cellText: 'var(--lcars-blue, #99CCFF)',
       cellBackground: 'transparent',
-      cellHighlight: 'alpha(var(--lcars-orange, #CC9966), 0.3)',
+      cellHighlight: 'alpha(var(--lcars-orange, #FFAA66), 0.3)',
 
       // Header defaults
-      headerText: 'var(--lcars-white, #CCDDEE)',
-      headerBackground: 'var(--lcars-black-alt, #1a1a1a)',
+      headerText: 'var(--lcars-white, #DDEEFF)',
+      headerBackground: 'var(--lcars-black-alt, #1a1a2a)',
 
       // Row alternates
       rowAlt: 'alpha(var(--lcars-white, #FFFFFF), 0.05)',
 
       // Borders/dividers
-      divider: 'var(--lcars-gray, #333)',
-      border: 'var(--lcars-gray, #555)',
+      divider: 'var(--lcars-gray, #334455)',
+      border: 'var(--lcars-gray, #556677)',
 
       // Cascade animation
-      cascadeStart: 'var(--picard-blue, #8899CC)',
-      cascadeMid: 'var(--picard-dark-blue, #445588)',
-      cascadeEnd: 'var(--picard-moonlight, #AABBDD)',
+      cascadeStart: 'var(--picard-blue, #99CCFF)',
+      cascadeMid: 'var(--picard-dark-blue, #4477BB)',
+      cascadeEnd: 'var(--picard-moonlight, #AADDFF)',
 
       // States
-      error: 'var(--lcars-red, #AA6666)',
-      warning: 'var(--lcars-orange, #CC9966)',
-      success: 'var(--lcars-green, #88AA88)'
+      error: 'var(--lcars-red, #FF3366)',
+      warning: 'var(--lcars-orange, #FFAA66)',
+      success: 'var(--lcars-green, #66DD99)'
     },
 
     text: {
-      primary: 'var(--lcars-white, #CCDDEE)',
-      secondary: 'var(--lcars-gray, #888888)',
-      header: 'var(--lcars-white, #CCDDEE)'
+      primary: 'var(--lcars-white, #DDEEFF)',
+      secondary: 'var(--lcars-gray, #8899AA)',
+      header: 'var(--lcars-white, #DDEEFF)'
     },
 
     background: {
-      header: 'var(--lcars-black-alt, #1a1a1a)',
+      header: 'var(--lcars-black-alt, #1a1a2a)',
       surface: 'transparent'
     },
 
-    divider: 'var(--lcars-gray, #333)'
+    divider: 'var(--lcars-gray, #334455)'
   },
 
   typography: {
@@ -119,14 +119,14 @@ export const lcarsDs9Tokens = {
       xs: 10,
       sm: 12,
       base: {
-        small: 12,
-        medium: 14,
-        large: 16
+        small: 13,
+        medium: 15,
+        large: 17
       },
-      lg: 16,
-      xl: 18,
-      '2xl': 24,
-      '3xl': 32
+      lg: 17,
+      xl: 20,
+      '2xl': 26,
+      '3xl': 34
     },
 
     fontWeight: {
@@ -178,15 +178,15 @@ export const lcarsDs9Tokens = {
       none: 0,
       thin: 1,
       base: 2,
-      thick: 3
+      thick: 4
     },
 
     radius: {
       none: 0,
-      sm: 2,
-      base: 4,
-      lg: 8,
-      xl: 12,
+      sm: 3,
+      base: 6,
+      lg: 10,
+      xl: 14,
       full: 9999
     },
 
@@ -199,15 +199,15 @@ export const lcarsDs9Tokens = {
 
   effects: {
     opacity: {
-      disabled: 0.35,
+      disabled: 0.45,
       muted: 0.65,
       base: 1.0
     },
 
     shadow: {
-      sm: '0 1px 2px rgba(0,0,0,0.3)',
-      base: '0 2px 4px rgba(0,0,0,0.4)',
-      lg: '0 4px 8px rgba(0,0,0,0.5)'
+      sm: '0 1px 3px rgba(0,0,0,0.25)',
+      base: '0 2px 6px rgba(0,0,0,0.35)',
+      lg: '0 4px 12px rgba(0,0,0,0.45)'
     },
 
     blur: {
@@ -217,21 +217,21 @@ export const lcarsDs9Tokens = {
     },
 
     glow: {
-      accent: '0 0 8px var(--lcars-blue, #6688CC)',
-      accentStrong: '0 0 16px var(--lcars-blue, #6688CC)',
-      danger: '0 0 8px var(--lcars-red, #AA6666)',
-      success: '0 0 8px var(--lcars-green, #88AA88)'
+      accent: '0 0 10px var(--lcars-gold, #FFAA00)',
+      accentStrong: '0 0 20px var(--lcars-gold, #FFAA00)',
+      danger: '0 0 10px var(--lcars-red, #FF3366)',
+      success: '0 0 10px var(--lcars-green, #00CC88)'
     }
   },
 
   animations: {
     duration: {
       instant: 0,
-      fast: 200,
-      base: 350,
-      slow: 500,
-      slower: 800,
-      slowest: 1200
+      fast: 180,
+      base: 320,
+      slow: 480,
+      slower: 750,
+      slowest: 1100
     },
 
     easing: {

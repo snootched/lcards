@@ -8,7 +8,7 @@
  */
 
 import { initializeTokenResolver } from './ThemeTokenResolver.js';
-import { lcarsClassicTokens } from './tokens/lcarsClassicTokens.js';
+import { lcarsClassicTokens } from '../packs/themes/tokens/lcarsClassicTokens.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**

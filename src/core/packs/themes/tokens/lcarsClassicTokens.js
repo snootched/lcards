@@ -22,7 +22,7 @@
  * - Example: darken(colors.card.button, 0.35) → color-mix(in srgb, <resolved-color> 65%, black 35%)
  *
  * @see ThemeTokenResolver for computed token processing
- * @module core/themes/tokens/lcarsClassicTokens
+ * @module core/packs/themes/tokens/lcarsClassicTokens
  */
 
 export const lcarsClassicTokens = {
