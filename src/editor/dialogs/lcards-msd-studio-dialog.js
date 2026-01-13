@@ -113,7 +113,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
             // Channels Tab Properties (Phase 5)
             _editingChannelId: { type: String, state: true },
-            _channelFormData: { type: Object, state: true }
+            _channelFormData: { type: Object, state: true },
+            // Drag State (for interactive control dragging)
+            _dragState: { type: Object, state: true },
+            // Resize State (for interactive control resizing)
+            _resizeState: { type: Object, state: true }
         };
     }
 
@@ -222,6 +226,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
             tempRectElement: null
         };
 
+        // Drag State
+        this._dragState = {
+            active: false,
+            controlId: null,
+            startPos: null,
+            originalPos: null,
+            offsetX: 0,
+            offsetY: 0
+        };
+
+        // Resize State
+        this._resizeState = {
+            active: false,
+            controlId: null,
+            handle: null,  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
+            startPos: null,
+            startSize: null,
+            startPosition: null
+        };
+
         lcardsLog.debug('[MSDStudio] Initialized');
     }
 
@@ -263,6 +287,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._boundKeyDownHandler = this._handleKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyDownHandler);
 
+        // Add document mouseup listener for drag end
+        this._boundMouseUpHandler = this._handleDragEnd.bind(this);
+        document.addEventListener('mouseup', this._boundMouseUpHandler);
+
         // Detect SVG source mode from config
         this._detectSvgSourceMode();
 
@@ -280,6 +308,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Remove keyboard event listener (Phase 7)
         if (this._boundKeyDownHandler) {
             document.removeEventListener('keydown', this._boundKeyDownHandler);
+        }
+        // Remove document mouseup listener
+        if (this._boundMouseUpHandler) {
+            document.removeEventListener('mouseup', this._boundMouseUpHandler);
         }
     }
 
@@ -459,6 +491,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             /* Cursor feedback based on mode */
             .preview-panel.mode-view {
                 cursor: default;
+            }
+
+            .preview-panel.mode-view.dragging {
+                cursor: grabbing !important;
             }
 
             .preview-panel.mode-place_anchor,
@@ -649,6 +685,73 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
 
             /* Responsive */
+            /* Interactive Bounding Boxes */
+            .interactive-bbox {
+                cursor: grab;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+
+            .interactive-bbox:hover {
+                border-color: #00CCFF !important;
+                border-width: 3px !important;
+                box-shadow: 0 0 12px rgba(0, 204, 255, 0.6);
+            }
+
+            .interactive-bbox:active {
+                cursor: grabbing;
+            }
+
+            .bbox-dragging {
+                cursor: grabbing !important;
+                border-color: #FF9900 !important;
+                border-width: 3px !important;
+                box-shadow: 0 0 16px rgba(255, 153, 0, 0.8);
+                opacity: 0.8;
+            }
+
+            .bbox-resizing {
+                border-color: #9900FF !important;
+                border-width: 3px !important;
+                box-shadow: 0 0 16px rgba(153, 0, 255, 0.8);
+                opacity: 0.8;
+            }
+
+            /* Resize Handles */
+            .resize-handle {
+                position: absolute;
+                background: white;
+                border: 2px solid #0088FF;
+                width: 10px;
+                height: 10px;
+                pointer-events: auto;
+                z-index: 1000;
+                transition: all 0.2s;
+            }
+
+            .resize-handle:hover {
+                background: #00CCFF;
+                border-color: #00CCFF;
+                width: 12px;
+                height: 12px;
+                box-shadow: 0 0 8px rgba(0, 204, 255, 0.8);
+            }
+
+            .resize-handle.active {
+                background: #9900FF;
+                border-color: #9900FF;
+                box-shadow: 0 0 12px rgba(153, 0, 255, 0.8);
+            }
+
+            /* Handle positions */
+            .resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+            .resize-handle.t  { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+            .resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+            .resize-handle.r  { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
+            .resize-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+            .resize-handle.b  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+            .resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+            .resize-handle.l  { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+
             @media (max-width: 1024px) {
                 .studio-layout {
                     grid-template-columns: 1fr;
@@ -2075,6 +2178,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handlePreviewMouseMove(event) {
+        // Handle active drag
+        if (this._dragState.active) {
+            this._handleDrag(event);
+            return;
+        }
+
+        // Handle active resize
+        if (this._resizeState.active) {
+            this._handleResize(event);
+            return;
+        }
+
         // Track cursor for crosshair guidelines (when enabled OR in placement modes)
         const shouldTrackCursor = this._showCrosshairs ||
             this._activeMode === MODES.PLACE_ANCHOR ||
@@ -2182,6 +2297,437 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._activeMode = MODES.VIEW;
 
         this.requestUpdate();
+    }
+
+    // ============================
+    // Control Drag Methods
+    // ============================
+
+    /**
+     * Handle drag start on control bounding box
+     * @param {MouseEvent} event - Mouse down event
+     * @param {string} controlId - Control ID
+     * @private
+     */
+    _handleDragStart(event, controlId) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Drag start:', controlId);
+
+        // Find the control
+        const control = this._findControl(controlId);
+        if (!control) {
+            lcardsLog.warn('[MSDStudio] Control not found for drag:', controlId);
+            return;
+        }
+
+        // Get current position
+        const anchors = this._workingConfig.msd?.anchors || {};
+        let currentPosition;
+        if (control.position && Array.isArray(control.position)) {
+            currentPosition = [...control.position];
+        } else if (control.anchor) {
+            currentPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
+            if (!currentPosition) {
+                lcardsLog.warn('[MSDStudio] Could not resolve anchor position for drag');
+                return;
+            }
+            currentPosition = [...currentPosition];
+        } else {
+            lcardsLog.warn('[MSDStudio] Control has no position or anchor');
+            return;
+        }
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get coordinates for drag start');
+            return;
+        }
+
+        // Calculate offset from control position to mouse
+        const offsetX = coords.x - currentPosition[0];
+        const offsetY = coords.y - currentPosition[1];
+
+        // Set drag state
+        this._dragState = {
+            active: true,
+            controlId,
+            startPos: [coords.x, coords.y],
+            originalPos: currentPosition,
+            offsetX,
+            offsetY
+        };
+
+        // Add dragging class to preview panel
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (previewPanel) {
+            previewPanel.classList.add('dragging');
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle drag move
+     * @param {MouseEvent} event - Mouse move event
+     * @private
+     */
+    _handleDrag(event) {
+        if (!this._dragState.active) return;
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        // Calculate new position with offset
+        let newX = coords.x - this._dragState.offsetX;
+        let newY = coords.y - this._dragState.offsetY;
+
+        // Apply grid snapping if enabled
+        if (this._enableSnapping && this._gridSpacing) {
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        // Update control position
+        const control = this._findControl(this._dragState.controlId);
+        if (!control) return;
+
+        // Update position (convert anchor to explicit position if needed)
+        if (control.anchor) {
+            // Convert anchored control to explicitly positioned
+            delete control.anchor;
+        }
+        control.position = [newX, newY];
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle drag end
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleDragEnd(event) {
+        if (!this._dragState.active && !this._resizeState.active) return;
+
+        if (this._dragState.active) {
+            lcardsLog.info('[MSDStudio] Drag end:', this._dragState.controlId);
+
+            // Remove dragging class from preview panel
+            const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+            if (previewPanel) {
+                previewPanel.classList.remove('dragging');
+            }
+
+            // Clear drag state
+            this._dragState = {
+                active: false,
+                controlId: null,
+                startPos: null,
+                originalPos: null,
+                offsetX: 0,
+                offsetY: 0
+            };
+        }
+
+        if (this._resizeState.active) {
+            lcardsLog.info('[MSDStudio] Resize end:', this._resizeState.controlId);
+
+            // Clear resize state
+            this._resizeState = {
+                active: false,
+                controlId: null,
+                handle: null,
+                startPos: null,
+                startSize: null,
+                startPosition: null
+            };
+        }
+
+        // Schedule preview update to save changes
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    // ============================
+    // Control Resize Methods
+    // ============================
+
+    /**
+     * Render resize handles for a control
+     * @param {string} controlId - Control ID
+     * @param {number} pixelWidth - Width in pixels
+     * @param {number} pixelHeight - Height in pixels
+     * @param {boolean} isResizing - Whether this control is being resized
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderResizeHandles(controlId, pixelWidth, pixelHeight, isResizing) {
+        const handles = ['tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'];
+
+        return html`
+            ${handles.map(handle => {
+                const isActive = isResizing && this._resizeState.handle === handle;
+                return html`
+                    <div
+                        class="resize-handle ${handle} ${isActive ? 'active' : ''}"
+                        data-handle="${handle}"
+                        @mousedown=${(e) => this._handleResizeStart(e, controlId, handle)}>
+                    </div>
+                `;
+            })}
+        `;
+    }
+
+    /**
+     * Handle resize start on resize handle
+     * @param {MouseEvent} event - Mouse down event
+     * @param {string} controlId - Control ID
+     * @param {string} handle - Handle position ('tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l')
+     * @private
+     */
+    _handleResizeStart(event, controlId, handle) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Resize start:', controlId, handle);
+
+        // Find the control
+        const control = this._findControl(controlId);
+        if (!control) {
+            lcardsLog.warn('[MSDStudio] Control not found for resize:', controlId);
+            return;
+        }
+
+        // Get current position and size
+        const anchors = this._workingConfig.msd?.anchors || {};
+        let currentPosition;
+        if (control.position && Array.isArray(control.position)) {
+            currentPosition = [...control.position];
+        } else if (control.anchor) {
+            currentPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
+            if (!currentPosition) {
+                lcardsLog.warn('[MSDStudio] Could not resolve anchor position for resize');
+                return;
+            }
+            currentPosition = [...currentPosition];
+        } else {
+            lcardsLog.warn('[MSDStudio] Control has no position or anchor');
+            return;
+        }
+
+        const currentSize = control.size ? [...control.size] : [100, 100];
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get coordinates for resize start');
+            return;
+        }
+
+        // Set resize state
+        this._resizeState = {
+            active: true,
+            controlId,
+            handle,
+            startPos: [coords.x, coords.y],
+            startSize: currentSize,
+            startPosition: currentPosition
+        };
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle resize move
+     * @param {MouseEvent} event - Mouse move event
+     * @private
+     */
+    _handleResize(event) {
+        if (!this._resizeState.active) return;
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        // Calculate delta from start
+        const deltaX = coords.x - this._resizeState.startPos[0];
+        const deltaY = coords.y - this._resizeState.startPos[1];
+
+        // Get control
+        const control = this._findControl(this._resizeState.controlId);
+        if (!control) return;
+
+        // Convert anchor to explicit position if needed
+        if (control.anchor) {
+            delete control.anchor;
+        }
+
+        // Initialize size if not present
+        if (!control.size) {
+            control.size = [100, 100];
+        }
+
+        const [startWidth, startHeight] = this._resizeState.startSize;
+        const [startX, startY] = this._resizeState.startPosition;
+        const handle = this._resizeState.handle;
+
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newX = startX;
+        let newY = startY;
+
+        // Apply resize based on handle
+        switch (handle) {
+            case 'tl': // Top-left corner
+                newWidth = startWidth - deltaX;
+                newHeight = startHeight - deltaY;
+                newX = startX + deltaX;
+                newY = startY + deltaY;
+                break;
+            case 't': // Top edge
+                newHeight = startHeight - deltaY;
+                newY = startY + deltaY;
+                break;
+            case 'tr': // Top-right corner
+                newWidth = startWidth + deltaX;
+                newHeight = startHeight - deltaY;
+                newY = startY + deltaY;
+                break;
+            case 'r': // Right edge
+                newWidth = startWidth + deltaX;
+                break;
+            case 'br': // Bottom-right corner
+                newWidth = startWidth + deltaX;
+                newHeight = startHeight + deltaY;
+                break;
+            case 'b': // Bottom edge
+                newHeight = startHeight + deltaY;
+                break;
+            case 'bl': // Bottom-left corner
+                newWidth = startWidth - deltaX;
+                newHeight = startHeight + deltaY;
+                newX = startX + deltaX;
+                break;
+            case 'l': // Left edge
+                newWidth = startWidth - deltaX;
+                newX = startX + deltaX;
+                break;
+        }
+
+        // Apply minimum size constraints
+        const minSize = 20;
+        if (newWidth < minSize) {
+            newWidth = minSize;
+            // Adjust position if resizing from left
+            if (handle.includes('l')) {
+                newX = startX + startWidth - minSize;
+            }
+        }
+        if (newHeight < minSize) {
+            newHeight = minSize;
+            // Adjust position if resizing from top
+            if (handle.includes('t')) {
+                newY = startY + startHeight - minSize;
+            }
+        }
+
+        // Apply grid snapping if enabled (to size)
+        if (this._enableSnapping && this._gridSpacing) {
+            newWidth = Math.round(newWidth / this._gridSpacing) * this._gridSpacing;
+            newHeight = Math.round(newHeight / this._gridSpacing) * this._gridSpacing;
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        // Update control
+        control.size = [newWidth, newHeight];
+        control.position = [newX, newY];
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Find control by ID
+     * @param {string} controlId - Control ID
+     * @returns {Object|null} Control object or null
+     * @private
+     */
+    _findControl(controlId) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        return overlays.find(o => o.id === controlId) || null;
+    }
+
+    /**
+     * Get preview coordinates from mouse event
+     * Helper method specifically for drag operations
+     * @param {MouseEvent} event - Mouse event
+     * @returns {Object|null} {x, y} in ViewBox coordinates, or null
+     * @private
+     */
+    _getPreviewCoordinatesFromMouseEvent(event) {
+        // Find the preview panel
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return null;
+
+        const livePreview = previewPanel.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return null;
+
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return null;
+
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return null;
+
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return null;
+
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return null;
+
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return null;
+
+        // Get viewBox
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        // Get SVG rect
+        const rect = svg.getBoundingClientRect();
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        // Calculate scale
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+
+        // Calculate offset
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Get mouse position relative to preview panel
+        const mouseX = event.clientX - panelRect.left;
+        const mouseY = event.clientY - panelRect.top;
+
+        // Convert to SVG pixel coordinates
+        const svgLeft = rect.left - panelRect.left;
+        const svgTop = rect.top - panelRect.top;
+        const svgPixelX = mouseX - svgLeft - offsetX;
+        const svgPixelY = mouseY - svgTop - offsetY;
+
+        // Convert to ViewBox coordinates
+        const x = svgPixelX * scale + viewBoxX;
+        const y = svgPixelY * scale + viewBoxY;
+
+        return { x, y };
     }
 
     /**
@@ -3392,7 +3938,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _renderBoundingBoxes() {
         if (!this._showBoundingBoxes) return '';
 
-        const controls = this._workingConfig.msd?.overlays || [];
+        // Only show bounding boxes for control overlays (not lines)
+        const controls = (this._workingConfig.msd?.overlays || [])
+            .filter(o => o.type === 'control');
         if (controls.length === 0) return '';
 
         // Get SVG for coordinate conversion
@@ -3477,17 +4025,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const pixelX = (rect.left - panelRect.left) + svgPixelX;
                     const pixelY = (rect.top - panelRect.top) + svgPixelY;
 
+                    const isDragging = this._dragState.active && this._dragState.controlId === control.id;
+                    const isResizing = this._resizeState.active && this._resizeState.controlId === control.id;
+
                     return html`
-                        <!-- Bounding box -->
-                        <div style="
-                            position: absolute;
-                            left: ${pixelX}px;
-                            top: ${pixelY}px;
-                            width: ${pixelWidth}px;
-                            height: ${pixelHeight}px;
-                            border: 2px solid #0088FF;
-                            opacity: 0.6;
-                        "></div>
+                        <!-- Bounding box (interactive) -->
+                        <div
+                            class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''}"
+                            data-control-id="${control.id}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                width: ${pixelWidth}px;
+                                height: ${pixelHeight}px;
+                                border: 2px solid #0088FF;
+                                opacity: 0.6;
+                                pointer-events: auto;
+                            "
+                            @mousedown=${(e) => this._handleDragStart(e, control.id)}>
+
+                            <!-- Resize Handles -->
+                            ${this._renderResizeHandles(control.id, pixelWidth, pixelHeight, isResizing)}
+                        </div>
                         <!-- Control ID label -->
                         <div style="
                             position: absolute;
@@ -3500,6 +4060,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             font-family: 'Courier New', monospace;
                             font-size: 10px;
                             white-space: nowrap;
+                            pointer-events: none;
                         ">
                             ${control.id}
                         </div>
