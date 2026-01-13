@@ -83,101 +83,109 @@ graph TB
 
 ### 1. Pack Files (Source Data)
 
-**Location**: `src/core/packs/loadBuiltinPacks.js` (main orchestrator)
+**Location**: Organized into modular directories under `src/core/packs/`
 
-**Structure**:
+**Structure** (After PR #196 Refactor):
 ```
-src/core/
-├── packs/
-│   ├── loadBuiltinPacks.js    # Pack definitions + orchestrator (1,189 lines)
-│   ├── components/             # SVG components (unified format, inline SVG)
-│   │   ├── buttons/
-│   │   │   └── index.js        # Button component metadata
-│   │   ├── sliders/
-│   │   │   ├── picard-vertical.js
-│   │   │   └── index.js        # Slider component metadata
-│   │   ├── dpad/
-│   │   │   └── index.js        # D-pad component (9-segment)
-│   │   ├── index.js            # Unified component registry
-│   │   └── README.md           # Component system documentation
-│   ├── externalPackLoader.js  # External pack loading
-│   └── mergePacks.js           # Pack merging utilities
-├── themes/
-│   └── tokens/                 # Theme token files
-│       ├── lcarsClassicTokens.js
-│       ├── lcarsDs9Tokens.js
-│       ├── lcarsVoyagerTokens.js
-│       └── lcarsHighContrastTokens.js
-└── animation/
-    └── presets.js              # Animation preset registration
+src/core/packs/
+├── loadBuiltinPacks.js          # Pure orchestrator (115 lines, 90% reduction)
+├── style-presets/               # ✨ NEW: Extracted style presets
+│   ├── buttons/
+│   │   └── index.js             # 740 lines - BUTTON_PRESETS export
+│   ├── sliders/
+│   │   └── index.js             # 195 lines - SLIDER_PRESETS export
+│   └── index.js                 # Unified style preset exports
+├── themes/                      # ✨ NEW: Extracted theme definitions
+│   ├── builtin-themes.js        # 172 lines - BUILTIN_THEMES_PACK
+│   ├── tokens/                  # Theme token files (relocated from core/themes/tokens)
+│   │   ├── lcarsClassicTokens.js
+│   │   ├── lcarsDs9Tokens.js
+│   │   ├── lcarsVoyagerTokens.js
+│   │   └── lcarsHighContrastTokens.js
+│   └── index.js                 # Unified theme exports
+├── animations/                  # ✨ NEW: Extracted animation presets
+│   ├── presets/
+│   │   └── index.js             # 683 lines - registerBuiltinAnimationPresets()
+│   └── index.js                 # Unified animation exports
+├── components/                  # ✅ Already structured (unchanged from PR #195)
+│   ├── buttons/
+│   ├── sliders/
+│   ├── dpad/
+│   ├── index.js                 # Unified component registry
+│   └── README.md
+├── externalPackLoader.js        # External pack loading
+└── mergePacks.js                # Pack merging utilities
 ```
 
-**Note**: As of PR #195, the legacy shapes registry was removed. All components now use unified inline SVG format with consistent structure.
+**Refactor Summary**: PR #196 extracted **~1,716 lines** from monolithic files into organized directories:
+- `loadBuiltinPacks.js`: 1,188 → 115 lines (90% reduction)
+- `core/animation/presets.js`: 710 → 67 lines (91% reduction)
+- Components already structured from PR #195 (legacy shapes registry removed)
 
 **Pack Structure Example**:
 ```javascript
 // LCARDS_BUTTONS_PACK (from loadBuiltinPacks.js)
+import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
+
 {
   id: 'lcards_buttons',
   version: '1.14.18',
   description: 'Button style presets',
   style_presets: {
-    button: {
-      base: { /* base button config */ },
-      lozenge: { extends: 'button.base', /* ... */ },
-      bullet: { extends: 'button.lozenge', /* ... */ },
-      // ... more presets
-    }
+    button: BUTTON_PRESETS  // ← Imported from extracted file
   }
 }
 ```
+
+**Extraction Pattern** (PR #196):
+- Button presets: `src/core/packs/style-presets/buttons/index.js` exports `BUTTON_PRESETS`
+- Slider presets: `src/core/packs/style-presets/sliders/index.js` exports `SLIDER_PRESETS`
+- Themes: `src/core/packs/themes/builtin-themes.js` exports `BUILTIN_THEMES_PACK`
+- Animation presets: `src/core/packs/animations/presets/index.js` exports `registerBuiltinAnimationPresets()`
 
 ---
 
 ### 2. Pack Loader (Orchestrator)
 
-**File**: `src/core/packs/loadBuiltinPacks.js`
+**File**: `src/core/packs/loadBuiltinPacks.js` (115 lines after PR #196 refactor)
 
 **Responsibilities**:
-- Define pack objects with inline style presets
-- Import theme tokens from `src/core/themes/tokens/`
-- Import component registry from `src/core/packs/components/`
+- Import extracted pack components from organized directories
+- Assemble pack objects from imported modules
+- Register animation presets during loading
 - Return pack objects for PackManager registration
 
-**Code**:
+**Code** (After PR #196):
 ```javascript
-import { lcarsClassicTokens } from '../themes/tokens/lcarsClassicTokens.js';
-import { lcarsDs9Tokens } from '../themes/tokens/lcarsDs9Tokens.js';
-import { lcarsVoyagerTokens } from '../themes/tokens/lcarsVoyagerTokens.js';
-import { lcarsHighContrastTokens } from '../themes/tokens/lcarsHighContrastTokens.js';
 import * as componentsRegistry from './components/index.js';
+import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
+import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
+import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
+import { registerBuiltinAnimationPresets } from './animations/index.js';
 
-// Pack definitions with inline style presets
+// Assemble packs from extracted modules
 const LCARDS_BUTTONS_PACK = {
   id: 'lcards_buttons',
   version: '1.14.18',
   style_presets: {
-    button: {
-      base: { /* ... */ },
-      lozenge: { /* ... */ },
-      bullet: { /* ... */ }
-    }
+    button: BUTTON_PRESETS  // ← Imported from style-presets/buttons/
   }
 };
 
-const BUILTIN_THEMES_PACK = {
-  id: 'builtin_themes',
-  version: '1.0.0',
-  themes: {
-    'lcars-classic': {
-      id: 'lcars-classic',
-      tokens: lcarsClassicTokens
-    }
-  },
-  defaultTheme: 'lcars-classic'
+const LCARDS_SLIDERS_PACK = {
+  id: 'lcards_sliders',
+  version: '1.22.0',
+  style_presets: {
+    slider: SLIDER_PRESETS  // ← Imported from style-presets/sliders/
+  }
 };
 
+// BUILTIN_THEMES_PACK imported directly from themes/builtin-themes.js
+
 export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_sliders']) {
+  // ✅ Register animation presets during pack loading
+  registerBuiltinAnimationPresets();
+  
   // Always include builtin_themes
   const packsToLoad = [...new Set([...requested, 'builtin_themes'])];
   
@@ -185,7 +193,7 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
 }
 ```
 
-**Note**: Animation presets are pre-registered in `src/core/animation/presets.js` during module load, **before** packs are loaded.
+**Key Change**: Animation presets now register during `loadBuiltinPacks()` call (line 192 in lcards-core.js), not on module import.
 
 ---
 
@@ -264,32 +272,50 @@ export class LCARdSButton extends LCARdSCard {
 
 **Purpose**: Named style bundles that cards apply via `preset: "name"`
 
-**Location**: Defined inline in `src/core/packs/loadBuiltinPacks.js`
+**Location**: Extracted into organized directories (PR #196)
+- Buttons: `src/core/packs/style-presets/buttons/index.js` (740 lines)
+- Sliders: `src/core/packs/style-presets/sliders/index.js` (195 lines)
 
 **Example**:
 ```javascript
-// From loadBuiltinPacks.js - BUTTON_PRESETS
-style_presets: {
-  button: {
-    lozenge: {
-      extends: 'button.base',
-      border: {
-        radius: {
-          top_left: 'theme:components.button.radius.full',
-          top_right: 'theme:components.button.radius.full',
-          bottom_left: 'theme:components.button.radius.full',
-          bottom_right: 'theme:components.button.radius.full'
-        }
-      },
-      text: {
-        name: {
-          position: 'bottom-right',
-          padding: { right: 24 }
-        }
+// src/core/packs/style-presets/buttons/index.js
+export const BUTTON_PRESETS = {
+  base: {
+    height: 'theme:components.button.layout.height.standard',
+    show_icon: false,
+    // ... base configuration
+  },
+  lozenge: {
+    extends: 'button.base',
+    border: {
+      radius: {
+        top_left: 'theme:components.button.radius.full',
+        top_right: 'theme:components.button.radius.full',
+        bottom_left: 'theme:components.button.radius.full',
+        bottom_right: 'theme:components.button.radius.full'
+      }
+    },
+    text: {
+      name: {
+        position: 'bottom-right',
+        padding: { right: 24 }
       }
     }
   }
-}
+  // ... 12 more button presets
+};
+```
+
+**Import Pattern**:
+```javascript
+// src/core/packs/loadBuiltinPacks.js
+import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
+
+const LCARDS_BUTTONS_PACK = {
+  style_presets: {
+    button: BUTTON_PRESETS  // ← Imported preset definitions
+  }
+};
 ```
 
 **Card Usage**:
@@ -307,29 +333,48 @@ entity: light.bedroom
 
 **Purpose**: Provide token-based defaults for components
 
-**Location**: `src/core/themes/tokens/` (imported by loadBuiltinPacks.js)
+**Location**: Extracted into dedicated module (PR #196)
+- Theme pack: `src/core/packs/themes/builtin-themes.js` (172 lines)
+- Token files: `src/core/packs/themes/tokens/` (relocated from `core/themes/tokens/`)
 
 **Example**:
 ```javascript
-// src/core/packs/loadBuiltinPacks.js
-import { lcarsClassicTokens } from '../themes/tokens/lcarsClassicTokens.js';
+// src/core/packs/themes/builtin-themes.js
+import { lcarsClassicTokens } from './tokens/lcarsClassicTokens.js';
+import { lcarsDs9Tokens } from './tokens/lcarsDs9Tokens.js';
+import { lcarsVoyagerTokens } from './tokens/lcarsVoyagerTokens.js';
+import { lcarsHighContrastTokens } from './tokens/lcarsHighContrastTokens.js';
 
 export const BUILTIN_THEMES_PACK = {
+  id: 'builtin_themes',
+  version: '1.0.0',
   themes: {
     'lcars-classic': {
       id: 'lcars-classic',
       name: 'LCARS Classic',
       description: 'Classic TNG-era LCARS styling',
-      tokens: lcarsClassicTokens  // Token object
-    }
+      tokens: lcarsClassicTokens  // ← Token object
+    },
+    // ... ds9, voyager, high-contrast themes
   },
-  defaultTheme: 'lcars-classic'
+  defaultTheme: 'lcars-classic',
+  chartAnimationPresets: { /* ApexCharts presets */ }
+};
+```
+
+**Import Pattern**:
+```javascript
+// src/core/packs/loadBuiltinPacks.js
+import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
+
+const BUILTIN_REGISTRY = {
+  builtin_themes: BUILTIN_THEMES_PACK  // ← Direct import, no assembly needed
 };
 ```
 
 **Token Structure**:
 ```javascript
-// src/core/themes/tokens/lcarsClassicTokens.js
+// src/core/packs/themes/tokens/lcarsClassicTokens.js (relocated in PR #196)
 export const lcarsClassicTokens = {
   colors: {
     accent: { primary: 'var(--lcars-orange)' }
@@ -373,15 +418,50 @@ const bgColor = themeManager.getToken('components.button.background.active');
 
 **Purpose**: Pre-built animation functions for anime.js v4
 
-**Location**: `src/core/animation/presets.js`
+**Location**: Extracted into pack structure (PR #196)
+- Preset registrations: `src/core/packs/animations/presets/index.js` (683 lines)
+- Registry infrastructure: `src/core/animation/presets.js` (67 lines, 91% reduction)
 
-**Registration**: Animation presets are registered during module load, **before** pack loading
+**Registration**: Animation presets register during `loadBuiltinPacks()` call (not on module import)
 
 **Example**:
 ```javascript
-// src/core/animation/presets.js
-registerAnimationPreset('pulse', (def) => {
-  const p = def.params || def;
+// src/core/packs/animations/presets/index.js
+import { registerAnimationPreset } from '../../../animation/presets.js';
+
+export function registerBuiltinAnimationPresets() {
+  registerAnimationPreset('pulse', (def) => {
+    const p = def.params || def;
+    return {
+      anime: {
+        scale: [1, p.max_scale || 1.15],
+        filter: [`brightness(1)`, `brightness(${p.max_brightness || 1.4})`],
+        duration: p.duration || 1200,
+        easing: p.easing || 'easeInOutSine',
+        loop: p.loop !== undefined ? p.loop : true,
+        alternate: p.alternate !== undefined ? p.alternate : true
+      },
+      styles: {
+        transformOrigin: 'center'
+      }
+    };
+  });
+  
+  // ... 15 more animation presets
+}
+```
+
+**Import Pattern**:
+```javascript
+// src/core/packs/loadBuiltinPacks.js
+import { registerBuiltinAnimationPresets } from './animations/index.js';
+
+export function loadBuiltinPacks(requested) {
+  // ✅ Register animation presets during pack loading
+  registerBuiltinAnimationPresets();
+  // ... rest of pack loading
+}
+```
   return {
     anime: {
       scale: [1, p.max_scale || 1.15],
@@ -502,17 +582,20 @@ sequenceDiagram
     participant CORE as lcards-core.js
     participant PM as PackManager
     participant LP as loadBuiltinPacks()
+    participant RAP as registerBuiltinAnimationPresets()
     participant TM as ThemeManager
     participant SPM as StylePresetManager
     participant AM as AnimationManager
 
     LC->>CORE: Import and execute
     CORE->>CORE: Create singletons
-    Note over CORE: Animation presets already<br>registered during module load
     CORE->>PM: new PackManager(core)
     CORE->>PM: loadBuiltinPacks()
     
     PM->>LP: Call loader function
+    LP->>RAP: Register animation presets
+    Note over RAP: Presets register from<br>packs/animations/presets/
+    RAP-->>LP: 16 presets registered
     LP-->>PM: Return pack objects
     
     PM->>TM: Register themes from pack
@@ -521,8 +604,6 @@ sequenceDiagram
     PM->>SPM: Register style presets from pack
     SPM->>SPM: Store button & slider presets
     
-    Note over AM: Animation presets already available
-    
     PM-->>CORE: All packs loaded
     CORE->>TM: activateTheme('lcars-classic')
     CORE-->>LC: Core ready
@@ -530,12 +611,13 @@ sequenceDiagram
     Note over LC,AM: Cards can now access managers
 ```
 
-**Critical Points**:
-1. **Animation presets register first** during module load (`presets.js`)
-2. **Packs load ONCE** during core initialization (line 202 in lcards-core.js)
-3. **Themes, style presets, components** registered via PackManager
-4. **Default theme activated** after pack loading
-5. **Cards access** via `window.lcards.core.<manager>`
+**Critical Points** (After PR #196):
+1. **Animation presets register** during `loadBuiltinPacks()` call (line ~192 in lcards-core.js)
+2. **Packs load ONCE** during core initialization from organized directories
+3. **~1,716 lines extracted** into modular files (90% reduction in loadBuiltinPacks.js)
+4. **Import pattern**: Pack loader imports from extracted modules, assembles pack objects
+5. **Default theme activated** after pack loading
+6. **Cards access** via `window.lcards.core.<manager>`
 
 ---
 
@@ -681,28 +763,37 @@ entity: light.bedroom_brightness
 
 ### Adding a New Button Preset
 
-**File**: `src/core/packs/loadBuiltinPacks.js`
+**File**: `src/core/packs/style-presets/buttons/index.js` (after PR #196)
 
 ```javascript
-// In LCARDS_BUTTONS_PACK.style_presets.button
-'my-custom-button': {
-  extends: 'button.base',
-  border: {
-    radius: {
-      top_left: 20,
-      top_right: 20,
-      bottom_left: 20,
-      bottom_right: 20
-    }
-  },
-  text: {
-    default: {
-      color: {
-        active: 'var(--my-custom-color)'
+// Add to BUTTON_PRESETS export
+export const BUTTON_PRESETS = {
+  // ... existing presets (base, lozenge, bullet, etc.)
+  
+  'my-custom-button': {
+    extends: 'button.base',
+    border: {
+      radius: {
+        top_left: 20,
+        top_right: 20,
+        bottom_left: 20,
+        bottom_right: 20
+      }
+    },
+    text: {
+      default: {
+        color: {
+          active: 'var(--my-custom-color)'
+        }
       }
     }
   }
-}
+};
+```
+
+**No changes needed** in `loadBuiltinPacks.js` - preset is automatically included via import:
+```javascript
+import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
 ```
 
 **Usage**:
@@ -714,23 +805,29 @@ entity: light.bedroom
 
 ### Adding a New Animation Preset
 
-**File**: `src/core/animation/presets.js`
+**File**: `src/core/packs/animations/presets/index.js` (after PR #196)
 
 ```javascript
-// Add to the file (registers during module load)
-registerAnimationPreset('shake', (def) => {
-  const p = def.params || def;
-  return {
-    anime: {
-      translateX: [0, -10, 10, -10, 10, 0],
-      duration: p.duration || 500,
-      easing: 'easeInOutQuad',
-      loop: p.loop || false
-    },
-    styles: {}
-  };
-});
+// Add to registerBuiltinAnimationPresets() function
+export function registerBuiltinAnimationPresets() {
+  // ... existing presets
+  
+  registerAnimationPreset('shake', (def) => {
+    const p = def.params || def;
+    return {
+      anime: {
+        translateX: [0, -10, 10, -10, 10, 0],
+        duration: p.duration || 500,
+        easing: 'easeInOutQuad',
+        loop: p.loop || false
+      },
+      styles: {}
+    };
+  });
+}
 ```
+
+**No changes needed** in `loadBuiltinPacks.js` - function is called automatically during pack loading.
 
 **Usage**:
 ```yaml
@@ -742,9 +839,9 @@ animations:
 
 ### Adding a New Theme
 
-**Step 1**: Create token file in `src/core/themes/tokens/`
+**Step 1**: Create token file in `src/core/packs/themes/tokens/` (relocated in PR #196)
 
-**File**: `src/core/themes/tokens/lcarsEnterpriseTokens.js`
+**File**: `src/core/packs/themes/tokens/lcarsEnterpriseTokens.js`
 ```javascript
 export const lcarsEnterpriseTokens = {
   colors: {
@@ -765,18 +862,27 @@ export const lcarsEnterpriseTokens = {
 };
 ```
 
-**Step 2**: Register in `loadBuiltinPacks.js`
+**Step 2**: Register in `src/core/packs/themes/builtin-themes.js` (not loadBuiltinPacks.js)
 
 ```javascript
 // Import at top
-import { lcarsEnterpriseTokens } from '../themes/tokens/lcarsEnterpriseTokens.js';
+import { lcarsEnterpriseTokens } from './tokens/lcarsEnterpriseTokens.js';
 
 // Add to BUILTIN_THEMES_PACK.themes
-'lcars-enterprise': {
-  id: 'lcars-enterprise',
-  name: 'LCARS Enterprise',
-  description: 'Enterprise-D era styling',
-  tokens: lcarsEnterpriseTokens
+export const BUILTIN_THEMES_PACK = {
+  themes: {
+    // ... existing themes
+    'lcars-enterprise': {
+      id: 'lcars-enterprise',
+      name: 'LCARS Enterprise',
+      description: 'Enterprise-D era styling',
+      tokens: lcarsEnterpriseTokens
+    }
+  }
+};
+```
+
+**No changes needed** in `loadBuiltinPacks.js` - BUILTIN_THEMES_PACK is imported directly.
 }
 ```
 
@@ -879,21 +985,24 @@ component: my-component
 - ✅ Packs provide **components** (SVG shells)
 - ✅ Use via simple YAML config (`preset: lozenge`)
 
-### For Developers
-- ✅ **Single source of truth**: All packs in `src/core/packs/loadBuiltinPacks.js`
-- ✅ **Loaded once**: During core initialization (line 202 in lcards-core.js)
+### For Developers (After PR #196 Refactor)
+- ✅ **Organized structure**: Packs extracted into modular directories under `src/core/packs/`
+- ✅ **90% size reduction**: `loadBuiltinPacks.js` from 1,188 → 115 lines
+- ✅ **Loaded once**: During core initialization (line ~192 in lcards-core.js)
 - ✅ **Accessed via singletons**: `window.lcards.core.*Manager`
 - ✅ **No card-level pack loading**: Cards consume from managers only
-- ✅ **Extensible**: Add new presets by editing pack files
-- ✅ **Animation presets**: Register in `presets.js` (module load time)
-- ✅ **Theme tokens**: Create new files in `themes/tokens/`
+- ✅ **Extensible**: Add presets in dedicated files, no need to modify orchestrator
+- ✅ **Animation presets**: Add to `packs/animations/presets/index.js`
+- ✅ **Style presets**: Add to `packs/style-presets/{type}/index.js`
+- ✅ **Theme tokens**: Add to `packs/themes/tokens/` and register in `builtin-themes.js`
 
 ### Architecture Benefits
-- ✅ **Modularity**: Packs can be added/removed independently
+- ✅ **Modularity**: Packs organized in focused directories
 - ✅ **Reusability**: One preset → many cards
 - ✅ **Consistency**: Central theme system
 - ✅ **Performance**: Load once, use everywhere
-- ✅ **Maintainability**: Centralized definitions in single orchestrator file
+- ✅ **Maintainability**: ~1,716 lines extracted into organized files (90% reduction)
+- ✅ **Separation of concerns**: Orchestrator (115 lines) vs content (organized files)
 
 ---
 
@@ -902,42 +1011,49 @@ component: my-component
 - **Pack System Structure**: `doc/architecture/subsystems/pack-system.md`
 - **Component System**: `src/core/packs/components/README.md`
 - **Component Standardization**: `COMPONENT_STANDARDIZATION_COMPLETE.md` (PR #195)
+- **Pack Refactor Complete**: `PACK_REFACTOR_COMPLETE.md` (PR #196)
 - **Theme System**: `doc/architecture/subsystems/theme-system.md`
 - **Animation System**: `doc/architecture/subsystems/animation-registry.md`
-- **Pack Refactor Summary**: `PACK_REFACTOR_SUMMARY.md` (PR #196)
+- **Pack Refactor Summary**: `PACK_REFACTOR_SUMMARY.md`
 
 ---
 
 ## Comparison: Old vs New Architecture
 
-### Before PR #196 (Pre-Pack Refactor)
+### Before Pack Refactor (Pre-PR #196)
 ```
-❌ 1,716 lines of pack definitions in MSD card
-❌ Pack loading scattered across multiple files
-❌ Duplicate pack loading in each card
-❌ No central registration system
-❌ Hard to add new presets
-```
-
-### After PR #196 (Pack Refactor)
-```
-✅ Pack definitions in organized loadBuiltinPacks.js (1,189 lines)
-✅ Single PackManager orchestrator
-✅ Load once, use everywhere
-✅ Central registration to core managers
-✅ Easy to add new presets/themes/animations
-✅ Clear separation: orchestrator → managers → cards
+❌ Monolithic pack files: 1,188 lines in loadBuiltinPacks.js + 710 in animation/presets.js
+❌ Style presets, themes, animations all inline in single file
+❌ Hard to navigate and maintain large files
+❌ Difficult to find specific preset definitions
+❌ No clear separation of concerns
 ```
 
-### After PR #195 (Component Standardization) - Current State
+### After PR #196 Extraction (Current State)
+```
+✅ Organized directory structure: packs/style-presets/, packs/themes/, packs/animations/
+✅ loadBuiltinPacks.js: 1,188 → 115 lines (90% reduction)
+✅ animation/presets.js: 710 → 67 lines (91% reduction)
+✅ Total extracted: ~1,716 lines into focused modules
+✅ Each file has single responsibility:
+   - style-presets/buttons/index.js (740 lines) - BUTTON_PRESETS
+   - style-presets/sliders/index.js (195 lines) - SLIDER_PRESETS
+   - themes/builtin-themes.js (172 lines) - BUILTIN_THEMES_PACK
+   - animations/presets/index.js (683 lines) - registerBuiltinAnimationPresets()
+✅ Pure orchestration in loadBuiltinPacks.js (import + assemble)
+✅ Easy to add new presets - edit specific file, auto-imported
+✅ Clear separation: content → orchestrator → PackManager → managers → cards
+```
+
+### Combined with PR #195 Component Standardization
 ```
 ✅ All components use unified inline SVG format
 ✅ Shapes registry removed (legacy system eliminated)
 ✅ Consistent component structure across all card types
 ✅ Zone/segment processing moved to base class (LCARdSCard)
-✅ ~300 lines of duplicate code eliminated
+✅ ~300 lines of duplicate code eliminated from component handling
 ✅ Self-contained component definitions with theme tokens
-✅ Easier to add new components (single format to learn)
+✅ Total refactor impact: ~2,016 lines reorganized/eliminated
 ```
 
 ---
