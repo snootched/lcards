@@ -163,26 +163,3 @@ export function hasButtonComponent(name) {
 export function getButtonComponentNames() {
     return Object.keys(BUTTON_COMPONENTS);
 }
-
-/**
- * Register all button components with AssetManager
- * Called during core initialization to enable unified asset discovery
- * 
- * @param {AssetManager} assetManager - AssetManager instance
- */
-export function registerButtonComponents(assetManager) {
-    if (!assetManager) {
-        console.warn('[ButtonComponents] AssetManager not provided - skipping registration');
-        return;
-    }
-
-    Object.entries(BUTTON_COMPONENTS).forEach(([key, component]) => {
-        assetManager.register('button', key, component, {
-            pack: 'lcards_buttons',
-            type: 'svg-function',
-            registeredAt: Date.now()
-        });
-    });
-
-    console.info(`[ButtonComponents] Registered ${Object.keys(BUTTON_COMPONENTS).length} components with AssetManager`);
-}

@@ -39,9 +39,7 @@ import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 // Unified API system removed - legacy architecture
 // Use DOM queries: document.querySelector('lcards-msd')._msdPipeline
 
-// Component registration imports (static imports for webpack compatibility)
-import { registerSliderComponents } from './core/packs/components/sliders/index.js';
-import { registerButtonComponents } from './core/packs/components/buttons/index.js';
+// Component registration imports removed - components accessed via Component Registry directly
 
 // Ensure global namespace
 window.lcards = window.lcards || {};
@@ -137,14 +135,6 @@ async function initializeCustomCard() {
         // Expose ThemeManager at expected location for MSD renderers
         window.lcards.theme = lcardsCore.getThemeManager();
         lcardsLog.debug('[lcards.js] ✅ ThemeManager exposed at window.lcards.theme for MSD compatibility');
-
-        // Register button and slider components with AssetManager after core init
-        // This enables unified asset discovery without breaking existing patterns
-        if (lcardsCore.assetManager) {
-            registerSliderComponents(lcardsCore.assetManager);
-            registerButtonComponents(lcardsCore.assetManager);
-            lcardsLog.debug('[lcards.js] ✅ Button & slider components registered with AssetManager');
-        }
 
         // Preload builtin SVGs into AssetManager
         if (lcardsCore.assetManager) {
