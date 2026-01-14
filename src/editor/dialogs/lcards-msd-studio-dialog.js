@@ -546,40 +546,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 cursor: crosshair;
             }
 
-            /* Tab Navigation */
-            .tab-nav {
-                display: flex;
-                gap: 0;
-                padding: 0 16px;
-                background: var(--card-background-color);
+            /* Tab Navigation with HA Tab Group */
+            ha-tab-group {
+                display: block;
+                margin-bottom: 12px;
                 border-bottom: 2px solid var(--divider-color);
-                overflow-x: auto;
-                overflow-y: hidden;
-                white-space: nowrap;
-                scrollbar-width: thin;
             }
 
-            .tab-button {
-                padding: 12px 20px;
-                background: transparent;
-                border: none;
-                border-bottom: 3px solid transparent;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                color: var(--secondary-text-color);
-                transition: all 0.2s;
+            ha-tab-group-tab ha-icon {
+                --mdc-icon-size: 18px;
+                margin-right: 8px;
             }
 
-            .tab-button:hover {
-                background: var(--primary-background-color);
-                color: var(--primary-text-color);
+            /* Card Picker Button Styling */
+            .card-picker-button {
+                height: 80px;
+                flex-direction: column;
+                --ha-button-text-color: var(--primary-text-color);
             }
 
-            .tab-button.active {
-                color: var(--primary-color);
-                border-bottom-color: var(--primary-color);
-                border-bottom-width: 4px;
+            .card-picker-button ha-icon {
+                --mdc-icon-size: 32px;
+                margin-bottom: 8px;
+            }
+
+            .card-picker-button div {
+                font-size: 12px;
             }
 
             /* Tab Content */
@@ -897,6 +889,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._activeTab = tabId;
         lcardsLog.debug('[MSDStudio] Tab changed:', this._activeTab);
         this.requestUpdate();
+    }
+
+    /**
+     * Handle main tab change from ha-tab-group
+     * @param {CustomEvent} event - Tab change event
+     * @private
+     */
+    _handleMainTabChange(event) {
+        event.stopPropagation();
+        const tabId = event.target.activeTab?.getAttribute('value');
+        if (tabId) {
+            this._setActiveTab(tabId);
+        }
     }
 
     /**
@@ -1304,15 +1309,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         ];
 
         return html`
-            <div class="tab-nav">
+            <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
                 ${tabs.map(tab => html`
-                    <button
-                        class="tab-button ${this._activeTab === tab.id ? 'active' : ''}"
-                        @click=${() => this._setActiveTab(tab.id)}>
+                    <ha-tab-group-tab value="${tab.id}" ?active=${this._activeTab === tab.id}>
+                        <ha-icon icon="${tab.icon}"></ha-icon>
                         ${tab.label}
-                    </button>
+                    </ha-tab-group-tab>
                 `)}
-            </div>
+            </ha-tab-group>
         `;
     }
 
@@ -1764,7 +1768,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div style="padding: 8px;">
                 <!-- Anchor Actions -->
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <ha-button @click=${this._openAnchorForm} raised>
+                    <ha-button @click=${this._openAnchorForm}>
                         <ha-icon icon="mdi:map-marker-plus" slot="icon"></ha-icon>
                         Add Anchor
                     </ha-button>
@@ -2013,7 +2017,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <div slot="secondaryAction">
-                    <ha-button @click=${this._closeAnchorForm}>
+                    <ha-button @click=${this._closeAnchorForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="icon"></ha-icon>
                         Cancel
                     </ha-button>
@@ -5795,7 +5799,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div style="padding: 8px;">
                 <!-- Control Actions -->
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <ha-button @click=${this._openControlForm} raised>
+                    <ha-button @click=${this._openControlForm}>
                         <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                         Add Control
                     </ha-button>
@@ -6251,6 +6255,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle control form tab change
+     * @param {CustomEvent} event - Tab change event
+     * @private
+     */
+    _handleControlFormTabChange(event) {
+        event.stopPropagation();
+        const tabValue = event.target.activeTab?.getAttribute('value');
+        if (tabValue) {
+            this._controlFormActiveSubtab = tabValue;
+            this.requestUpdate();
+        }
+    }
+
+    /**
      * Generate unique control ID
      * @returns {string}
      * @private
@@ -6289,20 +6307,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- LEFT COLUMN: Configuration Panel -->
                     <div class="config-panel">
                         <!-- Subtabs -->
-                        <div style="display: flex; gap: 8px; padding: 0 0 12px 0; border-bottom: 1px solid var(--divider-color); margin-bottom: 16px;">
-                            <button
-                                class="tab-button ${this._controlFormActiveSubtab === 'placement' ? 'active' : ''}"
-                                @click=${() => { this._controlFormActiveSubtab = 'placement'; this.requestUpdate(); }}
-                                style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'placement' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
-                                Placement
-                            </button>
-                            <button
-                                class="tab-button ${this._controlFormActiveSubtab === 'card' ? 'active' : ''}"
-                                @click=${() => { this._controlFormActiveSubtab = 'card'; this.requestUpdate(); }}
-                                style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._controlFormActiveSubtab === 'card' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500;">
-                                Card
-                            </button>
-                        </div>
+                        <ha-tab-group @wa-tab-show=${this._handleControlFormTabChange} style="margin-bottom: 16px;">
+                            <ha-tab-group-tab value="placement" ?active=${this._controlFormActiveSubtab === 'placement'}>Placement</ha-tab-group-tab>
+                            <ha-tab-group-tab value="card" ?active=${this._controlFormActiveSubtab === 'card'}>Card</ha-tab-group-tab>
+                        </ha-tab-group>
 
                         <!-- Subtab Content -->
                         <div style="max-height: 60vh; overflow-y: auto;">
@@ -6328,7 +6336,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <div slot="secondaryAction">
-                    <ha-button @click=${this._closeControlForm}>
+                    <ha-button @click=${this._closeControlForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="icon"></ha-icon>
                         Cancel
                     </ha-button>
@@ -6529,7 +6537,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this._resetCardPicker();
                                 this._controlFormCard = { type: '' };
                                 this.requestUpdate();
-                            }}>
+                            }}
+                            appearance="plain">
                             <ha-icon icon="mdi:swap-horizontal" slot="icon"></ha-icon>
                             Change Card
                         </ha-button>
@@ -6625,19 +6634,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     overflow-y: auto;
                 ">
                     ${cards.map(card => html`
-                        <mwc-button
-                            style="
-                                height: 80px;
-                                flex-direction: column;
-                                --mdc-theme-primary: var(--primary-color);
-                            "
+                        <ha-button
+                            class="card-picker-button"
                             @click=${() => this._selectCardType(card.type)}>
                             <ha-icon
                                 icon="${card.icon}"
-                                style="margin-bottom: 8px; --mdc-icon-size: 32px;">
+                                slot="icon">
                             </ha-icon>
-                            <div style="font-size: 12px;">${card.name}</div>
-                        </mwc-button>
+                            <div>${card.name}</div>
+                        </ha-button>
                     `)}
                 </div>
             </div>
@@ -6875,7 +6880,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div style="padding: 8px;">
                 <!-- Line Actions -->
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <ha-button @click=${this._openLineForm} raised>
+                    <ha-button @click=${this._openLineForm}>
                         <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                         Add Line
                     </ha-button>
@@ -7091,7 +7096,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Channel Actions -->
                     <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                        <ha-button @click=${this._openChannelForm} raised>
+                        <ha-button @click=${this._openChannelForm}>
                             <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
                             Add Channel
                         </ha-button>
@@ -7624,7 +7629,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-button>
                 </div>
                 <div slot="secondaryAction">
-                    <ha-button @click=${this._closeChannelForm}>
+                    <ha-button @click=${this._closeChannelForm} appearance="plain">
                         Cancel
                     </ha-button>
                 </div>
@@ -8037,6 +8042,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle line form tab change
+     * @param {CustomEvent} event - Tab change event
+     * @private
+     */
+    _handleLineFormTabChange(event) {
+        event.stopPropagation();
+        const tabValue = event.target.activeTab?.getAttribute('value');
+        if (tabValue) {
+            this._lineFormActiveSubtab = tabValue;
+            this.requestUpdate();
+        }
+    }
+
+    /**
      * Delete line overlay
      * @param {Object} line - Line to delete
      * @private
@@ -8209,38 +8228,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Subtabs -->
-                <div style="display: flex; gap: 8px; padding: 0 24px; border-bottom: 1px solid var(--divider-color); overflow-x: auto;">
-                    <button
-                        class="tab-button ${this._lineFormActiveSubtab === 'basic' ? 'active' : ''}"
-                        @click=${() => { this._lineFormActiveSubtab = 'basic'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'basic' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500; white-space: nowrap;">
-                        Basic
-                    </button>
-                    <button
-                        class="tab-button ${this._lineFormActiveSubtab === 'style' ? 'active' : ''}"
-                        @click=${() => { this._lineFormActiveSubtab = 'style'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'style' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500; white-space: nowrap;">
-                        Style
-                    </button>
-                    <button
-                        class="tab-button ${this._lineFormActiveSubtab === 'markers' ? 'active' : ''}"
-                        @click=${() => { this._lineFormActiveSubtab = 'markers'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'markers' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500; white-space: nowrap;">
-                        Markers
-                    </button>
-                    <button
-                        class="tab-button ${this._lineFormActiveSubtab === 'animation' ? 'active' : ''}"
-                        @click=${() => { this._lineFormActiveSubtab = 'animation'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'animation' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500; white-space: nowrap;">
-                        Animation
-                    </button>
-                    <button
-                        class="tab-button ${this._lineFormActiveSubtab === 'routing' ? 'active' : ''}"
-                        @click=${() => { this._lineFormActiveSubtab = 'routing'; this.requestUpdate(); }}
-                        style="padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid ${this._lineFormActiveSubtab === 'routing' ? 'var(--primary-color)' : 'transparent'}; cursor: pointer; font-weight: 500; white-space: nowrap;">
-                        Routing
-                    </button>
-                </div>
+                <ha-tab-group @wa-tab-show=${this._handleLineFormTabChange} style="padding: 0 24px;">
+                    <ha-tab-group-tab value="basic" ?active=${this._lineFormActiveSubtab === 'basic'}>Basic</ha-tab-group-tab>
+                    <ha-tab-group-tab value="style" ?active=${this._lineFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
+                    <ha-tab-group-tab value="markers" ?active=${this._lineFormActiveSubtab === 'markers'}>Markers</ha-tab-group-tab>
+                    <ha-tab-group-tab value="animation" ?active=${this._lineFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
+                    <ha-tab-group-tab value="routing" ?active=${this._lineFormActiveSubtab === 'routing'}>Routing</ha-tab-group-tab>
+                </ha-tab-group>
 
                 <!-- Subtab Content -->
                 <div style="padding: 16px; max-height: 60vh; overflow-y: auto;">
@@ -8255,7 +8249,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <div slot="secondaryAction">
-                    <ha-button @click=${this._closeLineForm}>
+                    <ha-button @click=${this._closeLineForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="icon"></ha-icon>
                         Cancel
                     </ha-button>
@@ -9571,7 +9565,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ">
                 <ha-icon icon="mdi:alert-circle" style="--mdc-icon-size: 20px;"></ha-icon>
                 <span><strong>${errorCount}</strong> validation error${errorCount > 1 ? 's' : ''} found</span>
-                <ha-button @click=${this._showValidationErrors} style="margin-left: auto;">
+                <ha-button @click=${this._showValidationErrors} appearance="plain" style="margin-left: auto;">
                     View Details
                 </ha-button>
             </div>
@@ -9765,7 +9759,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-icon icon="mdi:information" style="--mdc-icon-size: 18px;"></ha-icon>
                             <span><strong>MSD Configuration Studio</strong> - Full-featured editor for Master Systems Display cards</span>
                         </div>
-                        <ha-button style="--mdc-theme-primary: white;" @click=${() => window.open('https://github.com/snootched/LCARdS/tree/main/doc', '_blank')}>
+                        <ha-button @click=${() => window.open('https://github.com/snootched/LCARdS/tree/main/doc', '_blank')}>
                             <ha-icon icon="mdi:book-open-variant" slot="icon"></ha-icon>
                             Documentation
                         </ha-button>
