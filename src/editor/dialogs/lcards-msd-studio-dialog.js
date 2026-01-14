@@ -119,7 +119,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Resize State (for interactive control resizing)
             _resizeState: { type: Object, state: true },
             // Anchor Drag State (for interactive anchor dragging)
-            _anchorDragState: { type: Object, state: true }
+            _anchorDragState: { type: Object, state: true },
+            // Channel Resize State (for interactive channel resizing)
+            _channelResizeState: { type: Object, state: true }
         };
     }
 
@@ -254,6 +256,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             anchorName: null,
             startPos: null,
             originalPos: null
+        };
+
+        // Channel Resize State
+        this._channelResizeState = {
+            active: false,
+            channelId: null,
+            handle: null,  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
+            startPos: null,
+            startBounds: null
         };
 
         lcardsLog.debug('[MSDStudio] Initialized');
@@ -786,6 +797,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 height: 16px !important;
                 box-shadow: 0 0 16px rgba(255, 153, 0, 0.9) !important;
                 opacity: 0.9;
+            }
+
+            /* Interactive Channels */
+            .interactive-channel {
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+
+            .interactive-channel:hover {
+                border-color: #00FFFF !important;
+                border-width: 3px !important;
+                box-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+            }
+
+            .channel-resizing {
+                border-color: #9900FF !important;
+                border-width: 3px !important;
+                box-shadow: 0 0 16px rgba(153, 0, 255, 0.8);
+                opacity: 0.8;
             }
 
             @media (max-width: 1024px) {
@@ -2232,6 +2261,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
+        // Handle active channel resize
+        if (this._channelResizeState.active) {
+            this._handleChannelResize(event);
+            return;
+        }
+
         // Track cursor for crosshair guidelines (when enabled OR in placement modes)
         const shouldTrackCursor = this._showCrosshairs ||
             this._activeMode === MODES.PLACE_ANCHOR ||
@@ -2453,7 +2488,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleDragEnd(event) {
-        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active) return;
+        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active) return;
 
         if (this._dragState.active) {
             lcardsLog.info('[MSDStudio] Drag end:', this._dragState.controlId);
@@ -2498,6 +2533,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 anchorName: null,
                 startPos: null,
                 originalPos: null
+            };
+        }
+
+        if (this._channelResizeState.active) {
+            lcardsLog.info('[MSDStudio] Channel resize end:', this._channelResizeState.channelId);
+
+            // Clear channel resize state
+            this._channelResizeState = {
+                active: false,
+                channelId: null,
+                handle: null,
+                startPos: null,
+                startBounds: null
             };
         }
 
@@ -2801,6 +2849,206 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._anchorFormPosition = [...position];
         this._anchorFormUnit = 'vb';
         this._showAnchorForm = true;
+
+        this.requestUpdate();
+    }
+
+    // ============================
+    // Channel Resize Methods
+    // ============================
+
+    /**
+     * Render resize handles for a channel
+     * @param {string} channelId - Channel ID
+     * @param {number} pixelWidth - Width in pixels
+     * @param {number} pixelHeight - Height in pixels
+     * @param {boolean} isResizing - Whether this channel is being resized
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelResizeHandles(channelId, pixelWidth, pixelHeight, isResizing) {
+        const handles = ['tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'];
+
+        return html`
+            ${handles.map(handle => {
+                const isActive = isResizing && this._channelResizeState.handle === handle;
+                return html`
+                    <div
+                        class="resize-handle ${handle} ${isActive ? 'active' : ''}"
+                        data-handle="${handle}"
+                        style="background: #00FFAA; border-color: #00FFAA;"
+                        @mousedown=${(e) => this._handleChannelResizeStart(e, channelId, handle)}>
+                    </div>
+                `;
+            })}
+        `;
+    }
+
+    /**
+     * Handle channel resize start
+     * @param {MouseEvent} event - Mouse down event
+     * @param {string} channelId - Channel ID
+     * @param {string} handle - Handle position
+     * @private
+     */
+    _handleChannelResizeStart(event, channelId, handle) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Channel resize start:', channelId, handle);
+
+        // Get channel
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[channelId];
+        if (!channel || !channel.bounds) {
+            lcardsLog.warn('[MSDStudio] Channel not found or has no bounds:', channelId);
+            return;
+        }
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get coordinates for channel resize start');
+            return;
+        }
+
+        // Set resize state
+        this._channelResizeState = {
+            active: true,
+            channelId,
+            handle,
+            startPos: [coords.x, coords.y],
+            startBounds: [...channel.bounds]
+        };
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle channel resize move
+     * @param {MouseEvent} event - Mouse move event
+     * @private
+     */
+    _handleChannelResize(event) {
+        if (!this._channelResizeState.active) return;
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        // Calculate delta from start
+        const deltaX = coords.x - this._channelResizeState.startPos[0];
+        const deltaY = coords.y - this._channelResizeState.startPos[1];
+
+        // Get channel
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[this._channelResizeState.channelId];
+        if (!channel) return;
+
+        const [startX, startY, startWidth, startHeight] = this._channelResizeState.startBounds;
+        const handle = this._channelResizeState.handle;
+
+        let newX = startX;
+        let newY = startY;
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+
+        // Apply resize based on handle (same logic as control resize)
+        switch (handle) {
+            case 'tl': // Top-left corner
+                newWidth = startWidth - deltaX;
+                newHeight = startHeight - deltaY;
+                newX = startX + deltaX;
+                newY = startY + deltaY;
+                break;
+            case 't': // Top edge
+                newHeight = startHeight - deltaY;
+                newY = startY + deltaY;
+                break;
+            case 'tr': // Top-right corner
+                newWidth = startWidth + deltaX;
+                newHeight = startHeight - deltaY;
+                newY = startY + deltaY;
+                break;
+            case 'r': // Right edge
+                newWidth = startWidth + deltaX;
+                break;
+            case 'br': // Bottom-right corner
+                newWidth = startWidth + deltaX;
+                newHeight = startHeight + deltaY;
+                break;
+            case 'b': // Bottom edge
+                newHeight = startHeight + deltaY;
+                break;
+            case 'bl': // Bottom-left corner
+                newWidth = startWidth - deltaX;
+                newHeight = startHeight + deltaY;
+                newX = startX + deltaX;
+                break;
+            case 'l': // Left edge
+                newWidth = startWidth - deltaX;
+                newX = startX + deltaX;
+                break;
+        }
+
+        // Apply minimum size constraints
+        const minSize = 50;
+        if (newWidth < minSize) {
+            newWidth = minSize;
+            if (handle.includes('l')) {
+                newX = startX + startWidth - minSize;
+            }
+        }
+        if (newHeight < minSize) {
+            newHeight = minSize;
+            if (handle.includes('t')) {
+                newY = startY + startHeight - minSize;
+            }
+        }
+
+        // Apply grid snapping if enabled
+        if (this._enableSnapping && this._gridSpacing) {
+            newWidth = Math.round(newWidth / this._gridSpacing) * this._gridSpacing;
+            newHeight = Math.round(newHeight / this._gridSpacing) * this._gridSpacing;
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        // Update channel bounds
+        channel.bounds = [newX, newY, newWidth, newHeight];
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle channel double-click to edit
+     * @param {MouseEvent} event - Double-click event
+     * @param {string} channelId - Channel ID
+     * @private
+     */
+    _handleChannelDoubleClick(event, channelId) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Channel double-click:', channelId);
+
+        // Get channel
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[channelId];
+        if (!channel) {
+            lcardsLog.warn('[MSDStudio] Channel not found:', channelId);
+            return;
+        }
+
+        // Open channel form in edit mode
+        this._editingChannelId = channelId;
+        this._channelFormData = {
+            id: channelId,
+            type: channel.type || 'bundling',
+            bounds: channel.bounds ? [...channel.bounds] : [0, 0, 100, 50],
+            priority: channel.priority || 10,
+            color: channel.color || '#00FF00'
+        };
 
         this.requestUpdate();
     }
@@ -4501,19 +4749,30 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const pixelY = (rect.top - panelRect.top) + svgPixelY;
 
                     const color = channel.color || '#00FFAA';
+                    const isResizing = this._channelResizeState.active && this._channelResizeState.channelId === channelId;
 
                     return html`
-                        <!-- Channel rectangle -->
-                        <div style="
-                            position: absolute;
-                            left: ${pixelX}px;
-                            top: ${pixelY}px;
-                            width: ${pixelWidth}px;
-                            height: ${pixelHeight}px;
-                            border: 2px dashed ${color};
-                            background: ${color}22;
-                            opacity: 0.6;
-                        "></div>
+                        <!-- Channel rectangle (interactive) -->
+                        <div
+                            class="interactive-channel ${isResizing ? 'channel-resizing' : ''}"
+                            data-channel-id="${channelId}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                width: ${pixelWidth}px;
+                                height: ${pixelHeight}px;
+                                border: 2px dashed ${color};
+                                background: ${color}22;
+                                opacity: 0.6;
+                                pointer-events: auto;
+                                cursor: grab;
+                            "
+                            @dblclick=${(e) => this._handleChannelDoubleClick(e, channelId)}>
+
+                            <!-- Resize Handles (only render when not dragging) -->
+                            ${this._renderChannelResizeHandles(channelId, pixelWidth, pixelHeight, isResizing)}
+                        </div>
                         <!-- Channel ID label -->
                         <div style="
                             position: absolute;
@@ -4527,6 +4786,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             font-size: 10px;
                             font-weight: 700;
                             white-space: nowrap;
+                            pointer-events: none;
                         ">
                             ${channelId}
                         </div>
