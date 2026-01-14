@@ -117,7 +117,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Drag State (for interactive control dragging)
             _dragState: { type: Object, state: true },
             // Resize State (for interactive control resizing)
-            _resizeState: { type: Object, state: true }
+            _resizeState: { type: Object, state: true },
+            // Anchor Drag State (for interactive anchor dragging)
+            _anchorDragState: { type: Object, state: true }
         };
     }
 
@@ -244,6 +246,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             startPos: null,
             startSize: null,
             startPosition: null
+        };
+
+        // Anchor Drag State
+        this._anchorDragState = {
+            active: false,
+            anchorName: null,
+            startPos: null,
+            originalPos: null
         };
 
         lcardsLog.debug('[MSDStudio] Initialized');
@@ -751,6 +761,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
             .resize-handle.b  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
             .resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
             .resize-handle.l  { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+
+            /* Interactive Anchors */
+            .interactive-anchor {
+                cursor: grab;
+                transition: all 0.2s;
+            }
+
+            .interactive-anchor:hover {
+                background: #FFFF00 !important;
+                width: 16px !important;
+                height: 16px !important;
+                box-shadow: 0 0 12px rgba(255, 255, 0, 0.8) !important;
+            }
+
+            .interactive-anchor:active {
+                cursor: grabbing;
+            }
+
+            .anchor-dragging {
+                cursor: grabbing !important;
+                background: #FF9900 !important;
+                width: 16px !important;
+                height: 16px !important;
+                box-shadow: 0 0 16px rgba(255, 153, 0, 0.9) !important;
+                opacity: 0.9;
+            }
 
             @media (max-width: 1024px) {
                 .studio-layout {
@@ -2190,6 +2226,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
+        // Handle active anchor drag
+        if (this._anchorDragState.active) {
+            this._handleAnchorDrag(event);
+            return;
+        }
+
         // Track cursor for crosshair guidelines (when enabled OR in placement modes)
         const shouldTrackCursor = this._showCrosshairs ||
             this._activeMode === MODES.PLACE_ANCHOR ||
@@ -2411,7 +2453,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleDragEnd(event) {
-        if (!this._dragState.active && !this._resizeState.active) return;
+        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active) return;
 
         if (this._dragState.active) {
             lcardsLog.info('[MSDStudio] Drag end:', this._dragState.controlId);
@@ -2444,6 +2486,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 startPos: null,
                 startSize: null,
                 startPosition: null
+            };
+        }
+
+        if (this._anchorDragState.active) {
+            lcardsLog.info('[MSDStudio] Anchor drag end:', this._anchorDragState.anchorName);
+
+            // Clear anchor drag state
+            this._anchorDragState = {
+                active: false,
+                anchorName: null,
+                startPos: null,
+                originalPos: null
             };
         }
 
@@ -2648,6 +2702,134 @@ export class LCARdSMSDStudioDialog extends LitElement {
         control.position = [newX, newY];
 
         this.requestUpdate();
+    }
+
+    // ============================
+    // Anchor Drag Methods
+    // ============================
+
+    /**
+     * Handle anchor drag start
+     * @param {MouseEvent} event - Mouse down event
+     * @param {string} anchorName - Anchor name
+     * @private
+     */
+    _handleAnchorDragStart(event, anchorName) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Anchor drag start:', anchorName);
+
+        // Get current anchor position
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const currentPos = anchors[anchorName];
+        if (!currentPos || !Array.isArray(currentPos)) {
+            lcardsLog.warn('[MSDStudio] Anchor not found for drag:', anchorName);
+            return;
+        }
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get coordinates for anchor drag start');
+            return;
+        }
+
+        // Set anchor drag state
+        this._anchorDragState = {
+            active: true,
+            anchorName,
+            startPos: [coords.x, coords.y],
+            originalPos: [...currentPos]
+        };
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle anchor drag move
+     * @param {MouseEvent} event - Mouse move event
+     * @private
+     */
+    _handleAnchorDrag(event) {
+        if (!this._anchorDragState.active) return;
+
+        // Get mouse position in ViewBox coordinates
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        let newX = coords.x;
+        let newY = coords.y;
+
+        // Apply grid snapping if enabled
+        if (this._enableSnapping && this._gridSpacing) {
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        // Update anchor position
+        const anchors = this._workingConfig.msd?.anchors || {};
+        if (anchors[this._anchorDragState.anchorName]) {
+            anchors[this._anchorDragState.anchorName] = [newX, newY];
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * Handle anchor double-click to edit
+     * @param {MouseEvent} event - Double-click event
+     * @param {string} anchorName - Anchor name
+     * @private
+     */
+    _handleAnchorDoubleClick(event, anchorName) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Anchor double-click:', anchorName);
+
+        // Get anchor position
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const position = anchors[anchorName];
+        if (!position || !Array.isArray(position)) {
+            lcardsLog.warn('[MSDStudio] Anchor not found:', anchorName);
+            return;
+        }
+
+        // Open anchor form in edit mode
+        this._editingAnchorName = anchorName;
+        this._anchorFormName = anchorName;
+        this._anchorFormPosition = [...position];
+        this._anchorFormUnit = 'vb';
+        this._showAnchorForm = true;
+
+        this.requestUpdate();
+    }
+
+    // ============================
+    // Control Double-Click Handler
+    // ============================
+
+    /**
+     * Handle control double-click to edit
+     * @param {MouseEvent} event - Double-click event
+     * @param {string} controlId - Control ID
+     * @private
+     */
+    _handleControlDoubleClick(event, controlId) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        lcardsLog.debug('[MSDStudio] Control double-click:', controlId);
+
+        // Find the control
+        const control = this._findControl(controlId);
+        if (!control) {
+            lcardsLog.warn('[MSDStudio] Control not found:', controlId);
+            return;
+        }
+
+        // Open control form in edit mode
+        this._openControlForm(control);
     }
 
     /**
@@ -3892,21 +4074,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     const isBaseSvg = !userAnchors[name];
                     const color = isBaseSvg ? '#888888' : '#FFFF00';
+                    const isDragging = this._anchorDragState.active && this._anchorDragState.anchorName === name;
 
                     return html`
                         <!-- Anchor marker -->
-                        <div style="
-                            position: absolute;
-                            left: ${pixelX}px;
-                            top: ${pixelY}px;
-                            transform: translate(-50%, -50%);
-                            width: 12px;
-                            height: 12px;
-                            background: ${color};
-                            border: 2px solid white;
-                            border-radius: 50%;
-                            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-                        "></div>
+                        <div
+                            class="${!isBaseSvg ? 'interactive-anchor' : ''} ${isDragging ? 'anchor-dragging' : ''}"
+                            data-anchor-name="${name}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                transform: translate(-50%, -50%);
+                                width: 12px;
+                                height: 12px;
+                                background: ${color};
+                                border: 2px solid white;
+                                border-radius: 50%;
+                                box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+                                pointer-events: ${!isBaseSvg ? 'auto' : 'none'};
+                            "
+                            @mousedown=${!isBaseSvg ? (e) => this._handleAnchorDragStart(e, name) : null}
+                            @dblclick=${!isBaseSvg ? (e) => this._handleAnchorDoubleClick(e, name) : null}>
+                        </div>
                         <!-- Anchor label -->
                         <div style="
                             position: absolute;
@@ -4043,7 +4233,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 opacity: 0.6;
                                 pointer-events: auto;
                             "
-                            @mousedown=${(e) => this._handleDragStart(e, control.id)}>
+                            @mousedown=${(e) => this._handleDragStart(e, control.id)}
+                            @dblclick=${(e) => this._handleControlDoubleClick(e, control.id)}>
 
                             <!-- Resize Handles -->
                             ${this._renderResizeHandles(control.id, pixelWidth, pixelHeight, isResizing)}
