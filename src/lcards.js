@@ -136,27 +136,13 @@ async function initializeCustomCard() {
         window.lcards.theme = lcardsCore.getThemeManager();
         lcardsLog.debug('[lcards.js] ✅ ThemeManager exposed at window.lcards.theme for MSD compatibility');
 
-        // Preload builtin SVGs into AssetManager
-        if (lcardsCore.assetManager) {
-            for (const key of LCARdS.builtin_svg_keys) {
-                const url = `${LCARdS.builtin_svg_basepath}${key}.svg`;
-                lcardsCore.assetManager.register('svg', key, null, {
-                    url,
-                    pack: 'builtin',
-                    source: 'builtin'
-                });
-            }
-            lcardsLog.info(`[lcards.js] ✅ Registered ${LCARdS.builtin_svg_keys.length} builtin SVGs with AssetManager`);
-        }
+        // Builtin SVGs are now registered via builtin_msd_backgrounds pack
+        // (automatically loaded by PackManager during core initialization)
 
     } catch (error) {
         lcardsLog.warn('[lcards.js] ⚠️ Core singleton initialization deferred (will init on first card):', error);
         // This is okay - singletons will initialize when first card loads with real HASS
     }
-
-    // Await SVG preload into legacy cache for backward compatibility
-    await preloadSVGs(LCARdS.builtin_svg_keys, LCARdS.builtin_svg_basepath)
-        .catch(error => lcardsLog.error('[initializeCustomCard] Error preloading built-in SVGs:', error));
 
     // Await font loading if loadCoreFonts is async
     await loadCoreFonts();

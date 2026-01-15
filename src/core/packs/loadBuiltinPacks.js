@@ -2,6 +2,7 @@ import * as componentsRegistry from './components/index.js';
 import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
 import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
 import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
+import { BUILTIN_MSD_SVG_PACK } from './svg-assets/builtin-msd.js';
 import { registerBuiltinAnimationPresets } from './animations/index.js';
 
 /**
@@ -79,7 +80,8 @@ const BUILTIN_REGISTRY = {
   core: CORE_PACK,
   lcards_buttons: LCARDS_BUTTONS_PACK,
   lcards_sliders: LCARDS_SLIDERS_PACK,
-  builtin_themes: BUILTIN_THEMES_PACK
+  builtin_themes: BUILTIN_THEMES_PACK,
+  builtin_msd_backgrounds: BUILTIN_MSD_SVG_PACK
 };
 
 // Remove getBuiltinPack() function entirely - it's not needed anymore
@@ -88,9 +90,9 @@ const BUILTIN_REGISTRY = {
 export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_sliders']) {
   // Register animation presets during pack loading
   registerBuiltinAnimationPresets();
-  
-  // ✅ CRITICAL FIX: Always load builtin_themes pack for theme system
-  const packsToLoad = [...new Set([...requested, 'builtin_themes'])];
+
+  // ✅ CRITICAL FIX: Always load builtin_themes and builtin_msd_backgrounds packs
+  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds'])];
 
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }
