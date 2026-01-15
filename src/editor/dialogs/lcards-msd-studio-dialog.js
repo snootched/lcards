@@ -921,20 +921,204 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     /**
      * Render SVG source helper text
+     * @param {string} source - The SVG source value from config
      * @returns {TemplateResult}
      * @private
      */
-    _renderSvgSourceHelper() {
+    _renderSvgSourceHelper(source = '') {
+        let metadata = null;
+        let svgKey = null;
+        let isBuiltin = false;
+        let isExternal = false;
+
+        // Extract SVG key and determine source type
+        if (source.startsWith('builtin:')) {
+            svgKey = source.replace('builtin:', '');
+            isBuiltin = true;
+        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/')) {
+            svgKey = source.split('/').pop().replace('.svg', '');
+            isExternal = true;
+        } else if (source.startsWith('http://') || source.startsWith('https://')) {
+            svgKey = source.split('/').pop().replace('.svg', '');
+            isExternal = true;
+        } else if (source) {
+            // Fallback: try using source directly as key (for cases where builtin: prefix might be missing)
+            svgKey = source;
+            isBuiltin = true;
+        }
+
+        // Get metadata from AssetManager if available
+        const assetManager = window.lcards?.core?.assetManager;
+        if (assetManager && svgKey) {
+                metadata = assetManager.getMetadata('svg', svgKey);
+            }
+
+        // If we have metadata with rich fields (beyond just pack/url), show placard
+        // Don't be strict about specific fields - metadata is freeform
+        const hasRichMetadata = metadata && Object.keys(metadata).length > 2;
+
+        if (hasRichMetadata) {
+            return html`
+                <div style="
+                    margin-top: 12px;
+                    padding: 16px;
+                    background: linear-gradient(135deg, #4A5C7A 0%, #2C3E50 100%);
+                    border-radius: 8px;
+                    color: white;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+                ">
+                    <!-- Header -->
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        margin-bottom: 12px;
+                        border-bottom: 2px solid rgba(255,255,255,0.3);
+                        padding-bottom: 10px;
+                    ">
+                        <div style="flex: 1;">
+                            <div style="font-size: 20px; font-weight: 700; letter-spacing: 1px; line-height: 1.2;">
+                                ${metadata.ship || svgKey}
+                            </div>
+                            ${metadata.registry ? html`
+                                <div style="font-size: 16px; font-weight: 300; letter-spacing: 2px; opacity: 0.9; margin-top: 2px;">
+                                    ${metadata.registry}
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${metadata.era ? html`
+                            <div style="
+                                background: rgba(255,255,255,0.2);
+                                padding: 4px 10px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                font-weight: 600;
+                                letter-spacing: 0.5px;
+                                text-transform: uppercase;
+                                white-space: nowrap;
+                            ">
+                                ${metadata.era}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Ship Details Grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 12px; font-size: 13px; line-height: 1.5;">
+                        ${metadata.class ? html`
+                            <div>
+                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Class</div>
+                                <div style="font-weight: 500;">${metadata.class}</div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.approximate_size ? html`
+                            <div>
+                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">File Size</div>
+                                <div style="font-weight: 500;">${metadata.approximate_size}</div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.author ? html`
+                            <div>
+                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Author</div>
+                                <div style="font-weight: 500;">${metadata.author}</div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.source ? html`
+                            <div>
+                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Source</div>
+                                <div style="font-weight: 500;">${metadata.source}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Description -->
+                    ${metadata.description ? html`
+                        <div style="
+                            font-size: 12px;
+                            line-height: 1.6;
+                            opacity: 0.95;
+                            font-style: italic;
+                            background: rgba(0,0,0,0.15);
+                            padding: 8px 10px;
+                            border-radius: 4px;
+                            margin-bottom: 8px;
+                        ">
+                            ${metadata.description}
+                        </div>
+                    ` : ''}
+
+                    <!-- Variant Badge -->
+                    ${metadata.variant ? html`
+                        <div style="
+                            display: inline-block;
+                            background: rgba(255,255,255,0.25);
+                            padding: 4px 10px;
+                            border-radius: 12px;
+                            font-size: 11px;
+                            font-weight: 600;
+                            letter-spacing: 0.5px;
+                        ">
+                            ✨ ${metadata.variant}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // External SVG without metadata - show file info
+        if (isExternal && source) {
+            const filename = source.split('/').pop();
+            const path = source.substring(0, source.lastIndexOf('/'));
+
+            return html`
+                <div style="
+                    margin-top: 12px;
+                    padding: 14px;
+                    background: var(--secondary-background-color);
+                    border-left: 4px solid var(--info-color, #2196F3);
+                    border-radius: 4px;
+                    font-size: 13px;
+                    line-height: 1.6;
+                ">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <ha-icon icon="mdi:file-document-outline" style="--mdc-icon-size: 20px; color: var(--info-color, #2196F3);"></ha-icon>
+                        <strong style="font-size: 14px;">External SVG File</strong>
+                    </div>
+
+                    <div style="display: grid; gap: 6px; font-size: 12px;">
+                        <div>
+                            <span style="opacity: 0.7;">Filename:</span>
+                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${filename}</code>
+                        </div>
+                        <div>
+                            <span style="opacity: 0.7;">Path:</span>
+                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${path}/</code>
+                        </div>
+                        <div>
+                            <span style="opacity: 0.7;">Full URL:</span>
+                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${source}</code>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider-color); font-size: 11px; opacity: 0.7;">
+                        💡 External SVGs don't have embedded metadata. The file will be loaded from the specified path when the card renders.
+                    </div>
+                </div>
+            `;
+        }
+
+        // Show general helper for custom SVG paths
         return html`
             <ha-alert alert-type="info">
-                <strong>Builtin Templates:</strong><br>
-                • builtin:ncc-1701-a (Enterprise-A)<br>
-                • builtin:ncc-1701-a-blue (Enterprise-A Blue)<br>
-                • builtin:ncc-1701-d (Enterprise-D)<br>
-                <br>
-                <strong>Custom SVG:</strong><br>
+                <strong>Custom SVG Paths:</strong><br>
                 • /local/my-ship.svg (from www/ folder)<br>
                 • /hacsfiles/lcards/ships/custom.svg<br>
+                • https://example.com/my-ship.svg<br>
+                <br>
+                <em>Provide a valid URL or local path to your custom SVG file.</em>
             </ha-alert>
         `;
     }
@@ -1180,7 +1364,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 <strong>ViewBox must be configured manually.</strong>
                             </ha-alert>
                         `}
-                        ${this._renderSvgSourceHelper()}
+                        ${this._renderSvgSourceHelper(baseSvg.source)}
                     </div>
                 </lcards-form-section>
 

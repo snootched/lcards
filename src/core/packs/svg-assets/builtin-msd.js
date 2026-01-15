@@ -31,7 +31,10 @@ export const BUILTIN_MSD_SVG_PACK = {
         class: 'Constitution-class (refit)',
         era: 'TOS Films (2280s)',
         description: 'Enterprise-A primary master systems display',
-        approximate_size: '180KB'
+        approximate_size: '180KB',
+        author: 'LCARdS Team',
+        source: 'Bundled with LCARdS',
+        license: 'MIT'
       }
     },
 
@@ -44,7 +47,10 @@ export const BUILTIN_MSD_SVG_PACK = {
         era: 'TOS Films (2280s)',
         variant: 'Blue Alert Overlay',
         description: 'Enterprise-A with blue alert status overlay',
-        approximate_size: '185KB'
+        approximate_size: '185KB',
+        author: 'LCARdS Team',
+        source: 'Bundled with LCARdS',
+        license: 'MIT'
       }
     },
 
@@ -56,7 +62,10 @@ export const BUILTIN_MSD_SVG_PACK = {
         class: 'Type-6 Shuttle',
         era: 'TNG (2360s-2370s)',
         description: 'Type-6 shuttlecraft systems display with anomaly indicators',
-        approximate_size: '142KB'
+        approximate_size: '142KB',
+        author: 'LCARdS Team',
+        source: 'Bundled with LCARdS',
+        license: 'MIT'
       }
     }
   }

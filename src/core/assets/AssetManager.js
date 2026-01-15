@@ -272,9 +272,15 @@ export class AssetManager extends BaseService {
         content = await response.text();
       }
 
-      // Re-register with content
+      // Get existing metadata before re-registering
+      const registry = this.getRegistry(type);
+      const existingAsset = registry.assets.get(key);
+      const existingMetadata = existingAsset?.metadata || {};
+
+      // Re-register with content, preserving existing metadata
       this.register(type, key, content, {
-        source: 'external',
+        ...existingMetadata,  // Preserve all existing metadata
+        source: existingMetadata.source || 'external',  // Don't overwrite source if it exists
         url,
         loadedAt: Date.now()
       });
@@ -313,13 +319,13 @@ export class AssetManager extends BaseService {
           this.register('svg', key, null, {
             pack: packName,
             url: def.url,
-            metadata: def.metadata
+            ...def.metadata  // Flatten metadata into top-level
           });
         } else if (def.content) {
           // Explicit content field
           this.register('svg', key, def.content, {
             pack: packName,
-            metadata: def.metadata
+            ...def.metadata  // Flatten metadata into top-level
           });
         }
       });
