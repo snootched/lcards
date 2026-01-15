@@ -533,7 +533,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleCancel() {
-        if (this._configHasChanges() && !this._confirmAction('Discard unsaved changes?')) {
+        if (this._configHasChanges()) {
+            // Show confirmation - only close if user confirms
+            this._confirmAction('Discard unsaved changes?').then(confirmed => {
+                if (confirmed) {
+                    lcardsLog.debug('[MSDStudio] Cancelled - changes discarded');
+                    this._handleClose();
+                }
+                // If not confirmed, do nothing - stay in studio
+            });
             return;
         }
         lcardsLog.debug('[MSDStudio] Cancelled');
@@ -9072,6 +9080,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const cancelButton = document.createElement('ha-button');
             cancelButton.slot = 'secondaryAction';
             cancelButton.textContent = 'Cancel';
+            cancelButton.dialogAction = 'cancel';
+            cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
                 dialog.close();
                 resolve(false);
@@ -9079,8 +9089,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             const confirmButton = document.createElement('ha-button');
             confirmButton.slot = 'primaryAction';
-            confirmButton.textContent = 'Confirm';
-            confirmButton.style.cssText = '--mdc-theme-primary: var(--error-color, #f44336)';
+            confirmButton.textContent = 'Discard';
+            confirmButton.dialogAction = 'discard';
+            confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
                 dialog.close();
                 resolve(true);
