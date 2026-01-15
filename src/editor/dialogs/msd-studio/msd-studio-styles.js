@@ -14,6 +14,11 @@ export const msdStudioStyles = css`
         display: block;
     }
 
+    /* Override HA button fonts to use theme font */
+    ha-button {
+        font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+    }
+
     /* ha-dialog Sizing */
     ha-dialog {
         --mdc-dialog-min-width: 95vw;
@@ -135,7 +140,6 @@ export const msdStudioStyles = css`
 
     .zoom-controls ha-icon-button {
         --mdc-icon-button-size: 36px;
-        --mdc-icon-size: 20px;
         color: white;
         display: flex;
         align-items: center;

@@ -25,18 +25,6 @@ const ASSET_TYPES = {
     lazyLoad: true,
     maxSize: 2 * 1024 * 1024 // 2 MB
   },
-  button: {
-    description: 'Button component functions',
-    sanitize: false,
-    cache: true,
-    lazyLoad: false
-  },
-  slider: {
-    description: 'Slider component functions',
-    sanitize: false,
-    cache: true,
-    lazyLoad: false
-  },
   font: {
     description: 'Custom font files',
     sanitize: false,
@@ -145,7 +133,7 @@ export class AssetManager extends BaseService {
     super();
     this.registries = new Map();
     this.config = ASSET_TYPES;
-    
+
     lcardsLog.debug('[AssetManager] Initialized');
   }
 
@@ -155,12 +143,12 @@ export class AssetManager extends BaseService {
    */
   async initialize() {
     lcardsLog.debug('[AssetManager] Initializing registries for supported types');
-    
+
     // Create registries for all asset types
     Object.entries(this.config).forEach(([type, config]) => {
       this.registries.set(type, new AssetRegistry(type, config));
     });
-    
+
     lcardsLog.info('[AssetManager] Ready - supported types:', Object.keys(this.config));
   }
 
@@ -173,11 +161,11 @@ export class AssetManager extends BaseService {
     if (!this.config[type]) {
       throw new Error(`[AssetManager] Unknown asset type: ${type}`);
     }
-    
+
     if (!this.registries.has(type)) {
       this.registries.set(type, new AssetRegistry(type, this.config[type]));
     }
-    
+
     return this.registries.get(type);
   }
 
@@ -292,7 +280,7 @@ export class AssetManager extends BaseService {
       });
 
       lcardsLog.debug(`[AssetManager] Loaded ${type}: ${key} (${this._getSize(content)} bytes)`);
-      
+
       return content;
     } catch (error) {
       lcardsLog.error(`[AssetManager] Failed to load ${type}:${key} from ${url}:`, error);
@@ -416,16 +404,16 @@ export class AssetManager extends BaseService {
   /**
    * Load SVG from source with auto-registration
    * Handles builtin, /local/, and external URLs automatically
-   * 
+   *
    * @param {string} source - SVG source ('builtin:name', '/local/path.svg', 'http://...')
    * @returns {Promise<string|null>} SVG content or null
    * @example
    * // Load builtin SVG
    * const svg = await assetManager.loadSvg('builtin:lcars_master_systems_display_002');
-   * 
+   *
    * // Load from /local/
    * const svg = await assetManager.loadSvg('/local/custom.svg');
-   * 
+   *
    * // Load from external URL
    * const svg = await assetManager.loadSvg('https://example.com/graphic.svg');
    */

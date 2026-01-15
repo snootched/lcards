@@ -9128,11 +9128,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <div slot="secondaryAction">
-                    <ha-button @click=${this._handleReset}>
+                    <ha-button @click=${this._handleReset} appearance="plain" variant="warning">
                         <ha-icon icon="mdi:restore" slot="icon"></ha-icon>
                         Reset
                     </ha-button>
-                    <ha-button @click=${this._handleCancel}>
+                    <ha-button @click=${this._handleCancel} appearance="plain">
                         <ha-icon icon="mdi:close" slot="icon"></ha-icon>
                         Cancel
                     </ha-button>
