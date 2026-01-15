@@ -9159,44 +9159,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
 
                         <!-- Preview Panel (40%) -->
-                        <div class="preview-panel mode-${this._activeMode}"
-                             @click=${this._handlePreviewClick}
-                             @mousemove=${this._handlePreviewMouseMove}
-                             @mouseleave=${this._handlePreviewMouseLeave}>
+                        <div class="preview-panel mode-${this._activeMode}">
 
-                            <!-- Zoomable preview container -->
-                            <div style="transform: scale(${this._previewZoom}); transform-origin: top left; transition: transform 0.2s ease;">
-                                <lcards-msd-live-preview
-                                    .hass=${this.hass}
-                                    .config=${this._workingConfig}
-                                    .debugSettings=${this._getDebugSettings()}
-                                    .showRefreshButton=${true}>
-                                </lcards-msd-live-preview>
-                            </div>
+                            <!-- Scrollable content container -->
+                            <div class="preview-scroll-container"
+                                 @click=${this._handlePreviewClick}
+                                 @mousemove=${this._handlePreviewMouseMove}
+                                 @mouseleave=${this._handlePreviewMouseLeave}>
 
-                            <!-- Zoom Controls -->
-                            <div class="zoom-controls">
-                                <ha-icon-button
-                                    @click=${(e) => { e.stopPropagation(); this._zoom(0.9); }}
-                                    title="Zoom Out">
-                                    <ha-icon icon="mdi:magnify-minus"></ha-icon>
-                                </ha-icon-button>
-                                <span class="zoom-level">${Math.round(this._previewZoom * 100)}%</span>
-                                <ha-icon-button
-                                    @click=${(e) => { e.stopPropagation(); this._zoom(1.1); }}
-                                    title="Zoom In">
-                                    <ha-icon icon="mdi:magnify-plus"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${(e) => { e.stopPropagation(); this._resetZoom(); }}
-                                    title="Reset Zoom (100%)">
-                                    <ha-icon icon="mdi:fit-to-page"></ha-icon>
-                                </ha-icon-button>
-                            </div>
+                                <!-- Zoomable preview container -->
+                                <div style="transform: scale(${this._previewZoom}); transform-origin: top left; transition: transform 0.2s ease;">
+                                    <lcards-msd-live-preview
+                                        .hass=${this.hass}
+                                        .config=${this._workingConfig}
+                                        .debugSettings=${this._getDebugSettings()}
+                                        .showRefreshButton=${true}>
+                                    </lcards-msd-live-preview>
+                                </div>
 
-                            <!-- Draw Channel Rectangle Overlay -->
-                            ${this._renderDrawChannelOverlay()}
-
+                                <!-- Draw Channel Rectangle Overlay -->
+                                ${this._renderDrawChannelOverlay()}
                             <!-- Crosshair Guidelines -->
                             ${this._renderCrosshairGuidelines()}
 
@@ -9217,9 +9199,31 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Attachment Points (Connect Line Mode) -->
                             ${this._renderAttachmentPointsOverlay()}
+                            </div>
+                            <!-- End scrollable container -->
 
-                            <!-- Canvas Toolbar (Floating) -->
+                            <!-- Canvas Toolbar (Floating - outside scroll) -->
                             ${this._renderCanvasToolbar()}
+
+                            <!-- Zoom Controls (outside scroll) -->
+                            <div class="zoom-controls">
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._zoom(0.9); }}
+                                    title="Zoom Out">
+                                    <ha-icon icon="mdi:magnify-minus"></ha-icon>
+                                </ha-icon-button>
+                                <span class="zoom-level">${Math.round(this._previewZoom * 100)}%</span>
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._zoom(1.1); }}
+                                    title="Zoom In">
+                                    <ha-icon icon="mdi:magnify-plus"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._resetZoom(); }}
+                                    title="Reset Zoom (100%)">
+                                    <ha-icon icon="mdi:fit-to-page"></ha-icon>
+                                </ha-icon-button>
+                            </div>
 
                             <!-- Grid Settings Popup (when opened) -->
                             ${this._renderGridSettingsPopup()}

@@ -216,7 +216,13 @@ export const msdStudioStyles = css`
         position: relative;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+    }
+
+    .preview-scroll-container {
+        flex: 1;
         overflow: auto;
+        position: relative;
     }
 
     /* Cursor feedback based on mode */
