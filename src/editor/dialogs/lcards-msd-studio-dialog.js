@@ -128,7 +128,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Channel Resize State (for interactive channel resizing)
             _channelResizeState: { type: Object, state: true },
             // Line Endpoint Drag State (TEST - for debugging)
-            _lineEndpointDragState: { type: Object, state: true }
+            _lineEndpointDragState: { type: Object, state: true },
+            // Preview Zoom
+            _previewZoom: { type: Number, state: true }
         };
     }
 
@@ -190,6 +192,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._showAnchorMarkers = false;
         this._showBoundingBoxes = false;
         this._showRoutingPaths = false;
+
+        // Preview Zoom State
+        this._previewZoom = 1.0;
 
         // Controls Tab State
         this._showControlForm = false;
@@ -458,6 +463,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Mark config as dirty for change detection
         // This enables unsaved changes detection in _configHasChanges()
         this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Zoom preview by factor
+     * @param {number} factor - Zoom multiplier (e.g., 1.1 for 10% larger, 0.9 for 10% smaller)
+     * @private
+     */
+    _zoom(factor) {
+        this._previewZoom = Math.max(0.25, Math.min(4.0, this._previewZoom * factor));
+        this.requestUpdate();
+    }
+
+    /**
+     * Reset zoom to 100%
+     * @private
+     */
+    _resetZoom() {
+        this._previewZoom = 1.0;
+        this.requestUpdate();
     }
 
     /**
@@ -9139,12 +9163,36 @@ export class LCARdSMSDStudioDialog extends LitElement {
                              @click=${this._handlePreviewClick}
                              @mousemove=${this._handlePreviewMouseMove}
                              @mouseleave=${this._handlePreviewMouseLeave}>
-                            <lcards-msd-live-preview
-                                .hass=${this.hass}
-                                .config=${this._workingConfig}
-                                .debugSettings=${this._getDebugSettings()}
-                                .showRefreshButton=${true}>
-                            </lcards-msd-live-preview>
+
+                            <!-- Zoomable preview container -->
+                            <div style="transform: scale(${this._previewZoom}); transform-origin: top left; transition: transform 0.2s ease;">
+                                <lcards-msd-live-preview
+                                    .hass=${this.hass}
+                                    .config=${this._workingConfig}
+                                    .debugSettings=${this._getDebugSettings()}
+                                    .showRefreshButton=${true}>
+                                </lcards-msd-live-preview>
+                            </div>
+
+                            <!-- Zoom Controls -->
+                            <div class="zoom-controls">
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._zoom(0.9); }}
+                                    title="Zoom Out">
+                                    <ha-icon icon="mdi:magnify-minus"></ha-icon>
+                                </ha-icon-button>
+                                <span class="zoom-level">${Math.round(this._previewZoom * 100)}%</span>
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._zoom(1.1); }}
+                                    title="Zoom In">
+                                    <ha-icon icon="mdi:magnify-plus"></ha-icon>
+                                </ha-icon-button>
+                                <ha-icon-button
+                                    @click=${(e) => { e.stopPropagation(); this._resetZoom(); }}
+                                    title="Reset Zoom (100%)">
+                                    <ha-icon icon="mdi:fit-to-page"></ha-icon>
+                                </ha-icon-button>
+                            </div>
 
                             <!-- Draw Channel Rectangle Overlay -->
                             ${this._renderDrawChannelOverlay()}

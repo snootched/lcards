@@ -116,6 +116,46 @@ export const msdStudioStyles = css`
         color: white;
     }
 
+    /* Zoom Controls (Floating) */
+    .zoom-controls {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        border-radius: 24px;
+        padding: 8px 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+    }
+
+    .zoom-controls ha-icon-button {
+        --mdc-icon-button-size: 36px;
+        --mdc-icon-size: 20px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .zoom-controls ha-icon-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .zoom-level {
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        min-width: 48px;
+        text-align: center;
+        user-select: none;
+    }
+
     /* Grid Settings Popup */
     .grid-settings-popup {
         position: absolute;
@@ -176,7 +216,7 @@ export const msdStudioStyles = css`
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: auto;
     }
 
     /* Cursor feedback based on mode */
