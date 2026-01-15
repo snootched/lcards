@@ -450,6 +450,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Mark configuration as modified (dirty)
+     * Called when any configuration value changes
+     * @private
+     */
+    _markDirty() {
+        // Mark config as dirty for change detection
+        // This enables unsaved changes detection in _configHasChanges()
+        this._schedulePreviewUpdate();
+    }
+
+    /**
      * Detect SVG source mode from config
      * @private
      */
