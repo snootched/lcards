@@ -1,9 +1,0 @@
-# Test Simple Button with Lozenge Preset
-type: custom:lcards-button
-entity: light.living_room
-preset: 'lozenge'
-text: 'Living Room'
-action:
-  service: light.toggle
-  target:
-    entity_id: light.living_room
