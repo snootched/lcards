@@ -130,7 +130,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Line Endpoint Drag State (TEST - for debugging)
             _lineEndpointDragState: { type: Object, state: true },
             // Preview Zoom
-            _previewZoom: { type: Number, state: true }
+            _previewZoom: { type: Number, state: true },
+            // HA Components Availability
+            _haComponentsAvailable: { type: Boolean, state: true }
         };
     }
 
@@ -288,6 +290,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             originalTarget: null
         };
 
+        // HA Components Availability
+        this._haComponentsAvailable = false;
+
         lcardsLog.debug('[MSDStudio] Initialized');
     }
 
@@ -335,6 +340,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Detect SVG source mode from config
         this._detectSvgSourceMode();
+
+        // Attempt to load HA components (async, don't block initialization)
+        this._ensureHAComponentsLoaded().then(available => {
+            this._haComponentsAvailable = available;
+            if (!available) {
+                lcardsLog.warn('[MSDStudio] HA components unavailable, will use legacy card picker');
+            }
+            this.requestUpdate();
+        }).catch(error => {
+            lcardsLog.error('[MSDStudio] Error loading HA components:', error);
+            this._haComponentsAvailable = false;
+            this.requestUpdate();
+        });
 
         lcardsLog.debug('[MSDStudio] Opened with config:', this._workingConfig);
 
@@ -6145,11 +6163,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderControlFormCard() {
-        // Check HA component availability
-        const HuiCardPicker = customElements.get('hui-card-picker');
-        const HuiCardElementEditor = customElements.get('hui-card-element-editor');
+        // Debug HA components state when rendering card form
+        this._debugHAComponents();
 
-        if (!HuiCardPicker || !HuiCardElementEditor) {
+        // Check HA component availability using stored state
+        if (!this._haComponentsAvailable) {
             lcardsLog.warn('[MSDStudio] HA components unavailable, using legacy picker');
             return this._renderControlFormCardLegacy();
         }
@@ -6165,8 +6183,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderControlFormCardNative() {
         const cardType = this._controlFormCard?.type || '';
+        const lovelace = this._getLovelace();
 
-        lcardsLog.debug('[MSDStudio] Rendering Card tab with HA native components, cardType:', cardType);
+        lcardsLog.debug('[MSDStudio] Rendering Card tab with HA native components, cardType:', cardType, 'lovelace:', !!lovelace);
 
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -6179,7 +6198,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div class="card-picker-container" style="padding: 16px;">
                             <hui-card-picker
                                 .hass=${this.hass}
-                                .lovelace=${this._getRealLovelace()}
+                                .lovelace=${lovelace}
+                                .cardConfig=${{}}
                                 @config-changed=${this._handleCardPicked}>
                             </hui-card-picker>
                         </div>
@@ -6210,8 +6230,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div class="card-editor-container" style="padding: 16px;">
                             <hui-card-element-editor
                                 .hass=${this.hass}
-                                .lovelace=${this._getRealLovelace()}
+                                .lovelace=${lovelace}
                                 .value=${this._controlFormCard}
+                                .disabled=${false}
                                 @value-changed=${(e) => {
                                     lcardsLog.debug('[MSDStudio] Card config changed:', e.detail.value);
                                     this._controlFormCard = e.detail.value || { type: cardType };
@@ -6798,6 +6819,157 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
 
         return lovelaceConfig;
+    }
+
+    /**
+     * Ensure HA card picker components are loaded
+     * HA lazy-loads these components - we need to trigger loading
+     * @returns {Promise<boolean>} True if components loaded successfully
+     * @private
+     */
+    async _ensureHAComponentsLoaded() {
+        // Check if already loaded
+        const HuiCardPicker = customElements.get('hui-card-picker');
+        const HuiCardElementEditor = customElements.get('hui-card-element-editor');
+        
+        if (HuiCardPicker && HuiCardElementEditor) {
+            lcardsLog.debug('[MSDStudio] HA components already loaded');
+            return true;
+        }
+
+        lcardsLog.info('[MSDStudio] HA components not loaded, triggering load...');
+
+        try {
+            // Try to trigger component loading by accessing HA's card editor infrastructure
+            // Method 1: Try to get the card helper which may load components
+            const homeAssistant = document.querySelector('home-assistant');
+            if (homeAssistant?.hass) {
+                // Try to access card helper from hass
+                const cardHelper = homeAssistant.hass.connection?.subscribeMessage;
+                if (cardHelper) {
+                    lcardsLog.debug('[MSDStudio] Found card helper infrastructure');
+                }
+            }
+
+            // Method 2: Create temporary instances to force loading
+            // This triggers HA's lazy loading mechanism
+            const tempContainer = document.createElement('div');
+            tempContainer.style.display = 'none';
+            document.body.appendChild(tempContainer);
+
+            try {
+                const tempPicker = document.createElement('hui-card-picker');
+                tempContainer.appendChild(tempPicker);
+                
+                // Wait a moment for lazy loading to trigger
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Check if components are now defined
+                await Promise.race([
+                    Promise.all([
+                        customElements.whenDefined('hui-card-picker').catch(() => {}),
+                        customElements.whenDefined('hui-card-element-editor').catch(() => {})
+                    ]),
+                    new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
+                ]);
+            } finally {
+                // Clean up temporary container
+                document.body.removeChild(tempContainer);
+            }
+
+            // Final check
+            const finalCheck = customElements.get('hui-card-picker') && customElements.get('hui-card-element-editor');
+            if (finalCheck) {
+                lcardsLog.info('[MSDStudio] HA components loaded successfully');
+                return true;
+            } else {
+                lcardsLog.warn('[MSDStudio] HA components still not available after loading attempt');
+                return false;
+            }
+        } catch (error) {
+            lcardsLog.warn('[MSDStudio] Failed to load HA components:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get Lovelace instance for hui components with robust fallbacks
+     * Tries multiple access paths to find HA's Lovelace instance
+     * @returns {Object|null} Lovelace instance
+     * @private
+     */
+    _getLovelace() {
+        // Try accessing from hass object first (most reliable)
+        if (this.hass?.connection?.lovelace) {
+            lcardsLog.debug('[MSDStudio] Got Lovelace from hass.connection');
+            return this.hass.connection.lovelace;
+        }
+
+        // Try from home-assistant element
+        const homeAssistant = document.querySelector('home-assistant');
+        if (homeAssistant) {
+            // Try ha-panel-lovelace
+            const panel = homeAssistant.shadowRoot
+                ?.querySelector('home-assistant-main')
+                ?.shadowRoot?.querySelector('ha-panel-lovelace');
+            
+            if (panel?.lovelace) {
+                lcardsLog.debug('[MSDStudio] Got Lovelace from ha-panel-lovelace');
+                return panel.lovelace;
+            }
+
+            // Try direct lovelace property
+            if (homeAssistant.lovelace) {
+                lcardsLog.debug('[MSDStudio] Got Lovelace from home-assistant element');
+                return homeAssistant.lovelace;
+            }
+        }
+
+        // Last resort: try window.lovelace (deprecated but may exist)
+        if (window.lovelace) {
+            lcardsLog.warn('[MSDStudio] Using deprecated window.lovelace');
+            return window.lovelace;
+        }
+
+        // Fallback to _getRealLovelace() implementation
+        const realLovelace = this._getRealLovelace();
+        if (realLovelace) {
+            lcardsLog.debug('[MSDStudio] Got Lovelace from _getRealLovelace()');
+            return realLovelace;
+        }
+
+        lcardsLog.error('[MSDStudio] Could not access Lovelace instance');
+        return null;
+    }
+
+    /**
+     * Debug HA component state
+     * @private
+     */
+    _debugHAComponents() {
+        const HuiCardPicker = customElements.get('hui-card-picker');
+        const HuiCardElementEditor = customElements.get('hui-card-element-editor');
+        const lovelace = this._getLovelace();
+
+        lcardsLog.debug('[MSDStudio] HA Component State:', {
+            haComponentsAvailable: this._haComponentsAvailable,
+            HuiCardPicker: !!HuiCardPicker,
+            HuiCardElementEditor: !!HuiCardElementEditor,
+            lovelace: !!lovelace,
+            lovelaceConfig: lovelace?.config ? 'present' : 'missing',
+            lovelaceResources: lovelace?.config?.resources?.length || 0,
+            hass: !!this.hass,
+            hassStates: Object.keys(this.hass?.states || {}).length
+        });
+
+        if (!lovelace) {
+            lcardsLog.error('[MSDStudio] Lovelace not accessible - tried:');
+            lcardsLog.error('  - hass.connection.lovelace');
+            lcardsLog.error('  - ha-panel-lovelace.lovelace');
+            lcardsLog.error('  - home-assistant.lovelace');
+            lcardsLog.error('  - window.lovelace');
+            lcardsLog.error('  - _getRealLovelace()');
+        }
     }
 
     /**
