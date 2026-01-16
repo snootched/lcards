@@ -5935,10 +5935,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 open
                 @closed=${this._closeControlForm}
                 .heading=${title}
-                style="--mdc-dialog-min-width: 900px; --mdc-dialog-max-width: 1200px;">
+                style="--mdc-dialog-min-width: 1100px; --mdc-dialog-max-width: 1400px;">
 
                 <!-- Two-Column Layout: Config (Left) + Preview (Right) -->
-                <div style="display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 420px; gap: 24px; padding: 16px;">
 
                     <!-- LEFT COLUMN: Configuration Panel -->
                     <div class="config-panel">
@@ -6292,8 +6292,68 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _selectCardType(cardType) {
         lcardsLog.debug('[MSDStudio] Card type selected:', cardType);
-        this._controlFormCard = { type: cardType };
+
+        // Ensure custom cards have the custom: prefix
+        const normalizedType = this._normalizeCardTypeForConfig(cardType);
+
+        // Try to get stub config from the card's static method
+        const stubConfig = this._getCardStubConfig(normalizedType);
+        this._controlFormCard = stubConfig;
+
         this.requestUpdate();
+    }
+
+    /**
+     * Normalize card type for configuration (add custom: prefix if needed)
+     * @param {string} cardType - Raw card type
+     * @returns {string} Normalized type
+     * @private
+     */
+    _normalizeCardTypeForConfig(cardType) {
+        // If it's already prefixed, return as-is
+        if (cardType.startsWith('custom:')) {
+            return cardType;
+        }
+
+        // If it contains a hyphen and isn't a standard HA card, it's likely custom
+        if (cardType.includes('-')) {
+            // Check if it's a standard HA card type
+            const standardCards = ['picture-entity', 'picture-glance', 'weather-forecast', 'media-control', 'history-graph'];
+            if (!standardCards.includes(cardType)) {
+                return `custom:${cardType}`;
+            }
+        }
+
+        return cardType;
+    }
+
+    /**
+     * Get stub config from card's getStubConfig method
+     * @param {string} cardType - Card type (with custom: prefix if applicable)
+     * @returns {Object} Stub configuration
+     * @private
+     */
+    _getCardStubConfig(cardType) {
+        try {
+            // Get element name (remove custom: prefix for element lookup)
+            const elementName = cardType.startsWith('custom:')
+                ? cardType.substring(7)
+                : `hui-${cardType}-card`;
+
+            // Try to get the custom element
+            const CardClass = window.customElements?.get(elementName);
+
+            if (CardClass && typeof CardClass.getStubConfig === 'function') {
+                lcardsLog.debug('[MSDStudio] Using card stub config from:', elementName);
+                return CardClass.getStubConfig();
+            }
+        } catch (error) {
+            lcardsLog.warn('[MSDStudio] Failed to get stub config for:', cardType, error);
+        }
+
+        // Fallback: just return type
+        lcardsLog.debug('[MSDStudio] No stub config available, using type only:', cardType);
+        return { type: cardType };
     }
 
     /**
@@ -6419,88 +6479,141 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <!-- Visual Preview -->
-                <div style="background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 4px; padding: 8px;">
-                    <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">Visual Preview:</div>
-                    ${this._renderControlVisualization()}
-                </div>
+                <!-- Card Preview -->
+                ${cardType && cardType !== 'none' ? html`
+                    <div style="padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333;">
+                        <div style="font-size: 12px; font-weight: 500; margin-bottom: 12px; color: #999;">Card Preview</div>
+                        <div style="display: flex; justify-content: center; align-items: center; min-height: ${size[1] + 20}px; background: #000; border-radius: 4px; padding: 10px;">
+                            <div style="width: ${size[0]}px; height: ${size[1]}px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.4);">
+                                ${this._renderControlCardPreview()}
+                            </div>
+                        </div>
+                    </div>
+                ` : html`
+                    <div style="padding: 20px; text-align: center; color: var(--secondary-text-color);">
+                        <ha-icon icon="mdi:card-outline" style="font-size: 48px; opacity: 0.3;"></ha-icon>
+                        <div style="margin-top: 8px;">Select a card type to preview</div>
+                    </div>
+                `}
             </div>
         `;
     }
 
     /**
-     * Render Control Visualization (Simplified)
+     * Render live card preview
+     * Creates an actual card element from the control configuration
      * @returns {TemplateResult}
      * @private
      */
-    _renderControlVisualization() {
-        const size = this._controlFormSize;
-        const attachment = this._controlFormAttachment;
+    _renderControlCardPreview() {
+        const cardConfig = { ...this._controlFormCard };
 
-        // Calculate attachment point indicator position
-        let attachX = 0, attachY = 0;
-        if (attachment.includes('left')) attachX = 0;
-        else if (attachment.includes('right')) attachX = 100;
-        else attachX = 50;
+        if (!cardConfig.type) {
+            return html`<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--secondary-text-color); font-size: 12px;">No card type selected</div>`;
+        }
 
-        if (attachment.includes('top')) attachY = 0;
-        else if (attachment.includes('bottom')) attachY = 100;
-        else attachY = 50;
+        // Create a unique ID for this preview instance
+        const previewId = `control-card-preview-${Date.now()}`;
+
+        // Use afterNextRender to create the card element after the container is mounted
+        setTimeout(() => this._createPreviewCard(previewId, cardConfig), 0);
 
         return html`
-            <svg viewBox="0 0 280 180" style="width: 100%; height: auto; display: block;">
-                <!-- Background -->
-                <rect x="0" y="0" width="280" height="180" fill="var(--card-background-color)" stroke="var(--divider-color)" stroke-width="1" />
-
-                <!-- Center reference point -->
-                <circle cx="140" cy="90" r="3" fill="var(--secondary-text-color)" opacity="0.3" />
-                <text x="140" y="100" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)" opacity="0.5">MSD Center</text>
-
-                <!-- Control box (scaled to fit) -->
-                <g transform="translate(140, 90)">
-                    <!-- Scale control to fit preview -->
-                    ${(() => {
-                        const scale = Math.min(200 / size[0], 140 / size[1], 1);
-                        const scaledW = size[0] * scale;
-                        const scaledH = size[1] * scale;
-                        const offsetX = -(scaledW * attachX / 100);
-                        const offsetY = -(scaledH * attachY / 100);
-
-                        return html`
-                            <!-- Control outline -->
-                            <rect
-                                x="${offsetX}"
-                                y="${offsetY}"
-                                width="${scaledW}"
-                                height="${scaledH}"
-                                fill="var(--primary-color)"
-                                opacity="0.2"
-                                stroke="var(--primary-color)"
-                                stroke-width="2" />
-
-                            <!-- Attachment point indicator -->
-                            <circle
-                                cx="0"
-                                cy="0"
-                                r="4"
-                                fill="var(--error-color)" />
-
-                            <!-- Size label -->
-                            <text
-                                x="${offsetX + scaledW/2}"
-                                y="${offsetY + scaledH/2}"
-                                text-anchor="middle"
-                                dominant-baseline="middle"
-                                font-size="11"
-                                fill="var(--primary-text-color)"
-                                font-weight="600">
-                                ${size[0]}×${size[1]}
-                            </text>
-                        `;
-                    })()}
-                </g>
-            </svg>
+            <div id="${previewId}" style="width: 100%; height: 100%;"></div>
         `;
+    }
+
+    /**
+     * Create and mount the preview card element
+     * @param {string} containerId - Container element ID
+     * @param {Object} cardConfig - Card configuration
+     * @private
+     */
+    async _createPreviewCard(containerId, cardConfig) {
+        const container = this.shadowRoot?.getElementById(containerId);
+        if (!container) {
+            lcardsLog.warn('[MSD Studio] Preview container not found:', containerId);
+            return;
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        try {
+            const cardType = cardConfig.type;
+            const normalizedType = this._normalizeCardType(cardType);
+
+            lcardsLog.debug('[MSD Studio] Creating preview card:', { cardType, normalizedType });
+
+            let cardElement = null;
+
+            // Try to create the card element
+            if (window.customElements && window.customElements.get(normalizedType)) {
+                const CardClass = window.customElements.get(normalizedType);
+                cardElement = new CardClass();
+                lcardsLog.debug('[MSD Studio] Card created via customElements.get:', normalizedType);
+            } else {
+                cardElement = document.createElement(normalizedType);
+                lcardsLog.debug('[MSD Studio] Card created via createElement:', normalizedType);
+
+                // Wait briefly for custom element to upgrade
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            if (!cardElement) {
+                throw new Error(`Failed to create card element for type: ${cardType}`);
+            }
+
+            // Set HASS context first
+            if (this.hass) {
+                cardElement.hass = this.hass;
+            }
+
+            // Set card configuration
+            if (typeof cardElement.setConfig === 'function') {
+                cardElement.setConfig(cardConfig);
+                lcardsLog.debug('[MSD Studio] Card config set successfully');
+            } else {
+                lcardsLog.warn('[MSD Studio] Card element has no setConfig method:', normalizedType);
+                container.innerHTML = '<div style="padding: 8px; color: var(--error-color); font-size: 11px;">Card does not support configuration</div>';
+                return;
+            }
+
+            // Apply sizing styles
+            cardElement.style.width = '100%';
+            cardElement.style.height = '100%';
+            cardElement.style.display = 'block';
+
+            // Mount the card
+            container.appendChild(cardElement);
+            lcardsLog.debug('[MSD Studio] Card preview mounted successfully');
+
+        } catch (error) {
+            lcardsLog.error('[MSD Studio] Failed to create card preview:', error);
+            container.innerHTML = `<div style="padding: 8px; color: var(--error-color); font-size: 11px;">Error: ${error.message}</div>`;
+        }
+    }
+
+    /**
+     * Normalize card type to element name
+     * @param {string} cardType - Card type from config
+     * @returns {string} Element tag name
+     * @private
+     */
+    _normalizeCardType(cardType) {
+        if (!cardType) return '';
+
+        // Handle custom:prefix
+        if (cardType.startsWith('custom:')) {
+            return cardType.substring(7);
+        }
+
+        // Handle HA built-in cards
+        if (!cardType.includes('-')) {
+            return `hui-${cardType}-card`;
+        }
+
+        return cardType;
     }
 
     /**
