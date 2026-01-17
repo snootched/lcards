@@ -221,11 +221,16 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           continue;
         }
 
-        // Check if preset overrode the target element (only if it's a DOM element)
+        // Check if preset created a drawable (for draw animations)
+        // or overrode the target element
         let targetElement = element;
         let animeParams = { ...params };
 
-        if (params.targets && params.targets instanceof Element) {
+        if (element._drawable) {
+          // Use drawable created by preset setup (e.g., draw animation)
+          targetElement = element._drawable;
+          lcardsLog.debug(`[animateElement] Using drawable for ${type}`, { element: element.tagName });
+        } else if (params.targets && params.targets instanceof Element) {
           // Preset wants to animate a different element (e.g., text child of group)
           targetElement = params.targets;
           // Remove targets from params since it's passed as first argument

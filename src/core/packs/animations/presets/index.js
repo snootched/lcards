@@ -167,32 +167,57 @@ registerAnimationPreset('glow', (def) => {
 
 /**
  * Draw - SVG path drawing animation
- * Uses anime.js strokeDashoffset for path drawing
+ * Uses anime.js v4 createDrawable for robust path animation
  *
  * Parameters:
  * - duration (default: 2000)
- * - easing (default: 'linear')
- * - reverse (default: false)
+ * - easing (default: 'easeInOutSine')
+ * - reverse (default: false) - If true, draws from end to start
  * - loop (default: false)
  * - alternate (default: false)
+ * - draw (default: ['0 0', '0 1']) - Draw values or config object
  */
 registerAnimationPreset('draw', (def) => {
   const p = def.params || def;
   const duration = p.duration || 2000;
-  const easing = p.easing || 'linear';
+  const easing = p.easing || 'easeInOutSine';
   const reverse = p.reverse || false;
   const loop = p.loop || false;
   const alternate = p.alternate || false;
 
+  // Draw-specific config
+  const drawCfg = p.draw || {};
+  let drawValues;
+  if (Array.isArray(drawCfg)) {
+    drawValues = drawCfg;
+  } else if (drawCfg && Array.isArray(drawCfg.values)) {
+    drawValues = drawCfg.values;
+  } else {
+    // Default: draw from 0% to 100%
+    drawValues = reverse ? ['0 1', '0 0'] : ['0 0', '0 1'];
+  }
+
   return {
     anime: {
-      strokeDashoffset: reverse ? [0, anime => anime.setDashoffset] : [anime => anime.setDashoffset, 0],
       duration,
       easing,
       loop,
-      alternate
+      alternate,
+      draw: drawValues
     },
-    styles: {}
+    styles: {},
+    // Setup function to create drawable target
+    setup: (element) => {
+      if (!element) return;
+
+      // Use anime.js v4 createDrawable to prepare the path for animation
+      if (window.lcards?.animejs?.svg?.createDrawable) {
+        const [drawable] = window.lcards.animejs.svg.createDrawable(element);
+
+        // Store drawable reference for animateElement to use
+        element._drawable = drawable;
+      }
+    }
   };
 });
 
