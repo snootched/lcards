@@ -547,7 +547,7 @@ registerAnimationPreset('cascade', (def) => {
       [property]: [from, to],
       duration,
       easing,
-      delay: window.lcards?.anim?.stagger?.(stagger) || ((el, i) => i * stagger),
+      delay: window.lcards?.animejs?.stagger?.(stagger) || ((el, i) => i * stagger),
       loop
     },
     styles: {}
@@ -567,12 +567,12 @@ registerAnimationPreset('cascade', (def) => {
  *
  * Parameters:
  * - colors (required) - Array of 3 colors [start, text, end]
- * - stagger (default: 50) - ms delay between cells within a row
  * - duration (default: 5000) - Duration of full color cycle
  * - easing (default: 'linear')
  * - loop (default: true)
  * - alternate (default: true) - Alternate direction each cycle
  * - property (default: 'color') - CSS property to animate ('color', 'fill', etc.)
+ * - delay (default: 0) - Row-level delay for when animation starts (used in timing patterns)
  *
  * Usage Pattern:
  * Each row should be animated independently with its own duration and delay.
@@ -650,7 +650,9 @@ registerAnimationPreset('cascade-color', (def) => {
     },
     styles: {}
   };
-});/**
+});
+
+/**
  * Ripple - Expanding scale + opacity effect
  *
  * Parameters:
@@ -748,6 +750,173 @@ registerAnimationPreset('scale-reset', (def) => {
       transformBox: 'fill-box'
     }
   };
+});
+
+// ==============================================================================
+// MOTION PRESETS
+// ==============================================================================
+
+/**
+ * Slide - Translate/position animation for enter/exit effects
+ *
+ * Parameters:
+ * - direction (default: 'up') - 'up', 'down', 'left', 'right'
+ * - distance (default: 100) - Distance to slide in pixels
+ * - duration (default: 600)
+ * - easing (default: 'easeOutQuad')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('slide', (def) => {
+  const p = def.params || def;
+  // TODO: Implement slide animation
+  lcardsLog.warn('[AnimationPresets] slide preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Rotate - Rotation animation
+ *
+ * Parameters:
+ * - from (default: 0) - Starting rotation in degrees
+ * - to (default: 360) - Ending rotation in degrees
+ * - duration (default: 1000)
+ * - easing (default: 'linear')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('rotate', (def) => {
+  const p = def.params || def;
+  // TODO: Implement rotate animation
+  lcardsLog.warn('[AnimationPresets] rotate preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Shake - Horizontal shake/vibrate effect
+ *
+ * Parameters:
+ * - intensity (default: 10) - Shake distance in pixels
+ * - duration (default: 500)
+ * - frequency (default: 4) - Number of shakes
+ * - easing (default: 'easeInOutSine')
+ * - loop (default: false)
+ */
+registerAnimationPreset('shake', (def) => {
+  const p = def.params || def;
+  // TODO: Implement shake animation
+  lcardsLog.warn('[AnimationPresets] shake preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Bounce - Bouncing scale effect with elastic easing
+ *
+ * Parameters:
+ * - scale_max (default: 1.2) - Maximum scale factor
+ * - duration (default: 800)
+ * - bounces (default: 3) - Number of bounces
+ * - easing (default: 'easeOutElastic')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('bounce', (def) => {
+  const p = def.params || def;
+  // TODO: Implement bounce animation
+  lcardsLog.warn('[AnimationPresets] bounce preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Color Shift - Pure color animation
+ *
+ * Parameters:
+ * - color_from (required) - Starting color
+ * - color_to (required) - Ending color
+ * - property (default: 'color') - CSS property to animate ('color', 'fill', 'stroke', 'background-color', etc.)
+ * - duration (default: 1000)
+ * - easing (default: 'easeInOutQuad')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('color-shift', (def) => {
+  const p = def.params || def;
+  // TODO: Implement color-shift animation
+  lcardsLog.warn('[AnimationPresets] color-shift preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Border Pulse - Animate border properties
+ *
+ * Parameters:
+ * - color_from (optional) - Starting border color
+ * - color_to (optional) - Ending border color
+ * - width_from (optional) - Starting border width
+ * - width_to (optional) - Ending border width
+ * - duration (default: 1000)
+ * - easing (default: 'easeInOutSine')
+ * - loop (default: true)
+ * - alternate (default: true)
+ */
+registerAnimationPreset('border-pulse', (def) => {
+  const p = def.params || def;
+  // TODO: Implement border-pulse animation
+  lcardsLog.warn('[AnimationPresets] border-pulse preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Skew - Skew/slant transformation
+ *
+ * Parameters:
+ * - skewX (default: 0) - Horizontal skew in degrees
+ * - skewY (default: 0) - Vertical skew in degrees
+ * - from_skewX (default: 0) - Starting horizontal skew
+ * - from_skewY (default: 0) - Starting vertical skew
+ * - duration (default: 600)
+ * - easing (default: 'easeInOutQuad')
+ * - loop (default: false)
+ * - alternate (default: false)
+ */
+registerAnimationPreset('skew', (def) => {
+  const p = def.params || def;
+  // TODO: Implement skew animation
+  lcardsLog.warn('[AnimationPresets] skew preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Scan Line - Moving gradient/line across element
+ *
+ * Parameters:
+ * - direction (default: 'horizontal') - 'horizontal' or 'vertical'
+ * - color (default: 'rgba(255,255,255,0.3)') - Scan line color
+ * - duration (default: 2000)
+ * - easing (default: 'linear')
+ * - loop (default: true)
+ */
+registerAnimationPreset('scan-line', (def) => {
+  const p = def.params || def;
+  // TODO: Implement scan-line animation
+  lcardsLog.warn('[AnimationPresets] scan-line preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
+});
+
+/**
+ * Glitch - Random position/color shifts for malfunction effects
+ *
+ * Parameters:
+ * - intensity (default: 5) - Maximum pixel displacement
+ * - frequency (default: 10) - Number of glitch steps
+ * - duration (default: 1000)
+ * - loop (default: false)
+ */
+registerAnimationPreset('glitch', (def) => {
+  const p = def.params || def;
+  // TODO: Implement glitch animation
+  lcardsLog.warn('[AnimationPresets] glitch preset is a placeholder - implementation pending');
+  return { anime: {}, styles: {} };
 });
 
 // ==============================================================================
