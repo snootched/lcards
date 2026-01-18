@@ -287,6 +287,48 @@ export function getButtonSchema(options = {}) {
         required: ['trigger', 'preset']
     };
 
+    const filterSchema = {
+        type: 'object',
+        description: 'Filter configuration (CSS or SVG filter primitives)',
+        examples: [
+            {
+                mode: 'css',
+                type: 'blur',
+                value: { blur: 2 }
+            },
+            {
+                mode: 'svg',
+                type: 'feGaussianBlur',
+                value: { stdDeviation: 3 }
+            }
+        ],
+        properties: {
+            mode: {
+                type: 'string',
+                enum: ['css', 'svg'],
+                default: 'css',
+                description: 'Filter mode - CSS filters or SVG filter primitives',
+                enumDescriptions: [
+                    'CSS filters (blur, brightness, contrast, etc.) - simpler, good performance',
+                    'SVG filter primitives (feGaussianBlur, feColorMatrix, etc.) - more powerful, complex effects'
+                ]
+            },
+            type: {
+                type: 'string',
+                description: 'Filter type - depends on mode (CSS: blur, brightness, etc. / SVG: feGaussianBlur, feColorMatrix, etc.)'
+            },
+            value: {
+                oneOf: [
+                    { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
+                    { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
+                    { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
+                ],
+                description: 'Filter parameters - simple value for CSS filters, object for SVG filters'
+            }
+        },
+        required: ['type']
+    };
+
     return {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://github.com/snootched/lcards/schemas/button-schema',
@@ -1003,6 +1045,15 @@ export function getButtonSchema(options = {}) {
             animations: {
                 type: 'array',
                 items: animationSchema
+            },
+
+            // FILTERS
+            // ============================================================================
+
+            filters: {
+                type: 'array',
+                description: 'Visual filters applied to entire button (CSS and SVG filter primitives)',
+                items: filterSchema
             },
 
             // ============================================================================

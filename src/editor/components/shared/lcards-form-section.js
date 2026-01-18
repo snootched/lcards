@@ -54,6 +54,7 @@ export class LCARdSFormSection extends LitElement {
 
             ha-expansion-panel {
                 border-radius: var(--ha-card-border-radius, 24px);
+                --expansion-panel-summary-padding: 0 8px 0 16px;
             }
 
             ha-expansion-panel[outlined] {

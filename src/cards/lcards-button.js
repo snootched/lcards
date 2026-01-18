@@ -61,6 +61,7 @@ import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { getComponent } from '../core/packs/components/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent } from '../utils/lcards-svg-helpers.js';
+import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 
 // Import unified schema
 import { getButtonSchema } from './schemas/button-schema.js';
@@ -1478,6 +1479,13 @@ export class LCARdSButton extends LCARdSCard {
         // Setup auto-sizing to respond to container size changes
         this._setupAutoSizing();
 
+        // Apply filters after SVG is rendered
+        if (this.config.filters && this.config.filters.length > 0) {
+            this.updateComplete.then(() => {
+                this._applyFilters();
+            });
+        }
+
         // Process initial templates if needed
         if (this._needsInitialTemplateProcessing) {
             lcardsLog.debug(`[LCARdSButton] Processing initial templates after firstUpdated`);
@@ -1500,6 +1508,29 @@ export class LCARdSButton extends LCARdSCard {
         // Template changes affect text content even if button style doesn't change
         // (e.g., {entity.state} templates need to re-render when state changes)
         this.requestUpdate();
+    }
+
+    /**
+     * Apply filters to button SVG
+     * Filters are applied to the root SVG element
+     * @private
+     */
+    _applyFilters() {
+        if (!this.config.filters || this.config.filters.length === 0) {
+            return;
+        }
+
+        // Find the SVG element in the shadow root
+        const svgElement = this.shadowRoot?.querySelector('svg');
+        if (!svgElement) {
+            lcardsLog.warn('[LCARdSButton] Cannot apply filters - SVG element not found');
+            return;
+        }
+
+        lcardsLog.debug('[LCARdSButton] Applying filters to button SVG:', this.config.filters);
+
+        // Apply filters using BaseSvgFilters utility
+        applyBaseSvgFilters(svgElement, this.config.filters);
     }
 
     /**
@@ -2521,6 +2552,13 @@ export class LCARdSButton extends LCARdSCard {
 
             // Add cache-busting comment to force DOM update when style changes
             const timestamp = Date.now();
+
+            // Apply filters after render completes
+            if (this.config.filters && this.config.filters.length > 0) {
+                this.updateComplete.then(() => {
+                    this._applyFilters();
+                });
+            }
 
             return html`
                 <div class="button-container" data-render-time="${timestamp}">

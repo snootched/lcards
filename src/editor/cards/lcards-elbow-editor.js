@@ -28,6 +28,9 @@ import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-multi-text-editor.js';
 import '../components/editors/lcards-multi-action-editor.js';
+// Import animation and filter components
+import '../components/lcards-animation-editor.js';
+import '../components/lcards-filter-editor.js';
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
 // Import datasource components
@@ -83,6 +86,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Elbow Design', content: () => this._renderElbowDesignTab() },
             { label: 'Text', content: () => this._renderTextTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
+            { label: 'Effects', content: () => this._renderEffectsTab() },
             ...this._getUtilityTabs()
         ];
     }
@@ -575,12 +579,12 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     header="Segment Colors"
                     description="Colors for outer and inner elbow segments"
                     .colorPaths=${[
-                        { 
+                        {
                             path: 'elbow.segments.outer_segment.color',
                             label: 'Outer Segment Color',
                             helper: 'Color of outer frame segment'
                         },
-                        { 
+                        {
                             path: 'elbow.segments.inner_segment.color',
                             label: 'Inner Segment Color',
                             helper: 'Color of inner content segment'
@@ -1032,6 +1036,60 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             bubbles: true,
             composed: true
         }));
+    }
+
+    /**
+     * Render Effects tab - Animations + Filters combined
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderEffectsTab() {
+        return html`
+            <div style="display: flex; flex-direction: column; gap: 16px; padding: 16px;">
+                <!-- Animations Section -->
+                <lcards-form-section
+                    header="Animations"
+                    description="Trigger visual animations on user interactions or entity state changes"
+                    icon="mdi:animation"
+                    ?expanded=${true}>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${this.config.animations || []}
+                        @animations-changed=${(e) => {
+                            this._updateConfig({ animations: e.detail.value });
+                        }}>
+                    </lcards-animation-editor>
+                </lcards-form-section>
+
+                <!-- Filters Section -->
+                <lcards-form-section
+                    header="Filters"
+                    description="Apply visual filters to the entire elbow (CSS and SVG filter primitives)"
+                    icon="mdi:auto-fix"
+                    ?expanded=${true}>
+
+                    <lcards-filter-editor
+                        .hass=${this.hass}
+                        .filters=${this.config.filters || []}
+                        @filters-changed=${(e) => {
+                            this._updateConfig({ filters: e.detail.value });
+                        }}>
+                    </lcards-filter-editor>
+                </lcards-form-section>
+
+                <!-- Info Message -->
+                <lcards-message type="info">
+                    <strong>Combining Effects:</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
+                        Animations and filters work together. For example:
+                        <br/>• Add a <strong>glow filter</strong> with a <strong>pulse animation</strong> for breathing light effects
+                        <br/>• Use <strong>blur + brightness filters</strong> with <strong>hover animations</strong> for depth effects
+                        <br/>• Apply <strong>SVG filters</strong> for advanced effects like displacement maps or morphology
+                    </p>
+                </lcards-message>
+            </div>
+        `;
     }
 }
 

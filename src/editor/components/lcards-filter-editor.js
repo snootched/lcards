@@ -1371,7 +1371,7 @@ export class LCARdSFilterEditor extends LitElement {
         lcardsLog.debug('[FilterEditor] Filters changed:', filters);
         this.filters = filters;
         this.dispatchEvent(new CustomEvent('filters-changed', {
-            detail: { filters },
+            detail: { value: filters }, // Use 'value' to match animation editor pattern
             bubbles: true,
             composed: true
         }));

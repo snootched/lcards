@@ -1143,8 +1143,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleFiltersChanged(e) {
-        lcardsLog.debug('[MSDStudio] Filters changed:', e.detail.filters);
-        this._setNestedValue('msd.base_svg.filters', e.detail.filters);
+        lcardsLog.debug('[MSDStudio] Filters changed:', e.detail.value);
+        this._setNestedValue('msd.base_svg.filters', e.detail.value);
     }
 
     /**
@@ -1399,6 +1399,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="SVG Source"
                     description="Configure the base SVG template for your MSD display"
+                    icon="mdi:image"
                     ?expanded=${true}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <!-- Source Mode Selector -->
@@ -1453,6 +1454,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="ViewBox"
                     description="Configure the coordinate system for your MSD display"
+                    icon="mdi:grid"
                     ?expanded=${true}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <ha-formfield label="Auto-detect from SVG">
@@ -1510,6 +1512,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Filters"
                     description="Apply stackable visual filters to the base SVG"
+                    icon="mdi:auto-fix"
                     ?expanded=${true}>
 
                     <lcards-filter-editor
@@ -1591,6 +1594,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="User Anchors"
                     description="Named reference points for positioning overlays"
+                    icon="mdi:map-marker-multiple"
                     ?expanded=${true}>
                     ${anchorEntries.length === 0 ? html`
                         <div style="text-align: center; padding: 24px; color: var(--secondary-text-color);">
@@ -6016,6 +6020,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Position"
                     description="Set control position using anchor or coordinates"
+                    icon="mdi:crosshairs-gps"
                     ?expanded=${true}>
 
                     <ha-selector
@@ -6064,6 +6069,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Size"
                     description="Control dimensions in pixels"
+                    icon="mdi:resize"
                     ?expanded=${true}>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <ha-textfield
@@ -6090,6 +6096,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Attachment Point"
                     description="Which point of the control snaps to the specified coordinates (e.g., 'center' means coordinates specify the control's center point)"
+                    icon="mdi:anchor"
                     ?expanded=${false}>
                     <ha-selector
                         .hass=${this.hass}
@@ -6221,6 +6228,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Select Card Type"
                         description="Choose a card to display in this control overlay"
+                        icon="mdi:card-search"
                         ?expanded=${true}>
                         <div style="padding: 16px;">
                             <ha-selector
@@ -6272,6 +6280,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Card Configuration"
                         description="Configure the card using graphical editor or YAML"
+                        icon="mdi:cog"
                         ?expanded=${true}>
 
                         <!-- Editor Mode Tabs -->
@@ -7478,6 +7487,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Routing Channels"
                     description="Define regions that influence line routing behavior"
+                    icon="mdi:chart-timeline-variant"
                     ?expanded=${true}
                     style="margin-bottom: 16px;">
 
@@ -7505,6 +7515,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="⚙️ Advanced Routing Configuration"
                     description="Fine-tune global routing behavior for all lines"
+                    icon="mdi:tune"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
 
@@ -7708,6 +7719,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="📖 Routing Modes Reference"
                     description="Quick reference for routing behavior"
+                    icon="mdi:book-open-variant"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
 
@@ -8699,6 +8711,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Source (Anchor)"
                         description="Starting point for the line"
+                        icon="mdi:ray-start"
                         class="connection-source"
                         ?expanded=${true}>
 
@@ -8752,6 +8765,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Target (Attach To)"
                         description="Ending point for the line"
+                        icon="mdi:ray-end"
                         class="connection-target"
                         ?expanded=${true}>
 
@@ -8815,6 +8829,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Routing Configuration"
                     description="How the line is drawn between points"
+                    icon="mdi:routes"
                     ?expanded=${true}>
 
                     <div class="routing-columns">
@@ -8895,6 +8910,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Start Marker"
                     description="Marker at the beginning of the line"
+                    icon="mdi:map-marker-plus"
                     ?expanded=${true}>
 
                     <ha-selector
@@ -9012,6 +9028,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="End Marker"
                     description="Marker at the end of the line"
+                    icon="mdi:map-marker-check"
                     ?expanded=${true}>
 
                     <ha-selector
@@ -9139,6 +9156,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="Line Animations"
                     description="Configure animations for this line"
+                    icon="mdi:animation"
                     ?expanded=${true}>
 
                     <lcards-animation-editor
@@ -9187,6 +9205,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Line Style"
                         description="Line appearance settings"
+                        icon="mdi:palette"
                         ?expanded=${true}>
 
                         <!-- Color Picker -->
@@ -9421,6 +9440,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section
                         header="Line Shape"
                         description="Corner and smoothing settings"
+                        icon="mdi:vector-curve"
                         ?expanded=${true}>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -9509,6 +9529,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <lcards-form-section
                     header="⚙️ Advanced Stroke Properties"
                     description="Fine-tune SVG stroke rendering (for advanced users)"
+                    icon="mdi:cog"
                     ?expanded=${false}>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">

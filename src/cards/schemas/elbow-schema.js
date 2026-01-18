@@ -166,6 +166,143 @@ export function getElbowSchema(options = {}) {
     };
 
     // ============================================================================
+    // ANIMATION SCHEMA
+    // ============================================================================
+
+    const animationSchema = {
+        type: 'object',
+        description: 'Animation configuration',
+        examples: [
+            {
+                trigger: 'on_tap',
+                preset: 'pulse',
+                duration: 500,
+                color: '#FF9900'
+            },
+            {
+                trigger: 'on_entity_change',
+                preset: 'flash',
+                loop: true
+            }
+        ],
+        properties: {
+            trigger: {
+                type: 'string',
+                enum: ['on_load', 'on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change'],
+                description: 'When to trigger the animation',
+                enumDescriptions: [
+                    'When card is loaded/rendered',
+                    'When card is tapped/clicked',
+                    'When card is held (long press)',
+                    'When mouse enters card',
+                    'When mouse leaves card',
+                    'When associated entity state changes'
+                ]
+            },
+            preset: {
+                type: 'string',
+                description: 'Animation preset name',
+                examples: ['pulse', 'flash', 'bounce', 'shake', 'glow']
+            },
+            duration: {
+                type: 'number',
+                minimum: 0,
+                maximum: 10000,
+                default: 500,
+                description: 'Animation duration in milliseconds (0-10000)'
+            },
+            easing: {
+                type: 'string',
+                description: 'CSS easing function',
+                examples: ['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier(0.4, 0, 0.2, 1)']
+            },
+            loop: {
+                type: 'boolean',
+                default: false,
+                description: 'Whether animation should loop continuously'
+            },
+            alternate: {
+                type: 'boolean',
+                default: false,
+                description: 'Whether animation should alternate direction on each loop'
+            },
+            delay: {
+                type: 'number',
+                minimum: 0,
+                maximum: 10000,
+                default: 0,
+                description: 'Delay before animation starts (milliseconds)'
+            },
+            color: {
+                type: 'string',
+                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
+                description: 'Animation color (for glow/flash effects)',
+                examples: ['#FF9900', 'theme:color.ui.active', 'rgba(255, 153, 0, 0.5)']
+            },
+            scale: {
+                type: 'number',
+                minimum: 0.1,
+                maximum: 10,
+                default: 1,
+                description: 'Scale factor for animation (0.1-10, default: 1)'
+            },
+            max_scale: {
+                type: 'number',
+                minimum: 0.1,
+                maximum: 10,
+                description: 'Maximum scale during animation (0.1-10)'
+            }
+        },
+        required: ['trigger', 'preset']
+    };
+
+    // ============================================================================
+    // FILTER SCHEMA
+    // ============================================================================
+
+    const filterSchema = {
+        type: 'object',
+        description: 'Filter configuration (CSS or SVG filter primitives)',
+        examples: [
+            {
+                mode: 'css',
+                type: 'blur',
+                value: { blur: 2 }
+            },
+            {
+                mode: 'svg',
+                type: 'feGaussianBlur',
+                value: { stdDeviation: 3 }
+            }
+        ],
+        properties: {
+            mode: {
+                type: 'string',
+                enum: ['css', 'svg'],
+                default: 'css',
+                description: 'Filter mode - CSS filters or SVG filter primitives',
+                enumDescriptions: [
+                    'CSS filters (blur, brightness, contrast, etc.) - simpler, good performance',
+                    'SVG filter primitives (feGaussianBlur, feColorMatrix, etc.) - more powerful, complex effects'
+                ]
+            },
+            type: {
+                type: 'string',
+                description: 'Filter type - depends on mode (CSS: blur, brightness, etc. / SVG: feGaussianBlur, feColorMatrix, etc.)'
+            },
+            value: {
+                oneOf: [
+                    { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
+                    { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
+                    { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
+                ],
+                description: 'Filter parameters - simple value for CSS filters, object for SVG filters'
+            }
+        },
+        required: ['type']
+    };
+
+    // ============================================================================
     // MAIN SCHEMA
     // ============================================================================
 
@@ -1003,6 +1140,22 @@ export function getElbowSchema(options = {}) {
                     },
                     required: ['entity_id']
                 }
+            },
+
+            // ============================================================================
+            // ANIMATIONS & FILTERS
+            // ============================================================================
+
+            animations: {
+                type: 'array',
+                description: 'Visual animations triggered by user interactions or entity state changes',
+                items: animationSchema
+            },
+
+            filters: {
+                type: 'array',
+                description: 'Visual filters applied to entire elbow (CSS and SVG filter primitives)',
+                items: filterSchema
             },
 
             // ============================================================================
