@@ -4,6 +4,35 @@ Visual editor components for LCARdS cards, integrated with Home Assistant's nati
 
 ---
 
+## 🎨 Style Organization
+
+Editor styles are centralized into 4 files for consistency and maintainability:
+
+1. **`base/editor-styles.js`** - Foundation: spacing, typography, base classes, density variants
+2. **`base/editor-component-styles.js`** - Shared components: icon buttons, info cards, grids, badges, toolbars
+3. **`dialogs/studio-dialog-styles.js`** - Full-screen studio patterns: split panels, floating toolbars, zoom controls
+4. **`components/editors/editor-widget-styles.js`** - List-based editors: collapsible items, drag-and-drop
+
+### Importing Styles
+
+```javascript
+import { editorStyles } from '../base/editor-styles.js';
+import { editorComponentStyles } from '../base/editor-component-styles.js';
+
+static get styles() {
+    return [editorStyles, editorComponentStyles];
+}
+```
+
+See [Editor Style Guide](../../doc/architecture/editor-style-guide.md) for complete documentation on:
+- Spacing standards (12px base, 8px compact)
+- LCARS border-radius (24px/12px/8px)
+- CSS variable usage (required)
+- Component patterns (icon buttons, info cards, list editors)
+- Migration checklist
+
+---
+
 ## ⚙️ Editor Development Standards
 
 **CRITICAL**: This section defines the ONLY approved patterns for editor development. Following these standards ensures consistency, maintainability, and proper Home Assistant integration.

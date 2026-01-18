@@ -7,6 +7,7 @@
 
 import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
@@ -15,7 +16,7 @@ import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section.js';
-import '../components/editors/lcards-multi-text-editor.js';
+import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-icon-editor.js';
 import '../components/editors/lcards-border-editor.js';
 import '../components/editors/lcards-unified-segment-editor.js';
@@ -37,6 +38,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'button';
+    }
+
+    static get styles() {
+        return [super.styles, editorComponentStyles];
     }
 
     /**
@@ -231,10 +236,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _renderTextTab() {
         return html`
-            <lcards-multi-text-editor
+            <lcards-multi-text-editor-v2
                 .editor=${this}
                 .hass=${this.hass}>
-            </lcards-multi-text-editor>
+            </lcards-multi-text-editor-v2>
         `;
     }
 

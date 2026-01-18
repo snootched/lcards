@@ -235,6 +235,37 @@ export const editorStyles = css`
         margin: 0;
     }
 
+    /* Density Variants */
+    
+    /* Nested Section Spacing - tighter spacing for nested sections */
+    lcards-form-section lcards-form-section {
+        margin-bottom: 8px;
+    }
+
+    /* Section Content Variants */
+    .section-content.nested {
+        padding: 8px;
+    }
+
+    .section-content.compact {
+        padding: 8px;
+    }
+
+    /* Compact Form Field Variant */
+    .form-field.compact {
+        margin-bottom: 8px;
+        gap: 6px;
+    }
+
+    /* Form Row Variants */
+    .form-row.compact {
+        margin-bottom: 8px;
+    }
+
+    .form-row.nested {
+        margin-bottom: 8px;
+    }
+
     /* Responsive design */
     @media (max-width: 768px) {
         :host {

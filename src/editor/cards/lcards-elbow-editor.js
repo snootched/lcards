@@ -14,8 +14,9 @@
  * - Inherits button card functionality (text, actions, etc.)
  */
 
-import { html, css } from 'lit';
+import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
 import '../components/shared/lcards-message.js';
@@ -26,7 +27,7 @@ import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section.js';
-import '../components/editors/lcards-multi-text-editor.js';
+import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
 // Import animation and filter components
 import '../components/lcards-animation-editor.js';
@@ -48,31 +49,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     static get styles() {
-        return [
-            super.styles,
-            css`
-                .theme-info {
-                    background: var(--primary-background-color, #f0f0f0);
-                    border-left: 3px solid var(--primary-color, #03a9f4);
-                    padding: 12px;
-                    margin: 8px 0;
-                    border-radius: 4px;
-                }
-
-                .theme-info .helper-text {
-                    margin: 0;
-                    color: var(--primary-text-color, #212121);
-                }
-
-                .theme-info code {
-                    background: var(--secondary-background-color, #e0e0e0);
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.9em;
-                }
-            `
-        ];
+        return [super.styles, editorComponentStyles];
     }
 
     /**
@@ -322,12 +299,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_width', e.detail.value)}>
                     </ha-selector>
                 ` : html`
-                    <div class="form-row theme-info">
-                        <div class="helper-text">
-                            ℹ️ Bar width will dynamically follow <code>input_number.lcars_vertical</code> entity state.
-                            Create this helper in Home Assistant configuration to enable theme integration.
-                        </div>
-                    </div>
+                    <lcards-message type="info" title="Theme Integration">
+                        Bar width will dynamically follow <code>input_number.lcars_vertical</code> entity state.
+                        Create this helper in Home Assistant configuration to enable theme integration.
+                    </lcards-message>
                 `}
 
                 <ha-selector
@@ -367,12 +342,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_height', e.detail.value)}>
                     </ha-selector>
                 ` : html`
-                    <div class="form-row theme-info">
-                        <div class="helper-text">
-                            ℹ️ Bar height will dynamically follow <code>input_number.lcars_horizontal</code> entity state.
-                            Create this helper in Home Assistant configuration to enable theme integration.
-                        </div>
-                    </div>
+                    <lcards-message type="info" title="Theme Integration">
+                        Bar height will dynamically follow <code>input_number.lcars_horizontal</code> entity state.
+                        Create this helper in Home Assistant configuration to enable theme integration.
+                    </lcards-message>
                 `}
             </lcards-form-section>
 
@@ -690,16 +663,16 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Text tab - uses multi-text editor (inherited from button)
+     * Render text tab
      * @returns {TemplateResult}
      * @private
      */
     _renderTextTab() {
         return html`
-            <lcards-multi-text-editor
+            <lcards-multi-text-editor-v2
                 .editor=${this}
                 .hass=${this.hass}>
-            </lcards-multi-text-editor>
+            </lcards-multi-text-editor-v2>
         `;
     }
 

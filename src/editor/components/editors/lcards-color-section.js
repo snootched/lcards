@@ -73,7 +73,7 @@ export class LCARdSColorSection extends LitElement {
             /* Helper text for color fields */
             .helper-text {
                 font-size: 12px;
-                color: var(--secondary-text-color, #727272);
+                color: var(--secondary-text-color);
                 margin-top: 4px;
                 line-height: 1.4;
                 padding: 0 8px;

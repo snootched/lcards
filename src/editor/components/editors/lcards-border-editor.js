@@ -54,14 +54,14 @@ export class LCARdSBorderEditor extends LitElement {
                 flex-direction: column;
                 gap: 8px;
                 padding: 12px;
-                background: var(--secondary-background-color, #f5f5f5);
+                background: var(--secondary-background-color);
                 border-radius: 8px;
                 margin-bottom: 12px;
             }
 
             .mode-toggle label {
                 font-weight: 500;
-                color: var(--primary-text-color, #212121);
+                color: var(--primary-text-color);
                 font-size: 14px;
                 margin: 0;
             }
@@ -71,13 +71,13 @@ export class LCARdSBorderEditor extends LitElement {
             }
 
             .form-row {
-                margin-bottom: 12px; /* Reduced from 16px for consistency */
+                margin-bottom: 12px;
             }
 
             .form-row label {
                 display: block;
                 font-weight: 500;
-                color: var(--primary-text-color, #212121);
+                color: var(--primary-text-color);
                 font-size: 14px;
                 margin-bottom: 8px;
                 padding: 2px 8px;
@@ -85,7 +85,7 @@ export class LCARdSBorderEditor extends LitElement {
 
             .form-row .helper-text {
                 font-size: 12px;
-                color: var(--secondary-text-color, #727272);
+                color: var(--secondary-text-color);
                 margin-top: 4px;
                 padding: 0 8px;
             }
@@ -95,9 +95,9 @@ export class LCARdSBorderEditor extends LitElement {
                 justify-content: center;
                 align-items: center;
                 padding: 24px;
-                background: var(--card-background-color, #fff);
+                background: var(--card-background-color);
                 border-radius: 8px;
-                margin-bottom: 12px; /* Reduced from 16px for consistency */
+                margin-bottom: 12px;
             }
 
             .preview-container svg {

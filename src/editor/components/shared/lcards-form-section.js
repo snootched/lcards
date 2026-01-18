@@ -28,7 +28,9 @@ export class LCARdSFormSection extends LitElement {
             icon: { type: String },           // Icon for section header
             headerLevel: { type: Number },    // Header level (h1-h6)
             secondary: { type: String },      // Secondary text for header
-            noCollapse: { type: Boolean }     // Disable collapsing
+            noCollapse: { type: Boolean },    // Disable collapsing
+            compact: { type: Boolean },       // Use compact spacing
+            nested: { type: Boolean }         // Use nested spacing
         };
     }
 
@@ -43,6 +45,8 @@ export class LCARdSFormSection extends LitElement {
         this.headerLevel = 4;
         this.secondary = '';
         this.noCollapse = false;
+        this.compact = false;
+        this.nested = false;
     }
 
     static get styles() {
@@ -67,6 +71,11 @@ export class LCARdSFormSection extends LitElement {
 
             .section-content {
                 padding: 12px; /* Reduced from 16px for denser layout */
+            }
+
+            .section-content.compact,
+            .section-content.nested {
+                padding: 8px; /* Tighter spacing for nested/compact variants */
             }
 
             .section-description {
@@ -94,14 +103,10 @@ export class LCARdSFormSection extends LitElement {
     }
 
     render() {
-        // Build header HTML with icon and secondary text
-        const headerTag = `h${this.headerLevel}`;
-        const headerContent = `
-            <${headerTag} slot="header">
-                ${this.icon ? `<ha-icon icon="${this.icon}"></ha-icon>` : ''}
-                ${this.header}
-            </${headerTag}>
-        `;
+        // Build class list for section content
+        const contentClasses = ['section-content'];
+        if (this.compact) contentClasses.push('compact');
+        if (this.nested) contentClasses.push('nested');
 
         return html`
             <ha-expansion-panel
@@ -119,7 +124,7 @@ export class LCARdSFormSection extends LitElement {
                         ${this.secondary ? html`<span slot="secondary">${this.secondary}</span>` : ''}
                     </div>
                 ` : ''}
-                <div class="section-content">
+                <div class="${contentClasses.join(' ')}">
                     ${this.description ? html`
                         <div class="section-description">${this.description}</div>
                     ` : ''}
