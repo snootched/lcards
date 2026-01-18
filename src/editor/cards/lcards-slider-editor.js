@@ -14,6 +14,7 @@ import { deepMerge } from '../../utils/deepMerge.js';
 
 // Import shared form components
 import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-border-editor.js';
 import '../components/editors/lcards-object-editor.js';
 import '../components/editors/lcards-grid-layout.js';
@@ -655,16 +656,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
-                    .config=${this.config}
                     basePath="style.border.left.color"
                     header="Left Border Colors"
-                    description="State-based colors for left border"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colors for left border - supports custom states"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
 
             <!-- Top Border -->
@@ -688,16 +688,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
-                    .config=${this.config}
                     basePath="style.border.top.color"
                     header="Top Border Colors"
-                    description="State-based colors for top border"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colors for top border - supports custom states"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
 
             <!-- Right Border -->
@@ -721,16 +720,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
-                    .config=${this.config}
                     basePath="style.border.right.color"
                     header="Right Border Colors"
-                    description="State-based colors for right border"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colors for right border - supports custom states"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
 
             <!-- Bottom Border -->
@@ -754,16 +752,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
-                    .config=${this.config}
                     basePath="style.border.bottom.color"
                     header="Bottom Border Colors"
-                    description="State-based colors for bottom border"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colors for bottom border - supports custom states"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
         `;
     }

@@ -27,6 +27,7 @@ import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
 // Import animation and filter components
@@ -415,14 +416,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     basePath="elbow.segment.color"
                     header="Segment Colors"
-                    description="Elbow segment color for each state"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
+                    description="Elbow segment color for each state - supports custom states"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
                     ?expanded=${false}>
-                </lcards-color-section>
+                </lcards-color-section-v2>
             </lcards-form-section>
         `;
     }

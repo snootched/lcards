@@ -15,7 +15,7 @@ import '../components/yaml/lcards-yaml-editor.js';
 import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
-import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-icon-editor.js';
 import '../components/editors/lcards-border-editor.js';
@@ -176,15 +176,15 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     {
                         type: 'custom',
                         render: () => html`
-                            <lcards-color-section
+                            <lcards-color-section-v2
                                 .editor=${this}
-                                .config=${this.config}
                                 basePath="style.card.color.background"
                                 header="Background Colors"
-                                description="Card background color for each state"
-                                .states=${['default', 'active', 'inactive', 'unavailable']}
+                                description="Card background color for each state - supports custom states like 'idle', 'buffering', etc."
+                                .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                                ?allowCustomStates=${true}
                                 ?expanded=${false}>
-                            </lcards-color-section>
+                            </lcards-color-section-v2>
                         `
                     }
                 ]
