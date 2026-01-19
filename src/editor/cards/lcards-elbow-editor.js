@@ -26,7 +26,6 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
-import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
@@ -548,27 +547,33 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value)}>
                 </ha-selector>
 
-                <!-- NEW: Use colorPaths for both segment colors -->
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
-                    header="Segment Colors"
-                    description="Colors for outer and inner elbow segments"
-                    .colorPaths=${[
-                        {
-                            path: 'elbow.segments.outer_segment.color',
-                            label: 'Outer Segment Color',
-                            helper: 'Color of outer frame segment'
-                        },
-                        {
-                            path: 'elbow.segments.inner_segment.color',
-                            label: 'Inner Segment Color',
-                            helper: 'Color of inner content segment'
-                        }
-                    ]}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    basePath="elbow.segments.outer_segment.color"
+                    header="Outer Segment Color"
+                    description="Color states for outer frame segment - supports custom states like 'heat', 'cool', etc."
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
+
+            <lcards-form-section
+                header="Inner Segment (Content Area)"
+                description="Inner elbow dimensions and color"
+                icon="mdi:vector-square-open"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    basePath="elbow.segments.inner_segment.color"
+                    header="Inner Segment Color"
+                    description="Color states for inner content segment - supports custom states like 'heat', 'cool', etc."
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
 
             <lcards-form-section
                 header="Inner Segment (Content Area)"

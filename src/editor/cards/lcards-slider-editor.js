@@ -23,7 +23,7 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import '../components/shared/lcards-form-section.js';
 
 // Import specialized editor components
-import '../components/editors/lcards-multi-text-editor.js';
+import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
 
 // Import dashboard components
@@ -62,8 +62,20 @@ class SliderConfigState {
     }
 
     // Track type: Visual rendering style (pills or gauge)
+    // Checks: explicit config → preset name → default
     get trackType() {
-        return this.config.style?.track?.type || 'pills';
+        // 1. Explicit config wins
+        if (this.config.style?.track?.type) {
+            return this.config.style.track.type;
+        }
+
+        // 2. Infer from preset name (gauge-* = gauge, otherwise pills)
+        if (this.preset) {
+            return this.preset.startsWith('gauge') ? 'gauge' : 'pills';
+        }
+
+        // 3. Default to pills
+        return 'pills';
     }
 
     // Orientation: Layout direction (horizontal or vertical)
@@ -87,7 +99,47 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'slider';
+        this._previousTrackType = null;
+        this._expandedRanges = {}; // Track which ranges are expanded
         lcardsLog.debug('[LCARdSSliderEditor] Editor initialized with cardType: slider (5 tabs + utility tabs)');
+    }
+
+    /**
+     * Lit lifecycle - detect config changes and force re-render
+     * @param {Map} changedProps
+     */
+    updated(changedProps) {
+        super.updated(changedProps);
+
+        lcardsLog.debug('[LCARdSSliderEditor] updated() called', {
+            hasConfig: changedProps.has('config'),
+            changedKeys: Array.from(changedProps.keys()),
+            preset: this.config?.preset
+        });
+
+        // Check if track type changed (from preset or manual config)
+        if (changedProps.has('config')) {
+            const state = this._getSliderState();
+            const currentTrackType = state.trackType;
+
+            lcardsLog.debug('[LCARdSSliderEditor] Config changed, checking track type', {
+                previousTrackType: this._previousTrackType,
+                currentTrackType: currentTrackType,
+                preset: this.config?.preset,
+                trackTypeInConfig: this.config?.style?.track?.type
+            });
+
+            if (this._previousTrackType !== currentTrackType) {
+                lcardsLog.info('[LCARdSSliderEditor] Track type changed - forcing re-render', {
+                    from: this._previousTrackType,
+                    to: currentTrackType,
+                    preset: this.config?.preset
+                });
+                this._previousTrackType = currentTrackType;
+                // Force re-render of tabs
+                this.requestUpdate();
+            }
+        }
     }
 
     /**
@@ -212,11 +264,14 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderTrackTab() {
         const state = this._getSliderState();
+        const trackType = state.trackType; // Cache to ensure consistency
+
+        lcardsLog.debug('[LCARdSSliderEditor] Rendering track tab with type:', trackType, 'Full state:', state);
 
         return html`
             <lcards-message
                 type="info"
-                message="Configure track appearance. Entity configuration and track style selection.">
+                message="Configure track appearance. Entity configuration and track style selection. Current type: ${trackType}">
             </lcards-message>
 
             <!-- Entity Configuration -->
@@ -264,7 +319,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             </lcards-form-section>
 
             <!-- Dynamic: Pills or Gauge Configuration with INLINE COLORS -->
-            ${state.trackType === 'pills' ? this._renderPillsConfiguration() : this._renderGaugeConfiguration()}
+            ${trackType === 'pills' ? this._renderPillsConfiguration() : this._renderGaugeConfiguration()}
 
             <!-- Track Margins -->
             <lcards-form-section
@@ -295,7 +350,195 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ?expanded=${false}
                 ?useColorPicker=${true}>
             </lcards-color-section>
+
+            <!-- Color-Coded Ranges -->
+            ${this._renderRangesConfiguration()}
         `;
+    }
+
+    /**
+     * Ranges Configuration - Color-coded value zones
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRangesConfiguration() {
+        const ranges = this.config?.style?.ranges || [];
+
+        return html`
+            <lcards-form-section
+                header="Color-Coded Ranges"
+                description="Define visual zones for context (cold/comfort/hot, low/normal/high)"
+                icon="mdi:palette"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message
+                    type="info"
+                    message="Ranges provide visual context: background segments in gauge mode, color overrides in pills mode">
+                </lcards-message>
+
+                <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
+                    ${ranges.length === 0 ? html`
+                        <div style="text-align: center; padding: 32px 16px; color: var(--secondary-text-color);">
+                            <ha-icon icon="mdi:palette-outline" style="font-size: 48px; opacity: 0.3; display: block; margin: 0 auto 12px;"></ha-icon>
+                            <div style="font-weight: 600; margin-bottom: 4px;">No ranges defined</div>
+                            <div>Add a range to create color-coded zones</div>
+                        </div>
+                    ` : html`
+                        ${ranges.map((range, index) => this._renderRangeItem(range, index))}
+                    `}
+                </div>
+
+                <!-- Add Button -->
+                <ha-button class="add-button" @click=${() => this._addRange()}>
+                    <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                    Add Range
+                </ha-button>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render a single range item in the array editor
+     * @param {Object} range - Range configuration
+     * @param {number} index - Range index
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRangeItem(range, index) {
+        const basePath = `style.ranges.${index}`;
+        const isExpanded = this._expandedRanges[index] || false;
+        const rangeDisplay = range.label || `${range.min || 0} - ${range.max || 100}`;
+
+        const itemStyle = 'background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;';
+        const headerStyle = 'display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; user-select: none; background: var(--secondary-background-color);';
+        const iconStyle = 'color: var(--primary-color); --mdc-icon-size: 24px;';
+        const infoStyle = 'flex: 1; min-width: 0;';
+        const labelStyle = 'font-weight: 600; font-size: 14px;';
+        const valueStyle = 'font-size: 12px; color: var(--secondary-text-color); margin-top: 2px;';
+        const actionsStyle = 'display: flex; gap: 4px;';
+        const expandIconStyle = `transition: transform 0.2s;${isExpanded ? ' transform: rotate(180deg);' : ''}`;
+        const contentStyle = 'padding: 16px; border-top: 1px solid var(--divider-color);';
+
+        return html`
+            <div class="range-item" style="${itemStyle}">
+                <!-- Range Header -->
+                <div class="range-header" style="${headerStyle}" @click=${() => this._toggleRangeExpanded(index)}>
+                    <ha-icon style="${iconStyle}" icon="mdi:chart-box"></ha-icon>
+
+                    <div style="${infoStyle}">
+                        <div style="${labelStyle}">Range ${index + 1}</div>
+                        <div style="${valueStyle}">${rangeDisplay}</div>
+                    </div>
+
+                    <div style="${actionsStyle}">
+                        <ha-icon-button
+                            @click=${(e) => this._deleteRange(e, index)}
+                            .label=${'Delete'}
+                            .path=${'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z'}>
+                        </ha-icon-button>
+                    </div>
+
+                    <ha-icon
+                        style="${expandIconStyle}"
+                        icon="mdi:chevron-down">
+                    </ha-icon>
+                </div>
+
+                <!-- Range Content (Expanded) -->
+                ${isExpanded ? html`
+                    <div style="${contentStyle}"
+                        <lcards-grid-layout columns="2">
+                            ${FormField.renderField(this, `${basePath}.min`, {
+                                label: 'Min Value',
+                                helper: 'Range start (in display space)'
+                            })}
+
+                            ${FormField.renderField(this, `${basePath}.max`, {
+                                label: 'Max Value',
+                                helper: 'Range end (in display space)'
+                            })}
+                        </lcards-grid-layout>
+
+                        <lcards-color-section
+                            .editor=${this}
+                            basePath="${basePath}.color"
+                            header="Range Color"
+                            description="Background color for this range"
+                            ?singleColor=${true}
+                            ?expanded=${true}
+                            ?useColorPicker=${true}>
+                        </lcards-color-section>
+
+                        <lcards-grid-layout columns="2">
+                            ${FormField.renderField(this, `${basePath}.label`, {
+                                label: 'Label',
+                                helper: 'Optional descriptive label (Cold, Normal, Hot)'
+                            })}
+
+                            ${FormField.renderField(this, `${basePath}.opacity`, {
+                                label: 'Opacity',
+                                helper: 'Background opacity (0-1, default: 0.3)'
+                            })}
+                        </lcards-grid-layout>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Toggle range expanded state
+     * @param {number} index - Range index
+     * @private
+     */
+    _toggleRangeExpanded(index) {
+        this._expandedRanges[index] = !this._expandedRanges[index];
+        this.requestUpdate();
+    }
+
+    /**
+     * Add a new range to the configuration
+     * @private
+     */
+    _addRange() {
+        const ranges = this.config?.style?.ranges || [];
+        const newRange = {
+            min: 0,
+            max: 100,
+            color: 'var(--primary-color)',
+            label: '',
+            opacity: 0.3
+        };
+
+        this._updateConfig({
+            style: {
+                ...this.config.style,
+                ranges: [...ranges, newRange]
+            }
+        });
+    }
+
+    /**
+     * Delete a range from the configuration
+     * @param {Event} e - Click event
+     * @param {number} index - Range index to delete
+     * @private
+     */
+    _deleteRange(e, index) {
+        e.stopPropagation(); // Prevent expansion panel from toggling
+        e.preventDefault(); // Prevent any default action
+
+        const ranges = this.config?.style?.ranges || [];
+        const updatedRanges = ranges.filter((_, i) => i !== index);
+
+        this._updateConfig({
+            style: {
+                ...this.config.style,
+                ranges: updatedRanges
+            }
+        });
     }
 
     /**
@@ -344,7 +587,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         { path: 'style.track.segments.gradient.start', label: 'Gradient Start', helper: 'Color at minimum value (left/bottom)' },
                         { path: 'style.track.segments.gradient.end', label: 'Gradient End', helper: 'Color at maximum value (right/top)' }
                     ]}
-                    ?expanded=${true}
+                    ?expanded=${false}
                     ?useColorPicker=${true}>
                 </lcards-color-section>
 
@@ -418,7 +661,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     header="Progress Bar Color"
                     description="Color of the filled progress bar"
                     ?singleColor=${true}
-                    ?expanded=${true}
+                    ?expanded=${false}
                     ?useColorPicker=${true}>
                 </lcards-color-section>
             </lcards-form-section>
@@ -537,7 +780,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         header="Label Color"
                         description="Color for scale numeric labels"
                         ?singleColor=${true}
-                        ?expanded=${true}
+                        ?expanded=${false}
                         ?useColorPicker=${true}>
                     </lcards-color-section>
                 </lcards-form-section>
@@ -601,8 +844,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             helper: 'Color of indicator border'
                         }
                     ]}
-                    ?expanded=${true}
+                    ?expanded=${false}
                     ?useColorPicker=${true}>
+                </lcards-color-section>
                 </lcards-color-section>
             </lcards-form-section>
         `;
@@ -615,11 +859,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderTextTab() {
         return html`
-            <lcards-multi-text-editor
+            <lcards-multi-text-editor-v2
                 .editor=${this}
                 .config=${this.config}
                 .hass=${this.hass}>
-            </lcards-multi-text-editor>
+            </lcards-multi-text-editor-v2>
         `;
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "1.20.01",
+  "version": "1.27.04",
   "type": "module",
   "description": "LCARdS - Modern LCARS card system for Home Assistant",
   "main": "index.js",
@@ -48,6 +48,6 @@
     "animejs": "^4.0.0",
     "apexcharts": "^3.54.1",
     "custom-card-helpers": "^1.9.0",
-    "ha-editor-formbuilder-yaml": "github:snootched/ha-card-formbuilder"
+    "lit": "^3.3.2"
   }
 }

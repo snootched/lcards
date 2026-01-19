@@ -232,7 +232,8 @@ export class LCARdSBaseEditor extends LitElement {
             return;
         }
 
-        // Deep merge updates into config
+        // Deep merge updates into config (deepMerge already returns new object)
+        const oldConfig = this.config;
         this.config = deepMerge(this.config, updates);
 
         // CRITICAL: Ensure 'type' property is always present (HA requires it)
@@ -266,7 +267,8 @@ export class LCARdSBaseEditor extends LitElement {
             this._configUpdateDebounce = null;
         }, 50); // 50ms debounce
 
-        this.requestUpdate();
+        // Trigger Lit reactivity for config property
+        this.requestUpdate('config', oldConfig);
     }
 
     /**
@@ -427,6 +429,50 @@ export class LCARdSBaseEditor extends LitElement {
         }
 
         const keys = path.split('.');
+
+        // For array paths (e.g., style.ranges.0.min), we need to clone the actual array
+        // and update the specific index, not create nested objects
+        const hasArrayIndex = keys.some(key => !isNaN(key));
+
+        if (hasArrayIndex) {
+            // Deep clone the current config to avoid mutations
+            const newConfig = JSON.parse(JSON.stringify(this.config || {}));
+            let current = newConfig;
+
+            // Navigate to the parent of the final key, creating structure as needed
+            for (let i = 0; i < keys.length - 1; i++) {
+                const key = keys[i];
+                const nextKey = keys[i + 1];
+                const isNextNumeric = !isNaN(nextKey);
+
+                // If next key is numeric, ensure current[key] is an array
+                if (isNextNumeric) {
+                    if (!Array.isArray(current[key])) {
+                        current[key] = [];
+                    }
+                } else {
+                    // Otherwise ensure it's an object
+                    if (!current[key] || typeof current[key] !== 'object') {
+                        current[key] = {};
+                    }
+                }
+
+                current = current[key];
+            }
+
+            // Set the final value
+            const finalKey = keys[keys.length - 1];
+            current[finalKey] = value;
+
+            // Fire config change event
+            const oldConfig = this.config;
+            this.config = newConfig;
+            fireEvent(this, 'config-changed', { config: this.config });
+            this.requestUpdate('config', oldConfig);
+            return;
+        }
+
+        // Original logic for non-array paths
         const updates = {};
         let current = updates;
 
@@ -459,6 +505,13 @@ export class LCARdSBaseEditor extends LitElement {
         let currentSchema = schema;
 
         for (const key of keys) {
+            // Handle array indices (e.g., ranges.0.min)
+            // If the key is numeric and currentSchema is an array type, use items schema
+            if (!isNaN(key) && currentSchema.type === 'array' && currentSchema.items) {
+                currentSchema = currentSchema.items;
+                continue;
+            }
+
             // Direct properties
             if (currentSchema.properties && currentSchema.properties[key]) {
                 currentSchema = currentSchema.properties[key];
