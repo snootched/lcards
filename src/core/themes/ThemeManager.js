@@ -494,6 +494,25 @@ export class ThemeManager extends BaseService {
   }
 
   /**
+   * Count tokens in a theme object recursively
+   * Useful for Pack Explorer to display token statistics
+   * @param {Object} obj - Token object to count
+   * @returns {number} Total token count
+   * @private
+   */
+  _countTokens(obj) {
+    if (typeof obj !== 'object' || obj === null) {
+      return 1; // Leaf node (actual token value)
+    }
+    
+    let count = 0;
+    for (const value of Object.values(obj)) {
+      count += this._countTokens(value);
+    }
+    return count;
+  }
+
+  /**
    * Clear all caches
    *
    * Useful for development/hot-reload scenarios.

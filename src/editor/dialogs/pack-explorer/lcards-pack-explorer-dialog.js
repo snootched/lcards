@@ -506,7 +506,7 @@ export class LCARdSPackExplorerDialog extends LitElement {
         <div class="detail-section">
           <div class="detail-section-title">Config Reference</div>
           <div class="detail-value">theme: "${theme.id}"</div>
-          <button class="copy-button" @click=${() => this._copyToClipboard(`theme: "${theme.id}"`)}>
+          <button class="copy-button" @click=${(e) => this._copyToClipboard(`theme: "${theme.id}"`, e)}>
             Copy to Clipboard
           </button>
         </div>
@@ -552,7 +552,7 @@ export class LCARdSPackExplorerDialog extends LitElement {
         <div class="detail-section">
           <div class="detail-section-title">Config Reference</div>
           <div class="detail-value">${yamlRef}</div>
-          <button class="copy-button" @click=${() => this._copyToClipboard(yamlRef)}>
+          <button class="copy-button" @click=${(e) => this._copyToClipboard(yamlRef, e)}>
             Copy to Clipboard
           </button>
         </div>
@@ -562,20 +562,24 @@ export class LCARdSPackExplorerDialog extends LitElement {
 
   /**
    * Copy text to clipboard
+   * @param {string} text - Text to copy
+   * @param {Event} event - Click event (optional, for visual feedback)
    * @private
    */
-  async _copyToClipboard(text) {
+  async _copyToClipboard(text, event) {
     try {
       await navigator.clipboard.writeText(text);
       lcardsLog.info('[PackExplorer] Copied to clipboard:', text);
       
-      // Show a brief success message (could be enhanced with toast notification)
-      const button = event.target;
-      const originalText = button.textContent;
-      button.textContent = '✓ Copied!';
-      setTimeout(() => {
-        button.textContent = originalText;
-      }, 2000);
+      // Show a brief success message (with null safety)
+      if (event?.target) {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✓ Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
     } catch (error) {
       lcardsLog.error('[PackExplorer] Failed to copy to clipboard:', error);
     }
