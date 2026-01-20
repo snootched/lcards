@@ -357,7 +357,6 @@ The LCARdS platform is designed for community growth:
 - 🧩 [**Card Foundation**](doc/architecture/cards/lcards-card-foundation.md) - Build new cards
 - 🔌 [**API Reference**](doc/architecture/api/api-reference.md) - Complete API docs
 - 🎭 [**Subsystems**](doc/architecture/subsystems/README.md) - Core system details
-- 📊 [**Diagrams**](doc/architecture/diagrams/) - Architecture visualizations
 
 </td>
 </tr>
