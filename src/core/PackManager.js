@@ -146,4 +146,91 @@ export class PackManager {
       packCount: this.loadedPacks.size
     };
   }
+
+  /**
+   * Get all loaded packs with detailed content summary
+   * Used by Pack Explorer to list available packs
+   * @returns {Array<Object>} Array of pack metadata with content counts
+   */
+  getLoadedPacks() {
+    const packs = [];
+
+    this.loadedPacks.forEach((packMeta, packId) => {
+      // Get content counts from each manager
+      const themeCount = this.core.themeManager?.getThemesByPack(packId).length || 0;
+      
+      // For presets, we need to count across all overlay types
+      let presetCount = 0;
+      if (this.core.stylePresetManager) {
+        const allPresets = this.core.stylePresetManager.getAllPresetsWithSource();
+        Object.values(allPresets).forEach(typePresets => {
+          presetCount += typePresets.filter(p => p.pack === packId).length;
+        });
+      }
+
+      packs.push({
+        ...packMeta,
+        themeCount,
+        presetCount,
+        // TODO: Add rule count, asset count when available
+        ruleCount: 0,
+        assetCount: 0
+      });
+    });
+
+    return packs;
+  }
+
+  /**
+   * Get pack metadata by ID
+   * Used by Pack Explorer to show pack details
+   * @param {string} packId - Pack ID
+   * @returns {Object|null} Pack metadata with content breakdown
+   */
+  getPackMetadata(packId) {
+    const packMeta = this.loadedPacks.get(packId);
+    if (!packMeta) {
+      return null;
+    }
+
+    // Get detailed content breakdown
+    const themes = this.core.themeManager?.getThemesByPack(packId) || [];
+    
+    const presets = {};
+    if (this.core.stylePresetManager) {
+      const allPresets = this.core.stylePresetManager.getAllPresetsWithSource();
+      Object.entries(allPresets).forEach(([type, typePresets]) => {
+        const packPresets = typePresets.filter(p => p.pack === packId);
+        if (packPresets.length > 0) {
+          presets[type] = packPresets;
+        }
+      });
+    }
+
+    return {
+      ...packMeta,
+      themes,
+      presets,
+      // TODO: Add rules, assets when available
+      rules: [],
+      assets: {}
+    };
+  }
+
+  /**
+   * Get aggregate statistics across all packs
+   * Used by Pack Explorer summary view
+   * @returns {Object} Pack statistics
+   */
+  getPackStatistics() {
+    const packs = this.getLoadedPacks();
+    
+    return {
+      totalPacks: packs.length,
+      totalThemes: packs.reduce((sum, p) => sum + p.themeCount, 0),
+      totalPresets: packs.reduce((sum, p) => sum + p.presetCount, 0),
+      totalRules: packs.reduce((sum, p) => sum + p.ruleCount, 0),
+      totalAssets: packs.reduce((sum, p) => sum + p.assetCount, 0)
+    };
+  }
 }

@@ -200,6 +200,92 @@ export class StylePresetManager {
   }
 
   /**
+   * Get all preset names for a given type
+   * Used by Pack Explorer to list available presets
+   * @param {string} type - Preset type ('button', 'slider', etc.)
+   * @returns {string[]} Array of preset names
+   */
+  getPresetNames(type) {
+    if (!this.initialized) {
+      lcardsLog.warn('[StylePresetManager] Not initialized - call initialize() first');
+      return [];
+    }
+    return this.getAvailablePresets(type);
+  }
+
+  /**
+   * Get preset metadata for Pack Explorer
+   * @param {string} type - Preset type
+   * @param {string} name - Preset name
+   * @returns {Object} Metadata object with id, type, description, pack source
+   */
+  getPresetMetadata(type, name) {
+    if (!this.initialized) {
+      lcardsLog.warn('[StylePresetManager] Not initialized - call initialize() first');
+      return null;
+    }
+
+    // Find the preset in cache or packs
+    const cacheKey = `${type}.${name}`;
+    let preset = null;
+    let packId = 'unknown';
+
+    if (this.presetCache.has(cacheKey)) {
+      const cached = this.presetCache.get(cacheKey);
+      preset = cached.preset;
+      packId = cached.packId || 'unknown';
+    } else {
+      // Search through packs
+      const found = this._findPresetInPacks(cacheKey);
+      if (found) {
+        preset = found.preset;
+        packId = found.packId || 'unknown';
+      }
+    }
+
+    if (!preset) {
+      return null;
+    }
+
+    return {
+      id: name,
+      type,
+      extends: preset.extends,
+      description: preset.description || `${name} preset for ${type}`,
+      pack: packId,
+      presetType: type
+    };
+  }
+
+  /**
+   * Get all presets with their pack source information
+   * Used by Pack Explorer to build tree view
+   * @returns {Object} Map of overlayType -> [{name, packId, ...}]
+   */
+  getAllPresetsWithSource() {
+    if (!this.initialized) {
+      lcardsLog.warn('[StylePresetManager] Not initialized - call initialize() first');
+      return {};
+    }
+
+    const result = {};
+
+    for (const overlayType of this._getAvailableOverlayTypes()) {
+      result[overlayType] = [];
+      const presetNames = this.getAvailablePresets(overlayType);
+
+      for (const name of presetNames) {
+        const metadata = this.getPresetMetadata(overlayType, name);
+        if (metadata) {
+          result[overlayType].push(metadata);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Clear all cached presets (useful for hot-reloading)
    */
   clearCache() {

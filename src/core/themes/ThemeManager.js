@@ -443,6 +443,57 @@ export class ThemeManager extends BaseService {
   }
 
   /**
+   * Get all registered theme IDs
+   * Used by Pack Explorer to list available themes
+   * @returns {string[]} Array of theme IDs
+   */
+  getThemeIds() {
+    return this.listThemes();
+  }
+
+  /**
+   * Get theme metadata for Pack Explorer
+   * @param {string} id - Theme ID
+   * @returns {Object} Metadata object with id, name, description, version, pack
+   */
+  getThemeMetadata(id) {
+    const theme = this.themes.get(id);
+    if (!theme) {
+      return null;
+    }
+
+    return {
+      id,
+      name: theme.name || id,
+      description: theme.description || `${theme.name || id} theme`,
+      version: theme.version || '1.0.0',
+      pack: theme.packId || 'builtin_themes',
+      type: 'theme',
+      tokenCount: this._countTokens(theme.tokens || {}),
+      hasCssFile: !!theme.cssFile
+    };
+  }
+
+  /**
+   * Get all themes with their metadata
+   * Used by Pack Explorer to build tree view
+   * @returns {Array<Object>} Array of theme metadata objects
+   */
+  getThemesWithMetadata() {
+    return this.listThemes().map(id => this.getThemeMetadata(id)).filter(Boolean);
+  }
+
+  /**
+   * Get themes by pack ID
+   * Used by Pack Explorer to group themes by pack
+   * @param {string} packId - Pack ID to filter by
+   * @returns {Array<Object>} Array of theme metadata for the specified pack
+   */
+  getThemesByPack(packId) {
+    return this.getThemesWithMetadata().filter(theme => theme.pack === packId);
+  }
+
+  /**
    * Clear all caches
    *
    * Useful for development/hot-reload scenarios.

@@ -299,6 +299,49 @@ export class AnimationRegistry {
   }
 
   /**
+   * Get all registered animation IDs
+   * Used by Pack Explorer to list available animations
+   * @returns {string[]} Array of animation IDs (hashes)
+   */
+  getAnimationIds() {
+    return Array.from(this.cache.keys());
+  }
+
+  /**
+   * Get animation metadata for Pack Explorer
+   * @param {string} id - Animation ID (hash)
+   * @returns {Object} Metadata object with id, name, description, type, pack
+   */
+  getAnimationMetadata(id) {
+    const cached = this.cache.get(id);
+    if (!cached) {
+      return null;
+    }
+
+    const definition = cached.definition || {};
+    return {
+      id,
+      name: definition.preset || definition.name || id.substring(0, 8),
+      description: definition.description || `Animation preset: ${definition.preset || 'custom'}`,
+      type: 'animation',
+      pack: 'core',
+      preset: definition.preset,
+      duration: definition.duration,
+      easing: definition.easing,
+      loop: definition.loop
+    };
+  }
+
+  /**
+   * Get all animations with their metadata
+   * Used by Pack Explorer to build tree view
+   * @returns {Array<Object>} Array of animation metadata objects
+   */
+  getAnimationsWithMetadata() {
+    return this.getAnimationIds().map(id => this.getAnimationMetadata(id)).filter(Boolean);
+  }
+
+  /**
    * Clear cache and reset statistics
    */
   clear() {

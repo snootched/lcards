@@ -25,6 +25,7 @@ import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
 import './alert-mode-color-wheel.js';
+import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
 
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
@@ -55,7 +56,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _livePreviewEnabled: { type: Boolean, state: true },
       _originalLcarsColors: { type: Object, state: true }, // Store baseline colors
       _showFullPreview: { type: Boolean, state: true }, // Toggle for full color grid
-      _activeVizTab: { type: String, state: true } // Active visualization tab (preview/wheel/comparison)
+      _activeVizTab: { type: String, state: true }, // Active visualization tab (preview/wheel/comparison)
+      _packExplorerOpen: { type: Boolean, state: true } // Pack Explorer dialog state
     };
   }
 
@@ -87,6 +89,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._originalLcarsColors = null; // Will be captured when dialog opens
     this._showFullPreview = false; // Full color grid collapsed by default
     this._activeVizTab = 'preview'; // Default to live preview tab
+    this._packExplorerOpen = false; // Pack Explorer closed by default
     this._handleKeydown = this._handleKeydown.bind(this);
   }
 
@@ -1053,6 +1056,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     return html`
       ${this._renderTabContent()}
       ${this._renderDialog()}
+      ${this._renderPackExplorer()}
     `;
   }
 
@@ -1087,6 +1091,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               @click=${this._openDialog}>
               <ha-icon icon="mdi:palette" slot="icon"></ha-icon>
               Open Theme Browser
+            </ha-button>
+            <ha-button
+              class="open-pack-explorer-button"
+              @click=${this._openPackExplorer}>
+              <ha-icon icon="mdi:package-variant" slot="icon"></ha-icon>
+              Browse All Packs
             </ha-button>
           </div>
         </div>
@@ -2303,6 +2313,24 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
+   * Open Pack Explorer dialog
+   * @private
+   */
+  _openPackExplorer() {
+    lcardsLog.debug('[ThemeTokenBrowser] Opening Pack Explorer');
+    this._packExplorerOpen = true;
+  }
+
+  /**
+   * Close Pack Explorer dialog
+   * @private
+   */
+  _closePackExplorer() {
+    lcardsLog.debug('[ThemeTokenBrowser] Closing Pack Explorer');
+    this._packExplorerOpen = false;
+  }
+
+  /**
    * Handle tab change from HA native tab group (Issue #82)
    * @param {CustomEvent} event - wa-tab-show event
    */
@@ -3338,6 +3366,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     } catch (error) {
       lcardsLog.error('[AlertLab] Error exporting config:', error);
     }
+  }
+
+  /**
+   * Render Pack Explorer dialog
+   * @private
+   */
+  _renderPackExplorer() {
+    if (!this._packExplorerOpen) return '';
+
+    return html`
+      <lcards-pack-explorer-dialog
+        .hass=${this.hass}
+        .open=${this._packExplorerOpen}
+        @closed=${this._closePackExplorer}>
+      </lcards-pack-explorer-dialog>
+    `;
   }
 }
 
