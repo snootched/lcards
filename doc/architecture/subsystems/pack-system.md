@@ -626,3 +626,120 @@ If you have custom packs and need migration assistance:
 **New:** Simplified layers (user > preset > theme > fallback)
 
 **Benefit:** Simpler, more powerful, easier to maintain
+
+---
+
+## Pack Explorer Dialog
+
+### Overview
+
+LCARdS v1.27+ includes a **Pack Explorer Dialog** for visually browsing and discovering all loaded assets. This eliminates the need to search through source code or trial-and-error YAML configurations.
+
+### Features
+
+- **Tree view** of all loaded packs and their contents
+- **Detail panel** with asset metadata, descriptions, and config references
+- **Copy-to-clipboard** for quick YAML insertion
+- **Live previews** for themes and presets (basic in MVP, enhanced in future)
+- **Search functionality** (coming soon)
+
+### Accessing Pack Explorer
+
+**From Theme Browser:**
+1. Open any LCARdS card editor
+2. Navigate to the **Theme** tab
+3. Click **"Browse All Packs"** button
+
+### Query API
+
+The Pack Explorer uses new query methods added to singleton managers:
+
+#### PackManager
+```javascript
+// Get all loaded packs with content counts
+const packs = window.lcards.core.packManager.getLoadedPacks();
+// Returns: [{ id, version, themeCount, presetCount, ruleCount, assetCount }]
+
+// Get detailed pack metadata
+const pack = window.lcards.core.packManager.getPackMetadata('builtin_themes');
+// Returns: { id, version, themes[], presets{}, rules[], assets{} }
+
+// Get aggregate statistics
+const stats = window.lcards.core.packManager.getPackStatistics();
+// Returns: { totalPacks, totalThemes, totalPresets, totalRules, totalAssets }
+```
+
+#### ThemeManager
+```javascript
+// Get all theme IDs
+const ids = window.lcards.core.themeManager.getThemeIds();
+
+// Get theme metadata
+const meta = window.lcards.core.themeManager.getThemeMetadata('lcars-classic');
+// Returns: { id, name, description, version, pack, tokenCount, hasCssFile }
+
+// Get all themes with metadata
+const themes = window.lcards.core.themeManager.getThemesWithMetadata();
+
+// Get themes by pack
+const packThemes = window.lcards.core.themeManager.getThemesByPack('builtin_themes');
+```
+
+#### StylePresetManager
+```javascript
+// Get preset names for a type
+const names = window.lcards.core.stylePresetManager.getPresetNames('button');
+
+// Get preset metadata
+const meta = window.lcards.core.stylePresetManager.getPresetMetadata('button', 'lozenge');
+// Returns: { id, type, extends, description, pack, presetType }
+
+// Get all presets with pack source
+const allPresets = window.lcards.core.stylePresetManager.getAllPresetsWithSource();
+// Returns: { button: [presets...], slider: [presets...], ... }
+```
+
+#### AnimationRegistry
+```javascript
+// Get all animation IDs
+const ids = window.lcards.core.animationRegistry.getAnimationIds();
+
+// Get animation metadata
+const meta = window.lcards.core.animationRegistry.getAnimationMetadata(animId);
+// Returns: { id, name, description, type, pack, preset, duration, easing, loop }
+
+// Get all animations with metadata
+const anims = window.lcards.core.animationRegistry.getAnimationsWithMetadata();
+```
+
+### User Documentation
+
+For user-facing Pack Explorer guide, see: [doc/user/pack-explorer.md](../../user/pack-explorer.md)
+
+### Future Enhancements
+
+**Phase 2: Advanced Previews**
+- Live theme color swatches from token values
+- Interactive preset previews (clickable buttons, movable sliders)
+- Animation playback with controls
+- SVG zoom/pan for detailed inspection
+
+**Phase 3: Pack Management**
+- Upload `.json` pack files for preview
+- Scan `/local/lcards-packs/` filesystem
+- Dynamic load/unload of packs
+- Pack versioning and update checks
+
+**Phase 4: Search & Filtering**
+- Full-text search across all assets
+- Category filters (themes, presets, etc.)
+- Pack filters (builtin vs. custom)
+- Tag-based filtering
+
+---
+
+## Related Documentation
+
+- [Pack Explorer User Guide](../../user/pack-explorer.md) - User-facing documentation
+- [Theme System](theme-system.md) - Theme architecture details
+- [Style Presets](../../development/style-presets.md) - Creating custom presets
