@@ -242,6 +242,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const options = this._getAttributeOptions();
         const currentValue = this.config?.control?.attribute || '';
 
+        // Check if current value is valid (exists in entity attributes)
+        const entityId = this.config?.entity;
+        const entity = this.hass?.states?.[entityId];
+        const isValidAttribute = !currentValue ||
+                                currentValue === '' ||
+                                (entity?.attributes && currentValue in entity.attributes);
+
         return html`
             <ha-selector
                 .hass=${this.hass}
@@ -257,6 +264,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 .value=${currentValue}
                 @value-changed=${(e) => this._handleAttributeChange(e)}>
             </ha-selector>
+
+            ${!isValidAttribute && currentValue ? html`
+                <lcards-message
+                    type="warning"
+                    message="⚠️ Attribute '${currentValue}' does not exist on entity '${entityId}'. The slider will control the entity state instead.">
+                </lcards-message>
+            ` : ''}
         `;
     }
 

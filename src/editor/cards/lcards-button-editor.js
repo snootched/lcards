@@ -45,6 +45,77 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Get list of entity attributes for dropdown
+     * @returns {Array<string>} List of attribute names
+     * @private
+     */
+    _getAttributeOptions() {
+        const entityId = this.config?.entity;
+        if (!entityId || !this.hass?.states?.[entityId]) {
+            return [];
+        }
+
+        const entity = this.hass.states[entityId];
+        const attributes = Object.keys(entity.attributes || {});
+        return attributes.sort();
+    }
+
+    /**
+     * Render attribute selector dropdown
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderAttributeSelector() {
+        const attributes = this._getAttributeOptions();
+        const currentAttribute = this.config?.control?.attribute || '';
+        const entityId = this.config?.entity;
+
+        // Check if current attribute is valid
+        const isInvalidAttribute = currentAttribute &&
+            entityId &&
+            this.hass?.states?.[entityId] &&
+            !this.hass.states[entityId].attributes?.hasOwnProperty(currentAttribute);
+
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Attribute'}
+                .value=${currentAttribute}
+                .helper=${'Select an entity attribute to control (leave blank to control entity state)'}
+                .disabled=${!entityId || attributes.length === 0}
+                .selector=${{
+                    select: {
+                        custom_value: true,
+                        mode: 'dropdown',
+                        options: attributes.map(attr => ({ value: attr, label: attr }))
+                    }
+                }}
+                @value-changed=${this._handleAttributeChange}>
+            </ha-selector>
+            ${isInvalidAttribute ? html`
+                <lcards-message
+                    type="warning"
+                    message="The specified attribute '${currentAttribute}' does not exist on this entity. The button will control entity state instead.">
+                </lcards-message>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Handle attribute selection change
+     * @param {CustomEvent} e
+     * @private
+     */
+    _handleAttributeChange(e) {
+        const value = e.detail.value;
+        if (value) {
+            this._setConfigValue('control.attribute', value);
+        } else {
+            this._removeConfigPath('control.attribute');
+        }
+    }
+
+    /**
      * Get current editor mode
      * @returns {'preset'|'component'|'svg'}
      * @private
@@ -99,8 +170,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _getConfigTabConfig() {
         const mode = this._getMode();
 
-        return this._buildConfigTab({
+        const baseConfig = this._buildConfigTab({
             infoMessage: 'Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.',
+            showBasicSection: false, // We'll add custom entity section below
             modeSections: [
                 {
                     type: 'section',
@@ -156,8 +228,59 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     ]
                 }
             ]
-            // basicFields uses default: entity, id, tags
         });
+
+        // Add custom entity section with attribute selector
+        // Insert at position 1 (after info message, before mode sections)
+        baseConfig.splice(1, 0, {
+            type: 'section',
+            header: 'Entity Configuration',
+            description: 'Entity to control and attributes',
+            icon: 'mdi:home-automation',
+            expanded: true,
+            outlined: true,
+            children: [
+                {
+                    type: 'custom',
+                    render: () => html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Entity'}
+                            .value=${this.config?.entity || ''}
+                            .selector=${{ entity: {} }}
+                            @value-changed=${(e) => {
+                                const value = e.detail.value;
+                                if (value) {
+                                    this._setConfigValue('entity', value);
+                                } else {
+                                    this._removeConfigPath('entity');
+                                }
+                            }}>
+                        </ha-selector>
+                    `
+                },
+                {
+                    type: 'custom',
+                    render: () => this._renderAttributeSelector()
+                }
+            ]
+        });
+
+        // Add basic configuration section (ID and tags)
+        baseConfig.push({
+            type: 'section',
+            header: 'Basic Configuration',
+            description: 'Card identification and tagging',
+            icon: 'mdi:tag',
+            expanded: false,
+            outlined: true,
+            children: [
+                { type: 'field', path: 'id', label: 'Card ID', helper: '[Optional] Custom ID for targeting with rules and animations' },
+                { type: 'field', path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
+            ]
+        });
+
+        return baseConfig;
     }
 
     /**

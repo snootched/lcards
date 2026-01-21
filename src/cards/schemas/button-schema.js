@@ -59,6 +59,23 @@ export function getButtonSchema(options = {}) {
             tags: tagsSchema,
 
             // ============================================================================
+            // CONTROL BEHAVIOR
+            // ============================================================================
+
+            control: {
+                type: 'object',
+                description: 'Control behavior configuration',
+                properties: {
+                    attribute: {
+                        type: 'string',
+                        description: 'Entity attribute to control (leave blank to control entity state)',
+                        examples: ['brightness', 'temperature', 'position', 'percentage']
+                    }
+                },
+                additionalProperties: true
+            },
+
+            // ============================================================================
             // MODE: PRESET OR COMPONENT
             // ============================================================================
 

@@ -545,9 +545,25 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             return;
         }
 
-        // Create new field with minimal config
+        // Get smart default content based on field name
+        let defaultContent;
+        switch (fieldName.toLowerCase()) {
+            case 'name':
+                defaultContent = '[[[return entity.attributes.friendly_name || entity.entity_id]]]';
+                break;
+            case 'state':
+                defaultContent = '{entity.state}';
+                break;
+            case 'label':
+                defaultContent = 'LCARdS';
+                break;
+            default:
+                defaultContent = fieldName; // Fallback to field name
+        }
+
+        // Create new field with smart default
         const newField = {
-            content: `${fieldName}`,
+            content: defaultContent,
             show: true
         };
 
