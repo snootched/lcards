@@ -437,8 +437,68 @@ export class LCARdSBaseEditor extends LitElement {
         // Set final value
         current[keys[keys.length - 1]] = value;
 
-        // Merge and update
-        this._updateConfig(updates);
+        // Check if value is empty/null/undefined - if so, remove it and clean up empty parents
+        if (value === undefined || value === null || value === '') {
+            this._removeConfigPath(path);
+        } else {
+            // Merge and update normally
+            this._updateConfig(updates);
+        }
+    }
+
+    /**
+     * Remove a config path and clean up empty parent objects
+     * @param {string} path - Path like 'style.gauge.indicator.offset.x'
+     * @private
+     */
+    _removeConfigPath(path) {
+        if (!path) return;
+
+        const keys = path.split('.');
+        const newConfig = JSON.parse(JSON.stringify(this.config || {}));
+
+        // Navigate to parent and delete the key
+        let current = newConfig;
+        for (let i = 0; i < keys.length - 1; i++) {
+            if (!current[keys[i]]) return; // Path doesn't exist
+            current = current[keys[i]];
+        }
+
+        // Delete the final key
+        delete current[keys[keys.length - 1]];
+
+        // Clean up empty parent objects recursively
+        for (let i = keys.length - 2; i >= 0; i--) {
+            const parentPath = keys.slice(0, i + 1);
+            let parent = newConfig;
+
+            // Navigate to the parent object
+            for (let j = 0; j < parentPath.length - 1; j++) {
+                parent = parent[parentPath[j]];
+            }
+
+            const currentKey = parentPath[parentPath.length - 1];
+            const currentObj = parent[currentKey];
+
+            // If object is empty, delete it
+            if (currentObj && typeof currentObj === 'object' && !Array.isArray(currentObj)) {
+                if (Object.keys(currentObj).length === 0) {
+                    delete parent[currentKey];
+                } else {
+                    // Stop cleanup if object has other keys
+                    break;
+                }
+            } else {
+                // Stop if it's not an object
+                break;
+            }
+        }
+
+        // Fire config change event
+        const oldConfig = this.config;
+        this.config = newConfig;
+        fireEvent(this, 'config-changed', { config: this.config });
+        this.requestUpdate('config', oldConfig);
     }
 
     /**

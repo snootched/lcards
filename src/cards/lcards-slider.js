@@ -1774,30 +1774,51 @@ export class LCARdSSlider extends LCARdSButton {
                 const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
                 const indicatorWidth = indicatorConfig.size?.width || 4;
                 const indicatorHeight = indicatorConfig.size?.height || 25;
+                const rotation = indicatorConfig.rotation || 0;
+                const offsetX = indicatorConfig.offset?.x || 0;
+                const offsetY = indicatorConfig.offset?.y || 0;
                 const borderEnabled = indicatorConfig.border?.enabled !== false;
                 const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
                 const borderWidth = indicatorConfig.border?.width || 1;
 
-                // Calculate indicator position (apply inversion)
+                // Calculate base indicator position (at progress bar end, apply inversion)
                 let indicatorX = valuePercent * trackWidth;
                 if (this._invertFill) {
                     indicatorX = trackWidth - indicatorX;
                 }
 
-                if (indicatorType === 'thumb') {
-                    // Circular thumb indicator
-                    const radius = indicatorWidth / 2;
-                    const centerY = trackHeight / 2;
+                // Apply offset
+                indicatorX += offsetX;
+                const indicatorY = (trackHeight / 2) + offsetY;
+
+                if (indicatorType === 'round') {
+                    // Ellipse/circle indicator using rx/ry
+                    const rx = indicatorWidth / 2;
+                    const ry = indicatorHeight / 2;
 
                     svg += `
-                        <circle cx="${indicatorX}" cy="${centerY}" r="${radius}"
-                                fill="${indicatorColor}"
-                                ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                        <ellipse cx="${indicatorX}" cy="${indicatorY}" rx="${rx}" ry="${ry}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                    `;
+                } else if (indicatorType === 'triangle') {
+                    // Triangle with rotation support
+                    const halfWidth = indicatorWidth / 2;
+                    const halfHeight = indicatorHeight / 2;
+
+                    // Triangle pointing down (default)
+                    const points = `0,${halfHeight} ${-halfWidth},${-halfHeight} ${halfWidth},${-halfHeight}`;
+
+                    svg += `
+                        <polygon points="${points}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
+                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
                     `;
                 } else {
                     // Line indicator (default)
-                    const lineX = indicatorX - (indicatorWidth / 2); // Center the line
-                    const lineY = (trackHeight - indicatorHeight) / 2; // Center vertically
+                    const lineX = indicatorX - (indicatorWidth / 2);
+                    const lineY = indicatorY - (indicatorHeight / 2);
 
                     svg += `
                         <rect x="${lineX}" y="${lineY}"
@@ -1929,31 +1950,52 @@ export class LCARdSSlider extends LCARdSButton {
                 const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
                 const indicatorWidth = indicatorConfig.size?.width || 4;
                 const indicatorHeight = indicatorConfig.size?.height || 25;
+                const rotation = indicatorConfig.rotation || 0;
+                const offsetX = indicatorConfig.offset?.x || 0;
+                const offsetY = indicatorConfig.offset?.y || 0;
                 const borderEnabled = indicatorConfig.border?.enabled !== false;
                 const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
                 const borderWidth = indicatorConfig.border?.width || 1;
 
-                // Calculate indicator position (inverted Y, with fill inversion support)
-                let indicatorY = trackHeight - (valuePercent * trackHeight);
+                // Calculate base indicator position (at progress bar end, inverted Y, with fill inversion support)
+                let baseIndicatorY = trackHeight - (valuePercent * trackHeight);
                 if (this._invertFill) {
-                    indicatorY = valuePercent * trackHeight;
+                    baseIndicatorY = valuePercent * trackHeight;
                 }
 
-                if (indicatorType === 'thumb') {
-                    // Circular thumb indicator
-                    const radius = indicatorWidth / 2;
-                    const centerX = trackWidth / 2;
+                // Apply offset (note: for vertical, offsetY moves up/down, offsetX moves left/right)
+                const indicatorX = (trackWidth / 2) + offsetX;
+                const indicatorY = baseIndicatorY + offsetY;
+
+                if (indicatorType === 'round') {
+                    // Ellipse/circle indicator using rx/ry
+                    const rx = indicatorWidth / 2;
+                    const ry = indicatorHeight / 2;
 
                     svg += `
-                        <circle cx="${centerX}" cy="${indicatorY}" r="${radius}"
-                                fill="${indicatorColor}"
-                                ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                        <ellipse cx="${indicatorX}" cy="${indicatorY}" rx="${rx}" ry="${ry}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                    `;
+                } else if (indicatorType === 'triangle') {
+                    // Triangle with rotation support (default: pointing right for vertical gauge)
+                    const halfWidth = indicatorHeight / 2;  // For vertical, height is horizontal extent
+                    const halfHeight = indicatorWidth / 2; // For vertical, width is vertical extent
+
+                    // Triangle pointing right (default for vertical orientation)
+                    const points = `${halfWidth},0 ${-halfWidth},${-halfHeight} ${-halfWidth},${halfHeight}`;
+
+                    svg += `
+                        <polygon points="${points}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
+                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
                     `;
                 } else {
                     // Line indicator (horizontal for vertical gauge)
-                    // For vertical gauge: width controls line length (horizontal), height controls thickness (vertical)
-                    const lineY = indicatorY - (indicatorWidth / 2); // Center the line (width is now thickness)
-                    const lineX = (trackWidth - indicatorHeight) / 2; // Center horizontally (height is now length)
+                    // For vertical gauge: height is line length (horizontal), width is thickness (vertical)
+                    const lineY = indicatorY - (indicatorWidth / 2);
+                    const lineX = indicatorX - (indicatorHeight / 2);
 
                     svg += `
                         <rect x="${lineX}" y="${lineY}"

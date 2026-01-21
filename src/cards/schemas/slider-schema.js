@@ -580,7 +580,7 @@ export function getSliderSchema(options = {}) {
                                     },
                                     type: {
                                         type: 'string',
-                                        enum: ['triangle', 'arrow', 'line', 'dot'],
+                                        enum: ['line', 'round', 'triangle'],
                                         description: 'Indicator shape type'
                                     },
                                     size: {
@@ -590,12 +590,32 @@ export function getSliderSchema(options = {}) {
                                             width: {
                                                 type: 'number',
                                                 minimum: 0,
-                                                description: 'Indicator width in pixels'
+                                                description: 'Indicator width in pixels (or rx for round type)'
                                             },
                                             height: {
                                                 type: 'number',
                                                 minimum: 0,
-                                                description: 'Indicator height in pixels'
+                                                description: 'Indicator height in pixels (or ry for round type)'
+                                            }
+                                        }
+                                    },
+                                    rotation: {
+                                        type: 'number',
+                                        minimum: -180,
+                                        maximum: 180,
+                                        description: 'Rotation angle in degrees (for triangle type)'
+                                    },
+                                    offset: {
+                                        type: 'object',
+                                        description: 'Position offset relative to progress bar end',
+                                        properties: {
+                                            x: {
+                                                type: 'number',
+                                                description: 'Horizontal offset in pixels'
+                                            },
+                                            y: {
+                                                type: 'number',
+                                                description: 'Vertical offset in pixels'
                                             }
                                         }
                                     },

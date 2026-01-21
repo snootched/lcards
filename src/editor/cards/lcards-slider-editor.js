@@ -916,17 +916,32 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                     ${FormField.renderField(this, 'style.gauge.indicator.type', {
                         label: 'Indicator Type',
-                        helper: 'line: vertical/horizontal line, thumb: circular marker'
+                        helper: 'line: rectangle, round: ellipse/circle, triangle: rotatable triangle'
                     })}
 
                     ${FormField.renderField(this, 'style.gauge.indicator.size.width', {
                         label: 'Width',
-                        helper: 'Indicator width in pixels'
+                        helper: 'Indicator width in pixels (or rx for round type)'
                     })}
 
                     ${FormField.renderField(this, 'style.gauge.indicator.size.height', {
                         label: 'Height',
-                        helper: 'Indicator height in pixels'
+                        helper: 'Indicator height in pixels (or ry for round type)'
+                    })}
+
+                    ${FormField.renderField(this, 'style.gauge.indicator.rotation', {
+                        label: 'Rotation',
+                        helper: 'Rotation angle in degrees (for triangle type, -180 to 180)'
+                    })}
+
+                    ${FormField.renderField(this, 'style.gauge.indicator.offset.x', {
+                        label: 'Offset X',
+                        helper: 'Horizontal offset from progress bar end (pixels)'
+                    })}
+
+                    ${FormField.renderField(this, 'style.gauge.indicator.offset.y', {
+                        label: 'Offset Y',
+                        helper: 'Vertical offset from progress bar end (pixels)'
                     })}
 
                     ${FormField.renderField(this, 'style.gauge.indicator.border.enabled', {
@@ -959,7 +974,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ]}
                     ?expanded=${false}
                     ?useColorPicker=${true}>
-                </lcards-color-section>
                 </lcards-color-section>
             </lcards-form-section>
         `;
