@@ -25,6 +25,7 @@ import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
+import '../components/editors/lcards-slider-range-visualizer.js';
 
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
@@ -101,7 +102,68 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         this.cardType = 'slider';
         this._previousTrackType = null;
         this._expandedRanges = {}; // Track which ranges are expanded
+
+        // Bind event handlers
+        this._handleRangeChanged = this._handleRangeChanged.bind(this);
+        this._handleDirectionChanged = this._handleDirectionChanged.bind(this);
+
         lcardsLog.debug('[LCARdSSliderEditor] Editor initialized with cardType: slider (5 tabs + utility tabs)');
+    }
+
+    /**
+     * Handle range changes from visualizer
+     * @private
+     */
+    _handleRangeChanged(event) {
+        const updates = event.detail;
+        const newConfig = { ...this.config };
+
+        // Update control range
+        if ('controlMin' in updates) {
+            if (!newConfig.control) newConfig.control = {};
+            newConfig.control.min = updates.controlMin;
+        }
+        if ('controlMax' in updates) {
+            if (!newConfig.control) newConfig.control = {};
+            newConfig.control.max = updates.controlMax;
+        }
+
+        // Update display range
+        if ('displayMin' in updates) {
+            if (!newConfig.style) newConfig.style = {};
+            if (!newConfig.style.track) newConfig.style.track = {};
+            if (!newConfig.style.track.display) newConfig.style.track.display = {};
+            newConfig.style.track.display.min = updates.displayMin;
+        }
+        if ('displayMax' in updates) {
+            if (!newConfig.style) newConfig.style = {};
+            if (!newConfig.style.track) newConfig.style.track = {};
+            if (!newConfig.style.track.display) newConfig.style.track.display = {};
+            newConfig.style.track.display.max = updates.displayMax;
+        }
+
+        this._updateConfig(newConfig);
+    }
+
+    /**
+     * Handle direction changes from visualizer
+     * @private
+     */
+    _handleDirectionChanged(event) {
+        const { orientation, invertFill, invertValue } = event.detail;
+        const newConfig = { ...this.config };
+
+        // Update orientation
+        if (!newConfig.style) newConfig.style = {};
+        if (!newConfig.style.track) newConfig.style.track = {};
+        newConfig.style.track.orientation = orientation;
+        newConfig.style.track.invert_fill = invertFill;
+
+        // Update value inversion
+        if (!newConfig.control) newConfig.control = {};
+        newConfig.control.invert_value = invertValue;
+
+        this._updateConfig(newConfig);
     }
 
     /**
@@ -149,6 +211,69 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _getSliderState() {
         return new SliderConfigState(this.config);
+    }
+
+    /**
+     * Get entity attribute options for dropdown
+     * @returns {Array} Array of {value, label} options
+     * @private
+     */
+    _getAttributeOptions() {
+        const entityId = this.config?.entity;
+        if (!this.hass?.states?.[entityId]) {
+            return [{ value: '', label: '(State)' }];
+        }
+
+        const state = this.hass.states[entityId];
+        const attributes = Object.keys(state.attributes || {});
+
+        return [
+            { value: '', label: '(State)' },
+            ...attributes.map(attr => ({ value: attr, label: attr }))
+        ];
+    }
+
+    /**
+     * Render attribute selector dropdown
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderAttributeSelector() {
+        const options = this._getAttributeOptions();
+        const currentValue = this.config?.control?.attribute || '';
+
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Attribute'}
+                .helper=${'Entity attribute to control (e.g., brightness). Leave as (State) to control main entity value.'}
+                .selector=${{
+                    select: {
+                        mode: 'dropdown',
+                        options: options,
+                        custom_value: true
+                    }
+                }}
+                .value=${currentValue}
+                @value-changed=${(e) => this._handleAttributeChange(e)}>
+            </ha-selector>
+        `;
+    }
+
+    /**
+     * Handle attribute dropdown change
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleAttributeChange(event) {
+        const value = event.detail?.value;
+        const updates = {
+            control: {
+                ...this.config?.control,
+                attribute: value || undefined
+            }
+        };
+        this._updateConfig(updates);
     }
 
     /**
@@ -269,15 +394,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         lcardsLog.debug('[LCARdSSliderEditor] Rendering track tab with type:', trackType, 'Full state:', state);
 
         return html`
-            <lcards-message
-                type="info"
-                message="Configure track appearance. Entity configuration and track style selection. Current type: ${trackType}">
-            </lcards-message>
-
             <!-- Entity Configuration -->
             <lcards-form-section
                 header="Entity Configuration"
-                description="Entity to control and value range"
+                description="Entity to control and basic settings"
                 icon="mdi:home-automation"
                 ?expanded=${true}
                 ?outlined=${true}
@@ -288,96 +408,43 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     helper: 'Entity to control/display (light, cover, fan, sensor, etc.)'
                 })}
 
-                <lcards-grid-layout columns="3">
-                    ${FormField.renderField(this, 'control.attribute', {
-                        label: 'Attribute',
-                        helper: 'Entity attribute to control (e.g., brightness)'
-                    })}
+                ${this._renderAttributeSelector()}
+            </lcards-form-section>
 
+            <!-- Visual Range & Direction Configurator -->
+            <lcards-form-section
+                header="Range & Direction"
+                description="Interactive visual configuration for slider ranges and direction"
+                icon="mdi:tune-variant"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, 'control.locked', {
                         label: 'Display Only',
                         helper: 'Disable interaction (auto-locked for sensors)'
                     })}
 
-                    ${FormField.renderField(this, 'control.invert_value', {
-                        label: 'Invert Value',
-                        helper: 'Flip min↔max mapping (slider min sends entity max)'
-                    })}
-                </lcards-grid-layout>
-
-                <lcards-grid-layout columns="3">
-                    ${FormField.renderField(this, 'control.min', {
-                        label: 'Control Min',
-                        helper: 'Minimum settable value'
-                    })}
-
-                    ${FormField.renderField(this, 'control.max', {
-                        label: 'Control Max',
-                        helper: 'Maximum settable value'
-                    })}
-
                     ${FormField.renderField(this, 'control.step', {
-                        label: 'Step',
+                        label: 'Step Size',
                         helper: 'Increment size'
                     })}
                 </lcards-grid-layout>
-            </lcards-form-section>
 
-            <!-- Display Range Configuration -->
-            <lcards-form-section
-                header="Display Range"
-                description="Visual scale range (defaults to control range). Use for 'child lock' or extended visual context."
-                icon="mdi:monitor-eye"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-message
-                    type="info"
-                    message="Display range controls what's shown visually. Leave empty to match control range. Example: control 20-25°C, display 10-30°C.">
-                </lcards-message>
-
-                <lcards-grid-layout columns="3">
-                    ${FormField.renderField(this, 'style.track.display.min', {
-                        label: 'Display Min',
-                        helper: 'Minimum shown on visual scale (default: control.min)'
-                    })}
-
-                    ${FormField.renderField(this, 'style.track.display.max', {
-                        label: 'Display Max',
-                        helper: 'Maximum shown on visual scale (default: control.max)'
-                    })}
-
-                    ${FormField.renderField(this, 'style.track.display.unit', {
-                        label: 'Display Unit',
-                        helper: 'Unit for labels (default: entity unit)'
-                    })}
-                </lcards-grid-layout>
-            </lcards-form-section>
-
-            <!-- Track Direction Configuration -->
-            <lcards-form-section
-                header="Track Direction"
-                description="Control visual fill direction for the slider track"
-                icon="mdi:swap-horizontal"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <lcards-message
-                    type="info"
-                    message="Invert fill direction for covers ('pull down to close'), right-to-left layouts, or custom visual preferences.">
-                </lcards-message>
-
-                ${FormField.renderField(this, 'style.track.invert_fill', {
-                    label: 'Invert Fill Direction',
-                    helper: `Fill from opposite end (${state.orientation === 'horizontal' ? 'right instead of left' : 'top instead of bottom'})`
-                })}
-
-                <lcards-message
-                    type="tip"
-                    message="Common patterns: (1) For 'pull down to close' vertical covers, enable both 'Invert Value' and 'Invert Fill'. (2) For horizontal right-to-left sliders (right=0%, left=100%), enable 'Invert Fill' only.">
-                </lcards-message>
+                <lcards-slider-range-visualizer
+                    .displayMin=${this.config?.style?.track?.display?.min ?? this.config?.control?.min ?? 0}
+                    .displayMax=${this.config?.style?.track?.display?.max ?? this.config?.control?.max ?? 100}
+                    .controlMin=${this.config?.control?.min ?? 0}
+                    .controlMax=${this.config?.control?.max ?? 100}
+                    .orientation=${state.orientation}
+                    .invertFill=${this.config?.style?.track?.invert_fill ?? false}
+                    .invertValue=${this.config?.control?.invert_value ?? false}
+                    .currentValue=${50}
+                    .unit=${this.config?.style?.track?.display?.unit ?? ''}
+                    @range-changed=${this._handleRangeChanged}
+                    @direction-changed=${this._handleDirectionChanged}>
+                </lcards-slider-range-visualizer>
             </lcards-form-section>
 
             <!-- Dynamic: Pills or Gauge Configuration with INLINE COLORS -->
@@ -679,11 +746,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderGaugeConfiguration() {
         return html`
-            <lcards-message
-                type="info"
-                message="Configure the gauge/ruler display with progress bar, tick marks, and scale labels. Colors appear inline with each section.">
-            </lcards-message>
-
             <!-- Progress Bar with INLINE COLOR -->
             <lcards-form-section
                 header="Progress Bar"
