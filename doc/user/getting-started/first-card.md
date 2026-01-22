@@ -5,7 +5,7 @@
 
 ---
 
-## 🎯 What You'll Build
+## What You'll Build
 
 By the end of this tutorial, you'll create:
 - ✅ Interactive LCARdS Button that controls a light
@@ -272,7 +272,7 @@ graph TD
 - Apply style overrides dynamically
 - Work with all LCARdS Button properties
 
-📖 **Learn More:** [Rules Engine Guide](../configuration/rules.md)
+**Learn More:** [Rules Engine Guide](../configuration/rules.md)
 
 ---
 
@@ -339,20 +339,20 @@ msd:
 Now that you have the basics, explore more features:
 
 ### LCARdS Button Deep Dive
-- 📖 [LCARdS Button Quick Reference](../configuration/cards/button.md)
-- 🎨 [Theme Tokens and Styling](../advanced/theme_creation_tutorial.md)
-- 📜 [Rules Engine Guide](../configuration/rules.md)
+- [LCARdS Button Quick Reference](../cards/button.md)
+- [Theme Tokens and Styling](../advanced/theme_creation_tutorial.md)
+- [Rules Engine Guide](../configuration/rules.md)
 
 ### MSD Exploration
-- 📖 [Overlay Configuration](../configuration/overlays/README.md)
-- 💾 [DataSource System](../configuration/datasources.md)
-- 🎯 [Status Grid Overlays](../configuration/overlays/status-grid-overlay.md)
-- 📊 [ApexCharts Integration](../configuration/overlays/apexcharts-overlay.md)
+- [Overlay Configuration](../configuration/overlays/README.md)
+- [DataSource System](../configuration/datasources.md)
+- [Status Grid Overlays](../configuration/overlays/status-grid-overlay.md)
+- [ApexCharts Integration](../configuration/overlays/apexcharts-overlay.md)
 
 ### Advanced Topics
-- 🏗️ [Core/Singleton Architecture](../../architecture/overview.md)
-- 🎬 [Animation System](../guides/animations.md)
-- 🔍 [Console API](../advanced/console-help-quick-ref.md)
+- [Core/Singleton Architecture](../../architecture/overview.md)
+- [Animation System](../guides/animations.md)
+- [Console API](../advanced/console-help-quick-ref.md)
 
 ---
 
@@ -384,7 +384,7 @@ Now that you have the basics, explore more features:
 
 ## Summary
 
-**Congratulations!** 🎉 You've learned:
+**Congratulations!** You've learned:
 
 - ✅ How to create LCARdS Button cards
 - ✅ Connect buttons to Home Assistant entities
@@ -403,4 +403,4 @@ Now that you have the basics, explore more features:
 
 ---
 
-*Last Updated: November 2025*
+[← Previous: Quick Start](./quickstart.md) | [User Guide →](../README.md)

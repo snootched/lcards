@@ -1,8 +1,7 @@
-# LCARdS Slider Card - Quick Reference
+# LCARdS Slider Card
 
-**Component:** `custom:lcards-slider`
-**Extends:** `custom:lcards-button`
-**Purpose:** Interactive sliders and gauge displays for controlling and monitoring entity values
+> **Interactive sliders and gauge displays**
+> Control and monitor entity values with pills or gauge visual styles.
 
 ---
 
@@ -1348,10 +1347,9 @@ style:
 - [LCARdS Button Quick Reference](button.md) - Parent card features
 - [LCARdS Elbow Quick Reference](elbow.md) - Similar bordered cards
 - [Animation Presets](../../reference/animation-presets.md) - Animation configuration
-- [Template Conditions](../template-conditions.md) - Dynamic content
+- [Template Conditions](../configuration/template-conditions.md) - Dynamic content
 - [Slider Test Plan](../../testing/slider-card-test-plan.md) - Comprehensive testing guide
 
 ---
 
-**Version:** LCARdS 2.2.70+
-**Last Updated:** December 2025
+[← Back to Cards](./README.md) | [User Guide →](../README.md)

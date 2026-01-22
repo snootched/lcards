@@ -1,7 +1,7 @@
-# LCARdS Data Grid Card - Quick Reference
+# LCARdS Data Grid Card
 
-**Component:** `custom:lcards-data-grid`
-**Purpose:** Flexible LCARS-style data grid with cascade animations and two data modes
+> **Flexible LCARS-style data grid with cascade animations**
+> Create authentic LCARS data visualizations with decorative or real entity data.
 
 ---
 
@@ -1352,6 +1352,4 @@ The Data Grid uses AnimationManager for all animations:
 
 ---
 
-**Version:** 1.9.51
-**Last Updated:** December 7, 2025
-**Status:** Production Ready - CSS Grid standardization complete, all features tested
+[← Back to Cards](./README.md) | [User Guide →](../README.md)

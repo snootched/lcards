@@ -5,7 +5,7 @@
 
 ---
 
-## 🚀 5-Minute Startup Sequence
+## 5-Minute Startup Sequence
 
 ```mermaid
 graph LR
@@ -67,7 +67,7 @@ graph TD
    - `lovelace-card-mod`
 3. Restart Home Assistant when prompted
 
-> 💡 **Tip:** Need detailed instructions? See the [Installation Guide](installation.md).
+> **Tip:** Need detailed instructions? See the [Installation Guide](installation.md).
 
 ---
 
@@ -91,7 +91,7 @@ frontend:
     - https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap
 ```
 
-> 📝 **Note:** LCARdS will load the font automatically if it's missing, but adding it yourself is faster.
+> **Note:** LCARdS will load the font automatically if it's missing, but adding it yourself is faster.
 
 ---
 
@@ -154,7 +154,7 @@ style:
 
 A blue LCARS button with "USS ENTERPRISE" as the main label and "NCC-1701-D" in the top-left corner.
 
-> 🎉 **Success!** You should see a blue LCARS button with your text.
+> **Tip:** You should see a blue LCARS button with your text.
 
 ---
 
@@ -265,7 +265,7 @@ graph LR
 
 ---
 
-## 🎉 Success!
+## Success
 
 **You did it!** In just 5 minutes, you:
 - ✅ Installed all dependencies
@@ -276,9 +276,9 @@ graph LR
 ### Next Steps
 
 **Ready for more?**
-- 📖 [First Card Tutorial](first-card.md) - Build a complete LCARS interface
-- 🎴 [Card Types](../cards/README.md) - Explore all available cards
-- ⚙️ [Configuration Guide](../configuration/datasources.md) - Connect data to your cards
+- [First Card Tutorial](first-card.md) - Build a complete LCARS interface
+- [Card Types](../cards/README.md) - Explore all available cards
+- [Configuration Guide](../configuration/datasources.md) - Connect data to your cards
 
 ---
 

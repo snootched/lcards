@@ -1,6 +1,7 @@
-# LCARdS Chart Card - User Guide
+# LCARdS Chart Card
 
-> **⚠️ BREAKING CHANGE (v1.18.0):** Chart card now uses nested structure.
+> ⚠️ **BREAKING CHANGE (v1.18.0):** Chart card now uses nested structure.
+> Powerful standalone charting with 15+ chart types using ApexCharts.
 
 **Migration Required:**
 ```yaml
@@ -22,26 +23,6 @@ style:
   legend:
     show: true
 ```
-
-> **Powerful standalone charting with 15+ chart types**
-> Create interactive, real-time charts using ApexCharts library without requiring MSD.
-
----
-
-## 📋 Table of Contents
-
-1. [Overview](#overview)
-2. [Quick Start](#quick-start)
-3. [Data Source Configuration](#data-source-configuration)
-4. [Chart Types](#chart-types)
-5. [Multi-Series Charts](#multi-series-charts)
-6. [Styling Guide](#styling-guide)
-7. [Theme Integration](#theme-integration)
-8. [Animation Presets](#animation-presets)
-9. [Advanced Features](#advanced-features)
-10. [Complete Examples](#complete-examples)
-11. [Migration from MSD](#migration-from-msd)
-12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -69,6 +50,23 @@ The **LCARdS Chart Card** is a standalone card that provides powerful charting c
 - **Multi-sensor tracking** - Indoor vs outdoor temperature
 - **Historical analysis** - Preload hours of data for trends
 - **Custom dashboards** - Standalone charts in Lovelace views
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Data Source Configuration](#data-source-configuration)
+4. [Chart Types](#chart-types)
+5. [Multi-Series Charts](#multi-series-charts)
+6. [Styling Guide](#styling-guide)
+7. [Theme Integration](#theme-integration)
+8. [Animation Presets](#animation-presets)
+9. [Advanced Features](#advanced-features)
+10. [Complete Examples](#complete-examples)
+11. [Migration from MSD](#migration-from-msd)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1024,5 +1022,4 @@ style:
 
 ---
 
-**Version:** 1.16.22
-**Last Updated:** November 23, 2025
+[← Back to Cards](./README.md) | [User Guide →](../README.md)

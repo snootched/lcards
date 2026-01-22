@@ -1,7 +1,7 @@
-# LCARdS Button Card - Quick Reference
+# LCARdS Button Card
 
-**Component:** `custom:lcards-button`
-**Schema:** LCARdS Nested Schema with Multi-Text Support
+> **Interactive LCARS-style buttons with multi-text support**
+> Quick reference for the LCARdS Button card with complete schema and examples.
 
 ---
 
@@ -1281,7 +1281,11 @@ dpad:
 ---
 
 **For complete implementation details, see:**
-- [Animation Presets Reference](../reference/animation-presets.md) - All animation presets and parameters
-- [Animation System Guide](../guides/animations.md) - Complete animation system documentation
-- [Segment Animation Guide](../reference/segment-animation-guide.md) - Detailed segment animation examples
+- [Animation Presets Reference](../../reference/animation-presets.md) - All animation presets and parameters
+- [Animation System Guide](../../guides/animations.md) - Complete animation system documentation
+- [Segment Animation Guide](../../reference/segment-animation-guide.md) - Detailed segment animation examples
 - [Button Schema Definition](../../architecture/schemas/button-schema-definition.md) - Full schema specification
+
+---
+
+[← Back to Cards](./README.md) | [User Guide →](../../README.md)

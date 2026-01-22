@@ -1,11 +1,9 @@
 # Installation Guide
 
-> **Complete installation instructions for LCARdS**
+> **Installation instructions for LCARdS**
 > Choose between HACS (recommended) or manual installation.
 
----
-
-## 📋 Overview
+## Overview
 
 ```mermaid
 graph TD
@@ -600,7 +598,7 @@ graph LR
 
 ## Next Steps
 
-**Installation complete!** 🎉
+**Installation complete!**
 
 Now that LCARdS is installed:
 
@@ -611,8 +609,4 @@ Now that LCARdS is installed:
 
 ---
 
-**Navigation:**
-- 🏠 [Documentation Home](../../README.md)
-- 🚀 [Quick Start](quickstart.md)
-- 📖 [First Card Tutorial](first-card.md)
-- 🎨 [Example Gallery](../examples/)
+[← Back to Getting Started](../README.md) | [Next: Quick Start →](./quickstart.md)

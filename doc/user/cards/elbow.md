@@ -1,8 +1,7 @@
-# LCARdS Elbow Card - Quick Reference
+# LCARdS Elbow Card
 
-**Component:** `custom:lcards-elbow`
-**Extends:** `custom:lcards-button`
-**Purpose:** Classic LCARS elbow/corner designs with curved borders
+> **Classic LCARS elbow/corner designs with curved borders**
+> Quick reference for creating authentic LCARS interface aesthetics.
 
 ---
 
@@ -749,5 +748,4 @@ hold_action:
 
 ---
 
-**Version:** LCARdS 1.24+
-**Last Updated:** December 2025
+[← Back to Cards](./README.md) | [User Guide →](../README.md)
