@@ -1,11 +1,9 @@
 # DataSource Aggregations Reference
 
-> **Complete guide to aggregation processors**
-> Analyze time-windowed data with moving averages, min/max tracking, rate calculations, statistical analysis, trend detection, and duration tracking.
+> **Analyze time-windowed data with statistical operations**
+> Moving averages, min/max tracking, rate calculations, trend detection, and rolling statistics
 
----
-
-## 🎯 Overview
+## Overview
 
 Aggregations analyze data over time windows, providing statistical measures, trends, and insights from historical data. Unlike transformations that process individual values, aggregations operate on data buffers to derive meaningful patterns.
 
@@ -17,13 +15,13 @@ Aggregations analyze data over time windows, providing statistical measures, tre
 - ✅ Trend detection (increasing/decreasing/stable)
 - ✅ Duration tracking for condition monitoring
 - ✅ Session-based statistics
-- ✅ ⭐ **NEW:** Multi-value rolling statistics for advanced charts
-- ✅ ⭐ **NEW:** Time-series rolling statistics for trend visualization
+- ✅ Multi-value rolling statistics for advanced charts
+- ✅ Time-series rolling statistics for trend visualization
 - ✅ Automatic buffer management
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Aggregation Basics](#aggregation-basics)
 2. [Moving Average](#moving-average)
@@ -32,14 +30,14 @@ Aggregations analyze data over time windows, providing statistical measures, tre
 5. [Session Statistics](#session-statistics)
 6. [Recent Trend](#recent-trend)
 7. [Duration Tracking](#duration-tracking)
-8. [Rolling Statistics](#rolling-statistics) ⭐ **NEW**
-9. [Rolling Statistics Series](#rolling-statistics-series-time-series) ⭐ **NEW**
+8. [Rolling Statistics](#rolling-statistics)
+9. [Rolling Statistics Series](#rolling-statistics-series-time-series)
 10. [Time Windows](#time-windows)
 11. [Examples](#examples)
 
 ---
 
-## 🔧 Aggregation Basics
+## Aggregation Basics
 
 ### How Aggregations Work
 
@@ -1871,15 +1869,12 @@ overlays:
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
-- [DataSources Configuration Guide](datasources.md)
-- [Transformation Reference](datasource-transformations.md)
-- [Computed Sources Guide](computed-sources.md)
-- [DataSource Examples](../examples/datasource-examples.md)
-- [ApexCharts Configuration](overlays/apexcharts.md)
+- [Transformation Reference](./transformations.md) - Data transformation operations
+- [Computed Sources Guide](./computed-sources.md) - Calculated data sources
+- [Format Guide](./transformations-aggregations-format.md) - Syntax reference
 
 ---
 
-**Last Updated:** October 31, 2025
-**Version:** 2025.10.1-fuk.42-69
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

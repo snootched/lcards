@@ -1,6 +1,9 @@
-# Transformations & Aggregations Format
+# Transformations & Aggregations Format Reference
 
-## ✨ Keyed Object Format (Recommended)
+> **Syntax guide for keyed object format**
+> Keyed object format for transformations and aggregations (v1.13.04+)
+
+## Keyed Object Format (Recommended)
 
 As of v1.13.04, transformations and aggregations use a **keyed object format** instead of arrays. This provides:
 
@@ -46,7 +49,7 @@ data_sources:
 
 ---
 
-## 🔄 Unit Conversion Property Changes
+## Unit Conversion Property Changes
 
 Unit conversions now use **`from` and `to` properties** instead of a single `conversion` string:
 
@@ -269,8 +272,12 @@ transformations:
 
 ---
 
-## 📚 See Also
+## See Also
 
-- [Computed Sources Guide](./computed-sources.md)
-- [DataSource System Architecture](../../architecture/subsystems/datasource-system.md)
-- [Validation Guide](../advanced/validation_guide.md)
+- [Computed Sources Guide](./computed-sources.md) - Calculated data sources
+- [Transformation Reference](./transformations.md) - All transformation types
+- [Aggregation Reference](./aggregations.md) - All aggregation types
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

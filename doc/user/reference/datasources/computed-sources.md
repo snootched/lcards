@@ -1,11 +1,9 @@
-# Computed DataSources Guide
+# Computed DataSources Reference
 
-> **Complete guide to computed sources**
-> Calculate derived values from multiple entity sources using JavaScript expressions with full math library and multi-entity access.
+> **Calculate derived values from multiple entities**
+> JavaScript expressions with full Math library and multi-entity access
 
----
-
-## 🎯 Overview
+## Overview
 
 Computed sources create virtual data sources by evaluating JavaScript expressions against one or more Home Assistant entities. They're ideal for calculations that require data from multiple sources, complex formulas, or custom logic.
 
@@ -20,7 +18,7 @@ Computed sources create virtual data sources by evaluating JavaScript expression
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Computed Source Basics](#computed-source-basics)
 2. [Simple Calculations](#simple-calculations)
@@ -33,7 +31,7 @@ Computed sources create virtual data sources by evaluating JavaScript expression
 
 ---
 
-## 🔧 Computed Source Basics
+## Computed Source Basics
 
 ### Basic Syntax
 
@@ -765,14 +763,12 @@ console.log('Test result:', eval("inputs[0] + inputs[1] + inputs[2]"));
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
-- [DataSources Configuration Guide](datasources.md)
-- [Transformation Reference](datasource-transformations.md)
-- [Aggregation Reference](datasource-aggregations.md)
-- [DataSource Examples](../examples/datasource-examples.md)
+- [Transformation Reference](./transformations.md) - Data transformation operations
+- [Aggregation Reference](./aggregations.md) - Aggregation functions
+- [Format Guide](./transformations-aggregations-format.md) - Syntax reference
 
 ---
 
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

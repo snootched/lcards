@@ -1,11 +1,9 @@
 # DataSource Transformations Reference
 
-> **Complete guide to transformation processors**
-> Transform raw sensor data with 50+ predefined unit conversions, scaling, smoothing, expressions, and statistical analysis.
+> **Transform raw sensor data with 50+ predefined operations**
+> Unit conversions, scaling, smoothing, expressions, and statistical analysis
 
----
-
-## 🎯 Overview
+## Overview
 
 Transformations process data as it flows through a datasource. They can be chained to create complex processing pipelines, with each transformation's output available for use in templates and rules.
 
@@ -20,7 +18,7 @@ Transformations process data as it flows through a datasource. They can be chain
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Transformation Basics](#transformation-basics)
 2. [Unit Conversion](#unit-conversion)
@@ -33,7 +31,7 @@ Transformations process data as it flows through a datasource. They can be chain
 
 ---
 
-## 🔧 Transformation Basics
+## Transformation Basics
 
 ### How Transformations Work
 
@@ -951,14 +949,12 @@ data_sources:
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
-- [DataSources Configuration Guide](datasources.md)
-- [Aggregation Reference](datasource-aggregations.md)
-- [Computed Sources Guide](computed-sources.md)
-- [DataSource Examples](../examples/datasource-examples.md)
+- [Aggregation Reference](./aggregations.md) - Aggregation functions
+- [Computed Sources Guide](./computed-sources.md) - Calculated data sources
+- [Format Guide](./transformations-aggregations-format.md) - Syntax reference
 
 ---
 
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)
