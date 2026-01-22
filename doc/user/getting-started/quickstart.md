@@ -265,21 +265,21 @@ graph LR
 
 ---
 
-## Summary
+## 🎉 Success!
 
-**You did it!** 🎉
-
-In just 5 minutes, you:
+**You did it!** In just 5 minutes, you:
 - ✅ Installed all dependencies
 - ✅ Setup the LCARS theme
 - ✅ Installed LCARdS
 - ✅ Created your first card
 
-**Ready for more?** Continue to the [First Card Tutorial](first-card.md) to build a complete LCARS interface!
+### Next Steps
+
+**Ready for more?**
+- 📖 [First Card Tutorial](first-card.md) - Build a complete LCARS interface
+- 🎴 [Card Types](../cards/README.md) - Explore all available cards
+- ⚙️ [Configuration Guide](../configuration/datasources.md) - Connect data to your cards
 
 ---
 
-**Navigation:**
-- 📖 Next: [First Card Tutorial](first-card.md)
-- 🏠 [Documentation Home](../../README.md)
-- 🔧 [Installation Details](installation.md)
+[← Back to Getting Started](../README.md) | [Next: First Card Tutorial →](first-card.md)
