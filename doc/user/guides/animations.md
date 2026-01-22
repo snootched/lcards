@@ -1,5 +1,7 @@
 # Animation System Guide
 
+> **Dynamic animations triggered by interactions, data changes, or lifecycle events**
+
 ## Overview
 
 The LCARdS Animation System allows you to add dynamic animations to your overlays using anime.js v4. Animations can be triggered by user interactions (tap, hold, hover), data changes, or automatically on load.
@@ -764,3 +766,7 @@ See the [examples directory](../examples/) for complete working examples of:
 - Data-driven animations
 - Complex multi-animation sequences
 - Custom animation presets
+
+---
+
+[← Back to Guides](./README.md) | [User Guide →](../README.md)

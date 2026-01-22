@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
@@ -894,3 +894,7 @@ Start with simple button cards, then progress to graphs, entities, and complex l
 - [Button Overlay](button-overlay.md) - Native MSD buttons
 - [Text Overlay](text-overlay.md) - Labels and indicators
 - [Architecture: Control System](../../architecture/subsystems/control-overlay-system.md) - Technical details
+
+---
+
+[← Back to Overlays](./README.md) | [Configuration →](../README.md)

@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
@@ -1518,7 +1518,11 @@ console.log('Line config:', {
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
 - **[Control Overlay](control-overlay.md)** - Connect control overlays with lines
 - **[Overlay System Guide](README.md)** - Overview of all overlay types
+
+---
+
+[← Back to Overlays](./README.md) | [Configuration →](../README.md)

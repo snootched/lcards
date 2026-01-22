@@ -5,7 +5,7 @@
 
 ---
 
-## 🎯 Example Flow Visualization
+## Example Flow Visualization
 
 These examples demonstrate how datasources transform raw data into processed values for display:
 
@@ -49,7 +49,7 @@ graph TD
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Using DataSource Metadata](#using-datasource-metadata)
 2. [Temperature Monitoring System](#temperature-monitoring-system)
@@ -61,7 +61,7 @@ graph TD
 
 ---
 
-## �️ Using DataSource Metadata
+## Using DataSource Metadata
 
 **Every datasource automatically captures entity metadata** from Home Assistant. This example shows how to leverage metadata for dynamic, maintainable configurations.
 
@@ -344,7 +344,7 @@ overlays:
 
 ---
 
-## �🌡️ Temperature Monitoring System
+## Temperature Monitoring System
 
 Complete temperature monitoring with unit conversion, smoothing, trends, and alerts.
 
@@ -808,7 +808,7 @@ rules:
 
 ---
 
-## 🌤️ Environmental Monitor
+## Environmental Monitor
 
 Multi-sensor environmental monitoring with weather calculations and comfort analysis.
 
@@ -1334,7 +1334,7 @@ rules:
 
 ---
 
-## ☀️ Solar Production Tracker
+## Solar Production Tracker
 
 Complete solar energy monitoring with production analysis, efficiency tracking, and savings calculation.
 
@@ -1663,7 +1663,7 @@ rules:
 
 ---
 
-## ❄️ HVAC Optimization
+## HVAC Optimization
 
 Advanced HVAC monitoring with efficiency analysis, cycle tracking, and comfort optimization.
 
@@ -2057,7 +2057,7 @@ rules:
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
 - [DataSources Configuration Guide](../configuration/datasources.md)
 - [Transformation Reference](../configuration/datasource-transformations.md)
@@ -2066,5 +2066,4 @@ rules:
 
 ---
 
-**Last Updated:** October 26, 2025
-**Version:** 2025.10.1-fuk.42-69
+[← Back to Guides](./README.md) | [DataSources →](../configuration/datasources.md)

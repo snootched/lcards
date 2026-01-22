@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overlay Types](#overlay-types)
 2. [Line Overlay](#line-overlay)
@@ -210,7 +210,7 @@ overlays:
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
 ### Overlay Guides
 - **[Line Overlay Guide](line-overlay.md)** - SVG lines and paths
@@ -222,4 +222,4 @@ overlays:
 
 ---
 
-**Current Overlay Types:** line, card/control
+[← Back to Configuration](../README.md) | [User Guide →](../../README.md)

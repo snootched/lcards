@@ -1105,5 +1105,4 @@ rules:
 
 ---
 
-**Last Updated:** November 1, 2025
-**Version:** 2025.10.1-fuk.42-69
+[← Back to Configuration](./README.md) | [User Guide →](../README.md)

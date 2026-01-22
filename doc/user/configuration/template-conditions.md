@@ -694,6 +694,4 @@ when:
 
 ---
 
-**Last Updated:** November 13, 2025
-**Version:** 1.9.43+
-**Status:** ✅ Fully Tested and Documented
+[← Back to Configuration](./README.md) | [Rules Guide](./rules.md)
