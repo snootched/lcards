@@ -4,32 +4,6 @@
 
 ---
 
-## 🏛️ Architecture
-
-LCARdS uses a **hybrid architecture** with core singleton systems for shared intelligence and per-card systems for local orchestration:
-
-### Core Singleton Systems (Shared Across All Cards)
-
-| Singleton | Access | Purpose |
-|-----------|--------|---------|
-| `lcardsCore.themeManager` | ThemeManager | Theme and design tokens |
-| `lcardsCore.dataSourceManager` | DataSourceManager | Entity state and data fetching |
-| `lcardsCore.rulesManager` | RulesEngine | Conditional styling rules |
-| `lcardsCore.validationService` | CoreValidationService | Config validation |
-| `lcardsCore.stylePresetManager` | StylePresetManager | Style presets and CSS utilities |
-| `lcardsCore.animationRegistry` | AnimationRegistry | Animation instance caching |
-| `lcardsCore.systemsManager` | CoreSystemsManager | Entity caching for LCARdS Cards |
-
-### Per-Card Systems (One Instance Per Card)
-
-| System | Used By | Purpose |
-|--------|---------|---------|
-| `AnimationManager` | Each card instance | Animation coordination and playback |
-| `MSD SystemsManager` | MSD cards only | MSD rendering pipeline orchestration |
-
-**Key Principle:** Core singletons provide shared intelligence (data, rules, themes) while per-card systems handle local rendering and animation. Any card can define `data_sources` and `rules` that are registered with global singletons, making them available system-wide for cross-card data sharing.
-
----
 
 ## 📚 Documentation Structure
 
