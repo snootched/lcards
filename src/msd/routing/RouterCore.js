@@ -214,15 +214,66 @@ export class RouterCore {
       (this.config.smoothing && this.config.smoothing.max_points) ||
       160
     );
+
+    // Auto-upgrade logic: determine if smart routing should be used
+    // Priority: explicit route_mode_full > global default_mode > auto-detection > manhattan
+    let modeFull = (raw.route_mode_full || raw.route_mode || '').toLowerCase();
+    let modeAutoUpgraded = false;
+    let autoUpgradeReason = null;
+
+    // If no explicit mode, use global default or auto-detect
+    if (!modeFull || modeFull === 'auto') {
+      // Check global default_mode from routing config
+      modeFull = (this.config.default_mode || '').toLowerCase();
+      
+      // If still no mode or set to auto/manhattan, check if auto-upgrade is needed
+      if (!modeFull || modeFull === 'auto' || modeFull === 'manhattan') {
+        const hasChannels = Array.isArray(raw.route_channels || raw.routeChannels) && 
+                           (raw.route_channels || raw.routeChannels).length > 0;
+        const hasObstacles = this._obstacles && this._obstacles.length > 0;
+        const isAvoidMode = channelMode === 'avoid';
+        
+        // Auto-upgrade conditions (can be disabled via config)
+        const autoUpgradeEnabled = this.config.auto_upgrade_simple_lines !== false;
+        
+        if (autoUpgradeEnabled) {
+          if (hasChannels) {
+            modeFull = 'smart';
+            modeAutoUpgraded = true;
+            autoUpgradeReason = 'channels_present';
+            try { 
+              perfCount('routing.mode.auto_upgrade.channels', 1);
+              lcardsLog.debug(`[RouterCore] Auto-upgraded route ${overlay.id} to smart mode (channels present)`);
+            } catch(_) {}
+          } else if (hasObstacles && !isAvoidMode) {
+            modeFull = 'smart';
+            modeAutoUpgraded = true;
+            autoUpgradeReason = 'obstacles_present';
+            try { 
+              perfCount('routing.mode.auto_upgrade.obstacles', 1);
+              lcardsLog.debug(`[RouterCore] Auto-upgraded route ${overlay.id} to smart mode (obstacles present)`);
+            } catch(_) {}
+          }
+        }
+        
+        // Fallback to manhattan if no upgrade conditions met
+        if (!modeFull || modeFull === 'auto') {
+          modeFull = 'manhattan';
+        }
+      }
+    }
+
     return {
       id: overlay.id,
       a: a1,
       b: a2,
-      modeFull: (raw.route_mode_full || raw.route_mode || 'manhattan').toLowerCase(),
+      modeFull,
       modeHint,
       modeHintLast,
       _hintSourceFirst: hintSourceFirst,
       _hintSourceLast: hintSourceLast,
+      _modeAutoUpgraded: modeAutoUpgraded,
+      _autoUpgradeReason: autoUpgradeReason,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
       channels: (raw.route_channels || raw.routeChannels || []),
       channelMode,
@@ -445,6 +496,8 @@ export class RouterCore {
         segments: pts.length - 1,
         bends: Math.max(0, pts.length - 2),
         grid: { resolution: res, iterations },
+        modeAutoUpgraded: req._modeAutoUpgraded || false,
+        ...(req._autoUpgradeReason ? { autoUpgradeReason: req._autoUpgradeReason } : {}),
         ...(req.channels?.length ? {
           channel: {
             mode: channelInfo.mode,
@@ -518,6 +571,8 @@ export class RouterCore {
         cost: this._costSimple(pts),
         segments: pts.length - 1,
         bends: Math.max(0, pts.length - 2),
+        modeAutoUpgraded: req._modeAutoUpgraded || false,
+        ...(req._autoUpgradeReason ? { autoUpgradeReason: req._autoUpgradeReason } : {}),
         hint: {
           first: req.modeHint,
             last: req.modeHintLast,
@@ -614,7 +669,8 @@ export class RouterCore {
         return {
           id: c.id || `chan_${x}_${y}`,
           x1: x, y1: y, x2: x + w, y2: y + h,
-          weight: Number(c.weight || c.w || 0.5)
+          weight: Number(c.weight || c.w || 0.5),
+          type: (c.type || 'bundling').toLowerCase() // Support waypoint, bundling, avoiding
         };
       });
   }
@@ -626,6 +682,10 @@ export class RouterCore {
     const chans = this._channels.filter(c => chanSet.has(c.id));
     if (!chans.length) return { delta: 0, inside: 0, outside: 0, coverage: 0, forcedOutside: false };
 
+    // Track waypoint channels separately
+    const waypointChans = chans.filter(c => c.type === 'waypoint');
+    const waypointCoverage = {};
+    
     let inside = 0;
     let outside = 0;
     // Forcing: a point is "inside preferred set" if midpoint is inside ANY requested channel rect.
@@ -639,11 +699,28 @@ export class RouterCore {
       const inChan = chans.some(c => mx >= c.x1 && mx <= c.x2 && my >= c.y1 && my <= c.y2);
       if (inChan) inside += segLen;
       else outside += segLen;
+      
+      // Track waypoint coverage
+      for (const wc of waypointChans) {
+        if (mx >= wc.x1 && mx <= wc.x2 && my >= wc.y1 && my <= wc.y2) {
+          waypointCoverage[wc.id] = (waypointCoverage[wc.id] || 0) + segLen;
+        }
+      }
     }
     const coverage = inside / (inside + outside || 1);
     let delta = 0;
     const mode = (req.channelMode || 'prefer').toLowerCase();
     let forcedOutside = false;
+    
+    // Check waypoint requirements
+    const missedWaypoints = waypointChans.filter(wc => !waypointCoverage[wc.id] || waypointCoverage[wc.id] === 0);
+    if (missedWaypoints.length > 0) {
+      // Penalize routes that miss waypoints
+      delta += this._channelForcePenalty * missedWaypoints.length;
+      perfCount('routing.channel.waypoint.missed', missedWaypoints.length);
+      lcardsLog.debug(`[RouterCore] Route missed ${missedWaypoints.length} waypoint(s): ${missedWaypoints.map(w=>w.id).join(', ')}`);
+    }
+    
     if (mode === 'prefer') {
       // Reward inside (subtract)
       const weightAvg = chans.reduce((s,c)=>s+c.weight,0)/chans.length;
@@ -662,7 +739,19 @@ export class RouterCore {
     }
     if (delta !== 0) perfCount('routing.channel.applied', 1);
     if (forcedOutside) perfCount('routing.channel.force.penalty', 1);
-    return { delta, inside, outside, coverage, forcedOutside, mode: req.channelMode };
+    
+    return { 
+      delta, 
+      inside, 
+      outside, 
+      coverage, 
+      forcedOutside, 
+      mode: req.channelMode,
+      ...(waypointChans.length > 0 ? { 
+        waypointCoverage: Object.keys(waypointCoverage).length,
+        missedWaypoints: missedWaypoints.map(w => w.id)
+      } : {})
+    };
   }
 
   _refineSmart(req, gridBase) {

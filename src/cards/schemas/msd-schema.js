@@ -151,6 +151,31 @@ export function getMsdSchema(options = {}) {
         optional: true,
         description: 'Global line routing configuration (lines can override with per-line properties)',
         properties: {
+          // NEW: Global routing mode and auto-upgrade settings
+          default_mode: {
+            type: 'string',
+            enum: ['manhattan', 'smart', 'grid', 'auto'],
+            optional: true,
+            default: 'manhattan',
+            description: 'Default routing mode for all lines (can be overridden per-line)',
+            'x-ui': {
+              control: 'select',
+              label: 'Default Routing Mode',
+              helper: 'Global default for line routing complexity'
+            }
+          },
+          auto_upgrade_simple_lines: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Automatically upgrade manhattan to smart routing when channels or obstacles are present',
+            'x-ui': {
+              control: 'checkbox',
+              label: 'Auto-Upgrade to Smart Routing',
+              helper: 'Enable automatic route complexity detection'
+            }
+          },
+          
           // Basic routing
           clearance: {
             type: 'number',
