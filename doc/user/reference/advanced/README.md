@@ -1,11 +1,11 @@
-# Advanced Guides
+# Advanced Reference
 
 > **Advanced topics for experienced users**  
-> In-depth guides for theme creation, actions, controls, validation, and token reference.
+> In-depth guides for theme creation, actions, controls, validation, and developer tools
 
 ---
 
-## 📋 Available Guides
+## Available Guides
 
 ### Theme System
 
@@ -68,48 +68,36 @@ Configuration validation and error handling.
 
 ---
 
-## 🎯 Who Should Read These?
+## Who Should Read These?
 
 **Theme Creation Tutorial** - Users creating custom themes or modifying LCARS presets
 
 **Token Reference Card** - Anyone working with theme customization or style resolution
 
-**MSD Actions** - Developers implementing interactive buttons and controls
-
 **MSD Controls** - Advanced users building custom control systems
 
 **Validation Guide** - Anyone debugging configuration issues or building tools
 
----
-
-## 📚 Related Documentation
-
-### Getting Started
-- **[Quick Start](../getting-started/quickstart.md)** - Basic setup
-- **[First Card](../getting-started/first-card.md)** - Create your first card
-
-### Configuration
-- **[Overlays](../configuration/overlays/README.md)** - All overlay types
-- **[Styles & Themes](../configuration/styles-and-themes.md)** - Styling basics
-
-### Architecture
-- **[Theme System](../../architecture/subsystems/theme-system.md)** - Theme subsystem
-- **[Style Resolver](../../architecture/subsystems/style-resolver.md)** - Style resolution
-- **[Subsystems](../../architecture/subsystems/README.md)** - All subsystems
+**Console API Reference** - Developers debugging MSD cards
 
 ---
 
-## 🔍 Quick Navigation
+## Related Documentation
+
+- [Configuration Guide](../../guides/configuration.md) - Configuration basics
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+- [Reference Documentation](../README.md) - All reference docs
+
+---
+
+## Quick Navigation
 
 **Looking for:**
 
-- **Basic configuration?** → See [Configuration Guide](../configuration/)
-- **Overlay types?** → See [Overlays Hub](../configuration/overlays/README.md)
-- **Examples?** → See [Examples Directory](../examples/)
-- **Architecture details?** → See [Architecture Overview](../../architecture/overview.md)
+- **Basic configuration?** → See [Getting Started](../../getting-started/)
+- **Card types?** → See [Cards](../../cards/)
+- **Examples?** → See [Guides](../../guides/)
 
 ---
 
-**Last Updated:** October 26, 2025  
-**Version:** 2025.10.1-fuk.42-69  
-**Files:** 5 advanced guides
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

@@ -1,8 +1,15 @@
-# Creating Custom LCARS Themes - Tutorial
+# Theme Creation Tutorial
+
+> **Step-by-step guide to creating custom LCARS themes**
+> From basic concepts to complete working themes
+
+## Overview
 
 This tutorial will guide you through creating your own custom LCARS theme for the MSD system, from basic concepts to a complete working theme.
 
-## 🎨 Theme Creation Workflow
+---
+
+## Theme Creation Workflow
 
 ```mermaid
 graph TD
@@ -766,18 +773,24 @@ Now that you've created your first theme:
 1. 📚 **Read the Token Reference Card** - Learn all available tokens
 2. 🎨 **Experiment with variants** - Try different color schemes
 3. 🔍 **Study built-in themes** - Look at lcarsClassicTokens.js for examples
-4. 🚀 **Share your theme** - Consider sharing with the community
-5. 🎭 **Create theme packs** - Bundle multiple related themes
+4. Share your theme - Consider sharing with the community
+5. Create theme packs - Bundle multiple related themes
 
 ---
 
 ## Resources
 
-- **Token Reference Card** - Quick lookup for all tokens
-- **Theme System Reference** - Complete technical documentation
-- **Built-in Themes** - `src/msd/packs/builtin_themes/`
-- **Home Assistant Forums** - Share and discuss themes
+- [Token Reference Card](./token_reference_card.md) - Quick lookup for all tokens
+- [Configuration Layers](./configuration-layers.md) - Complete technical documentation
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
 
 ---
 
-Happy theming! May your LCARS interface be ever vibrant! 🖖✨
+## See Also
+
+- [Token Reference Card](./token_reference_card.md) - All available theme tokens
+- [Configuration Layers](./configuration-layers.md) - Theme system architecture
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

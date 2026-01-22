@@ -1,8 +1,15 @@
-# MSD Theme Token Reference Card
+# Theme Token Reference
+
+> **Quick reference for all MSD theme tokens**
+> Complete catalog of colors, typography, spacing, and component tokens
+
+## Overview
 
 Quick reference for all available theme tokens in the MSD system.
 
-## 📋 Quick Navigation
+---
+
+## Quick Navigation
 
 - [Colors](#colors-tokens) - Color palette
 - [Typography](#typography-tokens) - Font settings
@@ -605,12 +612,21 @@ window.lcards.theme.tokens.colors.accent.primary
 
 ## Need Help?
 
-- 📚 **Theme Creation Tutorial** - Step-by-step guide
-- 📖 **Theme System Reference** - Complete technical docs
-- 💬 **Home Assistant Forums** - Community support
+- [Theme Creation Tutorial](./theme_creation_tutorial.md) - Step-by-step guide
+- [Configuration Layers](./configuration-layers.md) - Complete technical docs
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
+---
+
+## See Also
+
+- [Theme Creation Tutorial](./theme_creation_tutorial.md) - Create custom themes
+- [Configuration Layers](./configuration-layers.md) - Theme system architecture
 
 ---
 
 *This reference card covers MSD Theme System v1.0*
 
-*Last updated: 2025-10-18* 🖖
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

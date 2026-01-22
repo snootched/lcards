@@ -1,18 +1,9 @@
-# MSD Validation Guide - User Documentation
+# MSD Validation Guide
 
-**Location:** `/doc/user/validation_guide.md`
+> **Configuration validation and error checking**
+> Catch typos and mistakes early with automatic validation
 
-## Table of Contents
-1. [What is Validation?](#what-is-validation)
-2. [How to Check for Errors](#how-to-check-for-errors)
-3. [Understanding Error Messages](#understanding-error-messages)
-4. [Common Errors and Fixes](#common-errors-and-fixes)
-5. [Chart Validation](#chart-validation)
-6. [Troubleshooting](#troubleshooting)
-
----
-
-## What is Validation?
+## Overview
 
 The MSD validation system checks your overlay configuration for errors **before** rendering. This helps you:
 
@@ -393,12 +384,16 @@ __msdDebug.pipelineInstance.config.__validation
 
 ## Need More Help?
 
-- [Architecture Documentation](/doc/architecture/validation_architecture.md) - For developers
-- [Troubleshooting Guide](/doc/user/validation_troubleshooting.md) - Common issues
-- [GitHub Issues](https://github.com/snootched/lcards-copilot/issues) - Report bugs
-- [Discussions](https://github.com/snootched/lcards-copilot/discussions) - Ask questions
+- [Console API Reference](./console-help-quick-ref.md) - Browser console commands
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
 
 ---
 
-*Last Updated: 2025-01-19*
-*Version: 1.0*
+## See Also
+
+- [Console API Reference](./console-help-quick-ref.md) - Debugging commands
+- [MSD Controls](./msd-controls.md) - Control overlay implementation
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

@@ -1,6 +1,9 @@
-# MSD Control Overlay Implementation Guide
+# MSD Control Overlay Reference
 
-## Executive Summary
+> **Home Assistant cards as MSD overlays**
+> Implementation guide for embedding interactive cards within MSD displays
+
+## Overview
 
 This document provides a comprehensive analysis and implementation guide for the MSD (Master Systems Display) control overlay system in the LCARdS project. The control overlay system allows users to embed Home Assistant cards as interactive overlays within the MSD, positioned using the same coordinate system as other MSD overlays.
 
@@ -761,3 +764,14 @@ _createFallbackElement(cardType, overlay) {
 - [ ] Control overlay configuration examples
 - [ ] Supported card types list
 - [ ] Best practices guide
+
+---
+
+## See Also
+
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+- [Console API Reference](./console-help-quick-ref.md) - Debugging commands
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

@@ -1,4 +1,9 @@
-# Style Presets vs Explicit Styles - Priority & Override Behavior
+# Style Priority Reference
+
+> **Understanding style presets vs explicit styles**
+> Priority and override behavior in the MSD system
+
+## Overview
 
 This document explains exactly how style presets interact with explicit user styles in the MSD system.
 
@@ -155,7 +160,18 @@ style:
 
 ## Implementation Status
 
-- ❌ **Current**: Presets override explicit user values (wrong)
-- ✅ **Needed**: Explicit user values override preset defaults (correct)
+- Current: Presets override explicit user values (needs review)
+- Expected: Explicit user values override preset defaults
 
-This needs to be fixed to provide the expected behavior where user explicit values always win over preset defaults.
+This behavior ensures user explicit values take precedence over preset defaults.
+
+---
+
+## See Also
+
+- [Configuration Layers](./configuration-layers.md) - Complete configuration flow
+- [Theme Creation Tutorial](./theme_creation_tutorial.md) - Custom theme development
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

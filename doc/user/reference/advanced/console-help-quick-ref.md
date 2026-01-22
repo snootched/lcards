@@ -1,6 +1,9 @@
-# LCARdS Console Help - Quick Reference
+# LCARdS Console API Reference
 
-## 🎯 Getting Started (30 seconds)
+> **Browser console debugging commands**
+> Quick reference for MSD debugging methods and console helpers
+
+## Getting Started (30 seconds)
 
 ```javascript
 // 1. Create shorthand
@@ -15,7 +18,7 @@ msd.usage();
 
 ---
 
-## 📖 Two Main Commands
+## Two Main Commands
 
 ### `help([topic])`
 **What it does:** Shows available methods
@@ -39,7 +42,7 @@ msd.usage('data');     // Data examples
 
 ---
 
-## 📚 11 Namespaces Available
+## 11 Namespaces Available
 
 | Namespace | What It Does | Example |
 |-----------|--------------|---------|
@@ -109,3 +112,15 @@ open test-help-usage.html
 ---
 
 **That's it!** Just type `msd.help()` in console to get started.
+
+---
+
+## See Also
+
+- [MSD Controls Reference](./msd-controls.md) - Control overlay implementation
+- [Validation Guide](./validation_guide.md) - Configuration validation
+- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)

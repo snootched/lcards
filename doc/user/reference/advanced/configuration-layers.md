@@ -1,8 +1,15 @@
-# MSD Configuration Layering & Theme System
+# MSD Configuration Layering Reference
+
+> **Configuration flow from themes to final values**
+> Understanding priority, themes, presets, and style resolution
+
+## Overview
 
 This document explains how configuration flows through the MSD system, from themes to final resolved values.
 
-## 🎨 Configuration Priority (Simplified)
+---
+
+## Configuration Priority
 
 Understanding how your styles are applied:
 
@@ -49,7 +56,7 @@ overlays:
 
 ---
 
-## 📐 Config Architecture Pattern
+## Config Architecture Pattern
 
 LCARdS uses a clear architectural pattern to separate **what to show** from **how it looks**:
 
@@ -523,3 +530,15 @@ msd:
 ```
 
 This unified theme system provides **maximum flexibility** while maintaining **predictable behavior** - themes provide defaults, presets provide styled combinations, and users can override anything.
+
+---
+
+## See Also
+
+- [Theme Creation Tutorial](./theme_creation_tutorial.md) - Create custom themes
+- [Style Priority Reference](./style-priority.md) - Style resolution order
+- [Token Reference Card](./token_reference_card.md) - All theme tokens
+
+---
+
+[← Back to Reference](../README.md) | [User Guide →](../../README.md)
