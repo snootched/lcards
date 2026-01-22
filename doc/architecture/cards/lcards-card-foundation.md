@@ -220,14 +220,10 @@ export class MyLCARdSCard extends LCARdSCard {
         super._handleFirstUpdate();
 
         // Register this card as an overlay for rules
-        this._registerOverlayForRules({
-            id: `my-card-${this._cardGuid}`,
-            type: 'button', // or 'label', 'custom', etc.
-            metadata: {
-                entity: this.config.entity,
-                cardType: 'my-simple-card'
-            }
-        });
+        // Parameters: overlayId (string), tags (array)
+        const overlayId = this.config.id || `my-card-${this._cardGuid}`;
+        const tags = ['button']; // Tags for rule targeting
+        this._registerOverlayForRules(overlayId, tags);
     }
 
     // 2. Implement the patch changed hook
@@ -442,18 +438,16 @@ _handleFirstUpdate() {
     super._handleFirstUpdate();
 
     // Register main button
-    this._registerOverlayForRules({
-        id: `button-${this._cardGuid}`,
-        type: 'button',
-        metadata: { entity: this.config.entity }
-    });
+    this._registerOverlayForRules(
+        `button-${this._cardGuid}`,
+        ['button']
+    );
 
     // Register sub-components
-    this._registerOverlayForRules({
-        id: `icon-${this._cardGuid}`,
-        type: 'icon',
-        metadata: { entity: this.config.entity }
-    });
+    this._registerOverlayForRules(
+        `icon-${this._cardGuid}`,
+        ['icon']
+    );
 }
 
 // Apply patches to correct component
@@ -680,7 +674,7 @@ Create test HTML file:
 | `subscribeToEntity(entityId, callback)` | entityId: string, callback: Function | Function | Subscribe to entity changes (returns unsubscribe function) |
 | `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call HA service |
 | `setupActions(element, actions)` | element: HTMLElement, actions: Object | Function | Setup action handlers |
-| `_registerOverlayForRules(overlay)` | overlay: Object | void | Register overlay with RulesEngine for rule-based styling |
+| `_registerOverlayForRules(overlayId, tags)` | overlayId: string, tags: Array<string> | void | Register overlay with RulesEngine for rule-based styling (tags optional, defaults to []) |
 | `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority) |
 | `_applyRulePatches(patches)` | patches: Object | void | Internal method to apply rule patches and trigger callback |
 

@@ -1,14 +1,14 @@
 # Asset Manager
 
-**Type:** Singleton  
-**Purpose:** External binary/media file management  
+**Type:** Singleton
+**Purpose:** External binary/media file management
 **File:** `src/core/assets/AssetManager.js`
 
 ## Purpose
 
 AssetManager handles **external binary/media files** that need to be:
 - Fetched from URLs or disk
-- Lazy-loaded on demand  
+- Lazy-loaded on demand
 - Sanitized and validated
 - Cached for performance
 
@@ -167,7 +167,7 @@ Assets can be distributed via packs with the `svg_assets`, `font_assets`, and `a
 packs:
   - name: my_ship_pack
     version: 1.0.0
-    
+
     svg_assets:
       # Inline SVG
       my_ship:
@@ -177,19 +177,19 @@ packs:
           </svg>
         metadata:
           ship: "Custom Ship"
-      
+
       # External SVG (lazy loaded)
       external_ship:
         url: "/local/ship.svg"
         metadata:
           ship: "External Ship"
-    
+
     font_assets:
       custom_font:
         url: "/local/fonts/custom.woff2"
         family: "Custom Font"
         weight: 400
-    
+
     audio_assets:
       alert_sound:
         url: "/local/sounds/alert.mp3"
@@ -325,6 +325,134 @@ Legacy functions remain available for compatibility:
 - `window.lcards.assets.svg_templates` - populated by legacy preloadSVGs()
 
 New code should use AssetManager API directly.
+
+## Usage Examples
+
+### Pattern 1: Load Builtin SVG
+
+```javascript
+// In a card's initialization
+async _loadSvgForCard() {
+  const am = window.lcards.core.assetManager;
+
+  // Load builtin SVG pre-registered by packs
+  const svg = await am.loadSvg('builtin:lcars_master_systems_display_002');
+
+  if (svg) {
+    this._svgContent = svg;
+    this.requestUpdate();
+  }
+}
+```
+
+### Pattern 2: Load User SVG from /local/
+
+```javascript
+// User places SVG in /config/www/
+// Accessible as /local/my-custom-msd.svg
+
+async _loadUserSvg(userSvgPath) {
+  const am = window.lcards.core.assetManager;
+
+  // Automatically registers and loads
+  const svg = await am.loadSvg(userSvgPath);
+
+  if (svg) {
+    console.log('User SVG loaded successfully');
+    return svg;
+  } else {
+    console.warn('Failed to load user SVG');
+    return null;
+  }
+}
+
+// Usage
+await this._loadUserSvg('/local/my-custom-msd.svg');
+```
+
+### Pattern 3: Load External SVG
+
+```javascript
+async _loadExternalSvg(url) {
+  const am = window.lcards.core.assetManager;
+
+  // Load from external URL (https://)
+  try {
+    const svg = await am.loadSvg(url);
+    return svg;
+  } catch (error) {
+    console.error('Failed to load external SVG:', error);
+    return null;
+  }
+}
+
+// Usage
+await this._loadExternalSvg('https://example.com/graphics/ship.svg');
+```
+
+### Pattern 4: Handle Optional/None SVG
+
+```javascript
+async _loadOptionalSvg(config) {
+  const am = window.lcards.core.assetManager;
+
+  // User can specify 'none' to skip SVG
+  if (!config?.svg_source || config.svg_source === 'none') {
+    console.log('No SVG configured - rendering overlay only');
+    return null;
+  }
+
+  // loadSvg handles 'none' gracefully
+  const svg = await am.loadSvg(config.svg_source);
+  return svg;
+}
+```
+
+### Pattern 5: MSD Card Integration
+
+**Before (Legacy):**
+```javascript
+async _loadBaseSvg(baseSvgConfig) {
+    if (!baseSvgConfig || baseSvgConfig.source === 'none') {
+        this._svgContent = null;
+        return;
+    }
+
+    const source = baseSvgConfig.source;
+    const assetManager = window.lcards?.core?.assetManager;
+
+    if (!assetManager) return;
+
+    let svgKey = null;
+
+    if (source.startsWith('builtin:')) {
+        svgKey = source.replace('builtin:', '');
+    } else if (source.startsWith('/local/')) {
+        svgKey = source.split('/').pop().replace('.svg', '');
+
+        // Register external SVG
+        if (!assetManager.getRegistry('svg').has(svgKey)) {
+            assetManager.register('svg', svgKey, null, {
+                url: source,
+                source: 'user'
+            });
+        }
+    }
+
+    this._svgContent = await assetManager.get('svg', svgKey);
+}
+```
+
+**After (Simplified):**
+```javascript
+async _loadBaseSvg(baseSvgConfig) {
+    const assetManager = this._singletons?.assetManager;
+    if (!assetManager) return;
+
+    // loadSvg() handles all path types automatically
+    this._svgContent = await assetManager.loadSvg(baseSvgConfig?.source);
+}
+```
 
 ## Future Enhancements
 

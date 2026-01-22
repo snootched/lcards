@@ -1,7 +1,7 @@
 # LCARdS Pack System - Developer Guide
 
-**Version:** 1.23.0  
-**Status:** ✅ Production Ready  
+**Version:** 1.23.0
+**Status:** ✅ Production Ready
 **Last Updated:** January 13, 2026
 
 > **Recent Changes**: PR #195 (January 12, 2026) standardized all components to use unified inline SVG format, eliminating the legacy shapes registry. All component examples in this guide reflect the current unified structure.
@@ -185,10 +185,10 @@ const LCARDS_SLIDERS_PACK = {
 export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_sliders']) {
   // ✅ Register animation presets during pack loading
   registerBuiltinAnimationPresets();
-  
+
   // Always include builtin_themes
   const packsToLoad = [...new Set([...requested, 'builtin_themes'])];
-  
+
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }
 ```
@@ -243,16 +243,16 @@ export class LCARdSButton extends LCARdSCard {
   async _initialize() {
     // Access core singletons
     const core = window.lcards?.core;
-    
+
     // Get style preset from pack
     if (this.config.preset) {
       const preset = core.stylePresetManager.getPreset('button', this.config.preset);
       // Apply preset styles...
     }
-    
+
     // Get theme token
     const bgColor = core.themeManager.getToken('components.button.background.active');
-    
+
     // Play animation from pack
     if (this.config.animations) {
       core.animationManager.play({
@@ -446,7 +446,7 @@ export function registerBuiltinAnimationPresets() {
       }
     };
   });
-  
+
   // ... 15 more animation presets
 }
 ```
@@ -593,23 +593,23 @@ sequenceDiagram
     CORE->>CORE: Create singletons
     CORE->>PM: new PackManager(core)
     CORE->>PM: loadBuiltinPacks()
-    
+
     PM->>LP: Call loader function
     LP->>RAP: Register animation presets
     Note over RAP: Presets register from<br>packs/animations/presets/
     RAP-->>LP: 16 presets registered
     LP-->>PM: Return pack objects
-    
+
     PM->>TM: Register themes from pack
     TM->>TM: Store theme tokens
-    
+
     PM->>SPM: Register style presets from pack
     SPM->>SPM: Store button & slider presets
-    
+
     PM-->>CORE: All packs loaded
     CORE->>TM: activateTheme('lcars-classic')
     CORE-->>LC: Core ready
-    
+
     Note over LC,AM: Cards can now access managers
 ```
 
@@ -631,30 +631,30 @@ sequenceDiagram
 export class LCARdSButton extends LCARdSCard {
   async _initialize() {
     super._initialize();
-    
+
     const core = window.lcards?.core;
-    
+
     // 1. Get style preset from pack
     if (this.config.preset) {
       const preset = core.stylePresetManager.getPreset('button', this.config.preset);
       this._mergedConfig = deepMerge(preset, this.config);
     }
-    
+
     // 2. Get component directly from component registry (not AssetManager)
     if (this.config.component) {
       const { getButtonComponent } = await import('../core/packs/components/buttons/index.js');
       this._component = getButtonComponent(this.config.component);
     }
-    
+
     // 3. Resolve theme tokens
     this._backgroundColor = core.themeManager.getToken('components.button.background.active');
   }
-  
+
   firstUpdated() {
     super.firstUpdated();
-    
+
     const core = window.lcards?.core;
-    
+
     // 4. Setup animations from pack
     if (this.config.animations) {
       this.config.animations.forEach(animDef => {
@@ -768,38 +768,38 @@ Understanding what system to use when adding new content to LCARdS is critical. 
 ```mermaid
 graph TD
     START[I want to add something to LCARdS]
-    
+
     START --> Q1{What type of content?}
-    
+
     Q1 -->|Visual shell/control| COMPONENT[Component<br>Inline SVG + metadata]
     Q1 -->|Style configuration| PRESET[Style Preset<br>Button/slider styles]
     Q1 -->|Large background SVG| ASSET[AssetManager<br>External file]
     Q1 -->|Theme colors/fonts| THEME[Theme Tokens]
     Q1 -->|Animation effect| ANIM[Animation Preset]
-    
+
     COMPONENT --> CQ1{Interactive?}
     CQ1 -->|Yes - buttons/controls| CSEG[Define segments<br>src/core/packs/components/mycard/]
     CQ1 -->|No - static background| CZONE[Define zones<br>src/core/packs/components/mycard/]
-    
+
     CSEG --> CSIZE{SVG size?}
     CZONE --> CSIZE
     CSIZE -->|Small &lt;50KB| CINLINE[✅ Inline SVG in component]
     CSIZE -->|Large &gt;50KB| CASSET[❌ Use AssetManager instead]
-    
+
     PRESET --> PQ1{Button or slider?}
     PQ1 -->|Button| PBUTTON[Add to<br>style-presets/buttons/]
     PQ1 -->|Slider| PSLIDER[Add to<br>style-presets/sliders/]
-    
+
     ASSET --> AQ1{Where is file?}
     AQ1 -->|Bundled with code| ABUILTIN[Register in lcards.js<br>assetManager.register]
     AQ1 -->|User provides| AUSER[Use loadSvg<br>auto-registers]
-    
+
     THEME --> TQ1{What theme?}
     TQ1 -->|Existing theme| TTOKEN[Add tokens to<br>themes/tokens/]
     TQ1 -->|New theme| TPACK[Create new theme pack]
-    
+
     ANIM --> AREG[Add to<br>animations/presets/]
-    
+
     style COMPONENT fill:#d1ecf1
     style PRESET fill:#ffd1dc
     style ASSET fill:#ffe4b5
@@ -834,7 +834,7 @@ graph TD
 1. **Create component file**: `src/core/packs/components/dpad-v2/index.js`
    ```javascript
    const dpadV2Svg = `<svg>...</svg>`;  // Your inline SVG
-   
+
    export const dpadV2Components = {
      'dpad-v2': {
        svg: dpadV2Svg,
@@ -852,7 +852,7 @@ graph TD
 2. **Register in unified registry**: `src/core/packs/components/index.js`
    ```diff
    +import { dpadV2Components } from './dpad-v2/index.js';
-   
+
    export const components = {
      ...dpadComponents,
      ...sliderComponents,
@@ -881,7 +881,7 @@ graph TD
 // Add to BUTTON_PRESETS export
 export const BUTTON_PRESETS = {
   // ... existing presets (base, lozenge, bullet, etc.)
-  
+
   'my-custom-button': {
     extends: 'button.base',
     border: {
@@ -923,7 +923,7 @@ entity: light.bedroom
 // Add to registerBuiltinAnimationPresets() function
 export function registerBuiltinAnimationPresets() {
   // ... existing presets
-  
+
   registerAnimationPreset('shake', (def) => {
     const p = def.params || def;
     return {
@@ -1170,6 +1170,68 @@ component: my-component
 
 ---
 
-**Last Updated**: 2026-01-13  
-**Version**: 1.23.0  
+## Pack Explorer Dialog
+
+The Pack Explorer Dialog provides visual discovery and browsing of all loaded pack assets (themes, style presets, animations, SVG assets).
+
+### UI Layout
+
+The dialog uses a **split-pane layout**:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Pack Explorer                                     [X]   │
+├──────────────┬───────────────────────────────────────────┤
+│              │                                           │
+│ [Search...]  │  📦 builtin_themes v1.0.0                 │
+│              │  Official LCARS theme definitions         │
+│ 📦 Packs     │  ──────────────────────────────────────── │
+│   ▶ Themes   │  Statistics:                              │
+│   ▼ Presets  │  ┌────────┬────────┬───────┬───────┐    │
+│     ▶ button │  │ Themes │ Presets│ Rules │ Assets│    │
+│     ▶ slider │  │   4    │   0    │   0   │   0   │    │
+│   ▶ Assets   │  └────────┴────────┴───────┴───────┘    │
+│              │                                           │
+└──────────────┴───────────────────────────────────────────┘
+```
+
+### Query APIs
+
+**PackManager:**
+- `getLoadedPacks()` - All packs with content counts
+- `getPackMetadata(packId)` - Detailed pack breakdown
+- `getPackStatistics()` - Aggregate statistics
+
+**ThemeManager:**
+- `getThemeIds()` - All theme IDs
+- `getThemeMetadata(id)` - Theme metadata with token count
+- `getThemesWithMetadata()` - All themes with metadata
+- `getThemesByPack(packId)` - Themes filtered by pack
+
+**StylePresetManager:**
+- `getPresetNames(type)` - Preset names for a type
+- `getPresetMetadata(type, name)` - Preset metadata
+- `getAllPresetsWithSource()` - All presets grouped by type
+
+**AnimationRegistry:**
+- `getAnimationIds()` - All animation cache IDs
+- `getAnimationMetadata(id)` - Animation metadata
+- `getAnimationsWithMetadata()` - All animations with metadata
+
+### Integration
+
+Access Pack Explorer from Theme Browser dialog:
+- "Browse All Packs" button in Theme tab
+- Opens modal overlay with pack tree
+- Copy-to-clipboard for IDs/names
+
+### Implementation Status
+
+**Delivered:** Split-pane dialog, tree view, detail panel, query APIs, Theme Browser integration
+**Planned:** Search filtering, live previews, animation playback
+
+---
+
+**Last Updated**: 2026-01-21
+**Version**: 1.23.0
 **Status**: Production Ready

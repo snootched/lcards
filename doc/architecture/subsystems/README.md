@@ -78,6 +78,30 @@
 
 **When to use:** Consistent styling, theme switching, default values.
 
+#### [Provenance Tracking](provenance-tracking.md)
+**Configuration origin tracking system** for debugging and transparency.
+
+**Key Features:**
+- Config layer tracking
+- Theme token resolution history
+- Rule patch recording
+- Template processing logs
+- Style resolution provenance
+
+**When to use:** Debugging config issues, understanding value origins, auditing changes.
+
+#### [Auto DataSource Creation](auto-datasource-creation.md)
+**Automatic DataSource creation feature** for chart cards and overlays.
+
+**Key Features:**
+- Auto-create DataSources from entity references
+- Eliminates boilerplate configuration
+- Supports history configuration
+- Template entity auto-creation
+- MSD and chart card integration
+
+**When to use:** Simplifying DataSource setup, rapid prototyping, user-friendly configs.
+
 #### [Style Resolver](style-resolver.md)
 **Centralized style resolution system** with theme integration.
 

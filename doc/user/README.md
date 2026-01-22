@@ -47,84 +47,66 @@ graph TD
 
 ---
 
+## 🎴 Card Types
+
+Learn about each LCARdS card:
+
+| Card | Description | Guide |
+|------|-------------|-------|
+| 🔘 **Button** | SVG-based button with presets | [Button Guide](cards/button.md) |
+| 🔲 **Elbow** | LCARS corners and headers | [Elbow Guide](cards/elbow.md) |
+| 🎚️ **Slider** | Interactive sliders/gauges | [Slider Guide](cards/slider.md) |
+| 📊 **Chart** | ApexCharts integration | [Chart Guide](cards/chart.md) |
+| 📋 **Data Grid** | Tabular data display | [Data Grid Guide](cards/data-grid.md) |
+
+See [Cards Overview](cards/README.md) for comparison and quick start.
+
+---
+
 ## ⚙️ Configuration
 
-Learn how to configure every aspect of LCARdS.
-
-### Card Types
-
-**Native LCARdS cards** for standalone use:
-
-| Card Type | Description | Guide |
-|-----------|-------------|-------|
-| 🔘 **lcards-button** | SVG-based button card | [Button Reference](configuration/cards/button.md) |
-| 🔲 **lcards-elbow** | LCARS elbow/corner designs | [Elbow Reference](configuration/cards/elbow.md) |
-| 📊 **lcards-chart** | ApexCharts integration | [Chart Guide](configuration/cards/chart.md) |
-| 🎚️ **lcards-slider** | Interactive sliders/gauges | [Slider Reference](configuration/cards/slider.md) |
-| 🖥️ **lcards-msd-card** | Master Systems Display | [MSD Controls](advanced/msd-controls.md) |
-
-### Overlay System (MSD)
-
-**Overlays** are visual elements on your MSD dashboard:
-
-| Overlay Type | Description | Guide |
-|--------------|-------------|-------|
-| ➖ **Line** | Connect overlays visually | [Line Overlay](configuration/overlays/line-overlay.md) |
-| 🎮 **Control** | Embed any HA card | [Control Overlay](configuration/overlays/control-overlay.md) |
-
-See [Overlay System Guide](configuration/overlays/README.md) for complete overview.
+Core configuration topics:
 
 ### Data Integration
 
 | Topic | Description | Guide |
 |-------|-------------|-------|
-| 📡 **DataSources** | Connect to Home Assistant entities | [DataSources](configuration/datasources.md) |
-| 🔄 **Transformations** | Process data (50+ conversions) | [Transformations](configuration/datasource-transformations.md) |
-| 📊 **Aggregations** | Statistical analysis | [Aggregations](configuration/datasource-aggregations.md) |
-| 🧮 **Computed Sources** | Multi-source calculations | [Computed Sources](configuration/computed-sources.md) |
+| 📡 **DataSources** | Connect entity data to cards | [DataSource Guide](configuration/datasources.md) |
+| 📜 **Rules** | Conditional styling and behavior | [Rules Guide](configuration/rules.md) |
+| 📝 **Templates** | Dynamic values with templates | [Template Conditions](configuration/template-conditions.md) |
 
-### Rules & Templates
+### MSD Overlays
 
-| Topic | Guide |
-|-------|-------|
-| 📜 **Rules Engine** | [Rules Guide](configuration/rules.md) |
-| 📝 **Template Conditions** | [Template Conditions](configuration/template-conditions.md) |
-| 🎯 **Bulk Selectors** | [Bulk Overlay Selectors](configuration/bulk-overlay-selectors.md) |
+| Overlay Type | Description | Guide |
+|--------------|-------------|-------|
+| ➖ **Line** | Visual connections | [Line Overlay](configuration/overlays/line-overlay.md) |
+| 🎮 **Control** | Embed HA cards | [Control Overlay](configuration/overlays/control-overlay.md) |
 
----
-
-## 🎨 Examples
-
-Copy-paste ready configurations:
-
-- **[DataSource Examples](examples/datasource-examples.md)** - Temperature monitoring, power dashboards, environmental sensors
+See [Overlays Overview](configuration/overlays/README.md) for complete details.
 
 ---
 
-## 🔧 Advanced Topics
+## 📖 Guides & Examples
 
-Deep dives into LCARdS features:
+Practical tutorials and real-world examples:
 
-### System Understanding
-
-| Topic | Guide |
-|-------|-------|
-| 🎨 **Theme Creation** | [Theme Tutorial](advanced/theme_creation_tutorial.md) |
-| ⚖️ **Configuration Layers** | [Configuration Layers](advanced/configuration-layers.md) |
-| 🎯 **Style Priority** | [Style Priority](advanced/style-priority.md) |
-| ✅ **Validation** | [Validation Guide](advanced/validation_guide.md) |
-| 🔑 **Theme Tokens** | [Token Reference](advanced/token_reference_card.md) |
-| 🎮 **MSD Controls** | [MSD Controls](advanced/msd-controls.md) |
-| 🔍 **Console Help** | [Console Reference](advanced/console-help-quick-ref.md) |
+- **[Guides & Examples](guides/README.md)** - Animation guide, DataSource examples, YAML configs
+- **[DataSource Examples](guides/datasource-examples.md)** - Temperature monitoring, power dashboards, environmental sensors
+- **[Animation Guide](guides/animations.md)** - Alert modes, pulsing, cascades, custom animations
 
 ---
 
 ## 📚 Reference
 
-Detailed reference documentation:
+In-depth documentation for lookup:
 
-| Topic | Guide |
-|-------|-------|
+- **[Presets](reference/presets/)** - Animation, component, and style presets
+- **[DataSources](reference/datasources/)** - Transformations, aggregations, computed sources (50+ operations)
+- **[Advanced Features](reference/advanced-features/)** - Bulk selectors, SVG filters, segmented elbows
+- **[Advanced Topics](reference/advanced/)** - Console API, MSD controls, themes, configuration layers, validation
+- **[Pack Explorer](reference/pack-explorer.md)** - Visual asset browser
+
+See [Reference Overview](reference/README.md) for complete index.
 | 🎬 **Animations** | [Animation Guide](guides/animations.md) |
 | 🎭 **Animation Presets** | [Animation Presets](reference/animation-presets.md) |
 | 📊 **Bar Label Presets** | [Bar Labels](reference/bar-label-presets.md) |
@@ -136,71 +118,14 @@ Detailed reference documentation:
 
 ---
 
-## 📋 All Guides by Directory
-
-### 🚀 Getting Started
-- [quickstart.md](getting-started/quickstart.md) - 5-minute setup
-- [installation.md](getting-started/installation.md) - Complete installation
-- [first-card.md](getting-started/first-card.md) - Tutorial
-
-### ⚙️ Configuration
-
-**Cards:**
-- [button.md](configuration/cards/button.md) - Button card
-- [elbow.md](configuration/cards/elbow.md) - Elbow card
-- [slider.md](configuration/cards/slider.md) - Slider card
-- [chart.md](configuration/cards/chart.md) - Chart card
-
-**Overlays:**
-- [README.md](configuration/overlays/README.md) - System overview
-- [line-overlay.md](configuration/overlays/line-overlay.md) - Line overlays
-- [control-overlay.md](configuration/overlays/control-overlay.md) - Control overlays
-
-**Data:**
-- [datasources.md](configuration/datasources.md) - Main guide
-- [datasource-transformations.md](configuration/datasource-transformations.md) - Transformations
-- [datasource-aggregations.md](configuration/datasource-aggregations.md) - Aggregations
-- [computed-sources.md](configuration/computed-sources.md) - Computed sources
-
-**Other:**
-- [rules.md](configuration/rules.md) - Rules engine
-- [template-conditions.md](configuration/template-conditions.md) - Templates
-- [bulk-overlay-selectors.md](configuration/bulk-overlay-selectors.md) - Bulk selectors
-- [segmented-elbow-anatomy.md](configuration/segmented-elbow-anatomy.md) - Elbow anatomy
-- [segmented-elbow-simple-guide.md](configuration/segmented-elbow-simple-guide.md) - Elbow guide
-- [base-svg-filters.md](configuration/base-svg-filters.md) - SVG filters
-
-### 🎨 Examples
-- [datasource-examples.md](examples/datasource-examples.md) - Data examples
-
-### 🔧 Advanced
-- [README.md](advanced/README.md) - Advanced topics hub
-- [theme_creation_tutorial.md](advanced/theme_creation_tutorial.md) - Themes
-- [configuration-layers.md](advanced/configuration-layers.md) - Configuration layers
-- [style-priority.md](advanced/style-priority.md) - Style resolution
-- [validation_guide.md](advanced/validation_guide.md) - Validation
-- [msd-controls.md](advanced/msd-controls.md) - Controls
-- [token_reference_card.md](advanced/token_reference_card.md) - Tokens
-- [console-help-quick-ref.md](advanced/console-help-quick-ref.md) - Console help
-
-### 📖 Guides & Reference
-- [animations.md](guides/animations.md) - Animations guide
-- [animation-presets.md](reference/animation-presets.md) - Animation presets
-- [bar-label-presets.md](reference/bar-label-presets.md) - Bar labels
-- [component-presets.md](reference/component-presets.md) - Components
-- [segment-animation-guide.md](reference/segment-animation-guide.md) - Segment animations
-- [segment-entity-states-quick-reference.md](reference/segment-entity-states-quick-reference.md) - Entity states
-
----
-
 ## 🆘 Getting Help
 
 | Problem | Solution |
 |---------|----------|
 | Card not loading | Check [Installation Guide](getting-started/installation.md) |
 | Entity not updating | See [DataSources Guide](configuration/datasources.md) |
-| Style not applying | Review [Style Priority](advanced/style-priority.md) |
-| YAML errors | Check [Validation Guide](advanced/validation_guide.md) |
+| Style not applying | Review [Style Priority](reference/advanced/style-priority.md) |
+| YAML errors | Check [Validation Guide](reference/advanced/validation_guide.md) |
 
 **Resources:**
 - 📖 **This User Guide** - Comprehensive documentation

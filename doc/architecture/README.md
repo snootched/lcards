@@ -8,6 +8,9 @@
 
 ### Architecture Overview
 - **[overview.md](overview.md)** - High-level system architecture, singleton pattern, card types ⭐ **Start here**
+- **[core-initialization.md](core-initialization.md)** - Core singleton initialization flow
+- **[pack-system-guide.md](pack-system-guide.md)** - Pack system developer guide (v1.23.0)
+- **[msd-card-architecture.md](msd-card-architecture.md)** - MSD card architecture
 
 ---
 
@@ -15,6 +18,19 @@
 
 Card-specific architecture:
 - **[lcards-card-foundation.md](./cards/lcards-card-foundation.md)** - Go-forward architecture for new cards
+
+---
+
+## 📐 [Schemas](./schemas/)
+
+Official schema definitions (single source of truth):
+- **[button-schema-definition.md](./schemas/button-schema-definition.md)** - Button card schema
+- **[chart-schema-definition.md](./schemas/chart-schema-definition.md)** - Chart card schema
+- **[slider-schema-definition.md](./schemas/slider-schema-definition.md)** - Slider card schema
+- **[elbow-schema-definition.md](./schemas/elbow-schema-definition.md)** - Elbow card schema
+- **[msd-schema-definition.md](./schemas/msd-schema-definition.md)** - MSD card schema
+- **[control-overlay-schema-definition.md](./schemas/control-overlay-schema-definition.md)** - Control overlay schema
+- **[line-overlay-schema-definition.md](./schemas/line-overlay-schema-definition.md)** - Line overlay schema
 
 ---
 
@@ -44,6 +60,54 @@ Detailed documentation for core systems:
 | **Router Core** | Per MSD card | Path routing for line overlays | [Read](./subsystems/router-core.md) |
 
 **Note:** Template processing is handled by the unified template system in `src/core/templates/` (TemplateDetector, TemplateParser, and card-specific evaluators), not as a per-card system.
+
+---
+
+## 🎨 [Visual Editor](./editor/)
+
+Editor system architecture and components:
+- **[architecture.md](./editor/architecture.md)** - Editor system architecture
+- **[components.md](./editor/components.md)** - Reusable editor components
+- **[style-guide.md](./editor/style-guide.md)** - Editor styling guidelines
+- **[visual-tweaks.md](./editor/visual-tweaks.md)** - Visual refinements and tweaks
+- **[creating-editors.md](./editor/creating-editors.md)** - How to create new card editors
+- **[schema-ui-hints.md](./editor/schema-ui-hints.md)** - Complete x-ui-hints specification
+- **[datasource-picker-dialog.md](./editor/datasource-picker-dialog.md)** - DataSource picker component
+- **[template-evaluation-browser.md](./editor/template-evaluation-browser.md)** - Template evaluation and theme browser features
+
+---
+
+## 🔌 [APIs](./api/)
+
+Debug and runtime APIs:
+- **[debug-api.md](./api/debug-api.md)** - Debug API for MSD introspection
+- **[runtime-api.md](./api/runtime-api.md)** - User-facing runtime API
+
+---
+
+## 📂 Directory Structure
+
+```
+doc/architecture/
+├── README.md              # This file
+├── overview.md            # Start here - system overview
+├── core-initialization.md # Core startup sequence
+├── pack-system-guide.md   # Pack system guide
+├── msd-card-architecture.md
+├── api/                   # Debug & runtime APIs
+├── cards/                 # Card architectures
+├── schemas/               # Schema definitions
+├── subsystems/            # Core system details
+└── editor/                # Visual editor docs
+```
+
+---
+
+## 🗄️ Historical Documentation
+
+Historical and migration documentation has been moved to `doc/archive/` for reference.
+
+---
 
 ### Additional Documentation
 
