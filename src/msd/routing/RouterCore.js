@@ -118,6 +118,16 @@ export class RouterCore {
 
 
   /**
+   * Helper to extract channel array from overlay config
+   * @param {object} raw - Raw overlay config
+   * @returns {Array} Channel IDs array
+   * @private
+   */
+  _getChannelArray(raw) {
+    return raw.route_channels || raw.routeChannels || [];
+  }
+
+  /**
    * Build a route request object with both entry and exit direction hints.
    * If route_mode_last is not specified and the destination is an overlay with attach_side,
    * auto-set route_mode_last based on attach_side (left/right → xy; top/bottom → yx).
@@ -228,8 +238,7 @@ export class RouterCore {
       
       // If still no mode or set to auto/manhattan, check if auto-upgrade is needed
       if (!modeFull || modeFull === 'auto' || modeFull === 'manhattan') {
-        const hasChannels = Array.isArray(raw.route_channels || raw.routeChannels) && 
-                           (raw.route_channels || raw.routeChannels).length > 0;
+        const hasChannels = this._getChannelArray(raw).length > 0;
         const hasObstacles = this._obstacles && this._obstacles.length > 0;
         const isAvoidMode = channelMode === 'avoid';
         
@@ -244,7 +253,9 @@ export class RouterCore {
             try { 
               perfCount('routing.mode.auto_upgrade.channels', 1);
               lcardsLog.debug(`[RouterCore] Auto-upgraded route ${overlay.id} to smart mode (channels present)`);
-            } catch(_) {}
+            } catch(err) {
+              lcardsLog.warn('[RouterCore] Failed to log auto-upgrade metrics:', err);
+            }
           } else if (hasObstacles && !isAvoidMode) {
             modeFull = 'smart';
             modeAutoUpgraded = true;
@@ -252,7 +263,9 @@ export class RouterCore {
             try { 
               perfCount('routing.mode.auto_upgrade.obstacles', 1);
               lcardsLog.debug(`[RouterCore] Auto-upgraded route ${overlay.id} to smart mode (obstacles present)`);
-            } catch(_) {}
+            } catch(err) {
+              lcardsLog.warn('[RouterCore] Failed to log auto-upgrade metrics:', err);
+            }
           }
         }
         
@@ -275,7 +288,7 @@ export class RouterCore {
       _modeAutoUpgraded: modeAutoUpgraded,
       _autoUpgradeReason: autoUpgradeReason,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
-      channels: (raw.route_channels || raw.routeChannels || []),
+      channels: this._getChannelArray(raw),
       channelMode,
       cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 0),
       cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'miter').toLowerCase(),
@@ -715,8 +728,9 @@ export class RouterCore {
     // Check waypoint requirements
     const missedWaypoints = waypointChans.filter(wc => !waypointCoverage[wc.id] || waypointCoverage[wc.id] === 0);
     if (missedWaypoints.length > 0) {
-      // Penalize routes that miss waypoints
-      delta += this._channelForcePenalty * missedWaypoints.length;
+      // Penalize routes that miss waypoints (capped at 3x base penalty to prevent extreme costs)
+      const waypointPenalty = this._channelForcePenalty * Math.min(missedWaypoints.length, 3);
+      delta += waypointPenalty;
       perfCount('routing.channel.waypoint.missed', missedWaypoints.length);
       lcardsLog.debug(`[RouterCore] Route missed ${missedWaypoints.length} waypoint(s): ${missedWaypoints.map(w=>w.id).join(', ')}`);
     }

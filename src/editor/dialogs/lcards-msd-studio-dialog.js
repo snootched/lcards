@@ -56,6 +56,12 @@ const MODES = {
     DRAW_CHANNEL: 'draw_channel'
 };
 
+// Channel assignment constants
+const CHANNEL_SHAPING_DEFAULTS = {
+    MAX_ATTEMPTS: 20,
+    SPAN: 64
+};
+
 // Tab constants
 const TABS = {
     BASE_SVG: 'base_svg',
@@ -3388,6 +3394,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @param {Object} channelBounds - Channel bounds {x, y, width, height}
      * @returns {Array} List of line overlays that intersect the channel
      * @private
+     * 
+     * NOTE: Uses simplified bounding box intersection for performance.
+     * May produce false positives for lines with overlapping bounding boxes
+     * that don't actually cross the channel. This is acceptable as it's
+     * better to suggest a line that doesn't need routing than miss one that does.
+     * Future enhancement could implement precise line-rectangle intersection.
      */
     _findLinesIntersectingChannel(channelBounds) {
         const overlays = this._workingConfig.msd?.overlays || [];
@@ -8280,10 +8292,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 
                 // Set optimal channel shaping parameters
                 if (!overlay.channel_shaping_max_attempts) {
-                    overlay.channel_shaping_max_attempts = 20;
+                    overlay.channel_shaping_max_attempts = CHANNEL_SHAPING_DEFAULTS.MAX_ATTEMPTS;
                 }
                 if (!overlay.channel_shaping_span) {
-                    overlay.channel_shaping_span = 64;
+                    overlay.channel_shaping_span = CHANNEL_SHAPING_DEFAULTS.SPAN;
                 }
                 
                 updatedCount++;
