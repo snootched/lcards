@@ -3367,10 +3367,76 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 color: '#00FF00'
             };
 
+            // NEW: Detect lines that may intersect this channel
+            const channelBounds = { x, y, width, height };
+            const intersectingLines = this._findLinesIntersectingChannel(channelBounds);
+            
+            if (intersectingLines.length > 0) {
+                lcardsLog.debug(`[MSDStudio] Found ${intersectingLines.length} lines intersecting new channel`);
+                // Store for later use in the channel form
+                this._channelFormData.suggestedLines = intersectingLines.map(line => line.id);
+            }
+
             // Exit draw mode
             this._activeMode = MODES.VIEW;
             this.requestUpdate();
         }
+    }
+
+    /**
+     * Find lines that pass through or near a channel region
+     * @param {Object} channelBounds - Channel bounds {x, y, width, height}
+     * @returns {Array} List of line overlays that intersect the channel
+     * @private
+     */
+    _findLinesIntersectingChannel(channelBounds) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const anchors = this._workingConfig.msd?.anchors || {};
+        const { x: cx, y: cy, width: cw, height: ch } = channelBounds;
+        const cx2 = cx + cw;
+        const cy2 = cy + ch;
+        
+        const intersectingLines = [];
+        
+        for (const overlay of overlays) {
+            if (overlay.type !== 'line') continue;
+            
+            // Get line endpoints from anchors
+            const anchor1 = overlay.anchor ? anchors[overlay.anchor] : null;
+            const anchor2 = overlay.attach_to ? anchors[overlay.attach_to] : null;
+            
+            if (!anchor1 || !anchor2) continue;
+            
+            const [x1, y1] = anchor1;
+            const [x2, y2] = anchor2;
+            
+            // Check if line segment intersects or passes through channel rectangle
+            // Simple bounding box check first
+            const lineMinX = Math.min(x1, x2);
+            const lineMaxX = Math.max(x1, x2);
+            const lineMinY = Math.min(y1, y2);
+            const lineMaxY = Math.max(y1, y2);
+            
+            // Check for overlap using separating axis theorem (simplified)
+            const overlapsX = lineMaxX >= cx && lineMinX <= cx2;
+            const overlapsY = lineMaxY >= cy && lineMinY <= cy2;
+            
+            if (overlapsX && overlapsY) {
+                // More precise check: does the line segment actually cross the channel?
+                // For Manhattan routing, the line will be L-shaped, so check if any part is inside
+                const point1Inside = x1 >= cx && x1 <= cx2 && y1 >= cy && y1 <= cy2;
+                const point2Inside = x2 >= cx && x2 <= cx2 && y2 >= cy && y2 <= cy2;
+                const crossesChannel = point1Inside || point2Inside || 
+                                      (lineMinX < cx && lineMaxX > cx2) ||
+                                      (lineMinY < cy && lineMaxY > cy2);
+                
+                if (crossesChannel) {
+                    intersectingLines.push(overlay);
+                }
+            }
+        }
+        
+        return intersectingLines;
     }
 
     /**
@@ -7928,6 +7994,44 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-selector>
                     </div>
 
+                    <!-- NEW: Suggested Lines Assignment -->
+                    ${data.suggestedLines && data.suggestedLines.length > 0 ? html`
+                        <div class="form-field" style="margin-top: 16px; padding: 12px; background: rgba(0, 255, 170, 0.1); border: 1px solid rgba(0, 255, 170, 0.3); border-radius: 4px;">
+                            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                <ha-icon icon="mdi:auto-fix" style="color: #00FFAA; margin-right: 8px;"></ha-icon>
+                                <label class="form-label" style="margin: 0; color: #00FFAA;">
+                                    Smart Routing Detected
+                                </label>
+                            </div>
+                            <div class="form-helper" style="margin-bottom: 12px;">
+                                ${data.suggestedLines.length} line(s) pass through this channel area.
+                                Auto-configure them to route through this channel?
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <ha-button 
+                                    @click=${() => this._applyChannelToLines(data.id, data.suggestedLines, 'prefer')}
+                                    style="--primary-color: #00FFAA;">
+                                    <ha-icon icon="mdi:check-circle" slot="icon"></ha-icon>
+                                    Route Through (Prefer)
+                                </ha-button>
+                                <ha-button 
+                                    @click=${() => this._applyChannelToLines(data.id, data.suggestedLines, 'force')}
+                                    appearance="outlined">
+                                    <ha-icon icon="mdi:lock" slot="icon"></ha-icon>
+                                    Force Through
+                                </ha-button>
+                                <ha-button 
+                                    @click=${() => this._dismissChannelSuggestions()}
+                                    appearance="plain">
+                                    Skip
+                                </ha-button>
+                            </div>
+                            <div class="form-helper" style="margin-top: 8px; font-size: 11px;">
+                                Affected lines: ${data.suggestedLines.join(', ')}
+                            </div>
+                        </div>
+                    ` : ''}
+
                     <!-- Bounds Configuration -->
                     <div class="form-field" style="margin-top: 12px;">
                         <label class="form-label">Channel Bounds</label>
@@ -8143,6 +8247,75 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._highlightedChannel = null;
             this.requestUpdate();
         }, 2500);
+    }
+
+    /**
+     * Apply channel to suggested lines with auto-configuration
+     * @param {string} channelId - Channel ID to apply
+     * @param {Array<string>} lineIds - Array of line overlay IDs
+     * @param {string} mode - Channel mode ('prefer' or 'force')
+     * @private
+     */
+    _applyChannelToLines(channelId, lineIds, mode = 'prefer') {
+        lcardsLog.debug(`[MSDStudio] Applying channel ${channelId} to ${lineIds.length} lines with mode: ${mode}`);
+        
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let updatedCount = 0;
+        
+        for (const overlay of overlays) {
+            if (overlay.type === 'line' && lineIds.includes(overlay.id)) {
+                // Add channel to route_channels array
+                if (!overlay.route_channels) {
+                    overlay.route_channels = [];
+                }
+                if (!overlay.route_channels.includes(channelId)) {
+                    overlay.route_channels.push(channelId);
+                }
+                
+                // Set channel mode
+                overlay.route_channel_mode = mode;
+                
+                // Auto-configure smart routing settings
+                overlay.route_mode_full = 'smart';
+                
+                // Set optimal channel shaping parameters
+                if (!overlay.channel_shaping_max_attempts) {
+                    overlay.channel_shaping_max_attempts = 20;
+                }
+                if (!overlay.channel_shaping_span) {
+                    overlay.channel_shaping_span = 64;
+                }
+                
+                updatedCount++;
+                lcardsLog.debug(`[MSDStudio] Updated line ${overlay.id} with channel routing`);
+            }
+        }
+        
+        // Update the config
+        this._setNestedValue('msd.overlays', overlays);
+        
+        // Clear the suggestions from the form
+        this._channelFormData.suggestedLines = null;
+        
+        // Show success message
+        this._showDialog(
+            'Lines Configured',
+            `Successfully configured ${updatedCount} line(s) to route through channel "${channelId}" with ${mode} mode.`,
+            'success'
+        );
+        
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Dismiss channel suggestions without applying
+     * @private
+     */
+    _dismissChannelSuggestions() {
+        lcardsLog.debug('[MSDStudio] Dismissing channel suggestions');
+        this._channelFormData.suggestedLines = null;
+        this.requestUpdate();
     }
 
     /**
