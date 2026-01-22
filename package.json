@@ -22,13 +22,16 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "create-editor": "node tools/create-editor.js",
-    "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json"
+    "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json",
+    "test:routing": "node tools/test-routing-scenarios.js",
+    "test:routing:visual": "node tools/test-routing-visual.js"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^27.1.0",
+    "playwright": "^1.49.0",
     "rimraf": "^6.0.1",
     "webpack": "^5.94.0",
     "webpack-bundle-analyzer": "^4.10.2",
