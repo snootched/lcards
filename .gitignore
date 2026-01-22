@@ -406,3 +406,8 @@ doc-temp/
 test-temp/
 hacsfiles/
 hacsfiles/lcards/msd/
+
+# Test results (screenshots, generated files)
+test-results/routing-screenshots/*.png
+test-results/routing-screenshots/*.json
+test-results/routing-screenshots/TEST-SUMMARY.md
