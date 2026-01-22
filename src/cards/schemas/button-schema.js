@@ -133,7 +133,14 @@ export function getButtonSchema(options = {}) {
                 type: 'string',
                 pattern: '^(mdi|si):[a-z0-9-]+$',
                 description: 'Icon identifier (format: mdi:icon-name or si:icon-name)',
-                examples: ['mdi:lightbulb', 'mdi:home', 'si:github', 'mdi:thermometer']
+                examples: ['mdi:lightbulb', 'mdi:home', 'si:github', 'mdi:thermometer'],
+                'x-ui-hints': {
+                    label: 'Icon',
+                    helper: 'Select an icon from Material Design Icons or Simple Icons',
+                    selector: {
+                        icon: {}
+                    }
+                }
             },
 
             icon_area_background: {
@@ -149,7 +156,20 @@ export function getButtonSchema(options = {}) {
                 minimum: 20,
                 maximum: 500,
                 default: 60,
-                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom, default: 60)'
+                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom, default: 60)',
+                'x-ui-hints': {
+                    label: 'Icon Area Size',
+                    helper: 'Size in pixels',
+                    selector: {
+                        number: {
+                            mode: 'box',
+                            min: 20,
+                            max: 500,
+                            step: 1,
+                            unit_of_measurement: 'px'
+                        }
+                    }
+                }
             },
 
             divider: {
@@ -165,7 +185,20 @@ export function getButtonSchema(options = {}) {
                         minimum: 0,
                         maximum: 20,
                         default: 0,
-                        description: 'Divider width in pixels (0 = no divider, default: 0)'
+                        description: 'Divider width in pixels (0 = no divider, default: 0)',
+                        'x-ui-hints': {
+                            label: 'Width',
+                            helper: 'Divider line width',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: 0,
+                                    max: 20,
+                                    step: 1,
+                                    unit_of_measurement: 'px'
+                                }
+                            }
+                        }
                     },
                     color: {
                         type: 'string',
@@ -203,14 +236,40 @@ export function getButtonSchema(options = {}) {
                         minimum: 8,
                         maximum: 200,
                         default: 24,
-                        description: 'Icon size in pixels (8-200, default: 24)'
+                        description: 'Icon size in pixels (8-200, default: 24)',
+                        'x-ui-hints': {
+                            label: 'Size',
+                            helper: 'Icon size in pixels',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: 8,
+                                    max: 200,
+                                    step: 1,
+                                    unit_of_measurement: 'px'
+                                }
+                            }
+                        }
                     },
                     rotation: {
                         type: 'number',
                         minimum: -360,
                         maximum: 360,
                         default: 0,
-                        description: 'Icon rotation in degrees (-360 to 360)'
+                        description: 'Icon rotation in degrees (-360 to 360)',
+                        'x-ui-hints': {
+                            label: 'Rotation',
+                            helper: 'Rotate icon in degrees',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: -360,
+                                    max: 360,
+                                    step: 1,
+                                    unit_of_measurement: '°'
+                                }
+                            }
+                        }
                     },
                     position: {
                         type: 'string',
@@ -243,7 +302,20 @@ export function getButtonSchema(options = {}) {
                         minimum: 0,
                         maximum: 100,
                         default: 8,
-                        description: 'Spacing between icon and text in pixels (default: 8)'
+                        description: 'Spacing between icon and text in pixels (default: 8)',
+                        'x-ui-hints': {
+                            label: 'Spacing',
+                            helper: 'Space between icon and text',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: 0,
+                                    max: 100,
+                                    step: 1,
+                                    unit_of_measurement: 'px'
+                                }
+                            }
+                        }
                     },
                     padding: paddingSchema,
                     padding_left: {

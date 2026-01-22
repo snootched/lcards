@@ -51,6 +51,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       css`
         :host {
           display: block;
+          padding: 8px 0;
         }
 
       .tabs-container {

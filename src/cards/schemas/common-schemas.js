@@ -733,7 +733,20 @@ export function getTextSchema(options = {}) {
                         minimum: -360,
                         maximum: 360,
                         default: 0,
-                        description: 'Text rotation in degrees (-360 to 360)'
+                        description: 'Text rotation in degrees (-360 to 360)',
+                        'x-ui-hints': {
+                            label: 'Rotation',
+                            helper: 'Rotate text in degrees',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: -360,
+                                    max: 360,
+                                    step: 1,
+                                    unit_of_measurement: '°'
+                                }
+                            }
+                        }
                     },
                     padding: paddingSchema,
                     font_size: {
@@ -751,7 +764,20 @@ export function getTextSchema(options = {}) {
                                 description: 'CSS value or theme token',
                                 examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
                             }
-                        ]
+                        ],
+                        'x-ui-hints': {
+                            label: 'Font Size',
+                            helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
+                            selector: {
+                                number: {
+                                    mode: 'box',
+                                    min: 1,
+                                    max: 200,
+                                    step: 1,
+                                    unit_of_measurement: 'px'
+                                }
+                            }
+                        }
                     },
                     color: stateColorSchema,
                     font_weight: {
@@ -895,11 +921,12 @@ export function getTextSchema(options = {}) {
                     ],
                     'x-ui-hints': {
                         label: 'Font Size',
-                        helper: 'Size in pixels (recommended) or CSS units',
-                        defaultOneOfBranch: 0,
+                        helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
                         selector: {
                             number: {
-                                mode: 'slider',
+                                mode: 'box',
+                                min: 1,
+                                max: 200,
                                 step: 1,
                                 unit_of_measurement: 'px'
                             }

@@ -33,11 +33,11 @@ export const editorStyles = css`
     ha-tab-group {
         display: block;
         margin-bottom: 0;
-        padding: 12px 16px 0 16px;
+        padding: 12px 0;
     }
 
     ha-tab-panel {
-        padding: 16px;
+        padding: 0px;
         min-height: 400px;
     }
 
