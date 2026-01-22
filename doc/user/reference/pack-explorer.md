@@ -1,4 +1,7 @@
-# Pack Explorer User Guide
+# Pack Explorer Reference
+
+> **Visual tool for discovering LCARdS assets**
+> Browse themes, style presets, animations, and components
 
 ## Overview
 
@@ -29,12 +32,12 @@ The Pack Explorer uses a **split-pane layout**:
 │ Tree View      │  Detail Panel                         │
 │ (300px)        │  (flex: 1)                            │
 │                │                                       │
-│ 📦 Loaded Packs│  [Selected Asset Details]             │
-│  ├─ 🎨 Themes  │                                       │
+│ Pack Loaded Packs│  [Selected Asset Details]             │
+│  ├─ Themes Themes  │                                       │
 │  │  ├─ Classic │  • Metadata                           │
 │  │  ├─ DS9     │  • Description                        │
 │  │  └─ Voyager │  • Version info                       │
-│  ├─ 🎛️ Presets │  • Preview (when available)           │
+│  ├─ Presets Presets │  • Preview (when available)           │
 │  │  ├─ Buttons │  • Config reference                   │
 │  │  │  ├─Lozenge│  • Copy button                        │
 │  │  │  └─ Bullet│                                       │
@@ -58,7 +61,7 @@ The Pack Explorer uses a **split-pane layout**:
 
 ### Browsing Packs
 
-1. **Expand a pack** by clicking on it (e.g., `📦 builtin_themes`)
+1. **Expand a pack** by clicking on it (e.g., `Pack builtin_themes`)
 2. **Explore categories** within the pack (Themes, Presets, etc.)
 3. **Select an asset** to view its details in the right panel
 
@@ -218,15 +221,17 @@ Reusable UI components:
 ## Support
 
 If you encounter issues with the Pack Explorer:
-1. Check the [GitHub Issues](https://github.com/snootched/LCARdS/issues) page
+1. Check the GitHub Issues page
 2. Review browser console for error messages
-3. Report bugs with:
-   - Browser version
-   - Home Assistant version
-   - LCARdS version
-   - Steps to reproduce
+3. Report bugs with browser version, Home Assistant version, LCARdS version, and steps to reproduce
 
 ---
 
-**Version:** LCARdS v1.27.04+  
-**Last Updated:** January 2026
+## See Also
+
+- [Theme Creation Tutorial](./advanced/theme_creation_tutorial.md) - Building custom themes
+- [Token Reference Card](./advanced/token_reference_card.md) - All theme tokens
+
+---
+
+[← Back to Reference](./README.md) | [User Guide →](../README.md)

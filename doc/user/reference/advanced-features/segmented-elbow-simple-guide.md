@@ -347,7 +347,7 @@ segments:
 ## See Also
 
 - [Segmented Elbow Anatomy](./segmented-elbow-anatomy.md) - Technical details on radii calculations
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+
 
 ---
 

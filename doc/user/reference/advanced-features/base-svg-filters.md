@@ -798,7 +798,7 @@ base_svg:
 ## See Also
 
 - [Theme Creation Tutorial](../advanced/theme_creation_tutorial.md) - Creating custom filter presets
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+
 
 ---
 

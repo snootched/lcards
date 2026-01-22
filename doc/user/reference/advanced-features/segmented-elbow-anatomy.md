@@ -263,7 +263,7 @@ If segments.inner.radius specified:
 ## See Also
 
 - [Segmented Elbow Simple Guide](./segmented-elbow-simple-guide.md) - Beginner-friendly configuration guide
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+
 
 ---
 

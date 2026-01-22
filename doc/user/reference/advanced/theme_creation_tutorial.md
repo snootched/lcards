@@ -782,7 +782,7 @@ Now that you've created your first theme:
 
 - [Token Reference Card](./token_reference_card.md) - Quick lookup for all tokens
 - [Configuration Layers](./configuration-layers.md) - Complete technical documentation
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
 
 ---
 

@@ -119,7 +119,7 @@ open test-help-usage.html
 
 - [MSD Controls Reference](./msd-controls.md) - Control overlay implementation
 - [Validation Guide](./validation_guide.md) - Configuration validation
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
 
 ---
 

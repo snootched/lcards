@@ -769,7 +769,7 @@ _createFallbackElement(cardType, overlay) {
 
 ## See Also
 
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+
 - [Console API Reference](./console-help-quick-ref.md) - Debugging commands
 
 ---

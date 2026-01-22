@@ -385,7 +385,7 @@ __msdDebug.pipelineInstance.config.__validation
 ## Need More Help?
 
 - [Console API Reference](./console-help-quick-ref.md) - Browser console commands
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card documentation
+
 
 ---
 

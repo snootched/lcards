@@ -85,7 +85,7 @@ Configuration validation and error handling.
 ## Related Documentation
 
 - [Configuration Guide](../../guides/configuration.md) - Configuration basics
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
 - [Reference Documentation](../README.md) - All reference docs
 
 ---

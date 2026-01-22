@@ -614,7 +614,7 @@ window.lcards.theme.tokens.colors.accent.primary
 
 - [Theme Creation Tutorial](./theme_creation_tutorial.md) - Step-by-step guide
 - [Configuration Layers](./configuration-layers.md) - Complete technical docs
-- [MSD Card](../../cards/msd.md) - Multi-Screen Display card
+
 
 ---
 
