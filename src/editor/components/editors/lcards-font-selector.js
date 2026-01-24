@@ -87,7 +87,7 @@ export class LCARdSFontSelector extends LitElement {
                 margin-top: 8px;
                 padding: 12px;
                 border: 1px solid var(--divider-color, #e0e0e0);
-                border-radius: 4px;
+                border-radius: var(--card-border-radius, 8px);
                 background: var(--card-background-color, #fff);
                 font-size: 16px;
                 text-align: center;

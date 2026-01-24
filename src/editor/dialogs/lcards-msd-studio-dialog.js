@@ -1733,6 +1733,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const isEditing = !!this._editingAnchorName;
         const title = isEditing ? `Edit Anchor: ${this._editingAnchorName}` : 'Add Anchor';
 
+        // Check if this anchor name would override a base_svg anchor
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const wouldOverride = this._anchorFormName && baseSvgAnchors[this._anchorFormName];
+
         return html`
             <ha-dialog
                 open
@@ -1740,10 +1744,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 .heading=${title}
                 style="--mdc-dialog-max-width: 500px; --mdc-dialog-min-width: 500px; --mdc-dialog-min-height: auto;">
                 <div style="padding: 12px 8px;">
+                    ${wouldOverride ? html`
+                        <lcards-message type="info" style="margin-bottom: 16px;">
+                            This name exists in the base_svg. Your custom anchor will override the SVG anchor.
+                        </lcards-message>
+                    ` : ''}
+
                     <ha-textfield
                         label="Anchor Name"
                         .value=${this._anchorFormName}
-                        @input=${(e) => this._anchorFormName = e.target.value}
+                        @input=${(e) => {
+                            this._anchorFormName = e.target.value;
+                            this.requestUpdate(); // Force re-render to update override message
+                        }}
                         required
                         helper-text="Unique identifier for this anchor"
                         style="width: 100%; margin-bottom: 16px;">
@@ -6252,8 +6265,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 return '';
             }
 
-            const [vbX, vbY] = resolvedPosition;
+            const [rawX, rawY] = resolvedPosition;
             const [width, height] = control.size;
+            const attachment = control.attachment || 'top-left';
+
+            // Apply attachment offset (same logic as MsdControlsRenderer)
+            const offsetMap = {
+                'top-left': [0, 0],
+                'top': [-width / 2, 0],
+                'top-center': [-width / 2, 0],
+                'top-right': [-width, 0],
+                'left': [0, -height / 2],
+                'center': [-width / 2, -height / 2],
+                'middle-center': [-width / 2, -height / 2],
+                'right': [-width, -height / 2],
+                'bottom-left': [0, -height],
+                'bottom': [-width / 2, -height],
+                'bottom-center': [-width / 2, -height],
+                'bottom-right': [-width, -height]
+            };
+
+            const offset = offsetMap[attachment] || offsetMap['top-left'];
+            const vbX = rawX + offset[0];
+            const vbY = rawY + offset[1];
 
             // Calculate control corners
             const topLeft = toPixelPos(vbX, vbY);
@@ -7035,6 +7069,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-textfield>
                         </div>
                     ` : ''}
+
+                    <!-- Attachment Point - defines where on control the position refers to -->
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider-color);">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{
+                                select: {
+                                    options: [
+                                        { value: 'top-left', label: 'Top Left' },
+                                        { value: 'top', label: 'Top Center' },
+                                        { value: 'top-right', label: 'Top Right' },
+                                        { value: 'left', label: 'Middle Left' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'right', label: 'Middle Right' },
+                                        { value: 'bottom-left', label: 'Bottom Left' },
+                                        { value: 'bottom', label: 'Bottom Center' },
+                                        { value: 'bottom-right', label: 'Bottom Right' }
+                                    ]
+                                }
+                            }}
+                            .value=${this._controlFormAttachment}
+                            .label=${'Attachment Point'}
+                            @value-changed=${(e) => this._controlFormAttachment = e.detail.value}>
+                        </ha-selector>
+                        <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px;">
+                            Which point of the control the position refers to (e.g., 'center' means coordinates specify the control's center)
+                        </div>
+                    </div>
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -7062,34 +7124,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             }}>
                         </ha-textfield>
                     </div>
-                </lcards-form-section>
-
-                <lcards-form-section
-                    header="Attachment Point"
-                    description="Which point of the control snaps to the specified coordinates (e.g., 'center' means coordinates specify the control's center point)"
-                    icon="mdi:anchor"
-                    ?expanded=${false}>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{
-                            select: {
-                                options: [
-                                    { value: 'top-left', label: 'Top Left' },
-                                    { value: 'top', label: 'Top Center' },
-                                    { value: 'top-right', label: 'Top Right' },
-                                    { value: 'left', label: 'Middle Left' },
-                                    { value: 'center', label: 'Center' },
-                                    { value: 'right', label: 'Middle Right' },
-                                    { value: 'bottom-left', label: 'Bottom Left' },
-                                    { value: 'bottom', label: 'Bottom Center' },
-                                    { value: 'bottom-right', label: 'Bottom Right' }
-                                ]
-                            }
-                        }}
-                        .value=${this._controlFormAttachment}
-                        .label=${'Attachment'}
-                        @value-changed=${(e) => this._controlFormAttachment = e.detail.value}>
-                    </ha-selector>
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -7177,20 +7211,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- HA Native Card Configuration Editor -->
                     <lcards-form-section
                         header="Card Configuration"
-                        description="Configure the card properties using Home Assistant's native card editor"
+                        description="Click to open the card editor in a separate modal dialog"
                         ?expanded=${true}>
                         <div class="card-editor-container" style="padding: 16px;">
-                            <hui-card-element-editor
-                                .hass=${this.hass}
-                                .lovelace=${lovelace}
-                                .value=${this._controlFormCard}
-                                .disabled=${false}
-                                @value-changed=${(e) => {
-                                    lcardsLog.trace('[MSDStudio] Card config changed:', e.detail.value);
-                                    this._controlFormCard = e.detail.value || { type: cardType };
-                                    this.requestUpdate();
-                                }}>
-                            </hui-card-element-editor>
+                            <ha-button
+                                raised
+                                @click=${this._openCardEditorModal}
+                                style="width: 100%;">
+                                <ha-icon icon="mdi:pencil" slot="icon"></ha-icon>
+                                Open Card Editor
+                            </ha-button>
+
+                            <!-- Show current card type info -->
+                            ${this._controlFormCard ? html`
+                                <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px; font-size: 13px;">
+                                    <div style="color: var(--secondary-text-color); margin-bottom: 4px;">Current Configuration:</div>
+                                    <div style="font-family: monospace; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">
+                                        ${JSON.stringify(this._controlFormCard, null, 2)}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     </lcards-form-section>
                 `}
@@ -7226,6 +7266,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .selector=${{ select: { options: cards.map(card => ({ value: card.type, label: card.name, icon: card.icon })) }}}
                                 .value=${cardType}
                                 .label=${"Card Type"}
+                                @keydown=${(e) => {
+                                    // Prevent ESC from closing the entire dialog when dropdown is open
+                                    if (e.key === 'Escape') {
+                                        e.stopPropagation();
+                                    }
+                                }}
                                 @value-changed=${(e) => {
                                     const selectedType = e.detail.value;
                                     if (selectedType) {
@@ -7234,15 +7280,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}>
                             </ha-selector>
 
-                            <!-- Visual Grid Alternative (collapsed by default) -->
-                            <details style="margin-top: 16px;">
-                                <summary style="cursor: pointer; font-size: 13px; color: var(--primary-color); padding: 8px 0;">
-                                    Or browse cards visually ▼
-                                </summary>
-                                <div style="margin-top: 8px;">
-                                    ${this._renderCardPickerLegacy()}
+                            <!-- Cancel button if we had a previous card -->
+                            ${this._previousCardConfig ? html`
+                                <div style="margin-top: 12px;">
+                                    <ha-button
+                                        @click=${this._cancelCardTypeChange}
+                                        style="width: 100%;">
+                                        <ha-icon icon="mdi:undo" slot="icon"></ha-icon>
+                                        Cancel - Keep Current Card
+                                    </ha-button>
                                 </div>
-                            </details>
+                            ` : ''}
                         </div>
                     </lcards-form-section>
                 ` : html`
@@ -7257,6 +7305,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                         <ha-button
                             @click=${() => {
+                                // Save current card config before changing
+                                this._previousCardConfig = { ...this._controlFormCard };
                                 this._controlFormCard = { type: '' };
                                 this.requestUpdate();
                             }}
@@ -7276,21 +7326,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- Editor Mode Tabs -->
                         <div style="padding: 0 16px 8px; display: flex; gap: 8px; border-bottom: 1px solid var(--divider-color); padding-bottom: 8px;">
                             <ha-button
+                                appearance="${this._cardConfigMode === 'graphical' ? 'active' : 'filled'}"
                                 @click=${() => {
                                     this._cardConfigMode = 'graphical';
                                     this.requestUpdate();
                                 }}
-                                ?disabled=${this._cardConfigMode === 'graphical'}
                                 style="flex: 1;">
                                 <ha-icon icon="mdi:form-select" slot="icon"></ha-icon>
                                 Graphical
                             </ha-button>
                             <ha-button
+                                appearance="${this._cardConfigMode === 'yaml' ? 'active' : 'filled'}"
                                 @click=${() => {
                                     this._cardConfigMode = 'yaml';
                                     this.requestUpdate();
                                 }}
-                                ?disabled=${this._cardConfigMode === 'yaml'}
                                 style="flex: 1;">
                                 <ha-icon icon="mdi:code-braces" slot="icon"></ha-icon>
                                 YAML
@@ -7311,18 +7361,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }}>
                                 </ha-yaml-editor>
                             ` : lovelace && customElements.get('hui-card-element-editor') ? html`
-                                <!-- Graphical Editor (HA Native) -->
-                                <hui-card-element-editor
-                                    .hass=${this.hass}
-                                    .lovelace=${lovelace}
-                                    .value=${this._controlFormCard}
-                                    .disabled=${false}
-                                    @value-changed=${(e) => {
-                                        lcardsLog.trace('[MSDStudio] Card config changed:', e.detail.value);
-                                        this._controlFormCard = e.detail.value || { type: cardType };
-                                        this.requestUpdate();
-                                    }}>
-                                </hui-card-element-editor>
+                                <!-- Graphical Editor (Modal) -->
+                                <ha-button
+                                    raised
+                                    @click=${this._openCardEditorModal}
+                                    style="width: 100%;">
+                                    <ha-icon icon="mdi:pencil" slot="icon"></ha-icon>
+                                    Open Card Editor
+                                </ha-button>
+
+                                <!-- Show current card config preview -->
+                                ${this._controlFormCard ? html`
+                                    <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 4px; font-size: 13px;">
+                                        <div style="color: var(--secondary-text-color); margin-bottom: 4px;">Current Configuration:</div>
+                                        <div style="font-family: monospace; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">${JSON.stringify(this._controlFormCard, null, 2)}</div>
+                                    </div>
+                                ` : ''}
                             ` : html`
                                 <!-- Fallback: Basic UI Editor -->
                                 <lcards-message type="warning">
@@ -7512,25 +7566,49 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _getAvailableCardTypes() {
         const cards = [];
 
-        // Standard HA cards
+        // Standard HA cards - comprehensive list matching HA's native picker
         const standardCards = [
-            { type: 'button', name: 'Button', icon: 'mdi:gesture-tap-button' },
+            // Most Common
             { type: 'entities', name: 'Entities', icon: 'mdi:format-list-bulleted' },
+            { type: 'button', name: 'Button', icon: 'mdi:gesture-tap-button' },
             { type: 'entity', name: 'Entity', icon: 'mdi:card-bulleted' },
             { type: 'glance', name: 'Glance', icon: 'mdi:view-dashboard' },
             { type: 'light', name: 'Light', icon: 'mdi:lightbulb' },
             { type: 'thermostat', name: 'Thermostat', icon: 'mdi:thermostat' },
-            { type: 'media-control', name: 'Media Control', icon: 'mdi:play-circle' },
-            { type: 'weather-forecast', name: 'Weather', icon: 'mdi:weather-partly-cloudy' },
             { type: 'sensor', name: 'Sensor', icon: 'mdi:eye' },
             { type: 'gauge', name: 'Gauge', icon: 'mdi:gauge' },
-            { type: 'history-graph', name: 'History', icon: 'mdi:chart-line' },
             { type: 'markdown', name: 'Markdown', icon: 'mdi:language-markdown' },
+
+            // Media & Weather
+            { type: 'media-control', name: 'Media Control', icon: 'mdi:play-circle' },
+            { type: 'weather-forecast', name: 'Weather', icon: 'mdi:weather-partly-cloudy' },
+
+            // History & Charts
+            { type: 'history-graph', name: 'History Graph', icon: 'mdi:chart-line' },
+            { type: 'statistics-graph', name: 'Statistics Graph', icon: 'mdi:chart-box' },
+
+            // Pictures
             { type: 'picture', name: 'Picture', icon: 'mdi:image' },
             { type: 'picture-entity', name: 'Picture Entity', icon: 'mdi:image-frame' },
             { type: 'picture-glance', name: 'Picture Glance', icon: 'mdi:view-carousel' },
+
+            // Layout & Organization
+            { type: 'grid', name: 'Grid', icon: 'mdi:grid' },
+            { type: 'horizontal-stack', name: 'Horizontal Stack', icon: 'mdi:view-column' },
+            { type: 'vertical-stack', name: 'Vertical Stack', icon: 'mdi:view-sequential' },
+
+            // Utility
             { type: 'conditional', name: 'Conditional', icon: 'mdi:eye-check' },
-            { type: 'map', name: 'Map', icon: 'mdi:map' }
+            { type: 'iframe', name: 'iFrame', icon: 'mdi:application-brackets' },
+            { type: 'map', name: 'Map', icon: 'mdi:map' },
+            { type: 'logbook', name: 'Logbook', icon: 'mdi:format-list-text' },
+            { type: 'humidifier', name: 'Humidifier', icon: 'mdi:air-humidifier' },
+            { type: 'alarm-panel', name: 'Alarm Panel', icon: 'mdi:shield-home' },
+            { type: 'area', name: 'Area', icon: 'mdi:texture-box' },
+            { type: 'tile', name: 'Tile', icon: 'mdi:view-dashboard-variant' },
+
+            // Manual Card Entry
+            { type: 'manual', name: 'Manual (YAML)', icon: 'mdi:code-braces' }
         ];
 
         cards.push(...standardCards);
@@ -7552,47 +7630,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render custom card picker grid (legacy fallback)
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderCardPickerLegacy() {
-        lcardsLog.trace('[MSDStudio] Rendering legacy card picker grid');
-
-        const cards = this._getAvailableCardTypes();
-
-        return html`
-            <div style="padding: 16px;">
-                <div style="
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                    gap: 8px;
-                    max-height: 400px;
-                    overflow-y: auto;
-                ">
-                    ${cards.map(card => html`
-                        <ha-button
-                            class="card-picker-button"
-                            @click=${() => this._selectCardType(card.type)}>
-                            <ha-icon
-                                icon="${card.icon}"
-                                slot="icon">
-                            </ha-icon>
-                            <div>${card.name}</div>
-                        </ha-button>
-                    `)}
-                </div>
-            </div>
-        `;
-    }
-
-    /**
      * Handle card type selection
      * @param {string} cardType - Selected card type
      * @private
      */
     _selectCardType(cardType) {
         lcardsLog.debug('[MSDStudio] Card type selected:', cardType);
+
+        // Handle manual card type - start with basic YAML template
+        if (cardType === 'manual') {
+            this._controlFormCard = {
+                type: '',
+                // User will fill in the rest
+            };
+            // Force YAML mode for manual entry
+            this._cardConfigMode = 'yaml';
+            this.requestUpdate();
+            return;
+        }
 
         // Ensure custom cards have the custom: prefix
         const normalizedType = this._normalizeCardTypeForConfig(cardType);
@@ -7601,7 +7656,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const stubConfig = this._getCardStubConfig(normalizedType);
         this._controlFormCard = stubConfig;
 
+        // Clear previous config since we selected a new card
+        this._previousCardConfig = null;
+
         this.requestUpdate();
+    }
+
+    /**
+     * Cancel card type change and restore previous card config
+     * @private
+     */
+    _cancelCardTypeChange() {
+        if (this._previousCardConfig) {
+            lcardsLog.debug('[MSDStudio] Restoring previous card config:', this._previousCardConfig);
+            this._controlFormCard = { ...this._previousCardConfig };
+            this._previousCardConfig = null;
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -7611,18 +7682,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _normalizeCardTypeForConfig(cardType) {
+        // Special case: manual entry
+        if (cardType === 'manual') {
+            return cardType;
+        }
+
         // If it's already prefixed, return as-is
         if (cardType.startsWith('custom:')) {
             return cardType;
         }
 
+        // Standard HA cards with hyphens
+        const standardCards = [
+            'picture-entity', 'picture-glance', 'weather-forecast',
+            'media-control', 'history-graph', 'statistics-graph',
+            'horizontal-stack', 'vertical-stack', 'alarm-panel'
+        ];
+
         // If it contains a hyphen and isn't a standard HA card, it's likely custom
-        if (cardType.includes('-')) {
-            // Check if it's a standard HA card type
-            const standardCards = ['picture-entity', 'picture-glance', 'weather-forecast', 'media-control', 'history-graph'];
-            if (!standardCards.includes(cardType)) {
-                return `custom:${cardType}`;
-            }
+        if (cardType.includes('-') && !standardCards.includes(cardType)) {
+            return `custom:${cardType}`;
         }
 
         return cardType;
@@ -8028,6 +8107,127 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         lcardsLog.error('[MSDStudio] Could not access Lovelace instance');
         return null;
+    }
+
+    /**
+     * Open card editor in a modal dialog on top of MSD Studio
+     * This avoids z-index issues and provides better editing experience
+     * @private
+     */
+    _openCardEditorModal() {
+        // Create dialog element
+        const dialog = document.createElement('ha-dialog');
+        dialog.heading = 'Edit Card Configuration';
+        dialog.scrimClickAction = 'close';
+
+        // Style the dialog to be large enough for editors
+        dialog.style.setProperty('--mdc-dialog-min-width', '600px');
+        dialog.style.setProperty('--mdc-dialog-max-width', '90vw');
+
+        // Create container for editor
+        const container = document.createElement('div');
+        container.style.padding = '24px';
+        container.style.minHeight = '400px';
+
+        // Create the card editor
+        const lovelace = this._getLovelace();
+        const editor = document.createElement('hui-card-element-editor');
+        editor.hass = this.hass;
+        editor.lovelace = lovelace;
+
+        // Deep copy initial config
+        const initialConfig = JSON.parse(JSON.stringify(this._controlFormCard));
+
+        // hui-card-element-editor uses .value property for config
+        editor.value = initialConfig;
+
+        // Track config changes - initialize with current config
+        let tempConfig = initialConfig;
+
+        lcardsLog.debug('[MSDStudio] Opening card editor with config:', initialConfig);
+
+        // Listen for config-changed event (HA standard)
+        editor.addEventListener('config-changed', (e) => {
+            lcardsLog.trace('[MSDStudio] config-changed event:', e.detail);
+            if (e.detail && e.detail.config) {
+                const newValue = e.detail.config;
+                if (typeof newValue === 'object' && !Array.isArray(newValue) && newValue.type) {
+                    tempConfig = newValue;
+                    lcardsLog.trace('[MSDStudio] Card config updated:', tempConfig);
+                } else {
+                    lcardsLog.warn('[MSDStudio] Ignoring invalid config from config-changed:', newValue);
+                }
+            }
+        });
+
+        // Also listen for value-changed as fallback
+        editor.addEventListener('value-changed', (e) => {
+            lcardsLog.trace('[MSDStudio] value-changed event:', e.detail);
+
+            if (e.detail && e.detail.value) {
+                const newValue = e.detail.value;
+
+                // Defensive check - ensure we have a proper object with a type property
+                if (typeof newValue === 'object' && !Array.isArray(newValue) && newValue.type) {
+                    tempConfig = newValue;
+                    lcardsLog.trace('[MSDStudio] Card editor config updated from value-changed:', tempConfig);
+                } else {
+                    lcardsLog.warn('[MSDStudio] Ignoring invalid card config from value-changed:', newValue);
+                }
+            }
+        });
+
+        container.appendChild(editor);
+        dialog.appendChild(container);
+
+        // Add action buttons
+        const actionsDiv = document.createElement('div');
+        actionsDiv.slot = 'primaryAction';
+
+        const saveButton = document.createElement('ha-button');
+        saveButton.textContent = 'Save';
+        saveButton.addEventListener('click', () => {
+            lcardsLog.debug('[MSDStudio] Saving card config from modal:', tempConfig);
+
+            // Ensure we have a valid config with type
+            if (!tempConfig || !tempConfig.type) {
+                lcardsLog.error('[MSDStudio] Invalid card config - missing type:', tempConfig);
+                // Try to preserve the type from original config
+                if (this._controlFormCard?.type) {
+                    tempConfig = { ...tempConfig, type: this._controlFormCard.type };
+                }
+            }
+
+            // Deep clone to avoid reference issues
+            this._controlFormCard = JSON.parse(JSON.stringify(tempConfig));
+            lcardsLog.debug('[MSDStudio] Card config saved:', this._controlFormCard);
+
+            this.requestUpdate();
+            dialog.close();
+        });
+
+        const cancelButton = document.createElement('ha-button');
+        cancelButton.setAttribute('dialogAction', 'cancel');
+        cancelButton.textContent = 'Cancel';
+
+        actionsDiv.appendChild(cancelButton);
+        actionsDiv.appendChild(saveButton);
+        dialog.appendChild(actionsDiv);
+
+        // Cleanup when dialog closes
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+        });
+
+        // Add to DOM and open
+        document.body.appendChild(dialog);
+
+        // Small delay to ensure dialog is ready
+        setTimeout(() => {
+            dialog.open = true;
+        }, 10);
+
+        lcardsLog.debug('[MSDStudio] Opened card editor modal');
     }
 
     /**
