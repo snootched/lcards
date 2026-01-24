@@ -32,8 +32,8 @@ export const BUILTIN_MSD_SVG_PACK = {
         era: 'TOS Films (2280s)',
         description: 'Enterprise-A primary master systems display',
         approximate_size: '180KB',
-        author: 'LCARdS Team',
-        source: 'Bundled with LCARdS',
+        author: 'TBD',
+        source: 'TBD',
         license: 'MIT'
       }
     },
@@ -48,8 +48,8 @@ export const BUILTIN_MSD_SVG_PACK = {
         variant: 'Blue Alert Overlay',
         description: 'Enterprise-A with blue alert status overlay',
         approximate_size: '185KB',
-        author: 'LCARdS Team',
-        source: 'Bundled with LCARdS',
+        author: 'TBD',
+        source: 'https://github.com/warp-drive-engineering/engage',
         license: 'MIT'
       }
     },
@@ -75,6 +75,7 @@ export const BUILTIN_MSD_SVG_PACK = {
         registry: 'NCC-1701-D-15',
         class: 'Type-6 Shuttle',
         era: 'TNG (2360s-2370s)',
+        variant: 'Modified ViewBox Size',
         description: 'Modified size - Type-6 shuttlecraft systems display with anomaly indicators',
         approximate_size: '142KB',
         author: 'anomaly',

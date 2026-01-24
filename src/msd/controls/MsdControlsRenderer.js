@@ -1500,13 +1500,23 @@ export class MsdControlsRenderer {
   }
 
   positionControlElement(element, overlay, resolvedModel) {
-    const position = this.resolvePosition(overlay.position, resolvedModel);
+    const rawPosition = this.resolvePosition(overlay.position, resolvedModel);
     const size = this.resolveSize(overlay.size, resolvedModel);
 
-    if (!position || !size) {
+    if (!rawPosition || !size) {
       lcardsLog.warn('[MSD Controls] Invalid position or size for control:', overlay.id);
       return;
     }
+
+    // Apply attachment point offset
+    const position = this._applyAttachmentOffset(rawPosition, size, overlay.attachment);
+    lcardsLog.debug('[MSD Controls] Position after attachment offset:', {
+      overlay: overlay.id,
+      rawPosition,
+      attachment: overlay.attachment,
+      finalPosition: position,
+      size
+    });
 
     // Create SVG foreignObject wrapper to live in viewBox coordinate space
     const foreignObject = this.createSvgForeignObject(overlay.id, position, size);
@@ -1535,6 +1545,38 @@ export class MsdControlsRenderer {
       this.renderer.attachmentManager.setAttachmentPoints(overlay.id, attachmentPoints);
       lcardsLog.debug('[MsdControls] ✅ Registered attachment points for', overlay.id, attachmentPoints);
     }
+  }
+
+  /**
+   * Apply attachment point offset to position
+   * @private
+   * @param {Array} position - Raw position [x, y]
+   * @param {Array} size - Size [width, height]
+   * @param {string} attachment - Attachment point (center, top-left, etc.)
+   * @returns {Array} Adjusted position [x, y]
+   */
+  _applyAttachmentOffset(position, size, attachment = 'top-left') {
+    const [x, y] = position;
+    const [width, height] = size;
+
+    // Map attachment points to offsets
+    const offsetMap = {
+      'top-left': [0, 0],
+      'top': [-width / 2, 0],
+      'top-center': [-width / 2, 0],
+      'top-right': [-width, 0],
+      'left': [0, -height / 2],
+      'center': [-width / 2, -height / 2],
+      'middle-center': [-width / 2, -height / 2],
+      'right': [-width, -height / 2],
+      'bottom-left': [0, -height],
+      'bottom': [-width / 2, -height],
+      'bottom-center': [-width / 2, -height],
+      'bottom-right': [-width, -height]
+    };
+
+    const offset = offsetMap[attachment] || offsetMap['top-left'];
+    return [x + offset[0], y + offset[1]];
   }
 
   /**

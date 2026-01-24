@@ -63,12 +63,12 @@ export class RouterCore {
     if (!Array.isArray(overlays)) return;
     if (overlays === this._overlaysRef) return;
     this._overlaysRef = overlays;
-    // Rebuild obstacle list (ribbon or obstacle:true)
+    // Rebuild obstacle list (overlays with obstacle:true)
     const obs = [];
     for (const ov of overlays) {
       if (!ov || !ov.id) continue;
       const raw = ov._raw || ov.raw || {};
-      const isObstacle = raw.obstacle === true || ov.type === 'ribbon';
+      const isObstacle = raw.obstacle === true;
       if (!isObstacle) continue;
       // Determine bounds. Prefer size+position (raw.position / raw.size) else anchor if available.
       let x = 0, y = 0, w = 0, h = 0;
@@ -477,12 +477,16 @@ export class RouterCore {
     const start = { c: w2c(req.a[0]), r: h2c(req.a[1]) };
     const goal  = { c: w2c(req.b[0]), r: h2c(req.b[1]) };
 
-    // A* (4-direction)
+    // A* (4-direction) with turn penalty
     const open = new MinHeap();
     const key = (c,r)=>`${c},${r}`;
     const gScore = new Map();
     const came = new Map();
+    const direction = new Map(); // Track direction to each cell
     const h = (c,r)=> Math.abs(c-goal.c)+Math.abs(r-goal.r);
+
+    // Get turn penalty from config (default: 2)
+    const turnPenalty = Number(this.config.turn_penalty ?? 2);
 
     gScore.set(key(start.c,start.r),0);
     open.push({ c:start.c, r:start.r, f:h(start.c,start.r) });
@@ -497,15 +501,25 @@ export class RouterCore {
       const cur = open.pop();
       if (cur.c === goal.c && cur.r === goal.r) { found = true; break; }
       const gCur = gScore.get(key(cur.c,cur.r));
+      const curDir = direction.get(key(cur.c,cur.r)); // Previous direction
+
       for (const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]) {
         const nc = cur.c+dc, nr = cur.r+dr;
         if (nc<0||nr<0||nc>=cols||nr>=rows) continue;
         if (blocked(nc,nr)) continue;
+
         const nk = key(nc,nr);
-        const gNew = gCur + 1;
+        const newDir = `${dc},${dr}`;
+
+        // Add turn penalty if direction changed (but not on first move)
+        const isDirectionChange = curDir && curDir !== newDir;
+        const moveCost = 1 + (isDirectionChange ? turnPenalty : 0);
+        const gNew = gCur + moveCost;
+
         if (gNew < (gScore.get(nk) ?? Infinity)) {
             gScore.set(nk,gNew);
             came.set(nk, [cur.c,cur.r]);
+            direction.set(nk, newDir);
             const f = gNew + h(nc,nr);
             open.push({ c:nc, r:nr, f });
         }
@@ -680,10 +694,14 @@ export class RouterCore {
       const y1 = ob.y1 - clearance;
       const x2 = ob.x2 + clearance;
       const y2 = ob.y2 + clearance;
+
+      // Mark grid cells that actually intersect with obstacle bounds
+      // Use floor for all bounds to avoid expanding obstacles beyond their actual size
       const c0 = Math.max(0, Math.floor(x1 / res));
       const r0 = Math.max(0, Math.floor(y1 / res));
-      const c1 = Math.min(cols-1, Math.ceil(x2 / res));
-      const r1 = Math.min(rows-1, Math.ceil(y2 / res));
+      const c1 = Math.min(cols-1, Math.floor(x2 / res));
+      const r1 = Math.min(rows-1, Math.floor(y2 / res));
+
       for (let r=r0; r<=r1; r++) {
         const row = occ[r];
         for (let c=c0; c<=c1; c++) {

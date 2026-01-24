@@ -113,6 +113,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormPosition: { type: Array, state: true },
             _controlFormSize: { type: Array, state: true },
             _controlFormAttachment: { type: String, state: true },
+            _controlFormObstacle: { type: Boolean, state: true },
             _controlFormCard: { type: Object, state: true },
             _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
             // Lines Tab Properties (Phase 4 - Fixed to use correct schema)
@@ -219,6 +220,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [0, 0];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormObstacle = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
 
@@ -2280,6 +2282,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [coords.x, coords.y];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormObstacle = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -4168,28 +4171,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const control = controls.find(c => c.id === this._highlightedControl);
         if (!control) return '';
 
-        // Resolve position for both anchored and explicitly positioned controls
-        const anchors = this._workingConfig.msd?.anchors || {};
-        let resolvedPosition;
-        if (control.position && Array.isArray(control.position)) {
-            // Explicitly positioned
-            resolvedPosition = control.position;
-        } else if (control.anchor) {
-            // Anchored to a named anchor - resolve using OverlayUtils
-            resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-            if (!resolvedPosition) return '';
-        } else {
-            return '';
-        }
-
-        // Get size - default to 100x100 if not specified
-        const size = control.size || [100, 100];
-        if (!Array.isArray(size)) return '';
-
-        const [vbX, vbY] = resolvedPosition;
-        const [width, height] = size;
-
-        // Get SVG element and calculate pixel positions
+        // Get MSD card to access resolved model with complete anchors
         const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
         if (!livePreview) return '';
 
@@ -4201,6 +4183,48 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const msdCard = cardContainer.querySelector('lcards-msd-card');
         if (!msdCard) return '';
+
+        // Resolve position - handle anchor-based positioning (string reference)
+        let resolvedPosition;
+        if (typeof control.position === 'string') {
+            // Get complete merged anchors from card's resolved model (includes SVG + user-defined)
+            const anchors = msdCard._msdPipeline?.getResolvedModel()?.anchors || {};
+            resolvedPosition = anchors[control.position];
+            if (!resolvedPosition) {
+                console.warn(`[MSD Studio] Anchor '${control.position}' not found in resolved model`);
+                return '';
+            }
+        } else {
+            // Direct coordinate positioning
+            resolvedPosition = control.position || [0, 0];
+        }
+
+        // Get size - default to 100x100 if not specified
+        const size = control.size || [100, 100];
+        if (!Array.isArray(size)) return '';
+
+        let [vbX, vbY] = resolvedPosition;
+        const [width, height] = size;
+
+        // Apply attachment offset (same logic as MsdControlsRenderer and bounding box)
+        const attachment = control.attachment || 'top-left';
+        const offsetMap = {
+            'top-left': [0, 0],
+            'top': [-width / 2, 0],
+            'top-center': [-width / 2, 0],
+            'top-right': [-width, 0],
+            'left': [0, -height / 2],
+            'center': [-width / 2, -height / 2],
+            'middle-center': [-width / 2, -height / 2],
+            'right': [-width, -height / 2],
+            'bottom-left': [0, -height],
+            'bottom': [-width / 2, -height],
+            'bottom-center': [-width / 2, -height],
+            'bottom-right': [-width, -height]
+        };
+        const attachmentOffset = offsetMap[attachment] || offsetMap['top-left'];
+        vbX += attachmentOffset[0];
+        vbY += attachmentOffset[1];
 
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
         if (!shadowRoot) return '';
@@ -4842,8 +4866,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const offsetX = (rect.width - renderedWidth) / 2;
         const offsetY = (rect.height - renderedHeight) / 2;
 
-        // Get all anchors for resolving anchored controls
-        const anchors = this._workingConfig.msd?.anchors || {};
+        // Get all anchors from the card's resolved model (already merged base SVG + user-defined)
+        const resolvedModel = msdCard._msdPipeline?.getResolvedModel?.();
+        const anchors = resolvedModel?.anchors || {};
 
         return html`
             <div style="
@@ -4859,13 +4884,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     // Resolve position for both anchored and explicitly positioned controls
                     let resolvedPosition;
                     if (control.position && Array.isArray(control.position)) {
-                        // Explicitly positioned
+                        // Explicitly positioned with coordinates
                         resolvedPosition = control.position;
+                    } else if (typeof control.position === 'string') {
+                        // Positioned with anchor reference (string)
+                        resolvedPosition = OverlayUtils.resolvePosition(control.position, anchors);
+                        if (!resolvedPosition) {
+                            lcardsLog.warn('[MSDStudio] Failed to resolve anchor position:', control.position, control.id);
+                            return '';
+                        }
                     } else if (control.anchor) {
-                        // Anchored to a named anchor - resolve using OverlayUtils
+                        // Legacy: Anchored to a named anchor
                         resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-                        if (!resolvedPosition) return '';
+                        if (!resolvedPosition) {
+                            lcardsLog.warn('[MSDStudio] Failed to resolve legacy anchor:', control.anchor, control.id);
+                            return '';
+                        }
                     } else {
+                        lcardsLog.warn('[MSDStudio] Control has no valid position:', control.id);
                         return '';
                     }
 
@@ -4873,8 +4909,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const size = control.size || [100, 100];
                     if (!Array.isArray(size)) return '';
 
-                    const [vbX, vbY] = resolvedPosition;
+                    let [vbX, vbY] = resolvedPosition;
                     const [width, height] = size;
+
+                    // Apply attachment offset (same logic as MsdControlsRenderer)
+                    const attachment = control.attachment || 'top-left';
+                    const offsetMap = {
+                        'top-left': [0, 0],
+                        'top': [-width / 2, 0],
+                        'top-center': [-width / 2, 0],
+                        'top-right': [-width, 0],
+                        'left': [0, -height / 2],
+                        'center': [-width / 2, -height / 2],
+                        'middle-center': [-width / 2, -height / 2],
+                        'right': [-width, -height / 2],
+                        'bottom-left': [0, -height],
+                        'bottom': [-width / 2, -height],
+                        'bottom-center': [-width / 2, -height],
+                        'bottom-right': [-width, -height]
+                    };
+                    const offset = offsetMap[attachment] || offsetMap['top-left'];
+                    vbX += offset[0];
+                    vbY += offset[1];
 
                     const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
                     const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
@@ -6406,9 +6462,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _getRoutingModeInfo(mode) {
         const modes = {
             auto: {
-                title: 'Auto (Smart Pathfinding)',
+                title: 'Auto (Recommended)',
                 icon: 'mdi:auto-fix',
-                description: 'Intelligent pathfinding that automatically routes around overlays. Finds the shortest valid path while respecting boundaries. Best for general connections.',
+                description: 'Automatically chooses the best routing algorithm based on your layout. When obstacles or channels are detected, it upgrades to advanced pathfinding. Otherwise uses simple Manhattan routing. Best for most use cases.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
@@ -6420,13 +6476,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- Path around obstacle -->
                         <path d="M 40 40 L 75 40 L 75 15 L 125 15 L 125 40 L 160 40"
                               stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
+                        <!-- Auto badge -->
+                        <text x="100" y="75" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)">Auto-detects obstacles</text>
                     </svg>
                 `
             },
             direct: {
                 title: 'Direct (Straight Line)',
                 icon: 'mdi:minus',
-                description: 'Simple straight line from source to target. No routing or obstacle avoidance. Best when there are no obstacles between points.',
+                description: 'Simple straight line from source to target. No routing or obstacle avoidance. Best when you want a direct connection regardless of obstacles.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
@@ -6439,60 +6497,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </svg>
                 `
             },
-            manhattan: {
-                title: 'Manhattan (90° Angles)',
-                icon: 'mdi:vector-square',
-                description: 'Right-angle paths using only horizontal and vertical segments. Classic circuit board routing style. Creates clean, orthogonal connections.',
+            manual: {
+                title: 'Manual (Custom Waypoints)',
+                icon: 'mdi:map-marker-path',
+                description: 'Draw your own custom path by placing waypoints. Gives you complete control over the line shape. Best when you need precise, artistic routing that auto mode cannot achieve.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
-                        <rect x="10" y="50" width="30" height="30" fill="var(--lcars-blue)" rx="4"/>
-                        <!-- Target -->
-                        <rect x="160" y="10" width="30" height="30" fill="var(--lcars-green)" rx="4"/>
-                        <!-- Manhattan path -->
-                        <path d="M 40 65 L 100 65 L 100 25 L 160 25"
-                              stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
-                    </svg>
-                `
-            },
-            grid: {
-                title: 'Grid (A* Pathfinding)',
-                icon: 'mdi:grid',
-                description: 'A* grid-based pathfinding with Manhattan distance heuristic. Finds optimal path on grid nodes while avoiding obstacles. Precise control with grid resolution.',
-                diagram: html`
-                    <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
-                        <!-- Grid -->
-                        <pattern id="grid-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--lcars-gray)" stroke-width="0.5" opacity="0.3"/>
-                        </pattern>
-                        <rect width="200" height="80" fill="url(#grid-pattern)"/>
-                        <!-- Source -->
-                        <rect x="10" y="50" width="30" height="30" fill="var(--lcars-blue)" rx="4"/>
-                        <!-- Obstacle -->
-                        <rect x="85" y="35" width="30" height="30" fill="var(--lcars-gray)" rx="4"/>
-                        <!-- Target -->
-                        <rect x="160" y="10" width="30" height="30" fill="var(--lcars-green)" rx="4"/>
-                        <!-- Grid path -->
-                        <path d="M 40 65 L 60 65 L 60 45 L 80 45 L 80 25 L 120 25 L 160 25"
-                              stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
-                    </svg>
-                `
-            },
-            smart: {
-                title: 'Smart (Cost-Optimized)',
-                icon: 'mdi:brain',
-                description: 'Advanced routing with cost analysis. Optimizes for shortest distance while penalizing bends and proximity to obstacles. Balances path length with aesthetic quality.',
-                diagram: html`
-                    <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
-                        <!-- Source -->
-                        <rect x="10" y="40" width="30" height="30" fill="var(--lcards-blue)" rx="4"/>
-                        <!-- Obstacles -->
-                        <rect x="70" y="10" width="25" height="25" fill="var(--lcars-gray)" rx="4"/>
-                        <rect x="70" y="45" width="25" height="25" fill="var(--lcars-gray)" rx="4"/>
+                        <rect x="10" y="40" width="30" height="30" fill="var(--lcars-blue)" rx="4"/>
+                        <!-- Waypoints -->
+                        <circle cx="80" cy="20" r="4" fill="var(--lcars-orange)"/>
+                        <circle cx="120" cy="60" r="4" fill="var(--lcars-orange)"/>
                         <!-- Target -->
                         <rect x="160" y="40" width="30" height="30" fill="var(--lcars-green)" rx="4"/>
-                        <!-- Smart optimized path -->
-                        <path d="M 40 55 L 60 55 L 60 38 L 105 38 L 105 55 L 160 55"
+                        <!-- Manual path through waypoints -->
+                        <path d="M 40 55 L 80 20 L 120 60 L 160 55"
                               stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
                     </svg>
                 `
@@ -6655,6 +6674,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [0, 0];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormObstacle = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -6673,6 +6693,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = control.position || control.anchor || [0, 0];
         this._controlFormSize = control.size || [100, 100];
         this._controlFormAttachment = control.attachment || 'center';
+        this._controlFormObstacle = control.obstacle === true;
         this._controlFormCard = control.card || { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -6742,6 +6763,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             position: this._controlFormPosition,
             size: this._controlFormSize,
             attachment: this._controlFormAttachment,
+            obstacle: this._controlFormObstacle || undefined,
             card: this._controlFormCard
         };
 
@@ -7010,6 +7032,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .label=${'Attachment'}
                         @value-changed=${(e) => this._controlFormAttachment = e.detail.value}>
                     </ha-selector>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Routing Behavior"
+                    description="Control how lines route around this overlay"
+                    icon="mdi:vector-polyline-remove"
+                    ?expanded=${false}>
+                    <ha-formfield .label=${'Treat as obstacle for line routing'}>
+                        <ha-switch
+                            .checked=${this._controlFormObstacle === true}
+                            @change=${(e) => {
+                                this._controlFormObstacle = e.target.checked;
+                                this.requestUpdate();
+                            }}>
+                        </ha-switch>
+                    </ha-formfield>
+                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
+                        When enabled, lines with route: auto will avoid this control overlay
+                    </div>
                 </lcards-form-section>
             </div>
         `;
@@ -8231,9 +8272,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const id = line.id || 'unnamed';
         const sourceStr = this._formatConnectionPoint(line.source || line.anchor);
         const targetStr = this._formatConnectionPoint(line.target || line.attach_to);
-        const routingMode = line.routing?.mode || 'direct';
+        const routingMode = line.route || 'auto';
         const strokeColor = line.style?.color || '#FF9900';
         const strokeWidth = line.style?.width || 2;
+
+        // Determine actual strategy for auto mode
+        let displayMode = routingMode;
+        if (routingMode === 'auto') {
+            const hasObstacles = this._getControlOverlays().some(c => c.obstacle === true);
+            const hasChannels = line.route_channels && line.route_channels.length > 0;
+
+            if (hasChannels) {
+                displayMode = 'auto → smart';
+            } else if (hasObstacles) {
+                displayMode = 'auto → smart';
+            } else {
+                displayMode = 'auto → manhattan';
+            }
+        }
 
         return html`
             <ha-card style="padding: 12px; margin-bottom: 8px;">
@@ -8271,7 +8327,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             color: var(--text-primary-color);
                             border-radius: 3px;
                             font-weight: 500;
-                        ">${routingMode}</span>
+                        ">${displayMode}</span>
                     </div>
                     <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
                         ${sourceStr} → ${targetStr}
@@ -8402,27 +8458,96 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     `}
                 </lcards-form-section>
 
+                <!-- Routing Modes Reference -->
+                <lcards-form-section
+                    header="📖 Routing Modes Reference"
+                    description="Quick reference for routing behavior"
+                    icon="mdi:book-open-variant"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+
+                    <!-- Mode selector for reference display -->
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'auto', label: 'Auto (Recommended)' },
+                                    { value: 'direct', label: 'Direct (Straight Line)' },
+                                    { value: 'manual', label: 'Manual (Custom Waypoints)' }
+                                ]
+                            }
+                        }}
+                        .value=${this._routingModeReference || 'auto'}
+                        .label=${'Show Info For'}
+                        @value-changed=${(e) => {
+                            this._routingModeReference = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        style="margin-bottom: 16px;">
+                    </ha-selector>
+
+                    <!-- Display routing info panel -->
+                    ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
+                </lcards-form-section>
+
                 <!-- Global Routing Defaults (Advanced) -->
                 <lcards-form-section
                     header="⚙️ Advanced Routing Configuration"
-                    description="Fine-tune global routing behavior for all lines"
+                    description="Fine-tune global routing behavior for lines using route: auto"
                     icon="mdi:tune"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
 
                     <!-- Help Text -->
                     <lcards-message type="info" style="margin-bottom: 16px;">
-                        <strong>Advanced Tuning</strong>
+                        <strong>When These Settings Apply</strong>
                         <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            These settings control the default routing behavior for all lines. Individual lines can override these values.
-                            Most users can leave these at their defaults. Only adjust if you need specific routing characteristics.
+                            These parameters affect lines with <code>route: auto</code> that are auto-upgraded to grid-based routing when:
+                            <br/>• <strong>Obstacles detected</strong>: Control overlays with <code>obstacle: true</code>
+                            <br/>• <strong>Channels configured</strong>: Line has <code>route_channels</code> specified
+                            <br/><br/>Lines with <code>route: direct</code> or <code>route: manual</code> are not affected by these settings.
                         </p>
+                    </lcards-message>
+
+                    <!-- Parameter Explanations -->
+                    <lcards-message type="tip" style="margin-bottom: 16px;">
+                        <strong>Parameter Guide</strong>
+                        <div style="margin: 8px 0 0 0; font-size: 12px; line-height: 1.6;">
+                            <div style="margin-bottom: 6px;"><strong>Grid-Based Routing</strong></div>
+                            <div style="margin-left: 12px; margin-bottom: 8px;">
+                                • <strong>Clearance</strong>: Extra padding around obstacles (prevents lines from touching edges)<br/>
+                                • <strong>Grid Resolution</strong>: Cell size for pathfinding (smaller = more precise but slower)<br/>
+                                • <strong>Turn Penalty</strong>: Cost for direction changes (higher = straighter paths with fewer turns)
+                            </div>
+
+                            <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
+                            <div style="margin-left: 12px; margin-bottom: 8px;">
+                                • <strong>Chaikin smoothing</strong>: Rounds sharp corners using subdivision algorithm<br/>
+                                • <strong>Iterations</strong>: More iterations = smoother curves but less grid-aligned<br/>
+                                • <strong>Max Points</strong>: Limits path complexity to prevent performance issues
+                            </div>
+
+                            <div style="margin-bottom: 6px;"><strong>Pathfinding Refinement</strong></div>
+                            <div style="margin-left: 12px; margin-bottom: 8px;">
+                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles<br/>
+                                • <strong>Detour Span</strong>: How far the algorithm looks ahead for better paths<br/>
+                                • <strong>Max Extra Bends</strong>: Maximum additional turns allowed for optimization<br/>
+                                • <strong>Max Detours</strong>: How many alternate routes to consider per segment
+                            </div>
+
+                            <div style="margin-bottom: 6px;"><strong>Channel Routing</strong></div>
+                            <div style="margin-left: 12px;">
+                                • <strong>Force Penalty</strong>: Cost when failing to use a forced channel<br/>
+                                • <strong>Avoid Multiplier</strong>: How strongly to avoid "avoid" channels
+                            </div>
+                        </div>
                     </lcards-message>
 
                     <!-- Basic Routing -->
                     <div style="margin-bottom: 16px;">
-                        <div style="font-weight: 500; margin-bottom: 8px;">Basic Routing</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="font-weight: 500; margin-bottom: 8px;">Grid-Based Routing</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                             <ha-textfield
                                 label="Clearance (px)"
                                 type="number"
@@ -8440,6 +8565,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.grid_resolution ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('grid_resolution', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Grid cell size (default: 64)">
+                            </ha-textfield>
+                            <ha-textfield
+                                label="Turn Penalty"
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                .value=${routing.turn_penalty ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('turn_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Cost for direction changes (default: 2)">
                             </ha-textfield>
                         </div>
                     </div>
@@ -8475,9 +8609,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
 
-                    <!-- Smart Routing -->
+                    <!-- Smart Routing (renamed) -->
                     <div style="margin-bottom: 16px;">
-                        <div style="font-weight: 500; margin-bottom: 8px;">Smart Routing</div>
+                        <div style="font-weight: 500; margin-bottom: 8px;">
+                            Pathfinding Refinement
+                            <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
+                                (When auto-upgraded with obstacles/channels)
+                            </span>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <ha-textfield
                                 label="Proximity Band (px)"
@@ -8524,7 +8663,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Channel Configuration -->
                     <div style="margin-bottom: 16px;">
-                        <div style="font-weight: 500; margin-bottom: 8px;">Channel Behavior</div>
+                        <div style="font-weight: 500; margin-bottom: 8px;">
+                            Channel Routing
+                            <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
+                                (Only when route_channels defined)
+                            </span>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <ha-textfield
                                 label="Force Penalty"
@@ -8605,42 +8749,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
                 </lcards-form-section>
-
-                <!-- Routing Modes Reference -->
-                <lcards-form-section
-                    header="📖 Routing Modes Reference"
-                    description="Quick reference for routing behavior"
-                    icon="mdi:book-open-variant"
-                    ?expanded=${false}
-                    style="margin-bottom: 16px;">
-
-                    <!-- Mode selector for reference display -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{
-                            select: {
-                                options: [
-                                    { value: 'auto', label: 'Auto (Smart Pathfinding)' },
-                                    { value: 'direct', label: 'Direct (Straight Line)' },
-                                    { value: 'manhattan', label: 'Manhattan (90° Angles)' },
-                                    { value: 'grid', label: 'Grid (A* Pathfinding)' },
-                                    { value: 'smart', label: 'Smart (Cost-Optimized)' }
-                                ]
-                            }
-                        }}
-                        .value=${this._routingModeReference || 'auto'}
-                        .label=${'Show Info For'}
-                        @value-changed=${(e) => {
-                            this._routingModeReference = e.detail.value;
-                            this.requestUpdate();
-                        }}
-                        style="margin-bottom: 16px;">
-                    </ha-selector>
-
-                    <!-- Display routing info panel -->
-                    ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
-                </lcards-form-section>
-
         `;
     }
 
@@ -10093,6 +10201,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
         const routeInfo = routeInfoMap[routeMode] || routeInfoMap['auto'];
 
+        // Determine actual routing strategy that will be used
+        let actualStrategy = routeMode;
+        let strategyReason = '';
+
+        if (routeMode === 'auto') {
+            const hasObstacles = this._getControlOverlays().some(c => c.obstacle === true);
+            const hasChannels = this._lineFormData.route_channels && this._lineFormData.route_channels.length > 0;
+
+            if (hasChannels) {
+                actualStrategy = 'smart (grid + channels)';
+                strategyReason = 'Channels configured';
+            } else if (hasObstacles) {
+                actualStrategy = 'smart (grid + A*)';
+                strategyReason = 'Obstacles detected';
+            } else {
+                actualStrategy = 'manhattan';
+                strategyReason = 'No obstacles/channels';
+            }
+        }
+
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <!-- Routing Mode -->
@@ -10127,6 +10255,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="flex: 1;">
                             <div style="font-weight: 600; margin-bottom: 4px;">${routeInfo.title}</div>
                             <div style="font-size: 13px; color: var(--secondary-text-color);">${routeInfo.description}</div>
+
+                            ${routeMode === 'auto' ? html`
+                                <div style="margin-top: 12px; padding: 8px 12px; background: var(--primary-color); color: white; border-radius: 6px; font-size: 12px;">
+                                    <div style="font-weight: 600; margin-bottom: 2px;">
+                                        <ha-icon icon="mdi:information" style="--mdc-icon-size: 14px; margin-right: 4px;"></ha-icon>
+                                        Active Strategy: ${actualStrategy}
+                                    </div>
+                                    <div style="opacity: 0.9;">${strategyReason}</div>
+                                </div>
+                            ` : ''}
 
                             ${routeMode === 'auto' || routeMode === 'direct' ? html`
                                 <ha-button
