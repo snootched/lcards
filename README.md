@@ -1,7 +1,7 @@
 # LCARdS
 *A STAR TREK FAN PRODUCTION*
 ![LCARdS Banner](docs/assets/lcards-banner.gif)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Hero banner
 Suggested: Animated MSD showing cards, lines, animations, and effects
 File: docs/assets/lcards-banner.gif
@@ -16,23 +16,59 @@ File: docs/assets/lcards-banner.gif
 
 <br>
 
+> [!IMPORTANT]
+> **LCARdS** is a work in progress and not a fully commissioned Starfleet product — expect some tribbles!
+>
+> This is a **hobby** project, with great community support and contribution.  This is not professional, and should be used for personal use only.
+>
+> AI coding tools have been leveraged in this project - please see AI disclaimer section below.
+
+<br>
+
 ## What is LCARdS?
 
-LCARdS is the next evolution of dedicated LCARS-inspired cards, originating from [CB-LCARS](https://github.com/snootched/cb-lcars) project.
+LCARdS is the next evolution of dedicated LCARS-inspired cards for Home Assistant.
+<br>LCARdS originates from, and will supercede the  [CB-LCARS](https://github.com/snootched/cb-lcars) project.
 <br>Although deployed and used as custom cards - it's built upon a set of common core platform services that work to provide a **more complete and cohesive LCARS-like dashboard experience.**
 
 You can build immersive, interactive dashboards with:
 - **Unified architecture** - Every card shares powerful reactivity, cross-card rules, and unified actions
 - **Studio editors** - Immersive card editing interfaces with live previews - augmented with schema-backed yaml editors.
-- **Extensible design** - Content can be enhanced and distrbuted via packs - adding more button types, sliders, animaiton definitions, and more.
-- **No backend required** - Data transformations run in your browser for real-time dashboards
+- **Extensible design** - Content can be enhanced and distrbuted (future) via packs - adding more button types, sliders, animaiton definitions, and more.
 
 > [!TIP]
-> LCARdS cards work together as a **system**, not as isolated components. Define rules once, apply across all cards. Create data sources that multiple cards can share. Build dashboards that feel alive.
+> LCARdS cards can work together as a **system**, not just as isolated components. Define rules once, apply across all cards. Create data sources that multiple cards can share. Build dashboards that feel alive.
 
 **Ready to build your own starship interface?** [Get started →](doc/user-guide/getting-started/)
 
 <br>
+
+## Feature parity with CB-LCARS
+
+If coming from CB-LCARS, use this table to quickly see what the equivalent card/feature is in LCARdS.  Not all features and functions may be available yet, but will be added over time.
+
+
+Legend:  ✅ Present | ❌ Not present | ⚠️ Partial
+
+| Feature | CB-LCARS | LCARdS | Notes |
+|---|:---:|:---:|---|
+| Button Card | ✅ cb-lcars-button-card | ✅ lcards-button | Builtin `preset` collection provides all the standard LCARS buttons. |
+| D-PAD Card | ✅ cb-lcars-dpad-card | ✅ lcards-button | Uses new  `component` feature of `lcards-button` card - complex SVGs can be turned into advanced multi-touch controls with use of `segements` concept. |
+| Label Card | ✅ cb-lcars-label-card | ✅ lcards-button | Label functionality can by used with `lcards-button`.  Addional presets available for text labels with or without decoration. |
+| Elbow Card | ✅ cb-lcars-elbow-card | ✅ lcards-elbow | Equivalent in LCARdS. |
+| Double Elbow Card | ✅ cb-lcars-double-elbow-card | ✅ lcards-elbow | Double Elbow now consolidated into a single unified `lcards-elbow` card. |
+| Slider Card | ✅ cb-lcars-multimeter-card | ⚠️ lcards-slider | Picard slider missing |
+| Cascade Data Grid | ⚠️ | ✅ lcards-data-grid | CB-LCARS provided decorative only version as background animation.  <br><br>In LCARdS, `lcards-data-grid` is full featured tabular/cell-based grid that can show real entity data - but also supports decorative mode equivalent to CB-LCARS version if desired.  |
+| Chart / Graph Card | ❌ | ✅ lcards-chart | Embedded ApexCharts library providing access to a variety of charts/graphs types to plot entity/data against. |
+| MSD (Master Systems Display) Card | ❌ | ✅ lcards-msd | Full MSD system in a card.  Embed controls (other HA cards), connect and route lines, add animations to reflect statuses, etc. |
+| Background Animations | ✅ <br>GRID, ALERT, GEO Array, Pulsewave| ❌ | Not yet implmented. |
+| Element Animations | ❌ | ✅ | Embedded Anime.js v4 library enabling capability to animate any SVG element (cards, lines/stroke, text, etc.) |
+| Symbiont (embedded cards) | ✅ | ❌ | Not yet implmented. |
+| State-based Styling | ✅ | ✅✅ | CB-LCARS has a limited set of states to control styles.  LCARdS uses both common states, but any state can be added to the list for customized styling. |
+| Custom States | ✅ | ✅✅ | LCARdS has global 'rules engine providing advanced rules to control changes to cards. |
+
+<br>
+
 
 ## Why Choose LCARdS?
 
@@ -119,7 +155,7 @@ graph TB
         MSD[MSD Cards]
         Chart[Chart Cards]
     end
-    
+
     subgraph "LCARdS Core Systems"
         Rules[Rules Engine]
         Systems[Systems Manager]
@@ -127,31 +163,31 @@ graph TB
         Data[Data Sources]
         Anim[Animation Framework]
     end
-    
+
     subgraph "Home Assistant"
         Entities[Entities & Services]
         HA[Home Assistant Core]
     end
-    
+
     Button --> Rules
     Slider --> Rules
     MSD --> Rules
     Chart --> Rules
-    
+
     Button --> Systems
     Slider --> Systems
     MSD --> Systems
     Chart --> Systems
-    
+
     Rules --> Theme
     Systems --> Theme
     Systems --> Data
     Data --> Anim
-    
+
     Rules --> Entities
     Data --> Entities
     Entities --> HA
-    
+
     style Button fill:#ff9900,stroke:#cc7700,color:#000
     style Slider fill:#ff9900,stroke:#cc7700,color:#000
     style MSD fill:#ff9900,stroke:#cc7700,color:#000
@@ -219,20 +255,19 @@ graph TB
 ### Button Card
 
 ![Button Card Samples](docs/assets/card-button-samples.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Button card varieties
 Show: Lozenge, bullet, capped, Picard variants in active/inactive states
 File: docs/assets/card-button-samples.png
 -->
 
-The most versatile button in the galaxy. Lozenge, bullet, capped, Picard variants and more.
+Provides all standard LCARS buttons.
 
 <details>
 <summary><b>Key Features</b></summary>
 
 - Multiple preset styles (lozenge, bullet, capped, Picard, dense)
-- Entity or service binding with dynamic state responses
-- Unified action handling (tap, hold, double-tap)
+- Dynamic state styling and response.
 - Full rules engine and template support
 - Custom SVG backgrounds and interactive segments
 
@@ -245,7 +280,7 @@ The most versatile button in the galaxy. Lozenge, bullet, capped, Picard variant
 ### Slider / Multimeter Card
 
 ![Slider Card Samples](docs/assets/card-slider-samples.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Slider/multimeter samples
 Show: Horizontal pills, vertical gauge, Picard style in 2-3 examples
 File: docs/assets/card-slider-samples.png
@@ -271,7 +306,7 @@ Interactive controls and gauges for lights, covers, fans, and sensors.
 ### Elbow Card
 
 ![Elbow Card Samples](docs/assets/card-elbow-samples.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Elbow card varieties
 Show: Header-left, header-right, footer variants, simple and segmented styles
 File: docs/assets/card-elbow-samples.png
@@ -297,33 +332,28 @@ Classic LCARS corner designs for authentic interface aesthetics.
 **✨ The Crown Jewel**
 
 ![MSD Card Sample](docs/assets/card-msd-sample.gif)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: MSD card in action
 Show: Animated MSD with multiple blocks, dynamic lines, embedded animations
 File: docs/assets/card-msd-sample.gif
 -->
 
 ![MSD Studio Editor](docs/assets/msd-studio-editor.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: MSD Studio editor
 Show: Studio editor open with config overlay, block diagram, provenance panel visible
 File: docs/assets/msd-studio-editor.png
 -->
 
-The flagship card. Sophisticated multi-entity displays with **immersive visual editor**.
+The flagship card. Sophisticated multi-card displays with **immersive visual editor**.
 
 <details>
 <summary><b>Key Features</b></summary>
 
-- Multi-entity status blocks with customizable layouts
-- Dynamic connecting lines and embedded animations
-- **Studio Editor**: Drag-and-drop visual configuration
-- Live preview with undo/redo history
-- Provenance tracking and Main Engineering helpers
-- Context-aware wizards for complex configurations
+- Multiple controls per MSD (controls are other HA cards.)
+- Dynamic connecting lines and animations
+- **Studio Editor**: Drag-and-drop visual configuration with live preview.
 
-> [!TIP]
-> The MSD Studio editor is where LCARdS truly shines. Build complex layouts visually, see changes in real-time, and access platform-wide features through intuitive dialogs.
 
 **[→ Full Documentation](doc/user-guide/advanced/msd-controls.md)**
 
@@ -334,7 +364,7 @@ The flagship card. Sophisticated multi-entity displays with **immersive visual e
 ### Chart Card
 
 ![Chart Card Samples](docs/assets/card-chart-samples.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Chart card examples
 Show: Line chart, area chart, bar chart with LCARS theming
 File: docs/assets/card-chart-samples.png
@@ -360,7 +390,7 @@ Powerful standalone charting with 15+ chart types powered by ApexCharts.
 ### Data Grid Card
 
 ![Data Grid Sample](docs/assets/card-data-grid-sample.gif)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Data grid with cascade animation
 Show: Grid with cascade animation and entity data updates
 File: docs/assets/card-data-grid-sample.gif
@@ -395,7 +425,7 @@ Authentic LCARS data grids with cascade animations.
 > LCARdS features **immersive, wizard-driven editors** that bring the "Main Engineering" experience to your dashboard configuration.
 
 ![Studio Editing Experience](docs/assets/studio-editing-ui.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Studio editor showcase
 Show: MSD studio open with:
 - Config overlay panel
@@ -427,7 +457,7 @@ All LCARdS cards have in-place editors, but advanced cards (like MSD) get the **
 ## Main Engineering
 
 ![Main Engineering Dialogs](docs/assets/main-engineering-dialogs.png)
-<!-- 
+<!--
 IMAGE PLACEHOLDER: Main Engineering UI
 Show: Screenshots of alert mode selector, theme browser, provenance tracker dialogs
 File: docs/assets/main-engineering-dialogs.png
@@ -515,12 +545,12 @@ graph LR
     Core --> Themes[Theme Packs]
     Core --> Anims[Animations]
     Core --> Packs[UI Packs]
-    
+
     Cards --> Community[Community<br>Contributions]
     Themes --> Community
     Anims --> Community
     Packs --> Community
-    
+
     style Core fill:#ff9900,stroke:#cc7700,color:#000
     style Community fill:#9999ff,stroke:#6666cc,color:#000
 ```
@@ -598,7 +628,7 @@ This work is intended for personal and recreational use only.
 
 ### AI-Assisted Development Notice (AIG‑2)
 
-This project is heavily developed with the assistance of AI tools.  Most implementation code and portions of the documentation were generated by AI models. 
+This project is heavily developed with the assistance of AI tools.  Most implementation code and portions of the documentation were generated by AI models.
 <br>All architectural decisions, design direction, integration strategy, and project structure are human-led.
 <br>All AI-generated components are reviewed, validated, tested, and refined by human contributors to ensure accuracy, coherence, and consistency with project standards.
 
