@@ -967,14 +967,29 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Setup cascade animation using AnimationManager
+   * Reads from animations array (standard pattern across all cards)
    * Creates independent animations per row for authentic LCARS cascade effect
    * @private
    */
   async _setupCascadeAnimation() {
-    const animation = this.config.animation;
-    if (!animation || animation.type !== 'cascade') {
-      return;
+    // Find cascade-color animation in animations array (standard pattern)
+    const animations = this.config.animations || [];
+    lcardsLog.debug('[LCARdSDataGrid] _setupCascadeAnimation called', {
+      animations,
+      hasAnimations: animations.length > 0,
+      firstAnimation: animations[0]
+    });
+    // Standard LCARdS animations use 'preset' property, not 'type'
+    const cascadeAnim = animations.find(a => a.preset === 'cascade-color');
+
+    if (!cascadeAnim) {
+      lcardsLog.debug('[LCARdSDataGrid] No cascade-color animation found in config', {
+        animationPresets: animations.map(a => a.preset || a.type)
+      });
+      return; // No cascade animation configured
     }
+
+    lcardsLog.debug('[LCARdSDataGrid] Found cascade-color animation:', cascadeAnim);
 
     const animationManager = this._singletons?.animationManager;
     if (!animationManager) {
@@ -1028,25 +1043,27 @@ export class LCARdSDataGrid extends LCARdSCard {
     };
 
     // Get cascade colors from config or theme
-    const colors = animation.colors || {};
+    // Standard format: cascadeAnim.params contains the preset parameters
+    const params = cascadeAnim.params || cascadeAnim; // Fallback to cascadeAnim for backwards compat
+    const colors = params.colors || {};
     const rawColors = [
-      this.getThemeToken(colors.start || 'colors.grid.cascadeStart') || '#99ccff',
-      this.getThemeToken(colors.text || 'colors.grid.cascadeMid') || '#4466aa',
-      this.getThemeToken(colors.end || 'colors.grid.cascadeEnd') || '#aaccff'
+      this.getThemeToken(colors.start || colors[0] || 'colors.grid.cascadeStart') || '#99ccff',
+      this.getThemeToken(colors.text || colors[1] || 'colors.grid.cascadeMid') || '#4466aa',
+      this.getThemeToken(colors.end || colors[2] || 'colors.grid.cascadeEnd') || '#aaccff'
     ];
 
     // Normalize all colors to CSS var format for anime.js compatibility
     const cascadeColors = rawColors.map(normalizeColor);
 
     // Get timing pattern (default, niagara, fast, custom)
-    const pattern = animation.pattern || 'default';
+    const pattern = params.pattern || 'default';
     const timingPattern = this._getAnimationTiming(pattern);
 
     // User can override duration globally (affects all rows)
-    const durationOverride = animation.duration;
+    const durationOverride = params.duration;
 
     // Or use speed multiplier (2.0 = twice as fast, 0.5 = half speed)
-    const speedMultiplier = animation.speed_multiplier !== undefined ? animation.speed_multiplier : 1.0;
+    const speedMultiplier = params.speed_multiplier !== undefined ? params.speed_multiplier : 1.0;
 
     lcardsLog.debug(`[LCARdSDataGrid] Setting up cascade animation for ${numRows} rows with pattern: ${pattern}`, {
       speedMultiplier,
@@ -1082,7 +1099,7 @@ export class LCARdSDataGrid extends LCARdSCard {
           loop: true, // Cascade animations always loop
           alternate: false, // Legacy uses normal direction (no reverse)
           property: 'color',
-          easing: animation.easing || 'linear'
+          easing: params.easing || 'linear'
         }
       });
 
@@ -1795,10 +1812,12 @@ export class LCARdSDataGrid extends LCARdSCard {
         padding: '0px',
         font_size: '22px'
       },
-      animation: {
-        type: 'cascade',
-        pattern: 'default'
-      }
+      animations: [
+        {
+          trigger: 'on_load',
+          preset: 'cascade-color'
+        }
+      ]
     };
   }
 

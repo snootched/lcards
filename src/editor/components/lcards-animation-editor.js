@@ -748,6 +748,28 @@ export class LCARdSAnimationEditor extends LitElement {
               </lcards-color-picker>
             </div>
             <lcards-message type="info" .message=${'Three colors for cascade effect: start → text (flash) → end'}></lcards-message>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{select: {mode: 'dropdown', options: [
+                { value: 'default', label: 'Default - Authentic LCARS timing' },
+                { value: 'niagara', label: 'Niagara - Smoother cascade' },
+                { value: 'fast', label: 'Fast - Quick cascade' },
+                { value: 'frozen', label: 'Frozen - Static display' }
+              ]}}}
+              .label=${'Timing Pattern'}
+              .value=${params.pattern ?? 'default'}
+              @value-changed=${(e) => this._updateParam(index, 'pattern', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              type="number"
+              label="Speed Multiplier"
+              .value=${params.speed_multiplier ?? 1.0}
+              .helper=${'2.0 = twice as fast, 0.5 = half speed'}
+              step="0.1"
+              min="0.1"
+              max="10"
+              @input=${(e) => this._updateParam(index, 'speed_multiplier', Number(e.target.value))}>
+            </ha-textfield>
             <ha-textfield
               label="CSS Property"
               .value=${params.property ?? 'color'}

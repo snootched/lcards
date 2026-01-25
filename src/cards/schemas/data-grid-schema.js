@@ -9,6 +9,8 @@
  * @see doc/user/configuration/cards/data-grid.md
  */
 
+import { animationSchema, filterSchema } from './common-schemas.js';
+
 export const dataGridSchema = {
     "type": "object",
     "required": [
@@ -657,344 +659,28 @@ export const dataGridSchema = {
         },
 
         // ====================================================================
-        // ANIMATION CONFIGURATION
+        // ANIMATION CONFIGURATION (Standard animations array pattern)
         // ====================================================================
 
-        "animation": {
-            "type": "object",
+        "animations": {
+            "type": "array",
             "x-ui-hints": {
-                "label": "Animation Configuration"
+                "label": "Animations",
+                "helper": "Animation definitions triggered by events (on_load, on_hover, etc.)"
             },
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "enum": ["cascade", "none"],
-                    "default": "none",
-                    "x-ui-hints": {
-                        "label": "Animation Type",
-                        "helper": "Enable cascade animation for waterfall color cycling effect",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "none", "label": "None" },
-                                    { "value": "cascade", "label": "Cascade (Waterfall Effect)" }
-                                ]
-                            }
-                        }
-                    }
-                },
+            "items": animationSchema
+        },
 
-                "pattern": {
-                    "type": "string",
-                    "enum": ["default", "niagara", "fast", "custom"],
-                    "default": "default",
-                    "x-ui-hints": {
-                        "label": "Timing Pattern",
-                        "helper": "Preset timing patterns for cascade animation",
-                        "showIf": { "animation.type": "cascade" },
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "default", "label": "Default (Varied Organic)" },
-                                    { "value": "niagara", "label": "Niagara (Smooth Uniform)" },
-                                    { "value": "fast", "label": "Fast (Quick Waterfall)" },
-                                    { "value": "custom", "label": "Custom (Define Your Own)" }
-                                ]
-                            }
-                        }
-                    }
-                },
+        // FILTERS CONFIGURATION (Standard filters array pattern)
+        // ====================================================================
 
-                "colors": {
-                    "type": "object",
-                    "x-ui-hints": {
-                        "label": "Cascade Colors",
-                        "helper": "3-color cycle for cascade animation",
-                        "showIf": { "animation.type": "cascade" }
-                    },
-                    "properties": {
-                        "start": {
-                            "type": "string",
-                            "format": "color",
-                            "x-ui-hints": {
-                                "label": "Start Color",
-                                "helper": "Starting color (75% dwell)",
-                                "selector": {
-                                    "ui_color": {}
-                                }
-                            }
-                        },
-                        "text": {
-                            "type": "string",
-                            "format": "color",
-                            "x-ui-hints": {
-                                "label": "Middle Color",
-                                "helper": "Middle color (10% snap)",
-                                "selector": {
-                                    "ui_color": {}
-                                }
-                            }
-                        },
-                        "end": {
-                            "type": "string",
-                            "format": "color",
-                            "x-ui-hints": {
-                                "label": "End Color",
-                                "helper": "Ending color (10% brief)",
-                                "selector": {
-                                    "ui_color": {}
-                                }
-                            }
-                        }
-                    }
-                },
-
-                "speed_multiplier": {
-                    "type": "number",
-                    "minimum": 0.1,
-                    "maximum": 10,
-                    "default": 1.0,
-                    "x-ui-hints": {
-                        "label": "Speed Multiplier",
-                        "helper": "Speed multiplier (2.0 = twice as fast, 0.5 = half speed)",
-                        "showIf": { "animation.type": "cascade" },
-                        "selector": {
-                            "number": {
-                                "mode": "slider",
-                                "min": 0.1,
-                                "max": 10,
-                                "step": 0.1
-                            }
-                        }
-                    }
-                },
-
-                "duration": {
-                    "type": "number",
-                    "minimum": 100,
-                    "x-ui-hints": {
-                        "label": "Override Duration",
-                        "helper": "Override all row durations (milliseconds). Leave empty to use pattern timing.",
-                        "showIf": { "animation.type": "cascade" },
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 100,
-                                "max": 10000,
-                                "step": 100,
-                                "unit_of_measurement": "ms"
-                            }
-                        }
-                    }
-                },
-
-                "easing": {
-                    "type": "string",
-                    "default": "linear",
-                    "x-ui-hints": {
-                        "label": "Easing Function",
-                        "helper": "Animation easing (e.g., 'linear', 'ease', 'ease-in-out')",
-                        "showIf": { "animation.type": "cascade" },
-                        "selector": {
-                            "text": {
-                                "placeholder": "linear"
-                            }
-                        }
-                    }
-                },
-
-                "timing": {
-                    "type": "array",
-                    "x-ui-hints": {
-                        "label": "Custom Timing",
-                        "helper": "Custom per-row timing array (only for pattern: custom)",
-                        "showIf": {
-                            "animation.type": "cascade",
-                            "animation.pattern": "custom"
-                        }
-                    },
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "duration": {
-                                "type": "number",
-                                "minimum": 100
-                            },
-                            "delay": {
-                                "type": "number",
-                                "minimum": 0
-                            }
-                        }
-                    }
-                },
-
-                // Change Detection
-                "highlight_changes": {
-                    "type": "boolean",
-                    "default": false,
-                    "x-ui-hints": {
-                        "label": "Highlight Changes",
-                        "helper": "Enable animation when cell values change",
-                        "selector": {
-                            "boolean": {}
-                        }
-                    }
-                },
-
-                "change_preset": {
-                    "type": "string",
-                    "enum": ["pulse", "glow", "flash"],
-                    "default": "pulse",
-                    "x-ui-hints": {
-                        "label": "Change Animation Preset",
-                        "helper": "Animation style for value changes",
-                        "showIf": { "animation.highlight_changes": true },
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "pulse", "label": "Pulse (Scale & Fade)" },
-                                    { "value": "glow", "label": "Glow (Shadow Effect)" },
-                                    { "value": "flash", "label": "Flash (Background Color)" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                "change_duration": {
-                    "type": "number",
-                    "minimum": 100,
-                    "default": 500,
-                    "x-ui-hints": {
-                        "label": "Change Duration",
-                        "helper": "Duration of change animation in milliseconds",
-                        "showIf": { "animation.highlight_changes": true },
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 100,
-                                "max": 5000,
-                                "step": 50,
-                                "unit_of_measurement": "ms"
-                            }
-                        }
-                    }
-                },
-
-                "change_easing": {
-                    "type": "string",
-                    "default": "easeOutQuad",
-                    "x-ui-hints": {
-                        "label": "Change Easing",
-                        "helper": "Easing function for change animation",
-                        "showIf": { "animation.highlight_changes": true },
-                        "selector": {
-                            "text": {
-                                "placeholder": "easeOutQuad"
-                            }
-                        }
-                    }
-                },
-
-                "max_highlight_cells": {
-                    "type": "number",
-                    "minimum": 1,
-                    "default": 50,
-                    "x-ui-hints": {
-                        "label": "Max Highlight Cells",
-                        "helper": "Maximum number of cells to animate per update",
-                        "showIf": { "animation.highlight_changes": true },
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 1,
-                                "max": 1000,
-                                "step": 10
-                            }
-                        }
-                    }
-                },
-
-                "change_params": {
-                    "type": "object",
-                    "x-ui-hints": {
-                        "label": "Change Parameters",
-                        "helper": "Preset-specific parameters (varies by change_preset)",
-                        "showIf": { "animation.highlight_changes": true }
-                    },
-                    "properties": {
-                        "max_scale": {
-                            "type": "number",
-                            "x-ui-hints": {
-                                "label": "Max Scale (Pulse)",
-                                "selector": {
-                                    "number": {
-                                        "mode": "box",
-                                        "min": 1.0,
-                                        "max": 2.0,
-                                        "step": 0.01
-                                    }
-                                }
-                            }
-                        },
-                        "min_opacity": {
-                            "type": "number",
-                            "x-ui-hints": {
-                                "label": "Min Opacity (Pulse)",
-                                "selector": {
-                                    "number": {
-                                        "mode": "box",
-                                        "min": 0,
-                                        "max": 1,
-                                        "step": 0.1
-                                    }
-                                }
-                            }
-                        },
-                        "color": {
-                            "type": "string",
-                            "format": "color",
-                            "x-ui-hints": {
-                                "label": "Effect Color",
-                                "selector": {
-                                    "ui_color": {}
-                                }
-                            }
-                        },
-                        "blur_max": {
-                            "type": "number",
-                            "x-ui-hints": {
-                                "label": "Max Blur (Glow)",
-                                "selector": {
-                                    "number": {
-                                        "mode": "box",
-                                        "min": 0,
-                                        "max": 50,
-                                        "unit_of_measurement": "px"
-                                    }
-                                }
-                            }
-                        },
-                        "intensity": {
-                            "type": "number",
-                            "x-ui-hints": {
-                                "label": "Intensity (Flash)",
-                                "selector": {
-                                    "number": {
-                                        "mode": "box",
-                                        "min": 0,
-                                        "max": 1,
-                                        "step": 0.1
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        "filters": {
+            "type": "array",
+            "x-ui-hints": {
+                "label": "Visual Filters",
+                "helper": "CSS and SVG filters applied to the entire data grid"
+            },
+            "items": filterSchema
         },
 
         // ====================================================================

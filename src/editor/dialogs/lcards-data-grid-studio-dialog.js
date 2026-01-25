@@ -31,6 +31,8 @@ import '../components/shared/lcards-style-hierarchy-diagram.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
+import '../components/lcards-animation-editor.js';
+import '../components/lcards-filter-editor.js';
 import '../../cards/lcards-data-grid.js';
 
 export class LCARdSDataGridStudioDialogV4 extends LitElement {
@@ -517,9 +519,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                             <ha-icon icon="mdi:palette"></ha-icon>
                             Grid Styles
                         </ha-tab-group-tab>
-                        <ha-tab-group-tab value="animation" ?active=${this._activeTab === 'animation'}>
-                            <ha-icon icon="mdi:animation"></ha-icon>
-                            Animation
+                        <ha-tab-group-tab value="effects" ?active=${this._activeTab === 'effects'}>
+                            <ha-icon icon="mdi:auto-fix"></ha-icon>
+                            Effects
                         </ha-tab-group-tab>
                         <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
                             <ha-icon icon="mdi:cog"></ha-icon>
@@ -586,8 +588,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 return this._renderGridStructureTab();
             case 'grid-styles':
                 return this._renderGridStylesTab();
-            case 'animation':
-                return this._renderAnimationTab();
+            case 'effects':
+                return this._renderEffectsTab();
             case 'advanced':
                 return this._renderAdvancedTab();
             default:
@@ -1660,7 +1662,52 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     // ========================================
-    // ANIMATION TAB (Main Tab - promoted from Advanced)
+    // EFFECTS TAB (Animations + Filters - Standard Pattern)
+    // ========================================
+
+    _renderEffectsTab() {
+        return html`
+            <lcards-message
+                type="info"
+                message="Configure animations (cascade effect recommended) and visual filters for the data grid.">
+            </lcards-message>
+
+            <!-- Animations Section -->
+            <lcards-form-section
+                header="Animations"
+                description="Trigger visual animations on load, hover, or data changes"
+                icon="mdi:animation"
+                ?expanded=${true}>
+
+                <lcards-animation-editor
+                    .hass=${this.hass}
+                    .animations=${this._workingConfig.animations || []}
+                    @animations-changed=${(e) => {
+                        this._updateConfig('animations', e.detail.value);
+                    }}>
+                </lcards-animation-editor>
+            </lcards-form-section>
+
+            <!-- Filters Section -->
+            <lcards-form-section
+                header="Filters"
+                description="Apply visual filters to the entire data grid (blur, brightness, etc.)"
+                icon="mdi:auto-fix"
+                ?expanded=${false}>
+
+                <lcards-filter-editor
+                    .hass=${this.hass}
+                    .filters=${this._workingConfig.filters || []}
+                    @filters-changed=${(e) => {
+                        this._updateConfig('filters', e.detail.value);
+                    }}>
+                </lcards-filter-editor>
+            </lcards-form-section>
+        `;
+    }
+
+    // ========================================
+    // ANIMATION TAB (DEPRECATED - REPLACED BY EFFECTS TAB)
     // ========================================
 
     _renderAnimationTab() {
