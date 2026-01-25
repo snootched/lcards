@@ -67,6 +67,7 @@ import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { getElbowSchema } from './schemas/elbow-schema.js';
+import { getElbowComponent } from '../core/packs/components/elbows/index.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-elbow-editor.js';
@@ -849,208 +850,31 @@ export class LCARdSElbow extends LCARdSButton {
         // Inner radius should be smaller than outer, with minimum 1px gap
         const clampedInnerRadius = Math.max(0, Math.min(innerRadius, clampedOuterRadius - 1));
 
-        // Generate path based on elbow type
-        // Each path is a closed shape representing the elbow
-
-        if (position === 'header' && side === 'left') {
-            // Header-left: Elbow in top-left corner
-            // Vertical bar on left, horizontal bar on top
-            return this._generateHeaderLeftPath(width, height, horizontal, vertical, clampedOuterRadius, clampedInnerRadius);
-        } else if (position === 'header' && side === 'right') {
-            // Header-right: Elbow in top-right corner
-            // Vertical bar on right, horizontal bar on top
-            return this._generateHeaderRightPath(width, height, horizontal, vertical, clampedOuterRadius, clampedInnerRadius);
-        } else if (position === 'footer' && side === 'left') {
-            // Footer-left: Elbow in bottom-left corner
-            // Vertical bar on left, horizontal bar on bottom
-            return this._generateFooterLeftPath(width, height, horizontal, vertical, clampedOuterRadius, clampedInnerRadius);
-        } else if (position === 'footer' && side === 'right') {
-            // Footer-right: Elbow in bottom-right corner
-            // Vertical bar on right, horizontal bar on bottom
-            return this._generateFooterRightPath(width, height, horizontal, vertical, clampedOuterRadius, clampedInnerRadius);
+        // Construct elbow type from position and side
+        const elbowType = `${position}-${side}`;
+        
+        // Get component from registry
+        const component = getElbowComponent(elbowType);
+        
+        if (!component || !component.pathGenerator) {
+            lcardsLog.error(`[LCARdSElbow] No path generator for type: ${elbowType}`);
+            return '';
         }
-
-        return '';
-    }
-
-    /**
-     * Generate header-left elbow path
-     * Elbow in top-left corner: vertical bar on left, horizontal bar on top
-     *
-     * Shape description (drawing clockwise from top-left):
-     * - Start at top edge where outer arc ends
-     * - Right along top edge
-     * - Down to horizontal bar bottom
-     * - Left to inner arc start
-     * - Inner arc (concave) to vertical bar
-     * - Down vertical bar
-     * - Left along bottom
-     * - Up vertical bar left edge
-     * - Outer arc (convex) back to start
-     *
-     * Arc geometry:
-     * - Outer arc center: (outerRadius, outerRadius)
-     * - Inner arc center: (horizontal, vertical)
-     *
-     * @private
-     */
-    _generateHeaderLeftPath(width, height, horizontal, vertical, outerRadius, innerRadius) {
-        // For seamless joins, arcs must be tangent to straight edges
-        // Outer arc: connects left edge (x=0) to top edge (y=0)
-        //   Start: (0, outerRadius) - tangent is horizontal (pointing right)
-        //   End: (outerRadius, 0) - tangent is vertical (pointing down)
-        //   Center: (outerRadius, outerRadius)
-        //
-        // Inner arc: connects horizontal bar to vertical bar
-        //   Start: (horizontal + innerRadius, vertical) - tangent is horizontal (pointing left)
-        //   End: (horizontal, vertical + innerRadius) - tangent is vertical (pointing up)
-        //   Center: (horizontal, vertical)
-
-        const p = [
-            // Start at where outer arc meets top edge (tangent is vertical)
-            `M ${outerRadius} 0`,
-            // Line along top edge to the right
-            `L ${width} 0`,
-            // Line down to bottom of horizontal bar
-            `L ${width} ${vertical}`,
-            // Line left along bottom of horizontal bar to inner arc start (tangent is horizontal)
-            `L ${horizontal + innerRadius} ${vertical}`,
-            // Inner arc: curves inward (concave)
-            // From (horizontal + innerRadius, vertical) to (horizontal, vertical + innerRadius)
-            // Goes counter-clockwise (sweep-flag = 0) to curve inward
-            `A ${innerRadius} ${innerRadius} 0 0 0 ${horizontal} ${vertical + innerRadius}`,
-            // Line down right edge of vertical bar
-            `L ${horizontal} ${height}`,
-            // Line left along bottom
-            `L 0 ${height}`,
-            // Line up left edge of vertical bar to outer arc start (tangent is horizontal)
-            `L 0 ${outerRadius}`,
-            // Outer arc: curves outward (convex)
-            // From (0, outerRadius) to (outerRadius, 0)
-            // Goes clockwise (sweep-flag = 1) to curve outward
-            `A ${outerRadius} ${outerRadius} 0 0 1 ${outerRadius} 0`,
-            // Close path
-            `Z`
-        ];
-
-        return p.join(' ');
-    }
-
-    /**
-     * Generate header-right elbow path
-     * Elbow in top-right corner: vertical bar on right, horizontal bar on top
-     * @private
-     */
-    _generateHeaderRightPath(width, height, horizontal, vertical, outerRadius, innerRadius) {
-        // Mirror of header-left
-        // Vertical bar on right side: x = (width - horizontal) to x = width
-        // Horizontal bar: x = 0 to x = (width - horizontal)
-
-        const vBarLeft = width - horizontal; // Left edge of vertical bar
-
-        const p = [
-            // Start at top-right corner (with outer arc radius offset)
-            `M ${width - outerRadius} 0`,
-            // Outer arc: curves from top to right edge
-            `A ${outerRadius} ${outerRadius} 0 0 1 ${width} ${outerRadius}`,
-            // Line down right edge to bottom
-            `L ${width} ${height}`,
-            // Line left along bottom of vertical bar
-            `L ${vBarLeft} ${height}`,
-            // Line up right edge of content area (left edge of vertical bar)
-            `L ${vBarLeft} ${vertical + innerRadius}`,
-            // Inner arc: curves inward from vertical bar to horizontal bar
-            // Goes counter-clockwise (sweep-flag = 0) to curve inward
-            `A ${innerRadius} ${innerRadius} 0 0 0 ${vBarLeft - innerRadius} ${vertical}`,
-            // Line left along bottom of horizontal bar
-            `L 0 ${vertical}`,
-            // Line up left edge
-            `L 0 0`,
-            // Line right along top to arc start
-            `L ${width - outerRadius} 0`,
-            // Close path
-            `Z`
-        ];
-
-        return p.join(' ');
-    }
-
-    /**
-     * Generate footer-left elbow path
-     * Elbow in bottom-left corner: vertical bar on left, horizontal bar on bottom
-     * @private
-     */
-    _generateFooterLeftPath(width, height, horizontal, vertical, outerRadius, innerRadius) {
-        // Vertical bar on left: x = 0 to x = horizontal
-        // Horizontal bar on bottom: y = (height - vertical) to y = height
-
-        const hBarTop = height - vertical; // Top edge of horizontal bar
-
-        const p = [
-            // Start at bottom-left corner (with outer arc radius offset)
-            `M 0 ${height - outerRadius}`,
-            // Outer arc: curves from left edge to bottom
-            `A ${outerRadius} ${outerRadius} 0 0 0 ${outerRadius} ${height}`,
-            // Line right along bottom edge
-            `L ${width} ${height}`,
-            // Line up right edge of horizontal bar
-            `L ${width} ${hBarTop}`,
-            // Line left along top of horizontal bar to inner arc start
-            `L ${horizontal + innerRadius} ${hBarTop}`,
-            // Inner arc: curves inward from horizontal bar to vertical bar
-            // Goes clockwise (sweep-flag = 1) to curve inward
-            `A ${innerRadius} ${innerRadius} 0 0 1 ${horizontal} ${hBarTop - innerRadius}`,
-            // Line up left edge of vertical bar
-            `L ${horizontal} 0`,
-            // Line left along top
-            `L 0 0`,
-            // Line down left edge to arc start
-            `L 0 ${height - outerRadius}`,
-            // Close path
-            `Z`
-        ];
-
-        return p.join(' ');
-    }
-
-    /**
-     * Generate footer-right elbow path
-     * Elbow in bottom-right corner: vertical bar on right, horizontal bar on bottom
-     * @private
-     */
-    _generateFooterRightPath(width, height, horizontal, vertical, outerRadius, innerRadius) {
-        // Mirror of footer-left
-        // Vertical bar on right: x = (width - horizontal) to x = width
-        // Horizontal bar on bottom: y = (height - vertical) to y = height
-
-        const vBarLeft = width - horizontal;
-        const hBarTop = height - vertical;
-
-        const p = [
-            // Start at bottom-right corner (with outer arc radius offset)
-            `M ${width} ${height - outerRadius}`,
-            // Line up right edge
-            `L ${width} 0`,
-            // Line left along top
-            `L ${vBarLeft} 0`,
-            // Line down left edge of vertical bar to inner arc start
-            `L ${vBarLeft} ${hBarTop - innerRadius}`,
-            // Inner arc: curves inward from vertical bar to horizontal bar
-            // Goes clockwise (sweep-flag = 1) to curve inward
-            `A ${innerRadius} ${innerRadius} 0 0 1 ${vBarLeft - innerRadius} ${hBarTop}`,
-            // Line left along top of horizontal bar
-            `L 0 ${hBarTop}`,
-            // Line down left edge
-            `L 0 ${height}`,
-            // Line right along bottom to arc start
-            `L ${width - outerRadius} ${height}`,
-            // Outer arc: curves from bottom to right edge
-            `A ${outerRadius} ${outerRadius} 0 0 0 ${width} ${height - outerRadius}`,
-            // Close path
-            `Z`
-        ];
-
-        return p.join(' ');
+        
+        // Pass geometry and container dimensions to generator
+        const generatorConfig = {
+            geometry: {
+                position,
+                side,
+                horizontal,
+                vertical,
+                outerRadius: clampedOuterRadius,
+                innerRadius: clampedInnerRadius
+            },
+            container: { width, height }
+        };
+        
+        return component.pathGenerator(generatorConfig);
     }
 
     /**
