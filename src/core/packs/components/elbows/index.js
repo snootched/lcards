@@ -16,16 +16,23 @@
  *
  * Each component defines:
  * - orientation: Position of the elbow (header-left, header-right, etc.)
- * - features: Array of supported features
+ * - features: Array of supported styles ('simple', 'segmented')
+ * - layout: Positioning metadata for text/content area calculation
+ *   - position: 'header', 'footer' (vertical position of main bar)
+ *   - side: 'left', 'right', 'contained', 'open' (horizontal positioning)
  * - pathGenerator: Function that generates SVG path from config
  * - metadata: Component information (name, description, version)
  *
- * @type {Object.<string, {orientation: string, features: string[], pathGenerator: Function, metadata: Object}>}
+ * @type {Object.<string, {orientation: string, features: string[], layout: Object, pathGenerator: Function, metadata: Object}>}
  */
 export const elbowComponents = {
     'header-left': {
         orientation: 'header-left',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
 
         /**
          * Generate header-left elbow path
@@ -106,6 +113,10 @@ export const elbowComponents = {
     'header-right': {
         orientation: 'header-right',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'right'
+        },
 
         /**
          * Generate header-right elbow path
@@ -163,6 +174,10 @@ export const elbowComponents = {
     'footer-left': {
         orientation: 'footer-left',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'footer',
+            side: 'left'
+        },
 
         /**
          * Generate footer-left elbow path
@@ -219,6 +234,10 @@ export const elbowComponents = {
     'footer-right': {
         orientation: 'footer-right',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'footer',
+            side: 'right'
+        },
 
         /**
          * Generate footer-right elbow path
@@ -281,6 +300,10 @@ export const elbowComponents = {
     'header-contained': {
         orientation: 'header-contained',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'contained'
+        },
 
         /**
          * Generate header-contained elbow path
@@ -299,7 +322,7 @@ export const elbowComponents = {
                 // Start at left outer arc
                 `M ${outerRadius} 0`,
                 // Outer arc on left (top-left corner)
-                `A ${outerRadius} ${outerRadius} 0 0 1 0 ${outerRadius}`,
+                `A ${outerRadius} ${outerRadius} 0 0 0 0 ${outerRadius}`,
                 // Line down left edge
                 `L 0 ${height}`,
                 // Line right along bottom of left vertical bar
@@ -319,7 +342,7 @@ export const elbowComponents = {
                 // Line up right edge
                 `L ${width} ${outerRadius}`,
                 // Outer arc on right (top-right corner)
-                `A ${outerRadius} ${outerRadius} 0 0 1 ${width - outerRadius} 0`,
+                `A ${outerRadius} ${outerRadius} 0 0 0 ${width - outerRadius} 0`,
                 // Line left along top to start
                 `L ${outerRadius} 0`,
                 // Close path
@@ -339,6 +362,10 @@ export const elbowComponents = {
     'footer-contained': {
         orientation: 'footer-contained',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'footer',
+            side: 'contained'
+        },
 
         /**
          * Generate footer-contained elbow path
@@ -403,6 +430,10 @@ export const elbowComponents = {
     'header-open': {
         orientation: 'header-open',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'open'
+        },
 
         /**
          * Generate header-open elbow path
@@ -439,6 +470,10 @@ export const elbowComponents = {
     'footer-open': {
         orientation: 'footer-open',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'footer',
+            side: 'open'
+        },
 
         /**
          * Generate footer-open elbow path
@@ -599,6 +634,10 @@ export const elbowComponents = {
     'footer-callout-right': {
         orientation: 'footer-callout-right',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'footer',
+            side: 'right'
+        },
 
         /**
          * Generate footer-callout-right elbow path
@@ -644,6 +683,10 @@ export const elbowComponents = {
     'corner-inset-left': {
         orientation: 'corner-inset-left',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
 
         /**
          * Generate corner-inset-left elbow path
@@ -687,6 +730,10 @@ export const elbowComponents = {
     'corner-inset-right': {
         orientation: 'corner-inset-right',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'right'
+        },
 
         /**
          * Generate corner-inset-right elbow path
@@ -734,11 +781,15 @@ export const elbowComponents = {
     'arc-frame-top': {
         orientation: 'arc-frame-top',
         features: ['simple'],  // No segmented mode (double arc doesn't make visual sense)
+        layout: {
+            position: 'header',
+            side: 'contained'
+        },
 
         /**
          * Generate arc-frame-top elbow path
          * Pure curved frame at top (rainbow arc shape)
-         * 
+         *
          * Creates a curved band that arcs downward from the top corners.
          * The band has thickness defined by 'vertical' (bar_height).
          *
@@ -752,21 +803,21 @@ export const elbowComponents = {
             const { width, height } = config.container;
 
             const innerRadius = outerRadius - vertical;
-            
+
             // Create a curved band at the top
             // The arc curves downward from top-left to top-right
             // Using the width and outerRadius to determine the curve depth
-            
+
             // Calculate the depth of the curve based on the radius and width
             const halfWidth = width / 2;
             let curveDepth = vertical; // Default curve depth
-            
+
             if (outerRadius >= halfWidth) {
                 // For larger radii, calculate actual curve depth
                 // Using circle geometry: depth = radius - sqrt(radius^2 - (width/2)^2)
                 curveDepth = outerRadius - Math.sqrt(outerRadius * outerRadius - halfWidth * halfWidth);
             }
-            
+
             const path = [
                 // Start at top-left corner
                 `M 0 0`,
@@ -803,11 +854,15 @@ export const elbowComponents = {
     'arc-frame-bottom': {
         orientation: 'arc-frame-bottom',
         features: ['simple'],  // No segmented mode
+        layout: {
+            position: 'footer',
+            side: 'contained'
+        },
 
         /**
          * Generate arc-frame-bottom elbow path
          * Pure curved frame at bottom (inverted arc)
-         * 
+         *
          * Creates a curved band that arcs upward from the bottom corners.
          * The band has thickness defined by 'vertical' (bar_height).
          *
@@ -821,16 +876,16 @@ export const elbowComponents = {
             const { width, height } = config.container;
 
             const innerRadius = outerRadius - vertical;
-            
+
             // Create a curved band at the bottom
             // The arc curves upward from bottom-left to bottom-right
             const halfWidth = width / 2;
             let curveDepth = vertical;
-            
+
             if (outerRadius >= halfWidth) {
                 curveDepth = outerRadius - Math.sqrt(outerRadius * outerRadius - halfWidth * halfWidth);
             }
-            
+
             const path = [
                 // Start at bottom-left corner
                 `M 0 ${height}`,
@@ -872,6 +927,10 @@ export const elbowComponents = {
     'diagonal-cap-left': {
         orientation: 'diagonal-cap-left',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
 
         /**
          * Generate diagonal-cap-left elbow path
@@ -917,6 +976,10 @@ export const elbowComponents = {
     'diagonal-cap-right': {
         orientation: 'diagonal-cap-right',
         features: ['simple', 'segmented'],
+        layout: {
+            position: 'header',
+            side: 'right'
+        },
 
         /**
          * Generate diagonal-cap-right elbow path

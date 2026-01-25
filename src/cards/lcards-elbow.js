@@ -477,7 +477,6 @@ export class LCARdSElbow extends LCARdSButton {
      */
     _calculateSimpleElbowGeometry(config) {
         const { type, segment } = config;
-        const [position, side] = type.split('-'); // 'header-left' → ['header', 'left']
 
         // Resolve theme values to actual dimensions
         let bar_width = segment.bar_width;
@@ -510,8 +509,7 @@ export class LCARdSElbow extends LCARdSButton {
         }
 
         return {
-            position,  // 'header' or 'footer'
-            side,      // 'left' or 'right'
+            type,  // Full type string (e.g., 'header-left', 'corner-inset-left', etc.)
             horizontal: bar_width,   // Sidebar width
             vertical: bar_height,    // Top bar height
             outerRadius: outer_curve,
@@ -532,7 +530,6 @@ export class LCARdSElbow extends LCARdSButton {
      */
     _calculateSegmentedGeometry(config) {
         const { type, segments } = config;
-        const [position, side] = type.split('-');
 
         if (!segments || !segments.outer_segment || !segments.inner_segment) {
             lcardsLog.error(`[LCARdSElbow] Segmented style requires outer_segment and inner_segment config`);
@@ -599,8 +596,7 @@ export class LCARdSElbow extends LCARdSButton {
         });
 
         return {
-            position,
-            side,
+            type,
             outer: {
                 horizontal: outerHorizontal,
                 vertical: outerVertical,
@@ -628,7 +624,11 @@ export class LCARdSElbow extends LCARdSButton {
     _adjustTextForElbow() {
         if (!this._elbowConfig || !this._elbowConfig.type) return;
 
-        const [position, side] = this._elbowConfig.type.split('-');
+        // Get position and side from component layout metadata
+        const component = getElbowComponent(this._elbowConfig.type);
+        const position = component?.layout?.position || 'header';
+        const side = component?.layout?.side || 'left';
+
         const config = this.config;
 
         // Initialize text config if needed
@@ -856,10 +856,8 @@ export class LCARdSElbow extends LCARdSButton {
         // Inner radius should be smaller than outer, with minimum 1px gap
         const clampedInnerRadius = Math.max(0, Math.min(innerRadius, clampedOuterRadius - 1));
 
-        // Construct elbow type from position and side
-        const elbowType = `${position}-${side}`;
-
-        // Get component from registry
+        // Get component from registry using the full type
+        const elbowType = g.type;
         const component = getElbowComponent(elbowType);
 
         if (!component || !component.pathGenerator) {
@@ -870,8 +868,7 @@ export class LCARdSElbow extends LCARdSButton {
         // Pass geometry and container dimensions to generator
         const generatorConfig = {
             geometry: {
-                position,
-                side,
+                type: elbowType,
                 horizontal,
                 vertical,
                 outerRadius: clampedOuterRadius,
@@ -993,7 +990,7 @@ export class LCARdSElbow extends LCARdSButton {
             return super._generateButtonSVG(width, height, config);
         }
 
-        const { position, side, outer, inner, offset, gap } = segmentGeom;
+        const { type, outer, inner, offset, gap } = segmentGeom;
 
         // Get colors for outer and inner segments using state-aware resolution
         const outerSegmentConfig = this._elbowConfig.segments.outer_segment;
@@ -1007,7 +1004,7 @@ export class LCARdSElbow extends LCARdSButton {
             width, height,
             outer.horizontal, outer.vertical,
             outer.outerRadius, outer.innerRadius,
-            position, side
+            type
         );
 
         // Generate inner segment path (smaller elbow)
@@ -1021,7 +1018,7 @@ export class LCARdSElbow extends LCARdSButton {
             innerWidth, innerHeight,
             inner.horizontal, inner.vertical,
             inner.outerRadius, inner.innerRadius,
-            position, side
+            type
         );
 
         // Process icon and text (same as simple elbow)
@@ -1084,11 +1081,10 @@ export class LCARdSElbow extends LCARdSButton {
      * Wrapper around _generateElbowPath with segment-specific dimensions
      * @private
      */
-    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, position, side) {
+    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, type) {
         // Temporarily set geometry for path generation
         const tempGeometry = {
-            position,
-            side,
+            type,
             horizontal,
             vertical,
             outerRadius,
@@ -1121,7 +1117,12 @@ export class LCARdSElbow extends LCARdSButton {
             return this._processTextFields(textFields, width, height, this._processedIcon);
         }
 
-        const { position, side, horizontal, vertical } = g;
+        // Get position and side from component layout metadata
+        const component = getElbowComponent(g.type);
+        const position = component?.layout?.position || 'header';
+        const side = component?.layout?.side || 'left';
+
+        const { horizontal, vertical } = g;
 
         // Calculate content area (area not occupied by elbow bars)
         let contentArea = {
