@@ -1,12 +1,35 @@
 // --- SVG Helpers ---
 import { lcardsLog } from './lcards-logging.js';
 
+/**
+ * Generate SVG line element as string
+ * 
+ * @param {Object} params - Line parameters
+ * @param {number} params.x1 - Start X coordinate
+ * @param {number} params.y1 - Start Y coordinate
+ * @param {number} params.x2 - End X coordinate
+ * @param {number} params.y2 - End Y coordinate
+ * @param {string} [params.id] - Element ID
+ * @param {Object} [params.attrs] - Additional SVG attributes
+ * @param {Object} [params.style] - CSS style properties
+ * @returns {string} SVG line element markup
+ */
 export function drawLine({ x1, y1, x2, y2, id, attrs = {}, style = {} }) {
   const attrsStr = attrsToString(attrs);
   const styleStr = styleToString(style);
   return `<line id="${id || ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${attrsStr}${styleStr} />`;
 }
 
+/**
+ * Generate SVG polyline element as string
+ * 
+ * @param {Object} params - Polyline parameters
+ * @param {Array<[number, number]>} params.points - Array of [x, y] coordinate pairs
+ * @param {string} [params.id] - Element ID
+ * @param {Object} [params.attrs] - Additional SVG attributes
+ * @param {Object} [params.style] - CSS style properties
+ * @returns {string} SVG polyline element markup
+ */
 export function drawPolyline({ points, id, attrs = {}, style = {} }) {
   const pts = points.map(pt => pt.join(',')).join(' ');
   const attrsStr = attrsToString(attrs);

@@ -38,10 +38,20 @@ export async function loadExternalPack(url, fetchImpl = fetch) {
   return parsed;
 }
 
+/**
+ * Clear the external pack cache
+ * 
+ * @param {string} [url] - Specific URL to clear, or clear all if not provided
+ */
 export function clearExternalPackCache(url) {
   if (url) _cache.delete(url); else _cache.clear();
 }
 
+/**
+ * List all cached external pack URLs
+ * 
+ * @returns {Array<string>} Array of cached URLs
+ */
 export function listExternalPackCache() {
   return Array.from(_cache.keys());
 }

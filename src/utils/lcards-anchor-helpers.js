@@ -1,6 +1,12 @@
 // Extract anchor points from SVG content
 import { lcardsLog } from './lcards-logging.js';
 
+/**
+ * Find anchor points in SVG content by parsing circle and text elements with IDs
+ * 
+ * @param {string} svgContent - SVG markup as string
+ * @returns {Object<string, [number, number]>} Map of anchor ID to [x, y] coordinates
+ */
 export function findSvgAnchors(svgContent) {
   const anchors = {};
   // Improved <circle> extraction: match cx/cy in any order
@@ -78,6 +84,12 @@ export function getSvgViewBox(svgContent) {
   return [0, 0, 400, 200];
 }
 
+/**
+ * Calculate aspect ratio from viewBox
+ * 
+ * @param {[number, number, number, number]} viewBox - ViewBox array [minX, minY, width, height]
+ * @returns {number} Aspect ratio (width/height)
+ */
 export function getSvgAspectRatio(viewBox) {
   return viewBox[2] && viewBox[3] ? (viewBox[2] / viewBox[3]) : 2;
 }
