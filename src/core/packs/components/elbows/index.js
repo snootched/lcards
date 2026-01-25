@@ -748,12 +748,8 @@ export const elbowComponents = {
             const { vertical, outerRadius } = config.geometry;
             const { width, height } = config.container;
 
-            // Arc center is below the visible area
-            const arcCenterX = width / 2;
-            const arcCenterY = height + outerRadius;
             const innerRadius = outerRadius - vertical;
 
-            // Calculate start and end angles for the arc
             // The arc spans from left edge to right edge
             const path = [
                 // Start at bottom-left of arc band
@@ -796,9 +792,6 @@ export const elbowComponents = {
             const { vertical, outerRadius } = config.geometry;
             const { width, height } = config.container;
 
-            // Arc center is above the visible area
-            const arcCenterX = width / 2;
-            const arcCenterY = -outerRadius;
             const innerRadius = outerRadius - vertical;
 
             const path = [
