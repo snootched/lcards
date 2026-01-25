@@ -396,11 +396,18 @@ export class LCARdSElbow extends LCARdSButton {
                 inner_curve = undefined;
             }
 
+            // Parse diagonal angle (for diagonal-cap variants)
+            let diagonal_angle;
+            if (segment.diagonal_angle !== undefined) {
+                diagonal_angle = parseFloat(segment.diagonal_angle);
+            }
+
             segmentConfig = {
                 bar_width,
                 bar_height,
                 outer_curve,
                 inner_curve,
+                diagonal_angle,
                 color: segment.color
             };
 
@@ -418,6 +425,8 @@ export class LCARdSElbow extends LCARdSButton {
                         this._parseUnit(elbowConfig.segments.outer_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.outer_segment.inner_curve ?
                         this._parseUnit(elbowConfig.segments.outer_segment.inner_curve) : undefined,
+                    diagonal_angle: elbowConfig.segments.outer_segment.diagonal_angle !== undefined ?
+                        parseFloat(elbowConfig.segments.outer_segment.diagonal_angle) : undefined,
                     color: elbowConfig.segments.outer_segment.color
                 } : null,
 
@@ -430,6 +439,8 @@ export class LCARdSElbow extends LCARdSButton {
                         this._parseUnit(elbowConfig.segments.inner_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.inner_segment.inner_curve ?
                         this._parseUnit(elbowConfig.segments.inner_segment.inner_curve) : undefined,
+                    diagonal_angle: elbowConfig.segments.inner_segment.diagonal_angle !== undefined ?
+                        parseFloat(elbowConfig.segments.inner_segment.diagonal_angle) : undefined,
                     color: elbowConfig.segments.inner_segment.color
                 } : null
             };
@@ -478,12 +489,18 @@ export class LCARdSElbow extends LCARdSButton {
     _calculateSimpleElbowGeometry(config) {
         const { type, segment } = config;
 
+        console.log('[_calculateSimpleElbowGeometry] FULL config:', JSON.stringify(config, null, 2));
+        console.log('[_calculateSimpleElbowGeometry] segment:', segment);
+        console.log('[_calculateSimpleElbowGeometry] segment.diagonal_angle:', segment?.diagonal_angle);
+
         // Resolve theme values to actual dimensions
         let bar_width = segment.bar_width;
         let bar_height = segment.bar_height;
         let outer_curve = segment.outer_curve;
         let inner_curve = segment.inner_curve;
         let diagonal_angle = segment.diagonal_angle ?? 45; // Default 45° angle
+
+        console.log('[_calculateSimpleElbowGeometry] resolved diagonal_angle:', diagonal_angle);
 
         // Resolve bar_width (vertical dimension in LCARS)
         if (bar_width === 'theme') {
@@ -856,7 +873,7 @@ export class LCARdSElbow extends LCARdSButton {
         const g = this._elbowGeometry;
         if (!g) return '';
 
-        const { position, side, horizontal, vertical, outerRadius, innerRadius } = g;
+        const { position, side, horizontal, vertical, outerRadius, innerRadius, diagonalAngle } = g;
 
         // Basic validation: ensure radii are non-negative
         // Allow large radii for LineOverlay-style arcs (uniform width curved lines)
@@ -883,7 +900,8 @@ export class LCARdSElbow extends LCARdSButton {
                 horizontal,
                 vertical,
                 outerRadius: clampedOuterRadius,
-                innerRadius: clampedInnerRadius
+                innerRadius: clampedInnerRadius,
+                diagonalAngle: diagonalAngle ?? 45  // Pass diagonal angle through
             },
             container: { width, height }
         };
@@ -1015,6 +1033,7 @@ export class LCARdSElbow extends LCARdSButton {
             width, height,
             outer.horizontal, outer.vertical,
             outer.outerRadius, outer.innerRadius,
+            outer.diagonalAngle,
             type
         );
 
@@ -1029,6 +1048,7 @@ export class LCARdSElbow extends LCARdSButton {
             innerWidth, innerHeight,
             inner.horizontal, inner.vertical,
             inner.outerRadius, inner.innerRadius,
+            inner.diagonalAngle,
             type
         );
 
@@ -1092,14 +1112,15 @@ export class LCARdSElbow extends LCARdSButton {
      * Wrapper around _generateElbowPath with segment-specific dimensions
      * @private
      */
-    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, type) {
+    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, diagonalAngle, type) {
         // Temporarily set geometry for path generation
         const tempGeometry = {
             type,
             horizontal,
             vertical,
             outerRadius,
-            innerRadius
+            innerRadius,
+            diagonalAngle
         };
 
         const savedGeometry = this._elbowGeometry;

@@ -701,6 +701,8 @@ export const elbowComponents = {
             const { horizontal, vertical, outerRadius, innerRadius, diagonalAngle = 45 } = config.geometry;
             const { width, height } = config.container;
 
+            console.log('[diagonal-cap-left] diagonalAngle received:', diagonalAngle, 'config.geometry:', config.geometry);
+
             // Calculate diagonal offsets based on angle (0° = horizontal, 90° = vertical)
             const angleRad = (diagonalAngle * Math.PI) / 180;
             const outerCutH = outerRadius * Math.cos(angleRad);  // Horizontal component
@@ -759,6 +761,8 @@ export const elbowComponents = {
         pathGenerator: (config) => {
             const { horizontal, vertical, outerRadius, innerRadius, diagonalAngle = 45 } = config.geometry;
             const { width, height } = config.container;
+
+            console.log('[diagonal-cap-right] diagonalAngle received:', diagonalAngle, 'config.geometry:', config.geometry);
 
             const vBarLeft = width - horizontal;
 
