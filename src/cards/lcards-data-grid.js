@@ -447,12 +447,27 @@ export class LCARdSDataGrid extends LCARdSCard {
     let remaining = template.trim();
 
     // Process repeat() functions - may be multiple
-    const repeatRegex = /repeat\((\d+),\s*[^)]+\)/g;
-    let repeatMatch;
-    while ((repeatMatch = repeatRegex.exec(template)) !== null) {
-      count += parseInt(repeatMatch[1], 10);
-      // Remove matched repeat from remaining string
-      remaining = remaining.replace(repeatMatch[0], '');
+    // Match repeat() with proper nested parentheses handling
+    const repeatRegex = /repeat\((\d+),\s*/g;
+    let pos = 0;
+    while (pos < remaining.length) {
+      const match = repeatRegex.exec(remaining);
+      if (!match) break;
+
+      // Find matching closing parenthesis for this repeat()
+      let depth = 1;
+      let endPos = match.index + match[0].length;
+      while (endPos < remaining.length && depth > 0) {
+        if (remaining[endPos] === '(') depth++;
+        if (remaining[endPos] === ')') depth--;
+        endPos++;
+      }
+
+      count += parseInt(match[1], 10);
+      // Remove the entire repeat() expression
+      remaining = remaining.substring(0, match.index) + remaining.substring(endPos);
+      pos = match.index;
+      repeatRegex.lastIndex = 0; // Reset regex position
     }
 
     // Count remaining explicit values (including minmax(), fit-content(), etc.)
@@ -538,6 +553,8 @@ export class LCARdSDataGrid extends LCARdSCard {
   _generateRandomGrid(rows, columns) {
     const format = this.config.format || 'mixed';
 
+    lcardsLog.debug(`[LCARdSDataGrid] Generating random grid: ${rows}x${columns}`);
+
     const generators = {
       digit: () => Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
       float: () => (Math.random() * 100).toFixed(2),
@@ -556,9 +573,19 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     const generator = generators[format] || generators.mixed;
 
-    return Array.from({ length: rows }, () =>
+    const grid = Array.from({ length: rows }, () =>
       Array.from({ length: columns }, () => generator())
     );
+
+    lcardsLog.debug(`[LCARdSDataGrid] Generated grid:`, {
+      requestedRows: rows,
+      requestedColumns: columns,
+      actualRows: grid.length,
+      actualColumns: grid[0]?.length,
+      format
+    });
+
+    return grid;
   }
 
   /**
@@ -1023,7 +1050,10 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     lcardsLog.debug(`[LCARdSDataGrid] Setting up cascade animation for ${numRows} rows with pattern: ${pattern}`, {
       speedMultiplier,
-      durationOverride
+      durationOverride,
+      timingPatternLength: timingPattern.length,
+      gridDataLength: this._gridData.length,
+      firstRowLength: this._gridData[0]?.length
     });
 
     // Build animation definitions for all rows
@@ -1039,10 +1069,12 @@ export class LCARdSDataGrid extends LCARdSCard {
         finalDuration = timing.duration / speedMultiplier;
       }
 
+      const targetSelector = `.grid-cell[data-row="${rowIndex}"]`;
+
       rowAnimations.push({
         trigger: 'on_load',
         preset: 'cascade-color',
-        targets: `.grid-cell[data-row="${rowIndex}"]`,
+        targets: targetSelector,
         params: {
           colors: cascadeColors,
           duration: finalDuration,
@@ -1052,6 +1084,13 @@ export class LCARdSDataGrid extends LCARdSCard {
           property: 'color',
           easing: animation.easing || 'linear'
         }
+      });
+
+      lcardsLog.debug(`[LCARdSDataGrid] Row ${rowIndex} animation:`, {
+        targetSelector,
+        duration: finalDuration,
+        delay: timing.delay * 1000,
+        timingIndex: rowIndex % timingPattern.length
       });
     }
 
@@ -1069,7 +1108,11 @@ export class LCARdSDataGrid extends LCARdSCard {
         await animationManager.registerAnimation(overlayId, animDef);
       }
 
-      lcardsLog.debug(`[LCARdSDataGrid] Cascade animation setup complete for ${numRows} rows`);
+      lcardsLog.debug(`[LCARdSDataGrid] Cascade animation setup complete`, {
+        totalRows: numRows,
+        animationsRegistered: rowAnimations.length,
+        overlayId
+      });
     } catch (error) {
       lcardsLog.error('[LCARdSDataGrid] Failed to setup cascade animation:', error);
     }

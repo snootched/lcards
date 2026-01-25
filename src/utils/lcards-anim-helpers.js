@@ -1,5 +1,4 @@
 import { lcardsLog } from './lcards-logging.js';
-import { animPresets } from './lcards-anim-presets.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
 
 /**
@@ -143,6 +142,15 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         return;
       }
 
+      // Log cascade animation targeting for debugging
+      if (type === 'cascade-color') {
+        lcardsLog.debug('[animateElement] Cascade-color targeting:', {
+          selector: targets,
+          elementsFound: elements.length,
+          elementTags: elements.map(el => `${el.tagName}[data-row=${el.dataset.row},data-col=${el.dataset.col}]`)
+        });
+      }
+
       for (const element of elements) {
         const params = {
           duration: 1000,
@@ -191,28 +199,21 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             } catch (error) {
               lcardsLog.error(`[animateElement] Error applying MSD preset ${type}:`, error);
             }
-          } else {
-            // Fallback to legacy preset system
-            const legacyPresetFn = animPresets[String(type).toLowerCase()];
+          }
 
-            if (legacyPresetFn) {
-              lcardsLog.debug(`[animateElement] Using legacy preset: ${type}`);
-              await legacyPresetFn(params, element, options);
-            } else if (String(type).toLowerCase() === 'morph') {
-              if (!options.morph_to_selector) {
-                lcardsLog.error('[animateElement] morph animation requires a `morph_to_selector`.', { options });
-                continue;
-              }
-              const morphTarget = await waitForElement(options.morph_to_selector, root);
-              if (!morphTarget) {
-                lcardsLog.error(`[animateElement] morph could not find target shape for selector: ${options.morph_to_selector}`);
-                continue;
-              }
-              const precision = options.precision ? parseInt(options.precision, 10) : undefined;
-              Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
-            } else {
-              lcardsLog.debug(`[animateElement] Using standard animation for type: ${type}`, { params });
+          // Handle morph animation (special case)
+          if (String(type).toLowerCase() === 'morph') {
+            if (!options.morph_to_selector) {
+              lcardsLog.error('[animateElement] morph animation requires a `morph_to_selector`.', { options });
+              continue;
             }
+            const morphTarget = await waitForElement(options.morph_to_selector, root);
+            if (!morphTarget) {
+              lcardsLog.error(`[animateElement] morph could not find target shape for selector: ${options.morph_to_selector}`);
+              continue;
+            }
+            const precision = options.precision ? parseInt(options.precision, 10) : undefined;
+            Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
           }
         }
 
@@ -379,11 +380,7 @@ export async function createTimelines(
           element.style.transformBox = 'fill-box';
         }
 
-        // Apply preset, marking timeline context
-        if (mergedParams.type && animPresets[mergedParams.type]) {
-          mergedParams.__timeline = true;
-          await animPresets[mergedParams.type](mergedParams, element, mergedParams);
-        }
+        // Legacy preset application removed - all presets now from packs
 
         // Strip non-anime keys
         const {
@@ -447,15 +444,10 @@ export async function createTimelines(
 
 /**
  * Applies one or more animation presets to the anime.js params object.
+ * DEPRECATED: Legacy function - all presets now from pack system
  */
 export function applyPresets(types, params, element, options) {
-  const presetList = Array.isArray(types) ? types : [types];
-  for (const type of presetList) {
-    const presetFn = animPresets[type.toLowerCase()];
-    if (presetFn) {
-      presetFn(params, element, options?.[type] || options);
-    }
-  }
+  lcardsLog.warn('[applyPresets] Legacy function called - use pack-based presets instead');
 }
 
 

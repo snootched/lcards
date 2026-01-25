@@ -486,7 +486,13 @@ export class AnimationManager extends BaseService {
     if (resolved.preset) {
       const presetFn = window.lcards?.anim?.presets?.[resolved.preset];
       if (!presetFn) {
-        lcardsLog.warn(`[AnimationManager] Unknown preset: ${resolved.preset}`);
+        lcardsLog.warn(`[AnimationManager] Unknown preset: ${resolved.preset}`, {
+          availablePresets: Object.keys(window.lcards?.anim?.presets || {}),
+          hasAnimNamespace: !!window.lcards?.anim,
+          hasPresetsObject: !!window.lcards?.anim?.presets
+        });
+      } else {
+        lcardsLog.debug(`[AnimationManager] Preset found: ${resolved.preset}`);
       }
     }
 

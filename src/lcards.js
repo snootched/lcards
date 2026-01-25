@@ -18,7 +18,7 @@ import { preloadSVGs, loadSVGToCache, getSVGFromCache } from './utils/lcards-fil
 import { loadFont, loadCoreFonts } from './utils/lcards-theme.js';
 
 import * as animHelpers from './utils/lcards-anim-helpers.js';
-import { animPresets } from './utils/lcards-anim-presets.js';
+// import { animPresets } from './utils/lcards-anim-presets.js'; // REMOVED: All presets now from packs
 import { listAnimationPresets, getAnimationPreset } from './core/animation/presets.js';
 import * as svgHelpers from './utils/lcards-svg-helpers.js';
 import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
@@ -65,17 +65,12 @@ async function initializeCustomCard() {
         animateElement: animHelpers.animateElement,
         animateWithRoot: animHelpers.animateWithRoot,
         waitForElement: animHelpers.waitForElement,
-        presets: { ...animPresets },   // Legacy presets (will be merged with MSD presets)
+        presets: {},   // Populated entirely by pack loading (legacy presets disabled)
         scopes: new Map(),
     };
 
-    // Merge MSD presets into window.lcards.anim.presets for unified access
-    const msdPresetNames = listAnimationPresets();
-    msdPresetNames.forEach(name => {
-        window.lcards.anim.presets[name] = getAnimationPreset(name);
-    });
-
-    lcardsLog.debug(`[LCARdS] Loaded ${msdPresetNames.length} MSD animation presets:`, msdPresetNames);
+    // NOTE: MSD presets (including cascade-color) are merged AFTER pack loading
+    // See below after lcardsCore.initialize() completes
 
     // Backward-compatible shortcuts (to be deprecated)
     window.lcards.animejs = window.lcards.anim.animejs;
@@ -131,6 +126,14 @@ async function initializeCustomCard() {
 
         await lcardsCore.initialize(stubHass);
         lcardsLog.debug('[lcards.js] Core singletons initialized on module load');
+
+        // NOW merge MSD presets after pack loading (so cascade-color and others are registered)
+        const msdPresetNames = listAnimationPresets();
+        msdPresetNames.forEach(name => {
+            window.lcards.anim.presets[name] = getAnimationPreset(name);
+        });
+        lcardsLog.debug(`[LCARdS] Loaded ${msdPresetNames.length} MSD animation presets after pack loading:`, msdPresetNames);
+        lcardsLog.debug(`[LCARdS] Total presets now available:`, Object.keys(window.lcards.anim.presets));
 
         // Expose ThemeManager at expected location for MSD renderers
         window.lcards.theme = lcardsCore.getThemeManager();
