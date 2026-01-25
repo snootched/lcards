@@ -28,7 +28,7 @@ import { elbowComponents } from './elbows/index.js';
 export const components = {
     ...dpadComponents,           // D-Pad components (dpad)
     ...sliderComponents,         // Slider components (basic, picard, picard-vertical)
-    ...elbowComponents           // Elbow components (header-left, header-right, footer-left, footer-right)
+    ...elbowComponents,          // Elbow components (header-left, header-right, footer-left, footer-right)
 };
 
 /**
