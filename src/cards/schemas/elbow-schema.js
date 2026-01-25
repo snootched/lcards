@@ -12,6 +12,7 @@
  */
 
 import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema } from './common-schemas.js';
+import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
  * Get complete elbow card schema
@@ -25,6 +26,9 @@ export function getElbowSchema(options = {}) {
         availablePresets = [],
         positionEnum = []
     } = options;
+
+    // Get available elbow types from component registry
+    const availableElbowTypes = getElbowTypeNames();
 
     // Action, animation, and filter schemas imported from common-schemas.js
 
@@ -114,7 +118,7 @@ export function getElbowSchema(options = {}) {
                 properties: {
                     type: {
                         type: 'string',
-                        enum: ['header-left', 'header-right', 'footer-left', 'footer-right'],
+                        enum: availableElbowTypes,  // Dynamically generated from component registry
                         description: 'Position of the elbow corner on the card',
                         enumDescriptions: [
                             'Top-left corner: vertical bar on left, horizontal bar on top',

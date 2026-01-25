@@ -19,6 +19,7 @@ import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
+import { elbowComponents } from '../../core/packs/components/elbows/index.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
@@ -98,12 +99,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .selector=${{
                                         select: {
                                             mode: 'dropdown',
-                                            options: [
-                                                { value: 'header-left', label: 'Header Left' },
-                                                { value: 'header-right', label: 'Header Right' },
-                                                { value: 'footer-left', label: 'Footer Left' },
-                                                { value: 'footer-right', label: 'Footer Right' }
-                                            ]
+                                            options: Object.entries(elbowComponents).map(([key, component]) => ({
+                                                value: key,
+                                                label: component.metadata?.name || key
+                                            }))
                                         }
                                     }}
                                     .value=${elbowType}
