@@ -3,13 +3,14 @@
  *
  * Simplified 2-mode architecture:
  * - Decorative Mode: Auto-generated random data for LCARS ambiance
- * - Data Mode: Real entity/sensor data with grid or timeline layouts
+ * - Data Mode: Real entity/sensor data with grid layout
  *
  * Key Features:
  * - Live preview with configurable grid dimensions
  * - Grid layout: Flexible spreadsheet-style data display
- * - Timeline layout: Single-source historical data visualization
  * - Visual hierarchy diagrams for styling
+ * - Split-panel layout (33/66 config/preview)
+ * - Canvas toolbar with gridlines and animations toggle
  *
  * @element lcards-data-grid-studio-dialog-v4
  * @fires config-changed - When configuration is saved (detail: { config })
@@ -23,6 +24,7 @@ import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { studioDialogStyles } from './studio-dialog-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import { dataGridSchema } from '../../cards/schemas/data-grid-schema.js';
 import '../components/shared/lcards-form-section.js';
@@ -31,6 +33,7 @@ import '../components/shared/lcards-style-hierarchy-diagram.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
+import '../components/editors/lcards-visual-grid-designer.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../../cards/lcards-data-grid.js';
@@ -49,7 +52,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             _activeCellEdit: { type: Object, state: true }, // {row, col, value}
             _activeRowEdit: { type: Number, state: true }, // row index
             _activeColumnEdit: { type: Number, state: true }, // column index
-            _activeTimelineRowEdit: { type: Number, state: true }, // timeline row editor
             _showGridLines: { type: Boolean, state: true }, // preview gridlines toggle
             _showAnimations: { type: Boolean, state: true }, // preview animations toggle
             _gridStylesSubTab: { type: String, state: true } // Grid Styles sub-tab: 'hierarchy', 'table', 'row-column', 'cell'
@@ -79,7 +81,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._activeCellEdit = null;
         this._activeRowEdit = null;
         this._activeColumnEdit = null;
-        this._activeTimelineRowEdit = null;
 
         // Preview toggles
         this._showGridLines = true; // Show gridlines by default for editing clarity
@@ -113,6 +114,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Deep clone initial config
         this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig || {}));
 
+        // Migrate old timeline configs to data table mode
+        if (this._workingConfig.layout === 'timeline') {
+            this._migrateTimelineConfig();
+        }
+
         // Ensure data_mode is set
         if (!this._workingConfig.data_mode) {
             this._workingConfig.data_mode = 'decorative';
@@ -134,34 +140,34 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._parseGridConfigForUI();
 
         // Initialize Data mode (grid layout) with sample rows matching grid dimensions
-        if (this._workingConfig.data_mode === 'data' && (!this._workingConfig.layout || this._workingConfig.layout === 'grid')) {
-            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._initializeGridRows();
-            }
-        }
-
-        // Initialize Data mode timeline layout
-        if (this._workingConfig.data_mode === 'data' && this._workingConfig.layout === 'timeline') {
-            // Initialize source for timeline layout
-            if (!this._workingConfig.source) {
-                this._workingConfig.source = '';
-            }
-            if (!this._workingConfig.history_hours) {
-                this._workingConfig.history_hours = 2;
-            }
-            if (!this._workingConfig.value_template) {
-                this._workingConfig.value_template = '{value}';
-            }
-            // Timeline doesn't use rows array (single source only)
-            if (this._workingConfig.rows) {
-                delete this._workingConfig.rows;
-            }
+        if (this._workingConfig.data_mode === 'data' && !this._workingConfig.rows) {
+            this._initializeGridRows();
         }
 
         lcardsLog.debug('[DataGridStudioV4] Opened with config:', this._workingConfig);
 
         // Schedule initial preview update
         this.updateComplete.then(() => this._updatePreviewCard());
+    }
+
+    /**
+     * Migrate old timeline configs to data table mode
+     * @private
+     */
+    _migrateTimelineConfig() {
+        lcardsLog.warn('[DataGridStudioV4] Migrating deprecated timeline config to manual mode');
+        
+        // Remove layout property
+        delete this._workingConfig.layout;
+        
+        // If there was a source, we can't easily migrate it to the new grid system
+        // Just clear timeline-specific properties
+        delete this._workingConfig.source;
+        delete this._workingConfig.history_hours;
+        delete this._workingConfig.value_template;
+        
+        // Set to manual/data mode
+        this._workingConfig.data_mode = 'data';
     }
 
     /**
@@ -257,124 +263,95 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     static get styles() {
         return [
             editorStyles,
+            studioDialogStyles,
             css`
             :host {
                 display: block;
             }
 
-            ha-dialog {
-                --mdc-dialog-min-width: 90vw;
-                --mdc-dialog-max-width: 1400px;
-                --mdc-dialog-min-height: 80vh;
-            }
-
             .dialog-content {
                 display: flex;
                 flex-direction: column;
-                min-height: 70vh;
-                max-height: 80vh;
-                gap: 16px;
-            }
-
-            /* Main Tab Navigation */
-            /* Studio Layout: Config (60%) | Preview (40%) */
-            .studio-layout {
-                display: grid;
-                grid-template-columns: 60% 40%;
-                gap: 16px;
-                height: 100%;
-                overflow: hidden;
-            }
-
-            @media (max-width: 1024px) {
-                .studio-layout {
-                    grid-template-columns: 1fr;
-                    grid-template-rows: 1fr auto;
-                }
-            }
-
-            .config-panel {
-                overflow-y: auto;
-                padding-right: 8px;
-            }
-
-            .preview-panel {
-                position: sticky;
-                top: 0;
-                height: fit-content;
-                max-height: 100%;
-                border: 2px solid var(--divider-color);
-                border-radius: 8px;
-                overflow: hidden;
-                background: var(--primary-background-color);
-            }
-
-            .preview-header {
-                padding: 12px;
-                background: var(--secondary-background-color);
-                border-bottom: 2px solid var(--divider-color);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-
-            .preview-title {
-                font-weight: 600;
-                color: var(--primary-text-color);
                 flex: 1;
+                overflow: hidden;
             }
 
-            .preview-controls {
+            /* Tab navigation container */
+            .tab-navigation {
                 display: flex;
-                gap: 4px;
-            }
-
-            .preview-controls ha-icon-button {
-                --mdc-icon-button-size: 32px;
-                --mdc-icon-size: 20px;
-            }
-
-            .preview-mode-toggle {
-                display: flex;
-                gap: 4px;
-                background: var(--primary-background-color);
-                border-radius: 4px;
-                padding: 2px;
-            }
-
-            .preview-mode-btn {
-                padding: 6px 12px;
-                background: transparent;
-                border: none;
-                border-radius: 4px;
-                color: var(--secondary-text-color);
-                font-size: 12px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .preview-mode-btn:hover {
+                gap: 0;
+                border-bottom: 2px solid var(--divider-color);
                 background: var(--secondary-background-color);
             }
 
-            .preview-mode-btn.active {
-                background: var(--primary-color);
-                color: white;
-            }
-
+            /* Preview container adjustments */
             .preview-container {
-                min-height: 400px;
-                padding: 16px;
-                position: relative;
+                flex: 1;
+                padding: 24px;
+                overflow: auto;
+                background: var(--primary-background-color);
             }
-
-            /* Gridlines are injected into card shadow DOM via _injectGridlineStyles() */
 
             /* Make grid cells visible in preview */
             .preview-container lcards-data-grid {
                 display: block;
                 width: 100%;
                 min-height: 300px;
+            }
+
+            /* Template Examples Styling */
+            .template-examples {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .example-group {
+                border-left: 3px solid var(--primary-color);
+                padding-left: 16px;
+            }
+
+            .example-title {
+                font-weight: 600;
+                font-size: 14px;
+                margin-bottom: 12px;
+                color: var(--primary-text-color);
+            }
+
+            .example-item {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                margin-bottom: 12px;
+            }
+
+            .example-code-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .example-item code {
+                flex: 1;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                background: var(--secondary-background-color);
+                padding: 6px 10px;
+                border-radius: 4px;
+                color: var(--primary-color);
+                display: block;
+                overflow-x: auto;
+            }
+
+            .example-item .copy-button {
+                --mdc-icon-button-size: 32px;
+                --mdc-icon-size: 18px;
+            }
+
+            .example-description {
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                padding-left: 10px;
             }
 
             /* Mode selector cards */
@@ -505,39 +482,68 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 .heading=${'Data Grid Studio'}>
 
                 <div class="dialog-content">
-                    <!-- Main Tab Navigation -->
-                    <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
-                        <ha-tab-group-tab value="mode" ?active=${this._activeTab === 'mode'}>
-                            <ha-icon icon="mdi:view-grid"></ha-icon>
-                            Mode
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="grid-structure" ?active=${this._activeTab === 'grid-structure'}>
-                            <ha-icon icon="mdi:table-settings"></ha-icon>
-                            Grid Structure
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="grid-styles" ?active=${this._activeTab === 'grid-styles'}>
-                            <ha-icon icon="mdi:palette"></ha-icon>
-                            Grid Styles
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="effects" ?active=${this._activeTab === 'effects'}>
-                            <ha-icon icon="mdi:auto-fix"></ha-icon>
-                            Effects
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
-                            <ha-icon icon="mdi:cog"></ha-icon>
-                            Advanced
-                        </ha-tab-group-tab>
-                    </ha-tab-group>
-
-                    <!-- Split Layout: Config (60%) | Preview (40%) -->
+                    <!-- Split Layout: Config (33%) | Preview (66%) -->
                     <div class="studio-layout">
+                        <!-- Left Panel: Config -->
                         <div class="config-panel">
-                            ${this._renderValidationErrors()}
-                            ${this._renderActiveTab()}
+                            <!-- Tab Navigation -->
+                            <div class="tab-navigation">
+                                <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
+                                    <ha-tab-group-tab value="mode" ?active=${this._activeTab === 'mode'}>
+                                        <ha-icon icon="mdi:view-grid"></ha-icon>
+                                        Data Mode
+                                    </ha-tab-group-tab>
+                                    <ha-tab-group-tab value="grid-structure" ?active=${this._activeTab === 'grid-structure'}>
+                                        <ha-icon icon="mdi:table-settings"></ha-icon>
+                                        Grid Structure
+                                    </ha-tab-group-tab>
+                                    <ha-tab-group-tab value="grid-styles" ?active=${this._activeTab === 'grid-styles'}>
+                                        <ha-icon icon="mdi:palette"></ha-icon>
+                                        Grid Styles
+                                    </ha-tab-group-tab>
+                                    <ha-tab-group-tab value="effects" ?active=${this._activeTab === 'effects'}>
+                                        <ha-icon icon="mdi:auto-fix"></ha-icon>
+                                        Effects
+                                    </ha-tab-group-tab>
+                                    <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
+                                        <ha-icon icon="mdi:cog"></ha-icon>
+                                        Advanced
+                                    </ha-tab-group-tab>
+                                </ha-tab-group>
+                            </div>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content">
+                                ${this._renderValidationErrors()}
+                                ${this._renderActiveTab()}
+                            </div>
                         </div>
 
+                        <!-- Right Panel: Live Preview -->
                         <div class="preview-panel">
-                            ${this._renderPreview()}
+                            <!-- Canvas Toolbar -->
+                            <div class="canvas-toolbar">
+                                <div class="canvas-toolbar-buttons">
+                                    <button
+                                        class="canvas-toolbar-button ${this._showGridLines ? 'active' : ''}"
+                                        @click=${this._toggleGridLines}
+                                        title="Toggle Grid Lines">
+                                        <ha-icon icon="mdi:grid"></ha-icon>
+                                    </button>
+                                    <div class="canvas-toolbar-divider"></div>
+                                    <button
+                                        class="canvas-toolbar-button ${this._showAnimations ? 'active' : ''}"
+                                        @click=${this._toggleAnimations}
+                                        title="Toggle Animations">
+                                        <ha-icon icon="mdi:animation"></ha-icon>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Live Preview Container -->
+                            <div class="preview-container">
+                                ${this._renderPreviewCard()}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -598,33 +604,32 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
-     * Manual card instantiation preview - NOT Lit child rendering
-     * This is the proven reliable pattern from v3
+     * Render live preview card using ref
      */
-    _renderPreview() {
+    _renderPreviewCard() {
         return html`
-            <div class="preview-header">
-                <span class="preview-title">Live Preview</span>
-                <div class="preview-controls">
-                    <ha-icon-button
-                        @click=${this._toggleGridLines}
-                        title="${this._showGridLines ? 'Hide' : 'Show'} grid lines">
-                        <ha-icon icon="${this._showGridLines ? 'mdi:grid' : 'mdi:grid-off'}"></ha-icon>
-                    </ha-icon-button>
-                    <ha-icon-button
-                        @click=${this._toggleAnimations}
-                        title="${this._showAnimations ? 'Disable' : 'Enable'} animations">
-                        <ha-icon icon="${this._showAnimations ? 'mdi:animation' : 'mdi:animation-outline'}"></ha-icon>
-                    </ha-icon-button>
-                </div>
-            </div>
-
-            <div
-                class="preview-container ${this._showGridLines ? 'show-gridlines' : ''}"
-                ${ref(this._previewRef)}>
+            <div ${ref(this._previewRef)}>
                 <!-- Card will be inserted here by _updatePreviewCard() -->
             </div>
         `;
+    }
+
+    /**
+     * Toggle grid lines in preview
+     */
+    _toggleGridLines() {
+        this._showGridLines = !this._showGridLines;
+        this._updatePreviewCard();
+        lcardsLog.debug('[DataGridStudioV4] Grid lines toggled:', this._showGridLines);
+    }
+
+    /**
+     * Toggle animations in preview
+     */
+    _toggleAnimations() {
+        this._showAnimations = !this._showAnimations;
+        this._updatePreviewCard();
+        lcardsLog.debug('[DataGridStudioV4] Animations toggled:', this._showAnimations);
     }
 
     // ========================================
@@ -645,7 +650,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 id: 'data',
                 icon: 'mdi:database',
                 title: 'Data',
-                description: 'Real entity/sensor data with grid or timeline layout'
+                description: 'Real entity/sensor data with grid layout'
             }
         ];
 
@@ -816,79 +821,63 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
-     * Render template syntax examples with copy buttons
+     * Render consolidated template syntax reference with grouped examples
      */
     _renderTemplateSyntaxExamples() {
-        const examples = [
+        const exampleGroups = [
             {
-                title: 'Static Text',
-                description: 'Display fixed text',
-                code: "'DECK 1'",
-                explanation: 'Wrap text in single quotes for static display'
+                title: 'Token Templates',
+                examples: [
+                    { code: '{{ value }}', description: 'Cell value from entity or datasource' },
+                    { code: '{{ timestamp }}', description: 'Data timestamp' },
+                    { code: '{{ row }} / {{ column }}', description: 'Grid position' }
+                ]
             },
             {
-                title: 'Entity State',
-                description: 'Display current state of an entity',
-                code: "{{states('sensor.temperature')}}",
-                explanation: 'Shows the current value of the sensor'
+                title: 'Home Assistant Jinja2',
+                examples: [
+                    { code: "{{states('sensor.temperature')}}", description: 'Get entity state' },
+                    { code: "{{state_attr('sensor.weather', 'humidity')}}", description: 'Get entity attribute' },
+                    { code: "{% if states('light.kitchen') == 'on' %}ON{% else %}OFF{% endif %}", description: 'Conditional logic' },
+                    { code: "{{states('sensor.temperature')|float|round(1)}}°C", description: 'Format numbers' }
+                ]
             },
             {
-                title: 'Entity Attribute',
-                description: 'Access specific attribute of an entity',
-                code: "{{state_attr('sensor.temperature', 'unit_of_measurement')}}",
-                explanation: 'Access attributes like unit, friendly_name, etc.'
+                title: 'JavaScript Expressions',
+                examples: [
+                    { code: '[[[return value.toFixed(2);]]]', description: 'Format numbers' },
+                    { code: '[[[return new Date(timestamp).toLocaleTimeString();]]]', description: 'Format timestamps' },
+                    { code: "[[[return value > 20 ? 'WARM' : 'COOL';]]]", description: 'Conditional values' }
+                ]
             },
             {
-                title: 'Conditional Display',
-                description: 'Show different text based on condition',
-                code: "{% if states('sensor.temperature')|float > 22 %}WARM{% else %}COOL{% endif %}",
-                explanation: 'Use if/else logic to conditionally display text'
-            },
-            {
-                title: 'Formatted Number',
-                description: 'Format numeric values',
-                code: "{{states('sensor.temperature')|float|round(1)}}°C",
-                explanation: 'Round to 1 decimal place and add unit symbol'
-            },
-            {
-                title: 'Time/Date Display',
-                description: 'Show current time or date',
-                code: "{{as_timestamp(now())|timestamp_custom('%H:%M')}}",
-                explanation: 'Format: %H:%M for 24-hour, %I:%M %p for 12-hour'
-            },
-            {
-                title: 'Multiple States Combined',
-                description: 'Combine multiple entity states',
-                code: "{{states('sensor.temp')}}°C / {{states('sensor.humidity')}}%",
-                explanation: 'Show temperature and humidity in one cell'
+                title: 'Combined Examples',
+                examples: [
+                    { code: "[[[return `${value}°C (${value * 9/5 + 32}°F)`;]]]", description: 'Temperature with conversion' },
+                    { code: "{{states('sensor.temp')}}°C / {{states('sensor.humidity')}}%", description: 'Multiple entities' }
+                ]
             }
         ];
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
-                ${examples.map((example, index) => html`
-                    <div style="border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px; background: var(--card-background-color);">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                            <div>
-                                <div style="font-weight: 600; color: var(--primary-text-color); margin-bottom: 4px;">
-                                    ${example.title}
+            <div class="template-examples">
+                ${exampleGroups.map(group => html`
+                    <div class="example-group">
+                        <div class="example-title">${group.title}</div>
+                        ${group.examples.map(example => html`
+                            <div class="example-item">
+                                <div class="example-code-row">
+                                    <code>${example.code}</code>
+                                    <ha-icon-button
+                                        class="copy-button"
+                                        @click=${() => this._copyToClipboard(example.code)}
+                                        title="Copy to clipboard">
+                                        <ha-icon icon="mdi:content-copy"></ha-icon>
+                                    </ha-icon-button>
                                 </div>
-                                <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px;">
-                                    ${example.description}
-                                </div>
+                                <span class="example-description">${example.description}</span>
                             </div>
-                            <ha-icon-button
-                                @click=${() => this._copyToClipboard(example.code)}
-                                title="Copy to clipboard">
-                                <ha-icon icon="mdi:content-copy"></ha-icon>
-                            </ha-icon-button>
-                        </div>
-                        <div style="background: var(--primary-background-color); border-radius: 4px; padding: 10px; font-family: 'Courier New', monospace; font-size: 13px; overflow-x: auto; color: var(--primary-color); border: 1px solid var(--divider-color);">
-                            ${example.code}
-                        </div>
-                        <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 6px; font-style: italic;">
-                            ${example.explanation}
-                        </div>
+                        `)}
                     </div>
                 `)}
             </div>
@@ -1128,14 +1117,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _renderDataModeEditor() {
-        const layout = this._workingConfig.layout || 'grid';
-
-        // Render different editor based on layout type
-        if (layout === 'timeline') {
-            return this._renderTimelineDataEditor();
-        } else {
-            return this._renderGridDataEditor();
-        }
+        return this._renderGridDataEditor();
     }
 
     _renderGridDataEditor() {
@@ -1259,152 +1241,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         `;
     }
 
-    _renderTimelineDataEditor() {
-        const sourceType = this._workingConfig.source_type || 'entity';
-
-        return html`
-            <lcards-form-section
-                header="Timeline Configuration"
-                description="Configure single data source for historical timeline display"
-                icon="mdi:chart-timeline-variant"
-                ?expanded=${true}>
-
-                <lcards-message type="info">
-                    <strong>Timeline Mode:</strong> Displays historical values from a single entity or datasource.
-                    The grid columns auto-populate with historical data points.
-                </lcards-message>
-
-                <!-- Source Type Selector -->
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'entity', label: 'Entity (from Home Assistant)' },
-                        { value: 'datasource', label: 'DataSource (from LCARdS)' }
-                    ]}}}
-                    .label=${'Source Type'}
-                    .value=${sourceType}
-                    @value-changed=${(e) => this._updateConfig('source_type', e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <!-- Entity Picker (shown when source_type is 'entity') -->
-                ${sourceType === 'entity' ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{entity: {}}}
-                        .value=${this._workingConfig.source || ''}
-                        .label=${'Entity'}
-                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-                ` : ''}
-
-                <!-- DataSource Input (shown when source_type is 'datasource') -->
-                ${sourceType === 'datasource' ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{text: {}}}
-                        .value=${this._workingConfig.source || ''}
-                        .label=${'DataSource ID'}
-                        .helper=${'Enter the DataSource ID from your configuration'}
-                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-                ` : ''}
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{number: {min: 1, max: 168, mode: 'box'}}}
-                    .value=${this._workingConfig.history_hours || 24}
-                    .label=${'History Hours'}
-                    .helper=${'Number of hours of historical data to display'}
-                    @value-changed=${(e) => this._updateConfig('history_hours', parseInt(e.detail.value) || 24)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{number: {min: 3, max: 50, mode: 'box'}}}
-                    .value=${this._workingConfig.data_points || 12}
-                    .label=${'Data Points'}
-                    .helper=${'Number of columns (data points) to display'}
-                    @value-changed=${(e) => this._updateConfig('data_points', parseInt(e.detail.value) || 12)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{text: {multiline: false}}}
-                    .value=${this._workingConfig.value_template || '{value}'}
-                    .label=${'Value Template'}
-                    .helper=${'Template for formatting displayed values (use {value} for raw value)'}
-                    @value-changed=${(e) => this._updateConfig('value_template', e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <ha-selector
-                    .hass=${this.hass}
-                    .selector=${{select: {mode: 'dropdown', options: [
-                        { value: 'avg', label: 'Average' },
-                        { value: 'min', label: 'Minimum' },
-                        { value: 'max', label: 'Maximum' },
-                        { value: 'last', label: 'Last Value' }
-                    ]}}}
-                    .label=${'Aggregation Method'}
-                    .value=${this._workingConfig.aggregation || 'avg'}
-                    @value-changed=${(e) => this._updateConfig('aggregation', e.detail.value)}
-                    @closed=${(e) => e.stopPropagation()}>
-                </ha-selector>
-
-                <lcards-message type="info" style="margin-top: 12px;">
-                    Timeline will fetch historical data from the ${sourceType} and display it across ${this._workingConfig.data_points || 12} columns.
-                </lcards-message>
-            </lcards-form-section>
-        `;
-    }
-
-    _renderTimelineRowEditor() {
-        const rowIndex = this._activeTimelineRowEdit;
-        const row = this._workingConfig.rows[rowIndex] || {};
-        const entityId = typeof row === 'object' ? row.entity_id : (Array.isArray(row) ? row[0] : '');
-        const label = typeof row === 'object' ? row.label : '';
-
-        return html`
-            <lcards-form-section
-                header="Edit Timeline Row ${rowIndex + 1}"
-                description="Configure datasource for this timeline row"
-                icon="mdi:table-row"
-                ?expanded=${true}>
-
-                <ha-textfield
-                    label="Row Label"
-                    .value=${label}
-                    @input=${(e) => this._updateTimelineRowLabel(rowIndex, e.target.value)}
-                    helper="Display name for this row"
-                    style="margin-bottom: 8px;">
-                </ha-textfield>
-
-                <ha-entity-picker
-                    .hass=${this.hass}
-                    .value=${entityId}
-                    @value-changed=${(e) => this._updateTimelineRowEntity(rowIndex, e.detail.value)}
-                    label="Entity / Datasource"
-                    allow-custom-entity>
-                </ha-entity-picker>
-
-                <div style="display: flex; gap: 8px; margin-top: 16px;">
-                    <ha-button appearance="plain" @click=${() => this._closeTimelineRowEditor()}>
-                        <ha-icon icon="mdi:close" slot="icon"></ha-icon>
-                        Close
-                    </ha-button>
-                </div>
-            </lcards-form-section>
-        `;
-    }
-
     _renderDataModeConfig() {
-        const layout = this._workingConfig.layout || 'grid';
-
         return html`
             <lcards-form-section
                 header="Data Mode Settings"
@@ -1412,36 +1249,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 icon="mdi:database"
                 ?expanded=${true}>
 
-                <div class="form-row-group">
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'grid', label: 'Grid (Auto-detected cells)' },
-                            { value: 'timeline', label: 'Timeline (Historical data)' }
-                        ]}}}
-                        .label=${'Layout Type'}
-                        .value=${layout}
-                        @value-changed=${(e) => this._handleLayoutChange(e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-                </div>
-
                 <lcards-message type="info">
-                    ${layout === 'timeline'
-                        ? 'Timeline mode: Display historical data from a single source (limited to 1 row)'
-                        : 'Grid mode: Rows with auto-detected cells (static text, entity refs, or templates)'}
-                </lcards-message>
-
-                ${layout === 'timeline' ? this._renderTimelineConfig() : ''}
+                    Grid mode: Rows with auto-detected cells (static text, entity refs, or templates)
+                </lcards:message>
             </lcards-form-section>
         `;
-    }
-
-    /**
-     * Empty placeholder - timeline config is rendered in _renderTimelineDataEditor()
-     */
-    _renderTimelineConfig() {
-        return '';
     }
 
     // ========================================
@@ -2021,73 +1833,26 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderAdvancedTab() {
         return html`
-            <lcards-message
-                type="info"
-                message="Configure advanced CSS Grid properties for fine-grained control over grid layout and item placement.">
+            <lcards-message type="info">
+                <ha-icon icon="mdi:information" slot="icon"></ha-icon>
+                Advanced CSS Grid properties. Use the visual designer below to configure grid layout
+                with live preview, or switch to code editor for direct CSS input.
             </lcards-message>
 
-            <!-- Auto-Placement & Item Alignment -->
+            <lcards-visual-grid-designer
+                .hass=${this.hass}
+                .config=${this._workingConfig.grid || {}}
+                @grid-changed=${this._handleGridChanged}
+                show-preview
+                show-code-editor>
+            </lcards-visual-grid-designer>
+
+            <!-- Additional Advanced Options -->
             <lcards-form-section
-                header="Auto-Placement & Item Alignment"
-                description="How cells automatically fill and align within the grid"
-                icon="mdi:format-align-middle"
-                ?expanded=${true}
-                ?outlined=${true}>
-
-                <div class="form-row-group">
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'row', label: 'Row (Fill rows first)' },
-                            { value: 'column', label: 'Column (Fill columns first)' },
-                            { value: 'row dense', label: 'Row Dense (Fill gaps)' },
-                            { value: 'column dense', label: 'Column Dense (Fill gaps)' }
-                        ]}}}
-                        .label=${'Auto Flow'}
-                        .value=${this._workingConfig.grid?.['grid-auto-flow'] || 'row'}
-                        @value-changed=${(e) => this._updateConfig('grid.grid-auto-flow', e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-                </div>
-
-                <lcards-grid-layout>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'start', label: 'Start' },
-                            { value: 'end', label: 'End' },
-                            { value: 'center', label: 'Center' },
-                            { value: 'stretch', label: 'Stretch' }
-                        ]}}}
-                        .label=${'Justify Items'}
-                        .value=${this._workingConfig.grid?.['justify-items'] || 'stretch'}
-                        @value-changed=${(e) => this._updateConfig('grid.justify-items', e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'start', label: 'Start' },
-                            { value: 'end', label: 'End' },
-                            { value: 'center', label: 'Center' },
-                            { value: 'stretch', label: 'Stretch' }
-                        ]}}}
-                        .label=${'Align Items'}
-                        .value=${this._workingConfig.grid?.['align-items'] || 'stretch'}
-                        @value-changed=${(e) => this._updateConfig('grid.align-items', e.detail.value)}
-                        @closed=${(e) => e.stopPropagation()}>
-                    </ha-selector>
-                </lcards-grid-layout>
-            </lcards-form-section>
-
-            <!-- Advanced Grid Properties -->
-            <lcards-form-section
-                header="Advanced Grid Properties"
+                header="Additional Grid Options"
                 description="Container alignment and implicit grid sizing"
                 icon="mdi:cog"
-                ?expanded=${false}
-                ?outlined=${true}>
+                ?expanded=${false}>
 
                 <lcards-grid-layout>
                     <ha-textfield
@@ -2142,6 +1907,25 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Handle grid configuration changes from visual grid designer
+     */
+    _handleGridChanged(e) {
+        this._workingConfig.grid = {
+            ...this._workingConfig.grid,
+            ...e.detail.grid
+        };
+        
+        // Also update UI state for grid dimensions if they changed
+        if (e.detail.grid['grid-template-rows']) {
+            this._parseGridConfigForUI();
+        }
+        
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+        lcardsLog.debug('[DataGridStudioV4] Grid config updated from visual designer:', e.detail.grid);
     }
 
     // Old subtabs removed - Grid Styles is now a main tab, Animation is now a main tab
@@ -2291,23 +2075,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 this._workingConfig.layout = 'grid';
             }
 
-            // Initialize grid mode with sample rows
-            if (this._workingConfig.layout === 'grid' && (!this._workingConfig.rows || this._workingConfig.rows.length === 0)) {
+            // Initialize grid mode with sample rows if needed
+            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
                 this._initializeGridRows();
-            }
-
-            // Initialize timeline mode
-            if (this._workingConfig.layout === 'timeline') {
-                if (!this._workingConfig.source) {
-                    this._workingConfig.source = '';
-                }
-                if (!this._workingConfig.history_hours) {
-                    this._workingConfig.history_hours = 2;
-                }
-                if (!this._workingConfig.value_template) {
-                    this._workingConfig.value_template = '{value}';
-                }
-                delete this._workingConfig.rows;
             }
         }
 
@@ -2330,46 +2100,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Immediately update preview to add/remove animation config
         this._updatePreviewCard();
         lcardsLog.debug('[DataGridStudioV4] Toggled animations:', this._showAnimations);
-    }
-
-    _handleLayoutChange(newLayout) {
-        const oldLayout = this._workingConfig.layout;
-        this._updateConfig('layout', newLayout);
-
-        // Clean up layout-specific config when switching
-        if (newLayout === 'grid') {
-            // Switching to grid: ensure rows exist, remove timeline fields
-            if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
-                this._initializeGridRows();
-            } else {
-                // Normalize existing rows to object format
-                this._normalizeRowsFormat();
-            }
-
-            // Remove timeline-specific fields
-            delete this._workingConfig.source;
-            delete this._workingConfig.history_hours;
-            delete this._workingConfig.value_template;
-
-        } else if (newLayout === 'timeline') {
-            // Switching to timeline: set source and history config, remove rows
-            if (!this._workingConfig.source) {
-                this._workingConfig.source = '';
-            }
-            if (!this._workingConfig.history_hours) {
-                this._workingConfig.history_hours = 2;
-            }
-            if (!this._workingConfig.value_template) {
-                this._workingConfig.value_template = '{value}';
-            }
-
-            // Timeline doesn't use rows array (single source only)
-            delete this._workingConfig.rows;
-        }
-
-        lcardsLog.info('[DataGridStudioV4] Layout changed:', { from: oldLayout, to: newLayout });
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
     }
 
     _setPreviewMode(mode) {
@@ -2964,19 +2694,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Data mode validation
         if (this._workingConfig.data_mode === 'data') {
-            const layout = this._workingConfig.layout || 'grid';
-
-            if (layout === 'grid') {
-                // Grid layout validation
-                const rows = this._workingConfig.rows || [];
-                if (rows.length === 0) {
-                    errors.push('Data mode (grid layout): At least one row is required');
-                }
-            } else if (layout === 'timeline') {
-                // Timeline layout validation
-                if (!this._workingConfig.source || this._workingConfig.source.trim() === '') {
-                    errors.push('Data mode (timeline layout): Source is required');
-                }
+            // Grid layout validation
+            const rows = this._workingConfig.rows || [];
+            if (rows.length === 0) {
+                errors.push('Data mode: At least one row is required');
             }
         }
 
@@ -3094,49 +2815,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         lcardsLog.info('[DataGridStudioV4] Row deleted:', index);
         this.requestUpdate();
         this._schedulePreviewUpdate();
-    }
-
-    /**
-     * Add timeline row (row-timeline layout)
-     */
-    _addTimelineRow() {
-        if (!this._workingConfig.rows) {
-            this._workingConfig.rows = [];
-        }
-
-        this._workingConfig.rows.push({
-            source: '',
-            label: `Row ${this._workingConfig.rows.length + 1}`,
-            format: '{value}',
-            history_hours: 2,
-            columns: 12
-        });
-
-        lcardsLog.info('[DataGridStudioV4] Timeline row added');
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
-    }
-
-    /**
-     * Edit timeline row configuration
-     */
-    _editTimelineRow(index) {
-        lcardsLog.info('[DataGridStudioV4] Edit timeline row:', index);
-
-        const row = this._workingConfig.rows?.[index];
-        if (!row) {
-            lcardsLog.error('[DataGridStudioV4] Row not found:', index);
-            return;
-        }
-
-        // Create overlay with timeline row editor
-        this._activeOverlay = {
-            type: 'timeline-row',
-            rowIndex: index,
-            data: { ...row }
-        };
-
-        this.requestUpdate();
     }
 
     /**
@@ -3856,76 +3534,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             bubbles: true,
             composed: true
         }));
-    }
-
-    // ========================================
-    // Timeline Row Management
-    // ========================================
-
-    _addTimelineRow() {
-        if (!this._workingConfig.rows) {
-            this._workingConfig.rows = [];
-        }
-
-        this._workingConfig.rows.push({
-            entity_id: '',
-            label: `Row ${this._workingConfig.rows.length + 1}`
-        });
-
-        lcardsLog.info('[DataGridStudioV4] Timeline row added');
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
-    }
-
-    _editTimelineRow(index) {
-        this._activeTimelineRowEdit = index;
-        this.requestUpdate();
-    }
-
-    _closeTimelineRowEditor() {
-        this._activeTimelineRowEdit = null;
-        this.requestUpdate();
-    }
-
-    _updateTimelineRowEntity(index, entityId) {
-        if (this._workingConfig.rows[index]) {
-            if (typeof this._workingConfig.rows[index] === 'object') {
-                this._workingConfig.rows[index].entity_id = entityId;
-            } else {
-                this._workingConfig.rows[index] = {
-                    entity_id: entityId,
-                    label: `Row ${index + 1}`
-                };
-            }
-            this.requestUpdate();
-            this._schedulePreviewUpdate();
-        }
-    }
-
-    _updateTimelineRowLabel(index, label) {
-        if (this._workingConfig.rows[index]) {
-            if (typeof this._workingConfig.rows[index] === 'object') {
-                this._workingConfig.rows[index].label = label;
-            } else {
-                this._workingConfig.rows[index] = {
-                    entity_id: '',
-                    label: label
-                };
-            }
-            this.requestUpdate();
-        }
-    }
-
-    _deleteTimelineRow(index) {
-        if (this._workingConfig.rows && this._workingConfig.rows[index]) {
-            this._workingConfig.rows.splice(index, 1);
-            if (this._activeTimelineRowEdit === index) {
-                this._activeTimelineRowEdit = null;
-            }
-            lcardsLog.info('[DataGridStudioV4] Timeline row deleted:', index);
-            this.requestUpdate();
-            this._schedulePreviewUpdate();
-        }
     }
 }
 

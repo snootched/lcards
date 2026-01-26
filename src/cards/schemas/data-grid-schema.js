@@ -107,32 +107,12 @@ export const dataGridSchema = {
         // DATA MODE PROPERTIES
         // ====================================================================
 
-        "layout": {
-            "type": "string",
-            "enum": ["grid", "timeline"],
-            "default": "grid",
-            "x-ui-hints": {
-                "label": "Layout Type",
-                "helper": "Grid: static structure with auto-detected cells. Timeline: flowing historical data from single source",
-                "showIf": { "data_mode": ["data", "template", "datasource"] },
-                "selector": {
-                    "select": {
-                        "mode": "dropdown",
-                        "options": [
-                            { "value": "grid", "label": "Grid (Static Structure)" },
-                            { "value": "timeline", "label": "Timeline (Flowing History)" }
-                        ]
-                    }
-                }
-            }
-        },
-
         "rows": {
             "type": "array",
             "x-ui-hints": {
                 "label": "Grid Rows",
-                "helper": "Row definitions. For grid layout: arrays with auto-detected cell types (static text, entity IDs, or {{templates}}). For timeline layout: not used (source at root level)",
-                "showIf": { "data_mode": ["data", "template", "datasource"], "layout": ["grid", undefined] }
+                "helper": "Row definitions with auto-detected cell types (static text, entity IDs, or {{templates}})",
+                "showIf": { "data_mode": ["data", "template", "datasource"] }
             },
             "items": {
                 "oneOf": [
@@ -163,64 +143,6 @@ export const dataGridSchema = {
                         "required": ["values"]
                     }
                 ]
-            }
-        },
-
-        "source": {
-            "type": "string",
-            "x-ui-hints": {
-                "label": "Data Source",
-                "helper": "Entity ID or DataSource name for timeline mode",
-                "showIf": {
-                    "data_mode": ["data", "datasource"],
-                    "layout": "timeline"
-                },
-                "selector": {
-                    "text": {
-                        "placeholder": "sensor.temperature"
-                    }
-                }
-            }
-        },
-
-        "history_hours": {
-            "type": "number",
-            "minimum": 0,
-            "default": 1,
-            "x-ui-hints": {
-                "label": "History Hours",
-                "helper": "Hours of historical data to preload",
-                "showIf": {
-                    "data_mode": ["data", "datasource"],
-                    "layout": "timeline"
-                },
-                "selector": {
-                    "number": {
-                        "mode": "box",
-                        "min": 0,
-                        "max": 168,
-                        "step": 1,
-                        "unit_of_measurement": "hours"
-                    }
-                }
-            }
-        },
-
-        "value_template": {
-            "type": "string",
-            "default": "{value}",
-            "x-ui-hints": {
-                "label": "Value Template",
-                "helper": "Format template for displayed values (e.g., '{value}°C')",
-                "showIf": {
-                    "data_mode": ["data", "datasource"],
-                    "layout": "timeline"
-                },
-                "selector": {
-                    "text": {
-                        "placeholder": "{value}°C"
-                    }
-                }
             }
         },
 
