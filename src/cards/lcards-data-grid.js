@@ -139,6 +139,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
+import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-data-grid-editor.js';
@@ -309,6 +310,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Setup cascade animation if configured
     await this._setupCascadeAnimation();
 
+    // Apply filters if configured
+    this._applyFilters();
+
     this._isInitialized = true;
   }
 
@@ -327,6 +331,7 @@ export class LCARdSDataGrid extends LCARdSCard {
       await this._initializeDataMode();
       await this._initializeAnimationScope();
       await this._setupCascadeAnimation();
+      this._applyFilters();
     }
   }
 
@@ -950,17 +955,66 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
-    // Create empty scope (animations will be added later if needed)
+    // Pass all animations to AnimationManager (supports all presets)
+    // AnimationManager will handle registration, triggers, and execution
+    // Cascade-color is handled separately for row-by-row animation
+    const nonCascadeAnimations = (this.config.animations || []).filter(a => a.preset !== 'cascade-color');
+
     try {
       await animationManager.onOverlayRendered(overlayId, containerEl, {
-        animations: [] // Empty array - cascade will add animations if configured
+        animations: nonCascadeAnimations
       });
-      lcardsLog.debug(`[LCARdSDataGrid] Animation scope initialized: ${overlayId}`);
+      lcardsLog.debug(`[LCARdSDataGrid] Animation scope initialized: ${overlayId}`, {
+        totalAnimations: this.config.animations?.length || 0,
+        nonCascade: nonCascadeAnimations.length
+      });
     } catch (error) {
       lcardsLog.error('[LCARdSDataGrid] Failed to initialize animation scope:', error);
     }
   }
 
+  // ============================================================================
+  // FILTER APPLICATION
+  // ============================================================================
+
+  /**
+   * Apply CSS filters to the data grid
+   * Note: Only CSS filters are supported (blur, brightness, etc.)
+   * SVG filters require an SVG parent element which data-grid doesn't have
+   * @private
+   */
+  _applyFilters() {
+    if (!this.config.filters || this.config.filters.length === 0) {
+      return;
+    }
+
+    // Find the grid container element
+    const gridElement = this.renderRoot?.querySelector('.data-grid');
+    if (!gridElement) {
+      lcardsLog.debug('[LCARdSDataGrid] Cannot apply filters - grid element not found yet');
+      return;
+    }
+
+    // Separate CSS and SVG filters
+    const cssFilters = this.config.filters.filter(f => f.mode === 'css' || !f.mode);
+    const svgFilters = this.config.filters.filter(f => f.mode === 'svg');
+
+    // Warn about SVG filters (not supported on HTML elements)
+    if (svgFilters.length > 0) {
+      lcardsLog.warn('[LCARdSDataGrid] SVG filters are not supported on data-grid (HTML element). Use CSS filters instead.', {
+        svgFilters: svgFilters.map(f => f.type)
+      });
+    }
+
+    // Apply CSS filters only
+    if (cssFilters.length > 0) {
+      const filterString = generateFilterString(cssFilters);
+      gridElement.style.filter = filterString;
+      lcardsLog.debug('[LCARdSDataGrid] Applied CSS filters:', filterString);
+    }
+  }
+
+  // ============================================================================
   // ============================================================================
   // CASCADE ANIMATION
   // ============================================================================
@@ -1859,6 +1913,35 @@ export class LCARdSDataGrid extends LCARdSCard {
   static getConfigElement() {
     // Static import - editor bundled with card (webpack config doesn't support splitting)
     return document.createElement('lcards-data-grid-editor');
+  }
+
+  /**
+   * Get default animation target for this card
+   * Called by AnimationManager when no explicit target is specified
+   * Returns the data-grid element so animations affect all grid cells
+   * @returns {Element} The .data-grid element containing all cells
+   */
+  getDefaultAnimationTarget() {
+    // Return the grid element which contains all cells
+    // AnimationManager will apply the animation to this container
+    // For cell-specific animations, user should specify targets: '.grid-cell'
+    const gridElement = this.renderRoot?.querySelector('.data-grid');
+    lcardsLog.debug('[LCARdSDataGrid] getDefaultAnimationTarget called', {
+      found: !!gridElement,
+      element: gridElement?.tagName
+    });
+    return gridElement || this.renderRoot?.querySelector('.data-grid-container');
+  }
+
+  /**
+   * Resolve custom animation targets for this card
+   * Called by AnimationManager for explicit target selectors
+   * @param {string} target - Target selector
+   * @returns {Element|null} Resolved element
+   */
+  getAnimationTarget(target) {
+    // Support both absolute and container-relative selectors
+    return this.renderRoot?.querySelector(target);
   }
 
   /**

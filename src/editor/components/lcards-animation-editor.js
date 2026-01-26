@@ -776,13 +776,6 @@ export class LCARdSAnimationEditor extends LitElement {
               .helper=${'Property to animate (color, fill, stroke, etc.)'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
             </ha-textfield>
-            <ha-textfield
-              type="number"
-              label="Row Delay (ms)"
-              .value=${params.delay ?? 0}
-              .helper=${'Delay before animation starts'}
-              @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
-            </ha-textfield>
           </div>
         `;
         break;
@@ -935,6 +928,16 @@ export class LCARdSAnimationEditor extends LitElement {
           .helper=${'Reverse animation direction on each loop'}
           @value-changed=${(e) => this._updateParam(index, 'alternate', e.detail.value)}>
         </ha-selector>
+
+        <ha-textfield
+          type="number"
+          label="Start Delay (ms)"
+          .value=${params.delay ?? 0}
+          min="0"
+          step="100"
+          helper="Delay before animation starts"
+          @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
+        </ha-textfield>
       </div>
     `;
   }
