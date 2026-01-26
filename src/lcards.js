@@ -15,7 +15,7 @@ lcardsLogBanner();
 import * as anime from 'animejs';
 import { readYamlFile } from './utils/lcards-fileutils.js';
 import { preloadSVGs, loadSVGToCache, getSVGFromCache } from './utils/lcards-fileutils.js';
-import { loadFont, loadCoreFonts } from './utils/lcards-theme.js';
+import { loadFont } from './utils/lcards-theme.js';
 
 import * as animHelpers from './utils/lcards-anim-helpers.js';
 // import { animPresets } from './utils/lcards-anim-presets.js'; // REMOVED: All presets now from packs
@@ -146,9 +146,6 @@ async function initializeCustomCard() {
         lcardsLog.warn('[lcards.js] ⚠️ Core singleton initialization deferred (will init on first card):', error);
         // This is okay - singletons will initialize when first card loads with real HASS
     }
-
-    // Await font loading if loadCoreFonts is async
-    await loadCoreFonts();
 }
 
 

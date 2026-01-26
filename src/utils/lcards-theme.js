@@ -68,7 +68,7 @@ export function loadAllFontsFromConfig(config) {
 /**
  * Dynamically loads a LCARdS font based on font-family name.
  * Only loads if not already injected.
- * 
+ *
  * Supports legacy CB-LCARS font names (auto-migrates to lcards_ prefix).
  */
 export function loadFont(fontInput) {
@@ -118,16 +118,6 @@ export function loadFont(fontInput) {
     window.lcards._loadedFonts.add(fontKey);
     lcardsLog.debug(`[loadFont] Loaded local font: ${fontName}`);
   });
-}
-
-
-/**
- * Loads all core LCARdS fonts using the shared dynamic loader.
- * @deprecated Core fonts now loaded automatically via core_fonts pack
- */
-export async function loadCoreFonts() {
-  lcardsLog.warn('[loadCoreFonts] DEPRECATED: Core fonts now loaded via core_fonts pack');
-  // No-op — fonts loaded by PackManager during initialization
 }
 
 /**

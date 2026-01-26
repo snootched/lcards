@@ -548,7 +548,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     variant="brand"
                     @click=${this._handleSave}>
                     <ha-icon icon="mdi:check" slot="icon"></ha-icon>
-                    Save Configuration
+                    Save
                 </ha-button>
 
                 <ha-button

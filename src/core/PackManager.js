@@ -28,7 +28,7 @@ export class PackManager {
   /**
    * Load and register builtin packs
    * This is the ONLY place in the codebase that calls loadBuiltinPacks()
-   * 
+   *
    * @param {Array<string>} packIds - Pack IDs to load (default: all core packs)
    */
   async loadBuiltinPacks(packIds = ['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']) {
@@ -46,13 +46,15 @@ export class PackManager {
       await this.registerPack(pack);
     }
 
-    lcardsLog.info('[PackManager] ✅ Loaded and registered builtin packs:', packIds);
+    // Log the actual pack IDs that were loaded (not just the requested ones)
+    const loadedPackIds = packs.map(p => p.id);
+    lcardsLog.info('[PackManager] ✅ Loaded and registered builtin packs:', loadedPackIds);
   }
 
   /**
    * Register pack contents to core managers
    * Distributes pack data to ThemeManager, StylePresetManager, RulesEngine, etc.
-   * 
+   *
    * @param {Object} pack - Pack object with style_presets, animations, rules, themes, svg_assets
    */
   async registerPack(pack) {
@@ -92,7 +94,7 @@ export class PackManager {
           this.core.rulesManager.rulesById.set(rule.id, rule);
         }
       });
-      
+
       if (pack.rules.length > 0) {
         this.core.rulesManager.buildDependencyIndex();
         this.core.rulesManager.markAllDirty();
@@ -158,7 +160,7 @@ export class PackManager {
     this.loadedPacks.forEach((packMeta, packId) => {
       // Get content counts from each manager
       const themeCount = this.core.themeManager?.getThemesByPack(packId).length || 0;
-      
+
       // For presets, we need to count across all overlay types
       let presetCount = 0;
       if (this.core.stylePresetManager) {
@@ -195,7 +197,7 @@ export class PackManager {
 
     // Get detailed content breakdown
     const themes = this.core.themeManager?.getThemesByPack(packId) || [];
-    
+
     const presets = {};
     if (this.core.stylePresetManager) {
       const allPresets = this.core.stylePresetManager.getAllPresetsWithSource();
@@ -224,7 +226,7 @@ export class PackManager {
    */
   getPackStatistics() {
     const packs = this.getLoadedPacks();
-    
+
     return {
       totalPacks: packs.length,
       totalThemes: packs.reduce((sum, p) => sum + p.themeCount, 0),
