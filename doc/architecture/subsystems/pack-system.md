@@ -23,6 +23,11 @@ const PACK = {
   style_presets: {},   // Named style bundles for cards
   animations: [],      // Animation definitions
   rules: [],          // Rule definitions
+  
+  // Asset sections (managed by AssetManager):
+  svg_assets: {},      // SVG graphics (MSD backgrounds, etc.)
+  font_assets: {},     // Font CSS files
+  audio_assets: {},    // Audio files (future)
 
   // ❌ DEPRECATED FIELDS (removed in v1.22+):
   // overlays: [],     // Use core cards instead
@@ -738,8 +743,147 @@ For user-facing Pack Explorer guide, see: [doc/user/pack-explorer.md](../../user
 
 ---
 
+## Font Packs
+
+**New in v1.28.0**: Fonts are now managed through the AssetManager via font packs.
+
+### Core Fonts Pack
+
+The `core_fonts` pack contains all LCARdS built-in fonts:
+
+```json
+{
+  "id": "core_fonts",
+  "version": "1.0.0",
+  "name": "LCARdS Core Fonts",
+  "description": "Built-in font collection for LCARdS",
+  "type": "font_pack",
+  "fonts": {
+    "Antonio": {
+      "displayName": "Antonio (Default)",
+      "category": "Core",
+      "url": "https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap",
+      "external": true,
+      "description": "Primary LCARS display font"
+    },
+    "lcards_borg": {
+      "displayName": "[Alien] Borg",
+      "category": "Alien",
+      "cssFile": "lcards_borg.css",
+      "legacyName": "cb-lcars_borg",
+      "description": "Borg alien language font"
+    }
+  }
+}
+```
+
+### Font Pack Structure
+
+Font packs are converted to `font_assets` format by `loadBuiltinPacks.js`:
+
+```javascript
+// Loaded from core_fonts.json
+const CORE_FONTS_PACK = {
+  id: 'core_fonts',
+  version: '1.0.0',
+  font_assets: {
+    'lcards_borg': {
+      url: '/hacsfiles/lcards/fonts/lcards_borg.css',
+      displayName: '[Alien] Borg',
+      category: 'Alien',
+      legacyName: 'cb-lcars_borg',
+      external: false
+    },
+    'Antonio': {
+      url: 'https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap',
+      displayName: 'Antonio (Default)',
+      category: 'Core',
+      external: true
+    }
+  }
+};
+```
+
+### Font Categories
+
+Fonts are organized into three categories:
+
+- **Core**: Antonio, Jeffries, Microgramma (3 fonts)
+- **Standard**: Tungsten, Eurostile variants, Swiss 911, etc. (15 fonts)
+- **Alien**: Bajoran, Borg, Klingon, Vulcan, etc. (16 fonts)
+
+Total: 34 built-in fonts
+
+### Font Loading Flow
+
+1. **Pack Registration**: `PackManager.loadBuiltinPacks()` loads `core_fonts` pack
+2. **Asset Registration**: Each font is registered with AssetManager via `preloadFromPack()`
+3. **On-Demand Loading**: Fonts loaded when referenced via `assetManager.loadFont()`
+4. **CSS Injection**: Font CSS link element created in DOM with ID `lcards-font-{fontKey}`
+5. **Deduplication**: Duplicate loads prevented by checking for existing link element
+
+### Legacy Name Migration
+
+Old CB-LCARS font names are automatically migrated:
+
+```javascript
+// Old name (deprecated)
+assetManager.loadFont('cb-lcars_borg');
+// → Automatically migrated to 'lcards_borg'
+
+// Fonts registered with both keys for compatibility
+const fonts = assetManager.listFonts();
+// Each font has: { key: 'lcards_borg', legacyName: 'cb-lcars_borg', ... }
+```
+
+### Creating Custom Font Packs
+
+Custom font packs follow the same structure:
+
+```json
+{
+  "id": "custom_fonts",
+  "version": "1.0.0",
+  "name": "My Custom Fonts",
+  "fonts": {
+    "my_custom_font": {
+      "displayName": "My Custom Font",
+      "category": "Custom",
+      "cssFile": "my_font.css",
+      "description": "Custom LCARS font"
+    },
+    "google_font": {
+      "displayName": "Roboto",
+      "category": "External",
+      "url": "https://fonts.googleapis.com/css2?family=Roboto&display=swap",
+      "external": true
+    }
+  }
+}
+```
+
+### Font Pack API
+
+```javascript
+// List all fonts
+const fonts = window.lcards.core.assetManager.listFonts();
+
+// Get fonts by category
+const fontsByCategory = window.lcards.core.assetManager.getFontsByCategory();
+
+// Load a font
+await window.lcards.core.assetManager.loadFont('lcards_borg');
+
+// Check loaded fonts
+const link = document.getElementById('lcards-font-lcards_borg');
+console.log(link.href); // /hacsfiles/lcards/fonts/lcards_borg.css
+```
+
+---
+
 ## Related Documentation
 
 - [Pack Explorer User Guide](../../user/pack-explorer.md) - User-facing documentation
 - [Theme System](theme-system.md) - Theme architecture details
+- [Asset Manager](asset-manager.md) - Asset management details
 - [Style Presets](../../development/style-presets.md) - Creating custom presets

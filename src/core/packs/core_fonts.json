@@ -1,0 +1,216 @@
+{
+  "id": "core_fonts",
+  "version": "1.0.0",
+  "name": "LCARdS Core Fonts",
+  "description": "Built-in font collection for LCARdS - includes Core, Standard, and Alien fonts",
+  "type": "font_pack",
+  "fonts": {
+    "Antonio": {
+      "displayName": "Antonio (Default)",
+      "category": "Core",
+      "url": "https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap",
+      "external": true,
+      "description": "Primary LCARS display font"
+    },
+    "lcards_jeffries": {
+      "displayName": "Jeffries",
+      "category": "Core",
+      "cssFile": "lcards_jeffries.css",
+      "legacyName": "cb-lcars_jeffries",
+      "description": "Technical display font"
+    },
+    "lcards_microgramma": {
+      "displayName": "Microgramma",
+      "category": "Core",
+      "cssFile": "lcards_microgramma.css",
+      "legacyName": "cb-lcars_microgramma",
+      "description": "Bold extended variant"
+    },
+    "lcards_tungsten": {
+      "displayName": "Tungsten",
+      "category": "Standard",
+      "cssFile": "lcards_tungsten.css",
+      "legacyName": "cb-lcars_tungsten"
+    },
+    "lcards_microgramma_regular": {
+      "displayName": "Microgramma Regular",
+      "category": "Standard",
+      "cssFile": "lcards_microgramma_regular.css",
+      "legacyName": "cb-lcars_microgramma_regular"
+    },
+    "lcards_context_ultra_condensed": {
+      "displayName": "Context Ultra Condensed",
+      "category": "Standard",
+      "cssFile": "lcards_context_ultra_condensed.css",
+      "legacyName": "cb-lcars_context_ultra_condensed"
+    },
+    "lcards_crillee": {
+      "displayName": "Crillee",
+      "category": "Standard",
+      "cssFile": "lcards_crillee.css",
+      "legacyName": "cb-lcars_crillee"
+    },
+    "lcards_eurostile": {
+      "displayName": "Eurostile",
+      "category": "Standard",
+      "cssFile": "lcards_eurostile.css",
+      "legacyName": "cb-lcars_eurostile"
+    },
+    "lcards_eurostile_oblique": {
+      "displayName": "Eurostile Oblique",
+      "category": "Standard",
+      "cssFile": "lcards_eurostile_oblique.css",
+      "legacyName": "cb-lcars_eurostile_oblique"
+    },
+    "lcards_federation": {
+      "displayName": "Federation",
+      "category": "Standard",
+      "cssFile": "lcards_federation.css",
+      "legacyName": "cb-lcars_federation"
+    },
+    "lcards_galaxy": {
+      "displayName": "Galaxy",
+      "category": "Standard",
+      "cssFile": "lcards_galaxy.css",
+      "legacyName": "cb-lcars_galaxy"
+    },
+    "lcards_handel_gothic": {
+      "displayName": "Handel Gothic",
+      "category": "Standard",
+      "cssFile": "lcards_handel_gothic.css",
+      "legacyName": "cb-lcars_handel_gothic"
+    },
+    "lcards_millenium_extended_bold": {
+      "displayName": "Millennium Extended Bold",
+      "category": "Standard",
+      "cssFile": "lcards_millenium_extended_bold.css",
+      "legacyName": "cb-lcars_millenium_extended_bold"
+    },
+    "lcards_sonic": {
+      "displayName": "Sonic",
+      "category": "Standard",
+      "cssFile": "lcards_sonic.css",
+      "legacyName": "cb-lcars_sonic"
+    },
+    "lcards_sqaure_721": {
+      "displayName": "Square 721",
+      "category": "Standard",
+      "cssFile": "lcards_sqaure_721.css",
+      "legacyName": "cb-lcars_sqaure_721"
+    },
+    "lcards_stellar": {
+      "displayName": "Stellar",
+      "category": "Standard",
+      "cssFile": "lcards_stellar.css",
+      "legacyName": "cb-lcars_stellar"
+    },
+    "lcards_swiss_911": {
+      "displayName": "Swiss 911",
+      "category": "Standard",
+      "cssFile": "lcards_swiss_911.css",
+      "legacyName": "cb-lcars_swiss_911"
+    },
+    "lcards_trekarrowcaps": {
+      "displayName": "Trek Arrow Caps",
+      "category": "Standard",
+      "cssFile": "lcards_trekarrowcaps.css",
+      "legacyName": "cb-lcars_trekarrowcaps"
+    },
+    "lcards_bajoran_ancient": {
+      "displayName": "[Alien] Bajoran Ancient",
+      "category": "Alien",
+      "cssFile": "lcards_bajoran_ancient.css",
+      "legacyName": "cb-lcars_bajoran_ancient"
+    },
+    "lcards_bajoran_ideogram": {
+      "displayName": "[Alien] Bajoran Ideogram",
+      "category": "Alien",
+      "cssFile": "lcards_bajoran_ideogram.css",
+      "legacyName": "cb-lcars_bajoran_ideogram"
+    },
+    "lcards_binar": {
+      "displayName": "[Alien] Binar",
+      "category": "Alien",
+      "cssFile": "lcards_binar.css",
+      "legacyName": "cb-lcars_binar"
+    },
+    "lcards_borg": {
+      "displayName": "[Alien] Borg",
+      "category": "Alien",
+      "cssFile": "lcards_borg.css",
+      "legacyName": "cb-lcars_borg"
+    },
+    "lcards_cardassian": {
+      "displayName": "[Alien] Cardassian",
+      "category": "Alien",
+      "cssFile": "lcards_cardassian.css",
+      "legacyName": "cb-lcars_cardassian"
+    },
+    "lcards_changeling": {
+      "displayName": "[Alien] Changeling",
+      "category": "Alien",
+      "cssFile": "lcards_changeling.css",
+      "legacyName": "cb-lcars_changeling"
+    },
+    "lcards_dominion": {
+      "displayName": "[Alien] Dominion",
+      "category": "Alien",
+      "cssFile": "lcards_dominion.css",
+      "legacyName": "cb-lcards_dominion"
+    },
+    "lcards_fabrini": {
+      "displayName": "[Alien] Fabrini",
+      "category": "Alien",
+      "cssFile": "lcards_fabrini.css",
+      "legacyName": "cb-lcars_fabrini"
+    },
+    "lcards_ferengi_left": {
+      "displayName": "[Alien] Ferengi (Left)",
+      "category": "Alien",
+      "cssFile": "lcards_ferengi_left.css",
+      "legacyName": "cb-lcars_ferengi_left"
+    },
+    "lcards_ferengi_right": {
+      "displayName": "[Alien] Ferengi (Right)",
+      "category": "Alien",
+      "cssFile": "lcards_ferengi_right.css",
+      "legacyName": "cb-lcars_ferengi_right"
+    },
+    "lcards_klingon": {
+      "displayName": "[Alien] Klingon",
+      "category": "Alien",
+      "cssFile": "lcards_klingon.css",
+      "legacyName": "cb-lcars_klingon"
+    },
+    "lcards_romulan": {
+      "displayName": "[Alien] Romulan",
+      "category": "Alien",
+      "cssFile": "lcards_romulan.css",
+      "legacyName": "cb-lcars_romulan"
+    },
+    "lcards_tellarite": {
+      "displayName": "[Alien] Tellarite",
+      "category": "Alien",
+      "cssFile": "lcards_tellarite.css",
+      "legacyName": "cb-lcars_tellarite"
+    },
+    "lcards_tholian": {
+      "displayName": "[Alien] Tholian",
+      "category": "Alien",
+      "cssFile": "lcards_tholian.css",
+      "legacyName": "cb-lcars_tholian"
+    },
+    "lcards_trill": {
+      "displayName": "[Alien] Trill",
+      "category": "Alien",
+      "cssFile": "lcards_trill.css",
+      "legacyName": "cb-lcars_trill"
+    },
+    "lcards_vulcan": {
+      "displayName": "[Alien] Vulcan",
+      "category": "Alien",
+      "cssFile": "lcards_vulcan.css",
+      "legacyName": "cb-lcars_vulcan"
+    }
+  }
+}

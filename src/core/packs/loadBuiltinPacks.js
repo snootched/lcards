@@ -4,6 +4,7 @@ import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
 import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
 import { BUILTIN_MSD_SVG_PACK } from './svg-assets/builtin-msd.js';
 import { registerBuiltinAnimationPresets } from './animations/index.js';
+import coreFontsJson from './core_fonts.json';
 
 /**
  * Core Builtin Pack
@@ -76,12 +77,42 @@ const LCARDS_SLIDERS_PACK = {
 
 // Themes pack is imported from themes/builtin-themes.js
 
+/**
+ * Core Fonts Pack
+ * 
+ * Font pack containing all LCARdS fonts (Core, Standard, Alien).
+ * Fonts are registered with AssetManager for lazy-loading.
+ * Converts font metadata to font_assets format for PackManager.
+ */
+const CORE_FONTS_PACK = {
+  id: coreFontsJson.id,
+  version: coreFontsJson.version,
+  name: coreFontsJson.name,
+  description: coreFontsJson.description,
+  font_assets: {}
+};
+
+// Convert fonts from JSON to font_assets format
+Object.entries(coreFontsJson.fonts).forEach(([key, fontMeta]) => {
+  CORE_FONTS_PACK.font_assets[key] = {
+    url: fontMeta.external 
+      ? fontMeta.url 
+      : `/hacsfiles/lcards/fonts/${fontMeta.cssFile}`,
+    displayName: fontMeta.displayName,
+    category: fontMeta.category,
+    legacyName: fontMeta.legacyName,
+    description: fontMeta.description,
+    external: fontMeta.external || false
+  };
+});
+
 const BUILTIN_REGISTRY = {
   core: CORE_PACK,
   lcards_buttons: LCARDS_BUTTONS_PACK,
   lcards_sliders: LCARDS_SLIDERS_PACK,
   builtin_themes: BUILTIN_THEMES_PACK,
-  builtin_msd_backgrounds: BUILTIN_MSD_SVG_PACK
+  builtin_msd_backgrounds: BUILTIN_MSD_SVG_PACK,
+  core_fonts: CORE_FONTS_PACK
 };
 
 // Remove getBuiltinPack() function entirely - it's not needed anymore
@@ -91,8 +122,8 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
   // Register animation presets during pack loading
   registerBuiltinAnimationPresets();
 
-  // ✅ CRITICAL FIX: Always load builtin_themes and builtin_msd_backgrounds packs
-  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds'])];
+  // ✅ CRITICAL FIX: Always load builtin_themes, builtin_msd_backgrounds, and core_fonts packs
+  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds', 'core_fonts'])];
 
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }

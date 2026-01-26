@@ -4,7 +4,7 @@
  * Specialized selector for font-family properties with:
  * - Categorized dropdown (Core, Standard, Alien)
  * - Custom external font support
- * - Auto-loading of selected fonts
+ * - Auto-loading of selected fonts via AssetManager
  * - Preview text (optional)
  * - Automatic migration of legacy CB-LCARS names
  *
@@ -18,7 +18,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { getFontSelectorOptions, ensureFontLoaded, isKnownFont, migrateFontName } from '../../../utils/lcards-fonts.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 export class LCARdSFontSelector extends LitElement {
 
@@ -119,8 +119,33 @@ export class LCARdSFontSelector extends LitElement {
     connectedCallback() {
         super.connectedCallback();
 
+        // Get fonts from AssetManager
+        const core = window.lcards?.core;
+        if (!core?.assetManager) {
+            lcardsLog.error('[LCARdSFontSelector] AssetManager not available');
+            this._fontOptions = [];
+            return;
+        }
+
+        // Build options from AssetManager
+        const fontsByCategory = core.assetManager.getFontsByCategory();
+        const options = [];
+
+        ['Core', 'Standard', 'Alien'].forEach(category => {
+            if (fontsByCategory[category]) {
+                fontsByCategory[category].forEach(font => {
+                    options.push({
+                        value: font.key,
+                        label: font.displayName
+                    });
+                });
+            }
+        });
+
+        this._fontOptions = options;
+
         // Migrate legacy font name if needed
-        const migratedValue = migrateFontName(this.value);
+        const migratedValue = this._migrateFontName(this.value);
         if (migratedValue !== this.value) {
             this._displayValue = migratedValue;
             // Emit migrated value
@@ -133,7 +158,7 @@ export class LCARdSFontSelector extends LitElement {
         }
 
         // Check if current value is custom (not in registry)
-        if (this._displayValue && !isKnownFont(this._displayValue) && this._displayValue !== '__custom__') {
+        if (this._displayValue && !this._isKnownFont(this._displayValue) && this._displayValue !== '__custom__') {
             this._isCustomMode = true;
         }
     }
@@ -174,7 +199,7 @@ export class LCARdSFontSelector extends LitElement {
      * @private
      */
     _renderDropdown() {
-        const options = getFontSelectorOptions(false); // Don't include custom option (we have button)
+        const options = this._fontOptions || [];
 
         return html`
             <ha-selector
@@ -215,9 +240,10 @@ export class LCARdSFontSelector extends LitElement {
     _renderPreview() {
         const fontFamily = this._displayValue || 'Antonio';
 
-        // Ensure font is loaded for preview
-        if (fontFamily) {
-            ensureFontLoaded(fontFamily);
+        // Ensure font is loaded for preview via AssetManager
+        const core = window.lcards?.core;
+        if (fontFamily && core?.assetManager) {
+            core.assetManager.loadFont(fontFamily);
         }
 
         return html`
@@ -232,13 +258,16 @@ export class LCARdSFontSelector extends LitElement {
      * @param {CustomEvent} ev
      * @private
      */
-    _handleDropdownChange(ev) {
+    async _handleDropdownChange(ev) {
         const newValue = ev.detail.value;
         this.value = newValue;
         this._displayValue = newValue;
 
-        // Load font if needed
-        ensureFontLoaded(newValue);
+        // Load font if needed via AssetManager
+        const core = window.lcards?.core;
+        if (core?.assetManager && newValue) {
+            await core.assetManager.loadFont(newValue);
+        }
 
         this._emitChange();
     }
@@ -262,11 +291,34 @@ export class LCARdSFontSelector extends LitElement {
         this._isCustomMode = !this._isCustomMode;
 
         // Reset value if switching from custom to dropdown
-        if (!this._isCustomMode && !isKnownFont(this._displayValue)) {
+        if (!this._isCustomMode && !this._isKnownFont(this._displayValue)) {
             this.value = 'Antonio';
             this._displayValue = 'Antonio';
             this._emitChange();
         }
+    }
+
+    /**
+     * Check if font is in registry
+     * @private
+     */
+    _isKnownFont(fontValue) {
+        const core = window.lcards?.core;
+        if (!core?.assetManager) return false;
+        
+        const fonts = core.assetManager.listFonts();
+        return fonts.some(f => f.key === fontValue || f.legacyName === fontValue);
+    }
+
+    /**
+     * Migrate legacy font name
+     * @private
+     */
+    _migrateFontName(fontValue) {
+        const core = window.lcards?.core;
+        if (!core?.assetManager) return fontValue;
+        
+        return core.assetManager._migrateLegacyFontName(fontValue);
     }
 
     /**

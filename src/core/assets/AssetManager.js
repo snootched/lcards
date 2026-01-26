@@ -338,6 +338,11 @@ export class AssetManager extends BaseService {
           this.register('font', key, null, {
             pack: packName,
             url: def.url,
+            displayName: def.displayName,
+            category: def.category,
+            legacyName: def.legacyName,
+            description: def.description,
+            external: def.external,
             family: def.family,
             weight: def.weight,
             style: def.style
@@ -474,6 +479,104 @@ export class AssetManager extends BaseService {
     if (content instanceof ArrayBuffer) return content.byteLength;
     if (typeof content === 'string') return new Blob([content]).size;
     return 0;
+  }
+
+  /**
+   * Load a font CSS file (lazy-load if needed)
+   * Handles legacy font name migration automatically.
+   * 
+   * @param {string} fontKey - Font key (e.g., 'lcards_borg' or 'cb-lcars_borg')
+   * @returns {Promise<void>}
+   */
+  async loadFont(fontKey) {
+    try {
+      // Migrate legacy names
+      const migratedKey = this._migrateLegacyFontName(fontKey);
+      
+      // Get font asset (triggers lazy load if needed)
+      const fontRegistry = this.getRegistry('font');
+      const fontAsset = fontRegistry.assets.get(migratedKey);
+
+      if (!fontAsset) {
+        lcardsLog.warn(`[AssetManager] Font not found: ${migratedKey}`);
+        return;
+      }
+
+      // Check if already injected
+      const linkId = `lcards-font-${migratedKey}`;
+      if (document.getElementById(linkId)) {
+        lcardsLog.debug(`[AssetManager] Font already loaded: ${migratedKey}`);
+        return;
+      }
+
+      // Inject CSS link
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      link.href = fontAsset.url;
+      document.head.appendChild(link);
+
+      lcardsLog.debug(`[AssetManager] Loaded font: ${migratedKey} from ${fontAsset.url}`);
+
+    } catch (error) {
+      lcardsLog.error(`[AssetManager] Failed to load font ${fontKey}:`, error);
+    }
+  }
+
+  /**
+   * Migrate legacy CB-LCARS font names to new lcards_ prefix
+   * @private
+   * @param {string} fontKey - Font key (may be legacy name)
+   * @returns {string} Migrated font key
+   */
+  _migrateLegacyFontName(fontKey) {
+    const fontRegistry = this.getRegistry('font');
+    
+    // Find font by legacy name
+    for (const [key, asset] of fontRegistry.assets.entries()) {
+      if (asset.metadata.legacyName === fontKey) {
+        lcardsLog.info(`[AssetManager] Migrating font: ${fontKey} → ${key}`);
+        return key;
+      }
+    }
+    
+    return fontKey;
+  }
+
+  /**
+   * Get all available fonts
+   * @returns {Array<Object>} Font metadata array
+   */
+  listFonts() {
+    const fontRegistry = this.getRegistry('font');
+    const fonts = [];
+    
+    for (const [key, asset] of fontRegistry.assets.entries()) {
+      fonts.push({
+        key,
+        displayName: asset.metadata.displayName,
+        category: asset.metadata.category,
+        legacyName: asset.metadata.legacyName,
+        description: asset.metadata.description,
+        pack: asset.metadata.pack
+      });
+    }
+    
+    return fonts;
+  }
+
+  /**
+   * Get fonts grouped by category
+   * @returns {Object<string, Array>} Fonts grouped by category
+   */
+  getFontsByCategory() {
+    const fonts = this.listFonts();
+    return fonts.reduce((acc, font) => {
+      const cat = font.category || 'Other';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(font);
+      return acc;
+    }, {});
   }
 
   /**

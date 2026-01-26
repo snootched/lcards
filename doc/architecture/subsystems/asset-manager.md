@@ -21,7 +21,7 @@ AssetManager handles **external binary/media files** that need to be:
 **Use AssetManager when:**
 - ✅ Loading large SVG files (>50KB, like MSD backgrounds)
 - ✅ Loading user-provided graphics from /local/
-- ✅ Loading external fonts (future)
+- ✅ Loading fonts (via core_fonts pack or custom packs)
 - ✅ Loading audio files (future)
 
 ## Overview
@@ -276,6 +276,81 @@ window.lcards.core.assetManager.listTypes()
 // Debug info
 window.lcards.core.getDebugInfo().assetManager
 ```
+
+## Font Loading API
+
+AssetManager provides dedicated methods for font management:
+
+### loadFont(fontKey)
+
+Load a font CSS file with automatic legacy name migration:
+
+```javascript
+const assetManager = window.lcards.core.assetManager;
+
+// Load a font (creates CSS link in DOM)
+await assetManager.loadFont('lcards_borg');
+
+// Legacy names automatically migrated
+await assetManager.loadFont('cb-lcars_borg'); // → lcards_borg
+
+// External fonts (Google Fonts)
+await assetManager.loadFont('Antonio');
+```
+
+### listFonts()
+
+Get all available fonts:
+
+```javascript
+const fonts = assetManager.listFonts();
+// [
+//   { key: 'Antonio', displayName: 'Antonio (Default)', category: 'Core', ... },
+//   { key: 'lcards_borg', displayName: '[Alien] Borg', category: 'Alien', ... },
+//   ...
+// ]
+```
+
+### getFontsByCategory()
+
+Get fonts grouped by category:
+
+```javascript
+const fontsByCategory = assetManager.getFontsByCategory();
+// {
+//   Core: [{ key: 'Antonio', ... }, { key: 'lcards_jeffries', ... }],
+//   Standard: [{ key: 'lcards_tungsten', ... }, ...],
+//   Alien: [{ key: 'lcards_borg', ... }, ...]
+// }
+```
+
+### Font Pack Structure
+
+Fonts are registered via the `core_fonts` pack:
+
+```javascript
+// src/core/packs/core_fonts.json
+{
+  "id": "core_fonts",
+  "version": "1.0.0",
+  "fonts": {
+    "lcards_borg": {
+      "displayName": "[Alien] Borg",
+      "category": "Alien",
+      "cssFile": "lcards_borg.css",
+      "legacyName": "cb-lcars_borg"
+    },
+    "Antonio": {
+      "displayName": "Antonio (Default)",
+      "category": "Core",
+      "url": "https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap",
+      "external": true
+    }
+  }
+}
+```
+
+The pack is loaded automatically during initialization via `PackManager.loadBuiltinPacks()`.
 
 ## Security Features
 

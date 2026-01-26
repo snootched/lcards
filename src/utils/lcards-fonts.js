@@ -145,21 +145,19 @@ export function migrateFontName(fontValue) {
 
 /**
  * Ensure a font is loaded (integrates with existing loadFont system)
+ * @deprecated Use window.lcards.core.assetManager.loadFont() instead
  * @param {string} fontValue - Font-family value
  */
 export function ensureFontLoaded(fontValue) {
     if (!fontValue) return;
 
-    // Migrate legacy name if needed
-    const migratedFont = migrateFontName(fontValue);
-
-    // Use existing font loading system
-    if (window.lcards?.loadFont) {
-        window.lcards.loadFont(migratedFont);
-        lcardsLog.debug(`[lcards-fonts] Requested font load: ${migratedFont}`);
-    } else {
-        lcardsLog.warn(`[lcards-fonts] Font loader not available for: ${migratedFont}`);
+    const core = window.lcards?.core;
+    
+    if (core?.assetManager) {
+        return core.assetManager.loadFont(fontValue);
     }
+    
+    lcardsLog.warn('[ensureFontLoaded] DEPRECATED: Use assetManager.loadFont()');
 }
 
 /**
@@ -176,10 +174,26 @@ export function getFontsByCategory() {
 
 /**
  * Generate options for ha-selector select dropdown
+ * @deprecated Use window.lcards.core.assetManager.listFonts() instead
  * @param {boolean} [includeCustomOption=true] - Include "Custom..." option
  * @returns {Array<{value: string, label: string}>} Options array
  */
 export function getFontSelectorOptions(includeCustomOption = true) {
+    const core = window.lcards?.core;
+    
+    if (core?.assetManager) {
+        const fonts = core.assetManager.listFonts();
+        const options = fonts.map(f => ({ value: f.key, label: f.displayName }));
+        
+        if (includeCustomOption) {
+            options.push({ value: '__custom__', label: '🔧 Custom Font...' });
+        }
+        
+        return options;
+    }
+    
+    // Fallback to static registry (shouldn't happen after init)
+    lcardsLog.warn('[getFontSelectorOptions] AssetManager not available, using static registry');
     const options = ALL_FONTS.map(font => ({
         value: font.value,
         label: font.name

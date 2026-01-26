@@ -58,22 +58,11 @@ function migrateLegacyFontName(fontName) {
 
 /**
  * Process card configurations to load all fonts.
+ * @deprecated Fonts now loaded on-demand via AssetManager
  */
 export function loadAllFontsFromConfig(config) {
-  const fonts = new Set();
-  function scan(obj) {
-    if (obj && typeof obj === 'object') {
-      for (const key in obj) {
-        if (key === 'font_family' && typeof obj[key] === 'string') {
-          fonts.add(obj[key]);
-        } else if (typeof obj[key] === 'object') {
-          scan(obj[key]);
-        }
-      }
-    }
-  }
-  scan(config);
-  fonts.forEach(font => window.lcards.loadFont(font));
+  lcardsLog.warn('[loadAllFontsFromConfig] DEPRECATED: Fonts loaded on-demand via AssetManager');
+  // No-op — fonts loaded when actually used
 }
 
 /**
@@ -134,16 +123,11 @@ export function loadFont(fontInput) {
 
 /**
  * Loads all core LCARdS fonts using the shared dynamic loader.
+ * @deprecated Core fonts now loaded automatically via core_fonts pack
  */
 export async function loadCoreFonts() {
-  try {
-    const fonts = Array.isArray(core_fonts) ? core_fonts : [core_fonts];
-    for (const font of fonts) {
-      window.lcards.loadFont(font);
-    }
-  } catch (error) {
-    lcardsLog.error(`[loadCoreFonts] Failed to preload core fonts: ${error.message}`);
-  }
+  lcardsLog.warn('[loadCoreFonts] DEPRECATED: Core fonts now loaded via core_fonts pack');
+  // No-op — fonts loaded by PackManager during initialization
 }
 
 /**
