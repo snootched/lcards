@@ -193,7 +193,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         return html`
             <lcards-message
                 type="info"
-                message="Configure dimensions and curves for your simple elbow. The diagram below shows what each setting controls.">
+                message="Configure dimensions and curves for your simple elbow. Bar dimensions control thickness, while outer_curve/inner_curve control the depth (scale) of the diagonal cut into the corner - independent of bar thickness.">
             </lcards-message>
 
             <!-- Visual Diagram -->
@@ -216,12 +216,18 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             <!-- Horizontal bar (bar_height controls this) -->
                             <rect x="50" y="50" width="300" height="30" fill="var(--primary-color, #FF9900)" opacity="0.7"/>
 
-                            <!-- Outer arc (outer_curve) -->
+                            <!-- Outer arc (outer_curve) - the "bite" depth -->
                             <path d="M 130 50 A 40 40 0 0 0 50 90"
                                   fill="none"
                                   stroke="var(--accent-color, #00FFFF)"
                                   stroke-width="3"
                                   stroke-dasharray="5,5"/>
+                            <!-- Outer diagonal extension line showing depth -->
+                            <line x1="90" y1="50" x2="90" y2="90"
+                                  stroke="var(--accent-color, #00FFFF)"
+                                  stroke-width="1"
+                                  stroke-dasharray="2,2"
+                                  opacity="0.5"/>
 
                             <!-- Inner arc (inner_curve) -->
                             <path d="M 130 80 A 20 20 0 0 0 110 100"
@@ -229,6 +235,12 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                   stroke="var(--warning-color, #FFAA00)"
                                   stroke-width="3"
                                   stroke-dasharray="5,5"/>
+                            <!-- Inner diagonal extension line -->
+                            <line x1="110" y1="80" x2="110" y2="100"
+                                  stroke="var(--warning-color, #FFAA00)"
+                                  stroke-width="1"
+                                  stroke-dasharray="2,2"
+                                  opacity="0.5"/>
                         </g>
 
                         <!-- Labels with arrows -->
@@ -245,12 +257,12 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <!-- outer_curve label -->
                         <line x1="90" y1="70" x2="30" y2="70" stroke="var(--accent-color, #00FFFF)" stroke-width="2" marker-end="url(#arrowhead-cyan)"/>
                         <text x="10" y="50" fill="var(--accent-color, #00FFFF)" font-size="14" font-weight="bold">outer_curve</text>
-                        <text x="10" y="65" fill="var(--accent-color, #00FFFF)" font-size="11" opacity="0.9">(outer radius)</text>
+                        <text x="10" y="65" fill="var(--accent-color, #00FFFF)" font-size="11" opacity="0.9">(cut depth/scale)</text>
 
                         <!-- inner_curve label -->
                         <line x1="115" y1="95" x2="90" y2="120" stroke="var(--warning-color, #FFAA00)" stroke-width="2" marker-end="url(#arrowhead-yellow)"/>
                         <text x="10" y="135" fill="var(--warning-color, #FFAA00)" font-size="14" font-weight="bold">inner_curve</text>
-                        <text x="10" y="150" fill="var(--warning-color, #FFAA00)" font-size="11" opacity="0.9">(inner radius)</text>
+                        <text x="10" y="150" fill="var(--warning-color, #FFAA00)" font-size="11" opacity="0.9">(inner cut depth)</text>
 
                         <!-- Arrow markers -->
                         <defs>
@@ -364,7 +376,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Corner Curves"
-                description="Configure the rounded corner radii using LCARS formulas"
+                description="Control the depth/scale of the diagonal cut. Tip: Use thin bars (20px) with large curves (60-80px) for dramatic diagonal cuts."
                 icon="mdi:vector-curve"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -386,7 +398,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Outer Curve Radius'}
-                        .helper=${'Outer corner radius'}
+                        .helper=${'Controls the depth/scale of the diagonal cut. Increase for deeper "bite" into corner (independent of bar thickness)'}
                         .selector=${{
                             number: {
                                 min: 0,
@@ -405,8 +417,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Inner Curve Radius'}
                     .helper=${innerCurve !== undefined
-                        ? `Current: ${innerCurve}px (default would be ${calculatedInnerCurve.toFixed(1)}px using LCARS formula)`
-                        : `Using LCARS formula: outer_curve ÷ 2 = ${calculatedInnerCurve.toFixed(1)}px`}
+                        ? `Current: ${innerCurve}px (controls inner cut depth - default would be ${calculatedInnerCurve.toFixed(1)}px using LCARS formula)`
+                        : `Using LCARS formula: outer_curve ÷ 2 = ${calculatedInnerCurve.toFixed(1)}px (controls inner cut depth)`}
                     .selector=${{
                         number: {
                             min: 0,
