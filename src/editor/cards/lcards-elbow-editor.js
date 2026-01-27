@@ -423,20 +423,46 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
                         .hass=${this.hass}
-                        .label=${'Diagonal Cut Angle'}
-                        .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
+                        .label=${'Diagonal Angle Mode'}
+                        .helper=${segment.diagonal_angle === 'theme'
+                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
+                            : '📏 Static: Fixed angle value'}
                         .selector=${{
-                            number: {
-                                min: 0,
-                                max: 90,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: '°'
+                            select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                                ]
                             }
                         }}
-                        .value=${segment.diagonal_angle ?? 45}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segment.diagonal_angle', e.detail.value)}>
+                        .value=${segment.diagonal_angle === 'theme' ? 'theme' : 'static'}
+                        @value-changed=${(e) => this._handleDiagonalAngleModeChange(e)}>
                     </ha-selector>
+
+                    ${segment.diagonal_angle !== 'theme' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Diagonal Cut Angle'}
+                            .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
+                            .selector=${{
+                                number: {
+                                    min: 0,
+                                    max: 90,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: '°'
+                                }
+                            }}
+                            .value=${typeof segment.diagonal_angle === 'number' ? segment.diagonal_angle : 45}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segment.diagonal_angle', e.detail.value)}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="info" title="Theme Integration">
+                            Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code> entity state.
+                            Create this helper in Home Assistant configuration to enable theme integration.
+                        </lcards-message>
+                    `}
                 ` : ''}
             </lcards-form-section>
 
@@ -582,20 +608,46 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
                         .hass=${this.hass}
-                        .label=${'Diagonal Cut Angle'}
-                        .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
+                        .label=${'Diagonal Angle Mode'}
+                        .helper=${outerSegment.diagonal_angle === 'theme'
+                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
+                            : '📏 Static: Fixed angle value'}
                         .selector=${{
-                            number: {
-                                min: 0,
-                                max: 90,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: '°'
+                            select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                                ]
                             }
                         }}
-                        .value=${outerSegment.diagonal_angle ?? 45}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', e.detail.value)}>
+                        .value=${outerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
+                        @value-changed=${(e) => this._handleOuterDiagonalAngleModeChange(e)}>
                     </ha-selector>
+
+                    ${outerSegment.diagonal_angle !== 'theme' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Diagonal Cut Angle'}
+                            .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
+                            .selector=${{
+                                number: {
+                                    min: 0,
+                                    max: 90,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: '°'
+                                }
+                            }}
+                            .value=${typeof outerSegment.diagonal_angle === 'number' ? outerSegment.diagonal_angle : 45}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', e.detail.value)}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="info" title="Theme Integration">
+                            Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code> entity state.
+                            Create this helper in Home Assistant configuration to enable theme integration.
+                        </lcards-message>
+                    `}
                 ` : ''}
 
                 <lcards-color-section-v2
@@ -720,20 +772,46 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
                         .hass=${this.hass}
-                        .label=${'Diagonal Cut Angle'}
-                        .helper=${'Angle of diagonal cuts (defaults to outer segment angle)'}
+                        .label=${'Diagonal Angle Mode'}
+                        .helper=${innerSegment.diagonal_angle === 'theme'
+                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
+                            : '📏 Static: Fixed angle value'}
                         .selector=${{
-                            number: {
-                                min: 0,
-                                max: 90,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: '°'
+                            select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                                ]
                             }
                         }}
-                        .value=${innerSegment.diagonal_angle ?? outerSegment.diagonal_angle ?? 45}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', e.detail.value)}>
+                        .value=${innerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
+                        @value-changed=${(e) => this._handleInnerDiagonalAngleModeChange(e)}>
                     </ha-selector>
+
+                    ${innerSegment.diagonal_angle !== 'theme' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Diagonal Cut Angle'}
+                            .helper=${'Angle of diagonal cuts (defaults to outer segment angle)'}
+                            .selector=${{
+                                number: {
+                                    min: 0,
+                                    max: 90,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: '°'
+                                }
+                            }}
+                            .value=${typeof innerSegment.diagonal_angle === 'number' ? innerSegment.diagonal_angle : (outerSegment.diagonal_angle ?? 45)}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', e.detail.value)}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="info" title="Theme Integration">
+                            Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code> entity state.
+                            Create this helper in Home Assistant configuration to enable theme integration.
+                        </lcards-message>
+                    `}
                 ` : ''}
             </lcards-form-section>
         `;
@@ -1027,6 +1105,71 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     composed: true
                 }));
             }
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle diagonal angle mode change for simple mode (static vs theme)
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleDiagonalAngleModeChange(event) {
+        const newMode = event.detail.value;
+
+        if (newMode === 'theme') {
+            // Switch to theme mode
+            this._setConfigValue('elbow.segment.diagonal_angle', 'theme');
+        } else {
+            // Switch to static mode - use default or current numeric value
+            const currentValue = this.config.elbow?.segment?.diagonal_angle;
+            const defaultValue = typeof currentValue === 'number' ? currentValue : 45;
+            this._setConfigValue('elbow.segment.diagonal_angle', defaultValue);
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle outer segment diagonal angle mode change (static vs theme)
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleOuterDiagonalAngleModeChange(event) {
+        const newMode = event.detail.value;
+
+        if (newMode === 'theme') {
+            // Switch to theme mode
+            this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', 'theme');
+        } else {
+            // Switch to static mode - use default or current numeric value
+            const currentValue = this.config.elbow?.segments?.outer_segment?.diagonal_angle;
+            const defaultValue = typeof currentValue === 'number' ? currentValue : 45;
+            this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', defaultValue);
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle inner segment diagonal angle mode change (static vs theme)
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleInnerDiagonalAngleModeChange(event) {
+        const newMode = event.detail.value;
+
+        if (newMode === 'theme') {
+            // Switch to theme mode
+            this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', 'theme');
+        } else {
+            // Switch to static mode - use default or current numeric value
+            const currentValue = this.config.elbow?.segments?.inner_segment?.diagonal_angle;
+            const outerAngle = this.config.elbow?.segments?.outer_segment?.diagonal_angle;
+            const defaultValue = typeof currentValue === 'number' ? currentValue :
+                               (typeof outerAngle === 'number' ? outerAngle : 45);
+            this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', defaultValue);
         }
 
         this.requestUpdate();

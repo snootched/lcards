@@ -124,7 +124,7 @@ export class LCARdSElbow extends LCARdSButton {
         super();
         this._elbowConfig = null;
         this._elbowGeometry = null;
-        this._themeBarDimensions = { horizontal: null, vertical: null };
+        this._themeBarDimensions = { horizontal: null, vertical: null, angle: null };
         this._themeEntityUnsubscribes = []; // Track subscriptions for cleanup
     }
 
@@ -316,6 +316,21 @@ export class LCARdSElbow extends LCARdSButton {
                 lcardsLog.warn(`[LCARdSElbow] Theme entity ${entityId} not found in HASS`);
             }
         }
+
+        // Check if using theme angle
+        const useThemeAngle = segment.diagonal_angle === 'theme' || segment.diagonal_angle === 'input_number.lcars_elbow_angle';
+        if (useThemeAngle) {
+            const entityId = 'input_number.lcars_elbow_angle';
+            if (this.hass.states[entityId]) {
+                lcardsLog.debug(`[LCARdSElbow] Subscribing to theme entity: ${entityId}`);
+                // We'll update on HASS changes via _handleHassUpdate
+                this._themeEntityUnsubscribes.push(() => {
+                    lcardsLog.debug(`[LCARdSElbow] Unsubscribed from ${entityId}`);
+                });
+            } else {
+                lcardsLog.warn(`[LCARdSElbow] Theme entity ${entityId} not found in HASS`);
+            }
+        }
     }
 
     /**
@@ -375,6 +390,22 @@ export class LCARdSElbow extends LCARdSButton {
             }
         } else {
             this._themeBarDimensions.vertical = null;
+        }
+
+        // Check angle (diagonal_angle)
+        const useThemeAngle = segment.diagonal_angle === 'theme' || segment.diagonal_angle === 'input_number.lcars_elbow_angle';
+        if (useThemeAngle) {
+            const entity = this.hass.states['input_number.lcars_elbow_angle'];
+            if (entity) {
+                const newValue = parseFloat(entity.state);
+                if (this._themeBarDimensions.angle !== newValue) {
+                    this._themeBarDimensions.angle = newValue;
+                    dimensionsChanged = true;
+                    lcardsLog.debug(`[LCARdSElbow] Theme angle updated: ${newValue}°`);
+                }
+            }
+        } else {
+            this._themeBarDimensions.angle = null;
         }
 
         // Recalculate geometry if dimensions changed
@@ -483,9 +514,12 @@ export class LCARdSElbow extends LCARdSButton {
                 inner_curve = undefined;
             }
 
-            // Parse diagonal angle (for diagonal-cap variants)
+            // Parse diagonal angle (for diagonal-cap variants) - support 'theme' keyword
             let diagonal_angle;
-            if (segment.diagonal_angle !== undefined) {
+            if (segment.diagonal_angle === 'theme' || segment.diagonal_angle === 'input_number.lcars_elbow_angle') {
+                // Will be resolved dynamically from HASS state
+                diagonal_angle = 'theme';
+            } else if (segment.diagonal_angle !== undefined) {
                 diagonal_angle = parseFloat(segment.diagonal_angle);
             }
 
@@ -512,8 +546,10 @@ export class LCARdSElbow extends LCARdSButton {
                         this._parseUnit(elbowConfig.segments.outer_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.outer_segment.inner_curve ?
                         this._parseUnit(elbowConfig.segments.outer_segment.inner_curve) : undefined,
-                    diagonal_angle: elbowConfig.segments.outer_segment.diagonal_angle !== undefined ?
-                        parseFloat(elbowConfig.segments.outer_segment.diagonal_angle) : undefined,
+                    diagonal_angle: (elbowConfig.segments.outer_segment.diagonal_angle === 'theme' ||
+                                    elbowConfig.segments.outer_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
+                                   (elbowConfig.segments.outer_segment.diagonal_angle !== undefined ?
+                                    parseFloat(elbowConfig.segments.outer_segment.diagonal_angle) : undefined),
                     color: elbowConfig.segments.outer_segment.color
                 } : null,
 
@@ -526,8 +562,10 @@ export class LCARdSElbow extends LCARdSButton {
                         this._parseUnit(elbowConfig.segments.inner_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.inner_segment.inner_curve ?
                         this._parseUnit(elbowConfig.segments.inner_segment.inner_curve) : undefined,
-                    diagonal_angle: elbowConfig.segments.inner_segment.diagonal_angle !== undefined ?
-                        parseFloat(elbowConfig.segments.inner_segment.diagonal_angle) : undefined,
+                    diagonal_angle: (elbowConfig.segments.inner_segment.diagonal_angle === 'theme' ||
+                                    elbowConfig.segments.inner_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
+                                   (elbowConfig.segments.inner_segment.diagonal_angle !== undefined ?
+                                    parseFloat(elbowConfig.segments.inner_segment.diagonal_angle) : undefined),
                     color: elbowConfig.segments.inner_segment.color
                 } : null
             };
@@ -607,6 +645,12 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.debug(`[LCARdSElbow] Calculated LCARS inner_curve: ${inner_curve}px`);
         }
 
+        // Resolve diagonal_angle
+        if (diagonal_angle === 'theme') {
+            diagonal_angle = this._themeBarDimensions?.angle ?? 45;
+            lcardsLog.debug(`[LCARdSElbow] Resolved diagonal_angle from theme: ${diagonal_angle}°`);
+        }
+
         return {
             type,  // Full type string (e.g., 'header-left', 'corner-inset-left', etc.)
             horizontal: bar_width,   // Sidebar width
@@ -654,7 +698,13 @@ export class LCARdSElbow extends LCARdSButton {
         const outerVertical = outer_segment.bar_height ?? outer_segment.bar_width;
         const outerSegmentOuterRadius = outer_segment.outer_curve ?? outer_segment.bar_width / 2;
         const outerSegmentInnerRadius = outer_segment.inner_curve ?? outerSegmentOuterRadius / 2;
-        const outerDiagonalAngle = outer_segment.diagonal_angle ?? 45;
+        let outerDiagonalAngle = outer_segment.diagonal_angle ?? 45;
+
+        // Resolve theme angle if needed
+        if (outerDiagonalAngle === 'theme') {
+            outerDiagonalAngle = this._themeBarDimensions?.angle ?? 45;
+            lcardsLog.debug(`[LCARdSElbow] Resolved outer diagonal_angle from theme: ${outerDiagonalAngle}°`);
+        }
 
         // === INNER SEGMENT ===
         // Apply defaults
@@ -668,7 +718,13 @@ export class LCARdSElbow extends LCARdSButton {
         // Default for inner inner_curve: LCARS formula
         const innerSegmentInnerRadius = inner_segment.inner_curve ??
             innerSegmentOuterRadius / 2;
-        const innerDiagonalAngle = inner_segment.diagonal_angle ?? outerDiagonalAngle;
+        let innerDiagonalAngle = inner_segment.diagonal_angle ?? outerDiagonalAngle;
+
+        // Resolve theme angle if needed
+        if (innerDiagonalAngle === 'theme') {
+            innerDiagonalAngle = this._themeBarDimensions?.angle ?? outerDiagonalAngle;
+            lcardsLog.debug(`[LCARdSElbow] Resolved inner diagonal_angle from theme: ${innerDiagonalAngle}°`);
+        }
 
         // Get position and side from component layout metadata
         const component = getElbowComponent(type);
@@ -1226,6 +1282,7 @@ export class LCARdSElbow extends LCARdSButton {
     /**
      * Process text fields with elbow-specific positioning
      * Adjusts text position to be within the content area (not overlapping the elbow)
+     * Delegates to parent button card for standard text processing, then adjusts positions.
      * @private
      */
     _processTextFieldsForElbow(textFields, width, height) {
@@ -1239,164 +1296,138 @@ export class LCARdSElbow extends LCARdSButton {
             return this._processTextFields(textFields, width, height, this._processedIcon);
         }
 
+        // Convert array back to object for parent's _processTextFields
+        const textFieldsObject = {};
+        textFields.forEach(field => {
+            const id = field.id || `field-${Math.random().toString(36).substring(2, 11)}`;
+            textFieldsObject[id] = field;
+        });
+
+        // Let parent button card do the standard processing (show, text_transform, color, etc.)
+        const processedFields = super._processTextFields(textFieldsObject, width, height, this._processedIcon);
+
+        // Now adjust positions based on elbow content area
         // Get position and side from component layout metadata
         const component = getElbowComponent(g.type);
         const position = component?.layout?.position || 'header';
         const side = component?.layout?.side || 'left';
 
-        const { horizontal, vertical } = g;
+        // For segmented mode, use inner segment dimensions; for simple mode, use direct geometry
+        const horizontal = g.inner ? g.inner.horizontal : g.horizontal;
+        const vertical = g.inner ? g.inner.vertical : g.vertical;
+        const offset = g.offset || { x: 0, y: 0 };
 
         // Calculate content area (area not occupied by elbow bars)
         let contentArea = {
-            x: 0,
-            y: 0,
+            x: offset.x,
+            y: offset.y,
             width: width,
             height: height
         };
 
         // Adjust content area based on elbow position
         if (position === 'header') {
-            // Horizontal bar at top, vertical bar on left or right
-            contentArea.y = vertical;
-            contentArea.height = height - vertical;
+            // Horizontal bar at top
+            contentArea.y += vertical;
+            contentArea.height -= vertical;
         } else {
             // Footer: horizontal bar at bottom
-            contentArea.height = height - vertical;
+            contentArea.height -= vertical;
         }
 
         if (side === 'left') {
             // Vertical bar on left
-            contentArea.x = horizontal;
-            contentArea.width = width - horizontal;
+            contentArea.x += horizontal;
+            contentArea.width -= horizontal;
         } else {
             // Vertical bar on right
-            contentArea.width = width - horizontal;
+            contentArea.width -= horizontal;
         }
 
-        // Process each text field with adjusted positioning
-        return textFields.map(field => {
-            const processed = this._processTextField(field, width, height, this._processedIcon);
+        // Adjust each processed field's position based on content area
+        return processedFields.map(field => {
+            const processed = { ...field };
 
-            // Adjust position to be within content area
-            // Only adjust if no explicit x/y was provided
-            if (!field.x && !field.x_percent) {
-                // Horizontal positioning
-                if (side === 'left') {
-                    // Content area is on the right of vertical bar
-                    const effectiveWidth = contentArea.width;
-                    if (field.position?.includes('left') || field.align === 'left') {
-                        processed.x = contentArea.x + (processed.padding?.left || 10);
-                        processed.anchor = 'start';
-                    } else if (field.position?.includes('right') || field.align === 'right') {
-                        processed.x = width - (processed.padding?.right || 10);
-                        processed.anchor = 'end';
-                    } else {
-                        // Center in content area
-                        processed.x = contentArea.x + effectiveWidth / 2;
-                        processed.anchor = 'middle';
-                    }
-                } else {
-                    // Content area is on the left of vertical bar
-                    const effectiveWidth = contentArea.width;
-                    if (field.position?.includes('left') || field.align === 'left') {
-                        processed.x = processed.padding?.left || 10;
-                        processed.anchor = 'start';
-                    } else if (field.position?.includes('right') || field.align === 'right') {
-                        processed.x = contentArea.width - (processed.padding?.right || 10);
-                        processed.anchor = 'end';
-                    } else {
-                        // Center in content area
-                        processed.x = effectiveWidth / 2;
-                        processed.anchor = 'middle';
-                    }
+            // Only adjust auto-positioned fields (those without explicit x/y)
+            // Check if this came from a named position or auto-center (not explicit coords)
+            const originalField = textFieldsObject[field.id];
+            if (!originalField) return processed;
+
+            const hasExplicitCoords = originalField.x !== null && originalField.x !== undefined &&
+                                     originalField.y !== null && originalField.y !== undefined;
+            const hasPercentCoords = originalField.x_percent !== null && originalField.x_percent !== undefined &&
+                                    originalField.y_percent !== null && originalField.y_percent !== undefined;
+
+            if (hasExplicitCoords || hasPercentCoords) {
+                // User set explicit coordinates - don't adjust
+                return processed;
+            }
+
+            // Determine if this is a center position (horizontally)
+            const isCenterX = !originalField.position || originalField.position === 'center' ||
+                             originalField.position?.includes('center');
+            const isLeftAligned = originalField.position?.includes('left') || originalField.align === 'left';
+            const isRightAligned = originalField.position?.includes('right') || originalField.align === 'right';
+
+            // Determine vertical alignment first
+            const isTopAligned = originalField.position?.includes('top');
+            const isBottomAligned = originalField.position?.includes('bottom');
+
+            // Determine if this is a center position (vertically)
+            // Includes: 'center', 'left-center', 'right-center' (but not 'top-center' or 'bottom-center')
+            const isCenterY = !originalField.position || originalField.position === 'center' ||
+                             (originalField.position?.includes('center') && !isTopAligned && !isBottomAligned);
+
+            // Adjust horizontal position based on content area
+            if (side === 'left') {
+                // Content area is on the right of vertical bar
+                if (isLeftAligned) {
+                    processed.x = contentArea.x + (processed.padding?.left || 10);
+                } else if (isRightAligned) {
+                    processed.x = width - (processed.padding?.right || 10);
+                } else if (isCenterX) {
+                    // Center within content area
+                    processed.x = contentArea.x + (contentArea.width / 2);
+                }
+            } else {
+                // Content area is on the left of vertical bar (side === 'right')
+                if (isLeftAligned) {
+                    processed.x = (processed.padding?.left || 10);
+                } else if (isRightAligned) {
+                    processed.x = contentArea.width - (processed.padding?.right || 10);
+                } else if (isCenterX) {
+                    // Center within content area
+                    processed.x = contentArea.width / 2;
                 }
             }
 
-            if (!field.y && !field.y_percent) {
-                // Vertical positioning
-                if (position === 'header') {
-                    // Content area is below horizontal bar
-                    if (field.position?.includes('top')) {
-                        processed.y = contentArea.y + (processed.padding?.top || 10) + (processed.size / 2);
-                    } else if (field.position?.includes('bottom')) {
-                        processed.y = height - (processed.padding?.bottom || 10);
-                    } else {
-                        // Center vertically in content area
-                        processed.y = contentArea.y + contentArea.height / 2;
-                    }
-                } else {
-                    // Footer: content area is above horizontal bar
-                    if (field.position?.includes('top')) {
-                        processed.y = (processed.padding?.top || 10) + (processed.size / 2);
-                    } else if (field.position?.includes('bottom')) {
-                        processed.y = contentArea.height - (processed.padding?.bottom || 10);
-                    } else {
-                        // Center vertically in content area
-                        processed.y = contentArea.height / 2;
-                    }
+            // Adjust vertical position based on content area
+            if (position === 'header') {
+                // Content area is below horizontal bar
+                if (isTopAligned) {
+                    // Shift down by bar height (parent calculated from full button top)
+                    processed.y += vertical;
+                } else if (isBottomAligned) {
+                    // Bottom stays at bottom - no adjustment needed
+                } else if (isCenterY) {
+                    // Center within content area
+                    processed.y = contentArea.y + (contentArea.height / 2);
+                }
+            } else {
+                // Footer: content area is above horizontal bar
+                if (isTopAligned) {
+                    // Top stays at top - no adjustment needed
+                } else if (isBottomAligned) {
+                    // Shift up by bar height (parent calculated from full button bottom)
+                    processed.y -= vertical;
+                } else if (isCenterY) {
+                    // Center within content area
+                    processed.y = contentArea.height / 2;
                 }
             }
 
             return processed;
         });
-    }
-
-    /**
-     * Process a single text field (helper method)
-     * @private
-     */
-    _processTextField(field, width, height, iconConfig) {
-        // Get state for color resolution
-        const state = this._getButtonState();
-        const actualEntityState = this._entity?.state;
-
-        // Default text styling from button style
-        const defaultStyle = this._buttonStyle?.text?.default || {};
-
-        // Resolve font size
-        const fontSize = field.font_size || defaultStyle.font_size || 14;
-
-        // Resolve color (state-aware)
-        let color;
-        if (field.color) {
-            color = resolveStateColor({
-                actualState: actualEntityState,
-                classifiedState: state,
-                colorConfig: field.color,
-                fallback: '#000000'
-            });
-        } else {
-            color = resolveStateColor({
-                actualState: actualEntityState,
-                classifiedState: state,
-                colorConfig: defaultStyle.color,
-                fallback: '#000000'
-            });
-        }
-
-        return {
-            id: field.id || `text-${Math.random().toString(36).substring(2, 11)}`,
-            content: field.content || '',
-            x: field.x || 0,
-            y: field.y || 0,
-            size: fontSize,
-            color: color,
-            font_weight: field.font_weight || defaultStyle.font_weight || 'bold',
-            font_family: field.font_family || defaultStyle.font_family || "'LCARS', 'Antonio', sans-serif",
-            anchor: field.anchor || 'middle',
-            baseline: field.baseline || 'central',
-            rotation: field.rotation || 0,
-            padding: {
-                top: field.padding_top || field.padding || 0,
-                right: field.padding_right || field.padding || 0,
-                bottom: field.padding_bottom || field.padding || 0,
-                left: field.padding_left || field.padding || 0
-            },
-            position: field.position,
-            background: field.background,
-            background_padding: field.background_padding,
-            background_radius: field.background_radius
-        };
     }
 
     /**

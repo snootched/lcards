@@ -3563,7 +3563,7 @@ export class LCARdSButton extends LCARdSCard {
                         (presetFieldConfig.padding !== undefined ? presetFieldConfig.padding :
                         (userDefaults.padding !== undefined ? userDefaults.padding :
                         (presetTextDefaults.padding !== undefined ? presetTextDefaults.padding : 8))),
-                size: fieldConfig.font_size || fieldConfig.size || presetFieldConfig.font_size || presetFieldConfig.size || userDefaults.font_size || this._buttonStyle?.text?.default?.font_size || 14,
+                font_size: fieldConfig.font_size || fieldConfig.size || presetFieldConfig.font_size || presetFieldConfig.size || userDefaults.font_size || this._buttonStyle?.text?.default?.font_size || 14,
                 color: fieldConfig.color || presetFieldConfig.color || userDefaults.color || presetTextDefaults.color || null, // null means use default
                 font_weight: fieldConfig.font_weight || presetFieldConfig.font_weight || userDefaults.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
                 font_family: fieldConfig.font_family || presetFieldConfig.font_family || userDefaults.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
@@ -3907,7 +3907,7 @@ export class LCARdSButton extends LCARdSCard {
                 content: content,
                 x: x,
                 y: y,
-                size: field.size,
+                font_size: field.font_size,
                 color: resolvedColor,
                 font_weight: field.font_weight,
                 font_family: field.font_family,
@@ -3944,7 +3944,7 @@ export class LCARdSButton extends LCARdSCard {
                 // Use actual text measurement for accurate sizing
                 const fontFamily = field.fontFamily || 'Antonio, Helvetica Neue, sans-serif';
                 const fontWeight = field.weight || 100;
-                const fontString = `${fontWeight} ${field.size}px ${fontFamily}`;
+                const fontString = `${fontWeight} ${field.font_size}px ${fontFamily}`;
 
                 const metrics = RendererUtils.measureText(field.content, fontString);
                 const textWidth = metrics.width;
@@ -3998,7 +3998,7 @@ export class LCARdSButton extends LCARdSCard {
             const textAttrs = [
                 `x="${field.x}"`,
                 `y="${field.y}"`,
-                `font-size="${field.size}"`,
+                `font-size="${field.font_size}"`,
                 `fill="${field.color}"`,
                 `text-anchor="${field.anchor}"`,
                 `dominant-baseline="${field.baseline}"`,
