@@ -46,9 +46,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             _workingConfig: { type: Object, state: true },
             _activeTab: { type: String, state: true },
             _validationErrors: { type: Array, state: true },
-            _gridRows: { type: Number, state: true },
-            _gridColumns: { type: Number, state: true },
-            _gridGap: { type: Number, state: true },
             _activeCellEdit: { type: Object, state: true }, // {row, col, value}
             _activeRowEdit: { type: Number, state: true }, // row index
             _activeColumnEdit: { type: Number, state: true }, // column index
@@ -65,11 +62,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         this._workingConfig = {};
         this._activeTab = 'mode';
         this._validationErrors = [];
-
-        // Grid UI state variables
-        this._gridRows = 8;
-        this._gridColumns = 12;
-        this._gridGap = 8;
 
         // Create ref for preview container
         this._previewRef = createRef();
@@ -109,6 +101,56 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         }
     }
 
+    /**
+     * Get row count from grid template
+     * @returns {number} Number of rows
+     */
+    get _gridRowCount() {
+        const grid = this._workingConfig.grid || {};
+        
+        // For data mode with actual rows, use the actual row count
+        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
+            return this._workingConfig.rows.length;
+        }
+        
+        // Parse from grid-template-rows
+        const rows = grid['grid-template-rows'] || grid.rows || 'repeat(8, auto)';
+        const match = rows.match(/repeat\((\d+)/);
+        return match ? parseInt(match[1]) : 8;
+    }
+
+    /**
+     * Get column count from grid template
+     * @returns {number} Number of columns
+     */
+    get _gridColumnCount() {
+        const grid = this._workingConfig.grid || {};
+        
+        // For data mode with actual rows, calculate columns from first row
+        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
+            const firstRow = this._workingConfig.rows[0];
+            if (Array.isArray(firstRow) && firstRow.length > 0) {
+                return firstRow.length;
+            }
+        }
+        
+        // Parse from grid-template-columns
+        const columns = grid['grid-template-columns'] || grid.columns || 'repeat(12, 1fr)';
+        const match = columns.match(/repeat\((\d+)/);
+        return match ? parseInt(match[1]) : 12;
+    }
+
+    /**
+     * Get gap value from grid config
+     * @returns {number} Gap in pixels
+     */
+    get _gridGapValue() {
+        const grid = this._workingConfig.grid || {};
+        const gap = grid.gap || grid['grid-gap'] || '8px';
+        const match = String(gap).match(/(\d+)/);
+        return match ? parseInt(match[1]) : 8;
+    }
+
     connectedCallback() {
         super.connectedCallback();
         // Deep clone initial config
@@ -135,9 +177,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 gap: '8px'
             };
         }
-
-        // Parse CSS Grid strings to numbers for UI sliders
-        this._parseGridConfigForUI();
 
         // Initialize Data mode (grid layout) with sample rows matching grid dimensions
         if (this._workingConfig.data_mode === 'data' && !this._workingConfig.rows) {
@@ -701,7 +740,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderManualModeConfig() {
         const rows = this._workingConfig.rows || [];
-        const numColumns = this._gridColumns || 12;
+        const numColumns = this._gridColumnCount;
 
         return html`
             <lcards-form-section
@@ -923,7 +962,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-selector
                         .hass=${this.hass}
                         .selector=${{number: {min: 1, max: 50, mode: 'box'}}}
-                        .value=${this._gridRows}
+                        .value=${this._gridRowCount}
                         .label=${'Rows'}
                         .helper=${'Number of rows'}
                         @value-changed=${(e) => this._handleGridRowsChange(parseInt(e.detail.value) || 1)}
@@ -933,7 +972,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-selector
                         .hass=${this.hass}
                         .selector=${{number: {min: 1, max: 50, mode: 'box'}}}
-                        .value=${this._gridColumns}
+                        .value=${this._gridColumnCount}
                         .label=${'Columns'}
                         .helper=${'Number of columns'}
                         @value-changed=${(e) => this._handleGridColumnsChange(parseInt(e.detail.value) || 1)}
@@ -944,7 +983,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <ha-selector
                     .hass=${this.hass}
                     .selector=${{number: {min: 0, max: 50, mode: 'box'}}}
-                    .value=${this._gridGap}
+                    .value=${this._gridGapValue}
                     .label=${'Gap (px)'}
                     .helper=${'Space between cells'}
                     @value-changed=${(e) => this._handleGridGapChange(parseInt(e.detail.value) || 0)}
@@ -996,7 +1035,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderManualModeEditor() {
         const rows = this._workingConfig.rows || [];
-        const numColumns = this._gridColumns || 12;
+        const numColumns = this._gridColumnCount;
 
         return html`
             <lcards-form-section
@@ -1122,7 +1161,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderGridDataEditor() {
         const rows = this._workingConfig.rows || [];
-        const numColumns = this._gridColumns || 12;
+        const numColumns = this._gridColumnCount;
 
         return html`
             <lcards-form-section
@@ -1739,7 +1778,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-textfield
                         type="number"
                         label="Rows"
-                        .value=${this._gridRows}
+                        .value=${this._gridRowCount}
                         @input=${(e) => this._handleGridRowsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
@@ -1749,7 +1788,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-textfield
                         type="number"
                         label="Columns"
-                        .value=${this._gridColumns}
+                        .value=${this._gridColumnCount}
                         @input=${(e) => this._handleGridColumnsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
@@ -1760,7 +1799,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <ha-textfield
                     type="number"
                     label="Gap (px)"
-                    .value=${this._gridGap}
+                    .value=${this._gridGapValue}
                     @input=${(e) => this._handleGridGapChange(parseInt(e.target.value) || 0)}
                     min="0"
                     max="50"
@@ -2115,8 +2154,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * @private
      */
     _initializeGridRows() {
-        const numRows = this._gridRows || 8;
-        const numCols = this._gridColumns || 12;
+        const numRows = this._gridRowCount;
+        const numCols = this._gridColumnCount;
 
         this._workingConfig.rows = [];
 
@@ -2149,87 +2188,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
-     * Parse CSS Grid strings back to numbers for UI sliders
-     * @private
-     */
-    _parseGridConfigForUI() {
-        const grid = this._workingConfig.grid || {};
-
-        // For data mode with actual rows, use the actual row count
-        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
-            this._gridRows = this._workingConfig.rows.length;
-
-            // Sync the grid template to match actual data
-            const cssValue = `repeat(${this._gridRows}, auto)`;
-            if (grid['grid-template-rows'] !== cssValue) {
-                this._workingConfig.grid['grid-template-rows'] = cssValue;
-            }
-        } else {
-            // Parse grid-template-rows: "repeat(8, auto)" -> 8
-            if (grid['grid-template-rows']) {
-                const match = grid['grid-template-rows'].match(/repeat\((\d+),/);
-                this._gridRows = match ? parseInt(match[1]) : 8;
-            } else if (grid.rows) {
-                // Fallback to old shorthand format
-                this._gridRows = grid.rows;
-            } else {
-                this._gridRows = 8;
-            }
-        }
-
-        // For data mode with actual rows, calculate columns from first row
-        if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
-            const firstRow = this._workingConfig.rows[0];
-            if (Array.isArray(firstRow) && firstRow.length > 0) {
-                this._gridColumns = firstRow.length;
-
-                // Sync the grid template to match actual data
-                const cssValue = `repeat(${this._gridColumns}, 1fr)`;
-                if (grid['grid-template-columns'] !== cssValue) {
-                    this._workingConfig.grid['grid-template-columns'] = cssValue;
-                }
-            } else {
-                // Parse from grid template
-                if (grid['grid-template-columns']) {
-                    const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
-                    this._gridColumns = match ? parseInt(match[1]) : 12;
-                } else if (grid.columns) {
-                    this._gridColumns = grid.columns;
-                } else {
-                    this._gridColumns = 12;
-                }
-            }
-        } else {
-            // Parse grid-template-columns: "repeat(12, 1fr)" -> 12
-            if (grid['grid-template-columns']) {
-                const match = grid['grid-template-columns'].match(/repeat\((\d+),/);
-                this._gridColumns = match ? parseInt(match[1]) : 12;
-            } else if (grid.columns) {
-                // Fallback to old shorthand format
-                this._gridColumns = grid.columns;
-            } else {
-                this._gridColumns = 12;
-            }
-        }
-
-        // Parse gap: "8px" -> 8
-        if (grid.gap) {
-            const match = String(grid.gap).match(/(\d+)/);
-            this._gridGap = match ? parseInt(match[1]) : 8;
-        } else {
-            this._gridGap = 8;
-        }
-
-        lcardsLog.debug('[DataGridStudioV4] Parsed grid config for UI:', {
-            rows: this._gridRows,
-            columns: this._gridColumns,
-            gap: this._gridGap,
-            actualRowsLength: this._workingConfig.rows?.length,
-            mode: this._workingConfig.data_mode
-        });
-    }
-
-    /**
      * Handle grid rows change - generates CSS Grid string and syncs rows array
      * @param {number} value - Number of rows
      * @private
@@ -2239,16 +2197,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const cssValue = `repeat(${value}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
 
-        // Store human-readable value for UI binding
-        this._gridRows = value;
-
         // Sync rows array for data mode
         if (this._workingConfig.data_mode === 'data' && this._workingConfig.rows) {
             const currentRows = this._workingConfig.rows.length;
             if (value > currentRows) {
                 // Add empty rows
                 for (let i = currentRows; i < value; i++) {
-                    const emptyRow = Array(this._gridColumns).fill('');
+                    const emptyRow = Array(this._gridColumnCount).fill('');
                     this._workingConfig.rows.push(emptyRow);
                 }
             } else if (value < currentRows) {
@@ -2269,9 +2224,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Generate CSS Grid string
         const cssValue = `repeat(${value}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
-
-        // Store human-readable value for UI binding
-        this._gridColumns = value;
 
         // Sync columns in all rows for data mode
         if (this._workingConfig.data_mode === 'data' && this._workingConfig.rows) {
@@ -2303,9 +2255,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Gap can be number or string with units
         const cssValue = `${value}px`;
         this._updateConfig('grid.gap', cssValue);
-
-        // Store human-readable value for UI binding
-        this._gridGap = value;
 
         lcardsLog.debug('[DataGridStudioV4] Grid gap changed:', { value, cssValue });
     }
@@ -2440,7 +2389,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _setCellStyleValue(row, col, property, value) {
         // Ensure row exists
         if (!this._workingConfig.rows[row]) {
-            this._workingConfig.rows[row] = Array(this._gridColumns).fill('');
+            this._workingConfig.rows[row] = Array(this._gridColumnCount).fill('');
         }
 
         // Convert row to object format if it's an array
@@ -2844,7 +2793,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             this._workingConfig.rows = [];
         }
 
-        const numColumns = this._gridColumns || 12;
+        const numColumns = this._gridColumnCount;
         const newRow = {
             values: Array(numColumns).fill(''),
             style: {},
@@ -2853,12 +2802,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         this._workingConfig.rows.push(newRow);
 
-        // Sync _gridRows and update grid template
-        this._gridRows = this._workingConfig.rows.length;
-        const cssValue = `repeat(${this._gridRows}, auto)`;
+        // Update grid template to match new row count
+        const newRowCount = this._workingConfig.rows.length;
+        const cssValue = `repeat(${newRowCount}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Manual row added, grid rows synced to:', this._gridRows);
+        lcardsLog.info('[DataGridStudioV4] Manual row added, new row count:', newRowCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2871,12 +2820,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         this._workingConfig.rows.splice(index, 1);
 
-        // Sync _gridRows and update grid template
-        this._gridRows = this._workingConfig.rows.length;
-        const cssValue = `repeat(${this._gridRows}, auto)`;
+        // Update grid template to match new row count
+        const newRowCount = this._workingConfig.rows.length;
+        const cssValue = `repeat(${newRowCount}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Manual row deleted:', index, 'grid rows synced to:', this._gridRows);
+        lcardsLog.info('[DataGridStudioV4] Manual row deleted:', index, 'new row count:', newRowCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -2896,12 +2845,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             }
         });
 
-        // Update grid columns count and sync grid template
-        this._gridColumns = (this._gridColumns || 12) + 1;
-        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        // Update grid template to match new column count
+        const newColumnCount = this._gridColumnCount;
+        const cssValue = `repeat(${newColumnCount}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Manual column added, grid columns synced to:', this._gridColumns);
+        lcardsLog.info('[DataGridStudioV4] Manual column added, new column count:', newColumnCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -3326,7 +3275,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         Move Left
                     </ha-button>
 
-                    <ha-button @click=${() => this._moveColumnRight(colIndex)} .disabled=${colIndex === this._gridColumns - 1}>
+                    <ha-button @click=${() => this._moveColumnRight(colIndex)} .disabled=${colIndex === this._gridColumnCount - 1}>
                         <ha-icon icon="mdi:arrow-right-bold" slot="icon"></ha-icon>
                         Move Right
                     </ha-button>
@@ -3351,38 +3300,38 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _insertRowBefore(index) {
         const emptyRow = {
-            values: Array(this._gridColumns).fill(''),
+            values: Array(this._gridColumnCount).fill(''),
             style: {},
             cellStyles: []
         };
         this._workingConfig.rows.splice(index, 0, emptyRow);
         this._activeRowEdit = null;
 
-        // Sync _gridRows and update grid template
-        this._gridRows = this._workingConfig.rows.length;
-        const cssValue = `repeat(${this._gridRows}, auto)`;
+        // Update grid template to match new row count
+        const newRowCount = this._workingConfig.rows.length;
+        const cssValue = `repeat(${newRowCount}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Row inserted before:', index, 'grid rows synced to:', this._gridRows);
+        lcardsLog.info('[DataGridStudioV4] Row inserted before:', index, 'new row count:', newRowCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
 
     _insertRowAfter(index) {
         const emptyRow = {
-            values: Array(this._gridColumns).fill(''),
+            values: Array(this._gridColumnCount).fill(''),
             style: {},
             cellStyles: []
         };
         this._workingConfig.rows.splice(index + 1, 0, emptyRow);
         this._activeRowEdit = null;
 
-        // Sync _gridRows and update grid template
-        this._gridRows = this._workingConfig.rows.length;
-        const cssValue = `repeat(${this._gridRows}, auto)`;
+        // Update grid template to match new row count
+        const newRowCount = this._workingConfig.rows.length;
+        const cssValue = `repeat(${newRowCount}, auto)`;
         this._updateConfig('grid.grid-template-rows', cssValue);
 
-        lcardsLog.info('[DataGridStudioV4] Row inserted after:', index, 'grid rows synced to:', this._gridRows);
+        lcardsLog.info('[DataGridStudioV4] Row inserted after:', index, 'new row count:', newRowCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -3413,14 +3362,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 row.values.splice(index, 0, '');
             }
         });
-        this._gridColumns++;
 
-        // Update grid template using _updateConfig
-        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        // Update grid template to match new column count
+        const newColumnCount = this._gridColumnCount;
+        const cssValue = `repeat(${newColumnCount}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
 
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column inserted before:', index, 'grid columns synced to:', this._gridColumns);
+        lcardsLog.info('[DataGridStudioV4] Column inserted before:', index, 'new column count:', newColumnCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -3431,14 +3380,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 row.values.splice(index + 1, 0, '');
             }
         });
-        this._gridColumns++;
 
-        // Update grid template using _updateConfig
-        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        // Update grid template to match new column count
+        const newColumnCount = this._gridColumnCount;
+        const cssValue = `repeat(${newColumnCount}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
 
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column inserted after:', index, 'grid columns synced to:', this._gridColumns);
+        lcardsLog.info('[DataGridStudioV4] Column inserted after:', index, 'new column count:', newColumnCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
@@ -3459,7 +3408,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     _moveColumnRight(index) {
-        if (index === this._gridColumns - 1) return;
+        if (index === this._gridColumnCount - 1) return;
         this._workingConfig.rows.forEach(row => {
             if (row.values) {
                 const temp = row.values[index];
@@ -3483,14 +3432,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 }
             }
         });
-        this._gridColumns--;
 
-        // Update grid template using _updateConfig
-        const cssValue = `repeat(${this._gridColumns}, 1fr)`;
+        // Update grid template to match new column count
+        const newColumnCount = this._gridColumnCount;
+        const cssValue = `repeat(${newColumnCount}, 1fr)`;
         this._updateConfig('grid.grid-template-columns', cssValue);
 
         this._activeColumnEdit = null;
-        lcardsLog.info('[DataGridStudioV4] Column deleted:', index, 'grid columns synced to:', this._gridColumns);
+        lcardsLog.info('[DataGridStudioV4] Column deleted:', index, 'new column count:', newColumnCount);
         this.requestUpdate();
         this._schedulePreviewUpdate();
     }
