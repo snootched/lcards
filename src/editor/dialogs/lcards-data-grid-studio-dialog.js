@@ -1,15 +1,16 @@
 /**
  * LCARdS Data Grid Configuration Studio V4
  *
- * Simplified 2-mode architecture:
- * - Decorative Mode: Auto-generated random data for LCARS ambiance
- * - Data Mode: Real entity/sensor data with grid layout
+ * 3-mode architecture:
+ * - Decorative Mode: Auto-generated random LCARS data
+ * - Manual Mode: Custom templates per cell with full control
+ * - Data Table Mode: Multi-entity historical or live data table (future)
  *
  * Key Features:
  * - Live preview with configurable grid dimensions
  * - Grid layout: Flexible spreadsheet-style data display
  * - Visual hierarchy diagrams for styling
- * - Split-panel layout (33/66 config/preview)
+ * - Split-panel layout (40/60 config/preview)
  * - Canvas toolbar with gridlines and animations toggle
  *
  * @element lcards-data-grid-studio-dialog-v4
@@ -33,7 +34,6 @@ import '../components/shared/lcards-style-hierarchy-diagram.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
-import '../components/editors/lcards-visual-grid-designer.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../../cards/lcards-data-grid.js';
@@ -321,6 +321,38 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 gap: 0;
                 border-bottom: 2px solid var(--divider-color);
                 background: var(--secondary-background-color);
+                overflow-x: auto; /* Enable horizontal scroll */
+                overflow-y: hidden;
+            }
+
+            .tab-navigation::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .tab-navigation::-webkit-scrollbar-thumb {
+                background: var(--primary-color);
+                border-radius: 2px;
+            }
+
+            /* Prevent tabs from shrinking */
+            .tab-navigation ha-tab-group {
+                flex-shrink: 0;
+                min-width: max-content;
+            }
+
+            .tab-navigation ha-tab-group-tab {
+                flex-shrink: 0;
+                min-width: 120px;
+                white-space: nowrap;
+            }
+
+            /* Canvas toolbar button states */
+            .canvas-toolbar-button.inactive {
+                opacity: 0.5;
+            }
+
+            .canvas-toolbar-button.inactive:hover {
+                opacity: 0.7;
             }
 
             /* Preview container adjustments */
@@ -396,7 +428,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             /* Mode selector cards */
             .mode-selector {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 gap: 12px;
                 margin-bottom: 24px;
             }
@@ -571,10 +603,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                                     </button>
                                     <div class="canvas-toolbar-divider"></div>
                                     <button
-                                        class="canvas-toolbar-button ${this._showAnimations ? 'active' : ''}"
+                                        class="canvas-toolbar-button ${this._showAnimations ? 'active' : 'inactive'}"
                                         @click=${this._toggleAnimations}
-                                        title="Toggle Animations">
-                                        <ha-icon icon="mdi:animation"></ha-icon>
+                                        title="${this._showAnimations ? 'Disable Animations' : 'Enable Animations'}">
+                                        <ha-icon icon="${this._showAnimations ? 'mdi:animation' : 'mdi:animation-outline'}"></ha-icon>
                                     </button>
                                 </div>
                             </div>
@@ -683,13 +715,19 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 id: 'decorative',
                 icon: 'mdi:shimmer',
                 title: 'Decorative',
-                description: 'Auto-generated random data for LCARS-style ambiance'
+                description: 'Auto-generated random LCARS data'
+            },
+            {
+                id: 'manual',
+                icon: 'mdi:table-edit',
+                title: 'Manual',
+                description: 'Custom templates per cell with full control'
             },
             {
                 id: 'data',
                 icon: 'mdi:database',
-                title: 'Data',
-                description: 'Real entity/sensor data with grid layout'
+                title: 'Data Table',
+                description: 'Multi-entity historical or live data table'
             }
         ];
 
@@ -950,7 +988,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 icon="mdi:ruler"
                 ?expanded=${true}>
 
-                ${dataMode === 'data' ? html`
+                ${dataMode === 'manual' ? html`
                     <lcards-message type="info">
                         <strong>Tip:</strong> Grid dimensions sync with spreadsheet editor.
                         You can add/remove rows/columns here or in the spreadsheet below.
@@ -992,10 +1030,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             </lcards-form-section>
 
             ${dataMode === 'decorative' ? this._renderDecorativeModeConfig() : ''}
-            ${dataMode === 'data' ? html`
+            ${dataMode === 'manual' ? html`
                 ${this._renderDataModeConfig()}
                 ${this._renderDataModeEditor()}
             ` : ''}
+            ${dataMode === 'data' ? this._renderDataTablePlaceholder() : ''}
         `;
     }
 
@@ -1284,13 +1323,43 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return html`
             <lcards-form-section
                 header="Data Mode Settings"
-                description="Configure real entity/sensor data"
+                description="Configure entity/datasource integration"
                 icon="mdi:database"
                 ?expanded=${true}>
 
                 <lcards-message type="info">
-                    Grid mode: Rows with auto-detected cells (static text, entity refs, or templates)
-                </lcards:message>
+                    <strong>Manual Mode</strong>: Define grid structure below. Each cell can contain:
+                    <ul style="margin: 8px 0; padding-left: 20px;">
+                        <li>Static text (e.g., "Temperature")</li>
+                        <li>Entity IDs (e.g., sensor.temperature) - auto-resolves to current state</li>
+                        <li>Templates (e.g., {{states('sensor.temp')}}°C)</li>
+                        <li>JavaScript expressions (e.g., [[[return value.toFixed(2);]]])</li>
+                    </ul>
+                    Click any cell below to edit its content.
+                </lcards-message>
+            </lcards-form-section>
+        `;
+    }
+
+    _renderDataTablePlaceholder() {
+        return html`
+            <lcards-form-section
+                header="Data Table Mode (Coming Soon)"
+                description="Multi-entity historical data tables"
+                icon="mdi:table-large"
+                ?expanded=${true}>
+
+                <ha-alert alert-type="info">
+                    <strong>Future Feature</strong><br><br>
+                    Data Table mode will allow you to create multi-column tables with:
+                    <ul style="margin: 8px 0; padding-left: 20px;">
+                        <li>Multiple entities as columns</li>
+                        <li>Historical data from each entity</li>
+                        <li>Configurable sampling intervals</li>
+                        <li>DataSource integration</li>
+                    </ul>
+                    For now, use <strong>Manual mode</strong> to build custom grids with templates.
+                </ha-alert>
             </lcards-form-section>
         `;
     }
@@ -1874,19 +1943,89 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return html`
             <lcards-message type="info">
                 <ha-icon icon="mdi:information" slot="icon"></ha-icon>
-                Advanced CSS Grid properties. Use the visual designer below to configure grid layout
-                with live preview, or switch to code editor for direct CSS input.
+                Advanced CSS Grid properties. Changes affect the entire grid container.
+                Use the live preview panel to see results in real-time.
             </lcards-message>
 
-            <lcards-visual-grid-designer
-                .hass=${this.hass}
-                .config=${this._workingConfig.grid || {}}
-                @grid-changed=${this._handleGridChanged}
-                show-preview
-                show-code-editor>
-            </lcards-visual-grid-designer>
+            <lcards-form-section
+                header="Grid Template"
+                description="Define row and column sizing"
+                icon="mdi:table-cog"
+                ?expanded=${true}>
 
-            <!-- Additional Advanced Options -->
+                <ha-textfield
+                    label="Grid Template Rows"
+                    .value=${this._workingConfig.grid?.['grid-template-rows'] || 'repeat(8, auto)'}
+                    @input=${(e) => this._updateConfig('grid.grid-template-rows', e.target.value)}
+                    helper="e.g., 'repeat(8, auto)', '100px 1fr 2fr'">
+                </ha-textfield>
+
+                <ha-textfield
+                    label="Grid Template Columns"
+                    .value=${this._workingConfig.grid?.['grid-template-columns'] || 'repeat(12, 1fr)'}
+                    @input=${(e) => this._updateConfig('grid.grid-template-columns', e.target.value)}
+                    helper="e.g., 'repeat(12, 1fr)', '200px 1fr 1fr'">
+                </ha-textfield>
+
+                <ha-textfield
+                    label="Grid Gap"
+                    .value=${this._workingConfig.grid?.gap || '8px'}
+                    @input=${(e) => this._updateConfig('grid.gap', e.target.value)}
+                    helper="e.g., '8px', '1rem 2rem'">
+                </ha-textfield>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Grid Flow & Alignment"
+                description="Control item placement and alignment"
+                icon="mdi:arrow-decision"
+                ?expanded=${true}>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {mode: 'dropdown', options: [
+                        { value: 'row', label: 'Row' },
+                        { value: 'column', label: 'Column' },
+                        { value: 'row dense', label: 'Row Dense' },
+                        { value: 'column dense', label: 'Column Dense' }
+                    ]}}}
+                    .label=${'Grid Auto Flow'}
+                    .value=${this._workingConfig.grid?.['grid-auto-flow'] || 'row'}
+                    @value-changed=${(e) => this._updateConfig('grid.grid-auto-flow', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
+
+                <lcards-grid-layout>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' }
+                        ]}}}
+                        .label=${'Justify Items'}
+                        .value=${this._workingConfig.grid?.['justify-items'] || 'stretch'}
+                        @value-changed=${(e) => this._updateConfig('grid.justify-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {mode: 'dropdown', options: [
+                            { value: 'stretch', label: 'Stretch' },
+                            { value: 'start', label: 'Start' },
+                            { value: 'end', label: 'End' },
+                            { value: 'center', label: 'Center' }
+                        ]}}}
+                        .label=${'Align Items'}
+                        .value=${this._workingConfig.grid?.['align-items'] || 'stretch'}
+                        @value-changed=${(e) => this._updateConfig('grid.align-items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
             <lcards-form-section
                 header="Additional Grid Options"
                 description="Container alignment and implicit grid sizing"
@@ -1946,25 +2085,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </lcards-grid-layout>
             </lcards-form-section>
         `;
-    }
-
-    /**
-     * Handle grid configuration changes from visual grid designer
-     */
-    _handleGridChanged(e) {
-        this._workingConfig.grid = {
-            ...this._workingConfig.grid,
-            ...e.detail.grid
-        };
-        
-        // Also update UI state for grid dimensions if they changed
-        if (e.detail.grid['grid-template-rows']) {
-            this._parseGridConfigForUI();
-        }
-        
-        this.requestUpdate();
-        this._schedulePreviewUpdate();
-        lcardsLog.debug('[DataGridStudioV4] Grid config updated from visual designer:', e.detail.grid);
     }
 
     // Old subtabs removed - Grid Styles is now a main tab, Animation is now a main tab
@@ -2090,7 +2210,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         // Clean up mode-specific config when switching
         if (mode === 'decorative') {
-            // Switching to decorative: remove data mode properties
+            // Switching to decorative: remove data/manual mode properties
             delete this._workingConfig.rows;
             delete this._workingConfig.layout;
             delete this._workingConfig.source;
@@ -2104,20 +2224,23 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             if (this._workingConfig.refresh_interval === undefined) {
                 this._workingConfig.refresh_interval = 0;
             }
-        } else if (mode === 'data') {
-            // Switching to data: remove decorative mode properties
+        } else if (mode === 'manual') {
+            // Switching to manual: remove decorative mode properties
             delete this._workingConfig.format;
             delete this._workingConfig.refresh_interval;
 
-            // Initialize data mode with grid layout by default
-            if (!this._workingConfig.layout) {
-                this._workingConfig.layout = 'grid';
-            }
-
-            // Initialize grid mode with sample rows if needed
+            // Initialize manual mode with sample rows if needed
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
                 this._initializeGridRows();
             }
+        } else if (mode === 'data') {
+            // Switching to data table: remove other mode properties
+            delete this._workingConfig.format;
+            delete this._workingConfig.refresh_interval;
+            delete this._workingConfig.rows; // Data table uses different structure
+
+            // Show future state message (not implemented yet)
+            lcardsLog.info('[DataGridStudioV4] Data Table mode selected (future feature)');
         }
 
         lcardsLog.info('[DataGridStudioV4] Mode changed:', { from: oldMode, to: mode });
@@ -2556,9 +2679,18 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Convert config for backward compatibility with card
         const cardConfig = this._convertConfigForCard(this._workingConfig);
 
-        // Strip animations if toggle is off
-        if (!this._showAnimations && cardConfig.animation) {
-            delete cardConfig.animation;
+        // Control animations via explicit flag
+        if (!this._showAnimations) {
+            // Disable all animation-related config
+            if (cardConfig.animation) {
+                cardConfig.animation = { ...cardConfig.animation, enabled: false };
+            }
+            if (cardConfig.animations) {
+                cardConfig.animations = cardConfig.animations.map(anim => ({
+                    ...anim,
+                    enabled: false
+                }));
+            }
         }
 
         lcardsLog.debug('[DataGridStudioV4] Setting card config:', cardConfig);

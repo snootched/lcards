@@ -23,11 +23,11 @@ export const studioDialogStyles = css`
         --mdc-dialog-min-height: 90vh;
     }
 
-    /* Split Panel Layout (33/66 ratio) */
+    /* Split Panel Layout (40/60 ratio - wider left panel for cell editor) */
     .studio-layout {
         flex: 1;
         display: grid;
-        grid-template-columns: 33.3% 66.6%;
+        grid-template-columns: 40% 60%;
         gap: 0;
         overflow: hidden;
         background: var(--primary-background-color);
