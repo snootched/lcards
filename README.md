@@ -131,59 +131,91 @@ Legend:  ✅ Present | ❌ Not present | ⚠️ Partial
 
 ## System Architecture
 
-LCARdS is built on a layered architecture that keeps cards simple while providing powerful shared features:
+LCARdS uses a centralized singleton architecture where Home Assistant state flows through a core hub to all cards and systems:
 
 ```mermaid
 graph TB
-    subgraph "Your Dashboard"
-        Button[Button Cards]
-        Slider[Slider Cards]
-        MSD[MSD Cards]
-        Chart[Chart Cards]
+    subgraph HA["Home Assistant"]
+        HACore[Home Assistant Core<br/>provides hass object]
     end
 
-    subgraph "LCARdS Core Systems"
-        Rules[Rules Engine]
-        Systems[Systems Manager]
-        Theme[Theme Manager]
-        Data[Data Sources]
-        Anim[Animation Framework]
+    subgraph Cards["Individual Cards"]
+        Button[Button Card]
+        Slider[Slider Card]
+        MSD[MSD Card]
+        Chart[Chart Card]
     end
 
-    subgraph "Home Assistant"
-        Entities[Entities & Services]
-        HA[Home Assistant Core]
+    subgraph Core["LCARdSCore<br/>(window.lcards.core)"]
+        CoreHub[Central Singleton Hub]
     end
 
-    Button --> Rules
-    Slider --> Rules
-    MSD --> Rules
-    Chart --> Rules
+    subgraph Managers["Core Singleton Managers"]
+        Systems[SystemsManager<br/>Entity caching, change detection]
+        DataSource[DataSourceManager<br/>Subscriptions, data buffers]
+        Rules[RulesEngine<br/>Condition evaluation, patches]
+        Theme[ThemeManager<br/>Theme tokens]
+        Anim[AnimationManager<br/>Animations]
+    end
 
-    Button --> Systems
-    Slider --> Systems
-    MSD --> Systems
-    Chart --> Systems
+    subgraph MSDSpecial["MSD Special Case"]
+        Coordinator[MsdCardCoordinator]
+        Renderer[MsdControlsRenderer]
+        Embedded[Embedded HA Cards<br/>in foreignObject]
+    end
 
-    Rules --> Theme
-    Systems --> Theme
-    Systems --> Data
-    Data --> Anim
+    HACore -->|hass object via<br/>card setters| Button
+    HACore -->|hass object via<br/>card setters| Slider
+    HACore -->|hass object via<br/>card setters| MSD
+    HACore -->|hass object via<br/>card setters| Chart
 
-    Rules --> Entities
-    Data --> Entities
-    Entities --> HA
+    Button -->|ingestHass| CoreHub
+    Slider -->|ingestHass| CoreHub
+    MSD -->|ingestHass| CoreHub
+    Chart -->|ingestHass| CoreHub
 
+    CoreHub -->|updateHass| Systems
+    CoreHub -->|updateHass| DataSource
+    CoreHub -->|updateHass| Rules
+
+    Systems -.->|notify changes| Button
+    Systems -.->|notify changes| Slider
+    Systems -.->|notify changes| MSD
+    Systems -.->|notify changes| Chart
+
+    DataSource -.->|notify changes| Button
+    DataSource -.->|notify changes| Chart
+
+    Rules -.->|apply patches| Button
+    Rules -.->|apply patches| Slider
+    Rules -.->|apply patches| MSD
+
+    MSD --> Coordinator
+    Coordinator --> Renderer
+    Renderer -->|manual HASS<br/>forwarding| Embedded
+
+    style HACore fill:#ff9900,stroke:#cc7700,color:#000
     style Button fill:#ff9900,stroke:#cc7700,color:#000
     style Slider fill:#ff9900,stroke:#cc7700,color:#000
     style MSD fill:#ff9900,stroke:#cc7700,color:#000
     style Chart fill:#ff9900,stroke:#cc7700,color:#000
-    style Rules fill:#9999ff,stroke:#6666cc,color:#000
+    style CoreHub fill:#cc66ff,stroke:#9933cc,color:#000
     style Systems fill:#9999ff,stroke:#6666cc,color:#000
-    style Theme fill:#9999ff,stroke:#6666cc,color:#000
-    style Data fill:#9999ff,stroke:#6666cc,color:#000
-    style Anim fill:#9999ff,stroke:#6666cc,color:#000
+    style DataSource fill:#9999ff,stroke:#6666cc,color:#000
+    style Rules fill:#9999ff,stroke:#6666cc,color:#000
+    style Theme fill:#cccccc,stroke:#999999,color:#000
+    style Anim fill:#cccccc,stroke:#999999,color:#000
+    style Coordinator fill:#66ccff,stroke:#3399cc,color:#000
+    style Renderer fill:#66ccff,stroke:#3399cc,color:#000
+    style Embedded fill:#66ccff,stroke:#3399cc,color:#000
 ```
+
+**Key Architectural Points:**
+- **Home Assistant** provides the `hass` object to cards via standard setters
+- **Cards** receive HASS and forward it to Core using `window.lcards.core.ingestHass()`
+- **LCARdSCore** acts as the central singleton hub distributing HASS to all managers
+- **Core Managers** (SystemsManager, DataSourceManager, RulesEngine) process HASS and notify relevant cards
+- **MSD Cards** have an additional layer: MsdCardCoordinator → MsdControlsRenderer manually forwards HASS to embedded cards in SVG foreignObjects (required due to shadow DOM isolation)
 
 
 ---
@@ -437,28 +469,69 @@ Here you can access things like data sources, provenance tracking, theme browsin
 
 ## Built to Extend
 
-LCARdS is (aiming for) designed for **extensibility and community contribution** by way of a *pack system*.
-Packs can contain themes (token definitions), button presets, configuration definitions, inline component SVGs, links and metadata for external SVGs, animation and font definitions etc.
+LCARdS is designed for **extensibility and community contribution** through its **Pack System** — a content distribution mechanism that enables modular themes, presets, animations, and more.
 
+### Pack System Architecture
 
-TODO: change to pack merging example
+Packs are loaded **once** at core initialization and their content is distributed to appropriate singleton managers. Cards consume content from these managers, never loading packs directly.
 
 ```mermaid
 graph LR
-    Core[LCARdS Core] --> Cards[Card Presets]
-    Core --> Components[Card Components]
-    Core --> Themes[Theme Tokens]
-    Core --> Anims[Animations]
-    Core --> ExtSVG[External SVG links and metadata]
+    subgraph Packs["Example Packs"]
+        P1["lcards_buttons<br/>v1.12.0<br/><br/>• style_presets<br/>• svg_assets"]
+        P2["lcards_sliders<br/>v1.12.0<br/><br/>• style_presets"]
+        P3["builtin_themes<br/>v1.12.0<br/><br/>• themes"]
+        P4["lcars_fx<br/>v1.12.0<br/><br/>• animations<br/>• rules"]
+    end
 
-    Cards --> Community[Community<br>Contributions]
-    Themes --> Community
-    Anims --> Community
-    Packs --> Community
+    subgraph PackMgr["PackManager<br/>(Orchestrator)"]
+        PM[Pack Loader &<br/>Content Distributor]
+    end
 
-    style Core fill:#ff9900,stroke:#cc7700,color:#000
-    style Community fill:#9999ff,stroke:#6666cc,color:#000
+    subgraph Managers["Core Singleton Managers"]
+        TM[ThemeManager<br/>Theme tokens]
+        SPM[StylePresetManager<br/>Button & slider presets]
+        AR[AnimationRegistry<br/>Animation definitions]
+        RE[RulesEngine<br/>Conditional rules]
+        AM[AssetManager<br/>SVG & font assets]
+    end
+
+    P1 --> PM
+    P2 --> PM
+    P3 --> PM
+    P4 --> PM
+
+    PM -->|themes| TM
+    PM -->|style_presets| SPM
+    PM -->|animations| AR
+    PM -->|rules| RE
+    PM -->|svg_assets<br/>font_assets| AM
+
+    TM -.->|consumed by| Cards[Cards]
+    SPM -.->|consumed by| Cards
+    AR -.->|consumed by| Cards
+    RE -.->|consumed by| Cards
+    AM -.->|consumed by| Cards
+
+    style P1 fill:#66cc99,stroke:#339966,color:#000
+    style P2 fill:#66cc99,stroke:#339966,color:#000
+    style P3 fill:#66cc99,stroke:#339966,color:#000
+    style P4 fill:#66cc99,stroke:#339966,color:#000
+    style PM fill:#cc66ff,stroke:#9933cc,color:#000
+    style TM fill:#9999ff,stroke:#6666cc,color:#000
+    style SPM fill:#9999ff,stroke:#6666cc,color:#000
+    style AR fill:#9999ff,stroke:#6666cc,color:#000
+    style RE fill:#9999ff,stroke:#6666cc,color:#000
+    style AM fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
 ```
+
+**Key Concepts:**
+- **Packs are content distribution units** containing any combination of: `themes`, `style_presets`, `animations`, `rules`, `svg_assets`, `font_assets`
+- **Single packs can contain multiple content types** (e.g., lcars_fx has both animations and rules)
+- **PackManager orchestrates distribution** at core initialization, registering content to appropriate managers
+- **Cards consume from managers**, not packs directly — enabling clean separation and hot-swapping
+- **Community extensibility** — custom packs can extend LCARdS with new themes, button styles, animations, and more
 
 Check out the [Developer Documentation →](doc/architecture/)
 
