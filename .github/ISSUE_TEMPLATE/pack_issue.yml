@@ -1,0 +1,118 @@
+name: 📦 Pack System Issue
+description: Report issues with content packs (themes, presets, components)
+title: "[Pack] "
+labels: ["pack-system", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a pack system issue! 🖖
+        
+        **Note:** The pack system is still in development. Some features may be incomplete.
+
+  - type: dropdown
+    id: pack-type
+    attributes:
+      label: Pack Type
+      description: What type of pack is affected?
+      options:
+        - Built-in pack (shipped with LCARdS)
+        - Custom pack (user-created)
+        - External pack (from community/third-party)
+        - Pack loading system
+        - Pack editor/creation tools
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: pack-name
+    attributes:
+      label: Pack Name or ID
+      description: What's the name or identifier of the pack?
+      placeholder: "e.g., lcars-classic-buttons, my-custom-theme-pack"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's not working?
+      description: |
+        Describe the issue with the pack.
+        - Pack won't load?
+        - Pack elements don't work as expected?
+        - Pack conflicts with other packs?
+        - Pack editor issues?
+      placeholder: "The pack loads but the button presets don't apply..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: pack-config
+    attributes:
+      label: Pack Configuration (YAML/JSON)
+      description: |
+        If applicable, paste the pack configuration or definition.
+        This helps us understand the pack structure.
+      placeholder: |
+        {
+          "id": "my-pack",
+          "name": "My Custom Pack",
+          "presets": {
+            ...
+          }
+        }
+      render: yaml
+
+  - type: textarea
+    id: card-config
+    attributes:
+      label: Card Configuration Using Pack
+      description: |
+        If the issue is with using pack content in a card, paste the card config.
+      placeholder: |
+        type: custom:lcards-button
+        style:
+          preset: my-pack:custom-button
+      render: yaml
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect the pack to do?
+      placeholder: "The pack should provide..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "Instead, the pack..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: console-errors
+    attributes:
+      label: Console Errors
+      description: |
+        Open browser developer tools (F12) and paste any errors related to pack loading or usage.
+      placeholder: |
+        Error loading pack: my-pack
+            at PackManager.loadPack (lcards.js:5678)
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context about the pack issue?
+        - Pack file location
+        - Other packs installed
+        - Pack creation process
+      placeholder: "I'm trying to create a custom pack for..."

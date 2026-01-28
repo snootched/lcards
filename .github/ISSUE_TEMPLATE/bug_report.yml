@@ -1,0 +1,154 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in LCARdS
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! 🖖
+        
+        **Before submitting:**
+        - Check [existing issues](https://github.com/snootched/LCARdS/issues) to avoid duplicates
+        - For "how-to" questions, please use [Discussions](https://github.com/snootched/LCARdS/discussions) instead
+        - Remove any sensitive information (tokens, passwords, addresses) from configs and screenshots
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: LCARdS Version
+      description: Which version of LCARdS are you using?
+      options:
+        - Latest release (from HACS or GitHub releases)
+        - Specific version (please specify below)
+        - Main branch (development)
+    validations:
+      required: true
+
+  - type: input
+    id: version-specific
+    attributes:
+      label: Specific Version (if applicable)
+      description: If you selected "Specific version" above, enter the version number (e.g., 1.27.04)
+      placeholder: "e.g., 1.27.04"
+
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant Version
+      description: What version of Home Assistant are you running?
+      placeholder: "e.g., 2024.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: browser-os
+    attributes:
+      label: Browser & Operating System
+      description: What browser and OS are you using?
+      placeholder: "e.g., Chrome 120 on Windows 11, Safari on iOS 17"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: card-type
+    attributes:
+      label: Which card type is affected?
+      description: Select the card where you're experiencing the issue
+      options:
+        - lcards-button
+        - lcards-slider
+        - lcards-msd (Master Systems Display)
+        - lcards-chart
+        - lcards-data-grid
+        - lcards-elbow
+        - Multiple cards
+        - Core system (themes, rules, datasources, animations)
+        - Editor/Studio
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's wrong? Provide a clear and concise description of the bug.
+      placeholder: "The button card doesn't respond when clicked..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue? Be as specific as possible.
+      placeholder: |
+        1. Create a new lcards-button card
+        2. Configure it with entity light.kitchen
+        3. Click the button
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: "The button should toggle the light and update its state..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened instead?
+      placeholder: "The button doesn't respond, and the console shows an error..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: card-config
+    attributes:
+      label: Card Configuration (YAML)
+      description: Paste your card configuration here. This helps us reproduce the issue.
+      placeholder: |
+        type: custom:lcards-button
+        entity_id: light.kitchen
+        style:
+          preset: lozenge
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: console-errors
+    attributes:
+      label: Console Errors
+      description: |
+        Open browser developer tools (F12), check the Console tab for errors.
+        Copy/paste any errors related to LCARdS here.
+      placeholder: |
+        TypeError: Cannot read property 'state' of undefined
+            at LCARdSButton._renderCard (lcards.js:1234)
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem.
+      placeholder: "Drag and drop images here or paste URLs"
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context about the problem?
+        - Related issues or discussions?
+        - Does this happen with specific themes or packs?
+        - Does this happen on specific dashboards or with specific entities?
+      placeholder: "This only happens when using the cb-lcars theme..."

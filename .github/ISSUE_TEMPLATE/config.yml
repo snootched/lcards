@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💡 Discussions - Ideas & Questions
+    url: https://github.com/snootched/LCARdS/discussions/categories/ideas
+    about: Feature brainstorming, questions, and general help (not for bug reports)
+  - name: 🙋 Discussions - Q&A
+    url: https://github.com/snootched/LCARdS/discussions/categories/q-a
+    about: Get help with configuration, troubleshooting, and "how-to" questions
+  - name: 📚 Documentation
+    url: https://github.com/snootched/LCARdS/tree/main/doc
+    about: Read the full documentation including user guides and architecture docs
+  - name: 🔒 Security Issues
+    url: https://github.com/snootched/LCARdS/security/advisories/new
+    about: Report security vulnerabilities privately (do not create public issues)

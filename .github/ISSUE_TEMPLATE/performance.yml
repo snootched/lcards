@@ -1,0 +1,126 @@
+name: ⚡ Performance Issue
+description: Report performance problems, lag, or slow behavior
+title: "[Performance] "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve LCARdS performance! 🖖
+        
+        **Before submitting:**
+        - Try disabling other custom cards to isolate the issue
+        - Check browser performance profiling to identify bottlenecks
+        - Note that some performance is expected with complex animations or many cards
+
+  - type: dropdown
+    id: card-type
+    attributes:
+      label: Which card or component is slow?
+      description: Select the component where you're experiencing performance issues
+      options:
+        - lcards-button
+        - lcards-slider
+        - lcards-msd (Master Systems Display)
+        - lcards-chart
+        - lcards-data-grid
+        - lcards-elbow
+        - Multiple cards together
+        - Rules Engine
+        - DataSource Manager
+        - Animation System
+        - Theme System
+        - Editor/Studio
+        - Other (please specify below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's slow?
+      description: |
+        Describe the performance issue in detail.
+        - What action triggers the slowness?
+        - How long does it take?
+        - Is it a one-time delay or continuous lag?
+      placeholder: "When I click a button, there's a 2-second delay before..."
+    validations:
+      required: true
+
+  - type: input
+    id: card-count
+    attributes:
+      label: How many cards/elements on the dashboard?
+      description: Approximate number of LCARdS cards and total cards on the affected dashboard
+      placeholder: "e.g., 25 LCARdS cards, 50 total cards"
+    validations:
+      required: true
+
+  - type: textarea
+    id: card-config
+    attributes:
+      label: Card Configuration (YAML)
+      description: |
+        Paste the configuration of the slow card(s).
+        This helps us understand complexity and identify optimization opportunities.
+      placeholder: |
+        type: custom:lcards-msd
+        controls:
+          - type: custom:lcards-button
+            ...
+      render: yaml
+
+  - type: textarea
+    id: system-specs
+    attributes:
+      label: System Specifications
+      description: |
+        Device and system information:
+        - Device type (Desktop, Mobile, Tablet)
+        - Browser and version
+        - Operating System
+        - Home Assistant installation type (Core, Supervised, OS, Container)
+      placeholder: |
+        - Desktop PC
+        - Chrome 120
+        - Windows 11
+        - Home Assistant OS on Raspberry Pi 4
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Browser Performance Profiling
+      description: |
+        If available, share browser performance profiling results:
+        1. Open DevTools (F12) → Performance tab
+        2. Click Record, reproduce the slowness, click Stop
+        3. Screenshot the flame chart or timeline
+        4. Note any functions taking significant time
+      placeholder: "Drag and drop performance screenshots here"
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the performance issue
+      placeholder: |
+        1. Create a dashboard with 30 lcards-button cards
+        2. Add animations to each button
+        3. Click any button
+        4. Notice 2-second delay
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other information about the performance issue?
+        - Does it happen with specific themes?
+        - Does it happen with specific animations?
+        - Does disabling features improve performance?
+      placeholder: "Performance improves significantly when I disable..."

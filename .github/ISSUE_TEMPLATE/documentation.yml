@@ -1,0 +1,85 @@
+name: 📚 Documentation Issue
+description: Report missing, incorrect, or unclear documentation
+title: "[Docs] "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve LCARdS documentation! 🖖
+        
+        Good documentation is crucial for a great user experience.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: What documentation is affected?
+      description: Which documentation needs improvement?
+      options:
+        - README.md
+        - User Guide (doc/user-guide/)
+        - Architecture Documentation (doc/architecture/)
+        - API Documentation
+        - Card Configuration Examples
+        - Contributing Guide
+        - Getting Started Guide
+        - Theme Documentation
+        - Pack System Documentation
+        - Editor/Studio Documentation
+        - Other (please specify below)
+    validations:
+      required: true
+
+  - type: input
+    id: doc-link
+    attributes:
+      label: Link to the Problematic Documentation
+      description: If applicable, provide a link to the file or section that needs improvement
+      placeholder: "https://github.com/snootched/LCARdS/blob/main/doc/..."
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing?
+      description: |
+        Clearly describe the issue with the current documentation.
+        - Is information missing?
+        - Is something incorrect or outdated?
+        - Is something unclear or confusing?
+      placeholder: "The documentation for lcards-button doesn't explain how to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: |
+        How should the documentation be improved?
+        Be as specific as possible - this helps us make better docs.
+      placeholder: |
+        The documentation should include:
+        1. An example showing...
+        2. A clear explanation of...
+        3. A troubleshooting section for...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context about the documentation issue?
+        - Screenshots of confusing sections
+        - Examples of better documentation from other projects
+        - Specific use cases that aren't covered
+      placeholder: "Users often ask about this in Discussions..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in helping improve this documentation?
+      options:
+        - label: I'm willing to submit a PR with documentation improvements

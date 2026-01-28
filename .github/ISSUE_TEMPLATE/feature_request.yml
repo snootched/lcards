@@ -1,0 +1,97 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for LCARdS
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve LCARdS! 🖖
+        
+        **Before submitting:**
+        - Check [existing issues](https://github.com/snootched/LCARdS/issues) for similar requests
+        - Check [Discussions](https://github.com/snootched/LCARdS/discussions) for ongoing feature discussions
+        - Consider if this could be implemented via the pack system
+
+  - type: checkboxes
+    id: card-types
+    attributes:
+      label: Which card(s) or system does this relate to?
+      description: Select all that apply
+      options:
+        - label: lcards-button
+        - label: lcards-slider
+        - label: lcards-msd (Master Systems Display)
+        - label: lcards-chart
+        - label: lcards-elbow
+        - label: lcards-data-grid
+        - label: Core system (themes, rules, datasources, animations)
+        - label: Pack system
+        - label: Editor/Studio
+        - label: Documentation
+        - label: Other (please specify in description)
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear description of what the problem is.
+      placeholder: "I'm frustrated when... / It's difficult to... / There's no way to..."
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+      placeholder: "I'd like to be able to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: |
+        Have you considered any alternative solutions or workarounds?
+        This helps us understand the full context.
+      placeholder: "I've tried using... but it doesn't work because..."
+
+  - type: dropdown
+    id: breaking-change
+    attributes:
+      label: Would this be a breaking change?
+      description: Would this require changes to existing card configurations or behavior?
+      options:
+        - "No - fully backward compatible"
+        - "Yes - would require config changes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups or Examples
+      description: |
+        If applicable, add mockups, screenshots, or examples to help explain your idea.
+        You can also link to similar implementations in other projects.
+      placeholder: "Drag and drop images here or paste URLs"
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context or screenshots about the feature request?
+        - Use cases this would enable
+        - Impact on performance or complexity
+        - Integration with existing features
+      placeholder: "This would be especially useful for..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in contributing this feature?
+      options:
+        - label: I'm willing to submit a PR for this feature
