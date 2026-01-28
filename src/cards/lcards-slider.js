@@ -763,17 +763,44 @@ export class LCARdSSlider extends LCARdSButton {
         if (!value || typeof value !== 'string') return value;
 
         // Check if it's a CSS variable
-        if (value.startsWith('var(')) {
-            const match = value.match(/var\(([^,)]+)(?:,\s*([^)]+))?\)/);
+        if (value.includes('var(')) {
+            // Handle potentially malformed or nested var() - extract the first complete var()
+            const match = value.match(/var\(([^,)]+)(?:,\s*(.+))?\)/);
             if (match) {
                 const varName = match[1].trim();
                 const fallback = match[2]?.trim();
 
                 // Try to get computed value
-                const computedValue = getComputedStyle(document.documentElement)
-                    .getPropertyValue(varName).trim();
+                try {
+                    const computedValue = getComputedStyle(document.documentElement)
+                        .getPropertyValue(varName).trim();
 
-                return computedValue || fallback || value;
+                    if (computedValue) return computedValue;
+                } catch (e) {
+                    // getComputedStyle might fail during dashboard edits
+                }
+
+                // Recursively resolve fallback if it's also a var()
+                if (fallback) {
+                    return this._resolveCssVariable(fallback);
+                }
+                
+                // No computed value and no fallback - return safe default
+                return '#000000';
+            } else {
+                // Malformed var() - try to extract variable name and get its value
+                const varMatch = value.match(/var\(([^,)]+)/);
+                if (varMatch) {
+                    try {
+                        const computedValue = getComputedStyle(document.documentElement)
+                            .getPropertyValue(varMatch[1].trim()).trim();
+                        if (computedValue) return computedValue;
+                    } catch (e) {
+                        // Fall through to default
+                    }
+                }
+                // Can't parse - return safe default
+                return '#000000';
             }
         }
 
@@ -868,6 +895,9 @@ export class LCARdSSlider extends LCARdSButton {
         // Clear existing borders
         borderZone.innerHTML = '';
 
+        // Build all borders in a document fragment (atomic operation)
+        const fragment = document.createDocumentFragment();
+
         // Helper to get border size (prefer .size, fall back to .width for legacy configs)
         const getBorderSize = (borderDef) => borderDef?.size ?? borderDef?.width ?? 0;
 
@@ -881,8 +911,12 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', leftSize);
             rect.setAttribute('height', height);
             const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            rect.setAttribute('fill', this._resolveCssVariable(leftColor));
-            borderZone.appendChild(rect);
+            lcardsLog.debug('[LCARdSSlider] Left border color before resolve:', leftColor);
+            const resolvedColor = this._resolveCssVariable(leftColor);
+            lcardsLog.debug('[LCARdSSlider] Left border color after resolve:', resolvedColor);
+            // Ensure color is valid before setting (never empty/null)
+            rect.setAttribute('fill', resolvedColor || '#000000');
+            fragment.appendChild(rect);
         }
 
         // Top border
@@ -895,8 +929,12 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', width);
             rect.setAttribute('height', topSize);
             const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            rect.setAttribute('fill', this._resolveCssVariable(topColor));
-            borderZone.appendChild(rect);
+            lcardsLog.debug('[LCARdSSlider] Top border color before resolve:', topColor);
+            const resolvedColor = this._resolveCssVariable(topColor);
+            lcardsLog.debug('[LCARdSSlider] Top border color after resolve:', resolvedColor);
+            // Ensure color is valid before setting (never empty/null)
+            rect.setAttribute('fill', resolvedColor || '#000000');
+            fragment.appendChild(rect);
         }
 
         // Right border
@@ -909,8 +947,8 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', rightSize);
             rect.setAttribute('height', height);
             const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', this._resolveCssVariable(rightColor));
-            borderZone.appendChild(rect);
+            rect.setAttribute('fill', this._resolveCssVariable(rightColor) || '#000000');
+            fragment.appendChild(rect);
         }
 
         // Bottom border
@@ -923,9 +961,12 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', width);
             rect.setAttribute('height', bottomSize);
             const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', this._resolveCssVariable(bottomColor));
-            borderZone.appendChild(rect);
+            rect.setAttribute('fill', this._resolveCssVariable(bottomColor) || '#000000');
+            fragment.appendChild(rect);
         }
+
+        // Append all borders atomically in one operation
+        borderZone.appendChild(fragment);
 
         lcardsLog.debug(`[LCARdSSlider] Injected borders:`, {
             left: leftSize,
@@ -2414,7 +2455,19 @@ export class LCARdSSlider extends LCARdSButton {
             this._injectTextFields(width, height);
 
             // Inject dynamic content into zones
-            this._injectContentIntoZones();            // Serialize component SVG
+            this._injectContentIntoZones();
+            
+            // Serialize component SVG - validate all 'fill' attributes are complete
+            const allRects = this._componentSvg.querySelectorAll('rect[fill]');
+            allRects.forEach(rect => {
+                const fillValue = rect.getAttribute('fill');
+                if (fillValue && fillValue.includes('var(') && !fillValue.includes(')')) {
+                    lcardsLog.warn('[LCARdSSlider] Fixing malformed fill attribute:', fillValue);
+                    // Remove malformed var() and use safe default
+                    rect.setAttribute('fill', '#000000');
+                }
+            });
+            
             svgContent = new XMLSerializer().serializeToString(this._componentSvg);
         } else {
             // Generate fallback slider
@@ -2491,7 +2544,7 @@ export class LCARdSSlider extends LCARdSButton {
                             top: ${scaledBounds.y}px;
                             width: ${scaledBounds.width}px;
                             height: ${scaledBounds.height}px;
-                            ${isVertical ? '-webkit-appearance: slider-vertical; writing-mode: bt-lr;' : ''}
+                            ${isVertical ? 'writing-mode: vertical-lr; direction: rtl;' : ''}
                             ${inputTransform ? `transform: ${inputTransform};` : ''}
                         "
                     />

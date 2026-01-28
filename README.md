@@ -135,57 +135,640 @@ LCARdS is built on a layered architecture that keeps cards simple while providin
 
 ```mermaid
 graph TB
-    subgraph "Your Dashboard"
-        Button[Button Cards]
-        Slider[Slider Cards]
-        MSD[MSD Cards]
-        Chart[Chart Cards]
+    subgraph "Home Assistant"
+        HA[Home Assistant<br/>hass object]
     end
 
-    subgraph "LCARdS Core Systems"
+    subgraph "LCARdS Cards"
+        Cards[Button, Slider, MSD,<br/>Chart, Data Grid, Elbow]
+    end
+
+    subgraph "LCARdS Core<br/>(window.lcards.core)"
+        Core[Core Singleton Hub]
+    end
+
+    subgraph "Core Systems"
+        Systems[Systems Manager<br/>Entity caching & change detection]
+        Data[Data Sources<br/>Entity subscriptions & history]
+        Rules[Rules Engine<br/>Conditional styling & behavior]
+        Theme[Theme Manager<br/>Tokens & colors]
+        Anim[Animation Framework<br/>Anime.js integration]
+    end
+
+    HA -->|provides state| Cards
+    Cards -->|forward updates| Core
+    Core -->|distribute| Systems
+    Core -->|distribute| Data
+    Core -->|distribute| Rules
+
+    Systems -.->|notify| Cards
+    Data -.->|notify| Cards
+    Rules -.->|apply patches| Cards
+
+    Theme -.->|provide tokens| Cards
+    Anim -.->|coordinate| Cards
+
+    Data -->|query entities| HA
+    Rules -->|read state| HA
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Core fill:#cc66ff,stroke:#9933cc,color:#000
+    style Systems fill:#9999ff,stroke:#6666cc,color:#000
+    style Data fill:#9999ff,stroke:#6666cc,color:#000
+    style Rules fill:#9999ff,stroke:#6666cc,color:#000
+    style Theme fill:#9999ff,stroke:#6666cc,color:#000
+    style Anim fill:#9999ff,stroke:#6666cc,color:#000
+```
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph "Your Dashboard"
+        Cards[LCARdS Cards<br/>Button • Slider • MSD • Chart • Elbow • Data Grid]
+    end
+
+    subgraph "LCARdS Core"
+        Core[Shared Intelligence<br/>Rules • Themes • Animations • Data Sources]
+    end
+
+    HA -->|entity states| Cards
+    Cards -->|updates| Core
+    Core -->|rules & styling| Cards
+    Core -->|queries| HA
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+```
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph "Your Dashboard"
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container for cards & controls</i>]
+    end
+
+    subgraph "LCARdS Core<br/><i>The Intelligence Layer</i>"
         Rules[Rules Engine]
-        Systems[Systems Manager]
         Theme[Theme Manager]
         Data[Data Sources]
-        Anim[Animation Framework]
+        Anim[Animations]
+        Systems[Systems Manager]
     end
 
-    subgraph "Home Assistant"
-        Entities[Entities & Services]
-        HA[Home Assistant Core]
-    end
+    HA -->|entity data| Button
+    HA -->|entity data| Slider
+    HA -->|entity data| Chart
+    HA -->|entity data| Elbow
+    HA -->|entity data| Grid
+    HA -->|entity data| MSD
 
-    Button --> Rules
-    Slider --> Rules
-    MSD --> Rules
-    Chart --> Rules
+    Button -.->|rely on| Rules
+    Slider -.->|rely on| Rules
+    Chart -.->|rely on| Data
+    Elbow -.->|rely on| Theme
+    Grid -.->|rely on| Data
+    MSD -.->|rely on| Rules
 
-    Button --> Systems
-    Slider --> Systems
-    MSD --> Systems
-    Chart --> Systems
+    Button -.->|rely on| Theme
+    Slider -.->|rely on| Systems
+    Chart -.->|rely on| Anim
+    MSD -.->|rely on| Systems
 
-    Rules --> Theme
-    Systems --> Theme
-    Systems --> Data
-    Data --> Anim
-
-    Rules --> Entities
-    Data --> Entities
-    Entities --> HA
-
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
     style Button fill:#ff9900,stroke:#cc7700,color:#000
     style Slider fill:#ff9900,stroke:#cc7700,color:#000
-    style MSD fill:#ff9900,stroke:#cc7700,color:#000
     style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
     style Rules fill:#9999ff,stroke:#6666cc,color:#000
-    style Systems fill:#9999ff,stroke:#6666cc,color:#000
     style Theme fill:#9999ff,stroke:#6666cc,color:#000
     style Data fill:#9999ff,stroke:#6666cc,color:#000
     style Anim fill:#9999ff,stroke:#6666cc,color:#000
+    style Systems fill:#9999ff,stroke:#6666cc,color:#000
+```
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph "LCARdS Core<br/><i>The Intelligence Layer</i>"
+        Core[Rules • Themes • Data • Animations • Systems]
+    end
+
+    subgraph "Your Dashboard"
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container for cards & controls</i>]
+    end
+
+    HA <-->|entity data| Core
+    Core -.->|provides smarts to| Button
+    Core -.->|provides smarts to| Slider
+    Core -.->|provides smarts to| Chart
+    Core -.->|provides smarts to| Elbow
+    Core -.->|provides smarts to| Grid
+    Core -.->|provides smarts to| MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Button fill:#ff9900,stroke:#cc7700,color:#000
+    style Slider fill:#ff9900,stroke:#cc7700,color:#000
+    style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
 ```
 
 
+```mermaid
+graph TB
+    HA[Home Assistant]
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    Button[Button Card]
+    Slider[Slider Card]
+    Chart[Chart Card]
+    Elbow[Elbow Card]
+    Grid[Data Grid Card]
+    MSD[MSD Card<br/><i>container</i>]
+
+    HA <--> Core
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000,stroke-dasharray: 5 5
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ff9900,stroke:#cc7700,color:#000
+    style Slider fill:#ff9900,stroke:#cc7700,color:#000
+    style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+
+
+```mermaid
+graph TB
+    HA[Home Assistant]
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    Button[Button Card]
+    Slider[Slider Card]
+    Chart[Chart Card]
+    Elbow[Elbow Card]
+    Grid[Data Grid Card]
+    MSD[MSD Card<br/><i>container</i>]
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ff9900,stroke:#cc7700,color:#000
+    style Slider fill:#ff9900,stroke:#cc7700,color:#000
+    style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container</i>]
+    end
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Cards
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph "Your Dashboard"
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container for cards & controls</i>]
+    end
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ff9900,stroke:#cc7700,color:#000
+    style Slider fill:#ff9900,stroke:#cc7700,color:#000
+    style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container for cards & controls</i>]
+    end
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Cards
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container</i>]
+    end
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Cards
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+
+
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    Button[Button Card]
+    Slider[Slider Card]
+    Chart[Chart Card]
+    Elbow[Elbow Card]
+    Grid[Data Grid Card]
+    MSD[MSD Card<br/><i>container for cards & controls</i>]
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ff9900,stroke:#cc7700,color:#000
+    style Slider fill:#ff9900,stroke:#cc7700,color:#000
+    style Chart fill:#ff9900,stroke:#cc7700,color:#000
+    style Elbow fill:#ff9900,stroke:#cc7700,color:#000
+    style Grid fill:#ff9900,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container</i>]
+    end
+
+    HA <--> Core
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#cccccc,stroke:#999999,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card<br/><i>container</i>]
+    end
+
+    HA <--> Rules
+    HA <--> Systems
+    HA <--> Data
+
+    Core -.-> Button
+    Core -.-> Slider
+    Core -.-> Chart
+    Core -.-> Elbow
+    Core -.-> Grid
+    Core -.-> MSD
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#cccccc,stroke:#999999,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
+```mermaid
+graph TB
+    subgraph "Home Assistant"
+        direction LR
+        HA[Home Assistant]
+    end
+
+    subgraph Core["LCARdS Core"]
+        direction LR
+        Rules[Rules Engine]
+        Systems[Systems Manager]
+        Data[Data Sources]
+        Theme[Theme Manager]
+        Anim[Animation Manager]
+    end
+
+    subgraph Cards["Your Dashboard"]
+        direction LR
+        Button[Button Card]
+        Slider[Slider Card]
+        Chart[Chart Card]
+        Elbow[Elbow Card]
+        Grid[Data Grid Card]
+        MSD[MSD Card]
+    end
+
+    HA <--> Core
+    Core -.-> Cards
+
+    style HA fill:#4d94ff,stroke:#0066cc,color:#fff
+    style Core fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
+    style Rules fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Systems fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Data fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Theme fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Anim fill:#b8b8ff,stroke:#6666cc,color:#000
+    style Button fill:#ffb84d,stroke:#cc7700,color:#000
+    style Slider fill:#ffb84d,stroke:#cc7700,color:#000
+    style Chart fill:#ffb84d,stroke:#cc7700,color:#000
+    style Elbow fill:#ffb84d,stroke:#cc7700,color:#000
+    style Grid fill:#ffb84d,stroke:#cc7700,color:#000
+    style MSD fill:#ff6600,stroke:#cc4400,color:#fff
+```
 ---
 
 ## The Fleet
@@ -385,7 +968,7 @@ File: docs/assets/main-engineering-dialogs.png
 -->
 
 LCARdS centralized systems [core systems] are available for discovery, inspection, configuration via the `Main Engineering` tab of any LCARdS card editor.
-Here you can access things like data sources, provenance tracking, theme browsing and alert modes, etc. 
+Here you can access things like data sources, provenance tracking, theme browsing and alert modes, etc.
 
 <table>
 <tr>
@@ -445,21 +1028,74 @@ TODO: change to pack merging example
 
 ```mermaid
 graph LR
-    Core[LCARdS Core] --> Cards[Card Presets]
-    Core --> Components[Card Components]
-    Core --> Themes[Theme Tokens]
-    Core --> Anims[Animations]
-    Core --> ExtSVG[External SVG links and metadata]
+    subgraph BuiltinPacks["Builtin Packs"]
+        P1["lcards_buttons<br/>v1.12.0<br/><br/>• style_presets"]
+        P2["lcards_sliders<br/>v1.12.0<br/><br/>• style_presets"]
+        P3["builtin_themes<br/>v1.12.0<br/><br/>• themes"]
+        P4["lcars_fx<br/>v1.12.0<br/><br/>• animations<br/>• rules"]
+    end
 
-    Cards --> Community[Community<br>Contributions]
-    Themes --> Community
-    Anims --> Community
-    Packs --> Community
+    subgraph ExternalPacks["External/User Packs"]
+        E1["ds9_pack<br/>v2.0.0<br/><br/>• themes<br/>• style_presets<br/>• svg_assets<br/>• animations"]
+        E2["voyager_pack<br/>v1.5.0<br/><br/>• themes<br/>• font_assets<br/>• rules"]
+        E3["uss_enterprise_msd<br/>v1.0.0<br/><br/>• svg_assets<br/>• animations"]
+    end
 
-    style Core fill:#ff9900,stroke:#cc7700,color:#000
-    style Community fill:#9999ff,stroke:#6666cc,color:#000
+    subgraph PackMgr["PackManager<br/>(Orchestrator)"]
+        PM[Pack Loader &<br/>Content Distributor]
+    end
+
+    subgraph Managers["Core Singleton Managers"]
+        TM[ThemeManager<br/>Theme tokens]
+        SPM[StylePresetManager<br/>Button & slider presets]
+        AR[AnimationRegistry<br/>Animation definitions]
+        RE[RulesEngine<br/>Conditional rules]
+        AM[AssetManager<br/>SVG & font assets]
+    end
+
+    P1 --> PM
+    P2 --> PM
+    P3 --> PM
+    P4 --> PM
+    E1 --> PM
+    E2 --> PM
+    E3 --> PM
+
+    PM -->|themes| TM
+    PM -->|style_presets| SPM
+    PM -->|animations| AR
+    PM -->|rules| RE
+    PM -->|svg_assets<br/>font_assets| AM
+
+    TM -.->|consumed by| Cards[Cards]
+    SPM -.->|consumed by| Cards
+    AR -.->|consumed by| Cards
+    RE -.->|consumed by| Cards
+    AM -.->|consumed by| Cards
+
+    style P1 fill:#6699ff,stroke:#3366cc,color:#000
+    style P2 fill:#6699ff,stroke:#3366cc,color:#000
+    style P3 fill:#6699ff,stroke:#3366cc,color:#000
+    style P4 fill:#6699ff,stroke:#3366cc,color:#000
+    style E1 fill:#66cc99,stroke:#339966,color:#000
+    style E2 fill:#66cc99,stroke:#339966,color:#000
+    style E3 fill:#66cc99,stroke:#339966,color:#000
+    style PM fill:#cc66ff,stroke:#9933cc,color:#000
+    style TM fill:#9999ff,stroke:#6666cc,color:#000
+    style SPM fill:#9999ff,stroke:#6666cc,color:#000
+    style AR fill:#9999ff,stroke:#6666cc,color:#000
+    style RE fill:#9999ff,stroke:#6666cc,color:#000
+    style AM fill:#9999ff,stroke:#6666cc,color:#000
+    style Cards fill:#ff9900,stroke:#cc7700,color:#000
 ```
 
+**Key Concepts:**
+- **Packs are content distribution units** containing any combination of: `themes`, `style_presets`, `animations`, `rules`, `svg_assets`, `font_assets`
+- **Single packs can contain multiple content types** (e.g., lcars_buttons has both style_presets and components)
+- **PackManager orchestrates distribution** at core initialization, registering content to appropriate managers
+- **Cards consume from managers**, not packs directly — enabling clean separation and hot-swapping
+- **Community extensibility** — custom packs can extend LCARdS with new themes, button styles, animations, and more
+-
 Check out the [Developer Documentation →](doc/architecture/)
 
 <br>
