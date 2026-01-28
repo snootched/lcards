@@ -2099,24 +2099,40 @@ export class LCARdSSlider extends LCARdSButton {
         pills.forEach((pill, index) => {
             let opacity;
 
-            // Determine if this pill should be filled
+            // Determine if this pill should be fully filled (not including transition pill)
             let isFilled;
 
             if (this._invertFill) {
                 // Fill from opposite end (right/top)
-                const pillPercent = (index + 1) / pills.length;
-                isFilled = pillPercent >= (1 - fillRatio);
+                // Fully filled: last Math.floor(fillCount) pills
+                isFilled = index >= pills.length - Math.floor(fillCount);
             } else {
                 // Fill from start (left/bottom)
+                // Fully filled: first Math.floor(fillCount) pills
                 isFilled = index < Math.floor(fillCount);
             }
 
             if (isFilled) {
                 // Fully filled
                 opacity = filledOpacity;
-            } else if (!this._invertFill && index === Math.floor(fillCount) && fillCount % 1 !== 0) {
-                // Partially filled (smooth transition) - only for normal direction
-                opacity = unfilledOpacity + ((fillCount % 1) * (filledOpacity - unfilledOpacity));
+            } else if (fillCount % 1 !== 0) {
+                // Partially filled (smooth transition)
+                if (this._invertFill) {
+                    // For inverted: transition pill is at the left boundary of filled region
+                    const transitionPillIndex = pills.length - Math.ceil(fillCount);
+                    if (index === transitionPillIndex) {
+                        opacity = unfilledOpacity + ((fillCount % 1) * (filledOpacity - unfilledOpacity));
+                    } else {
+                        opacity = unfilledOpacity;
+                    }
+                } else {
+                    // For normal: transition pill is at the right boundary of filled region
+                    if (index === Math.floor(fillCount)) {
+                        opacity = unfilledOpacity + ((fillCount % 1) * (filledOpacity - unfilledOpacity));
+                    } else {
+                        opacity = unfilledOpacity;
+                    }
+                }
             } else {
                 // Unfilled
                 opacity = unfilledOpacity;
@@ -2497,12 +2513,26 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {Object}
      */
     getLayoutOptions() {
-        return {
-            grid_columns: this.config.grid_columns ?? 'full',
-            grid_rows: this.config.grid_rows ?? 1,
-            grid_min_columns: this.config.grid_min_columns ?? 4,
-            grid_min_rows: this.config.grid_min_rows ?? 1
-        };
+        const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
+        const isVertical = orientation === 'vertical';
+
+        // Vertical sliders should be narrow (1-2 columns wide, tall)
+        // Horizontal sliders should be short (1 row tall, wide)
+        if (isVertical) {
+            return {
+                grid_columns: this.config.grid_columns ?? 2,
+                grid_rows: this.config.grid_rows,
+                grid_min_columns: this.config.grid_min_columns ?? 1,
+                grid_min_rows: this.config.grid_min_rows ?? 4
+            };
+        } else {
+            return {
+                grid_columns: this.config.grid_columns,
+                grid_rows: this.config.grid_rows ?? 1,
+                grid_min_columns: this.config.grid_min_columns ?? 4,
+                grid_min_rows: this.config.grid_min_rows ?? 1
+            };
+        }
     }
 
     /**
