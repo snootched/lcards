@@ -594,7 +594,21 @@ export function getSliderSchema(options = {}) {
                                         type: 'number',
                                         minimum: -180,
                                         maximum: 180,
-                                        description: 'Rotation angle in degrees (for triangle type)'
+                                        default: 0,
+                                        description: 'Rotation angle in degrees (for triangle type)',
+                                        'x-ui-hints': {
+                                            label: 'Rotation',
+                                            helper: 'Rotate indicator in degrees',
+                                            selector: {
+                                                number: {
+                                                    mode: 'slider',
+                                                    min: -180,
+                                                    max: 180,
+                                                    step: 1,
+                                                    unit_of_measurement: '°'
+                                                }
+                                            }
+                                        }
                                     },
                                     offset: {
                                         type: 'object',

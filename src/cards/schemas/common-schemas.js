@@ -749,7 +749,7 @@ export function getTextSchema(options = {}) {
                             helper: 'Rotate text in degrees',
                             selector: {
                                 number: {
-                                    mode: 'box',
+                                    mode: 'slider',
                                     min: -360,
                                     max: 360,
                                     step: 1,
@@ -907,6 +907,8 @@ export function getTextSchema(options = {}) {
                         selector: {
                             number: {
                                 mode: 'slider',
+                                min: -360,
+                                max: 360,
                                 step: 1,
                                 unit_of_measurement: '°'
                             }

@@ -262,7 +262,7 @@ export function getButtonSchema(options = {}) {
                             helper: 'Rotate icon in degrees',
                             selector: {
                                 number: {
-                                    mode: 'box',
+                                    mode: 'slider',
                                     min: -360,
                                     max: 360,
                                     step: 1,

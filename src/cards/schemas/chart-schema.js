@@ -969,7 +969,8 @@ export function getChartSchema(options = {}) {
                                                     mode: 'slider',
                                                     min: -90,
                                                     max: 90,
-                                                    step: 15
+                                                    step: 15,
+                                                    unit_of_measurement: '°'
                                                 }
                                             }
                                         }

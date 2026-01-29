@@ -228,7 +228,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             <!-- Alignment Section -->
             <lcards-form-section
                 header="Alignment"
-                description="Anchor, baseline and text transform settings"
+                description="Anchor, baseline, text transform, and rotation settings"
                 icon="mdi:format-align-left"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -247,6 +247,11 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 ${FormField.renderField(this.editor, 'text.default.text_transform', {
                     label: 'Text Transform',
                     helper: 'Text transformation (uppercase/lowercase/capitalize)'
+                })}
+
+                ${FormField.renderField(this.editor, 'text.default.rotation', {
+                    label: 'Rotation',
+                    helper: 'Default rotation angle in degrees (0 = no rotation)'
                 })}
             </lcards-form-section>
 
@@ -383,7 +388,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             <!-- Alignment Section -->
             <lcards-form-section
                 header="Alignment"
-                description="Override anchor/baseline and text transform"
+                description="Override anchor/baseline, text transform, and rotation"
                 icon="mdi:format-align-left"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -403,6 +408,11 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 ${FormField.renderField(this.editor, `text.${fieldName}.text_transform`, {
                     label: 'Text Transform',
                     helper: hasDefaults && !fieldConfig.text_transform ? 'Inherits from defaults' : 'Text transformation'
+                })}
+
+                ${FormField.renderField(this.editor, `text.${fieldName}.rotation`, {
+                    label: 'Rotation',
+                    helper: hasDefaults && !fieldConfig.rotation ? 'Inherits from defaults (0°)' : 'Rotation angle in degrees'
                 })}
             </lcards-form-section>
 
