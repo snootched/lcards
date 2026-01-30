@@ -620,7 +620,33 @@ export class LCARdSSlider extends LCARdSButton {
             let svgContent;
 
             if (component) {
-                // Component found in registry - use metadata
+                // NEW: Check if component uses render function (new architecture)
+                if (component.render && typeof component.render === 'function') {
+                    // Component provides a render function - use it
+                    lcardsLog.debug(`[LCARdSSlider] Component uses render function`);
+
+                    this._componentMetadata = component.metadata;
+                    this._componentRenderer = component.render;
+                    this._componentLoaded = true;
+
+                    // Set orientation from component metadata
+                    if (!this.config.style?.track?.orientation && component.metadata?.orientation) {
+                        if (!this._sliderStyle) {
+                            this._sliderStyle = {};
+                        }
+                        const existingTrack = this._sliderStyle.track || {};
+                        this._sliderStyle.track = {
+                            ...existingTrack,
+                            orientation: component.metadata.orientation
+                        };
+                    }
+
+                    lcardsLog.debug(`[LCARdSSlider] Component with render function loaded`);
+                    this.requestUpdate();
+                    return;
+                }
+
+                // OLD: Component found in registry with SVG template
                 svgContent = component.svg;
 
                 // NEW: Store metadata for later use
@@ -684,6 +710,26 @@ export class LCARdSSlider extends LCARdSButton {
 
             // Extract zone definitions (inherited method from LCARdSCard)
             this._extractZones(this._componentSvg);
+
+            // Enrich zones with metadata properties (scaleWithContainer, orientation, etc.)
+            if (this._componentMetadata?.zones) {
+                this._zones.forEach((zone, zoneName) => {
+                    const metadata = this._componentMetadata.zones[zoneName];
+                    if (metadata) {
+                        // Merge metadata properties into zone object
+                        Object.assign(zone, {
+                            scaleWithContainer: metadata.scaleWithContainer,
+                            orientation: metadata.orientation,
+                            description: metadata.description,
+                            elements: metadata.elements
+                        });
+                        lcardsLog.trace(`[LCARdSSlider] Enriched zone "${zoneName}" with metadata:`, {
+                            scaleWithContainer: zone.scaleWithContainer,
+                            orientation: zone.orientation
+                        });
+                    }
+                });
+            }
 
             this._componentLoaded = true;
 
@@ -892,8 +938,20 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        // Clear existing borders
-        borderZone.innerHTML = '';
+        // Clear existing borders ONLY for basic component
+        // Styled components have designed borders that should be preserved
+        if (!this.config.component || this.config.component === 'basic') {
+            borderZone.innerHTML = '';
+        } else {
+            // For styled components, only remove dynamically added borders (not component's original content)
+            const dynamicBorders = borderZone.querySelectorAll('[id^="border-"]');
+            dynamicBorders.forEach(el => {
+                // Only remove if it was added by slider card (has data-dynamic attribute or matches our IDs)
+                if (el.hasAttribute('data-dynamic')) {
+                    el.remove();
+                }
+            });
+        }
 
         // Build all borders in a document fragment (atomic operation)
         const fragment = document.createDocumentFragment();
@@ -1236,8 +1294,16 @@ export class LCARdSSlider extends LCARdSButton {
         // Get text area from config (slider-specific property)
         const textArea = this.config.text?.area || 'auto';
 
-        // Find or create text-zone group
+        // Find text-zone and get its bounds for zone-relative positioning
         let textZone = this._componentSvg.querySelector('#text-zone');
+        const textZoneData = this._zones.get('text');
+
+        // Use zone bounds if available, otherwise fallback to container dimensions
+        const zoneWidth = textZoneData?.bounds?.width || width;
+        const zoneHeight = textZoneData?.bounds?.height || height;
+
+        lcardsLog.debug(`[LCARdSSlider] Text zone dimensions: ${zoneWidth}×${zoneHeight} (container: ${width}×${height})`);
+
         if (!textZone) {
             textZone = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             textZone.setAttribute('id', 'text-zone');
@@ -1254,10 +1320,10 @@ export class LCARdSSlider extends LCARdSButton {
         // Clear existing text
         textZone.innerHTML = '';
 
-        // Process text fields using button's system
-        const processedFields = this._processTextFields(textFields, width, height, null);
+        // Process text fields using button's system with zone-relative dimensions
+        const processedFields = this._processTextFields(textFields, zoneWidth, zoneHeight, null);
 
-        // Generate SVG text elements (using button's method)
+        // Generate SVG text elements (using button's method) with zone-relative dimensions
         const textMarkup = this._generateTextElements(processedFields);
 
         lcardsLog.debug(`[LCARdSSlider] Generated text markup:`, textMarkup);
@@ -1415,13 +1481,17 @@ export class LCARdSSlider extends LCARdSButton {
             if (configCount === 'auto' || configCount === undefined || configCount === null) {
                 // Calculate how many fixed-size pills fit in the track height
                 count = Math.floor((trackHeight + gap) / (fixedPillHeight + gap));
-                pillHeight = fixedPillHeight; // Use the fixed height
+
+                // Recalculate pill height to perfectly fill the track (edge-to-edge)
+                // This eliminates any remainder gap at the top
+                pillHeight = (trackHeight - (gap * (count - 1))) / count;
 
                 lcardsLog.debug(`[LCARdSSlider] Vertical auto-count calculation:`, {
                     trackHeight,
                     fixedPillHeight,
                     gap,
-                    calculatedCount: count
+                    calculatedCount: count,
+                    adjustedPillHeight: pillHeight
                 });
             } else {
                 // User explicitly specified count - calculate pill height to fit
@@ -1478,7 +1548,7 @@ export class LCARdSSlider extends LCARdSButton {
             // Generate per-pill colors (interpolated across the range)
             defs += '</defs>';
 
-            // Generate pills from bottom to top
+            // Generate pills from bottom to top (edge-to-edge, gaps only between pills)
             for (let i = 0; i < count; i++) {
                 const y = trackY + trackHeight - ((i + 1) * pillHeight) - (i * gap);
                 const x = trackX; // Fill entire track width
@@ -2247,7 +2317,17 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _handleSliderInput(event) {
-        const value = parseFloat(event.target.value);
+        let value = parseFloat(event.target.value);
+
+        // For sliders with inverted fill, flip the value
+        // Inverted fill means the slider physical movement is opposite to the visual fill
+        if (this._invertFill) {
+            const { min, max } = this._controlConfig;
+            value = max - value + min;
+        }
+
+        const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
+        lcardsLog.debug(`[LCARdSSlider] Input event - raw: ${event.target.value}, parsed: ${value}, current: ${this._sliderValue}, vertical: ${isVertical}, inverted: ${this._invertFill}`);
         this._sliderValue = value;
 
         // Update visuals immediately
@@ -2259,7 +2339,13 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     async _handleSliderChange(event) {
-        const value = parseFloat(event.target.value);
+        let value = parseFloat(event.target.value);
+
+        // For sliders with inverted fill, flip the value
+        if (this._invertFill) {
+            const { min, max } = this._controlConfig;
+            value = max - value + min;
+        }
 
         // Call appropriate service based on entity domain
         await this._setEntityValue(value);
@@ -2349,6 +2435,95 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Render input overlay HTML element
+     * @private
+     */
+    _renderInputOverlay(style) {
+        if (this._controlConfig.locked) {
+            return '';
+        }
+
+        const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
+
+        return html`
+            <input
+                type="range"
+                class="slider-input-overlay"
+                value="${String(this._sliderValue)}"
+                min="${String(this._controlConfig.min)}"
+                max="${String(this._controlConfig.max)}"
+                step="${this._controlConfig.step || 1}"
+                ?disabled="${this._controlConfig.locked}"
+                @input="${this._handleSliderInput}"
+                @change="${this._handleSliderChange}"
+                style="${style}"
+            />
+        `;
+    }
+
+    /**
+     * Render component using its render function (new architecture)
+     * @private
+     */
+    _renderWithRenderer(width, height) {
+        const layout = this._componentMetadata?.layout;
+        if (!layout) {
+            lcardsLog.error(`[LCARdSSlider] Component metadata missing layout`);
+            return html`<div>Error: Component metadata missing</div>`;
+        }
+
+        // Call component's render function to get complete SVG
+        const renderedSVG = this._componentRenderer({
+            value: this._sliderValue,
+            min: this._displayConfig.min,
+            max: this._displayConfig.max,
+            ranges: this.config.ranges || []
+        });
+
+        // Parse the rendered SVG
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(renderedSVG, 'image/svg+xml');
+        const svgElement = doc.documentElement;
+
+        // Find the gauge and track content containers
+        const gaugeContainer = svgElement.querySelector('#gauge-content');
+        const trackContainer = svgElement.querySelector('#track-content');
+
+        // Generate gauge content at zone dimensions
+        if (gaugeContainer && layout.gauge) {
+            const gaugeContent = this._generateGaugeSVG(layout.gauge.width, layout.gauge.height);
+            gaugeContainer.innerHTML = gaugeContent;
+        }
+
+        // Generate track content if needed (for slider mode)
+        if (trackContainer && layout.track && this._mode === 'pills') {
+            const trackContent = this._generateTrackContent();
+            trackContainer.innerHTML = trackContent;
+        }
+
+        // Serialize back to string
+        const serializer = new XMLSerializer();
+        const finalSVG = serializer.serializeToString(svgElement);
+
+        // Create input overlay using control zone bounds
+        const controlBounds = layout.control;
+        const inputStyle = `
+            left: ${controlBounds.x}px;
+            top: ${controlBounds.y}px;
+            width: ${controlBounds.width}px;
+            height: ${controlBounds.height}px;
+            writing-mode: vertical-lr; direction: rtl;
+        `;
+
+        return html`
+            <div class="slider-container">
+                ${unsafeHTML(finalSVG)}
+                ${this._renderInputOverlay(inputStyle)}
+            </div>
+        `;
+    }
+
+    /**
      * Render the card
      * @protected
      */
@@ -2365,16 +2540,35 @@ export class LCARdSSlider extends LCARdSButton {
             `;
         }
 
+        // NEW: Check if component uses render function (new architecture)
+        if (this._componentRenderer) {
+            return this._renderWithRenderer(width, height);
+        }
+
         let svgContent;
 
         if (this._componentSvg) {
-            // Adjust viewBox to match container dimensions
-            // This prevents distortion when container aspect ratio differs from viewBox
+            // Adjust viewBox to match container dimensions for responsive behavior
             const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
 
-            // Use container dimensions as viewBox
-            // 1 viewBox unit = 1 rendered pixel
-            this._componentSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            // Store original component viewBox before overwriting (for scaling calculations)
+            if (!this._originalComponentViewBox && this.config.component && this.config.component !== 'basic') {
+                const originalViewBox = this._componentSvg.getAttribute('viewBox');
+                if (originalViewBox) {
+                    const [, , origWidth, origHeight] = originalViewBox.split(' ').map(parseFloat);
+                    this._originalComponentViewBox = { width: origWidth, height: origHeight };
+                    lcardsLog.debug(`[LCARdSSlider] Stored original component viewBox:`, this._originalComponentViewBox);
+                }
+            }
+
+            // For components with defined coordinate spaces (e.g., picard-vertical with 365×601),
+            // preserve the original viewBox to prevent clipping.
+            // For basic presets, set viewBox to container dimensions for responsive behavior.
+            if (!this._originalComponentViewBox || this.config.component === 'basic') {
+                // Dynamic viewBox for basic presets
+                this._componentSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            }
+            // else: keep original viewBox for styled components - let SVG scale naturally
 
             // Helper function to get border size (supports both .size and .width properties)
             const getBorderSize = (borderDef) => borderDef?.size ?? borderDef?.width ?? 0;
@@ -2417,17 +2611,44 @@ export class LCARdSSlider extends LCARdSButton {
             });
 
             // Apply margins and border offsets to track zone
-            // Track zone is inset from borders AND margins
+            // For basic component: Calculate bounds dynamically
+            // For styled components: Scale original zone bounds proportionally
             const trackZone = this._zones.get('track');
             if (trackZone) {
-                trackZone.bounds = {
-                    x: borderOffsets.left + margins.left,
-                    y: borderOffsets.top + margins.top,
-                    width: width - borderOffsets.left - borderOffsets.right - margins.left - margins.right,
-                    height: height - borderOffsets.top - borderOffsets.bottom - margins.top - margins.bottom
-                };
+                if (!this.config.component || this.config.component === 'basic') {
+                    // Basic component: Calculate bounds from borders/margins
+                    trackZone.bounds = {
+                        x: borderOffsets.left + margins.left,
+                        y: borderOffsets.top + margins.top,
+                        width: width - borderOffsets.left - borderOffsets.right - margins.left - margins.right,
+                        height: height - borderOffsets.top - borderOffsets.bottom - margins.top - margins.bottom
+                    };
 
-                lcardsLog.debug(`[LCARdSSlider] Track zone bounds:`, trackZone.bounds);
+                    lcardsLog.debug(`[LCARdSSlider] Track zone bounds recalculated:`, trackZone.bounds);
+                } else if (this._originalComponentViewBox && trackZone.scaleWithContainer !== false) {
+                    // Styled component: Scale original bounds proportionally (only if scaleWithContainer is not false)
+                    const scaleX = width / this._originalComponentViewBox.width;
+                    const scaleY = height / this._originalComponentViewBox.height;
+
+                    // Get original bounds from component (stored during _extractZones)
+                    const originalBounds = trackZone.originalBounds || trackZone.bounds;
+                    if (!trackZone.originalBounds) {
+                        trackZone.originalBounds = { ...trackZone.bounds }; // Store once
+                    }
+
+                    trackZone.bounds = {
+                        x: originalBounds.x * scaleX,
+                        y: originalBounds.y * scaleY,
+                        width: originalBounds.width * scaleX,
+                        height: originalBounds.height * scaleY
+                    };
+
+                    lcardsLog.debug(`[LCARdSSlider] Track zone bounds scaled:`, {
+                        original: originalBounds,
+                        scale: { scaleX, scaleY },
+                        scaled: trackZone.bounds
+                    });
+                }
 
                 // Update data-bounds attribute and position via transform
                 trackZone.element.setAttribute('data-bounds',
@@ -2436,28 +2657,97 @@ export class LCARdSSlider extends LCARdSButton {
                     `translate(${trackZone.bounds.x}, ${trackZone.bounds.y})`);
             }
 
-            // Control zone should match track zone for proper slider alignment
-            // This ensures the slider input overlay aligns with the visual track area
+            // Control zone handling
+            // - Basic component: Control zone matches track zone
+            // - Styled components: Scale control zone bounds proportionally
             const controlZone = this._zones.get('control');
             if (controlZone && trackZone) {
-                controlZone.bounds = {
-                    x: trackZone.bounds.x,
-                    y: trackZone.bounds.y,
-                    width: trackZone.bounds.width,
-                    height: trackZone.bounds.height
-                };
+                if (!this.config.component || this.config.component === 'basic') {
+                    // Basic component: Align control with track
+                    controlZone.bounds = {
+                        x: trackZone.bounds.x,
+                        y: trackZone.bounds.y,
+                        width: trackZone.bounds.width,
+                        height: trackZone.bounds.height
+                    };
+                } else if (this._originalComponentViewBox && controlZone.scaleWithContainer !== false) {
+                    // Styled component: Scale original control zone bounds (only if scaleWithContainer is not false)
+                    const scaleX = width / this._originalComponentViewBox.width;
+                    const scaleY = height / this._originalComponentViewBox.height;
 
-                // Update control zone element
+                    const originalBounds = controlZone.originalBounds || controlZone.bounds;
+                    if (!controlZone.originalBounds) {
+                        controlZone.originalBounds = { ...controlZone.bounds };
+                    }
+
+                    controlZone.bounds = {
+                        x: originalBounds.x * scaleX,
+                        y: originalBounds.y * scaleY,
+                        width: originalBounds.width * scaleX,
+                        height: originalBounds.height * scaleY
+                    };
+                }
+
+                // Update control zone element attributes
                 const controlElement = this._componentSvg.querySelector('#control-zone');
                 if (controlElement) {
                     controlElement.setAttribute('data-bounds',
-                        `${trackZone.bounds.x},${trackZone.bounds.y},${trackZone.bounds.width},${trackZone.bounds.height}`);
-                    controlElement.setAttribute('x', trackZone.bounds.x);
-                    controlElement.setAttribute('y', trackZone.bounds.y);
-                    controlElement.setAttribute('width', trackZone.bounds.width);
-                    controlElement.setAttribute('height', trackZone.bounds.height);
+                        `${controlZone.bounds.x},${controlZone.bounds.y},${controlZone.bounds.width},${controlZone.bounds.height}`);
+                    controlElement.setAttribute('x', controlZone.bounds.x);
+                    controlElement.setAttribute('y', controlZone.bounds.y);
+                    controlElement.setAttribute('width', controlZone.bounds.width);
+                    controlElement.setAttribute('height', controlZone.bounds.height);
                 }
             }
+
+            // Scale all other zones for styled components
+            if (this.config.component && this.config.component !== 'basic' && this._originalComponentViewBox) {
+                const scaleX = width / this._originalComponentViewBox.width;
+                const scaleY = height / this._originalComponentViewBox.height;
+
+                this._zones.forEach((zone, zoneName) => {
+                    if (zoneName === 'track' || zoneName === 'control') return; // Already handled above
+
+                    if (zone.scaleWithContainer === false) {
+                        // Don't scale bounds, but still set transform for positioning
+                        zone.element.setAttribute('data-bounds',
+                            `${zone.bounds.x},${zone.bounds.y},${zone.bounds.width},${zone.bounds.height}`);
+                        zone.element.setAttribute('transform',
+                            `translate(${zone.bounds.x}, ${zone.bounds.y})`);
+                        return;
+                    }
+
+                    // Scale zones with scaleWithContainer: true
+                    const originalBounds = zone.originalBounds || zone.bounds;
+                    if (!zone.originalBounds) {
+                        zone.originalBounds = { ...zone.bounds };
+                    }
+
+                    zone.bounds = {
+                        x: originalBounds.x * scaleX,
+                        y: originalBounds.y * scaleY,
+                        width: originalBounds.width * scaleX,
+                        height: originalBounds.height * scaleY
+                    };
+
+                    // Update zone element attributes
+                    zone.element.setAttribute('data-bounds',
+                        `${zone.bounds.x},${zone.bounds.y},${zone.bounds.width},${zone.bounds.height}`);
+                    zone.element.setAttribute('transform',
+                        `translate(${zone.bounds.x}, ${zone.bounds.y})`);
+                });
+
+                lcardsLog.debug(`[LCARdSSlider] Scaled all component zones by ${scaleX.toFixed(2)}x${scaleY.toFixed(2)}`);
+            }
+
+            // Ensure ALL zones have transform attributes set (for zones not handled by scaling logic above)
+            this._zones.forEach((zone, zoneName) => {
+                if (!zone.element.hasAttribute('transform') && zone.bounds) {
+                    zone.element.setAttribute('transform',
+                        `translate(${zone.bounds.x}, ${zone.bounds.y})`);
+                    lcardsLog.trace(`[LCARdSSlider] Set transform for zone "${zoneName}": translate(${zone.bounds.x}, ${zone.bounds.y})`);
+                }
+            });
 
             // Inject SVG borders from config
             this._injectBorders();
@@ -2572,20 +2862,20 @@ export class LCARdSSlider extends LCARdSButton {
                     <input
                         type="range"
                         class="slider-input-overlay"
-                        value="${String(this._sliderValue)}"
-                        min="${String(this._controlConfig.min)}"
-                        max="${String(this._controlConfig.max)}"
-                        step="${this._controlConfig.step || 1}"
+                        .value="${String(this._sliderValue)}"
+                        .min="${String(this._controlConfig.min)}"
+                        .max="${String(this._controlConfig.max)}"
+                        .step="${String(this._controlConfig.step || 1)}"
                         ?disabled="${this._controlConfig.locked}"
                         @input="${this._handleSliderInput}"
                         @change="${this._handleSliderChange}"
+                        orient="${isVertical ? 'vertical' : 'horizontal'}"
                         style="
                             left: ${scaledBounds.x}px;
                             top: ${scaledBounds.y}px;
                             width: ${scaledBounds.width}px;
                             height: ${scaledBounds.height}px;
-                            ${isVertical ? 'writing-mode: vertical-lr; direction: rtl;' : ''}
-                            ${inputTransform ? `transform: ${inputTransform};` : ''}
+                            ${isVertical ? '-webkit-appearance: slider-vertical;' : ''}
                         "
                     />
                 ` : ''}
