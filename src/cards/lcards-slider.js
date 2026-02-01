@@ -2505,6 +2505,13 @@ export class LCARdSSlider extends LCARdSButton {
                 lcardsLog.debug(`[LCARdSSlider] Resolved colors for state ${actualState} (${classifiedState}):`, colors);
             }
 
+            // Resolve theme tokens in colors before passing to render function
+            const themeManager = this._singletons?.themeManager;
+            if (themeManager) {
+                colors = resolveThemeTokensRecursive(colors, themeManager);
+                lcardsLog.debug(`[LCARdSSlider] Resolved theme tokens in colors:`, colors);
+            }
+
             // Step 3: Call render function to generate shell SVG
             const shellSVG = this._componentRenderer({ width, height, colors });
 
