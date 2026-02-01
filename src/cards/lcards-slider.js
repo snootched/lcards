@@ -105,9 +105,6 @@ export class LCARdSSlider extends LCARdSButton {
     /** Card type identifier for CoreConfigManager */
     static CARD_TYPE = 'slider';
 
-    /** Default border color for components */
-    static DEFAULT_BORDER_COLOR = 'var(--lcars-orange-medium)';
-
     static get properties() {
         return {
             ...super.properties,
@@ -2490,8 +2487,11 @@ export class LCARdSSlider extends LCARdSButton {
             lcardsLog.debug(`[LCARdSSlider] Calculated zones at ${width}×${height}:`, zones);
 
             // Step 2: Resolve state-dependent colors
-            const defaultColor = LCARdSSlider.DEFAULT_BORDER_COLOR;
-            let colors = { borderTop: defaultColor, borderBottom: defaultColor };
+            let colors = { 
+              borderTop: 'theme:components.slider.border.color.default', 
+              borderBottom: 'theme:components.slider.border.color.default' 
+            };
+            
             if (this._componentResolveColors) {
                 // Get entity state
                 const actualState = this._entity?.state;

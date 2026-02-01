@@ -190,29 +190,40 @@ function calculateZones(width, height) {
 
 /**
  * Resolve state-dependent border colors
+ * Uses theme tokens from base slider preset for consistency
  * @param {string|null} actualState - Entity state (e.g., 'on', 'off')
  * @param {string} classifiedState - Classified state ('active', 'inactive', 'unavailable')
  * @param {Object} config - Card configuration
  * @returns {Object} Resolved colors { borderTop, borderBottom }
  */
 function resolveColors(actualState, classifiedState, config) {
-  // Default border colors
-  const DEFAULT_BORDER_COLOR = 'var(--lcars-orange-medium)';
+  // Check if user provided custom border colors (respects user overrides)
+  const userBorderConfig = config?.style?.border?.top?.color || config?.style?.border?.color;
   
-  // Get border color configuration from style or use defaults
-  const borderColorConfig = config?.style?.border?.color || {
-    active: DEFAULT_BORDER_COLOR,
-    inactive: 'var(--lcars-blue-medium)',
-    unavailable: 'var(--lcars-gray-dark)',
-    default: DEFAULT_BORDER_COLOR
+  if (userBorderConfig) {
+    // User override exists - use it directly
+    const borderColor = resolveStateColor({
+      actualState,
+      classifiedState,
+      colorConfig: userBorderConfig,
+      fallback: 'theme:components.slider.border.color.default'
+    });
+    return { borderTop: borderColor, borderBottom: borderColor };
+  }
+
+  // No user config - use theme token paths (matches base preset in style-presets/sliders/index.js)
+  const borderColorConfig = {
+    default: 'theme:components.slider.border.color.default',
+    active: 'theme:components.slider.border.color.active',
+    inactive: 'theme:components.slider.border.color.inactive',
+    unavailable: 'theme:components.slider.border.color.unavailable'
   };
 
-  // Resolve using state color resolver
   const borderColor = resolveStateColor({
     actualState,
     classifiedState,
     colorConfig: borderColorConfig,
-    fallback: DEFAULT_BORDER_COLOR
+    fallback: 'theme:components.slider.border.color.default'
   });
 
   return {
