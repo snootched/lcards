@@ -2489,12 +2489,16 @@ export class LCARdSSlider extends LCARdSButton {
             // Step 2: Resolve state-dependent colors
             let colors = { borderTop: 'var(--lcars-orange-medium)', borderBottom: 'var(--lcars-orange-medium)' };
             if (this._componentResolveColors) {
+                // Get entity state
+                const actualState = this._entity?.state;
+                const classifiedState = this._mapEntityStateToStyleState(actualState);
+                
                 colors = this._componentResolveColors(
-                    this._entity?.state,
-                    this._classifiedState,
+                    actualState,
+                    classifiedState,
                     this.config
                 );
-                lcardsLog.debug(`[LCARdSSlider] Resolved colors:`, colors);
+                lcardsLog.debug(`[LCARdSSlider] Resolved colors for state ${actualState} (${classifiedState}):`, colors);
             }
 
             // Step 3: Call render function to generate shell SVG
