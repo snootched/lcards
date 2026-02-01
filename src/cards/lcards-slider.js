@@ -105,6 +105,9 @@ export class LCARdSSlider extends LCARdSButton {
     /** Card type identifier for CoreConfigManager */
     static CARD_TYPE = 'slider';
 
+    /** Default border color for components */
+    static DEFAULT_BORDER_COLOR = 'var(--lcars-orange-medium)';
+
     static get properties() {
         return {
             ...super.properties,
@@ -2487,7 +2490,8 @@ export class LCARdSSlider extends LCARdSButton {
             lcardsLog.debug(`[LCARdSSlider] Calculated zones at ${width}×${height}:`, zones);
 
             // Step 2: Resolve state-dependent colors
-            let colors = { borderTop: 'var(--lcars-orange-medium)', borderBottom: 'var(--lcars-orange-medium)' };
+            const defaultColor = LCARdSSlider.DEFAULT_BORDER_COLOR;
+            let colors = { borderTop: defaultColor, borderBottom: defaultColor };
             if (this._componentResolveColors) {
                 // Get entity state
                 const actualState = this._entity?.state;
@@ -2613,12 +2617,18 @@ export class LCARdSSlider extends LCARdSButton {
             gap: 5
         };
 
+        // Calculate value range (guard against division by zero)
+        const valueRange = this._displayConfig.max - this._displayConfig.min;
+        if (valueRange <= 0) {
+            lcardsLog.warn(`[LCARdSSlider] Invalid value range: min=${this._displayConfig.min}, max=${this._displayConfig.max}`);
+            return;
+        }
+
         // Generate range rectangles with black inset borders
         const rangeElements = ranges.map(range => {
             // Calculate position and height based on min/max values
             const min = range.min || 0;
             const max = range.max || 100;
-            const valueRange = this._displayConfig.max - this._displayConfig.min;
             
             // Convert to zone coordinates (0 at top, height at bottom)
             const topPercent = (max - this._displayConfig.min) / valueRange;
@@ -2630,6 +2640,10 @@ export class LCARdSSlider extends LCARdSButton {
             
             const color = range.color || 'var(--lcars-blue-medium)';
 
+            // Only render borders if there's enough space
+            const hasTopBorder = y >= insetConfig.size;
+            const hasBottomBorder = (y + height + insetConfig.size) <= zoneHeight;
+
             // Render range with inset borders
             return `
                 <!-- Range ${min}-${max} -->
@@ -2637,11 +2651,11 @@ export class LCARdSSlider extends LCARdSButton {
                     <!-- Range color background -->
                     <rect x="0" y="${y}" width="${zoneWidth}" height="${height}" fill="${color}" />
                     
-                    <!-- Top inset border -->
-                    ${y > 0 ? `<rect x="0" y="${y}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
+                    <!-- Top inset border (only if enough space) -->
+                    ${hasTopBorder ? `<rect x="0" y="${y}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
                     
-                    <!-- Bottom inset border -->
-                    ${y + height < zoneHeight ? `<rect x="0" y="${y + height - insetConfig.size}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
+                    <!-- Bottom inset border (only if enough space) -->
+                    ${hasBottomBorder ? `<rect x="0" y="${y + height - insetConfig.size}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
                 </g>
             `;
         }).join('');

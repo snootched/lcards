@@ -196,12 +196,15 @@ function calculateZones(width, height) {
  * @returns {Object} Resolved colors { borderTop, borderBottom }
  */
 function resolveColors(actualState, classifiedState, config) {
+  // Default border colors
+  const DEFAULT_BORDER_COLOR = 'var(--lcars-orange-medium)';
+  
   // Get border color configuration from style or use defaults
   const borderColorConfig = config?.style?.border?.color || {
-    active: 'var(--lcars-orange-medium)',
+    active: DEFAULT_BORDER_COLOR,
     inactive: 'var(--lcars-blue-medium)',
     unavailable: 'var(--lcars-gray-dark)',
-    default: 'var(--lcars-orange-medium)'
+    default: DEFAULT_BORDER_COLOR
   };
 
   // Resolve using state color resolver
@@ -209,7 +212,7 @@ function resolveColors(actualState, classifiedState, config) {
     actualState,
     classifiedState,
     colorConfig: borderColorConfig,
-    fallback: 'var(--lcars-orange-medium)'
+    fallback: DEFAULT_BORDER_COLOR
   });
 
   return {
@@ -220,7 +223,7 @@ function resolveColors(actualState, classifiedState, config) {
 
 /**
  * Legacy static SVG for backward compatibility
- * Used when card doesn't support render functions
+ * Used when caller doesn't support render function architecture
  */
 const picardVerticalSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 504">
   <defs>
