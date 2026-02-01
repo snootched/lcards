@@ -244,6 +244,9 @@ export class LCARdSSlider extends LCARdSButton {
         this._zones = new Map();          // Zone elements and bounds
         this._componentLoaded = false;
         this._componentMetadata = null;   // NEW: Component metadata (zones, features, etc.)
+        this._componentRenderer = null;   // NEW: Component render function
+        this._componentCalculateZones = null; // NEW: Component zone calculation function
+        this._componentResolveColors = null;  // NEW: Component color resolution function
 
         // Memoization for performance
         this._memoizedTrack = null;
@@ -627,21 +630,27 @@ export class LCARdSSlider extends LCARdSButton {
 
                     this._componentMetadata = component.metadata;
                     this._componentRenderer = component.render;
+                    this._componentCalculateZones = component.calculateZones;
+                    this._componentResolveColors = component.resolveColors;
                     this._componentLoaded = true;
 
                     // Set orientation from component metadata
-                    if (!this.config.style?.track?.orientation && component.metadata?.orientation) {
+                    if (!this.config.style?.track?.orientation && component.orientation) {
                         if (!this._sliderStyle) {
                             this._sliderStyle = {};
                         }
                         const existingTrack = this._sliderStyle.track || {};
                         this._sliderStyle.track = {
                             ...existingTrack,
-                            orientation: component.metadata.orientation
+                            orientation: component.orientation
                         };
                     }
 
-                    lcardsLog.debug(`[LCARdSSlider] Component with render function loaded`);
+                    lcardsLog.debug(`[LCARdSSlider] Component with render function loaded`, {
+                        hasRender: !!this._componentRenderer,
+                        hasCalculateZones: !!this._componentCalculateZones,
+                        hasResolveColors: !!this._componentResolveColors
+                    });
                     this.requestUpdate();
                     return;
                 }
@@ -2466,61 +2475,174 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _renderWithRenderer(width, height) {
-        const layout = this._componentMetadata?.layout;
-        if (!layout) {
-            lcardsLog.error(`[LCARdSSlider] Component metadata missing layout`);
-            return html`<div>Error: Component metadata missing</div>`;
+        if (!this._componentRenderer || !this._componentCalculateZones) {
+            lcardsLog.error(`[LCARdSSlider] Component missing required render functions`);
+            return html`<div>Error: Component missing render functions</div>`;
         }
 
-        // Call component's render function to get complete SVG
-        const renderedSVG = this._componentRenderer({
-            value: this._sliderValue,
-            min: this._displayConfig.min,
-            max: this._displayConfig.max,
-            ranges: this.config.ranges || []
-        });
+        try {
+            // Step 1: Calculate zone bounds at container dimensions
+            const zones = this._componentCalculateZones(width, height);
+            
+            lcardsLog.debug(`[LCARdSSlider] Calculated zones at ${width}×${height}:`, zones);
 
-        // Parse the rendered SVG
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(renderedSVG, 'image/svg+xml');
-        const svgElement = doc.documentElement;
+            // Step 2: Resolve state-dependent colors
+            let colors = { borderTop: 'var(--lcars-orange-medium)', borderBottom: 'var(--lcars-orange-medium)' };
+            if (this._componentResolveColors) {
+                colors = this._componentResolveColors(
+                    this._entity?.state,
+                    this._classifiedState,
+                    this.config
+                );
+                lcardsLog.debug(`[LCARdSSlider] Resolved colors:`, colors);
+            }
 
-        // Find the gauge and track content containers
-        const gaugeContainer = svgElement.querySelector('#gauge-content');
-        const trackContainer = svgElement.querySelector('#track-content');
+            // Step 3: Call render function to generate shell SVG
+            const shellSVG = this._componentRenderer({ width, height, colors });
 
-        // Generate gauge content at zone dimensions
-        if (gaugeContainer && layout.gauge) {
-            const gaugeContent = this._generateGaugeSVG(layout.gauge.width, layout.gauge.height);
-            gaugeContainer.innerHTML = gaugeContent;
+            // Step 4: Parse shell SVG
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(shellSVG, 'image/svg+xml');
+            const svgElement = doc.documentElement;
+
+            // Check for parse errors
+            const parserError = svgElement.querySelector('parsererror');
+            if (parserError) {
+                lcardsLog.error(`[LCARdSSlider] SVG parse error:`, parserError.textContent);
+                return html`<div>Error: SVG parse error</div>`;
+            }
+
+            // Step 5: Inject pills/gauge content into track zone
+            const trackZone = svgElement.querySelector('#track-zone');
+            if (trackZone && zones.track) {
+                // Generate content at zone dimensions (not container dimensions!)
+                const trackContent = this._mode === 'pills'
+                    ? this._generatePillsContent(zones.track)
+                    : this._generateGaugeContent(zones.track);
+                
+                trackZone.innerHTML = trackContent;
+                lcardsLog.debug(`[LCARdSSlider] Injected ${this._mode} content into track zone`);
+            }
+
+            // Step 6: Inject ranges into range zone (if picard component)
+            const rangeZone = svgElement.querySelector('#range-zone');
+            if (rangeZone && zones.range && this.config.ranges) {
+                this._injectRangesIntoZone(rangeZone, zones.range);
+                lcardsLog.debug(`[LCARdSSlider] Injected ${this.config.ranges.length} ranges into range zone`);
+            }
+
+            // Step 7: Serialize back to string
+            const serializer = new XMLSerializer();
+            const finalSVG = serializer.serializeToString(svgElement);
+
+            // Step 8: Create input overlay using control zone bounds
+            const controlBounds = zones.control;
+            const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
+            const inputStyle = `
+                position: absolute;
+                left: ${controlBounds.x}px;
+                top: ${controlBounds.y}px;
+                width: ${controlBounds.width}px;
+                height: ${controlBounds.height}px;
+                ${isVertical ? 'writing-mode: vertical-lr; direction: rtl;' : ''}
+            `;
+
+            return html`
+                <div class="slider-container">
+                    ${unsafeHTML(finalSVG)}
+                    ${this._renderInputOverlay(inputStyle)}
+                </div>
+            `;
+
+        } catch (error) {
+            lcardsLog.error(`[LCARdSSlider] Render function failed:`, error);
+            return html`<div>Error: ${error.message}</div>`;
+        }
+    }
+
+    /**
+     * Generate pills content for a zone (at zone dimensions)
+     * @private
+     */
+    _generatePillsContent(zoneBounds) {
+        // Use existing _generatePillsSVG with zone dimensions
+        const trackConfig = this._sliderStyle?.track?.segments || {};
+        const orientation = this._sliderStyle?.track?.orientation || 'vertical';
+        
+        // Pills are generated at zone size, not container size - no distortion
+        const bounds = {
+            x: 0,
+            y: 0,
+            width: zoneBounds.width,
+            height: zoneBounds.height
+        };
+        
+        return this._generatePillsSVG(bounds, trackConfig, orientation);
+    }
+
+    /**
+     * Generate gauge content for a zone (at zone dimensions)
+     * @private
+     */
+    _generateGaugeContent(zoneBounds) {
+        // Use existing _generateGaugeSVG with zone dimensions
+        return this._generateGaugeSVG(zoneBounds.width, zoneBounds.height);
+    }
+
+    /**
+     * Inject range color bars into range zone with inset borders
+     * @private
+     */
+    _injectRangesIntoZone(rangeZoneElement, zoneBounds) {
+        if (!this.config.ranges || this.config.ranges.length === 0) {
+            return;
         }
 
-        // Generate track content if needed (for slider mode)
-        if (trackContainer && layout.track && this._mode === 'pills') {
-            const trackContent = this._generateTrackContent();
-            trackContainer.innerHTML = trackContent;
-        }
+        const ranges = this.config.ranges;
+        const zoneHeight = zoneBounds.height;
+        const zoneWidth = zoneBounds.width;
+        
+        // Get inset border configuration from component metadata
+        const insetConfig = this._componentMetadata?.insetBorder || {
+            size: 4,
+            color: 'black',
+            gap: 5
+        };
 
-        // Serialize back to string
-        const serializer = new XMLSerializer();
-        const finalSVG = serializer.serializeToString(svgElement);
+        // Generate range rectangles with black inset borders
+        const rangeElements = ranges.map(range => {
+            // Calculate position and height based on min/max values
+            const min = range.min || 0;
+            const max = range.max || 100;
+            const valueRange = this._displayConfig.max - this._displayConfig.min;
+            
+            // Convert to zone coordinates (0 at top, height at bottom)
+            const topPercent = (max - this._displayConfig.min) / valueRange;
+            const bottomPercent = (min - this._displayConfig.min) / valueRange;
+            
+            // Invert for vertical orientation (0 at bottom in slider value space)
+            const y = (1 - topPercent) * zoneHeight;
+            const height = (topPercent - bottomPercent) * zoneHeight;
+            
+            const color = range.color || 'var(--lcars-blue-medium)';
 
-        // Create input overlay using control zone bounds
-        const controlBounds = layout.control;
-        const inputStyle = `
-            left: ${controlBounds.x}px;
-            top: ${controlBounds.y}px;
-            width: ${controlBounds.width}px;
-            height: ${controlBounds.height}px;
-            writing-mode: vertical-lr; direction: rtl;
-        `;
+            // Render range with inset borders
+            return `
+                <!-- Range ${min}-${max} -->
+                <g>
+                    <!-- Range color background -->
+                    <rect x="0" y="${y}" width="${zoneWidth}" height="${height}" fill="${color}" />
+                    
+                    <!-- Top inset border -->
+                    ${y > 0 ? `<rect x="0" y="${y}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
+                    
+                    <!-- Bottom inset border -->
+                    ${y + height < zoneHeight ? `<rect x="0" y="${y + height - insetConfig.size}" width="${zoneWidth}" height="${insetConfig.size}" fill="${insetConfig.color}" />` : ''}
+                </g>
+            `;
+        }).join('');
 
-        return html`
-            <div class="slider-container">
-                ${unsafeHTML(finalSVG)}
-                ${this._renderInputOverlay(inputStyle)}
-            </div>
-        `;
+        rangeZoneElement.innerHTML += rangeElements;
     }
 
     /**
