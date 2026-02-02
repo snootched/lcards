@@ -1,14 +1,13 @@
 /**
  * LCARdS Data Grid Configuration Studio V4
  *
- * 3-mode architecture:
+ * 2-mode architecture:
  * - Decorative Mode: Auto-generated random LCARS data
- * - Manual Mode: Custom templates per cell with full control
- * - Data Table Mode: Multi-entity historical or live data table (future)
+ * - Data Mode: Real entities/sensors with custom templates per cell
  *
  * Key Features:
  * - Live preview with configurable grid dimensions
- * - Grid layout: Flexible spreadsheet-style data display
+ * - Grid layout: Flexible spreadsheet-style data display with auto-detected cell types
  * - Visual hierarchy diagrams for styling
  * - Split-panel layout (40/60 config/preview)
  * - Canvas toolbar with gridlines and animations toggle
@@ -107,12 +106,12 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     get _gridRowCount() {
         const grid = this._workingConfig.grid || {};
-        
+
         // For data mode with actual rows, use the actual row count
         if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
             return this._workingConfig.rows.length;
         }
-        
+
         // Parse from grid-template-rows
         const rows = grid['grid-template-rows'] || grid.rows || 'repeat(8, auto)';
         const match = rows.match(/repeat\((\d+)/);
@@ -125,7 +124,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      */
     get _gridColumnCount() {
         const grid = this._workingConfig.grid || {};
-        
+
         // For data mode with actual rows, calculate columns from first row
         if (this._workingConfig.data_mode === 'data' && Array.isArray(this._workingConfig.rows) && this._workingConfig.rows.length > 0) {
             const firstRow = this._workingConfig.rows[0];
@@ -133,7 +132,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 return firstRow.length;
             }
         }
-        
+
         // Parse from grid-template-columns
         const columns = grid['grid-template-columns'] || grid.columns || 'repeat(12, 1fr)';
         const match = columns.match(/repeat\((\d+)/);
@@ -156,15 +155,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         // Deep clone initial config
         this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig || {}));
 
-        // Migrate old timeline configs to data table mode
-        if (this._workingConfig.layout === 'timeline') {
-            this._migrateTimelineConfig();
-        }
-
-        // Ensure data_mode is set
-        if (!this._workingConfig.data_mode) {
-            this._workingConfig.data_mode = 'decorative';
-        }
+        // Ensure data_mode is set and detect editor mode
+        this._detectAndNormalizeMode();
 
         // Normalize rows to object format (convert old array format)
         this._normalizeRowsFormat();
@@ -178,7 +170,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             };
         }
 
-        // Initialize Data mode (grid layout) with sample rows matching grid dimensions
+        // Initialize Data mode with sample rows matching grid dimensions
         if (this._workingConfig.data_mode === 'data' && !this._workingConfig.rows) {
             this._initializeGridRows();
         }
@@ -190,23 +182,27 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
-     * Migrate old timeline configs to data table mode
+     * Detect editor mode from card config and normalize
      * @private
      */
-    _migrateTimelineConfig() {
-        lcardsLog.warn('[DataGridStudioV4] Migrating deprecated timeline config to manual mode');
-        
-        // Remove layout property
+    _detectAndNormalizeMode() {
+        if (!this._workingConfig.data_mode) {
+            this._workingConfig.data_mode = 'decorative';
+            return;
+        }
+
+        // Normalize legacy modes
+        if (this._workingConfig.data_mode === 'random') {
+            this._workingConfig.data_mode = 'decorative';
+        } else if (this._workingConfig.data_mode === 'template' || this._workingConfig.data_mode === 'datasource') {
+            this._workingConfig.data_mode = 'data';
+        }
+
+        // Clean up old timeline/layout properties if they exist
         delete this._workingConfig.layout;
-        
-        // If there was a source, we can't easily migrate it to the new grid system
-        // Just clear timeline-specific properties
         delete this._workingConfig.source;
         delete this._workingConfig.history_hours;
         delete this._workingConfig.value_template;
-        
-        // Set to manual/data mode
-        this._workingConfig.data_mode = 'data';
     }
 
     /**
@@ -718,16 +714,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 description: 'Auto-generated random LCARS data'
             },
             {
-                id: 'manual',
-                icon: 'mdi:table-edit',
-                title: 'Manual',
-                description: 'Custom templates per cell with full control'
-            },
-            {
                 id: 'data',
-                icon: 'mdi:database',
-                title: 'Data Table',
-                description: 'Multi-entity historical or live data table'
+                icon: 'mdi:table-edit',
+                title: 'Data',
+                description: 'Real entities/sensors with custom templates'
             }
         ];
 
@@ -980,6 +970,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderGridStructureTab() {
         const dataMode = this._workingConfig.data_mode || 'decorative';
+        const layout = this._workingConfig.layout || 'grid';
+
+        // Determine editor mode
+        let editorMode = dataMode;
+        if (dataMode === 'data') {
+            editorMode = (layout === 'timeline') ? 'data' : 'manual';
+        }
 
         return html`
             <lcards-form-section
@@ -988,7 +985,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 icon="mdi:ruler"
                 ?expanded=${true}>
 
-                ${dataMode === 'manual' ? html`
+                ${editorMode === 'manual' ? html`
                     <lcards-message type="info">
                         <strong>Tip:</strong> Grid dimensions sync with spreadsheet editor.
                         You can add/remove rows/columns here or in the spreadsheet below.
@@ -1030,11 +1027,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             </lcards-form-section>
 
             ${dataMode === 'decorative' ? this._renderDecorativeModeConfig() : ''}
-            ${dataMode === 'manual' ? html`
+            ${dataMode === 'data' ? html`
                 ${this._renderDataModeConfig()}
                 ${this._renderDataModeEditor()}
             ` : ''}
-            ${dataMode === 'data' ? this._renderDataTablePlaceholder() : ''}
         `;
     }
 
@@ -1337,29 +1333,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </ul>
                     Click any cell below to edit its content.
                 </lcards-message>
-            </lcards-form-section>
-        `;
-    }
-
-    _renderDataTablePlaceholder() {
-        return html`
-            <lcards-form-section
-                header="Data Table Mode (Coming Soon)"
-                description="Multi-entity historical data tables"
-                icon="mdi:table-large"
-                ?expanded=${true}>
-
-                <ha-alert alert-type="info">
-                    <strong>Future Feature</strong><br><br>
-                    Data Table mode will allow you to create multi-column tables with:
-                    <ul style="margin: 8px 0; padding-left: 20px;">
-                        <li>Multiple entities as columns</li>
-                        <li>Historical data from each entity</li>
-                        <li>Configurable sampling intervals</li>
-                        <li>DataSource integration</li>
-                    </ul>
-                    For now, use <strong>Manual mode</strong> to build custom grids with templates.
-                </ha-alert>
             </lcards-form-section>
         `;
     }
@@ -2206,16 +2179,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _handleModeChange(mode) {
         const oldMode = this._workingConfig.data_mode;
+
         this._updateConfig('data_mode', mode);
 
         // Clean up mode-specific config when switching
         if (mode === 'decorative') {
-            // Switching to decorative: remove data/manual mode properties
+            // Switching to decorative: remove data mode properties
             delete this._workingConfig.rows;
-            delete this._workingConfig.layout;
-            delete this._workingConfig.source;
-            delete this._workingConfig.history_hours;
-            delete this._workingConfig.value_template;
 
             // Ensure decorative mode defaults
             if (!this._workingConfig.format) {
@@ -2224,23 +2194,15 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             if (this._workingConfig.refresh_interval === undefined) {
                 this._workingConfig.refresh_interval = 0;
             }
-        } else if (mode === 'manual') {
-            // Switching to manual: remove decorative mode properties
+        } else if (mode === 'data') {
+            // Switching to data: remove decorative properties
             delete this._workingConfig.format;
             delete this._workingConfig.refresh_interval;
 
-            // Initialize manual mode with sample rows if needed
+            // Initialize data mode with sample rows if needed
             if (!this._workingConfig.rows || this._workingConfig.rows.length === 0) {
                 this._initializeGridRows();
             }
-        } else if (mode === 'data') {
-            // Switching to data table: remove other mode properties
-            delete this._workingConfig.format;
-            delete this._workingConfig.refresh_interval;
-            delete this._workingConfig.rows; // Data table uses different structure
-
-            // Show future state message (not implemented yet)
-            lcardsLog.info('[DataGridStudioV4] Data Table mode selected (future feature)');
         }
 
         lcardsLog.info('[DataGridStudioV4] Mode changed:', { from: oldMode, to: mode });

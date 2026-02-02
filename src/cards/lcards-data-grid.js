@@ -3,9 +3,7 @@
  *
  * A flexible grid visualization card for LCARdS that supports two data modes:
  * 1. Decorative - Generates random data for LCARS aesthetic
- * 2. Data - Real entity/sensor data with two layouts:
- *    - Grid: Static structure with auto-detected cell types
- *    - Timeline: Flowing historical data from single source
+ * 2. Data - Real entity/sensor data with grid layout (static structure)
  *
  * Features:
  * - CSS Grid layout (native browser optimization)
@@ -15,10 +13,11 @@
  * - Theme token integration
  * - Responsive auto-sizing
  *
- * Cell Type Auto-Detection (Grid Layout):
+ * Cell Type Auto-Detection (Data Mode):
  * - Static text: 'Label' or 'CPU'
  * - Entity reference: sensor.temperature (auto-subscribes)
  * - Template: '{{states.sensor.temp.state}}°C' (Jinja2)
+ * - DataSource: '{datasource:temp_sensor:.1f}°C' (historical data)
  *
  * ============================================================================
  * ANIMATION CONFIGURATION
@@ -113,21 +112,10 @@
  * ```yaml
  * type: custom:lcards-data-grid
  * data_mode: data
- * layout: grid  # default
  * rows:
  *   - ['System', 'Value', 'Status']
  *   - ['CPU', sensor.cpu_usage, '{{states.sensor.cpu_usage.state|float > 80 and "HIGH" or "OK"}}']
- *   - ['Memory', sensor.memory_usage, 'OK']
- * ```
- *
- * @example Data Mode - Timeline Layout
- * ```yaml
- * type: custom:lcards-data-grid
- * data_mode: data
- * layout: timeline
- * source: sensor.temperature
- * history_hours: 2
- * value_template: '{value}°C'
+ *   - ['Memory', sensor.memory_usage, '{datasource:mem_usage:.0f}%']
  * ```
  *
  * @see {@link https://github.com/snootched/LCARdS} for full documentation
@@ -399,19 +387,12 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
-   * Initialize data layout mode (grid or timeline)
+   * Initialize data mode (grid layout only)
    * @private
    */
   async _initializeDataLayoutMode() {
-    const layout = this.config.layout || 'grid';
-
-    lcardsLog.debug(`[LCARdSDataGrid] Data mode with layout: ${layout}`);
-
-    if (layout === 'timeline') {
-      await this._initializeTimelineLayout();
-    } else {
-      await this._initializeGridLayout();
-    }
+    lcardsLog.debug(`[LCARdSDataGrid] Data mode: initializing grid layout`);
+    await this._initializeGridLayout();
   }
 
   // ============================================================================
@@ -764,141 +745,7 @@ export class LCARdSDataGrid extends LCARdSCard {
   // MODE 2: DATA - TIMELINE LAYOUT
   // ============================================================================
 
-  /**
-   * Initialize timeline layout (single source, flowing data)
-   * @private
-   */
-  async _initializeTimelineLayout() {
-    const source = this.config.source;
-    const grid = this.config.grid || {};
-    const columns = grid.columns || 12;
-
-    if (!source) {
-      lcardsLog.error('[LCARdSDataGrid] Timeline mode requires source');
-      this._error = 'Timeline mode requires source in config';
-      return;
-    }
-
-    const dataSourceManager = this._singletons?.dataSourceManager;
-    if (!dataSourceManager) {
-      lcardsLog.error('[LCARdSDataGrid] DataSourceManager not available');
-      this._error = 'DataSourceManager not available';
-      return;
-    }
-
-    // Get or create data source
-    let dataSource = dataSourceManager.getSource(source);
-
-    if (!dataSource) {
-      // Auto-create if it looks like an entity
-      const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(source);
-      if (isEntityId) {
-        try {
-          dataSource = await dataSourceManager.createDataSource(source, {
-            entity: source,
-            history: { enabled: true, hours: this.config.history_hours || 1 }
-          });
-        } catch (error) {
-          lcardsLog.error(`[LCARdSDataGrid] Failed to create data source: ${source}`, error);
-          this._error = `Failed to create data source: ${source}`;
-          return;
-        }
-      } else {
-        lcardsLog.error(`[LCARdSDataGrid] Data source not found: ${source}`);
-        this._error = `Data source not found: ${source}`;
-        return;
-      }
-    }
-
-    // Subscribe to updates
-    const unsubscribe = dataSource.subscribe((data) => {
-      this._handleTimelineDataUpdate(data, columns);
-    });
-
-    this._dataSubscriptions.push(unsubscribe);
-
-    // Get initial data
-    const currentData = dataSource.getCurrentData();
-    if (currentData) {
-      this._handleTimelineDataUpdate(currentData, columns);
-    }
-
-    lcardsLog.debug(`[LCARdSDataGrid] Timeline grid initialized: ${source}`);
-  }
-
-  /**
-   * Handle timeline data update
-   * @private
-   * @param {Object} data - Data from datasource
-   * @param {number} columns - Number of columns
-   */
-  _handleTimelineDataUpdate(data, columns) {
-    const valueTemplate = this.config.value_template || '{value}';
-    const configuredRows = this.config.grid?.rows || 8;
-    const maxValues = configuredRows * columns;
-    let values = [];
-
-    // Handle different data formats
-    if (data.buffer && typeof data.buffer.getAll === 'function') {
-      // Rolling buffer data
-      values = data.buffer.getAll().map(point => point.v);
-      // Keep only most recent maxValues
-      if (values.length > maxValues) {
-        values = values.slice(-maxValues);
-      }
-    } else if (Array.isArray(data)) {
-      values = data;
-      // Keep only most recent maxValues
-      if (values.length > maxValues) {
-        values = values.slice(-maxValues);
-      }
-    } else if (data.v !== undefined) {
-      // Single value - push to existing array or start new
-      if (!this._timelineValues) {
-        this._timelineValues = [];
-      }
-      this._timelineValues.push(data.v);
-
-      // Keep only most recent maxValues (creates left-to-right flow)
-      // Example: 1 row × 4 cols, values [11, 22, 33, 44, 55]
-      // After slice: [22, 33, 44, 55] (oldest value 11 dropped from left)
-      if (this._timelineValues.length > maxValues) {
-        this._timelineValues = this._timelineValues.slice(-maxValues);
-      }
-      values = this._timelineValues;
-    }
-
-    // Store previous data for change detection
-    this._previousGridData = this._gridData;
-
-    // Timeline displays values left-to-right, filling rows sequentially
-    // Most recent N values (where N = rows × columns)
-    const rows = [];
-    for (let r = 0; r < configuredRows; r++) {
-      const rowStartIndex = r * columns;
-      const rowValues = values.slice(rowStartIndex, rowStartIndex + columns);
-
-      // Pad row with empty strings if not enough values yet
-      while (rowValues.length < columns) {
-        rowValues.push('');
-      }
-
-      const row = rowValues.map(value =>
-        value !== '' ? this._formatCellValue(value, valueTemplate) : ''
-      );
-      rows.push(row);
-    }
-
-    this._gridData = rows;
-
-    // NOTE: Change detection disabled for timeline mode
-    // Timeline shifts all cell values as data flows, causing false positives.
-    // Only the NEWEST value (rightmost cell) is truly "new", but detecting
-    // this would require tracking cell positions vs values, which is complex.
-    // For visual feedback in timeline mode, rely on cascade animation instead.
-
-    this.requestUpdate();
-  }
+  // Timeline layout removed - use Data mode with templates and DataSources instead
 
   /**
    * Format cell value using template string

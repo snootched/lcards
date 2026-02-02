@@ -2,8 +2,11 @@
  * Data Grid Card Schema
  *
  * JSON Schema definition with x-ui-hints for LCARdS Data Grid Card.
- * Supports 3 data modes: random (decorative), template (manual), datasource (real-time)
+ * Supports 2 data modes: decorative (random) and data (real entities/sensors)
  * with full CSS Grid configuration and hierarchical styling.
+ *
+ * Legacy modes (random, template, datasource) are automatically migrated to
+ * the new simplified 2-mode architecture.
  *
  * @see doc/editor/schema-ui-hints.md
  * @see doc/user/configuration/cards/data-grid.md
