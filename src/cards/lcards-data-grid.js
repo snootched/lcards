@@ -177,12 +177,21 @@ export class LCARdSDataGrid extends LCARdSCard {
         .grid-cell {
           display: flex;
           align-items: center;
-          white-space: nowrap;
+          white-space: nowrap; /* Default - can be overridden by cell styles */
           overflow: hidden;
           text-overflow: ellipsis;
           transition: color 0.3s ease, background-color 0.3s ease;
           min-height: 1.5em; /* Prevent collapse when empty */
           padding: 4px 8px; /* Add padding for better visibility */
+        }
+
+        /* When white-space is set to wrap modes, adjust overflow behavior */
+        .grid-cell[style*="white-space: normal"],
+        .grid-cell[style*="white-space: pre-wrap"],
+        .grid-cell[style*="white-space: pre-line"] {
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+          text-overflow: clip; /* No ellipsis when wrapping */
         }
 
         /* Empty cells show placeholder for better visibility */
@@ -1405,6 +1414,11 @@ export class LCARdSDataGrid extends LCARdSCard {
       'font_family': 'font-family',
       'font_weight': 'font-weight',
       'text_transform': 'text-transform',
+      'letter_spacing': 'letter-spacing',
+      'line_height': 'line-height',
+      'white_space': 'white-space',
+      'align_items': 'align-items',
+      'justify_content': 'justify-content',
       'background': 'background',
       'border_width': 'border-width',
       'border_color': 'border-color',
@@ -1628,6 +1642,26 @@ export class LCARdSDataGrid extends LCARdSCard {
     gridStyleParts.push(`font-family: ${fontFamily}`);
     gridStyleParts.push(`font-size: ${typeof fontSize === 'number' ? fontSize + 'px' : fontSize}`);
     gridStyleParts.push(`font-weight: ${fontWeight}`);
+
+    // Add additional text styling properties if defined
+    if (gridStyle.text_transform) {
+      gridStyleParts.push(`text-transform: ${gridStyle.text_transform}`);
+    }
+    if (gridStyle.letter_spacing) {
+      gridStyleParts.push(`letter-spacing: ${gridStyle.letter_spacing}`);
+    }
+    if (gridStyle.line_height) {
+      gridStyleParts.push(`line-height: ${gridStyle.line_height}`);
+    }
+    if (gridStyle.white_space) {
+      gridStyleParts.push(`white-space: ${gridStyle.white_space}`);
+    }
+    if (gridStyle.align_items) {
+      gridStyleParts.push(`align-items: ${gridStyle.align_items}`);
+    }
+    if (gridStyle.justify_content) {
+      gridStyleParts.push(`justify-content: ${gridStyle.justify_content}`);
+    }
 
     const gridStyleStr = gridStyleParts.join('; ');
 

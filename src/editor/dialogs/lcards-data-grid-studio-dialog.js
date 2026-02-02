@@ -31,6 +31,7 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-style-hierarchy-diagram.js';
 import '../components/editors/lcards-color-section.js';
+import '../components/editors/lcards-padding-editor.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
 import '../components/lcards-animation-editor.js';
@@ -1281,7 +1282,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 header="Typography"
                 description="Font settings for all cells"
                 icon="mdi:format-font"
-                ?expanded=${true}>
+                ?expanded=${false}>
 
                 <lcards-font-selector
                     .hass=${this.hass}
@@ -1291,52 +1292,148 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     @value-changed=${(e) => this._updateConfig('style.font_family', e.detail.value)}>
                 </lcards-font-selector>
 
-                <lcards-grid-layout>
-                    <ha-textfield
-                        type="text"
-                        label="Font Size"
+                <lcards-grid-layout style="margin-top: 12px;">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{text: {}}}
+                        .label=${'Font Size'}
                         .value=${this._workingConfig.style?.font_size || ''}
-                        @input=${(e) => this._updateConfig('style.font_size', e.target.value)}
-                        helper="e.g., '18px', '1.2rem'">
-                    </ha-textfield>
+                        .placeholder=${'18'}
+                        .helper=${'Font size in px or with unit (e.g., \'18px\', \'1.2rem\')'}
+                        @value-changed=${(e) => this._updateConfig('style.font_size', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
 
-                    <ha-textfield
-                        type="number"
-                        label="Font Weight"
-                        .value=${this._workingConfig.style?.font_weight || ''}
-                        @input=${(e) => this._updateConfig('style.font_weight', e.target.value)}
-                        helper="100-900">
-                    </ha-textfield>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{number: {
+                            mode: 'box',
+                            min: 100,
+                            max: 900,
+                            step: 100
+                        }}}
+                        .label=${'Font Weight'}
+                        .value=${this._workingConfig.style?.font_weight || 400}
+                        @value-changed=${(e) => this._updateConfig('style.font_weight', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
                 </lcards-grid-layout>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Alignment & Padding"
-                description="Text alignment and cell padding"
-                icon="mdi:format-align-center"
-                ?expanded=${true}>
 
                 <lcards-grid-layout>
                     <ha-selector
                         .hass=${this.hass}
-                        .selector=${{select: {mode: 'dropdown', options: [
-                            { value: 'left', label: 'Left' },
-                            { value: 'center', label: 'Center' },
-                            { value: 'right', label: 'Right' }
-                        ]}}}
-                        .label=${'Text Alignment'}
-                        .value=${this._workingConfig.style?.align || 'left'}
-                        @value-changed=${(e) => this._updateConfig('style.align', e.detail.value)}
+                        .selector=${{select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'none', label: 'None' },
+                                { value: 'uppercase', label: 'UPPERCASE' },
+                                { value: 'lowercase', label: 'lowercase' },
+                                { value: 'capitalize', label: 'Capitalize' }
+                            ]
+                        }}}
+                        .label=${'Text Transform'}
+                        .value=${this._workingConfig.style?.text_transform || 'none'}
+                        @value-changed=${(e) => this._updateConfig('style.text_transform', e.detail.value)}
                         @closed=${(e) => e.stopPropagation()}>
                     </ha-selector>
 
-                    <ha-textfield
-                        label="Padding"
-                        .value=${this._workingConfig.style?.padding || ''}
-                        @input=${(e) => this._updateConfig('style.padding', e.target.value)}
-                        helper="e.g., '8px', '4px 8px'">
-                    </ha-textfield>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{text: {}}}
+                        .label=${'Letter Spacing'}
+                        .value=${this._workingConfig.style?.letter_spacing || ''}
+                        .placeholder=${'normal'}
+                        .helper=${'e.g., \'0.05em\', \'1px\', \'normal\''}
+                        @value-changed=${(e) => this._updateConfig('style.letter_spacing', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
                 </lcards-grid-layout>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{text: {}}}
+                    .label=${'Line Height'}
+                    .value=${this._workingConfig.style?.line_height || ''}
+                    .placeholder=${'normal'}
+                    .helper=${'e.g., \'1.5\', \'24px\', \'normal\''}
+                    @value-changed=${(e) => this._updateConfig('style.line_height', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Alignment & Wrapping"
+                description="Text wrapping and cell content alignment"
+                icon="mdi:format-align-center"
+                ?expanded=${false}>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{select: {
+                        mode: 'dropdown',
+                        options: [
+                            { value: 'nowrap', label: 'No Wrap (truncate with ellipsis)' },
+                            { value: 'normal', label: 'Wrap (word boundaries)' },
+                            { value: 'pre-wrap', label: 'Wrap (preserve line breaks)' },
+                            { value: 'pre-line', label: 'Wrap (collapse spaces, preserve \\n)' }
+                        ]
+                    }}}
+                    .label=${'Text Wrapping'}
+                    .value=${this._workingConfig.style?.white_space || 'nowrap'}
+                    @value-changed=${(e) => this._updateConfig('style.white_space', e.detail.value)}
+                    @closed=${(e) => e.stopPropagation()}>
+                </ha-selector>
+
+                <lcards-grid-layout style="margin-top: 12px;">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'flex-start', label: 'Top' },
+                                { value: 'center', label: 'Center' },
+                                { value: 'flex-end', label: 'Bottom' },
+                                { value: 'baseline', label: 'Baseline' }
+                            ]
+                        }}}
+                        .label=${'Vertical Align'}
+                        .value=${this._workingConfig.style?.align_items || 'center'}
+                        @value-changed=${(e) => this._updateConfig('style.align_items', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'flex-start', label: 'Left' },
+                                { value: 'center', label: 'Center' },
+                                { value: 'flex-end', label: 'Right' },
+                                { value: 'space-between', label: 'Space Between' }
+                            ]
+                        }}}
+                        .label=${'Horizontal Align'}
+                        .value=${this._workingConfig.style?.justify_content || 'flex-end'}
+                        @value-changed=${(e) => this._updateConfig('style.justify_content', e.detail.value)}
+                        @closed=${(e) => e.stopPropagation()}>
+                    </ha-selector>
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Padding & Spacing"
+                description="Cell padding control"
+                icon="mdi:move-resize"
+                ?expanded=${false}>
+
+                <lcards-padding-editor
+                    .editor=${this}
+                    .config=${this._workingConfig}
+                    path="style.padding"
+                    label="Cell Padding"
+                    helper="Padding inside each cell (supports per-side: '8px' or '4px 8px')">
+                </lcards-padding-editor>
             </lcards-form-section>
 
             <lcards-color-section
@@ -1347,7 +1444,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     { path: 'style.color', label: 'Text Color', helper: 'Cell text color' },
                     { path: 'style.background', label: 'Background Color', helper: 'Cell background' }
                 ]}
-                ?expanded=${true}
+                ?expanded=${false}
                 ?useColorPicker=${true}>
             </lcards-color-section>
 
@@ -1355,7 +1452,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 header="Border Settings"
                 description="Cell border configuration"
                 icon="mdi:border-all"
-                ?expanded=${true}>
+                ?expanded=${false}>
 
                 <lcards-grid-layout>
                     <ha-textfield
@@ -1863,7 +1960,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
 
-                <lcards-grid-layout>
+                <lcards-grid-layout style="margin-top: 12px;">
                     <ha-selector
                         .hass=${this.hass}
                         .selector=${{select: {mode: 'dropdown', options: [
@@ -3067,22 +3164,121 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                             ?useColorPicker=${true}>
                         </lcards-color-section>
 
-                        <lcards-grid-layout style="margin-top: 12px;">
-                            <ha-textfield
-                                type="text"
-                                label="Font Size"
-                                .value=${this._getCellStyleValue(row, col, 'font_size')}
-                                @input=${(e) => this._setCellStyleValue(row, col, 'font_size', e.target.value)}
-                                helper="e.g., '18px', '1.2rem'">
-                            </ha-textfield>
+                        <!-- Typography -->
+                        <div style="font-weight: 600; margin-top: 12px; margin-bottom: 8px; color: var(--primary-text-color);">Typography</div>
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Font Size'}
+                                .value=${this._getCellStyleValue(row, col, 'font_size') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'font_size', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
 
-                            <ha-textfield
-                                type="number"
-                                label="Font Weight"
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{number: {
+                                    mode: 'box',
+                                    min: 100,
+                                    max: 900,
+                                    step: 100
+                                }}}
+                                .label=${'Font Weight'}
                                 .value=${this._getCellStyleValue(row, col, 'font_weight')}
-                                @input=${(e) => this._setCellStyleValue(row, col, 'font_weight', e.target.value)}
-                                helper="100-900">
-                            </ha-textfield>
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'font_weight', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'none', label: 'None' },
+                                        { value: 'uppercase', label: 'UPPERCASE' },
+                                        { value: 'lowercase', label: 'lowercase' },
+                                        { value: 'capitalize', label: 'Capitalize' }
+                                    ]
+                                }}}
+                                .value=${this._getCellStyleValue(row, col, 'text_transform') || ''}
+                                .label=${'Text Transform'}
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'text_transform', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Letter Spacing'}
+                                .value=${this._getCellStyleValue(row, col, 'letter_spacing') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'letter_spacing', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <!-- Wrapping & Alignment -->
+                        <div style="font-weight: 600; margin-top: 16px; margin-bottom: 8px; color: var(--primary-text-color);">Wrapping & Alignment</div>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'nowrap', label: 'No Wrap (truncate with ellipsis)' },
+                                    { value: 'normal', label: 'Wrap (word boundaries)' },
+                                    { value: 'pre-wrap', label: 'Wrap (preserve line breaks)' },
+                                    { value: 'pre-line', label: 'Wrap (collapse spaces, preserve \\n)' }
+                                ]
+                            }}}
+                            .value=${this._getCellStyleValue(row, col, 'white_space') || 'nowrap'}
+                            .label=${'Text Wrapping'}
+                            @value-changed=${(e) => this._setCellStyleValue(row, col, 'white_space', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+
+                        <lcards-grid-layout style="margin-top: 12px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Top' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Bottom' },
+                                        { value: 'baseline', label: 'Baseline' }
+                                    ]
+                                }}}
+                                .value=${this._getCellStyleValue(row, col, 'align_items') || ''}
+                                .label=${'Vertical Align'}
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'align_items', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Left' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Right' },
+                                        { value: 'space-between', label: 'Space Between' }
+                                    ]
+                                }}}
+                                .value=${this._getCellStyleValue(row, col, 'justify_content') || ''}
+                                .label=${'Horizontal Align'}
+                                @value-changed=${(e) => this._setCellStyleValue(row, col, 'justify_content', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
                         </lcards-grid-layout>
 
                         <ha-button
@@ -3283,22 +3479,121 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                             ?useColorPicker=${true}>
                         </lcards-color-section>
 
-                        <lcards-grid-layout style="margin-top: 12px;">
-                            <ha-textfield
-                                type="text"
-                                label="Font Size"
-                                .value=${this._getRowStyleValue(rowIndex, 'font_size')}
-                                @input=${(e) => this._setRowStyleValue(rowIndex, 'font_size', e.target.value)}
-                                helper="e.g., '18px', '1.2rem'">
-                            </ha-textfield>
+                        <!-- Typography -->
+                        <div style="font-weight: 600; margin-top: 12px; margin-bottom: 8px; color: var(--primary-text-color);">Typography</div>
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Font Size'}
+                                .value=${this._getRowStyleValue(rowIndex, 'font_size') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'font_size', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
 
-                            <ha-textfield
-                                type="number"
-                                label="Font Weight"
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{number: {
+                                    mode: 'box',
+                                    min: 100,
+                                    max: 900,
+                                    step: 100
+                                }}}
+                                .label=${'Font Weight'}
                                 .value=${this._getRowStyleValue(rowIndex, 'font_weight')}
-                                @input=${(e) => this._setRowStyleValue(rowIndex, 'font_weight', e.target.value)}
-                                helper="100-900">
-                            </ha-textfield>
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'font_weight', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'none', label: 'None' },
+                                        { value: 'uppercase', label: 'UPPERCASE' },
+                                        { value: 'lowercase', label: 'lowercase' },
+                                        { value: 'capitalize', label: 'Capitalize' }
+                                    ]
+                                }}}
+                                .value=${this._getRowStyleValue(rowIndex, 'text_transform') || ''}
+                                .label=${'Text Transform'}
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'text_transform', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Letter Spacing'}
+                                .value=${this._getRowStyleValue(rowIndex, 'letter_spacing') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'letter_spacing', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <!-- Wrapping & Alignment -->
+                        <div style="font-weight: 600; margin-top: 16px; margin-bottom: 8px; color: var(--primary-text-color);">Wrapping & Alignment</div>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'nowrap', label: 'No Wrap (truncate with ellipsis)' },
+                                    { value: 'normal', label: 'Wrap (word boundaries)' },
+                                    { value: 'pre-wrap', label: 'Wrap (preserve line breaks)' },
+                                    { value: 'pre-line', label: 'Wrap (collapse spaces, preserve \\n)' }
+                                ]
+                            }}}
+                            .value=${this._getRowStyleValue(rowIndex, 'white_space') || 'nowrap'}
+                            .label=${'Text Wrapping'}
+                            @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'white_space', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+
+                        <lcards-grid-layout style="margin-top: 12px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Top' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Bottom' },
+                                        { value: 'baseline', label: 'Baseline' }
+                                    ]
+                                }}}
+                                .value=${this._getRowStyleValue(rowIndex, 'align_items') || ''}
+                                .label=${'Vertical Align'}
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'align_items', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Left' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Right' },
+                                        { value: 'space-between', label: 'Space Between' }
+                                    ]
+                                }}}
+                                .value=${this._getRowStyleValue(rowIndex, 'justify_content') || ''}
+                                .label=${'Horizontal Align'}
+                                @value-changed=${(e) => this._setRowStyleValue(rowIndex, 'justify_content', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
                         </lcards-grid-layout>
 
                         <ha-button

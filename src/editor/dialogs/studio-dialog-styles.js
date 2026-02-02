@@ -47,6 +47,7 @@ export const studioDialogStyles = css`
         overflow: hidden;
         background: var(--primary-background-color);
         min-height: 0;
+        border-radius: var(--ha-card-border-radius, 12px);
     }
 
     .config-panel {
