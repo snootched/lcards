@@ -1,13 +1,13 @@
 /**
  * Studio Dialog Shared Styles
- * 
+ *
  * Patterns for full-screen studio dialogs with config/preview panels.
  * Extracted from MSD Studio for reuse in Chart/Data Grid studios.
- * 
+ *
  * Usage:
  * ```javascript
  * import { studioDialogStyles } from '../dialogs/studio-dialog-styles.js';
- * 
+ *
  * static get styles() {
  *     return [editorStyles, studioDialogStyles];
  * }
@@ -21,16 +21,32 @@ export const studioDialogStyles = css`
         --mdc-dialog-min-width: 95vw;
         --mdc-dialog-max-width: 95vw;
         --mdc-dialog-min-height: 90vh;
+        --mdc-dialog-max-height: 90vh;
     }
 
-    /* Split Panel Layout (40/60 ratio - wider left panel for cell editor) */
+    /* Ensure ha-dialog's internal structure respects height */
+    ha-dialog::part(dialog) {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    ha-dialog::part(content) {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Split Panel Layout (50/50 ratio - balanced config and preview) */
     .studio-layout {
         flex: 1;
         display: grid;
-        grid-template-columns: 40% 60%;
+        grid-template-columns: 50% 50%;
         gap: 0;
         overflow: hidden;
         background: var(--primary-background-color);
+        min-height: 0;
     }
 
     .config-panel {
@@ -38,13 +54,24 @@ export const studioDialogStyles = css`
         flex-direction: column;
         overflow: hidden;
         border-right: 2px solid var(--divider-color);
+        min-height: 0;
+    }
+
+    /* Tab content scrolling */
+    .tab-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
     }
 
     .preview-panel {
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
     }
 
     /* Floating Toolbar Pattern */
@@ -158,7 +185,7 @@ export const studioDialogStyles = css`
     /* Tab Navigation */
     ha-tab-group {
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: 0;
         border-bottom: 2px solid var(--divider-color);
     }
 
@@ -167,11 +194,13 @@ export const studioDialogStyles = css`
         margin-right: 8px;
     }
 
-    /* Tab Content */
+    /* Tab Content - Independent Scrolling */
     .tab-content {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 16px;
+        min-height: 0; /* Allow flex item to shrink */
     }
 
     /* Placeholder Content */

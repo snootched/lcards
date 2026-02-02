@@ -9,7 +9,7 @@
  * - Live preview with configurable grid dimensions
  * - Grid layout: Flexible spreadsheet-style data display with auto-detected cell types
  * - Visual hierarchy diagrams for styling
- * - Split-panel layout (40/60 config/preview)
+ * - Split-panel layout (50/50 config/preview) with independent scrolling
  * - Canvas toolbar with gridlines and animations toggle
  *
  * @element lcards-data-grid-studio-dialog-v4
@@ -307,36 +307,26 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             .dialog-content {
                 display: flex;
                 flex-direction: column;
-                flex: 1;
-                overflow: hidden;
-            }
-
-            /* Tab navigation container */
-            .tab-navigation {
-                display: flex;
+                min-height: 80vh;
+                max-height: 90vh;
                 gap: 0;
-                border-bottom: 2px solid var(--divider-color);
-                background: var(--secondary-background-color);
-                overflow-x: auto; /* Enable horizontal scroll */
-                overflow-y: hidden;
             }
 
-            .tab-navigation::-webkit-scrollbar {
-                height: 4px;
-            }
-
-            .tab-navigation::-webkit-scrollbar-thumb {
-                background: var(--primary-color);
-                border-radius: 2px;
+            /* Tab content scrolling - matches MSD Studio pattern */
+            .tab-content {
+                flex: 1;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 16px;
+                min-height: 0;
             }
 
             /* Prevent tabs from shrinking */
-            .tab-navigation ha-tab-group {
+            ha-tab-group {
                 flex-shrink: 0;
-                min-width: max-content;
             }
 
-            .tab-navigation ha-tab-group-tab {
+            ha-tab-group-tab {
                 flex-shrink: 0;
                 min-width: 120px;
                 white-space: nowrap;
@@ -355,7 +345,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             .preview-container {
                 flex: 1;
                 padding: 24px;
-                overflow: auto;
                 background: var(--primary-background-color);
             }
 
@@ -424,7 +413,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             /* Mode selector cards */
             .mode-selector {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
                 margin-bottom: 24px;
             }
@@ -533,6 +522,30 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 margin-bottom: 16px;
             }
 
+            /* Cell type selector buttons */
+            .cell-type-button {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--primary-text-color);
+            }
+
+            .cell-type-button:hover {
+                border-color: var(--primary-color) !important;
+                background: var(--secondary-background-color) !important;
+            }
+
+            .cell-type-button.active {
+                border-color: var(--primary-color) !important;
+                background: linear-gradient(135deg,
+                    rgba(var(--rgb-primary-color, 3, 169, 244), 0.15) 0%,
+                    transparent 100%) !important;
+                color: var(--primary-color);
+            }
+
             @media (max-width: 768px) {
                 .mode-selector {
                     grid-template-columns: 1fr;
@@ -553,33 +566,31 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <div class="studio-layout">
                         <!-- Left Panel: Config -->
                         <div class="config-panel">
-                            <!-- Tab Navigation -->
-                            <div class="tab-navigation">
-                                <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
-                                    <ha-tab-group-tab value="mode" ?active=${this._activeTab === 'mode'}>
-                                        <ha-icon icon="mdi:view-grid"></ha-icon>
-                                        Data Mode
-                                    </ha-tab-group-tab>
-                                    <ha-tab-group-tab value="grid-structure" ?active=${this._activeTab === 'grid-structure'}>
-                                        <ha-icon icon="mdi:table-settings"></ha-icon>
-                                        Grid Structure
-                                    </ha-tab-group-tab>
-                                    <ha-tab-group-tab value="grid-styles" ?active=${this._activeTab === 'grid-styles'}>
-                                        <ha-icon icon="mdi:palette"></ha-icon>
-                                        Grid Styles
-                                    </ha-tab-group-tab>
-                                    <ha-tab-group-tab value="effects" ?active=${this._activeTab === 'effects'}>
-                                        <ha-icon icon="mdi:auto-fix"></ha-icon>
-                                        Effects
-                                    </ha-tab-group-tab>
-                                    <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
-                                        <ha-icon icon="mdi:cog"></ha-icon>
-                                        Advanced
-                                    </ha-tab-group-tab>
-                                </ha-tab-group>
-                            </div>
+                            <!-- HA Tab Group (headers only) -->
+                            <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
+                                <ha-tab-group-tab value="mode" ?active=${this._activeTab === 'mode'}>
+                                    <ha-icon icon="mdi:view-grid"></ha-icon>
+                                    Data Mode
+                                </ha-tab-group-tab>
+                                <ha-tab-group-tab value="grid-structure" ?active=${this._activeTab === 'grid-structure'}>
+                                    <ha-icon icon="mdi:table-settings"></ha-icon>
+                                    Grid Structure
+                                </ha-tab-group-tab>
+                                <ha-tab-group-tab value="grid-styles" ?active=${this._activeTab === 'grid-styles'}>
+                                    <ha-icon icon="mdi:palette"></ha-icon>
+                                    Grid Styles
+                                </ha-tab-group-tab>
+                                <ha-tab-group-tab value="effects" ?active=${this._activeTab === 'effects'}>
+                                    <ha-icon icon="mdi:auto-fix"></ha-icon>
+                                    Effects
+                                </ha-tab-group-tab>
+                                <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
+                                    <ha-icon icon="mdi:cog"></ha-icon>
+                                    Advanced
+                                </ha-tab-group-tab>
+                            </ha-tab-group>
 
-                            <!-- Tab Content -->
+                            <!-- Tab Content Wrapper (scrollable) -->
                             <div class="tab-content">
                                 ${this._renderValidationErrors()}
                                 ${this._renderActiveTab()}
@@ -596,13 +607,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                                         @click=${this._toggleGridLines}
                                         title="Toggle Grid Lines">
                                         <ha-icon icon="mdi:grid"></ha-icon>
-                                    </button>
-                                    <div class="canvas-toolbar-divider"></div>
-                                    <button
-                                        class="canvas-toolbar-button ${this._showAnimations ? 'active' : 'inactive'}"
-                                        @click=${this._toggleAnimations}
-                                        title="${this._showAnimations ? 'Disable Animations' : 'Enable Animations'}">
-                                        <ha-icon icon="${this._showAnimations ? 'mdi:animation' : 'mdi:animation-outline'}"></ha-icon>
                                     </button>
                                 </div>
                             </div>
@@ -876,78 +880,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
             <!-- Inline Column Editor (appears when column header clicked) -->
             ${this._activeColumnEdit !== null ? this._renderColumnEditor() : ''}
-
-            <lcards-form-section
-                header="Template Syntax Help"
-                description="Common template patterns you can use in cells"
-                ?expanded=${false}>
-
-                ${this._renderTemplateSyntaxExamples()}
-            </lcards-form-section>
-        `;
-    }
-
-    /**
-     * Render consolidated template syntax reference with grouped examples
-     */
-    _renderTemplateSyntaxExamples() {
-        const exampleGroups = [
-            {
-                title: 'Token Templates',
-                examples: [
-                    { code: '{{ value }}', description: 'Cell value from entity or datasource' },
-                    { code: '{{ timestamp }}', description: 'Data timestamp' },
-                    { code: '{{ row }} / {{ column }}', description: 'Grid position' }
-                ]
-            },
-            {
-                title: 'Home Assistant Jinja2',
-                examples: [
-                    { code: "{{states('sensor.temperature')}}", description: 'Get entity state' },
-                    { code: "{{state_attr('sensor.weather', 'humidity')}}", description: 'Get entity attribute' },
-                    { code: "{% if states('light.kitchen') == 'on' %}ON{% else %}OFF{% endif %}", description: 'Conditional logic' },
-                    { code: "{{states('sensor.temperature')|float|round(1)}}°C", description: 'Format numbers' }
-                ]
-            },
-            {
-                title: 'JavaScript Expressions',
-                examples: [
-                    { code: '[[[return value.toFixed(2);]]]', description: 'Format numbers' },
-                    { code: '[[[return new Date(timestamp).toLocaleTimeString();]]]', description: 'Format timestamps' },
-                    { code: "[[[return value > 20 ? 'WARM' : 'COOL';]]]", description: 'Conditional values' }
-                ]
-            },
-            {
-                title: 'Combined Examples',
-                examples: [
-                    { code: "[[[return `${value}°C (${value * 9/5 + 32}°F)`;]]]", description: 'Temperature with conversion' },
-                    { code: "{{states('sensor.temp')}}°C / {{states('sensor.humidity')}}%", description: 'Multiple entities' }
-                ]
-            }
-        ];
-
-        return html`
-            <div class="template-examples">
-                ${exampleGroups.map(group => html`
-                    <div class="example-group">
-                        <div class="example-title">${group.title}</div>
-                        ${group.examples.map(example => html`
-                            <div class="example-item">
-                                <div class="example-code-row">
-                                    <code>${example.code}</code>
-                                    <ha-icon-button
-                                        class="copy-button"
-                                        @click=${() => this._copyToClipboard(example.code)}
-                                        title="Copy to clipboard">
-                                        <ha-icon icon="mdi:content-copy"></ha-icon>
-                                    </ha-icon-button>
-                                </div>
-                                <span class="example-description">${example.description}</span>
-                            </div>
-                        `)}
-                    </div>
-                `)}
-            </div>
         `;
     }
 
@@ -1028,8 +960,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
             ${dataMode === 'decorative' ? this._renderDecorativeModeConfig() : ''}
             ${dataMode === 'data' ? html`
-                ${this._renderDataModeConfig()}
-                ${this._renderDataModeEditor()}
+                ${this._renderGridDataEditor()}
             ` : ''}
         `;
     }
@@ -1178,20 +1109,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <!-- Inline Column Editor (shown when column header clicked) -->
                 ${this._activeColumnEdit !== null ? this._renderColumnEditor() : ''}
             </lcards-form-section>
-
-            <lcards-form-section
-                header="Template Syntax Help"
-                description="Common template patterns you can use in cells"
-                icon="mdi:code-braces"
-                ?expanded=${false}>
-
-                ${this._renderTemplateSyntaxExamples()}
-            </lcards-form-section>
         `;
-    }
-
-    _renderDataModeEditor() {
-        return this._renderGridDataEditor();
     }
 
     _renderGridDataEditor() {
@@ -1200,13 +1118,20 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
         return html`
             <lcards-form-section
-                header="Spreadsheet Data Editor"
-                description="Configure entity mappings per cell (column-based layout)"
+                header="Data Editor"
+                description="Configure grid data using static values, entities, or templates."
                 icon="mdi:table-edit"
                 ?expanded=${true}>
 
                 <lcards-message type="info">
-                    <strong>Spreadsheet Mode:</strong> Each cell can display data from entities/datasources.
+                    <strong>Data Mode</strong>: Define grid structure below. Each cell can contain:
+                    <ul style="margin: 8px 0; padding-left: 20px;">
+                        <li>Static text (e.g., "Temperature")</li>
+                        <li>Entities (e.g., sensor.temperature) - auto-resolves to current state</li>
+                        <li>Templates (e.g., {{states('sensor.temp')}}°C)</li>
+                        <li>JavaScript expressions (e.g., [[[return value.toFixed(2);]]])</li>
+                    </ul>
+                    Click any cell below to edit its content.
                 </lcards-message>
 
                 <!-- Editable Grid (same structure as Manual mode) -->
@@ -1303,39 +1228,9 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 <!-- Inline Column Editor (shown when column header clicked) -->
                 ${this._activeColumnEdit !== null ? this._renderColumnEditor() : ''}
             </lcards-form-section>
-
-            <lcards-form-section
-                header="Template Syntax Help"
-                description="Common template patterns for entity data"
-                icon="mdi:code-braces"
-                ?expanded=${false}>
-
-                ${this._renderTemplateSyntaxExamples()}
-            </lcards-form-section>
         `;
     }
 
-    _renderDataModeConfig() {
-        return html`
-            <lcards-form-section
-                header="Data Mode Settings"
-                description="Configure entity/datasource integration"
-                icon="mdi:database"
-                ?expanded=${true}>
-
-                <lcards-message type="info">
-                    <strong>Manual Mode</strong>: Define grid structure below. Each cell can contain:
-                    <ul style="margin: 8px 0; padding-left: 20px;">
-                        <li>Static text (e.g., "Temperature")</li>
-                        <li>Entity IDs (e.g., sensor.temperature) - auto-resolves to current state</li>
-                        <li>Templates (e.g., {{states('sensor.temp')}}°C)</li>
-                        <li>JavaScript expressions (e.g., [[[return value.toFixed(2);]]])</li>
-                    </ul>
-                    Click any cell below to edit its content.
-                </lcards-message>
-            </lcards-form-section>
-        `;
-    }
 
     // ========================================
     // GRID STYLES TAB (Main Tab - merged Configuration + Styling)
@@ -3021,10 +2916,42 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
+     * Set cell content type (text, entity, template)
+     * @param {string} type - Cell type
+     * @private
+     */
+    _setCellType(type) {
+        if (!this._activeCellEdit) return;
+
+        const currentValue = this._activeCellEdit.value || '';
+
+        if (type === 'entity') {
+            // If current value is a template, extract entity if possible
+            const entityMatch = currentValue.match(/(?:states|state_attr)\(['"]([a-z_]+\.[a-z0-9_]+)['"]/);
+            if (entityMatch) {
+                this._activeCellEdit.value = entityMatch[1];
+            }
+            this._activeCellEdit.type = 'entity';
+        } else {
+            // Text mode - accepts anything (plain text, templates, expressions)
+            this._activeCellEdit.type = 'text';
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
      * Render inline cell editor
      */
     _renderCellEditor() {
         const { row, col, value } = this._activeCellEdit;
+
+        // Auto-detect cell type from value if not explicitly set
+        let cellType = this._activeCellEdit.type;
+        if (!cellType) {
+            const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(value?.trim() || '');
+            cellType = isEntityId ? 'entity' : 'text';
+        }
 
         // Get current cell style if it exists
         const rowData = this._workingConfig.rows[row];
@@ -3033,31 +2960,78 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             : null;
         const hasCellStyle = cellStyle && Object.keys(cellStyle).length > 0;
 
+        // Use explicit type from user selection (with auto-detection fallback)
+        const isEntityMode = cellType === 'entity';
+        const isTemplateMode = cellType === 'template';
+
         return html`
             <lcards-form-section
                 header="Edit Cell (Row ${row + 1}, Col ${col + 1})"
-                description="Enter static text or Home Assistant template"
+                description="Entity ID or static text"
                 ?expanded=${true}>
 
-                <ha-textfield
-                    label="Cell Value"
-                    .value=${value}
-                    @input=${(e) => {
-                        this._activeCellEdit.value = e.target.value;
-                        this.requestUpdate();
-                    }}
-                    @keydown=${(e) => {
-                        if (e.key === 'Enter') {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            this._saveCellEdit();
-                        } else if (e.key === 'Escape') {
-                            e.stopPropagation();
-                            this._cancelCellEdit();
-                        }
-                    }}
-                    style="width: 100%;">
-                </ha-textfield>
+                <!-- Content Type Selector -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--primary-text-color);">
+                        Cell Type
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <button
+                            class="cell-type-button ${cellType === 'entity' ? 'active' : ''}"
+                            @click=${() => this._setCellType('entity')}
+                            style="flex: 1; padding: 8px 12px; border: 2px solid var(--divider-color); border-radius: 6px; background: var(--card-background-color); cursor: pointer; transition: all 0.2s;">
+                            <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 18px;"></ha-icon>
+                            Entity
+                        </button>
+                        <button
+                            class="cell-type-button ${cellType === 'text' ? 'active' : ''}"
+                            @click=${() => this._setCellType('text')}
+                            style="flex: 1; padding: 8px 12px; border: 2px solid var(--divider-color); border-radius: 6px; background: var(--card-background-color); cursor: pointer; transition: all 0.2s;">
+                            <ha-icon icon="mdi:text" style="--mdc-icon-size: 18px;"></ha-icon>
+                            Text
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Entity Picker (for entity mode) -->
+                ${isEntityMode ? html`
+                    <div style="margin-bottom: 16px;">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{entity: {}}}
+                            .value=${value}
+                            @value-changed=${(e) => {
+                                this._activeCellEdit.value = e.detail.value || '';
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                        <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px;">
+                            Select entity to display its current state
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Text Input -->
+                ${!isEntityMode ? html`
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--primary-text-color);">
+                            Cell Content
+                        </label>
+                        <ha-code-editor
+                            mode="jinja2"
+                            .value=${value || ''}
+                            @value-changed=${(e) => {
+                                this._activeCellEdit.value = e.detail.value;
+                                this.requestUpdate();
+                            }}
+                            dir="ltr"
+                            autofocus>
+                        </ha-code-editor>
+                    </div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px;">
+                        Enter static text, Jinja2 templates ({{...}}), or JavaScript expressions ([[[...]]])
+                    </div>
+                ` : ''}
 
                 <div style="display: flex; gap: 8px; margin-top: 12px;">
                     <ha-button @click=${this._saveCellEdit}>
