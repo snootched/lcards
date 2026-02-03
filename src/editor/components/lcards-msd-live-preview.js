@@ -58,7 +58,6 @@ export class LCARdSMSDLivePreview extends LitElement {
                 flex-direction: column;
                 height: 100%;
                 background: var(--secondary-background-color, #fafafa);
-                border: 2px solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 overflow: hidden;
             }

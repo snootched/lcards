@@ -168,7 +168,7 @@ export const editorStyles = css`
     .info-card {
         background: var(--primary-background-color);
         border: 1px solid var(--divider-color);
-        border-radius: 16px;
+        border-radius: var(--ha-card-border-radius, 12px);
         padding: 24px;
         margin-bottom: var(--lcards-section-spacing, 16px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);

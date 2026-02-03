@@ -20,9 +20,7 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
         return css`
             :host {
                 display: block;
-                padding: 12px;
-                background: var(--secondary-background-color, #f5f5f5);
-                border-radius: 8px;
+                padding: 24px;
             }
 
             .box-model {
@@ -30,13 +28,14 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                min-height: 200px;
+                min-height: 280px;
+                margin: 0 auto;
+                width: fit-content;
             }
 
             .level {
                 position: absolute;
                 border: 2px solid var(--primary-color, #03a9f4);
-                background: var(--card-background-color, white);
                 border-radius: 4px;
                 display: flex;
                 align-items: center;
@@ -45,20 +44,58 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
             }
 
             .level:hover {
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.05);
                 transform: scale(1.02);
             }
 
-            /* Nested box model - each level smaller and centered */
-            .level-0 { width: 280px; height: 200px; top: 0; left: 0; }
-            .level-1 { width: 230px; height: 160px; top: 20px; left: 25px; }
-            .level-2 { width: 180px; height: 120px; top: 40px; left: 50px; }
-            .level-3 { width: 130px; height: 80px; top: 60px; left: 75px; }
-            .level-4 { width: 80px; height: 40px; top: 80px; left: 100px; }
+            /* Nested box model - each level smaller and centered with translucent backgrounds */
+            .level-0 {
+                width: 320px;
+                height: 240px;
+                top: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.05);
+            }
+            .level-1 {
+                width: 260px;
+                height: 190px;
+                top: 25px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
+            }
+            .level-2 {
+                width: 200px;
+                height: 140px;
+                top: 50px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.11);
+            }
+            .level-3 {
+                width: 140px;
+                height: 90px;
+                top: 75px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.14);
+            }
+            .level-4 {
+                width: 80px;
+                height: 40px;
+                top: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.17);
+            }
+
+            .level:hover {
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.2) !important;
+            }
 
             .level-label {
                 position: absolute;
-                top: 4px;
+                top: 6px;
                 left: 8px;
                 font-size: 11px;
                 font-weight: 600;
@@ -66,10 +103,11 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 background: var(--card-background-color, white);
                 padding: 2px 6px;
                 border-radius: 3px;
+                z-index: 10;
             }
 
             .help-text {
-                margin-top: 16px;
+                margin-top: 20px;
                 font-size: 11px;
                 color: var(--secondary-text-color);
                 line-height: 1.4;

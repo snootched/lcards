@@ -30,8 +30,8 @@ export const msdStudioStyles = css`
     .dialog-content {
         display: flex;
         flex-direction: column;
-        min-height: 80vh;
-        max-height: 90vh;
+        min-height: 70vh;
+        max-height: 80vh;
         gap: 0;
     }
 
@@ -242,6 +242,7 @@ export const msdStudioStyles = css`
         gap: 0;
         overflow: hidden;
         background: var(--primary-background-color);
+        border-radius: var(--ha-card-border-radius, 12px);
     }
 
     .config-panel {

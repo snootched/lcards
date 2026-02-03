@@ -308,8 +308,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             .dialog-content {
                 display: flex;
                 flex-direction: column;
-                min-height: 80vh;
-                max-height: 90vh;
+                min-height: 70vh;
+                max-height: 80vh;
                 gap: 0;
             }
 
