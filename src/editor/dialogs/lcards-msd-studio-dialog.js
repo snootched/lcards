@@ -727,15 +727,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="canvas-toolbar ${this._canvasToolbarExpanded ? '' : 'collapsed'}">
-                <!-- Toggle Button -->
-                <button
-                    class="canvas-toolbar-toggle"
-                    @click=${() => { this._canvasToolbarExpanded = !this._canvasToolbarExpanded; this.requestUpdate(); }}
-                    title="${this._canvasToolbarExpanded ? 'Collapse Toolbar' : 'Expand Toolbar'}">
-                    <ha-icon icon="mdi:${this._canvasToolbarExpanded ? 'chevron-right' : 'tools'}"></ha-icon>
-                </button>
-
-                ${this._canvasToolbarExpanded ? html`
+                ${!this._canvasToolbarExpanded ? html`
+                    <!-- Toggle Button (collapsed state - left side) -->
+                    <button
+                        class="canvas-toolbar-toggle"
+                        @click=${() => { this._canvasToolbarExpanded = !this._canvasToolbarExpanded; this.requestUpdate(); }}
+                        title="Expand Toolbar">
+                        <ha-icon icon="mdi:tools"></ha-icon>
+                    </button>
+                ` : html`
                     <div class="canvas-toolbar-buttons">
                         <!-- Mode Controls -->
                         ${modeButtons.map(btn => html`
@@ -784,7 +784,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </button>
                         `)}
                     </div>
-                ` : ''}
+
+                    <!-- Toggle Button (expanded state - right side) -->
+                    <button
+                        class="canvas-toolbar-toggle"
+                        @click=${() => { this._canvasToolbarExpanded = !this._canvasToolbarExpanded; this.requestUpdate(); }}
+                        title="Collapse Toolbar">
+                        <ha-icon icon="mdi:chevron-right"></ha-icon>
+                    </button>
+                `}
             </div>
         `;
     }
@@ -8718,7 +8726,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Routing Modes Reference -->
                 <lcards-form-section
-                    header="📖 Routing Modes Reference"
+                    header="Routing Modes Reference"
                     description="Quick reference for routing behavior"
                     icon="mdi:book-open-variant"
                     ?expanded=${false}
@@ -8751,7 +8759,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Global Routing Defaults (Advanced) -->
                 <lcards-form-section
-                    header="⚙️ Advanced Routing Configuration"
+                    header="Advanced Routing Configuration"
                     description="Fine-tune global routing behavior for lines using route: auto"
                     icon="mdi:tune"
                     ?expanded=${false}
@@ -12122,7 +12130,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <div slot="secondaryAction">
-                    <ha-button @click=${() => window.open('https://github.com/snootched/LCARdS/tree/main/doc', '_blank')} appearance="plain">
+                    <ha-button @click=${() => window.open('https://github.com/snootched/LCARdS', '_blank')} appearance="plain">
                         <ha-icon icon="mdi:book-open-variant" slot="icon"></ha-icon>
                         Documentation
                     </ha-button>

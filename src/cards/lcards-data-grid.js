@@ -272,6 +272,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     this._previousGridData = null;
     this._error = null;
     this._rowConfig = [];
+    this._columnConfig = [];
     this._isInitialized = false;
     this._styleCache = new Map(); // Style cache for performance
   }
@@ -653,6 +654,18 @@ export class LCARdSDataGrid extends LCARdSCard {
       // Old array format: convert to object
       return { values: row };
     });
+
+    // Store column config for hierarchical styling (if provided)
+    if (Array.isArray(this.config.columns) && this.config.columns.length > 0) {
+      this._columnConfig = this.config.columns.map(col => {
+        if (col && typeof col === 'object') {
+          return col;
+        }
+        return { style: {} };
+      });
+    } else {
+      this._columnConfig = [];
+    }
 
     // Track entities we need to subscribe to
     this._trackedEntities = [];

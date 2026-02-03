@@ -191,13 +191,14 @@ export class LCARdSColorSection extends LitElement {
             <lcards-form-section
                 header="${this.header}"
                 description="${this.description}"
+                icon="mdi:palette"
                 ?expanded=${this.expanded}
                 outlined>
 
                 ${isOneOf && !isMultipleSingle && !this.singleColor ? this._renderModeToggle(currentMode) : ''}
 
-                ${isMultipleSingle ? this._renderMultipleSingleColors() : 
-                  isSingle ? this._renderSingleColor() : 
+                ${isMultipleSingle ? this._renderMultipleSingleColors() :
+                  isSingle ? this._renderSingleColor() :
                   this._renderStateColors()}
             </lcards-form-section>
         `;

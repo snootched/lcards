@@ -1240,9 +1240,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _renderGridStylesTab() {
         const subTabs = [
             { id: 'hierarchy', label: 'Style Hierarchy', icon: 'mdi:file-tree' },
-            { id: 'table', label: 'Table Level', icon: 'mdi:table' },
-            { id: 'row-column', label: 'Row/Column', icon: 'mdi:table-row' },
-            { id: 'cell', label: 'Cell Level', icon: 'mdi:square' }
+            { id: 'table', label: 'Table Level', icon: 'mdi:table' }
         ];
 
         return html`
@@ -1257,8 +1255,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
             ${this._gridStylesSubTab === 'hierarchy' ? this._renderStyleHierarchySubTab() : ''}
             ${this._gridStylesSubTab === 'table' ? this._renderTableLevelStylesSubTab() : ''}
-            ${this._gridStylesSubTab === 'row-column' ? this._renderRowColumnStylesSubTab() : ''}
-            ${this._gridStylesSubTab === 'cell' ? this._renderCellLevelStylesSubTab() : ''}
         `;
     }
 
@@ -1278,6 +1274,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderTableLevelStylesSubTab() {
         return html`
+            <lcards-message type="info">
+                These are grid-wide defaults. For row/column/cell-specific overrides, click the respective headers or cells in the Grid Structure tab.
+            </lcards-message>
+
             <lcards-form-section
                 header="Typography"
                 description="Font settings for all cells"
@@ -1490,58 +1490,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     @value-changed=${(e) => this._updateConfig('style.border_style', e.detail.value)}
                     @closed=${(e) => e.stopPropagation()}>
                 </ha-selector>
-            </lcards-form-section>
-        `;
-    }
-
-    _renderRowColumnStylesSubTab() {
-        return html`
-            <lcards-message type="info">
-                Row and column specific styling can be configured directly in the Grid Structure tab
-                by clicking on row/column headers in the editable grid.
-            </lcards-message>
-
-            <lcards-form-section
-                header="Row-Level Overrides"
-                description="These styles apply to entire rows"
-                icon="mdi:table-row"
-                ?expanded=${false}>
-                <lcards-message type="info">
-                    Use the inline row editor in Grid Structure tab to configure row-specific styles.
-                    Click a row number in the editable grid to access row styling options.
-                </lcards-message>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Column-Level Overrides"
-                description="These styles apply to entire columns"
-                icon="mdi:table-column"
-                ?expanded=${false}>
-                <lcards-message type="info">
-                    Use the inline column editor in Grid Structure tab to configure column-specific styles.
-                    Click a column header in the editable grid to access column styling options.
-                </lcards-message>
-            </lcards-form-section>
-        `;
-    }
-
-    _renderCellLevelStylesSubTab() {
-        return html`
-            <lcards-message type="info">
-                Cell-specific styling can be configured directly in the Grid Structure tab
-                by clicking on individual cells in the editable grid.
-            </lcards-message>
-
-            <lcards-form-section
-                header="Cell-Level Overrides"
-                description="These styles have the highest priority"
-                icon="mdi:square"
-                ?expanded=${true}>
-                <lcards-message type="info">
-                    Use the inline cell editor in Grid Structure tab to configure cell-specific styles.
-                    Click any cell in the editable grid to access cell styling options.
-                    Cell styles will override all table, row, and column styles.
-                </lcards-message>
             </lcards-form-section>
         `;
     }
@@ -2543,6 +2491,21 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
+     * Get column style value
+     * @param {number} col - Column index
+     * @param {string} property - Style property name
+     * @returns {string} Property value or empty string
+     * @private
+     */
+    _getColumnStyleValue(col, property) {
+        const colData = this._workingConfig.columns?.[col];
+        if (!colData || typeof colData !== 'object') {
+            return '';
+        }
+        return colData.style?.[property] || '';
+    }
+
+    /**
      * Set row style value
      * @param {number} row - Row index
      * @param {string} property - Style property name
@@ -2581,6 +2544,41 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /**
+     * Set column style value
+     * @param {number} col - Column index
+     * @param {string} property - Style property name
+     * @param {*} value - Property value
+     * @private
+     */
+    _setColumnStyleValue(col, property, value) {
+        // Initialize columns array if needed
+        if (!this._workingConfig.columns) {
+            this._workingConfig.columns = [];
+        }
+
+        // Initialize column object if needed
+        if (!this._workingConfig.columns[col]) {
+            this._workingConfig.columns[col] = { style: {} };
+        }
+
+        // Initialize style object if needed
+        if (!this._workingConfig.columns[col].style) {
+            this._workingConfig.columns[col].style = {};
+        }
+
+        // Set or remove the property
+        if (value === '' || value === null || value === undefined) {
+            delete this._workingConfig.columns[col].style[property];
+        } else {
+            this._workingConfig.columns[col].style[property] = value;
+        }
+
+        lcardsLog.debug('[DataGridStudioV4] Column style updated:', { col, property, value });
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
      * Clear all style overrides for a row
      * @param {number} row - Row index
      * @private
@@ -2594,6 +2592,25 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (rowData.style && Object.keys(rowData.style).length > 0) {
             rowData.style = {};
             lcardsLog.info('[DataGridStudioV4] Row style cleared:', { row });
+            this.requestUpdate();
+            this._schedulePreviewUpdate();
+        }
+    }
+
+    /**
+     * Clear all style overrides for a column
+     * @param {number} col - Column index
+     * @private
+     */
+    _clearColumnStyle(col) {
+        const colData = this._workingConfig.columns?.[col];
+        if (!colData || typeof colData !== 'object') {
+            return;
+        }
+
+        if (colData.style && Object.keys(colData.style).length > 0) {
+            colData.style = {};
+            lcardsLog.info('[DataGridStudioV4] Column style cleared:', { col });
             this.requestUpdate();
             this._schedulePreviewUpdate();
         }
@@ -3616,6 +3633,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _renderColumnEditor() {
         const colIndex = this._activeColumnEdit;
 
+        // Check if column has style overrides
+        const colStyle = this._workingConfig.columns?.[colIndex]?.style;
+        const hasColumnStyle = colStyle && Object.keys(colStyle).length > 0;
+
         return html`
             <lcards-form-section
                 header="Column ${colIndex + 1} Operations"
@@ -3653,6 +3674,157 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         Close
                     </ha-button>
                 </div>
+
+                <!-- Column Style Overrides Section -->
+                <details style="margin-top: 16px;" ?open=${hasColumnStyle}>
+                    <summary style="cursor: pointer; font-weight: 600; padding: 8px 0; user-select: none;">
+                        <ha-icon icon="mdi:palette" style="margin-right: 8px;"></ha-icon>
+                        Column Style Overrides ${hasColumnStyle ? '(Active)' : ''}
+                    </summary>
+
+                    <div style="margin-top: 12px; padding-left: 12px; border-left: 3px solid var(--primary-color);">
+                        <lcards-message type="info" style="margin-bottom: 12px;">
+                            Column styles apply to all cells in this column, but can be overridden by row or individual cell styles. Leave empty to inherit from table-level styles.
+                        </lcards-message>
+
+                        <lcards-color-section
+                            .editor=${this}
+                            header="Column Colors"
+                            .colorPaths=${[
+                                { path: `columns.${colIndex}.style.color`, label: 'Text Color', helper: 'Override column text color' },
+                                { path: `columns.${colIndex}.style.background`, label: 'Background', helper: 'Override column background' }
+                            ]}
+                            ?expanded=${true}
+                            ?useColorPicker=${true}>
+                        </lcards-color-section>
+
+                        <!-- Typography -->
+                        <div style="font-weight: 600; margin-top: 12px; margin-bottom: 8px; color: var(--primary-text-color);">Typography</div>
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Font Size'}
+                                .value=${this._getColumnStyleValue(colIndex, 'font_size') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'font_size', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{number: {
+                                    mode: 'box',
+                                    min: 100,
+                                    max: 900,
+                                    step: 100
+                                }}}
+                                .label=${'Font Weight'}
+                                .value=${this._getColumnStyleValue(colIndex, 'font_weight')}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'font_weight', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <lcards-grid-layout>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'none', label: 'None' },
+                                        { value: 'uppercase', label: 'UPPERCASE' },
+                                        { value: 'lowercase', label: 'lowercase' },
+                                        { value: 'capitalize', label: 'Capitalize' }
+                                    ]
+                                }}}
+                                .value=${this._getColumnStyleValue(colIndex, 'text_transform') || ''}
+                                .label=${'Text Transform'}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'text_transform', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{text: {}}}
+                                .label=${'Letter Spacing'}
+                                .value=${this._getColumnStyleValue(colIndex, 'letter_spacing') || ''}
+                                .placeholder=${'Inherit'}
+                                .helper=${'Leave empty to inherit'}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'letter_spacing', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <!-- Wrapping & Alignment -->
+                        <div style="font-weight: 600; margin-top: 16px; margin-bottom: 8px; color: var(--primary-text-color);">Wrapping & Alignment</div>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{select: {
+                                mode: 'dropdown',
+                                options: [
+                                    { value: 'nowrap', label: 'No Wrap (truncate with ellipsis)' },
+                                    { value: 'normal', label: 'Wrap (word boundaries)' },
+                                    { value: 'pre-wrap', label: 'Wrap (preserve line breaks)' },
+                                    { value: 'pre-line', label: 'Wrap (collapse spaces, preserve \\n)' }
+                                ]
+                            }}}
+                            .value=${this._getColumnStyleValue(colIndex, 'white_space') || 'nowrap'}
+                            .label=${'Text Wrapping'}
+                            @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'white_space', e.detail.value)}
+                            @closed=${(e) => e.stopPropagation()}>
+                        </ha-selector>
+
+                        <lcards-grid-layout style="margin-top: 12px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Top' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Bottom' },
+                                        { value: 'baseline', label: 'Baseline' }
+                                    ]
+                                }}}
+                                .value=${this._getColumnStyleValue(colIndex, 'align_items') || ''}
+                                .label=${'Vertical Align'}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'align_items', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{select: {
+                                    mode: 'dropdown',
+                                    options: [
+                                        { value: '', label: 'Inherit' },
+                                        { value: 'flex-start', label: 'Left' },
+                                        { value: 'center', label: 'Center' },
+                                        { value: 'flex-end', label: 'Right' },
+                                        { value: 'space-between', label: 'Space Between' }
+                                    ]
+                                }}}
+                                .value=${this._getColumnStyleValue(colIndex, 'justify_content') || ''}
+                                .label=${'Horizontal Align'}
+                                @value-changed=${(e) => this._setColumnStyleValue(colIndex, 'justify_content', e.detail.value)}
+                                @closed=${(e) => e.stopPropagation()}>
+                            </ha-selector>
+                        </lcards-grid-layout>
+
+                        <ha-button
+                            appearance="plain"
+                            @click=${() => this._clearColumnStyle(colIndex)}
+                            style="margin-top: 12px;"
+                            .disabled=${!hasColumnStyle}>
+                            <ha-icon icon="mdi:eraser" slot="icon"></ha-icon>
+                            Clear Column Styles
+                        </ha-button>
+                    </div>
+                </details>
             </lcards-form-section>
         `;
     }

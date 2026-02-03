@@ -23,124 +23,206 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 padding: 24px;
             }
 
-            .box-model {
-                position: relative;
+            .diagram-container {
                 display: flex;
+                flex-direction: column;
                 align-items: center;
-                justify-content: center;
-                min-height: 280px;
-                margin: 0 auto;
-                width: fit-content;
+                gap: 16px;
             }
 
-            .level {
+            .table-diagram {
+                position: relative;
+                width: 400px;
+                height: 300px;
+                margin: 0 auto;
+            }
+
+            .grid-base {
                 position: absolute;
-                border: 2px solid var(--primary-color, #03a9f4);
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                border: 3px solid var(--primary-color, #03a9f4);
+                border-radius: 8px;
+                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.03);
+                display: flex;
+                align-items: flex-start;
+                justify-content: flex-start;
+                padding: 8px;
+            }
+
+            .grid-label {
+                font-size: 10px;
+                font-weight: 600;
+                color: var(--primary-text-color);
+                background: var(--card-background-color);
+                padding: 3px 8px;
+                border-radius: 4px;
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                z-index: 10;
+            }
+
+            .row-band {
+                position: absolute;
+                left: 80px;
+                top: 80px;
+                width: calc(100% - 160px);
+                height: 60px;
+                background: rgba(255, 152, 0, 0.15);
+                border: 2px solid rgba(255, 152, 0, 0.6);
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                padding-left: 8px;
+                z-index: 2;
+            }
+
+            .col-band {
+                position: absolute;
+                left: 180px;
+                top: 60px;
+                width: 60px;
+                height: calc(100% - 120px);
+                background: rgba(76, 175, 80, 0.15);
+                border: 2px solid rgba(76, 175, 80, 0.6);
+                border-radius: 4px;
+                display: flex;
+                align-items: flex-end;
+                justify-content: center;
+                padding-bottom: 8px;
+                z-index: 3;
+            }
+
+            .cell-highlight {
+                position: absolute;
+                left: 180px;
+                top: 80px;
+                width: 60px;
+                height: 60px;
+                background: rgba(233, 30, 99, 0.2);
+                border: 3px solid rgba(233, 30, 99, 0.8);
                 border-radius: 4px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.2s;
+                z-index: 4;
+                animation: pulse 2s ease-in-out infinite;
             }
 
-            .level:hover {
-                transform: scale(1.02);
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.05); opacity: 0.8; }
             }
 
-            /* Nested box model - each level smaller and centered with translucent backgrounds */
-            .level-0 {
-                width: 320px;
-                height: 240px;
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.05);
-            }
-            .level-1 {
-                width: 260px;
-                height: 190px;
-                top: 25px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
-            }
-            .level-2 {
-                width: 200px;
-                height: 140px;
-                top: 50px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.11);
-            }
-            .level-3 {
-                width: 140px;
-                height: 90px;
-                top: 75px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.14);
-            }
-            .level-4 {
-                width: 80px;
-                height: 40px;
-                top: 100px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.17);
-            }
-
-            .level:hover {
-                background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.2) !important;
-            }
-
-            .level-label {
-                position: absolute;
-                top: 6px;
-                left: 8px;
-                font-size: 11px;
+            .band-label {
+                font-size: 9px;
                 font-weight: 600;
-                color: var(--primary-text-color, #000);
-                background: var(--card-background-color, white);
+                color: var(--primary-text-color);
+                background: var(--card-background-color);
                 padding: 2px 6px;
                 border-radius: 3px;
-                z-index: 10;
+                text-align: center;
+                line-height: 1.2;
             }
 
-            .help-text {
-                margin-top: 20px;
+            .legend {
+                display: flex;
+                gap: 16px;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin-top: 16px;
+            }
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
                 font-size: 11px;
                 color: var(--secondary-text-color);
-                line-height: 1.4;
+            }
+
+            .legend-box {
+                width: 16px;
+                height: 16px;
+                border-radius: 3px;
+                border: 2px solid;
+            }
+
+            .legend-grid { background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.1); border-color: var(--primary-color); }
+            .legend-row { background: rgba(255, 152, 0, 0.15); border-color: rgba(255, 152, 0, 0.6); }
+            .legend-col { background: rgba(76, 175, 80, 0.15); border-color: rgba(76, 175, 80, 0.6); }
+            .legend-cell { background: rgba(233, 30, 99, 0.2); border-color: rgba(233, 30, 99, 0.8); }
+
+            .help-text {
+                margin-top: 16px;
+                font-size: 11px;
+                color: var(--secondary-text-color);
+                line-height: 1.5;
                 text-align: center;
+                max-width: 500px;
             }
         `;
     }
 
     render() {
-        const levels = this._getLevels();
-
         return html`
-            <div class="box-model">
-                ${levels.map((level, index) => html`
-                    <div class="level level-${index}" title="${level.desc}">
-                        <div class="level-label">${level.name}</div>
-                        ${index < levels.length - 1 ? html`
-                            <div class="level-content">
-                                <!-- Next level nested inside -->
-                            </div>
-                        ` : ''}
+            <div class="diagram-container">
+                <div class="table-diagram">
+                    <!-- Grid-wide background -->
+                    <div class="grid-base">
+                        <div class="grid-label">Grid-Wide Styles</div>
                     </div>
-                `)}
-            </div>
 
-            <div class="help-text">
-                <strong>Cascade Override:</strong> Inner levels override outer levels.
-                ${levels[levels.length - 1].name} (innermost) has highest priority.
+                    <!-- Row-level band (horizontal) -->
+                    <div class="row-band">
+                        <div class="band-label">Row<br>Styles</div>
+                    </div>
+
+                    <!-- Column-level band (vertical) -->
+                    <div class="col-band">
+                        <div class="band-label">Col<br>Styles</div>
+                    </div>
+
+                    <!-- Cell-level highlight (intersection) -->
+                    <div class="cell-highlight">
+                        <div class="band-label" style="font-size: 10px;">Cell</div>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-box legend-grid"></div>
+                        <span>1. Grid-Wide (lowest)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-row"></div>
+                        <span>2. Row Styles</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-col"></div>
+                        <span>3. Column Styles</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-cell"></div>
+                        <span>4. Cell (highest)</span>
+                    </div>
+                </div>
+
+                <div class="help-text">
+                    <strong>Style Precedence:</strong> Styles cascade and merge from grid-wide → row → column → cell.
+                    When a cell is in both a styled row AND column, both apply. Cell-level styles override all others.
+                </div>
             </div>
         `;
     }
 
     _getLevels() {
+        // Deprecated - keeping for backward compatibility
         const base = [
             { name: 'Grid-wide', desc: 'Applies to all cells' }
         ];
