@@ -28,9 +28,11 @@ import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { studioDialogStyles } from './studio-dialog-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
+import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../../cards/lcards-chart.js';  // Import card directly for manual instantiation
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/editors/lcards-color-section.js';
@@ -47,7 +49,9 @@ export class LCARdSChartStudioDialog extends LitElement {
             // Data Sources tab state
             _dataSourceLevel: { type: String, state: true }, // 'simple' | 'multi' | 'advanced'
             _selectedEntity: { type: String, state: true },
-            _renderKey: { type: Number, state: true } // Preview render key for forced updates
+            _renderKey: { type: Number, state: true }, // Preview render key for forced updates
+            _darkPreview: { type: Boolean, state: true }, // Preview background toggle
+            _showDataSourceEditor: { type: Boolean, state: true } // DataSource editor overlay
         };
     }
 
@@ -65,6 +69,13 @@ export class LCARdSChartStudioDialog extends LitElement {
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
 
+        // Initialize state
+        this._dataSourceLevel = 'quick';
+        this._selectedEntity = '';
+        this._renderKey = 0;
+        this._darkPreview = true;
+        this._showDataSourceEditor = false;
+
         // Data Sources tab state
         this._dataSourceLevel = 'simple';
         this._selectedEntity = '';
@@ -74,6 +85,12 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Preview render key for forced updates
         this._renderKey = 0;
+
+        // Preview UI state
+        this._darkPreview = true; // Default to dark background for charts
+
+        // DataSource editor state
+        this._showDataSourceEditor = false;
     }
 
     /**
@@ -84,14 +101,13 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Setter for config property - stores initial config
+     * Setter for config property - updates both initial and working config
+     * This is called by datasource-editor-tab when DataSources are added/edited
      */
     set config(value) {
         this._initialConfig = value;
-        // Initialize _workingConfig if not already set
-        if (!this._workingConfig || Object.keys(this._workingConfig).length === 0) {
-            this._workingConfig = JSON.parse(JSON.stringify(value || {}));
-        }
+        // Always update _workingConfig to reflect changes from embedded components
+        this._workingConfig = JSON.parse(JSON.stringify(value || {}));
     }
 
     connectedCallback() {
@@ -167,182 +183,40 @@ export class LCARdSChartStudioDialog extends LitElement {
     static get styles() {
         return [
             editorStyles,
+            studioDialogStyles,
             css`
             :host {
                 display: block;
             }
 
-            ha-dialog {
-                --mdc-dialog-min-width: 95vw;
-                --mdc-dialog-max-width: 95vw;
-                --mdc-dialog-min-height: 90vh;
-            }
-
-            .dialog-content {
-                display: flex;
-                flex-direction: column;
-                min-height: 80vh;
-                max-height: 90vh;
-                gap: 16px;
-            }
-
-            /* Studio Layout: Config (60%) | Preview (40%) */
+            /* Override studio layout for 40/60 split (more preview space for charts) */
             .studio-layout {
-                display: grid;
-                grid-template-columns: 60% 40%;
-                gap: 16px;
-                height: 100%;
-                overflow: hidden;
+                grid-template-columns: 40% 60%;
             }
 
-            @media (max-width: 1024px) {
-                .studio-layout {
-                    grid-template-columns: 1fr;
-                    grid-template-rows: 1fr auto;
-                }
-            }
-
-            .config-panel {
-                overflow-y: auto;
-                padding-right: 8px;
-            }
-
-            .preview-panel {
-                position: sticky;
-                top: 0;
-                height: fit-content;
-                display: flex;
-                flex-direction: column;
-                background: var(--card-background-color);
-                border: 2px solid var(--divider-color);
-                border-radius: 8px;
-                overflow: hidden;
-            }
-
-            .preview-header {
-                padding: 12px 16px;
-                background: var(--card-background-color);
-                border-bottom: 2px solid var(--primary-color);
-                font-weight: 600;
-                font-size: 14px;
-                color: var(--primary-text-color);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
+            /* Chart preview container - dark background for charts */
             .preview-container {
                 flex: 1;
-                min-height: 300px;
-                height: 100%;
-                width: 100%;
+                min-height: 400px;
                 padding: 16px;
                 overflow: auto;
-                background: #1c1c1c;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                transition: background-color 0.3s ease;
+            }
+
+            .preview-container.dark {
+                background: #1c1c1c;
+            }
+
+            .preview-container.light {
+                background: var(--card-background-color);
             }
 
             .preview-container > * {
                 width: 100%;
                 height: 100%;
-            }
-
-            .preview-footer {
-                padding: 8px 16px;
-                background: var(--card-background-color);
-                border-top: 1px solid var(--divider-color);
-                font-size: 12px;
-                color: var(--secondary-text-color);
-                display: flex;
-                align-items: center;
-            }
-
-            /* Tab Navigation */
-            .tab-navigation {
-                display: flex;
-                gap: 4px;
-                border-bottom: 2px solid var(--divider-color);
-                margin-bottom: 16px;
-                overflow-x: auto;
-                flex-wrap: nowrap;
-            }
-
-            .tab-button {
-                padding: 12px 16px;
-                border: none;
-                background: none;
-                cursor: pointer;
-                border-bottom: 3px solid transparent;
-                font-weight: 500;
-                font-size: 14px;
-                color: var(--primary-text-color);
-                white-space: nowrap;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .tab-button:hover {
-                background: var(--secondary-background-color);
-            }
-
-            .tab-button.active {
-                border-bottom-color: var(--primary-color);
-                border-bottom-width: 4px;
-                color: var(--primary-color);
-            }
-
-            .tab-button ha-icon {
-                --mdc-icon-size: 18px;
-            }
-
-            /* Tab Content */
-            .tab-content {
-                padding: 8px 0;
-            }
-
-            /* Placeholder Styles */
-            .coming-soon {
-                text-align: center;
-                padding: 48px 24px;
-                color: var(--secondary-text-color);
-            }
-
-            .coming-soon ha-icon {
-                --mdc-icon-size: 64px;
-                margin-bottom: 16px;
-                opacity: 0.5;
-            }
-
-            .coming-soon h3 {
-                margin: 0 0 8px 0;
-                font-size: 20px;
-            }
-
-            .coming-soon p {
-                margin: 0;
-                font-size: 14px;
-            }
-
-            /* Validation Errors */
-            .validation-errors {
-                margin-bottom: 16px;
-                padding: 12px;
-                background: var(--error-color);
-                color: white;
-                border-radius: 8px;
-            }
-
-            .validation-errors h4 {
-                margin: 0 0 8px 0;
-            }
-
-            .validation-errors ul {
-                margin: 0;
-                padding-left: 20px;
             }
 
             /* Data Sources Tab Styles */
@@ -503,6 +377,55 @@ export class LCARdSChartStudioDialog extends LitElement {
             ha-textfield {
                 width: 100%;
             }
+
+            /* DataSource Editor Overlay */
+            .datasource-editor-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                backdrop-filter: blur(2px);
+            }
+
+            .datasource-editor-panel {
+                width: 90%;
+                max-width: 900px;
+                height: 80%;
+                background: var(--card-background-color);
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .datasource-editor-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                border-bottom: 1px solid var(--divider-color);
+                background: var(--secondary-background-color);
+            }
+
+            .datasource-editor-header h3 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--primary-text-color);
+            }
+
+            .datasource-editor-content {
+                flex: 1;
+                overflow-y: auto;
+                padding: 0;
+            }
             `
         ];
     }
@@ -641,9 +564,13 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @param {string} tabId - Tab identifier
      * @private
      */
-    _handleTabClick(tabId) {
-        this._activeTab = tabId;
-        lcardsLog.debug('[ChartStudio] Switched to tab:', tabId);
+    _handleMainTabChange(e) {
+        const value = e.target.activeTab?.getAttribute('value');
+        if (value !== null && value !== undefined) {
+            this._activeTab = value;
+            lcardsLog.debug('[ChartStudio] Switched to tab:', value);
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -789,16 +716,14 @@ export class LCARdSChartStudioDialog extends LitElement {
         ];
 
         return html`
-            <div class="tab-navigation">
+            <ha-tab-group @wa-tab-show=${this._handleMainTabChange}>
                 ${tabs.map(tab => html`
-                    <button
-                        class="tab-button ${this._activeTab === tab.id ? 'active' : ''}"
-                        @click=${() => this._handleTabClick(tab.id)}>
+                    <ha-tab-group-tab value="${tab.id}" ?active=${this._activeTab === tab.id}>
                         <ha-icon icon="${tab.icon}"></ha-icon>
                         ${tab.label}
-                    </button>
+                    </ha-tab-group-tab>
                 `)}
-            </div>
+            </ha-tab-group>
         `;
     }
 
@@ -849,10 +774,12 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ${this._renderLevelSelector()}
 
                 <div class="level-content">
-                    ${this._dataSourceLevel === 'simple' ? this._renderSimpleMode() : ''}
-                    ${this._dataSourceLevel === 'multi' ? this._renderMultiMode() : ''}
+                    ${this._dataSourceLevel === 'quick' ? this._renderQuickStartMode() : ''}
                     ${this._dataSourceLevel === 'advanced' ? this._renderAdvancedMode() : ''}
                 </div>
+
+                <!-- Integrated Chart Type Selector -->
+                ${this._renderChartTypeSelector()}
 
                 ${this._renderDataSourceHelp()}
             </div>
@@ -860,26 +787,21 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Render level selector (Simple / Multi-Series / Advanced)
+     * Render level selector (Quick Start / Advanced)
      * @returns {TemplateResult}
      * @private
      */
     _renderLevelSelector() {
         const levels = [
             {
-                id: 'simple',
-                title: 'Simple',
-                description: 'Single entity reference'
-            },
-            {
-                id: 'multi',
-                title: 'Multi-Series',
-                description: 'Multiple entities'
+                id: 'quick',
+                title: '🚀 Quick Start',
+                description: 'Add entities with one click. Perfect for most charts.'
             },
             {
                 id: 'advanced',
-                title: 'Advanced',
-                description: 'Full DataSource config'
+                title: '⚙️ Advanced',
+                description: 'Full DataSource control with history, throttling, and transformations.'
             }
         ];
 
@@ -898,106 +820,125 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Render Simple Mode (single entity)
+     * Render Quick Start Mode (simplified DataSource creation)
      * @returns {TemplateResult}
      * @private
      */
-    _renderSimpleMode() {
-        const entityId = this._workingConfig.source || '';
-        const attribute = this._workingConfig.attribute || '';
-
-        return html`
-            <lcards-form-section header="Entity Configuration">
-                <div class="form-field">
-                    <label class="form-label">Entity</label>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{ entity: {} }}
-                        .value=${entityId}
-                        @value-changed=${(e) => this._updateConfig('source', e.detail.value)}>
-                    </ha-selector>
-                    <div class="form-helper">Select a Home Assistant entity to chart</div>
-                </div>
-
-                <div class="form-field">
-                    <label class="form-label">Attribute (Optional)</label>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{ text: {} }}
-                        .value=${attribute}
-                        @value-changed=${(e) => this._updateConfig('attribute', e.detail.value)}>
-                    </ha-selector>
-                    <div class="form-helper">Track a specific entity attribute instead of state</div>
-                </div>
-
-                ${this._renderEntityPreview(entityId)}
-            </lcards-form-section>
-
-            ${this._renderHistoryConfig()}
-        `;
-    }
-
-    /**
-     * Render Multi-Series Mode
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderMultiMode() {
+    _renderQuickStartMode() {
+        // Quick Start uses data_sources under the hood with auto-generated names
+        const dataSources = this._workingConfig.data_sources || {};
         const sources = this._workingConfig.sources || [];
-        const seriesNames = this._workingConfig.series_names || [];
+        const seriesCount = sources.length;
 
         return html`
-            <lcards-form-section header="Series Configuration">
-                <div class="series-list">
-                    ${sources.map((source, index) => html`
-                        <div class="series-item">
-                            <div class="series-controls">
-                                <ha-icon-button
-                                    @click=${() => this._moveSeries(index, -1)}
-                                    .disabled=${index === 0}>
-                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._moveSeries(index, 1)}
-                                    .disabled=${index === sources.length - 1}>
-                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
-                                    @click=${() => this._removeSeries(index)}>
-                                    <ha-icon icon="mdi:delete"></ha-icon>
-                                </ha-icon-button>
+            <lcards-form-section
+                header="${seriesCount === 0 ? 'Add Your First Entity' : 'Series Configuration'}"
+                icon="mdi:chart-timeline-variant"
+                description="Each series will track its history automatically"
+                ?expanded=${true}>
+
+                ${seriesCount === 0 ? html`
+                    <lcards-message type="info">
+                        <strong>📊 Start Your Chart</strong><br>
+                        Select an entity to begin. LCARdS will automatically track its history to build your chart.
+                    </lcards-message>
+                ` : ''}
+
+                <!-- Series List -->
+                ${sources.map((sourceName, index) => {
+                    const dsConfig = dataSources[sourceName] || {};
+                    const entityId = dsConfig.entity || '';
+                    const windowHours = (dsConfig.window_seconds || 3600) / 3600;
+
+                    return html`
+                        <div class="series-item" style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong>Series ${index + 1}</strong>
+                                <div class="series-controls">
+                                    <ha-icon-button
+                                        @click=${() => this._moveQuickSeries(index, -1)}
+                                        .disabled=${index === 0}>
+                                        <ha-icon icon="mdi:arrow-up"></ha-icon>
+                                    </ha-icon-button>
+                                    <ha-icon-button
+                                        @click=${() => this._moveQuickSeries(index, 1)}
+                                        .disabled=${index === sources.length - 1}>
+                                        <ha-icon icon="mdi:arrow-down"></ha-icon>
+                                    </ha-icon-button>
+                                    <ha-icon-button
+                                        @click=${() => this._removeQuickSeries(index)}>
+                                        <ha-icon icon="mdi:delete"></ha-icon>
+                                    </ha-icon-button>
+                                </div>
                             </div>
+
                             <div class="series-content">
+                                <!-- Entity Picker -->
                                 <div class="form-field">
                                     <label class="form-label">Entity</label>
                                     <ha-selector
                                         .hass=${this.hass}
                                         .selector=${{ entity: {} }}
-                                        .value=${source}
-                                        @value-changed=${(e) => this._updateSeries(index, 'source', e.detail.value)}>
+                                        .value=${entityId}
+                                        @value-changed=${(e) => this._updateQuickSeriesEntity(index, e.detail.value)}>
                                     </ha-selector>
                                 </div>
+
+                                <!-- History Window Slider -->
                                 <div class="form-field">
-                                    <label class="form-label">Series Name</label>
+                                    <label class="form-label">History Window: ${windowHours}h</label>
                                     <ha-selector
                                         .hass=${this.hass}
-                                        .selector=${{ text: {} }}
-                                        .value=${seriesNames[index] || source}
-                                        @value-changed=${(e) => this._updateSeries(index, 'name', e.detail.value)}>
+                                        .selector=${{ number: { min: 1, max: 168, step: 1, mode: 'slider', unit_of_measurement: 'hours' } }}
+                                        .value=${windowHours}
+                                        @value-changed=${(e) => this._updateQuickSeriesWindow(index, e.detail.value)}>
                                     </ha-selector>
+                                    <div class="form-helper">How far back to show data (1 hour to 7 days)</div>
                                 </div>
                             </div>
                         </div>
-                    `)}
-                </div>
+                    `;
+                })}
 
-                <ha-button class="add-button" @click=${this._addSeries}>
+                <!-- Add Series Button -->
+                <ha-button
+                    class="add-button"
+                    @click=${() => this._addQuickSeries()}>
                     <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                    Add Series
+                    ${seriesCount === 0 ? 'Add Entity' : 'Add Another Series'}
                 </ha-button>
             </lcards-form-section>
 
-            ${this._renderHistoryConfig()}
+            <!-- Global History Options -->
+            ${seriesCount > 0 ? html`
+                <lcards-form-section
+                    header="History Options"
+                    icon="mdi:history"
+                    ?expanded=${false}>
+
+                    <div class="form-field">
+                        <label class="form-label">
+                            <ha-checkbox
+                                .checked=${this._getGlobalHistoryPreload()}
+                                @change=${(e) => this._setGlobalHistoryPreload(e.target.checked)}>
+                            </ha-checkbox>
+                            Preload History
+                        </label>
+                        <div class="form-helper">Load historical data immediately when chart opens (recommended)</div>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Max Data Points</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 50, max: 1000, step: 50, mode: 'box' } }}
+                            .value=${this._workingConfig.max_points || 500}
+                            @value-changed=${(e) => this._updateConfig('max_points', e.detail.value)}>
+                        </ha-selector>
+                        <div class="form-helper">Limit points for performance (500 recommended)</div>
+                    </div>
+                </lcards-form-section>
+            ` : ''}
         `;
     }
 
@@ -1213,22 +1154,125 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
+     * Render chart type selector with validation
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChartTypeSelector() {
+        const currentType = this._workingConfig.chart_type || 'line';
+        const seriesCount = this._getSeriesCount();
+
+        // Chart type compatibility matrix
+        const chartTypes = [
+            { value: 'line', label: 'Line', icon: 'mdi:chart-line', minSeries: 1, desc: 'Trends over time' },
+            { value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', minSeries: 1, desc: 'Volume visualization' },
+            { value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', minSeries: 1, desc: 'Horizontal comparisons' },
+            { value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', minSeries: 1, desc: 'Vertical comparisons' },
+            { value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', minSeries: 1, desc: 'Correlations' },
+            { value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', minSeries: 2, desc: 'Proportions (requires 2+ series)' },
+            { value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', minSeries: 2, desc: 'Proportions (requires 2+ series)' },
+            { value: 'radar', label: 'Radar', icon: 'mdi:radar', minSeries: 1, desc: 'Spider chart' },
+            { value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', minSeries: 1, desc: 'Gauges' },
+            { value: 'polarArea', label: 'Polar', icon: 'mdi:chart-donut-variant', minSeries: 1, desc: 'Directional data' },
+            { value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', minSeries: 1, desc: 'Matrix/density' }
+        ];
+
+        return html`
+            <lcards-form-section
+                header="Chart Type"
+                description="Choose visualization - some types require multiple series"
+                icon="mdi:chart-line-variant"
+                ?expanded=${true}>
+
+                <div style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                    gap: 10px;
+                    margin-top: 12px;">
+                    ${chartTypes.map(type => {
+                        const isCompatible = seriesCount >= type.minSeries;
+                        const isSelected = currentType === type.value;
+
+                        return html`
+                            <div
+                                class="chart-type-card ${isSelected ? 'selected' : ''} ${!isCompatible ? 'disabled' : ''}"
+                                style="
+                                    padding: 12px;
+                                    border: 2px solid ${isSelected ? 'var(--primary-color)' : 'var(--divider-color)'};
+                                    border-radius: 8px;
+                                    cursor: ${isCompatible ? 'pointer' : 'not-allowed'};
+                                    transition: all 0.2s;
+                                    background: ${isSelected ? 'var(--primary-color)' : 'var(--card-background-color)'};
+                                    color: ${isSelected ? 'white' : 'var(--primary-text-color)'};
+                                    text-align: center;
+                                    opacity: ${isCompatible ? '1' : '0.4'};
+                                    position: relative;
+                                "
+                                @click=${() => {
+                                    if (isCompatible) {
+                                        this._setConfigValue('chart_type', type.value);
+                                    }
+                                }}
+                                title="${!isCompatible ? `Requires ${type.minSeries}+ series` : type.desc}">
+
+                                <ha-icon icon="${type.icon}" style="font-size: 28px; margin-bottom: 6px;"></ha-icon>
+                                <div style="font-weight: 600; font-size: 13px; margin-bottom: 2px;">
+                                    ${type.label}
+                                </div>
+                                ${type.minSeries > 1 ? html`
+                                    <div style="
+                                        font-size: 10px;
+                                        opacity: 0.8;
+                                        margin-top: 4px;
+                                        padding: 2px 6px;
+                                        background: ${isCompatible ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.2)'};
+                                        border-radius: 4px;
+                                        display: inline-block;">
+                                        ${type.minSeries}+ series
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    })}
+                </div>
+
+                ${seriesCount < 2 ? html`
+                    <lcards-message type="info" style="margin-top: 12px;">
+                        <strong>💡 Tip:</strong> Pie and Donut charts require 2+ series. Add more series above to unlock these chart types.
+                    </lcards-message>
+                ` : ''}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Get current series count for validation
+     * @returns {number}
+     * @private
+     */
+    _getSeriesCount() {
+        // Both Quick Start and Advanced use sources array
+        const sources = this._workingConfig.sources || [];
+        return sources.length;
+    }
+
+    /**
      * Render data source help documentation
      * @returns {TemplateResult}
      * @private
      */
     _renderDataSourceHelp() {
         return html`
-            <lcards-form-section header="Help" ?expanded=${false}>
+            <lcards-form-section header="Help" icon="mdi:help-circle" ?expanded=${false}>
                 <div style="font-size: 14px; line-height: 1.6;">
-                    <h4>Simple Mode</h4>
-                    <p>Quick chart from a single entity. Best for beginners.</p>
+                    <h4>🚀 Quick Start Mode</h4>
+                    <p>Simplified interface for creating charts quickly. Each entity gets automatic history tracking with customizable time windows. Perfect for most use cases.</p>
 
-                    <h4>Multi-Series Mode</h4>
-                    <p>Display multiple entities on the same chart with custom names.</p>
+                    <h4>⚙️ Advanced Mode</h4>
+                    <p>Full DataSource control with custom names, throttling, transformations, and fine-grained history settings. For power users and complex scenarios.</p>
 
-                    <h4>Advanced Mode</h4>
-                    <p>Full DataSource control with history preload, throttling, and transformations.</p>
+                    <h4>📊 History Tracking</h4>
+                    <p>Both modes use DataSource buffers to track entity history over time. Charts need historical data to display trends - current values alone aren't enough!</p>
                 </div>
             </lcards-form-section>
         `;
@@ -1248,18 +1292,15 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         if (config.data_sources && Object.keys(config.data_sources).length > 0) {
             return 'advanced';
-        } else if (Array.isArray(config.sources) && config.sources.length > 0) {
-            return 'multi';
-        } else if (config.source) {
-            return 'simple';
         }
 
-        return 'simple'; // Default
+        // Everything else is Quick Start (single source or sources array)
+        return 'quick';
     }
 
     /**
      * Switch data source level
-     * @param {string} level - 'simple' | 'multi' | 'advanced'
+     * @param {string} level - 'quick' | 'advanced'
      * @private
      */
     async _switchDataSourceLevel(level) {
@@ -1269,8 +1310,8 @@ export class LCARdSChartStudioDialog extends LitElement {
         const hasExistingConfig = this._hasDataSourceConfig();
         if (hasExistingConfig) {
             const confirmed = await this._showConfirmDialog(
-                'Switch Data Source Level?',
-                'Switching data source levels will reset your current configuration. Continue?'
+                'Switch Data Mode?',
+                `Switching to ${level === 'quick' ? 'Quick Start' : 'Advanced'} mode will reset your current configuration. Continue?`
             );
             if (!confirmed) return;
         }
@@ -1282,11 +1323,14 @@ export class LCARdSChartStudioDialog extends LitElement {
         this._dataSourceLevel = level;
 
         // Initialize for new level
-        if (level === 'simple') {
-            // Nothing to initialize
-        } else if (level === 'multi') {
-            if (!this._workingConfig.sources) {
-                this._workingConfig.sources = [];
+        if (level === 'quick') {
+            // Quick Start uses source (single) or sources (multi)
+            // Initialize with one empty series if none exist
+            if (!this._workingConfig.data_sources) {
+                this._workingConfig.data_sources = {};
+            }
+            if (!this._workingConfig.sources || this._workingConfig.sources.length === 0) {
+                this._addQuickSeries(); // Add first series automatically
             }
         } else if (level === 'advanced') {
             if (!this._workingConfig.data_sources) {
@@ -1324,6 +1368,175 @@ export class LCARdSChartStudioDialog extends LitElement {
         delete this._workingConfig.sources;
         delete this._workingConfig.series_names;
         delete this._workingConfig.data_sources;
+    }
+
+    // ============================================================================
+    // QUICK START MODE HELPERS
+    // ============================================================================
+
+    /**
+     * Add a new series in Quick Start mode
+     * @private
+     */
+    _addQuickSeries() {
+        if (!this._workingConfig.data_sources) {
+            this._workingConfig.data_sources = {};
+        }
+        if (!this._workingConfig.sources) {
+            this._workingConfig.sources = [];
+        }
+
+        // Generate unique DataSource name
+        const index = this._workingConfig.sources.length;
+        const dsName = `series_${index + 1}`;
+
+        // Create DataSource config with defaults
+        this._workingConfig.data_sources[dsName] = {
+            entity: '',
+            window_seconds: 3600, // 1 hour default
+            history: {
+                preload: true,
+                hours: 1
+            }
+        };
+
+        // Add to sources array
+        this._workingConfig.sources.push(dsName);
+
+        lcardsLog.debug('[ChartStudio] Added Quick Start series:', dsName);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Remove a series in Quick Start mode
+     * @param {number} index - Series index
+     * @private
+     */
+    _removeQuickSeries(index) {
+        const dsName = this._workingConfig.sources[index];
+
+        // Remove from sources array
+        this._workingConfig.sources.splice(index, 1);
+
+        // Remove DataSource config
+        delete this._workingConfig.data_sources[dsName];
+
+        lcardsLog.debug('[ChartStudio] Removed Quick Start series:', dsName);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Move a series up/down in Quick Start mode
+     * @param {number} index - Current index
+     * @param {number} direction - -1 for up, 1 for down
+     * @private
+     */
+    _moveQuickSeries(index, direction) {
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= this._workingConfig.sources.length) return;
+
+        const sources = this._workingConfig.sources;
+        [sources[index], sources[newIndex]] = [sources[newIndex], sources[index]];
+
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update entity for a Quick Start series
+     * @param {number} index - Series index
+     * @param {string} entityId - Entity ID
+     * @private
+     */
+    _updateQuickSeriesEntity(index, entityId) {
+        const dsName = this._workingConfig.sources[index];
+        if (!this._workingConfig.data_sources[dsName]) return;
+
+        this._workingConfig.data_sources[dsName].entity = entityId;
+
+        lcardsLog.debug('[ChartStudio] Updated Quick Start series entity:', dsName, entityId);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Update history window for a Quick Start series
+     * @param {number} index - Series index
+     * @param {number} hours - Window in hours
+     * @private
+     */
+    _updateQuickSeriesWindow(index, hours) {
+        const dsName = this._workingConfig.sources[index];
+        if (!this._workingConfig.data_sources[dsName]) return;
+
+        const seconds = hours * 3600;
+        this._workingConfig.data_sources[dsName].window_seconds = seconds;
+
+        // Update history hours to match
+        if (!this._workingConfig.data_sources[dsName].history) {
+            this._workingConfig.data_sources[dsName].history = {};
+        }
+        this._workingConfig.data_sources[dsName].history.hours = hours;
+
+        lcardsLog.debug('[ChartStudio] Updated Quick Start series window:', dsName, hours + 'h');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Get global history preload setting
+     * @returns {boolean}
+     * @private
+     */
+    _getGlobalHistoryPreload() {
+        const dataSources = this._workingConfig.data_sources || {};
+        const firstDs = Object.values(dataSources)[0];
+        return firstDs?.history?.preload ?? true;
+    }
+
+    /**
+     * Set history preload for all Quick Start series
+     * @param {boolean} enabled - Enable preload
+     * @private
+     */
+    _setGlobalHistoryPreload(enabled) {
+        const dataSources = this._workingConfig.data_sources || {};
+
+        Object.values(dataSources).forEach(ds => {
+            if (!ds.history) ds.history = {};
+            ds.history.preload = enabled;
+        });
+
+        lcardsLog.debug('[ChartStudio] Set global history preload:', enabled);
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    // ============================================================================
+    // LEGACY SERIES HELPERS (for old multi mode - can be removed)
+    // ============================================================================
+
+    /**
+     * Convert single entity to multi-series mode
+     * @private
+     */
+    _convertToMultiSeries() {
+        // If we have a single source, convert to sources array
+        if (this._workingConfig.source && !this._workingConfig.sources) {
+            this._workingConfig.sources = [this._workingConfig.source];
+            delete this._workingConfig.source;
+        } else if (!this._workingConfig.sources) {
+            this._workingConfig.sources = [];
+        }
+
+        // Add empty slot for new series
+        this._workingConfig.sources.push('');
+
+        lcardsLog.debug('[ChartStudio] Converted to multi-series mode');
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
     }
 
     /**
@@ -1404,19 +1617,69 @@ export class LCARdSChartStudioDialog extends LitElement {
         this._schedulePreviewUpdate();
     }
 
+    // ============================================================================
+    // ADVANCED MODE HELPERS
+    // ============================================================================
+
     /**
-     * Open DataSource editor (redirect to main editor)
+     * Open DataSource editor inline (Advanced mode)
      * @private
      */
-    async _openDataSourcePicker() {
-        const confirmed = await this._showConfirmDialog(
-            'Open DataSource Editor',
-            'Advanced DataSource configuration requires the full editor. Save your changes and open the DataSource editor tab?'
-        );
+    _openDataSourcePicker() {
+        this._showDataSourceEditor = true;
+        this.requestUpdate();
+        lcardsLog.debug('[ChartStudio] Opened inline DataSource editor');
+    }
 
-        if (confirmed) {
-            // Save and close studio
-            this._handleSave();
+    /**
+     * Close DataSource editor
+     * @private
+     */
+    _closeDataSourceEditor() {
+        this._showDataSourceEditor = false;
+        this.requestUpdate();
+        lcardsLog.debug('[ChartStudio] Closed inline DataSource editor');
+    }
+
+    /**
+     * Handle DataSource config changes from embedded editor tab
+     * @param {CustomEvent} event - config-changed event from datasource-editor-tab
+     * @private
+     */
+    _handleDataSourceConfigChanged(event) {
+        // The datasource-editor-tab fires config-changed when DataSources are added/edited
+        // Extract the updated data_sources from the event
+        const updatedConfig = event.detail.config;
+
+        if (updatedConfig.data_sources) {
+            // Update working config with new/edited DataSources
+            this._workingConfig.data_sources = { ...updatedConfig.data_sources };
+
+            lcardsLog.info('[ChartStudio] DataSources updated from embedded editor:',
+                Object.keys(this._workingConfig.data_sources));
+
+            // Trigger preview update
+            this._updatePreview();
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * Handle DataSource selection from picker
+     * @param {string} sourceId - Selected DataSource ID
+     * @private
+     */
+    _handleDataSourceSelected(sourceId) {
+        if (!this._workingConfig.sources) {
+            this._workingConfig.sources = [];
+        }
+
+        // Add to sources array if not already present
+        if (!this._workingConfig.sources.includes(sourceId)) {
+            this._workingConfig.sources.push(sourceId);
+            lcardsLog.debug('[ChartStudio] Added DataSource to chart:', sourceId);
+            this.requestUpdate();
+            this._schedulePreviewUpdate();
         }
     }
 
@@ -2246,62 +2509,119 @@ yaxis:
             <ha-dialog
                 open
                 @closed=${this._handleClose}
-                .heading=${'Chart Configuration Studio'}>
-
-                <div slot="primaryAction">
-                    <ha-button @click=${this._handleSave}>
-                        <ha-icon icon="mdi:content-save" slot="icon"></ha-icon>
-                        Save
-                    </ha-button>
-                </div>
-
-                <div slot="secondaryAction">
-                    <ha-button @click=${this._handleReset}>
-                        <ha-icon icon="mdi:restore" slot="icon"></ha-icon>
-                        Reset
-                    </ha-button>
-                    <ha-button @click=${this._handleCancel}>
-                        <ha-icon icon="mdi:close" slot="icon"></ha-icon>
-                        Cancel
-                    </ha-button>
-                </div>
+                .heading=${'Chart Studio'}>
 
                 <div class="dialog-content">
-                    ${this._renderValidationErrors()}
-
+                    <!-- Split Layout: Config (40%) | Preview (60%) -->
                     <div class="studio-layout">
-                        <!-- Configuration Panel (60%) -->
+                        <!-- Left Panel: Config -->
                         <div class="config-panel">
+                            <!-- Tab Navigation -->
                             ${this._renderTabNavigation()}
+
+                            <!-- Tab Content Wrapper (scrollable) -->
                             <div class="tab-content">
+                                ${this._renderValidationErrors()}
                                 ${this._renderTabContent()}
                             </div>
                         </div>
 
-                        <!-- Preview Panel (40%) -->
+                        <!-- Right Panel: Live Preview -->
                         <div class="preview-panel">
-                            <div class="preview-header">
-                                <span>
-                                    <ha-icon icon="mdi:eye" style="--mdc-icon-size: 16px; vertical-align: middle; margin-right: 4px;"></ha-icon>
-                                    Live Preview
-                                </span>
-                                <ha-icon-button
-                                    icon="mdi:refresh"
-                                    @click=${() => this._updatePreviewCard()}
-                                    title="Refresh preview"
-                                    aria-label="Refresh preview">
-                                </ha-icon-button>
+                            <!-- Preview Toolbar -->
+                            <div class="canvas-toolbar">
+                                <div class="canvas-toolbar-label">
+                                    <ha-icon icon="mdi:chart-line" style="--mdc-icon-size: 18px; margin-right: 6px;"></ha-icon>
+                                    <span>Live Preview</span>
+                                </div>
+
+                                <div class="canvas-toolbar-buttons">
+                                    <!-- Refresh Preview -->
+                                    <button
+                                        class="canvas-toolbar-button"
+                                        @click=${() => this._updatePreviewCard()}
+                                        title="Refresh Preview">
+                                        <ha-icon icon="mdi:refresh"></ha-icon>
+                                    </button>
+
+                                    <!-- Zoom Reset -->
+                                    <button
+                                        class="canvas-toolbar-button"
+                                        @click=${() => {
+                                            // Reset any zoom transformations
+                                            if (this._previewRef.value) {
+                                                const container = this._previewRef.value;
+                                                container.style.transform = '';
+                                                container.style.zoom = '1';
+                                            }
+                                        }}
+                                        title="Reset Zoom">
+                                        <ha-icon icon="mdi:magnify"></ha-icon>
+                                    </button>
+
+                                    <div class="canvas-toolbar-divider"></div>
+
+                                    <!-- Dark/Light Background Toggle -->
+                                    <button
+                                        class="canvas-toolbar-button ${this._darkPreview ? 'active' : ''}"
+                                        @click=${() => {
+                                            this._darkPreview = !this._darkPreview;
+                                            this.requestUpdate();
+                                        }}
+                                        title="Toggle Background">
+                                        <ha-icon icon="${this._darkPreview ? 'mdi:weather-night' : 'mdi:weather-sunny'}"></ha-icon>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="preview-container" ${ref(this._previewRef)}>
+
+                            <!-- Live Preview Container -->
+                            <div
+                                class="preview-container ${this._darkPreview ? 'dark' : 'light'}"
+                                ${ref(this._previewRef)}>
                                 <!-- Preview card rendered here via manual DOM manipulation -->
-                            </div>
-                            <div class="preview-footer">
-                                <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 14px; margin-right: 4px; vertical-align: middle;"></ha-icon>
-                                <span>Preview updates automatically as you edit</span>
                             </div>
                         </div>
                     </div>
+
+                    <!-- DataSource Editor Overlay -->
+                    ${this._showDataSourceEditor ? html`
+                        <div class="datasource-editor-overlay">
+                            <div class="datasource-editor-panel">
+                                <div class="datasource-editor-header">
+                                    <h3>DataSource Configuration</h3>
+                                    <ha-icon-button
+                                        @click=${this._closeDataSourceEditor}
+                                        title="Close">
+                                        <ha-icon icon="mdi:close"></ha-icon>
+                                    </ha-icon-button>
+                                </div>
+                                <div class="datasource-editor-content">
+                                    <lcards-datasource-editor-tab
+                                        .editor=${this}
+                                        .hass=${this.hass}
+                                        @config-changed=${this._handleDataSourceConfigChanged}>
+                                    </lcards-datasource-editor-tab>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
+
+                <!-- Dialog Actions -->
+                <ha-button
+                    slot="primaryAction"
+                    variant="brand"
+                    @click=${this._handleSave}>
+                    <ha-icon icon="mdi:check" slot="icon"></ha-icon>
+                    Save
+                </ha-button>
+
+                <ha-button
+                    slot="secondaryAction"
+                    appearance="plain"
+                    @click=${this._handleCancel}>
+                    Cancel
+                </ha-button>
             </ha-dialog>
         `;
     }

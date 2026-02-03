@@ -19,7 +19,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import './lcards-card-datasources-list.js';
 import './lcards-global-datasources-panel.js';
-import './lcards-datasource-dialog.js';
+import '../../dialogs/lcards-datasource-studio-dialog.js';
 import './lcards-datasource-browser.js';
 import '../shared/lcards-message.js';
 
@@ -162,15 +162,16 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         </ha-tab-group>
       </div>
 
-      <lcards-datasource-dialog
+      <lcards-datasource-studio-dialog
         .hass=${this.hass}
         .mode=${this._dialogMode}
         .sourceName=${this._editingSource?.name}
         .sourceConfig=${this._editingSource?.config}
+        .cardConfig=${this.editor?.config}
         .open=${this._dialogOpen}
         @save=${this._handleDialogSave}
         @cancel=${() => this._dialogOpen = false}>
-      </lcards-datasource-dialog>
+      </lcards-datasource-studio-dialog>
 
       <lcards-datasource-browser
         ${ref(this._browserRef)}
