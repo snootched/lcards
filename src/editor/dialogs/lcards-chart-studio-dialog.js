@@ -51,7 +51,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             // Data Sources tab state
             _dataSourceLevel: { type: String, state: true }, // 'simple' | 'multi' | 'advanced'
             _selectedEntity: { type: String, state: true },
-            _renderKey: { type: Number, state: true }, // Preview render key for forced updates
+            // Note: _renderKey is NOT reactive - plain property to avoid requestUpdate() on increment
             _darkPreview: { type: Boolean, state: true }, // Preview background toggle
             _showDataSourceEditor: { type: Boolean, state: true } // DataSource editor overlay
         };
@@ -78,7 +78,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         // Initialize state
         this._dataSourceLevel = 'quick';
         this._selectedEntity = '';
-        this._renderKey = 0;
+        this._renderKey = 0; // Plain property, not reactive
         this._showDataSourceEditor = false;
 
         // Data Sources tab state
@@ -528,9 +528,8 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         lcardsLog.debug(`[ChartStudio] Updated ${path} =`, value);
 
-        // Trigger preview update (debounced)
+        // Trigger preview update (debounced) - this will also trigger requestUpdate() after DOM is ready
         this._schedulePreviewUpdate();
-        this.requestUpdate();
     }
 
     /**
@@ -546,6 +545,9 @@ export class LCARdSChartStudioDialog extends LitElement {
             this._renderKey++; // Force preview re-render
             this._updatePreviewCard();
             this._previewUpdateTimer = null;
+            // DO NOT call requestUpdate() here - preview update is manual DOM manipulation
+            // and doesn't affect the dialog's Lit template. Calling requestUpdate() while
+            // the preview card is initializing causes Lit rendering race conditions.
         }, 300);
     }
 
@@ -1911,8 +1913,8 @@ export class LCARdSChartStudioDialog extends LitElement {
             lcardsLog.debug(`[ChartStudio] Color config updated: ${path} =`, value);
         }
 
-        this.requestUpdate();
-        this._updatePreviewCard();
+        // Use debounced update to avoid race conditions
+        this._schedulePreviewUpdate();
     }
 
     /**
@@ -2021,6 +2023,12 @@ export class LCARdSChartStudioDialog extends LitElement {
         const fillType = this._getNestedValue('style.fill.type') || 'solid';
 
         return html`
+            <lcards-message type="info">
+                <strong>🎨 Color System</strong><br>
+                Colors use CSS variables (e.g., <code>var(--lcars-blue)</code>) or hex codes.
+                Array colors cycle through series - add more colors to create variety!
+            </lcards-message>
+
             <!-- Series Colors (Primary) -->
             <lcards-form-section
                 header="Series Colors"
@@ -2039,11 +2047,13 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${true}>
 
                 ${FormField.renderField(this, 'style.stroke.width', {
-                    label: 'Stroke Width'
+                    label: 'Stroke Width',
+                    helper: 'Line thickness in pixels (affects all series)'
                 })}
 
                 ${FormField.renderField(this, 'style.stroke.curve', {
-                    label: 'Curve Type'
+                    label: 'Curve Type',
+                    helper: 'Choose straight lines or smooth curves between data points'
                 })}
 
                 ${this._renderColorList('style.colors.stroke', 'Stroke Colors', 'Outline/line colors - cycles through array')}
@@ -2143,6 +2153,12 @@ export class LCARdSChartStudioDialog extends LitElement {
         const showGrid = this._getNestedValue('style.grid.show') ?? true;
 
         return html`
+            <lcards-message type="info">
+                <strong>📍 Chart Elements</strong><br>
+                Configure markers (data points), grid lines, axes, and legends.
+                Most settings are optional - use defaults for clean charts.
+            </lcards-message>
+
             <!-- Markers Configuration -->
             <lcards-form-section
                 header="Markers Configuration"
@@ -2151,11 +2167,13 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${true}>
 
                 ${FormField.renderField(this, 'style.markers.size', {
-                    label: 'Marker Size'
+                    label: 'Marker Size',
+                    helper: 'Size of data point circles (0 to hide markers)'
                 })}
 
                 ${FormField.renderField(this, 'style.markers.stroke.width', {
-                    label: 'Marker Stroke Width'
+                    label: 'Marker Stroke Width',
+                    helper: 'Border width around markers'
                 })}
             </lcards-form-section>
 
@@ -2188,11 +2206,13 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${true}>
 
                 ${FormField.renderField(this, 'style.xaxis.labels.show', {
-                    label: 'Show X-Axis Labels'
+                    label: 'Show X-Axis Labels',
+                    helper: 'Display labels below the chart (typically timestamps or categories)'
                 })}
 
                 ${FormField.renderField(this, 'style.xaxis.labels.rotate', {
-                    label: 'Label Rotation (degrees)'
+                    label: 'Label Rotation (degrees)',
+                    helper: 'Rotate labels to prevent overlap (-90 for vertical)'
                 })}
 
                 ${FormField.renderField(this, 'style.xaxis.border.show', {
@@ -2212,7 +2232,8 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${true}>
 
                 ${FormField.renderField(this, 'style.yaxis.labels.show', {
-                    label: 'Show Y-Axis Labels'
+                    label: 'Show Y-Axis Labels',
+                    helper: 'Display value labels on the left side of the chart'
                 })}
 
                 ${FormField.renderField(this, 'style.yaxis.border.show', {
@@ -2254,7 +2275,8 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${false}>
 
                 ${FormField.renderField(this, 'style.data_labels.show', {
-                    label: 'Show Data Labels'
+                    label: 'Show Data Labels',
+                    helper: 'Display values directly on data points (can be cluttered with many points)'
                 })}
 
                 ${this._getNestedValue('style.data_labels.show') ? html`
@@ -2699,8 +2721,14 @@ export class LCARdSChartStudioDialog extends LitElement {
                 icon="mdi:theme-light-dark"
                 ?expanded=${true}>
 
+                <lcards-message type="info">
+                    <strong>🎨 Theme vs Colors</strong><br>
+                    Theme mode sets the overall look. Use Appearance tab for detailed color control.
+                </lcards-message>
+
                 ${FormField.renderField(this, 'style.theme.mode', {
-                    label: 'Theme Mode'
+                    label: 'Theme Mode',
+                    helper: 'Choose light or dark base theme'
                 })}
             </lcards-form-section>
 
