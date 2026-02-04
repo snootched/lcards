@@ -11,6 +11,7 @@
  * - Rules-based dynamic styling
  * - Time-series support
  * - Chart templates support
+ * - DataSource buffer selection (main, transformations, aggregations)
  *
  * @example Basic Usage
  * ```yaml
@@ -38,6 +39,36 @@
  * chart_type: line
  * series_names: [Temperature, Humidity]
  * ```
+ *
+ * @example Buffer Selection (Transformations/Aggregations)
+ * ```yaml
+ * type: custom:lcards-chart
+ * data_sources:
+ *   temp_sensor:
+ *     entity_id: sensor.temperature
+ *     aggregations:
+ *       - type: rolling_statistics_series
+ *         key: hourly_stats
+ *         stats: [min, max, avg]
+ *         window: 1h
+ *         max_points: 24
+ * sources:
+ *   - datasource: temp_sensor
+ *     buffer: main
+ *   - datasource: temp_sensor
+ *     buffer: aggregation.hourly_stats
+ * chart_type: line
+ * series_names: [Raw Data, Hourly Stats]
+ * ```
+ *
+ * Buffer selector format:
+ * - 'main' or omitted: Main RollingBuffer (historical sensor data, default)
+ * - 'aggregation.key': Time-series aggregation (rolling_statistics_series)
+ * - 'transformation.key': Latest transformation value (single point, not ideal for charts)
+ * - 'key': Auto-detect (checks aggregations first, then transformations)
+ *
+ * Note: For time-series charting, use 'rolling_statistics_series' aggregation type.
+ * Standard transformations provide only latest values, not historical data.
  */
 
 import { html, css } from 'lit';
@@ -305,6 +336,141 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
+   * Extract data from the selected buffer
+   * @private
+   * @param {Object} data - DataSource emission object {buffer, transformations, aggregations, ...}
+   * @param {Object} dataSourceRef - Reference to the actual DataSource instance
+   * @param {string|null} bufferSelector - Buffer path (e.g., 'main', 'transformation.moving_avg', 'aggregation.hourly_stats')
+   * @returns {Array} Array of {t, v} data points for ApexCharts
+   */
+  _getBufferData(data, dataSourceRef, bufferSelector) {
+    // Default to main buffer for backward compatibility
+    if (!bufferSelector || bufferSelector === 'main') {
+      return data.buffer.getAll();
+    }
+
+    // Parse buffer selector (format: 'type.key' or 'key')
+    const parts = bufferSelector.split('.');
+
+    if (parts.length === 1) {
+      // Simple key - check aggregations first (primary use case), then transformations
+      const key = parts[0];
+
+      // Check aggregations first (time-series aggregations are main chart use case)
+      if (data.aggregations?.[key] !== undefined) {
+        return this._formatAggregationData(data.aggregations[key], key, data.t);
+      }
+
+      // Check transformed buffers for historical transformation data
+      if (dataSourceRef?.transformedBuffers?.has(key)) {
+        const transformBuffer = dataSourceRef.transformedBuffers.get(key);
+        const bufferData = transformBuffer.getAll();
+        lcardsLog.debug(`[LCARdSChart] Using transformation buffer: ${key} (${bufferData.length} points)`);
+        return bufferData;
+      }
+
+      // Fallback: Check transformations (latest value only - not ideal for time-series)
+      if (data.transformations?.[key] !== undefined) {
+        lcardsLog.debug(`[LCARdSChart] Using transformation value: ${key} (single point only - buffer not available)`);
+        return [{ t: data.t, v: data.transformations[key] }];
+      }
+
+      lcardsLog.warn(`[LCARdSChart] Buffer not found: ${key}, falling back to main buffer`);
+      return data.buffer.getAll();
+    }
+
+    if (parts.length === 2) {
+      // Explicit type.key format
+      const [type, key] = parts;
+
+      if (type === 'aggregation' || type === 'agg') {
+        if (data.aggregations?.[key] !== undefined) {
+          return this._formatAggregationData(data.aggregations[key], key, data.t);
+        }
+        lcardsLog.warn(`[LCARdSChart] Aggregation not found: ${key}, falling back to main buffer`);
+        return data.buffer.getAll();
+      }
+
+      if (type === 'transformation' || type === 'transform') {
+        // Try transformed buffer first (full history)
+        if (dataSourceRef?.transformedBuffers?.has(key)) {
+          const transformBuffer = dataSourceRef.transformedBuffers.get(key);
+          const bufferData = transformBuffer.getAll();
+          lcardsLog.debug(`[LCARdSChart] Using transformation buffer: ${key} (${bufferData.length} points)`);
+          return bufferData;
+        }
+
+        // Fallback to latest value only
+        if (data.transformations?.[key] !== undefined) {
+          lcardsLog.debug(`[LCARdSChart] Using transformation value: ${key} (single point only - buffer not available)`);
+          return [{ t: data.t, v: data.transformations[key] }];
+        }
+
+        lcardsLog.warn(`[LCARdSChart] Transformation not found: ${key}, falling back to main buffer`);
+        return data.buffer.getAll();
+      }
+    }
+
+    lcardsLog.warn(`[LCARdSChart] Invalid buffer selector: ${bufferSelector}, falling back to main buffer`);
+    return data.buffer.getAll();
+  }
+
+  /**
+   * Format aggregation data for charting
+   * @private
+   * @param {*} aggValue - Aggregation value (from processor.getValue())
+   * @param {string} key - Aggregation key (for logging)
+   * @param {number} timestamp - Current timestamp
+   * @returns {Array} Array of {t, v} data points
+   */
+  _formatAggregationData(aggValue, key, timestamp) {
+    // Handle null/undefined
+    if (aggValue === null || aggValue === undefined) {
+      lcardsLog.debug(`[LCARdSChart] Aggregation ${key} has no value`);
+      return [];
+    }
+
+    // Case 1: Time-series aggregation [[t, values], ...]
+    // From RollingStatisticsSeriesAggregation
+    if (Array.isArray(aggValue) && aggValue.length > 0 && Array.isArray(aggValue[0])) {
+      lcardsLog.debug(`[LCARdSChart] Using aggregation time-series: ${key} (${aggValue.length} points)`);
+
+      // Convert [[t, values], ...] to [{t, v}, ...]
+      // For multi-value results (min/max/etc), we'll take first value or entire array
+      return aggValue.map(([t, values]) => ({
+        t,
+        v: Array.isArray(values) ? values[0] : values  // Use first stat if array
+      }));
+    }
+
+    // Case 2: Single aggregation value (current window result)
+    // From RollingStatisticsAggregation
+    if (typeof aggValue === 'number') {
+      lcardsLog.debug(`[LCARdSChart] Using aggregation single value: ${key}`);
+      return [{ t: timestamp, v: aggValue }];
+    }
+
+    // Case 3: Object with properties (e.g., {min, max, avg})
+    if (typeof aggValue === 'object') {
+      // Try to extract a chartable value
+      const value = aggValue.avg ?? aggValue.value ?? aggValue.last ?? aggValue.current;
+      if (value !== undefined) {
+        lcardsLog.debug(`[LCARdSChart] Using aggregation object value: ${key}`);
+        return [{ t: timestamp, v: value }];
+      }
+    }
+
+    // Case 4: Array of numbers (multi-value aggregation result)
+    if (Array.isArray(aggValue) && typeof aggValue[0] === 'number') {
+      lcardsLog.debug(`[LCARdSChart] Using aggregation array: ${key} (first value)`);
+      return [{ t: timestamp, v: aggValue[0] }];
+    }
+
+    lcardsLog.warn(`[LCARdSChart] Unsupported aggregation format for ${key}:`, typeof aggValue);
+    return [];
+  }
+
+  /**
    * Subscribe to data sources for live updates
    * Auto-creates data sources if they don't exist (for standalone usage)
    * @private
@@ -326,7 +492,15 @@ export class LCARdSChart extends LCARdSCard {
 
     // Subscribe to each source (auto-create if needed)
     for (let index = 0; index < sources.length; index++) {
-      const sourceId = sources[index];
+      const sourceConfig = sources[index];
+
+      // Extract datasource ID from config (can be string or object)
+      const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.id || sourceConfig.name);
+
+      if (!sourceId) {
+        lcardsLog.warn(`[LCARdSChart] Invalid source config at index ${index}:`, sourceConfig);
+        continue;
+      }
 
       // Try to get existing data source
       let dataSource = this._singletons.dataSourceManager.getSource(sourceId);
@@ -389,13 +563,40 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    * @param {number} seriesIndex - Index of the series
    * @param {Object|Array} data - New data points (can be DataSource update object or array)
+   * @param {Object} dataSourceRef - Reference to the DataSource instance
    */
-  _handleDataUpdate(seriesIndex, data) {
+  _handleDataUpdate(seriesIndex, data, dataSourceRef) {
     // Extract buffer array from DataSource update object if needed
-    // DataSource emits { buffer: RollingBuffer, ... }, so we need to call buffer.getAll()
+    // DataSource emits { buffer: RollingBuffer, transformations: {}, aggregations: {}, ... }
     let dataArray;
     if (data?.buffer && typeof data.buffer.getAll === 'function') {
-      dataArray = data.buffer.getAll();  // RollingBuffer -> Array of {t, v}
+      // Get buffer selector from series config (default to 'main')
+      const sourceRef = this.config.source || this.config.data_source || this.config.sources;
+      const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
+      const sourceConfig = sources[seriesIndex];
+
+      // Construct buffer selector
+      let bufferSelector = null;
+      if (typeof sourceConfig === 'object') {
+        if (sourceConfig.buffer) {
+          // Buffer field can be:
+          // - "main"
+          // - "transformation.smoothed" (dot notation - editor format)
+          // - "transformation" (type only)
+          if (sourceConfig.key && !sourceConfig.buffer.includes('.')) {
+            // Separate buffer and key: combine them
+            bufferSelector = `${sourceConfig.buffer}.${sourceConfig.key}`;
+          } else {
+            // Already has dot notation or is 'main'
+            bufferSelector = sourceConfig.buffer;
+          }
+        } else if (sourceConfig.key) {
+          // Just key (legacy format)
+          bufferSelector = sourceConfig.key;
+        }
+      }
+
+      dataArray = this._getBufferData(data, dataSourceRef, bufferSelector);
     } else if (Array.isArray(data)) {
       dataArray = data;
     } else {
@@ -421,7 +622,7 @@ export class LCARdSChart extends LCARdSCard {
     const allSeriesData = sources.map((source, idx) => {
       const data = this._chartData[idx] || [];
       const transformed = this._transformDataForSeries(data);
-      const sourceName = typeof source === 'string' ? source : (source.name || source.id);
+      const sourceName = typeof source === 'string' ? source : (source.datasource || source.name || source.id);
       const displayName = this._seriesNames?.[idx] || sourceName;
 
       return {
@@ -619,12 +820,15 @@ export class LCARdSChart extends LCARdSCard {
     // Build series array from stored _chartData
     const series = [];
 
-    sources.forEach((sourceId, index) => {
+    sources.forEach((sourceConfig, index) => {
       // Get data from our stored _chartData array (populated by _handleDataUpdate)
       const data = this._chartData?.[index] || [];
 
       // Transform data
       const seriesData = this._transformDataForSeries(data);
+
+      // Extract datasource ID for naming
+      const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.name || sourceConfig.id);
 
       // Add to series
       series.push({
