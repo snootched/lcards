@@ -13,6 +13,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
+import './shared/lcards-color-picker.js';
 
 export class LCARdSChartSeriesListEditor extends LitElement {
   static get properties() {
@@ -395,17 +396,9 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               @value-changed=${(e) => this._updateSeriesField(index, 'type', e.detail.value)}>
             </ha-selector>
           </div>
-
-          <div class="form-row">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ text: { type: 'color' } }}
-              .value=${item.color || ''}
-              .label=${'Color'}
-              @value-changed=${(e) => this._updateSeriesField(index, 'color', e.detail.value)}>
-            </ha-selector>
-          </div>
         </div>
+
+        <!-- Color removed: ApexCharts uses global style.colors.series array which cycles through series -->
 
         <div class="form-row">
           <ha-selector
@@ -442,7 +435,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           window_seconds: 3600,
           name: '',
           type: 'line',
-          color: '',
           yaxis: 0
         };
       }
@@ -461,7 +453,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         window_seconds: hours * 3600,
         name: dsConfig.name || '',
         type: dsConfig.type || 'line',
-        color: dsConfig.color || '',
         yaxis: dsConfig.yaxis || 0
       };
     });
@@ -484,7 +475,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       window_seconds: 3600,
       name: '',
       type: 'line',
-      color: '',
       yaxis: 0
     });
 
@@ -606,7 +596,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
             history: { preload: true, hours: 1 },
             name: `Series ${index + 1}`,
             type: 'line',
-            color: '',
             yaxis: 0
           };
           newConfig.sources.push(sourceName);
@@ -627,7 +616,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
             ...newConfig.data_sources[sourceName],
             name: item.name || newConfig.data_sources[sourceName].name || `Series ${index + 1}`,
             type: item.type || newConfig.data_sources[sourceName].type || 'line',
-            color: item.color || '',
             yaxis: item.yaxis || 0
           };
         }
@@ -658,7 +646,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           },
           name: item.name || `Series ${index + 1}`,
           type: item.type || 'line',
-          color: item.color || '',
           yaxis: item.yaxis || 0
         };
       }

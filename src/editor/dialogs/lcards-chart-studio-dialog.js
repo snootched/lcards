@@ -37,7 +37,8 @@ import '../components/lcards-chart-series-list-editor.js';
 import '../../cards/lcards-chart.js';  // Import card directly for manual instantiation
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/editors/lcards-color-section.js';
-import '../components/editors/lcards-color-array.js';
+import '../components/shared/lcards-color-picker.js';
+import '../components/shared/lcards-color-list.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
     static get properties() {
@@ -126,6 +127,9 @@ export class LCARdSChartStudioDialog extends LitElement {
             this._workingConfig.chart_type = 'line';
         }
 
+        // Migrate old color format (style.colors as array) to new nested format
+        this._migrateColorConfig();
+
         // Detect data source level
         this._dataSourceLevel = this._detectDataSourceLevel();
 
@@ -134,6 +138,28 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Schedule initial preview update
         this.updateComplete.then(() => this._updatePreviewCard());
+    }
+
+    /**
+     * Migrate old color configuration format to new nested format
+     * Old: style.colors = ['#FF0000', '#00FF00']
+     * New: style.colors.series = ['#FF0000', '#00FF00']
+     * @private
+     */
+    _migrateColorConfig() {
+        if (!this._workingConfig.style?.colors) {
+            return; // No colors config
+        }
+
+        const colors = this._workingConfig.style.colors;
+
+        // Check if colors is an array (old format)
+        if (Array.isArray(colors)) {
+            lcardsLog.info('[ChartStudio] Migrating old color format to style.colors.series');
+            this._workingConfig.style.colors = {
+                series: colors
+            };
+        }
     }
 
     /**
@@ -587,6 +613,8 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _handleSave() {
         lcardsLog.debug('[ChartStudio] Saving config:', this._workingConfig);
+        console.log('[ChartStudio] FULL CONFIG AT SAVE:', JSON.stringify(this._workingConfig, null, 2));
+        console.log('[ChartStudio] style.colors at save:', this._workingConfig?.style?.colors);
 
         // Dispatch config-changed event
         this.dispatchEvent(new CustomEvent('config-changed', {
@@ -1850,8 +1878,14 @@ export class LCARdSChartStudioDialog extends LitElement {
         }
 
         target[lastPart] = value;
+
+        // Debug logging for color changes
+        if (path.includes('colors')) {
+            lcardsLog.debug(`[ChartStudio] Color config updated: ${path} =`, value);
+        }
+
         this.requestUpdate();
-        this._updatePreview();
+        this._updatePreviewCard();
     }
 
     /**
@@ -1885,22 +1919,21 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @param {string} fallback - Fallback color value
      * @returns {TemplateResult}
      */
-    _renderSingleColorPicker(path, label, fallback) {
-        const value = this._getNestedValue(path) || fallback;
+    _renderSingleColorPicker(path, label, helper = '') {
+        const value = this._getNestedValue(path) || '';
 
         return html`
-            <lcards-color-section
-                .colors=${value ? [value] : []}
-                .label=${label}
-                .maxColors=${1}
-                .allowEmpty=${false}
-                @colors-changed=${(e) => {
-                    const color = e.detail.colors?.[0];
-                    if (color) {
-                        this._setNestedValue(path, color);
-                    }
-                }}>
-            </lcards-color-section>
+            <div style="margin-bottom: 12px;">
+                <label class="field-label">${label}</label>
+                ${helper ? html`<div class="helper-text">${helper}</div>` : ''}
+                <lcards-color-picker
+                    .hass=${this.hass}
+                    .value=${value}
+                    @value-changed=${(e) => {
+                        this._setNestedValue(path, e.detail.value);
+                    }}>
+                </lcards-color-picker>
+            </div>
         `;
     }
 
@@ -1912,11 +1945,11 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @param {string} description - Optional description
      * @returns {TemplateResult}
      */
-    _renderColorArray(path, label, description = '') {
+    _renderColorList(path, label, description = '') {
         const colors = this._getNestedValue(path) || [];
 
         return html`
-            <lcards-color-array
+            <lcards-color-list
                 .hass=${this.hass}
                 .colors=${colors}
                 .label=${label}
@@ -1924,7 +1957,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 @colors-changed=${(e) => {
                     this._setNestedValue(path, e.detail.colors);
                 }}>
-            </lcards-color-array>
+            </lcards-color-list>
         `;
     }
 
@@ -2054,58 +2087,62 @@ export class LCARdSChartStudioDialog extends LitElement {
             <!-- Series Colors (Primary) -->
             <lcards-form-section
                 header="Series Colors"
-                description="Primary colors for data visualization"
+                description="Primary colors for data series (array of colors)"
                 icon="mdi:palette"
                 ?expanded=${true}>
 
-                ${this._renderColorArray('style.colors.series', 'Series Colors', 'Colors for each data series')}
+                ${this._renderColorList('style.colors.series', 'Series Colors', 'Colors for each data series - cycles through array')}
             </lcards-form-section>
 
             <!-- Stroke & Fill Colors -->
             <lcards-form-section
                 header="Stroke & Fill Colors"
-                description="Line and area fill colors"
+                description="Line and area fill colors (arrays)"
                 icon="mdi:brush"
                 ?expanded=${true}>
 
-                ${this._renderColorArray('style.colors.stroke', 'Stroke Colors', 'Outline/line colors')}
-                ${this._renderColorArray('style.colors.fill', 'Fill Colors', 'Area fill colors')}
+                ${this._renderColorList('style.colors.stroke', 'Stroke Colors', 'Outline/line colors - cycles through array')}
+                ${this._renderColorList('style.colors.fill', 'Fill Colors', 'Area fill colors - cycles through array')}
             </lcards-form-section>
 
-            <!-- Background & Foreground -->
+            <!-- Background & Foreground (Single Colors) -->
             <lcards-form-section
                 header="Background & Foreground"
-                description="Base chart colors"
+                description="Base chart colors (single values)"
                 icon="mdi:format-color-fill"
                 ?expanded=${true}>
 
-                ${this._renderSingleColorPicker('style.colors.background', 'Background', 'transparent')}
-                ${this._renderSingleColorPicker('style.colors.foreground', 'Foreground', 'var(--lcars-white, #FFFFFF)')}
-                ${this._renderSingleColorPicker('style.colors.grid', 'Grid', 'var(--lcars-gray, #999999)')}
+                <div style="display: grid; gap: 12px;">
+                    ${this._renderSingleColorPicker('style.colors.background', 'Background', 'Chart background')}
+                    ${this._renderSingleColorPicker('style.colors.foreground', 'Foreground', 'Text and labels')}
+                    ${this._renderSingleColorPicker('style.colors.grid', 'Grid Lines', 'Grid line color')}
+                </div>
             </lcards-form-section>
 
             <!-- Marker Colors (Collapsed by default) -->
             <lcards-form-section
                 header="Marker Colors"
-                description="Data point marker styling"
+                description="Data point marker styling (arrays)"
                 icon="mdi:circle"
                 ?expanded=${false}>
 
-                ${this._renderColorArray('style.colors.marker.fill', 'Marker Fill')}
-                ${this._renderColorArray('style.colors.marker.stroke', 'Marker Stroke')}
+                ${this._renderColorList('style.colors.marker.fill', 'Marker Fill', 'Fill colors for markers')}
+                ${this._renderColorList('style.colors.marker.stroke', 'Marker Stroke', 'Stroke colors for markers')}
             </lcards-form-section>
 
             <!-- Axis Colors (Collapsed) -->
             <lcards-form-section
                 header="Axis Colors"
-                description="X and Y axis styling"
+                description="X and Y axis styling (single values)"
                 icon="mdi:axis-arrow"
                 ?expanded=${false}>
 
-                ${this._renderSingleColorPicker('style.colors.axis.x', 'X-Axis', null)}
-                ${this._renderSingleColorPicker('style.colors.axis.y', 'Y-Axis', null)}
-                ${this._renderSingleColorPicker('style.colors.axis.border', 'Axis Border', null)}
-                ${this._renderSingleColorPicker('style.colors.axis.ticks', 'Axis Ticks', null)}
+                <div style="display: grid; gap: 12px;">
+                    ${this._renderSingleColorPicker('style.colors.axis.x', 'X-Axis', 'X-axis color')}
+                    ${this._renderSingleColorPicker('style.colors.axis.y', 'Y-Axis', 'Y-axis color')}
+                    ${this._renderSingleColorPicker('style.colors.axis.border', 'Axis Border', 'Border around chart')}
+                    ${this._renderSingleColorPicker('style.colors.axis.ticks', 'Axis Ticks', 'Tick mark color')}
+                </div>
             </lcards-form-section>
 
             <!-- Legend Colors (Collapsed) -->
@@ -2115,18 +2152,20 @@ export class LCARdSChartStudioDialog extends LitElement {
                 icon="mdi:label"
                 ?expanded=${false}>
 
-                ${this._renderSingleColorPicker('style.colors.legend.default', 'Legend Text', null)}
-                ${this._renderColorArray('style.colors.legend.items', 'Legend Items', 'Per-item legend colors')}
+                <div style="display: grid; gap: 12px;">
+                    ${this._renderSingleColorPicker('style.colors.legend.default', 'Legend Text', 'Default legend text')}
+                </div>
+                ${this._renderColorList('style.colors.legend.items', 'Legend Items', 'Per-item legend colors (optional)')}
             </lcards-form-section>
 
             <!-- Data Label Colors (Collapsed) -->
             <lcards-form-section
                 header="Data Label Colors"
-                description="On-chart data label styling"
+                description="On-chart data label styling (array)"
                 icon="mdi:label-variant"
                 ?expanded=${false}>
 
-                ${this._renderColorArray('style.colors.data_labels', 'Data Label Colors')}
+                ${this._renderColorList('style.colors.data_labels', 'Data Label Colors', 'Colors for data point labels')}
             </lcards-form-section>
         `;
     }
@@ -2213,8 +2252,8 @@ export class LCARdSChartStudioDialog extends LitElement {
                         label: 'Grid Opacity'
                     })}
 
-                    ${this._renderColorArray('style.grid.row_colors', 'Grid Row Colors', 'Alternating row background colors')}
-                    ${this._renderColorArray('style.grid.column_colors', 'Grid Column Colors', 'Alternating column background colors')}
+                    ${this._renderColorList('style.grid.row_colors', 'Grid Row Colors', 'Alternating row background colors')}
+                    ${this._renderColorList('style.grid.column_colors', 'Grid Column Colors', 'Alternating column background colors')}
                 ` : ''}
             </lcards-form-section>
         `;
