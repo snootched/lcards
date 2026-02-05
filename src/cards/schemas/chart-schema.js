@@ -161,47 +161,46 @@ export function getChartSchema(options = {}) {
                     {
                         type: 'array',
                         items: { type: 'string' },
-                        title: 'Entity Array',
-                        description: 'Array of entity IDs (auto-creates DataSource for each)'
-                    },
-                    {
-                        type: 'array',
-                        items: { type: 'string' },
-                        title: 'DataSource Names',
-                        description: 'Array of DataSource names (references data_sources config)'
+                        title: 'Simple String Array',
+                        description: 'Array of entity IDs or DataSource names (simple format)'
                     },
                     {
                         type: 'array',
                         items: {
-                            type: 'object',
-                            properties: {
-                                datasource: {
-                                    type: 'string',
-                                    description: 'DataSource name or entity ID'
-                                },
-                                buffer: {
-                                    type: 'string',
-                                    description: 'Buffer selector (e.g., "main", "transformation.smoothed", "aggregation.stats")'
-                                },
-                                name: {
-                                    type: 'string',
-                                    description: 'Series name for legend'
-                                },
-                                type: {
-                                    type: 'string',
-                                    enum: ['line', 'area', 'bar', 'scatter'],
-                                    description: 'Series-specific chart type override'
-                                },
-                                yaxis: {
-                                    type: 'number',
-                                    minimum: 0,
-                                    description: 'Y-axis index (0-based) for multi-axis charts'
+                            oneOf: [
+                                { type: 'string' },
+                                {
+                                    type: 'object',
+                                    properties: {
+                                        datasource: {
+                                            type: 'string',
+                                            description: 'DataSource name or entity ID'
+                                        },
+                                        buffer: {
+                                            type: 'string',
+                                            description: 'Buffer selector (e.g., "main", "processor_name")'
+                                        },
+                                        name: {
+                                            type: 'string',
+                                            description: 'Series name for legend'
+                                        },
+                                        type: {
+                                            type: 'string',
+                                            enum: ['line', 'area', 'bar', 'scatter'],
+                                            description: 'Series-specific chart type override'
+                                        },
+                                        yaxis: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            description: 'Y-axis index (0-based) for multi-axis charts'
+                                        }
+                                    },
+                                    required: ['datasource']
                                 }
-                            },
-                            required: ['datasource']
+                            ]
                         },
-                        title: 'Advanced Source Objects',
-                        description: 'Array of source objects with buffer selection and per-series configuration'
+                        title: 'Mixed Array (Strings and Objects)',
+                        description: 'Array with mix of simple strings and advanced source objects'
                     }
                 ],
                 'x-ui-hints': {
