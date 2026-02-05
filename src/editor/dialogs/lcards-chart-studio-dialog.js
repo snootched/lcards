@@ -339,18 +339,15 @@ export class LCARdSChartStudioDialog extends LitElement {
 
             /* Preview empty/incomplete state */
             .preview-empty {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: center;
                 text-align: center;
                 padding: 24px;
                 max-width: 400px;
-                z-index: 10;
                 color: var(--secondary-text-color);
+                min-height: 500px;
             }
 
             /* Data Sources Tab Styles */

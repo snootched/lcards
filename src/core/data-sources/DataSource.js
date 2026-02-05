@@ -164,6 +164,7 @@ export class DataSource {
     } else {
       // No processing configured - create empty manager
       this.processorManager = new ProcessorManager(this, {});
+      this.processorManager.initialize({}, this.buffer);
       lcardsLog.trace('[DataSource] No processing configured');
     }
   }
