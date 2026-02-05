@@ -353,15 +353,23 @@ export class LCARdSChart extends LCARdSCard {
     const parts = bufferSelector.split('.');
 
     if (parts.length === 1) {
-      // Simple key - check aggregations first (primary use case), then transformations
+      // Simple key - check NEW unified processing first
       const key = parts[0];
 
-      // Check aggregations first (time-series aggregations are main chart use case)
+      // NEW: Check unified processing output (processor buffers from ProcessorManager)
+      if (dataSourceRef?.processorManager?.processorBuffers?.has(key)) {
+        const processorBuffer = dataSourceRef.processorManager.processorBuffers.get(key);
+        const bufferData = processorBuffer.getAll();
+        lcardsLog.debug(`[LCARdSChart] Using processor buffer: ${key} (${bufferData.length} points)`);
+        return bufferData;
+      }
+
+      // DEPRECATED: Check aggregations first (time-series aggregations are main chart use case)
       if (data.aggregations?.[key] !== undefined) {
         return this._formatAggregationData(data.aggregations[key], key, data.t);
       }
 
-      // Check transformed buffers for historical transformation data
+      // DEPRECATED: Check transformed buffers for historical transformation data
       if (dataSourceRef?.transformedBuffers?.has(key)) {
         const transformBuffer = dataSourceRef.transformedBuffers.get(key);
         const bufferData = transformBuffer.getAll();
@@ -369,7 +377,7 @@ export class LCARdSChart extends LCARdSCard {
         return bufferData;
       }
 
-      // Fallback: Check transformations (latest value only - not ideal for time-series)
+      // DEPRECATED: Fallback: Check transformations (latest value only - not ideal for time-series)
       if (data.transformations?.[key] !== undefined) {
         lcardsLog.debug(`[LCARdSChart] Using transformation value: ${key} (single point only - buffer not available)`);
         return [{ t: data.t, v: data.transformations[key] }];
@@ -563,9 +571,8 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    * @param {number} seriesIndex - Index of the series
    * @param {Object|Array} data - New data points (can be DataSource update object or array)
-   * @param {Object} dataSourceRef - Reference to the DataSource instance
    */
-  _handleDataUpdate(seriesIndex, data, dataSourceRef) {
+  _handleDataUpdate(seriesIndex, data) {
     // Extract buffer array from DataSource update object if needed
     // DataSource emits { buffer: RollingBuffer, transformations: {}, aggregations: {}, ... }
     let dataArray;
@@ -574,6 +581,13 @@ export class LCARdSChart extends LCARdSCard {
       const sourceRef = this.config.source || this.config.data_source || this.config.sources;
       const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
       const sourceConfig = sources[seriesIndex];
+
+      // Get the DataSource reference to access processor buffers
+      let dataSourceRef = null;
+      if (sourceConfig && this._singletons?.dataSourceManager) {
+        const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.id || sourceConfig.name);
+        dataSourceRef = this._singletons.dataSourceManager.getSource(sourceId);
+      }
 
       // Construct buffer selector
       let bufferSelector = null;

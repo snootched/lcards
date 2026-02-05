@@ -9,7 +9,7 @@
  * - Collapsible card UI
  */
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
@@ -159,7 +159,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <lcards-message type="info">
             No series configured. Click "Add Series" to get started.
           </lcards-message>
-        ` : ''}
+        ` : nothing}
 
         ${series.map((item, index) => this._renderSeriesItem(item, index, series.length))}
       </div>
@@ -233,7 +233,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <div class="series-content">
             ${this._renderSeriesForm(item, index)}
           </div>
-        ` : ''}
+        ` : nothing}
       </div>
     `;
   }
@@ -253,7 +253,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
     // Check if DataSource is card-local (can edit) or global (read-only)
     const isCardLocalDs = existingDataSource && this.config?.data_sources?.[existingDataSource];
-    const isGlobalDs = existingDataSource && !isCardLocalDs && window.lcards?.core?.dataSourceManager?.sources?.[existingDataSource];
+    const isGlobalDs = existingDataSource && !isCardLocalDs && window.lcards?.core?.dataSourceManager?.sources?.get(existingDataSource);
 
     return html`
       <!-- Data Source Selection -->
@@ -297,7 +297,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               <div style="font-size: 12px; color: var(--error-color); margin-top: 6px;">
                 ⚠️ Entity is required
               </div>
-            ` : ''}
+            ` : nothing}
           </div>
 
           ${entity ? html`
@@ -313,7 +313,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
                 Chart this entity attribute (default: state)
               </div>
             </div>
-          ` : ''}
+          ` : nothing}
 
           <div class="form-row">
             <label class="form-label">History Window: ${windowHours}h</label>
@@ -336,13 +336,13 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               .value=${existingDataSource}
               .label=${'DataSource'}
               .required=${true}
-              @value-changed=${(e) => this._updateSeriesField(index, 'existingDataSource', e.detail.value)}>
+              @value-changed=${(e) => this._updateSeriesField(index, 'existingDataSource', e.detail.value, true)}>
             </ha-selector>
             ${!existingDataSource ? html`
               <div style="font-size: 12px; color: var(--error-color); margin-top: 6px;">
                 ⚠️ DataSource is required - select one or create new
               </div>
-            ` : ''}
+            ` : nothing}
           </div>
 
           <div class="form-row" style="display: flex; gap: 8px; align-items: center;">
@@ -360,7 +360,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               <div style="font-size: 12px; color: var(--secondary-text-color);">
                 🌐 Global (read-only)
               </div>
-            ` : ''}
+            ` : nothing}
           </div>
         `}
       </lcards-form-section>
@@ -378,7 +378,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         </div>
 
         ${useExistingDataSource && existingDataSource ? html`
-          <!-- Buffer Selection (only for existing DataSources with transformations/aggregations) -->
+          <!-- Buffer Selection (main buffer or processor buffers) -->
           <div class="form-row">
             <ha-selector
               .hass=${this.hass}
@@ -391,7 +391,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               ${this._getBufferHelpText(item.buffer || 'main', existingDataSource)}
             </div>
           </div>
-        ` : ''}
+        ` : nothing}
 
         <div class="form-row-grid">
           <div class="form-row">
@@ -440,13 +440,44 @@ export class LCARdSChartSeriesListEditor extends LitElement {
     const sources = this.config?.sources || [];
     const dataSources = this.config?.data_sources || {};
 
+    lcardsLog.debug('[ChartSeriesListEditor] _getSeriesList called', {
+      sourcesCount: sources.length,
+      sources: sources,
+      dataSourcesKeys: Object.keys(dataSources)
+    });
+
     return sources.map((sourceConfig, index) => {
       // Handle both string and object source formats
       const sourceName = typeof sourceConfig === 'string' ? sourceConfig : sourceConfig.datasource;
       const buffer = typeof sourceConfig === 'object' ? sourceConfig.buffer : 'main';
 
-      const dsConfig = dataSources[sourceName];
+      lcardsLog.debug(`[ChartSeriesListEditor] Processing source ${index}`, { sourceName, buffer, sourceConfig });
+
+      // Check card-local datasources first
+      let dsConfig = dataSources[sourceName];
+
+      // If not found locally, check global datasources
+      let isGlobal = false;
       if (!dsConfig) {
+        const globalSource = window.lcards?.core?.dataSourceManager?.sources?.get(sourceName);
+        lcardsLog.debug(`[ChartSeriesListEditor] Looking up global datasource '${sourceName}'`, {
+          found: !!globalSource,
+          hasCfg: !!globalSource?.cfg,
+          cfgKeys: globalSource?.cfg ? Object.keys(globalSource.cfg) : [],
+          sourceKeys: globalSource ? Object.keys(globalSource) : []
+        });
+        if (globalSource) {
+          dsConfig = globalSource.cfg;
+          isGlobal = true;
+        }
+      }
+
+      if (!dsConfig) {
+        lcardsLog.warn(`[ChartSeriesListEditor] No config found for datasource '${sourceName}'`, {
+          checkedLocal: !!dataSources[sourceName],
+          checkedGlobal: isGlobal,
+          globalSourceExists: !!window.lcards?.core?.dataSourceManager?.sources?.get(sourceName)
+        });
         return {
           useExistingDataSource: false,
           existingDataSource: '',
@@ -462,15 +493,22 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
       // Detect mode: is this an existing DataSource reference or a series_N?
       const isSeriesN = /^series_\d+$/.test(sourceName);
-      const useExistingDataSource = !isSeriesN;
+      const useExistingDataSource = !isSeriesN || isGlobal;
+
+      lcardsLog.debug(`[ChartSeriesListEditor] Mode detection for '${sourceName}'`, {
+        isSeriesN,
+        isGlobal,
+        useExistingDataSource,
+        dsConfigEntity: dsConfig?.entity
+      });
 
       const hours = dsConfig.history?.hours || ((dsConfig.window_seconds || 3600) / 3600);
       return {
         useExistingDataSource,
         existingDataSource: useExistingDataSource ? sourceName : '',
         // Only populate entity/attribute fields for entity mode (series_N DataSources)
-        entity: isSeriesN ? (dsConfig.entity || '') : '',
-        attribute: isSeriesN ? (dsConfig.attribute || 'state') : 'state',
+        entity: isSeriesN && !isGlobal ? (dsConfig.entity || '') : '',
+        attribute: isSeriesN && !isGlobal ? (dsConfig.attribute || 'state') : 'state',
         window_seconds: hours * 3600,
         name: dsConfig.name || '',
         type: dsConfig.type || 'line',
@@ -542,6 +580,13 @@ export class LCARdSChartSeriesListEditor extends LitElement {
   }
 
   _updateSeriesField(index, field, value, immediate = false) {
+    lcardsLog.debug(`[ChartSeriesListEditor] _updateSeriesField called`, {
+      index,
+      field,
+      value,
+      immediate
+    });
+
     const series = this._getSeriesList();
     series[index][field] = value;
 
@@ -556,6 +601,16 @@ export class LCARdSChartSeriesListEditor extends LitElement {
   }
 
   _updateConfig(series) {
+    lcardsLog.info('[ChartSeriesListEditor] _updateConfig called', {
+      seriesCount: series.length,
+      series: series.map(s => ({
+        useExistingDataSource: s.useExistingDataSource,
+        existingDataSource: s.existingDataSource,
+        entity: s.entity,
+        buffer: s.buffer
+      }))
+    });
+
     const newConfig = { ...this.config };
     newConfig.data_sources = newConfig.data_sources || {};
 
@@ -567,9 +622,29 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       }
     });
 
+    // Clean up any transient series_N datasources that shouldn't be in config
+    if (this._seriesItems && Array.isArray(this._seriesItems)) {
+      Object.keys(newConfig.data_sources).forEach(dsName => {
+        if (dsName.match(/^series_\d+$/) && !this._seriesItems.some(item => {
+          const sourceName = item.useExistingDataSource ? item.existingDataSource : `series_${this._seriesItems.indexOf(item) + 1}`;
+          return sourceName === dsName;
+        })) {
+          lcardsLog.debug('[ChartSeriesListEditor] Removing orphaned series DataSource:', dsName);
+          delete newConfig.data_sources[dsName];
+        }
+      });
+    }
+
     // Get global DataSource names to avoid conflicts
-    const globalDataSources = window.lcards?.core?.dataSourceManager?.sources || {};
-    const globalNames = new Set(Object.keys(globalDataSources));
+    const globalDataSourcesMap = window.lcards?.core?.dataSourceManager?.sources;
+    const globalNames = new Set();
+
+    // Iterate Map to build Set of global datasource names
+    if (globalDataSourcesMap && globalDataSourcesMap instanceof Map) {
+      globalDataSourcesMap.forEach((source, name) => {
+        globalNames.add(name);
+      });
+    }
 
     // Find next available series_N number (check both card-local and global)
     let nextNumber = 1;
@@ -578,7 +653,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       .map(name => parseInt(name.match(/^series_(\d+)$/)[1]));
 
     // Also check global for series_N names
-    Object.keys(globalDataSources).forEach(name => {
+    globalNames.forEach(name => {
       const match = name.match(/^series_(\d+)$/);
       if (match) {
         existingNumbers.push(parseInt(match[1]));
@@ -626,9 +701,16 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
         sourceName = item.existingDataSource;
 
-        // Validate: DataSource must exist
-        if (!newConfig.data_sources[sourceName] && !globalDataSources[sourceName]) {
-          lcardsLog.warn('[ChartSeriesListEditor] DataSource not found:', sourceName);
+        // Validate: DataSource must exist (check both card-local and global)
+        const existsInCardLocal = !!newConfig.data_sources[sourceName];
+        const existsInGlobal = globalNames.has(sourceName);
+
+        if (!existsInCardLocal && !existsInGlobal) {
+          lcardsLog.warn('[ChartSeriesListEditor] DataSource not found:', sourceName, {
+            checkedCardLocal: existsInCardLocal,
+            checkedGlobal: existsInGlobal,
+            globalNamesCount: globalNames.size
+          });
         }
 
         // Don't modify global DataSources - only card-local
@@ -685,6 +767,18 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       }
     });
 
+    lcardsLog.info('[ChartSeriesListEditor] Emitting config', {
+      sourcesCount: newConfig.sources.length,
+      sources: newConfig.sources,
+      dataSourcesKeys: Object.keys(newConfig.data_sources)
+    });
+
+    // Clean up empty data_sources object before emitting
+    if (Object.keys(newConfig.data_sources).length === 0) {
+      delete newConfig.data_sources;
+      lcardsLog.debug('[ChartSeriesListEditor] Removed empty data_sources object');
+    }
+
     this.dispatchEvent(new CustomEvent('config-changed', {
       detail: { config: newConfig },
       bubbles: true,
@@ -696,6 +790,11 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
   _getDataSourceOptions() {
     const options = [];
+
+    // Safety check
+    if (!this.config) {
+      return [{ value: '', label: 'No configuration available' }];
+    }
 
     // Card-local DataSources (exclude series_N and placeholders - those are auto-generated)
     const cardSources = this.config?.data_sources || {};
@@ -711,20 +810,40 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       });
     });
 
-    // Global DataSources
-    const globalSources = window.lcards?.core?.dataSourceManager?.sources || {};
-    Object.keys(globalSources).forEach(name => {
-      options.push({
-        value: name,
-        label: `🌐 ${name} (global)`
-      });
-    });
+    // Global DataSources - with safety check
+    try {
+      const globalSources = window.lcards?.core?.dataSourceManager?.sources;
+      if (globalSources && globalSources instanceof Map) {
+        globalSources.forEach((source, name) => {
+          // Skip auto-generated series_N DataSources
+          if (name.match(/^series_\d+$/)) return;
+          // Skip placeholder DataSources
+          if (name.includes('_placeholder')) return;
+          // Skip if it's actually a card-local datasource (already listed above)
+          if (cardSources[name]) return;
+
+          options.push({
+            value: name,
+            label: `🌐 ${name} (global)`
+          });
+        });
+      }
+    } catch (error) {
+      lcardsLog.warn('[ChartSeriesListEditor] Failed to get global datasources:', error);
+    }
 
     return options.length > 0 ? options : [{ value: '', label: 'No DataSources available' }];
   }
 
   _toggleDataSourceMode(index, useExisting) {
     const series = this._getSeriesList();
+
+    lcardsLog.info(`[ChartSeriesListEditor] Toggling datasource mode`, {
+      index,
+      useExisting,
+      currentMode: series[index]?.useExistingDataSource
+    });
+
     series[index].useExistingDataSource = useExisting;
 
     if (useExisting) {
@@ -734,9 +853,11 @@ export class LCARdSChartSeriesListEditor extends LitElement {
     } else {
       // Switching to entity mode - clear DataSource reference
       series[index].existingDataSource = '';
+      series[index].buffer = 'main'; // Reset buffer to main
     }
 
     this._updateConfig(series);
+    this.requestUpdate(); // Force UI update
   }
 
   _editDataSource(dsName) {
@@ -857,61 +978,47 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       { value: 'main', label: '📊 Main Buffer (Raw Data)' }
     ];
 
-    // Get DataSource config
-    const dsConfig = this.config?.data_sources?.[dataSourceName];
+    // Safety checks
+    if (!dataSourceName || !this.config) {
+      return options;
+    }
+
+    // Get DataSource config - check card-local first, then global
+    let dsConfig = this.config?.data_sources?.[dataSourceName];
+
+    // If not found locally, check if it's a global datasource
+    if (!dsConfig) {
+      const globalSource = window.lcards?.core?.dataSourceManager?.sources?.get(dataSourceName);
+      if (globalSource) {
+        dsConfig = globalSource.cfg;
+      }
+    }
+
     if (!dsConfig) {
       return options;
     }
 
-    // Add transformation options (handle both array and object format)
-    if (dsConfig.transformations) {
-      if (Array.isArray(dsConfig.transformations)) {
-        // Array format: [{ key: 'mov_avg', type: 'smooth', ... }]
-        dsConfig.transformations.forEach(transform => {
-          if (transform.key) {
-            options.push({
-              value: `transformation.${transform.key}`,
-              label: `🔄 Transform: ${transform.key} (${transform.type})`
-            });
-          }
-        });
-      } else if (typeof dsConfig.transformations === 'object') {
-        // Object format: { mov_avg: { type: 'smooth', ... } }
-        Object.entries(dsConfig.transformations).forEach(([key, config]) => {
-          options.push({
-            value: `transformation.${key}`,
-            label: `🔄 Transform: ${key} (${config.type || 'unknown'})`
-          });
-        });
-      }
-    }
+    // Add processor options from unified processing pipeline
+    if (dsConfig.processing && typeof dsConfig.processing === 'object') {
+      try {
+        Object.entries(dsConfig.processing).forEach(([key, config]) => {
+          const type = config?.type || 'unknown';
 
-    // Add aggregation options (handle both array and object format)
-    if (dsConfig.aggregations) {
-      if (Array.isArray(dsConfig.aggregations)) {
-        // Array format: [{ key: 'stats', type: 'rolling_statistics_series', ... }]
-        dsConfig.aggregations.forEach(agg => {
-          if (agg.key) {
-            const isTimeSeries = agg.type === 'rolling_statistics_series';
-            const icon = isTimeSeries ? '📈' : '📉';
-            const suffix = isTimeSeries ? '(Time-Series)' : '(Latest Value)';
-            options.push({
-              value: `aggregation.${agg.key}`,
-              label: `${icon} Agg: ${agg.key} ${suffix}`
-            });
+          // Determine icon based on processor type
+          let icon = '🔧'; // Default processor icon
+          if (['smooth', 'convert_unit', 'scale', 'expression', 'round', 'clamp', 'delta', 'threshold'].includes(type)) {
+            icon = '🔄'; // Transform-like processors
+          } else if (['statistics', 'rate', 'trend', 'duration'].includes(type)) {
+            icon = '📈'; // Analysis processors
           }
-        });
-      } else if (typeof dsConfig.aggregations === 'object') {
-        // Object format: { min_max: { type: 'min_max', ... } }
-        Object.entries(dsConfig.aggregations).forEach(([key, config]) => {
-          const isTimeSeries = config.type === 'rolling_statistics_series';
-          const icon = isTimeSeries ? '📈' : '📉';
-          const suffix = isTimeSeries ? '(Time-Series)' : '(Latest Value)';
+
           options.push({
-            value: `aggregation.${key}`,
-            label: `${icon} Agg: ${key} ${suffix}`
+            value: key,
+            label: `${icon} ${key} (${type})`
           });
         });
+      } catch (error) {
+        lcardsLog.warn('[ChartSeriesListEditor] Error processing buffer options:', error);
       }
     }
 
@@ -926,59 +1033,45 @@ export class LCARdSChartSeriesListEditor extends LitElement {
    * @returns {string} Help text
    */
   _getBufferHelpText(bufferValue, dataSourceName) {
+    // Ensure we always return a string
+    if (!bufferValue) {
+      return 'Select a buffer';
+    }
+
     if (bufferValue === 'main') {
       return 'Historical raw sensor data from main buffer';
     }
 
-    const parts = bufferValue.split('.');
-    if (parts.length !== 2) {
-      return 'Invalid buffer format';
-    }
-
-    const [type, key] = parts;
     const dsConfig = this.config?.data_sources?.[dataSourceName];
-
-    if (type === 'transformation' || type === 'transform') {
-      let transform = null;
-
-      // Handle array format
-      if (Array.isArray(dsConfig?.transformations)) {
-        transform = dsConfig.transformations.find(t => t.key === key);
-      }
-      // Handle object format
-      else if (typeof dsConfig?.transformations === 'object' && dsConfig?.transformations?.[key]) {
-        transform = { key, ...dsConfig.transformations[key] };
-      }
-
-      if (transform) {
-        return `Latest transformed value using ${transform.type} (single point)`;
-      }
-      return 'Transformation not found';
+    if (!dsConfig) {
+      return 'DataSource not found';
     }
 
-    if (type === 'aggregation' || type === 'agg') {
-      let agg = null;
-
-      // Handle array format
-      if (Array.isArray(dsConfig?.aggregations)) {
-        agg = dsConfig.aggregations.find(a => a.key === key);
-      }
-      // Handle object format
-      else if (typeof dsConfig?.aggregations === 'object' && dsConfig?.aggregations?.[key]) {
-        agg = { key, ...dsConfig.aggregations[key] };
-      }
-
-      if (agg) {
-        if (agg.type === 'rolling_statistics_series') {
-          const stats = agg.stats?.join(', ') || 'values';
-          return `Time-series aggregation: ${stats} over ${agg.window || agg.window_seconds || 'window'}`;
-        }
-        return `Latest ${agg.type} aggregation value (single point)`;
-      }
-      return 'Aggregation not found';
+    const processor = dsConfig?.processing?.[bufferValue];
+    if (!processor) {
+      return `Processor '${bufferValue}' not found`;
     }
 
-    return 'Select a buffer type';
+    const type = processor.type || 'unknown';
+    const from = processor.from ? ` (from: ${processor.from})` : '';
+
+    // Provide type-specific help text
+    const typeHelp = {
+      'convert_unit': `Unit conversion: ${processor.from || '?'} → ${processor.to || '?'}`,
+      'smooth': `Smoothed data using ${processor.method || 'default'} method`,
+      'scale': `Scaled values to range ${JSON.stringify(processor.output_range || [0, 1])}`,
+      'statistics': `Statistics: ${processor.stats?.join(', ') || 'various'} over ${processor.window || 'window'}`,
+      'expression': 'Custom expression calculation',
+      'rate': `Rate of change (${processor.unit || 'per second'})`,
+      'trend': 'Trend detection (increasing/decreasing/stable)',
+      'duration': 'Duration tracking for condition',
+      'threshold': `Threshold comparison at ${processor.threshold}`,
+      'clamp': `Clamped to ${processor.min || '-∞'} - ${processor.max || '∞'}`,
+      'round': `Rounded to ${processor.precision || 0} decimal places`,
+      'delta': 'Change from previous value'
+    };
+
+    return typeHelp[type] || `Processor type: ${type}${from}`;
   }
 }
 

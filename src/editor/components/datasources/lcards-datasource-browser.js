@@ -805,8 +805,8 @@ export class LCARdSDataSourceBrowser extends LitElement {
     }
 
     // REFACTORED: Processor buffers from ProcessorManager
-    if (dataSource.processorManager && dataSource.processorManager.buffers.size > 0) {
-      dataSource.processorManager.buffers.forEach((buffer, key) => {
+    if (dataSource.processorManager?.processorBuffers && dataSource.processorManager.processorBuffers.size > 0) {
+      dataSource.processorManager.processorBuffers.forEach((buffer, key) => {
         buffers.push({
           name: `Processor: ${key}`,
           buffer: buffer,

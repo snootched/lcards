@@ -208,6 +208,50 @@ export class LCARdSChartStudioDialog extends LitElement {
         if (this._previewUpdateTimer) {
             clearTimeout(this._previewUpdateTimer);
         }
+        // Clean up transient datasources created during chart studio session
+        this._cleanupTransientDataSources();
+    }
+
+    /**
+     * Clean up transient datasources (series_N, series_N_placeholder)
+     * These are temporary datasources created during editing that should not persist
+     * @private
+     */
+    _cleanupTransientDataSources() {
+        const dsManager = window.lcards?.core?.dataSourceManager;
+        if (!dsManager) return;
+
+        const sources = dsManager.sources;
+        if (!sources || !(sources instanceof Map)) return;
+
+        const toRemove = [];
+        sources.forEach((source, name) => {
+            // Remove series_N and series_N_placeholder datasources
+            if (name.match(/^series_\d+(_placeholder)?$/)) {
+                toRemove.push({ name, source });
+            }
+        });
+
+        toRemove.forEach(({ name, source }) => {
+            lcardsLog.debug('[ChartStudio] Cleaning up transient datasource:', name);
+
+            // Destroy the DataSource instance
+            if (source && typeof source.destroy === 'function') {
+                source.destroy();
+            }
+
+            // Remove from DataSourceManager
+            dsManager.sources.delete(name);
+
+            // Remove from entity index if it exists
+            if (source?.cfg?.entity) {
+                dsManager.entityIndex.delete(source.cfg.entity);
+            }
+        });
+
+        if (toRemove.length > 0) {
+            lcardsLog.info('[ChartStudio] Cleaned up', toRemove.length, 'transient datasources');
+        }
     }
 
     static get styles() {
@@ -291,6 +335,22 @@ export class LCARdSChartStudioDialog extends LitElement {
                 padding: 24px;
                 max-width: 400px;
                 z-index: 10;
+            }
+
+            /* Preview empty/incomplete state */
+            .preview-empty {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 24px;
+                max-width: 400px;
+                z-index: 10;
+                color: var(--secondary-text-color);
             }
 
             /* Data Sources Tab Styles */
@@ -570,7 +630,17 @@ export class LCARdSChartStudioDialog extends LitElement {
         // Get preview config with defaults
         const previewConfig = this._getPreviewConfig();
         if (!previewConfig) {
-            lcardsLog.warn('[ChartStudio] No valid config for preview');
+            lcardsLog.debug('[ChartStudio] No valid config for preview - showing empty state');
+
+            // Show "incomplete config" message instead of trying to render
+            const emptyMsg = document.createElement('div');
+            emptyMsg.className = 'preview-empty';
+            emptyMsg.innerHTML = `
+                <ha-icon icon="mdi:chart-line-variant" style="--mdc-icon-size: 64px; opacity: 0.3; margin-bottom: 16px;"></ha-icon>
+                <div style="font-weight: 500; font-size: 16px; margin-bottom: 8px;">Configure Data Sources</div>
+                <div style="font-size: 14px; opacity: 0.8;">Add at least one data source or entity to see the chart preview</div>
+            `;
+            container.appendChild(emptyMsg);
             return;
         }
 
@@ -637,11 +707,97 @@ export class LCARdSChartStudioDialog extends LitElement {
                 previewConfig.height = 300;
             }
 
+            // VALIDATION: Check if config has required data sources
+            // Skip preview if no valid data configured yet
+            const hasValidData = this._hasValidDataConfig(previewConfig);
+            if (!hasValidData) {
+                lcardsLog.debug('[ChartStudio] Skipping preview - config incomplete (no valid data sources)');
+                return null;
+            }
+
             return previewConfig;
         } catch (error) {
             lcardsLog.error('[ChartStudio] Error preparing preview config:', error);
             return null;
         }
+    }
+
+    /**
+     * Check if config has valid data configuration
+     * @private
+     * @param {Object} config - Config to validate
+     * @returns {boolean} True if config has valid data sources
+     */
+    _hasValidDataConfig(config) {
+        // Check for sources array with at least one entry
+        if (config.sources && Array.isArray(config.sources) && config.sources.length > 0) {
+            // Each source must be either:
+            // 1. A string (datasource name or entity)
+            // 2. An object with datasource property
+            const hasValidSources = config.sources.some(source => {
+                let sourceName;
+
+                if (typeof source === 'string') {
+                    sourceName = source;
+                } else if (typeof source === 'object' && source !== null) {
+                    sourceName = source.datasource;
+                } else {
+                    return false;
+                }
+
+                if (!sourceName || sourceName.trim() === '') {
+                    return false;
+                }
+
+                // Check if this is a local datasource reference
+                if (config.data_sources && config.data_sources[sourceName]) {
+                    const ds = config.data_sources[sourceName];
+                    // Local datasource must have a valid entity
+                    return ds.entity && ds.entity.trim() !== '';
+                }
+
+                // Check if it's a global datasource
+                const dsManager = window.lcards?.core?.dataSourceManager;
+                if (dsManager?.sources?.has(sourceName)) {
+                    return true; // Global datasources are always valid
+                }
+
+                // Check if it looks like a direct entity reference
+                if (sourceName.includes('.')) {
+                    return true; // Assume entity_id format is valid
+                }
+
+                return false;
+            });
+
+            if (hasValidSources) return true;
+        }
+
+        // Check for legacy single source
+        if (config.source && typeof config.source === 'string' && config.source.trim() !== '') {
+            // If it's a datasource reference, check if it has entity
+            if (config.data_sources && config.data_sources[config.source]) {
+                const ds = config.data_sources[config.source];
+                return ds.entity && ds.entity.trim() !== '';
+            }
+            // Otherwise assume it's valid (entity or global datasource)
+            return true;
+        }
+
+        // Check for data_sources with entities
+        if (config.data_sources && typeof config.data_sources === 'object') {
+            const dsEntries = Object.entries(config.data_sources);
+            if (dsEntries.length > 0) {
+                // At least one datasource must have a valid entity
+                const hasEntity = dsEntries.some(([name, ds]) => {
+                    return ds.entity && ds.entity.trim() !== '';
+                });
+                if (hasEntity) return true;
+            }
+        }
+
+        // No valid data configuration found
+        return false;
     }
 
     /**
@@ -666,6 +822,15 @@ export class LCARdSChartStudioDialog extends LitElement {
         lcardsLog.debug('[ChartStudio] Saving config:', this._workingConfig);
         console.log('[ChartStudio] FULL CONFIG AT SAVE:', JSON.stringify(this._workingConfig, null, 2));
         console.log('[ChartStudio] style.colors at save:', this._workingConfig?.style?.colors);
+
+        // Clean up empty data_sources object if no local sources defined
+        if (this._workingConfig.data_sources && Object.keys(this._workingConfig.data_sources).length === 0) {
+            delete this._workingConfig.data_sources;
+            lcardsLog.debug('[ChartStudio] Removed empty data_sources object');
+        }
+
+        // Clean up transient datasources before saving
+        this._cleanupTransientDataSources();
 
         // Dispatch config-changed event
         this.dispatchEvent(new CustomEvent('config-changed', {
