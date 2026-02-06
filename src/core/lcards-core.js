@@ -26,6 +26,7 @@ import { RulesEngine } from './rules/RulesEngine.js';  // ✅ Moved to Core
 import { ThemeManager } from './themes/ThemeManager.js';  // ✅ Moved to Core
 import { AnimationManager } from './animation/AnimationManager.js';
 import { CoreValidationService } from './validation-service/index.js';
+import { ComponentManager } from './components/ComponentManager.js';  // ✅ Component registry
 
 import { StylePresetManager } from './presets/StylePresetManager.js';  // ✅ Moved to Core
 import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Moved to Core
@@ -61,6 +62,7 @@ class LCARdSCore {
         this.configManager = null;       // Unified configuration processing
         this.packManager = null;         // Pack loading and registration (Phase 4)
         this.assetManager = null;        // Asset management system (Phase 4)
+        this.componentManager = null;    // Component registry (Phase 4)
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -189,6 +191,11 @@ class LCARdSCore {
             await this.assetManager.initialize();
             lcardsLog.debug('[LCARdSCore] ✅ AssetManager initialized');
 
+            // Initialize ComponentManager (Phase 2e) - ✅ Component registry for all card types
+            this.componentManager = new ComponentManager();
+            await this.componentManager.initialize();
+            lcardsLog.debug('[LCARdSCore] ✅ ComponentManager initialized');
+
             // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
             this.packManager = new PackManager(this);
@@ -310,6 +317,8 @@ class LCARdSCore {
             validationService: this.validationService,
             stylePresetManager: this.stylePresetManager,
             configManager: this.configManager,
+            componentManager: this.componentManager,
+            componentManager: this.componentManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
             getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
@@ -703,7 +712,21 @@ class LCARdSCore {
     }
 
     /**
-     * Manually update HASS state (for testing)
+     * Get ComponentManager instance
+     * @returns {ComponentManager|null} Component manager or null if not initialized
+     */
+    getComponentManager() {
+        return this.componentManager || null;
+    }
+
+    /**     * Get ComponentManager instance
+     * @returns {ComponentManager|null} Component manager or null if not initialized
+     */
+    getComponentManager() {
+        return this.componentManager || null;
+    }
+
+    /**     * Manually update HASS state (for testing)
      * @param {Object} hass - HASS object
      */
     updateHass(hass) {
