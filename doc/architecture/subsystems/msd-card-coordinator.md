@@ -38,7 +38,6 @@ const { coordinator } = await initMsdPipeline(config, mountEl, hass);
 | **Routing/line paths** | ✅ Yes (RouterCore) |
 | **Debug overlays** | ✅ Yes (MsdDebugRenderer) |
 | **Control overlays** | ✅ Yes (MsdControlsRenderer) |
-| **HUD management** | ✅ Yes (MsdHudManager) |
 | **Overlay updates** | ✅ Yes (BaseOverlayUpdater) |
 | **Singleton connections** | ✅ Yes (bridges to global systems) |
 | Entity state caching | ❌ No (uses DataSourceManager singleton) |
@@ -66,13 +65,12 @@ graph TB
         CardA[LCARdS MSD Card A]
         SMA[MSD Card Coordinator A]
         AMA[AnimationManager A - Per Card]
-        
+
         subgraph "Card A Local Systems"
             ARA[AdvancedRenderer A]
             RCA[RouterCore A]
             DRA[MsdDebugRenderer A]
             CRA[MsdControlsRenderer A]
-            HMA[MsdHudManager A]
             OUA[BaseOverlayUpdater A]
         end
     end
@@ -81,13 +79,12 @@ graph TB
         CardB[LCARdS MSD Card B]
         SMB[MSD Card Coordinator B]
         AMB[AnimationManager B - Per Card]
-        
+
         subgraph "Card B Local Systems"
             ARB[AdvancedRenderer B]
             RCB[RouterCore B]
             DRB[MsdDebugRenderer B]
             CRB[MsdControlsRenderer B]
-            HMB[MsdHudManager B]
             OUB[BaseOverlayUpdater B]
         end
     end
@@ -153,16 +150,16 @@ sequenceDiagram
     Card->>Pipeline: initMsdPipeline(config, mountEl, hass)
     Pipeline->>Core: Ensure singletons initialized
     Core->>Singletons: Get/create singletons (first card only)
-    
+
     Pipeline->>SM: new MsdCardCoordinator()
     SM->>SM: Initialize instance
-    
+
     Note over SM: Connect to Global Singletons
     SM->>Singletons: Get ThemeManager singleton
     SM->>Singletons: Get DataSourceManager singleton
     SM->>Singletons: Get RulesEngine singleton
     SM->>Singletons: Get AnimationRegistry singleton
-    
+
     Note over SM: Create Per-Card Systems
     SM->>Local: new AnimationManager() - Per Card
     SM->>Local: new AdvancedRenderer(mountEl)
@@ -171,10 +168,10 @@ sequenceDiagram
     SM->>Local: new MsdControlsRenderer()
     SM->>Local: new MsdHudManager()
     SM->>Local: new BaseOverlayUpdater()
-    
+
     SM->>Singletons: Register card rules with RulesEngine
     SM->>Singletons: Register datasources with DataSourceManager
-    
+
     SM-->>Pipeline: MsdCardCoordinator ready
     Pipeline-->>Card: { coordinator, cardModel }
 ```
@@ -295,26 +292,7 @@ controlsRenderer.on('overlaySelected', (overlayId) => {
 
 ---
 
-### 6. HUD Management
-
-```javascript
-// Heads-up display overlay manager
-const hudManager = coordinator.hudManager;
-
-// Show/hide HUD elements
-hudManager.showStatus('Entity count: 42');
-hudManager.showAlert('Warning: High temperature');
-```
-
-**HUD Features**:
-- Status messages
-- Alert notifications
-- Performance indicators
-- System diagnostics
-
----
-
-### 7. Incremental Overlay Updates
+### 6. Incremental Overlay Updates
 
 ```javascript
 // Efficient overlay update system
@@ -370,12 +348,12 @@ graph LR
 class MsdCardCoordinator {
   async initializeSystemsWithPacksFirst(cardModel, config) {
     const core = window.lcards?.core;
-    
+
     // Access (don't create) core singletons
     this.themeManager = core.themeManager;
     this.stylePresetManager = core.stylePresetManager;
     this.rulesManager = core.rulesManager;
-    
+
     // Create MSD-specific systems
     this.advancedRenderer = new AdvancedRenderer(...);
     this.routerCore = new RouterCore(...);
@@ -577,7 +555,6 @@ coordinator.updateHass(newHass);
 | `router` | RouterCore | Local line path calculator |
 | `debugRenderer` | MsdDebugRenderer | Local debug overlay system |
 | `controlsRenderer` | MsdControlsRenderer | Local control overlay system |
-| `hudManager` | MsdHudManager | Local HUD manager |
 | `overlayUpdater` | BaseOverlayUpdater | Local incremental update system |
 | `themeManager` | ThemeManager | **Singleton** - shared theme system |
 | `dataSourceManager` | DataSourceManager | **Singleton** - shared datasource system |
@@ -599,7 +576,6 @@ coordinator.updateHass(newHass);
 | **Routing** | ❌ No | ✅ Yes (RouterCore) |
 | **Debug Overlays** | ❌ No | ✅ Yes (MsdDebugRenderer) |
 | **Control Overlays** | ❌ No | ✅ Yes (MsdControlsRenderer) |
-| **HUD Management** | ❌ No | ✅ Yes (MsdHudManager) |
 | **Incremental Updates** | ❌ No | ✅ Yes (BaseOverlayUpdater) |
 | **Template Processing** | ✅ Yes (cards handle own) | ✅ Yes (via unified template system) |
 | **Entity Tracking** | ✅ Yes (direct) | ✅ Yes (via DataSourceManager singleton) |
@@ -630,9 +606,8 @@ coordinator.updateHass(newHass);
 - RouterCore: ~20 KB
 - Debug systems: ~10 KB
 - Control systems: ~10 KB
-- HUD Manager: ~5 KB
 - Overlay registry: ~20 KB
-- **Total per MSD card**: ~105-120 KB
+- **Total per MSD card**: ~100-115 KB
 
 **Singleton Systems (Shared)**:
 - DataSourceManager: ~80 KB
@@ -697,9 +672,9 @@ sm.debugRenderer.showAttachmentPoints(true);
 // Check if systems are initialized
 console.log('Renderer initialized:', !!sm.renderer);
 console.log('Router initialized:', !!sm.router);
-console.log('Singletons connected:', 
-  !!sm.themeManager && 
-  !!sm.dataSourceManager && 
+console.log('Singletons connected:',
+  !!sm.themeManager &&
+  !!sm.dataSourceManager &&
   !!sm.rulesEngine
 );
 

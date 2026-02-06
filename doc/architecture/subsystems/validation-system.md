@@ -1003,7 +1003,6 @@ validationService.getStats()
 **Current Options:**
 1. **Debug Console** - `__msdDebug` commands (developer-only)
 2. **SVG Overlay Text** - Error messages rendered in SVG (limited space)
-3. **HUD Issues Panel** - Dashboard panel showing validation issues (needs implementation)
 
 **Proposed Solutions:**
 1. **Validation Panel** - Dedicated panel/modal showing all validation results
@@ -1032,7 +1031,6 @@ validationService.getStats()
 - Don't block rendering (validation runs but doesn't stop display)
 - Provide "strict mode" option to block rendering on errors
 - Support both developer and end-user error messages
-- Integrate with existing HUD/debug infrastructure
 
 ### Async Validation
 

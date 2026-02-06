@@ -268,7 +268,6 @@ msd:
 **Why `config.id` matters:**
 - ✅ **Stable identity** across dashboard reloads
 - ✅ **Rules targeting** by card ID
-- ✅ **HUD panel** association
 - ✅ **Debug** via `window.lcards.cards.msd.getInstance('msd-engineering-display')`
 
 ### Multi-Instance Lifecycle
@@ -278,7 +277,6 @@ sequenceDiagram
     participant Card as MSD Card
     participant Registry as window.lcards.cards.msd
     participant Pipeline as MSD Pipeline
-    participant HUD as HUD Manager
 
     Card->>Card: Generate GUID (config.id or auto)
     Card->>Registry: registerInstance(guid, card, null)
@@ -287,22 +285,19 @@ sequenceDiagram
     Pipeline->>Pipeline: initMsdPipeline(config, svg, mount, hass, guid)
     Pipeline->>Pipeline: coordinator.setCardGuid(guid) BEFORE completeSystems()
 
-    Pipeline->>HUD: Register panels with guid
     Pipeline-->>Card: pipelineAPI
 
     Card->>Registry: registerInstance(guid, card, pipeline)
 
-    Note over Card,HUD: Multiple instances can coexist
+    Note over Card,Pipeline: Multiple instances can coexist
 
     Card->>Card: disconnectedCallback()
     Card->>Registry: unregisterInstance(guid)
-    Card->>HUD: Unregister from HUD
 ```
 
 **Critical Fix (v1.17.0):**
 - GUID now passed through: Card → MsdInstanceManager → PipelineCore → Coordinator
 - `coordinator.setCardGuid(cardGuid)` called **BEFORE** `completeSystems()`
-- HUD panels register with correct GUID (no longer undefined)
 
 ### Rules Targeting (v1.20.13+)
 
@@ -502,23 +497,6 @@ msd:
 
 ---
         value: "var(--lcars-alert-red)"
-```
-
-### HUD Panel Integration
-
-HUD Manager now tracks multiple MSD cards:
-
-```javascript
-// Get specific card's pipeline
-const instance = window.lcards.cards.msd.getInstance('msd-engineering-display');
-const pipeline = instance?.pipelineInstance;
-
-// List all MSD cards
-window.lcards.cards.msd.listInstances();
-// Output: [{ guid: 'msd-engineering-display', ... }, { guid: 'msd-bridge', ... }]
-
-// Switch HUD to specific card
-window.lcards.core.hudManager.setActiveCard('msd-engineering-display');
 ```
 
 ### Migration Guide
