@@ -92,7 +92,6 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
-import { getSliderComponent, getSliderComponentNames } from '../core/packs/components/sliders/index.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
@@ -620,8 +619,19 @@ export class LCARdSSlider extends LCARdSButton {
         lcardsLog.debug(`[LCARdSSlider] Loading component: ${componentName}`);
 
         try {
-            // Get component metadata object
-            let component = getSliderComponent(componentName);
+            // Get component from ComponentManager
+            const core = window.lcards?.core;
+            const componentManager = core?.getComponentManager?.();
+
+            if (!componentManager) {
+                lcardsLog.error('[LCARdSSlider] ComponentManager not available');
+                this._componentSvg = null;
+                this._componentLoaded = false;
+                this._componentMetadata = null;
+                return;
+            }
+
+            let component = componentManager.getComponent(componentName);
             let svgContent;
 
             if (component) {
@@ -2840,9 +2850,9 @@ export class LCARdSSlider extends LCARdSButton {
                 if (rangeLabel) {
                     const labelY = rangeY + (rangeHeight / 2);
                     const fontSize = Math.min(12, height / 20);
-                    svg += `<text x="${width / 2}" y="${labelY}" 
+                    svg += `<text x="${width / 2}" y="${labelY}"
                                   text-anchor="middle" dominant-baseline="middle"
-                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}" 
+                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}"
                                   fill="#ffffff">${rangeLabel}</text>`;
                 }
             } else {
@@ -2865,9 +2875,9 @@ export class LCARdSSlider extends LCARdSButton {
                 if (rangeLabel) {
                     const labelX = rangeX + (rangeWidth / 2);
                     const fontSize = Math.min(12, height / 3);
-                    svg += `<text x="${labelX}" y="${height / 2}" 
+                    svg += `<text x="${labelX}" y="${height / 2}"
                                   text-anchor="middle" dominant-baseline="middle"
-                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}" 
+                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}"
                                   fill="#ffffff">${rangeLabel}</text>`;
                 }
             }
@@ -3300,8 +3310,10 @@ export class LCARdSSlider extends LCARdSButton {
         const stylePresetManager = window.lcards?.core?.stylePresetManager;
         const availablePresets = stylePresetManager?.getAvailablePresets('slider') || [];
 
-        // Get available components
-        const availableComponents = getSliderComponentNames();
+        // Get available components from ComponentManager
+        const componentManager = window.lcards?.core?.componentManager;
+        const availableComponents = componentManager ?
+            componentManager.getComponentsByType('slider') : [];
 
         // Position options with proper labels
         const positionEnum = [

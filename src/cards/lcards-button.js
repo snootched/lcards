@@ -59,7 +59,6 @@ import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
-import { getComponent } from '../core/packs/components/index.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
@@ -236,7 +235,17 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Load component preset metadata to get shape reference
-        const componentPreset = getComponent(componentName);
+        const core = window.lcards?.core;
+        const componentManager = core?.getComponentManager?.();
+
+        if (!componentManager) {
+            lcardsLog.error(`[LCARdSButton] ComponentManager not available`);
+            this._processedSvg = null;
+            this._processedSegments = null;
+            return;
+        }
+
+        const componentPreset = componentManager.getComponent(componentName);
         if (!componentPreset) {
             lcardsLog.error(`[LCARdSButton] Component preset not found: ${componentName}`);
             this._processedSvg = null;
