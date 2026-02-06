@@ -1,6 +1,5 @@
 import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
-// REMOVED: MsdHudManager - now using global HudManager from core
 import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js';
 import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -11,11 +10,6 @@ import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { DebugManager } from '../debug/DebugManager.js';
 
 import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
-
-// Import MSD-specific HUD panels
-import { RoutingPanel } from '../hud/panels/RoutingPanel.js';
-import { OverlaysPanel } from '../hud/panels/OverlaysPanel.js';
-import { ChannelTrendPanel } from '../hud/panels/ChannelTrendPanel.js';
 
 // Import theme system initialization
 import { initializeThemeSystem } from '../../core/themes/initializeThemeSystem.js';
@@ -227,22 +221,6 @@ export class MsdCardCoordinator extends BaseService {
   setReRenderCallback(callback) {
     this._reRenderCallback = callback;
   }
-
-  /**
-   * Set card GUID for HUD registration
-   * @param {string} guid - Card GUID
-   */
-  setCardGuid(guid) {
-    this._cardGuid = guid;
-    lcardsLog.debug('[MsdCardCoordinator] Card GUID set:', guid);
-
-    // Register with HUD if systems are already initialized
-    if (this.renderer && lcardsCore?.hudManager) {
-      this._registerMsdPanelsWithHud(guid);
-    }
-  }
-
-
 
   // ============================================================================
   // REMOVED METHOD: _createEntityChangeHandler() - 293 lines removed
@@ -676,44 +654,6 @@ export class MsdCardCoordinator extends BaseService {
    * Set up global HUD interface (placeholder for future implementation)
    * @private
    */
-  /**
-   * Register MSD-specific panels with global HUD Manager
-   * Called during MSD initialization to add card-specific debug panels
-   * @private
-   */
-  _registerMsdPanelsWithHud(cardGuid) {
-    if (!lcardsCore?.hudManager) {
-      lcardsLog.warn('[MsdCardCoordinator] HUD Manager not available, skipping panel registration');
-      return;
-    }
-
-    try {
-      // Create MSD-specific panels
-      const msdPanels = new Map([
-        ['routing', new RoutingPanel()],
-        ['overlays', new OverlaysPanel()],
-        ['channel-trend', new ChannelTrendPanel()]
-      ]);
-
-      // Register card with HUD
-      const cardContext = {
-        guid: cardGuid,
-        type: 'msd',
-        instance: null, // Will be set by card
-        panels: msdPanels,
-        systemsManager: this,
-        router: this.router,
-        renderer: this.renderer,
-        pipeline: null // Will be set by card
-      };
-
-      lcardsCore.hudManager.registerCard(cardGuid, cardContext);
-      lcardsLog.debug('[MsdCardCoordinator] ✅ Registered MSD card with global HUD:', cardGuid);
-    } catch (error) {
-      lcardsLog.error('[MsdCardCoordinator] ❌ Failed to register MSD panels with HUD:', error);
-    }
-  }
-
   // Rules are now evaluated by core rulesManager singleton
   // MSD card receives callbacks via _onRulePatchesChanged() when rules affect it
   // Entity change tracking and dirty marking handled by core RulesEngine._handleRuleEntityChange()

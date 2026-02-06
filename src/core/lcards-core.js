@@ -32,12 +32,6 @@ import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Mo
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
 import { CoreConfigManager } from './config-manager/index.js';  // ✅ Unified config processing
 import { injectPalette } from './themes/paletteInjector.js';  // ✅ CB-LCARS palette injection
-import { HudManager } from './hud/HudManager.js';  // ✅ Global HUD system
-import { HudService } from './hud/HudService.js';  // ✅ HUD keyboard shortcuts
-import { PerformancePanel } from './hud/panels/PerformancePanel.js';  // ✅ Performance monitoring
-import { ValidationPanel } from './hud/panels/ValidationPanel.js';  // ✅ Validation aggregation
-import { DebugFlagsPanel } from './hud/panels/DebugFlagsPanel.js';  // ✅ Debug feature toggles
-import { SystemHealthPanel } from './hud/panels/SystemHealthPanel.js';  // ✅ System health monitoring
 import { PackManager } from './PackManager.js';  // ✅ Pack registration system
 import { AssetManager } from './assets/AssetManager.js';  // ✅ Asset management system
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';  // ✅ DataSource debug tools
@@ -65,8 +59,6 @@ class LCARdSCore {
         this.animationRegistry = null;   // Animation instance caching (Phase 2b)
         this.actionHandler = null;       // Unified action handling system
         this.configManager = null;       // Unified configuration processing
-        this.hudManager = null;          // Global HUD system (Phase 3)
-        this.hudService = null;          // HUD keyboard shortcuts (Phase 3)
         this.packManager = null;         // Pack loading and registration (Phase 4)
         this.assetManager = null;        // Asset management system (Phase 4)
 
@@ -220,25 +212,6 @@ class LCARdSCore {
                 });
                 lcardsLog.debug('[LCARdSCore] ✅ ConfigManager context updated with theme/style managers');
             }
-
-            // Initialize HUD Manager (Phase 3) - ✅ Global debug HUD system
-            this.hudManager = new HudManager();
-
-            // Register core panels
-            this.hudManager.registerPanel('performance', new PerformancePanel());
-            this.hudManager.registerPanel('validation', new ValidationPanel());
-            this.hudManager.registerPanel('debug-flags', new DebugFlagsPanel());
-            this.hudManager.registerPanel('system-health', new SystemHealthPanel());
-
-            lcardsLog.debug('[LCARdSCore] ✅ HUD Manager initialized with 4 core panels');
-
-            // Initialize HUD Service (keyboard shortcuts)
-            this.hudService = new HudService(this.hudManager);
-            this.hudService.initialize();
-            lcardsLog.debug('[LCARdSCore] ✅ HUD Service initialized (shortcut: Alt+Shift+U)');
-
-            // Set default active panel
-            this.hudManager.setActivePanel('performance');
 
             // Attach DataSource debug API (Phase 3+)
             if (typeof window !== 'undefined') {

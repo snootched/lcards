@@ -5,8 +5,6 @@ import { mergePacks } from '../core/packs/mergePacks.js';
 import { MsdDebugAPI } from '../api/MsdDebugAPI.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
-import "./hud/MsdHudUtilities.js";
-
 // Main exports
 export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
 

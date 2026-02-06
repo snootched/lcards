@@ -10,7 +10,7 @@
  *
  * Removed MSD-specific functionality:
  * - Rendering systems (AdvancedRenderer, MsdDebugRenderer, etc.)
- * - MSD-specific managers (HudManager, RouterCore, etc.)
+ * - MSD-specific managers (RouterCore, etc.)
  * - Overlay registries and updaters
  * - Theme and style management (moved to StyleLibrary)
  *
