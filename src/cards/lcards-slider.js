@@ -2575,16 +2575,30 @@ export class LCARdSSlider extends LCARdSButton {
 
         lcardsLog.debug('[LCARdSSlider] Resolved colors:', colors);
 
-        // Step 3: Generate shell SVG
-        const shellSvg = this._componentRenderer({
+        // Step 3: Build full render context
+        const context = {
             width,
             height,
-            colors
-        });
+            colors,
+            config: this.config,
+            style: this._sliderStyle,
+            state: {
+                value: this._sliderValue,
+                entity: entity,
+                min: this._controlConfig.min,
+                max: this._controlConfig.max,
+                domain: this._domain
+            },
+            hass: this.hass
+        };
 
-        // Step 4: Generate content for zones
+        // Step 4: Generate shell SVG with full context
+        const shellSvg = this._componentRenderer(context);
+
+        // Step 5: Generate content for zones
         const trackZone = zones.track;
         const progressZone = zones.progress;  // Check if component has separate progress zone
+        const rangeZone = zones.range;  // Check if component has separate range zone
         const orientation = this._sliderStyle?.track?.orientation || 'vertical';
 
         let trackContent = '';
@@ -2595,7 +2609,7 @@ export class LCARdSSlider extends LCARdSButton {
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone);
         }
 
-        // Step 5: Inject content into shell using shadow DOM queries
+        // Step 6: Inject content into shell using shadow DOM queries
         // Parse shell to DOM temporarily
         const parser = new DOMParser();
         const doc = parser.parseFromString(shellSvg, 'image/svg+xml');
@@ -2617,11 +2631,20 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        // Step 6: Serialize back to string
+        // Inject range indicators into range zone if it exists and ranges configured
+        const rangeZoneElement = shellElement.querySelector('#range-zone');
+        if (rangeZoneElement && rangeZone && this.config.ranges && this.config.ranges.length > 0) {
+            const rangeContent = this._generateRangeIndicators(rangeZone, orientation);
+            if (rangeContent) {
+                rangeZoneElement.innerHTML = rangeContent;
+            }
+        }
+
+        // Step 7: Serialize back to string
         const serializer = new XMLSerializer();
         const finalSvg = serializer.serializeToString(shellElement);
 
-        // Step 7: Render input overlay using control zone
+        // Step 8: Render input overlay using control zone
         const controlZone = zones.control;
         const isVertical = orientation === 'vertical';
 
@@ -2754,6 +2777,103 @@ export class LCARdSSlider extends LCARdSButton {
             const barWidth = width * progress;
             return `<rect x="0" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
+    }
+
+    /**
+     * Generate range indicators for separate range zone
+     * Creates colored bars with inset black borders and optional labels
+     * @param {Object} zoneSpec - Range zone specification from calculateZones()
+     * @param {string} orientation - 'horizontal' or 'vertical'
+     * @returns {string} SVG content for range indicators
+     * @private
+     */
+    _generateRangeIndicators(zoneSpec, orientation) {
+        lcardsLog.debug('[LCARdSSlider] _generateRangeIndicators()', { zoneSpec, orientation });
+
+        const isVertical = orientation === 'vertical';
+        const width = zoneSpec.width;
+        const height = zoneSpec.height;
+        const ranges = this.config.ranges || [];
+
+        if (ranges.length === 0) {
+            return '';
+        }
+
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+
+        // Get border styling from config
+        const borderColor = this._sliderStyle?.range?.border?.color || '#000000';
+        const borderGap = this._sliderStyle?.range?.border?.gap || 5;
+
+        let svg = '';
+
+        ranges.forEach((range, index) => {
+            const rangeMin = range.min ?? displayMin;
+            const rangeMax = range.max ?? displayMax;
+            const rangeColor = range.color || '#CCCCCC';
+            const rangeLabel = range.label || '';
+
+            // Calculate position and size as percentage of display range
+            const startPercent = (rangeMin - displayMin) / displayRange;
+            const endPercent = (rangeMax - displayMin) / displayRange;
+            const sizePercent = endPercent - startPercent;
+
+            if (isVertical) {
+                // Vertical: ranges stack from bottom to top (Y axis inverted)
+                const rangeHeight = height * sizePercent;
+                const rangeY = height * (1 - endPercent);  // Invert Y for bottom-up fill
+
+                // Outer rect (black border)
+                svg += `<rect x="0" y="${rangeY}" width="${width}" height="${rangeHeight}" fill="${borderColor}" />`;
+
+                // Inner rect (range color) - inset by borderGap
+                const innerWidth = Math.max(1, width - (2 * borderGap));
+                const innerHeight = Math.max(1, rangeHeight - (2 * borderGap));
+                const innerX = borderGap;
+                const innerY = rangeY + borderGap;
+
+                svg += `<rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" fill="${rangeColor}" />`;
+
+                // Label (if provided) - centered in range
+                if (rangeLabel) {
+                    const labelY = rangeY + (rangeHeight / 2);
+                    const fontSize = Math.min(12, height / 20);
+                    svg += `<text x="${width / 2}" y="${labelY}" 
+                                  text-anchor="middle" dominant-baseline="middle"
+                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}" 
+                                  fill="#ffffff">${rangeLabel}</text>`;
+                }
+            } else {
+                // Horizontal: ranges span left to right
+                const rangeWidth = width * sizePercent;
+                const rangeX = width * startPercent;
+
+                // Outer rect (black border)
+                svg += `<rect x="${rangeX}" y="0" width="${rangeWidth}" height="${height}" fill="${borderColor}" />`;
+
+                // Inner rect (range color) - inset by borderGap
+                const innerWidth = Math.max(1, rangeWidth - (2 * borderGap));
+                const innerHeight = Math.max(1, height - (2 * borderGap));
+                const innerX = rangeX + borderGap;
+                const innerY = borderGap;
+
+                svg += `<rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" fill="${rangeColor}" />`;
+
+                // Label (if provided) - centered in range
+                if (rangeLabel) {
+                    const labelX = rangeX + (rangeWidth / 2);
+                    const fontSize = Math.min(12, height / 3);
+                    svg += `<text x="${labelX}" y="${height / 2}" 
+                                  text-anchor="middle" dominant-baseline="middle"
+                                  font-family="LCARS, Antonio, sans-serif" font-size="${fontSize}" 
+                                  fill="#ffffff">${rangeLabel}</text>`;
+                }
+            }
+        });
+
+        return svg;
     }
 
     /**

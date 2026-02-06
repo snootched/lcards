@@ -9,6 +9,8 @@
  * @module core/packs/components/sliders
  */
 
+import picardComponent from './picard.js';
+
 /**
  * Basic Slider Component (Unified)
  * Square viewBox with preserveAspectRatio="none" for flexible orientation
@@ -57,7 +59,10 @@ export const sliderComponents = {
         svg: sliderBasicSvg,
         orientation: 'auto',  // Adapts to style.track.orientation
         features: []
-    }
+    },
+    
+    // Picard component - render function architecture
+    'picard': picardComponent
 };
 
 /**
