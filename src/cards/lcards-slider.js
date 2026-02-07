@@ -2722,8 +2722,58 @@ export class LCARdSSlider extends LCARdSButton {
      */
     _generateProgressBar(zoneSpec, orientation) {
         const isVertical = orientation === 'vertical';
-        const width = zoneSpec.width;
-        const height = zoneSpec.height;
+        const zoneWidth = zoneSpec.width;
+        const zoneHeight = zoneSpec.height;
+
+        // Get progress bar configuration
+        const gaugeConfig = this._sliderStyle?.gauge;
+        const progressBarConfig = gaugeConfig?.progress_bar || {};
+
+        // Get cross-sectional size (height property applies to perpendicular dimension)
+        // Vertical mode: height = bar width, Horizontal mode: height = bar height
+        const barThickness = progressBarConfig.height ?? null;
+
+        // Get alignment (start/center/end for cross-sectional positioning)
+        const align = progressBarConfig.align ?? progressBarConfig.position ?? 'center';
+
+        // Get padding - can be specified as individual values or padding object
+        const paddingTop = progressBarConfig.padding?.top ?? progressBarConfig.padding_top ?? 0;
+        const paddingRight = progressBarConfig.padding?.right ?? progressBarConfig.padding_right ?? 0;
+        const paddingBottom = progressBarConfig.padding?.bottom ?? progressBarConfig.padding_bottom ?? 0;
+        const paddingLeft = progressBarConfig.padding?.left ?? progressBarConfig.padding_left ?? 0;
+
+        // Calculate effective dimensions based on orientation
+        let width, height, x, y;
+
+        if (isVertical) {
+            // Vertical: height is controlled by value, width is the cross-section (thickness)
+            width = barThickness ?? (zoneWidth - paddingLeft - paddingRight);
+            height = zoneHeight - paddingTop - paddingBottom;
+            y = paddingTop;
+
+            // Calculate x based on alignment
+            if (align === 'start') {
+                x = paddingLeft; // Left edge
+            } else if (align === 'end') {
+                x = zoneWidth - paddingRight - width; // Right edge
+            } else { // 'center'
+                x = paddingLeft + ((zoneWidth - paddingLeft - paddingRight - width) / 2); // Centered
+            }
+        } else {
+            // Horizontal: width is controlled by value, height is the cross-section (thickness)
+            width = zoneWidth - paddingLeft - paddingRight;
+            height = barThickness ?? (zoneHeight - paddingTop - paddingBottom);
+            x = paddingLeft;
+
+            // Calculate y based on alignment
+            if (align === 'start') {
+                y = paddingTop; // Top edge
+            } else if (align === 'end') {
+                y = zoneHeight - paddingBottom - height; // Bottom edge
+            } else { // 'center'
+                y = paddingTop + ((zoneHeight - paddingTop - paddingBottom - height) / 2); // Centered
+            }
+        }
 
         // Calculate progress percentage
         const min = this._controlConfig.min;
@@ -2741,40 +2791,44 @@ export class LCARdSSlider extends LCARdSButton {
             value,
             range,
             progress,
-            height,
-            barHeight: isVertical ? height * progress : null
+            barThickness,
+            padding: { top: paddingTop, right: paddingRight, bottom: paddingBottom, left: paddingLeft },
+            effectiveDimensions: { x, y, width, height }
         });
 
-        // Get fill color (gauge active color)
-        const fillColor = this._sliderStyle?.gauge?.fill?.color?.active || '#93e1ff';
+        // Get fill color (gauge active color or progress_bar color)
+        const fillColor = ColorUtils.resolveCssVariable(
+            progressBarConfig.color ||
+            gaugeConfig?.fill?.color?.active ||
+            '#93e1ff'
+        );
 
         let svg = '';
 
         // Generate progress bar rect - fill zone based on value percentage
         if (isVertical) {
             const barHeight = height * progress;
-            let barY = height - barHeight; // Start from bottom (default)
+            let barY = y + height - barHeight; // Start from bottom (default)
 
             // Apply fill inversion if configured
             if (this._invertFill) {
-                barY = 0; // Fill from top instead
+                barY = y; // Fill from top instead
             }
 
-            svg += `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${fillColor}" rx="2" ry="2"></rect>`;
+            svg += `<rect x="${x}" y="${barY}" width="${width}" height="${barHeight}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         } else {
             const barWidth = width * progress;
-            let barX = 0; // Start from left (default)
+            let barX = x; // Start from left (default)
 
             // Apply fill inversion if configured
             if (this._invertFill) {
-                barX = width - barWidth; // Fill from right instead
+                barX = x + width - barWidth; // Fill from right instead
             }
 
-            svg += `<rect x="${barX}" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
+            svg += `<rect x="${barX}" y="${y}" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
 
         // Add indicator overlay if enabled
-        const gaugeConfig = this._sliderStyle?.gauge;
         const indicatorConfig = gaugeConfig?.indicator;
         const indicatorEnabled = indicatorConfig?.enabled === true ||
                                 (indicatorConfig?.enabled !== false &&
@@ -2793,15 +2847,15 @@ export class LCARdSSlider extends LCARdSButton {
             const borderWidth = indicatorConfig.border?.width || 1;
 
             if (isVertical) {
-                // Calculate indicator Y position (inverted, matching progress bar top edge)
-                let indicatorY = height - (progress * height);
+                // Calculate indicator Y position (relative to progress bar area)
+                let indicatorY = y + height - (progress * height);
                 if (this._invertFill) {
-                    indicatorY = progress * height;
+                    indicatorY = y + (progress * height);
                 }
                 indicatorY += offsetY;
 
-                // Position at center of progress bar width
-                const indicatorX = width / 2 + offsetX;
+                // Position at center of progress bar width (accounting for x padding)
+                const indicatorX = x + (width / 2) + offsetX;
 
                 if (indicatorType === 'round') {
                     const rx = indicatorWidth / 2;
@@ -2834,14 +2888,14 @@ export class LCARdSSlider extends LCARdSButton {
                     `;
                 }
             } else {
-                // Horizontal indicator (at progress bar right edge)
-                let indicatorX = progress * width;
+                // Horizontal indicator (at progress bar right edge, accounting for padding)
+                let indicatorX = x + (progress * width);
                 if (this._invertFill) {
-                    indicatorX = width - (progress * width);
+                    indicatorX = x + width - (progress * width);
                 }
                 indicatorX += offsetX;
 
-                const indicatorY = height / 2 + offsetY;
+                const indicatorY = y + (height / 2) + offsetY;
 
                 if (indicatorType === 'round') {
                     const rx = indicatorWidth / 2;
