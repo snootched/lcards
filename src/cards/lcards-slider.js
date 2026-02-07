@@ -685,10 +685,6 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Fetch external component SVG
-     * @private
-     */
-    /**
      * Resolve state-based border color
      * Uses resolveStateColor utility (theme tokens already resolved by CoreConfigManager)
      * @param {Object|string} colorConfig - Color configuration (state object or string)
@@ -850,16 +846,6 @@ export class LCARdSSlider extends LCARdSButton {
      *   }
      * }
      */
-    /**
-     * DEPRECATED: Old rendering path - ranges are now injected in _renderWithRenderer()
-     * @private
-     * @deprecated
-     */
-    _injectRanges() {
-        // NO-OP: Ranges now handled by _generateRangeIndicators() in new rendering path
-        return;
-    }
-
     /**
      * Override button's text area calculation to support slider-specific areas
      * Provides text positioning in border caps (left/top/right/bottom) and track area
@@ -1059,18 +1045,6 @@ export class LCARdSSlider extends LCARdSButton {
             text: textZone,
             track: trackZone
         };
-    }
-
-    /**
-     * DEPRECATED: Old rendering path - text fields are now injected via _injectTextFieldsToElement()
-     * @param {number} width - Slider width
-     * @param {number} height - Slider height
-     * @private
-     * @deprecated
-     */
-    _injectTextFields(width, height) {
-        // NO-OP: Text injection now handled by _injectTextFieldsToElement() in new rendering path
-        return;
     }
 
     /**
@@ -1932,16 +1906,6 @@ export class LCARdSSlider extends LCARdSButton {
         const value = this._sliderValue;
 
         return Math.max(0, Math.min(1, (value - displayMin) / (displayMax - displayMin)));
-    }
-
-    /**
-     * DEPRECATED: Old rendering path - content injection now handled in _renderWithRenderer()
-     * @private
-     * @deprecated
-     */
-    _injectContentIntoZones() {
-        // NO-OP: Content injection now handled by _renderWithRenderer() in new rendering path
-        return;
     }
 
     /**
@@ -2809,111 +2773,8 @@ export class LCARdSSlider extends LCARdSButton {
             svg += `<rect x="${barX}" y="${y}" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
 
-        // Add indicator overlay if enabled
-        const indicatorConfig = gaugeConfig?.indicator;
-        const indicatorEnabled = indicatorConfig?.enabled === true ||
-                                (indicatorConfig?.enabled !== false &&
-                                 (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
-
-        if (indicatorEnabled) {
-            const indicatorType = indicatorConfig.type || 'line';
-            const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
-            const indicatorWidth = indicatorConfig.size?.width || 4;
-            const indicatorHeight = indicatorConfig.size?.height || 25;
-            const rotation = indicatorConfig.rotation || 0;
-            const offsetX = indicatorConfig.offset?.x || 0;
-            const offsetY = indicatorConfig.offset?.y || 0;
-            const borderEnabled = indicatorConfig.border?.enabled !== false;
-            const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
-            const borderWidth = indicatorConfig.border?.width || 1;
-
-            if (isVertical) {
-                // Calculate indicator Y position (relative to progress bar area)
-                let indicatorY = y + height - (progress * height);
-                if (this._invertFill) {
-                    indicatorY = y + (progress * height);
-                }
-                indicatorY += offsetY;
-
-                // Position at center of progress bar width (accounting for x padding)
-                const indicatorX = x + (width / 2) + offsetX;
-
-                if (indicatorType === 'round') {
-                    const rx = indicatorWidth / 2;
-                    const ry = indicatorHeight / 2;
-                    svg += `
-                        <ellipse cx="0" cy="0" rx="${rx}" ry="${ry}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else if (indicatorType === 'triangle') {
-                    const halfWidth = indicatorHeight / 2;
-                    const halfHeight = indicatorWidth / 2;
-                    const points = `${halfWidth},0 ${-halfWidth},${-halfHeight} ${-halfWidth},${halfHeight}`;
-                    svg += `
-                        <polygon points="${points}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else {
-                    // Line indicator (horizontal for vertical gauge)
-                    const halfWidth = indicatorHeight / 2;
-                    const halfHeight = indicatorWidth / 2;
-                    svg += `
-                        <rect x="${-halfWidth}" y="${-halfHeight}"
-                              width="${indicatorHeight}" height="${indicatorWidth}"
-                              fill="${indicatorColor}"
-                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                              rx="1" ry="1"
-                              transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                }
-            } else {
-                // Horizontal indicator (at progress bar right edge, accounting for padding)
-                let indicatorX = x + (progress * width);
-                if (this._invertFill) {
-                    indicatorX = x + width - (progress * width);
-                }
-                indicatorX += offsetX;
-
-                const indicatorY = y + (height / 2) + offsetY;
-
-                if (indicatorType === 'round') {
-                    const rx = indicatorWidth / 2;
-                    const ry = indicatorHeight / 2;
-                    svg += `
-                        <ellipse cx="0" cy="0" rx="${rx}" ry="${ry}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else if (indicatorType === 'triangle') {
-                    const halfWidth = indicatorHeight / 2;
-                    const halfHeight = indicatorWidth / 2;
-                    const points = `0,${halfWidth} ${-halfHeight},${-halfWidth} ${halfHeight},${-halfWidth}`;
-                    svg += `
-                        <polygon points="${points}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else {
-                    // Line indicator (vertical for horizontal gauge)
-                    const halfWidth = indicatorWidth / 2;
-                    const halfHeight = indicatorHeight / 2;
-                    svg += `
-                        <rect x="${-halfWidth}" y="${-halfHeight}"
-                              width="${indicatorWidth}" height="${indicatorHeight}"
-                              fill="${indicatorColor}"
-                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                              rx="1" ry="1"
-                              transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                }
-            }
-        }
+        // NOTE: Pills mode does not support indicators - they only make sense for gauge mode
+        // with its continuous scale. Pills already show discrete value state visually.
 
         return svg;
     }
