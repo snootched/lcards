@@ -281,7 +281,7 @@ export class ApexChartsAdapter {
     // ============================================================================
     // SETUP & THEME RESOLUTION
     // ============================================================================
-    
+
     // Note: Chart card already resolves theme tokens before calling this method
     // (see lcards-chart.js line 552: resolveThemeTokensRecursive)
     // We just need to handle any remaining CSS variables for canvas compatibility
@@ -300,16 +300,16 @@ export class ApexChartsAdapter {
 
     /**
      * Normalize color value to array format for ApexCharts
-     * 
+     *
      * ApexCharts expects color properties to be arrays. This helper normalizes:
      * - Single color strings → single-element arrays
-     * - Already-array values → returned as-is  
+     * - Already-array values → returned as-is
      * - null/undefined → returned as null
-     * 
+     *
      * @private
      * @param {string|Array|null|undefined} value - Color value (single color or array)
      * @returns {Array|null} Normalized color array or null
-     * 
+     *
      * @example
      * _normalizeColorArray('#FF9900') // → ['#FF9900']
      * _normalizeColorArray(['#FF9900', '#99CCFF']) // → ['#FF9900', '#99CCFF']
@@ -319,17 +319,17 @@ export class ApexChartsAdapter {
       if (value === null || value === undefined) {
         return null;
       }
-      
+
       // Single string color → convert to array
       if (typeof value === 'string') {
         return [value];
       }
-      
+
       // Already an array → return as-is
       if (Array.isArray(value)) {
         return value;
       }
-      
+
       // Invalid type → log warning and return null
       lcardsLog.warn('[ApexChartsAdapter] Invalid color value type:', typeof value, value);
       return null;
@@ -1071,72 +1071,6 @@ export class ApexChartsAdapter {
   }
 
   /**
-   * Resolve CSS variable to computed value
-   *
-   * ApexCharts is a CANVAS library and doesn't understand CSS variables.
-   * We must resolve them to actual hex/rgb values before passing to ApexCharts.
-   *
-   * This is adapter-specific logic that remains necessary because CSS variables
-   * work in HTML/CSS contexts but not in canvas rendering.
-   *
-   * @private
-   * @param {string|Array} colorValue - Color value or array of color values
-   * @returns {string|Array} Resolved color value(s)
-   */
-  static _resolveCssVariable(colorValue) {
-    // Handle arrays recursively
-    if (Array.isArray(colorValue)) {
-      return colorValue.map(c => this._resolveCssVariable(c));
-    }
-
-    // Non-string or falsy values pass through
-    if (!colorValue || typeof colorValue !== 'string') {
-      return colorValue;
-    }
-
-    // Check if it's a CSS variable
-    if (colorValue.startsWith('var(')) {
-      try {
-        // Extract variable name from var(--variable-name, fallback)
-        const match = colorValue.match(/var\((--[^,)]+)(?:,\s*([^)]+))?\)/);
-        if (!match) return colorValue;
-
-        const varName = match[1];
-        const fallback = match[2] ? match[2].trim() : null;
-
-        // Get computed style from document root
-        const root = document.documentElement;
-        const computed = getComputedStyle(root).getPropertyValue(varName).trim();
-
-        if (computed) {
-          lcardsLog.trace(`[ApexChartsAdapter] ✅ Resolved CSS variable: ${colorValue} → ${computed}`);
-          return computed;
-        }
-
-        // No computed value, try fallback
-        if (fallback) {
-          // Fallback might also be a CSS variable, recurse
-          if (fallback.startsWith('var(')) {
-            return this._resolveCssVariable(fallback);
-          }
-          lcardsLog.trace(`[ApexChartsAdapter] ⚠️ Using fallback: ${colorValue} → ${fallback}`);
-          return fallback;
-        }
-
-        lcardsLog.warn(`[ApexChartsAdapter] ❌ Failed to resolve CSS variable: ${colorValue} (no computed value or fallback)`);
-        return colorValue;  // Return original if can't resolve
-
-      } catch (error) {
-        lcardsLog.error(`[ApexChartsAdapter] ❌ Error resolving CSS variable: ${colorValue}`, error);
-        return colorValue;
-      }
-    }
-
-    // Not a CSS variable, return as-is
-    return colorValue;
-  }
-
-  /**
    * Recursively resolve ALL CSS variables in an object tree
    * This is the FINAL pass that ensures ApexCharts never receives CSS variables
    *
@@ -1167,7 +1101,7 @@ export class ApexChartsAdapter {
     // Handle strings - resolve if CSS variable
     if (typeof obj === 'string') {
       const original = obj;
-      const resolved = this._resolveCssVariable(obj);
+      const resolved = ColorUtils.resolveCssVariable(obj);
       if (original !== resolved) {
         lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved CSS variable: ${original} → ${resolved}`);
       }

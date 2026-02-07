@@ -89,9 +89,9 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
-import { ColorUtils } from '../core/themes/ColorUtils.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
@@ -638,7 +638,7 @@ export class LCARdSSlider extends LCARdSButton {
             let svgContent;
 
             if (component) {
-                // NEW: Check if component uses render function (new architecture)
+                // Component found with render function (new architecture)
                 if (component.render && typeof component.render === 'function') {
                     // Component provides a render function - use it
                     lcardsLog.debug(`[LCARdSSlider] Component uses render function architecture`);
@@ -668,96 +668,17 @@ export class LCARdSSlider extends LCARdSButton {
                     return;
                 }
 
-                // OLD: Component found in registry with SVG template
-                svgContent = component.svg;
-
-                // NEW: Store metadata for later use
-                this._componentMetadata = component.metadata;
-
-                // Set orientation from component metadata if not explicitly configured
-                if (!this.config.style?.track?.orientation) {
-                    if (!this._sliderStyle) {
-                        this._sliderStyle = {};
-                    }
-
-                    // Preserve existing track properties (don't wipe out type: 'pills' from preset)
-                    const existingTrack = this._sliderStyle.track || {};
-                    lcardsLog.debug(`[LCARdSSlider] Setting orientation, existing track:`, existingTrack);
-
-                    this._sliderStyle.track = {
-                        ...existingTrack,
-                        orientation: component.orientation
-                    };
-
-                    lcardsLog.debug(`[LCARdSSlider] Using component orientation: ${component.orientation}, track:`, this._sliderStyle.track);
-                }
-
-                // Log component features for debugging
-                if (component.features && component.features.length > 0) {
-                    lcardsLog.debug(`[LCARdSSlider] Component features: ${component.features.join(', ')}`);
-                }
-
-            } else {
-                // Try to fetch from external URL
-                svgContent = await this._fetchExternalComponent(componentName);
-                this._componentMetadata = null; // No metadata for external components
-            }
-
-            if (!svgContent) {
-                lcardsLog.error(`[LCARdSSlider] Component not found: ${componentName}`);
-                this._componentSvg = null;
+                // Component found but doesn't use render architecture
+                lcardsLog.error(`[LCARdSSlider] Component "${componentName}" does not use render function architecture`);
                 this._componentLoaded = false;
                 this._componentMetadata = null;
                 return;
             }
 
-            // Parse SVG to DOM
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
-
-            // Check for parse errors
-            const parserError = doc.querySelector('parsererror');
-            if (parserError) {
-                lcardsLog.error(`[LCARdSSlider] SVG parse error:`, parserError.textContent);
-                this._componentSvg = null;
-                this._componentLoaded = false;
-                this._componentMetadata = null;
-                return;
-            }
-
-            this._componentSvg = doc.documentElement;
-
-            // Replace color placeholders
-            this._injectComponentColors();
-
-            // Extract zone definitions (inherited method from LCARdSCard)
-            this._extractZones(this._componentSvg);
-
-            // Enrich zones with metadata properties (scaleWithContainer, orientation, etc.)
-            if (this._componentMetadata?.zones) {
-                this._zones.forEach((zone, zoneName) => {
-                    const metadata = this._componentMetadata.zones[zoneName];
-                    if (metadata) {
-                        // Merge metadata properties into zone object
-                        Object.assign(zone, {
-                            scaleWithContainer: metadata.scaleWithContainer,
-                            orientation: metadata.orientation,
-                            description: metadata.description,
-                            elements: metadata.elements
-                        });
-                        lcardsLog.trace(`[LCARdSSlider] Enriched zone "${zoneName}" with metadata:`, {
-                            scaleWithContainer: zone.scaleWithContainer,
-                            orientation: zone.orientation
-                        });
-                    }
-                });
-            }
-
-            this._componentLoaded = true;
-
-            lcardsLog.debug(`[LCARdSSlider] Component loaded with ${this._zones.size} zones`);
-
-            this.requestUpdate();
+            // No component found
+            lcardsLog.error(`[LCARdSSlider] Component not found: ${componentName}`);
+            this._componentLoaded = false;
+            this._componentMetadata = null;
 
         } catch (error) {
             lcardsLog.error(`[LCARdSSlider] Component load failed:`, error);
@@ -771,110 +692,6 @@ export class LCARdSSlider extends LCARdSButton {
      * Fetch external component SVG
      * @private
      */
-    async _fetchExternalComponent(componentName) {
-        // Try common paths
-        const paths = [
-            `/hacsfiles/lcards/components/slider-backgrounds/${componentName}.svg`,
-            `/local/lcards/components/slider-backgrounds/${componentName}.svg`,
-            `/local/components/slider-backgrounds/${componentName}.svg`
-        ];
-
-        for (const path of paths) {
-            try {
-                const response = await fetch(path);
-                if (response.ok) {
-                    return await response.text();
-                }
-            } catch {
-                // Continue to next path
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Inject colors into component SVG placeholders
-     * @private
-     */
-    _injectComponentColors() {
-        if (!this._componentSvg) return;
-
-        const colorMap = {
-            '{{BORDER_COLOR}}': this._sliderStyle?.border?.color?.active || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
-            '{{BORDER_COLOR_INACTIVE}}': this._sliderStyle?.border?.color?.inactive || 'var(--lcars-gray, var(--lcards-gray-medium, #666688))',
-            '{{GRADIENT_START}}': this._sliderStyle?.track?.segments?.gradient?.start || 'var(--error-color, var(--lcards-orange-dark, #cc2200))',
-            '{{GRADIENT_END}}': this._sliderStyle?.track?.segments?.gradient?.end || 'var(--success-color, var(--lcards-green-medium, #33cc99))',
-            '{{TEXT_COLOR}}': this._sliderStyle?.text?.value?.color || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))'
-        };
-
-        // Replace placeholder attributes in parsed SVG
-        const allElements = this._componentSvg.querySelectorAll('*');
-        allElements.forEach(el => {
-            Array.from(el.attributes).forEach(attr => {
-                let value = attr.value;
-                for (const [placeholder, color] of Object.entries(colorMap)) {
-                    if (value.includes(placeholder)) {
-                        value = value.replace(placeholder, this._resolveCssVariable(color));
-                    }
-                }
-                attr.value = value;
-            });
-        });
-    }
-
-    /**
-     * Resolve CSS variable to actual color value
-     * @private
-     */
-    _resolveCssVariable(value) {
-        if (!value || typeof value !== 'string') return value;
-
-        // Check if it's a CSS variable
-        if (value.includes('var(')) {
-            // Handle potentially malformed or nested var() - extract the first complete var()
-            const match = value.match(/var\(([^,)]+)(?:,\s*(.+))?\)/);
-            if (match) {
-                const varName = match[1].trim();
-                const fallback = match[2]?.trim();
-
-                // Try to get computed value
-                try {
-                    const computedValue = getComputedStyle(document.documentElement)
-                        .getPropertyValue(varName).trim();
-
-                    if (computedValue) return computedValue;
-                } catch (e) {
-                    // getComputedStyle might fail during dashboard edits
-                }
-
-                // Recursively resolve fallback if it's also a var()
-                if (fallback) {
-                    return this._resolveCssVariable(fallback);
-                }
-
-                // No computed value and no fallback - return safe default
-                return '#000000';
-            } else {
-                // Malformed var() - try to extract variable name and get its value
-                const varMatch = value.match(/var\(([^,)]+)/);
-                if (varMatch) {
-                    try {
-                        const computedValue = getComputedStyle(document.documentElement)
-                            .getPropertyValue(varMatch[1].trim()).trim();
-                        if (computedValue) return computedValue;
-                    } catch (e) {
-                        // Fall through to default
-                    }
-                }
-                // Can't parse - return safe default
-                return '#000000';
-            }
-        }
-
-        return value;
-    }
-
     /**
      * Resolve state-based border color
      * Uses resolveStateColor utility (theme tokens already resolved by CoreConfigManager)
@@ -894,23 +711,6 @@ export class LCARdSSlider extends LCARdSButton {
             colorConfig: colorConfig,
             fallback: 'var(--lcars-color-secondary, #000000)'
         });
-    }
-
-    /**
-     * Inject SVG border elements from config
-     * Generates rect elements for left/top/right/bottom borders
-     * @private
-     */
-    _injectBorders() {
-        if (!this._componentSvg) return;
-
-        const borderConfig = this._sliderStyle?.border;
-        if (!borderConfig) return;
-
-        const width = this._containerSize.width || 300;
-        const height = this._containerSize.height || 60;
-
-        this._injectBordersToElement(this._componentSvg, width, height);
     }
 
     /**
@@ -972,7 +772,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', leftSize);
             rect.setAttribute('height', height);
             const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = this._resolveCssVariable(leftColor);
+            const resolvedColor = ColorUtils.resolveCssVariable(leftColor);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', resolvedColor || '#000000');
             fragment.appendChild(rect);
@@ -988,7 +788,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', width);
             rect.setAttribute('height', topSize);
             const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = this._resolveCssVariable(topColor);
+            const resolvedColor = ColorUtils.resolveCssVariable(topColor);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', resolvedColor || '#000000');
             fragment.appendChild(rect);
@@ -1004,7 +804,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', rightSize);
             rect.setAttribute('height', height);
             const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', this._resolveCssVariable(rightColor) || '#000000');
+            rect.setAttribute('fill', ColorUtils.resolveCssVariable(rightColor) || '#000000');
             fragment.appendChild(rect);
         }
 
@@ -1018,7 +818,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', width);
             rect.setAttribute('height', bottomSize);
             const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', this._resolveCssVariable(bottomColor) || '#000000');
+            rect.setAttribute('fill', ColorUtils.resolveCssVariable(bottomColor) || '#000000');
             fragment.appendChild(rect);
         }
 
@@ -1119,7 +919,7 @@ export class LCARdSSlider extends LCARdSButton {
                 innerRect.setAttribute('y', yStart + gap);
                 innerRect.setAttribute('width', width - 2 * gap);
                 innerRect.setAttribute('height', Math.max(0, rangeHeight - 2 * gap));
-                innerRect.setAttribute('fill', this._resolveCssVariable(range.color));
+                innerRect.setAttribute('fill', ColorUtils.resolveCssVariable(range.color));
                 innerRect.setAttribute('data-range-index', idx);
                 rangeZone.element.appendChild(innerRect);
 
@@ -1152,7 +952,7 @@ export class LCARdSSlider extends LCARdSButton {
                 innerRect.setAttribute('y', gap);
                 innerRect.setAttribute('width', Math.max(0, rangeWidth - 2 * gap));
                 innerRect.setAttribute('height', height - 2 * gap);
-                innerRect.setAttribute('fill', this._resolveCssVariable(range.color));
+                innerRect.setAttribute('fill', ColorUtils.resolveCssVariable(range.color));
                 innerRect.setAttribute('data-range-index', idx);
                 rangeZone.element.appendChild(innerRect);
             }
@@ -1393,8 +1193,8 @@ export class LCARdSSlider extends LCARdSButton {
         const gap = parseInt(trackConfig?.gap) || 4;
         const radius = trackConfig?.shape?.radius ?? 4;
         const interpolated = trackConfig?.gradient?.interpolated ?? false;
-        let gradientStart = this._resolveCssVariable(trackConfig?.gradient?.start || 'var(--error-color, var(--lcards-orange-dark, #cc2200))');
-        let gradientEnd = this._resolveCssVariable(trackConfig?.gradient?.end || 'var(--success-color, var(--lcards-green-medium, #33cc99))');
+        let gradientStart = ColorUtils.resolveCssVariable(trackConfig?.gradient?.start || 'var(--error-color, var(--lcards-orange-dark, #cc2200))');
+        let gradientEnd = ColorUtils.resolveCssVariable(trackConfig?.gradient?.end || 'var(--success-color, var(--lcards-green-medium, #33cc99))');
 
         // Reverse gradient direction when fill is inverted
         if (this._invertFill) {
@@ -1437,7 +1237,7 @@ export class LCARdSSlider extends LCARdSButton {
                 // This ensures pills at exact boundaries (e.g., 66.6, 77.7, 88.8 in 66-100 range) are matched
                 const matchingRange = ranges.find(r => pillValue >= r.min && pillValue <= r.max);
                 if (matchingRange) {
-                    return this._resolveCssVariable(matchingRange.color);
+                    return ColorUtils.resolveCssVariable(matchingRange.color);
                 }
             }
 
@@ -1646,7 +1446,7 @@ export class LCARdSSlider extends LCARdSButton {
             ranges.forEach((rangeConfig, idx) => {
                 const rangeMin = rangeConfig.min;
                 const rangeMax = rangeConfig.max;
-                const rangeColor = this._resolveCssVariable(rangeConfig.color);
+                const rangeColor = ColorUtils.resolveCssVariable(rangeConfig.color);
                 const rangeOpacity = rangeConfig.opacity ?? 0.3;
 
                 // Calculate range position as percentage of display range
@@ -1692,7 +1492,7 @@ export class LCARdSSlider extends LCARdSButton {
         // NEW: Render labels for ranges (after background rects)
         // ====================================================================
         if (ranges.length > 0) {
-            const labelColor = this._resolveCssVariable(
+            const labelColor = ColorUtils.resolveCssVariable(
                 gaugeConfig?.scale?.labels?.color ||
                 'var(--primary-text-color, #ffffff)'
             );
@@ -1746,14 +1546,14 @@ export class LCARdSSlider extends LCARdSButton {
         // Major tick configuration
         const majorEnabled = tickConfig?.major?.enabled !== false;
         const majorInterval = tickConfig?.major?.interval || 10; // Value units (not percentage)
-        const majorColor = this._resolveCssVariable(tickConfig?.major?.color || 'var(--lcars-card-button, #ff9966)');
+        const majorColor = ColorUtils.resolveCssVariable(tickConfig?.major?.color || 'var(--lcars-card-button, #ff9966)');
         const majorHeight = tickConfig?.major?.height; // undefined = full height
         const majorStrokeWidth = tickConfig?.major?.width || 2;
 
         // Minor tick configuration
         const minorEnabled = tickConfig?.minor?.enabled !== false;
         const minorInterval = tickConfig?.minor?.interval || 2; // Value units (not percentage)
-        const minorColor = this._resolveCssVariable(tickConfig?.minor?.color || 'var(--lcars-card-button, #ff9966)');
+        const minorColor = ColorUtils.resolveCssVariable(tickConfig?.minor?.color || 'var(--lcars-card-button, #ff9966)');
         const minorHeight = tickConfig?.minor?.height || 10;
         const minorStrokeWidth = tickConfig?.minor?.width || 1;
 
@@ -1764,7 +1564,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Progress bar configuration
         const progressConfig = gaugeConfig?.progress_bar;
-        const progressColor = this._resolveCssVariable(progressConfig?.color || 'var(--lcards-blue-light, #aaccff)');
+        const progressColor = ColorUtils.resolveCssVariable(progressConfig?.color || 'var(--lcards-blue-light, #aaccff)');
         const progressHeight = progressConfig?.height || 12;
         const progressRadius = progressConfig?.radius !== undefined ? progressConfig?.radius : 2;
 
@@ -1901,14 +1701,14 @@ export class LCARdSSlider extends LCARdSButton {
 
             if (indicatorEnabled) {
                 const indicatorType = indicatorConfig.type || 'line';
-                const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
+                const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
                 const indicatorWidth = indicatorConfig.size?.width || 4;
                 const indicatorHeight = indicatorConfig.size?.height || 25;
                 const rotation = indicatorConfig.rotation || 0;
                 const offsetX = indicatorConfig.offset?.x || 0;
                 const offsetY = indicatorConfig.offset?.y || 0;
                 const borderEnabled = indicatorConfig.border?.enabled !== false;
-                const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
+                const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
                 const borderWidth = indicatorConfig.border?.width || 1;
 
                 // Calculate base indicator position (at progress bar end, apply inversion)
@@ -2009,7 +1809,7 @@ export class LCARdSSlider extends LCARdSButton {
                     // Draw label if enabled (to the right, below the line)
                     if (labelsEnabled && !isBottomTick) {
                         const labelText = `${displayValue}${labelUnit}`;
-                        const labelColor = this._resolveCssVariable(labelConfig?.color || 'var(--lcars-card-button, #ff9966)');
+                        const labelColor = ColorUtils.resolveCssVariable(labelConfig?.color || 'var(--lcars-card-button, #ff9966)');
                         const labelFontSizeVertical = labelConfig?.font_size || labelFontSize;
 
                         // Estimate label width and check bounds
@@ -2087,14 +1887,14 @@ export class LCARdSSlider extends LCARdSButton {
 
             if (indicatorEnabled && !skipProgressBar) {
                 const indicatorType = indicatorConfig.type || 'line';
-                const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
+                const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
                 const indicatorWidth = indicatorConfig.size?.width || 4;
                 const indicatorHeight = indicatorConfig.size?.height || 25;
                 const rotation = indicatorConfig.rotation || 0;
                 const offsetX = indicatorConfig.offset?.x || 0;
                 const offsetY = indicatorConfig.offset?.y || 0;
                 const borderEnabled = indicatorConfig.border?.enabled !== false;
-                const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
+                const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
                 const borderWidth = indicatorConfig.border?.width || 1;
 
                 // Calculate base indicator position (at progress bar end, inverted Y, with fill inversion support)
@@ -2583,61 +2383,6 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Generate fallback slider (no component loaded)
-     * @private
-     */
-    _generateFallbackSlider(width, height) {
-        const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
-        const isVertical = orientation === 'vertical';
-
-        // Track dimensions
-        const trackWidth = isVertical ? 20 : width - 20;
-        const trackHeight = isVertical ? height - 20 : 20;
-        const trackX = isVertical ? (width - trackWidth) / 2 : 10;
-        const trackY = isVertical ? 10 : (height - trackHeight) / 2;
-
-        // Generate track content
-        const trackContent = this._mode === 'pills'
-            ? this._generatePillsSVG(trackWidth, trackHeight, this._sliderStyle?.track?.segments, orientation)
-            : this._generateGaugeSVG(trackWidth, trackHeight);
-
-        return `
-            <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-                <g class="slider-fallback" transform="translate(${trackX}, ${trackY})">
-                    ${trackContent}
-                </g>
-            </svg>
-        `;
-    }
-
-    /**
-     * Render input overlay HTML element
-     * @private
-     */
-    _renderInputOverlay(style) {
-        if (this._controlConfig.locked) {
-            return '';
-        }
-
-        const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
-
-        return html`
-            <input
-                type="range"
-                class="slider-input-overlay"
-                value="${String(this._sliderValue)}"
-                min="${String(this._controlConfig.min)}"
-                max="${String(this._controlConfig.max)}"
-                step="${this._controlConfig.step || 1}"
-                ?disabled="${this._controlConfig.locked}"
-                @input="${this._handleSliderInput}"
-                @change="${this._handleSliderChange}"
-                style="${style}"
-            />
-        `;
-    }
-
-    /**
      * Render component using its render function (new architecture)
      * @private
      */
@@ -2758,14 +2503,14 @@ export class LCARdSSlider extends LCARdSButton {
             borderLeft: this._resolveStateBorderColor(borderConfig?.left?.color),
             borderRight: this._resolveStateBorderColor(borderConfig?.right?.color),
             // Progress bar color
-            progressBar: this._resolveCssVariable(this._sliderStyle?.gauge?.progress_bar?.color) || '#00EDED',
+            progressBar: ColorUtils.resolveCssVariable(this._sliderStyle?.gauge?.progress_bar?.color) || '#00EDED',
             // Range frame and borders
-            rangeBorder: this._resolveCssVariable(this._sliderStyle?.range?.border?.color) || '#000000',
-            rangeFrame: this._resolveCssVariable(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            rangeBorder: ColorUtils.resolveCssVariable(this._sliderStyle?.range?.border?.color) || '#000000',
+            rangeFrame: ColorUtils.resolveCssVariable(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
-            solidBar: this._resolveCssVariable(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            solidBar: ColorUtils.resolveCssVariable(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: this._resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0'
+            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0'
         };
 
         lcardsLog.debug('[LCARdSSlider] Resolved colors using card logic:', colors);
@@ -3021,14 +2766,14 @@ export class LCARdSSlider extends LCARdSButton {
 
         if (indicatorEnabled) {
             const indicatorType = indicatorConfig.type || 'line';
-            const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
+            const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
             const indicatorWidth = indicatorConfig.size?.width || 4;
             const indicatorHeight = indicatorConfig.size?.height || 25;
             const rotation = indicatorConfig.rotation || 0;
             const offsetX = indicatorConfig.offset?.x || 0;
             const offsetY = indicatorConfig.offset?.y || 0;
             const borderEnabled = indicatorConfig.border?.enabled !== false;
-            const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
+            const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
             const borderWidth = indicatorConfig.border?.width || 1;
 
             if (isVertical) {
@@ -3232,366 +2977,16 @@ export class LCARdSSlider extends LCARdSButton {
             `;
         }
 
-        // NEW: Check if component uses render function (new architecture)
+        // Component uses render function (new architecture)
         if (this._componentRenderer) {
             return this._renderWithRenderer(width, height);
         }
 
-        let svgContent;
-
-        if (this._componentSvg) {
-            // Adjust viewBox to match container dimensions for responsive behavior
-            const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
-
-            // Store original component viewBox before overwriting (for scaling calculations)
-            if (!this._originalComponentViewBox && this.config.component && this.config.component !== 'basic') {
-                const originalViewBox = this._componentSvg.getAttribute('viewBox');
-                if (originalViewBox) {
-                    const [, , origWidth, origHeight] = originalViewBox.split(' ').map(parseFloat);
-                    this._originalComponentViewBox = { width: origWidth, height: origHeight };
-                    lcardsLog.debug(`[LCARdSSlider] Stored original component viewBox:`, this._originalComponentViewBox);
-                }
-            }
-
-            // For components with defined coordinate spaces (e.g., picard-vertical with 365×601),
-            // preserve the original viewBox to prevent clipping.
-            // For basic presets, set viewBox to container dimensions for responsive behavior.
-            if (!this._originalComponentViewBox || this.config.component === 'basic') {
-                // Dynamic viewBox for basic presets
-                this._componentSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-            }
-            // else: keep original viewBox for styled components - let SVG scale naturally
-
-            // Helper function to get border size (supports both .size and .width properties)
-            const getBorderSize = (borderDef) => borderDef?.size ?? borderDef?.width ?? 0;
-
-            // Calculate border offsets for zone positioning
-            const borderConfig = this._sliderStyle?.border;
-            const borderOffsets = {
-                left: borderConfig?.left?.enabled ? getBorderSize(borderConfig.left) : 0,
-                top: borderConfig?.top?.enabled ? getBorderSize(borderConfig.top) : 0,
-                right: borderConfig?.right?.enabled ? getBorderSize(borderConfig.right) : 0,
-                bottom: borderConfig?.bottom?.enabled ? getBorderSize(borderConfig.bottom) : 0
-            };
-
-            // Parse margin configuration (can be number or {top, right, bottom, left})
-            // Gauge mode defaults to zero margins for seamless ruler design
-            const defaultMargin = this._mode === 'gauge' ? 0 : 10;
-            const marginConfig = this._sliderStyle?.track?.margin ?? defaultMargin;
-
-            lcardsLog.debug(`[LCARdSSlider] Mode: ${this._mode}, Default margin: ${defaultMargin}, Margin config:`, marginConfig);
-
-            let margins;
-            if (typeof marginConfig === 'number') {
-                // Single value applies to all sides
-                margins = { top: marginConfig, right: marginConfig, bottom: marginConfig, left: marginConfig };
-            } else {
-                // Object with per-side values (with defaults)
-                margins = {
-                    top: marginConfig.top ?? defaultMargin,
-                    right: marginConfig.right ?? defaultMargin,
-                    bottom: marginConfig.bottom ?? defaultMargin,
-                    left: marginConfig.left ?? defaultMargin
-                };
-            }
-
-            lcardsLog.debug(`[LCARdSSlider] ${orientation} viewBox adjustment:`, {
-                containerWidth: width,
-                containerHeight: height,
-                borderOffsets,
-                margins
-            });
-
-            // Apply margins and border offsets to track zone
-            // For basic component: Calculate bounds dynamically
-            // For styled components: Scale original zone bounds proportionally
-            const trackZone = this._zones.get('track');
-            if (trackZone) {
-                if (!this.config.component || this.config.component === 'basic') {
-                    // Basic component: Calculate bounds from borders/margins
-                    // Ensure width/height never go negative (minimum 1px)
-                    trackZone.bounds = {
-                        x: borderOffsets.left + margins.left,
-                        y: borderOffsets.top + margins.top,
-                        width: Math.max(1, width - borderOffsets.left - borderOffsets.right - margins.left - margins.right),
-                        height: Math.max(1, height - borderOffsets.top - borderOffsets.bottom - margins.top - margins.bottom)
-                    };
-
-                    lcardsLog.debug(`[LCARdSSlider] Track zone bounds recalculated:`, trackZone.bounds);
-                } else if (this._originalComponentViewBox && trackZone.scaleWithContainer !== false) {
-                    // Styled component: Scale original bounds proportionally (only if scaleWithContainer is not false)
-                    const scaleX = width / this._originalComponentViewBox.width;
-                    const scaleY = height / this._originalComponentViewBox.height;
-
-                    // Get original bounds from component (stored during _extractZones)
-                    const originalBounds = trackZone.originalBounds || trackZone.bounds;
-                    if (!trackZone.originalBounds) {
-                        trackZone.originalBounds = { ...trackZone.bounds }; // Store once
-                    }
-
-                    trackZone.bounds = {
-                        x: originalBounds.x * scaleX,
-                        y: originalBounds.y * scaleY,
-                        width: originalBounds.width * scaleX,
-                        height: originalBounds.height * scaleY
-                    };
-
-                    lcardsLog.debug(`[LCARdSSlider] Track zone bounds scaled:`, {
-                        original: originalBounds,
-                        scale: { scaleX, scaleY },
-                        scaled: trackZone.bounds
-                    });
-                }
-
-                // Update data-bounds attribute and position via transform
-                trackZone.element.setAttribute('data-bounds',
-                    `${trackZone.bounds.x},${trackZone.bounds.y},${trackZone.bounds.width},${trackZone.bounds.height}`);
-                trackZone.element.setAttribute('transform',
-                    `translate(${trackZone.bounds.x}, ${trackZone.bounds.y})`);
-            }
-
-            // Control zone handling
-            // - Basic component: Control zone matches track zone
-            // - Styled components: Scale control zone bounds proportionally
-            const controlZone = this._zones.get('control');
-            if (controlZone && trackZone) {
-                if (!this.config.component || this.config.component === 'basic') {
-                    // Basic component: Align control with track
-                    controlZone.bounds = {
-                        x: trackZone.bounds.x,
-                        y: trackZone.bounds.y,
-                        width: trackZone.bounds.width,
-                        height: trackZone.bounds.height
-                    };
-                } else if (this._originalComponentViewBox && controlZone.scaleWithContainer !== false) {
-                    // Styled component: Scale original control zone bounds (only if scaleWithContainer is not false)
-                    const scaleX = width / this._originalComponentViewBox.width;
-                    const scaleY = height / this._originalComponentViewBox.height;
-
-                    const originalBounds = controlZone.originalBounds || controlZone.bounds;
-                    if (!controlZone.originalBounds) {
-                        controlZone.originalBounds = { ...controlZone.bounds };
-                    }
-
-                    controlZone.bounds = {
-                        x: originalBounds.x * scaleX,
-                        y: originalBounds.y * scaleY,
-                        width: originalBounds.width * scaleX,
-                        height: originalBounds.height * scaleY
-                    };
-                }
-
-                // Update control zone element attributes
-                const controlElement = this._componentSvg.querySelector('#control-zone');
-                if (controlElement) {
-                    controlElement.setAttribute('data-bounds',
-                        `${controlZone.bounds.x},${controlZone.bounds.y},${controlZone.bounds.width},${controlZone.bounds.height}`);
-                    controlElement.setAttribute('x', controlZone.bounds.x);
-                    controlElement.setAttribute('y', controlZone.bounds.y);
-                    controlElement.setAttribute('width', controlZone.bounds.width);
-                    controlElement.setAttribute('height', controlZone.bounds.height);
-                }
-            }
-
-            // Scale all other zones for styled components
-            if (this.config.component && this.config.component !== 'basic' && this._originalComponentViewBox) {
-                const scaleX = width / this._originalComponentViewBox.width;
-                const scaleY = height / this._originalComponentViewBox.height;
-
-                this._zones.forEach((zone, zoneName) => {
-                    if (zoneName === 'track' || zoneName === 'control') return; // Already handled above
-
-                    if (zone.scaleWithContainer === false) {
-                        // Don't scale bounds, but still set transform for positioning
-                        zone.element.setAttribute('data-bounds',
-                            `${zone.bounds.x},${zone.bounds.y},${zone.bounds.width},${zone.bounds.height}`);
-                        zone.element.setAttribute('transform',
-                            `translate(${zone.bounds.x}, ${zone.bounds.y})`);
-                        return;
-                    }
-
-                    // Scale zones with scaleWithContainer: true
-                    const originalBounds = zone.originalBounds || zone.bounds;
-                    if (!zone.originalBounds) {
-                        zone.originalBounds = { ...zone.bounds };
-                    }
-
-                    zone.bounds = {
-                        x: originalBounds.x * scaleX,
-                        y: originalBounds.y * scaleY,
-                        width: originalBounds.width * scaleX,
-                        height: originalBounds.height * scaleY
-                    };
-
-                    // Update zone element attributes
-                    zone.element.setAttribute('data-bounds',
-                        `${zone.bounds.x},${zone.bounds.y},${zone.bounds.width},${zone.bounds.height}`);
-                    zone.element.setAttribute('transform',
-                        `translate(${zone.bounds.x}, ${zone.bounds.y})`);
-                });
-
-                lcardsLog.debug(`[LCARdSSlider] Scaled all component zones by ${scaleX.toFixed(2)}x${scaleY.toFixed(2)}`);
-            }
-
-            // Ensure ALL zones have transform attributes set (for zones not handled by scaling logic above)
-            this._zones.forEach((zone, zoneName) => {
-                if (!zone.element.hasAttribute('transform') && zone.bounds) {
-                    zone.element.setAttribute('transform',
-                        `translate(${zone.bounds.x}, ${zone.bounds.y})`);
-                    lcardsLog.trace(`[LCARdSSlider] Set transform for zone "${zoneName}": translate(${zone.bounds.x}, ${zone.bounds.y})`);
-                }
-            });
-
-            // Inject SVG borders from config
-            this._injectBorders();
-
-            // Inject text fields using button's text system
-            this._injectTextFields(width, height);
-
-            // Inject dynamic content into zones
-            this._injectContentIntoZones();
-
-            // Validate all attributes before serialization
-            const allElements = this._componentSvg.querySelectorAll('*');
-            let hasInvalidAttrs = false;
-            allElements.forEach(el => {
-                Array.from(el.attributes).forEach(attr => {
-                    const value = attr.value;
-                    // Check for malformed var() or unclosed quotes
-                    if (value && typeof value === 'string') {
-                        if (value.includes('var(') && !value.includes(')')) {
-                            lcardsLog.trace('[LCARdSSlider] Malformed var() in', el.tagName, attr.name, ':', value);
-                            attr.value = '#000000';
-                            hasInvalidAttrs = true;
-                        }
-                        // Check for unescaped quotes or other issues
-                        if (value.includes('"') && !value.startsWith('"')) {
-                            lcardsLog.trace('[LCARdSSlider] Unescaped quote in', el.tagName, attr.name, ':', value);
-                            hasInvalidAttrs = true;
-                        }
-                    }
-                });
-            });
-
-            if (hasInvalidAttrs) {
-                lcardsLog.trace('[LCARdSSlider] Found invalid attributes before serialization');
-            }
-
-            svgContent = new XMLSerializer().serializeToString(this._componentSvg);
-
-            // Log the serialized SVG if it contains parse errors indicators
-            if (svgContent.includes('parsererror') || svgContent.includes('attributes construct')) {
-                lcardsLog.trace('[LCARdSSlider] Serialized SVG contains parser errors!');
-                lcardsLog.trace('[LCARdSSlider] SVG Content (first 2000 chars):', svgContent.substring(0, 2000));
-
-                // Try to extract the actual error message from parsererror element
-                const parser = new DOMParser();
-                const parsed = parser.parseFromString(svgContent, 'image/svg+xml');
-                const errorNode = parsed.querySelector('parsererror');
-                if (errorNode) {
-                    lcardsLog.trace('[LCARdSSlider] Parser error details:', errorNode.textContent);
-                }
-            }
-        } else {
-            // Generate fallback slider
-            svgContent = this._generateFallbackSlider(width, height);
-        }
-
-        // Get control zone bounds for input positioning
-        const controlBounds = this._getControlZoneBounds();
-        const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
-        const isVertical = orientation === 'vertical';
-
-        // Calculate scale factor from viewBox to actual container size
-        const svgViewBoxWidth = this._componentSvg ?
-            (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[2]) || 200) : 200;
-        const svgViewBoxHeight = this._componentSvg ?
-            (parseFloat(this._componentSvg.getAttribute('viewBox')?.split(' ')[3]) || 30) : 30;
-
-        const scaleX = width / svgViewBoxWidth;
-        const scaleY = height / svgViewBoxHeight;
-
-        // Calculate where control range sits within display range
-        const displayMin = this._displayConfig.min;
-        const displayMax = this._displayConfig.max;
-        const displayRange = displayMax - displayMin;
-
-        const controlMin = this._controlConfig.min;
-        const controlMax = this._controlConfig.max;
-
-        // What percentage of display range does control span?
-        const controlStartPercent = (controlMin - displayMin) / displayRange;
-        const controlEndPercent = (controlMax - displayMin) / displayRange;
-        const controlWidthPercent = controlEndPercent - controlStartPercent;
-
-        // Scale and adjust the control bounds
-        const trackWidth = controlBounds.width * scaleX;
-        const trackHeight = controlBounds.height * scaleY;
-
-        const scaledBounds = {
-            x: (controlBounds.x * scaleX) + (trackWidth * controlStartPercent),
-            y: controlBounds.y * scaleY,
-            width: isVertical ? trackWidth : (trackWidth * controlWidthPercent),
-            height: isVertical ? (trackHeight * controlWidthPercent) : trackHeight
-        };
-
-        // For vertical sliders, adjust y position (top) instead of x
-        if (isVertical) {
-            scaledBounds.x = controlBounds.x * scaleX;
-            scaledBounds.y = (controlBounds.y * scaleY) + (trackHeight * (1 - controlEndPercent));
-        }
-
-        // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
-        // because writing-mode breaks mouse coordinate mapping in browsers
-        if (isVertical) {
-            return html`
-                <div class="slider-container">
-                    ${unsafeHTML(svgContent)}
-                    ${!this._controlConfig.locked ? html`
-                        <div
-                            class="slider-input-overlay vertical-slider-overlay"
-                            @mousedown="${this._handleVerticalSliderMouseDown}"
-                            @touchstart="${this._handleVerticalSliderTouchStart}"
-                            style="
-                                left: ${scaledBounds.x}px;
-                                top: ${scaledBounds.y}px;
-                                width: ${scaledBounds.width}px;
-                                height: ${scaledBounds.height}px;
-                                cursor: pointer;
-                            "
-                        ></div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        // Horizontal sliders work fine with <input type="range">
-        const inputTransform = this._invertFill ? 'scaleX(-1)' : '';
-
+        // Fallback: no component loaded
+        lcardsLog.warn('[LCARdSSlider] No component renderer available, showing error');
         return html`
             <div class="slider-container">
-                ${unsafeHTML(svgContent)}
-
-                ${!this._controlConfig.locked ? html`
-                    <input
-                        type="range"
-                        class="slider-input-overlay"
-                        .value="${String(this._sliderValue)}"
-                        .min="${String(this._controlConfig.min)}"
-                        .max="${String(this._controlConfig.max)}"
-                        .step="${String(this._controlConfig.step || 1)}"
-                        ?disabled="${this._controlConfig.locked}"
-                        @input="${this._handleSliderInput}"
-                        @change="${this._handleSliderChange}"
-                        style="
-                            left: ${scaledBounds.x}px;
-                            top: ${scaledBounds.y}px;
-                            width: ${scaledBounds.width}px;
-                            height: ${scaledBounds.height}px;
-                            ${inputTransform ? `transform: ${inputTransform};` : ''}
-                        "
-                    />
-                ` : ''}
+                <div class="slider-loading">Component not loaded</div>
             </div>
         `;
     }

@@ -3292,33 +3292,6 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {Object} Border configuration
      */
     _resolveBorderConfiguration() {
-        // Helper to resolve CSS variables to actual values
-        const resolveCSSVariable = (value) => {
-            if (!value || typeof value !== 'string') return value;
-
-            // Check if it's a CSS variable
-            const varMatch = value.match(/^var\((--[^,)]+)(?:,\s*(.+))?\)$/);
-            if (!varMatch) return value;
-
-            const varName = varMatch[1];
-            const fallbackValue = varMatch[2];
-
-            // Try to get computed value from document root
-            if (typeof getComputedStyle !== 'undefined') {
-                const computedValue = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-                if (computedValue) {
-                    return computedValue;
-                }
-            }
-
-            // Use fallback if provided
-            if (fallbackValue) {
-                return fallbackValue.trim();
-            }
-
-            return value;
-        };
-
         // Helper to parse radius values (handles numbers, CSS vars, theme tokens, and pixel strings)
         const parseRadius = (value, fallback) => {
             if (value === undefined || value === null) return fallback;
@@ -3337,7 +3310,7 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Then resolve CSS variables (e.g., "var(--ha-card-border-radius, 34px)")
-            resolved = resolveCSSVariable(resolved);
+            resolved = ColorUtils.resolveCssVariable(resolved);
 
             // Try to parse as number (handles "25" or "25px")
             const parsed = parseFloat(resolved);
@@ -3361,7 +3334,7 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Then resolve CSS variables
-            resolved = resolveCSSVariable(resolved);
+            resolved = ColorUtils.resolveCssVariable(resolved);
 
             // Try to parse as number (handles "3" or "3px")
             const parsed = parseFloat(resolved);

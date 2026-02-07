@@ -10,6 +10,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
 
@@ -1523,7 +1524,7 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             if (svgAttr && value !== null && value !== undefined) {
                 // Resolve CSS variables if present
-                const resolvedValue = this._resolveCSSVariable(value);
+                const resolvedValue = ColorUtils.resolveCssVariable(value);
 
                 // Apply to all target elements (group children or the element itself)
                 targetElements.forEach(el => {
@@ -1543,40 +1544,10 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Apply style properties to control container
         for (const [key, value] of Object.entries(style)) {
             if (value !== null && value !== undefined) {
-                const resolvedValue = this._resolveCSSVariable(value);
+                const resolvedValue = ColorUtils.resolveCssVariable(value);
                 controlEl.style[key] = resolvedValue;
                 lcardsLog.trace(`[LCARdSMSDCard]   Set style.${key}=${resolvedValue}`);            }
         }
-    }
-
-    /**
-     * Resolve CSS variable references to actual values
-     * @param {string} value - CSS value (may contain var(--variable))
-     * @returns {string} Resolved value
-     * @private
-     */
-    _resolveCSSVariable(value) {
-        if (typeof value !== 'string') return value;
-
-        // If it's a CSS variable reference, resolve it
-        if (value.startsWith('var(')) {
-            const varMatch = value.match(/var\(([^,)]+)(?:,\s*([^)]+))?\)/);
-            if (varMatch) {
-                const varName = varMatch[1].trim();
-                const fallback = varMatch[2]?.trim();
-
-                // Get computed value from root
-                const computedValue = getComputedStyle(document.documentElement).getPropertyValue(varName);
-
-                if (computedValue) {
-                    return computedValue.trim();
-                } else if (fallback) {
-                    return this._resolveCSSVariable(fallback); // Recursively resolve fallback
-                }
-            }
-        }
-
-        return value;
     }
 
     // ============================================================================
