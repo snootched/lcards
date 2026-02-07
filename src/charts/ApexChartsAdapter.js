@@ -27,6 +27,7 @@
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMerge } from '../utils/deepMerge.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
 
 export class ApexChartsAdapter {
   /**

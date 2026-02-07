@@ -1145,6 +1145,63 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Inject text fields into a parsed SVG element (new rendering path).
+     * This version works with parsed DOM elements instead of _componentSvg.
+     * @param {Element} svgElement - Parsed SVG DOM element
+     * @param {number} width - SVG width
+     * @param {number} height - SVG height
+     * @private
+     */
+    _injectTextFieldsToElement(svgElement, width, height) {
+        // Use button's _resolveTextConfiguration() to get processed templates
+        const textFields = this._resolveTextConfiguration();
+        if (!textFields || Object.keys(textFields).length === 0) return;
+
+        // Find text-zone in the provided element
+        let textZone = svgElement.querySelector('#text-zone');
+        const textZoneData = this._zones.get('text');
+
+        // Use zone bounds if available, otherwise fallback to container dimensions
+        const zoneWidth = textZoneData?.bounds?.width || width;
+        const zoneHeight = textZoneData?.bounds?.height || height;
+
+        if (!textZone) {
+            lcardsLog.warn('[LCARdSSlider] No text-zone found in SVG element');
+            return;
+        }
+
+        // Clear existing text
+        textZone.innerHTML = '';
+
+        // Process text fields using button's system with zone-relative dimensions
+        const processedFields = this._processTextFields(textFields, zoneWidth, zoneHeight, null);
+
+        // Generate SVG text elements (using button's method)
+        const textMarkup = this._generateTextElements(processedFields);
+
+        // Parse markup and append to text zone
+        const parser = new DOMParser();
+        const wrappedMarkup = `<g>${textMarkup}</g>`;
+        const doc = parser.parseFromString(wrappedMarkup, 'image/svg+xml');
+
+        // Check if parsing failed
+        const parseError = doc.querySelector('parsererror');
+        if (parseError) {
+            lcardsLog.trace('[LCARdSSlider] DOMParser failed to parse text markup!');
+            return;
+        }
+
+        const textElements = doc.documentElement.children;
+
+        // Append all text elements to text zone
+        Array.from(textElements).forEach(element => {
+            textZone.appendChild(element.cloneNode(true));
+        });
+
+        lcardsLog.debug(`[LCARdSSlider] Injected ${processedFields.length} text fields into text-zone`);
+    }
+
+    /**
      * Generate track content (pills or gradient bar)
      * Memoized - only regenerates if config changes
      * @private
@@ -2531,6 +2588,7 @@ export class LCARdSSlider extends LCARdSButton {
                 max: this._controlConfig.max,
                 domain: this._domain
             },
+            inverted: this._invertFill,  // Pass inverted flag for proper rendering
             hass: this.hass
         };
 
@@ -2584,6 +2642,9 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Inject borders if configured
         this._injectBordersToElement(shellElement, width, height);
+
+        // Inject text fields if configured
+        this._injectTextFieldsToElement(shellElement, width, height);
 
         // Step 7: Serialize back to string
         const serializer = new XMLSerializer();
@@ -2750,11 +2811,24 @@ export class LCARdSSlider extends LCARdSButton {
         // Generate progress bar rect - fill zone based on value percentage
         if (isVertical) {
             const barHeight = height * progress;
-            const barY = height - barHeight; // Start from bottom
+            let barY = height - barHeight; // Start from bottom (default)
+
+            // Apply fill inversion if configured
+            if (this._invertFill) {
+                barY = 0; // Fill from top instead
+            }
+
             svg += `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         } else {
             const barWidth = width * progress;
-            svg += `<rect x="0" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
+            let barX = 0; // Start from left (default)
+
+            // Apply fill inversion if configured
+            if (this._invertFill) {
+                barX = width - barWidth; // Fill from right instead
+            }
+
+            svg += `<rect x="${barX}" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
 
         // Add indicator overlay if enabled
