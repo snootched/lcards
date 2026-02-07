@@ -130,7 +130,16 @@ export class LCARdSSlider extends LCARdSButton {
     static get properties() {
         return {
             ...super.properties,
-            _sliderValue: { type: Number, state: true },
+            _sliderValue: {
+                type: Number,
+                state: true,
+                hasChanged(newVal, oldVal) {
+                    // Only trigger re-render if value actually changed
+                    // Handle NaN edge case (NaN !== NaN is true, but we want false)
+                    if (isNaN(newVal) && isNaN(oldVal)) return false;
+                    return newVal !== oldVal;
+                }
+            },
             _mode: { type: String, state: true },
             _sliderStyle: { type: Object, state: true },
             _containerSize: { type: Object, state: true }
@@ -408,26 +417,16 @@ export class LCARdSSlider extends LCARdSButton {
     _handleHassUpdate(newHass, oldHass) {
         // Update entity value
         if (this.config.entity && this._entity) {
-            const oldState = oldHass?.states[this.config.entity];
-            const newState = this._entity;
+            // Get new value and set it
+            // Lit's hasChanged() automatically determines if re-render is needed
+            const newValue = this._getEntityValue(this._entity);
+            const previousValue = this._sliderValue;
 
-            // Get values
-            const oldValue = this._getEntityValue(oldState);
-            const newValue = this._getEntityValue(newState);
+            this._sliderValue = newValue;
 
-            // Initialize value on first load (oldHass is null/undefined)
-            // OR update if value changed
-            if (!oldHass || oldValue !== newValue) {
-                const previousValue = this._sliderValue;
-                this._sliderValue = newValue;
-
+            // Log value changes (first load or actual change)
+            if (!oldHass || previousValue !== newValue) {
                 lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
-
-                // Update dynamic elements (progress bar, pills, etc.)
-                this._updateDynamicElements();
-
-                // Trigger re-render to update input element value
-                this.requestUpdate();
             }
 
             // Update control config if entity attributes changed
@@ -477,6 +476,12 @@ export class LCARdSSlider extends LCARdSButton {
      */
     updated(changedProperties) {
         super.updated(changedProperties);
+
+        // Update dynamic elements when slider value changes
+        // Lit's hasChanged() ensures this only fires when value actually changes
+        if (changedProperties.has('_sliderValue')) {
+            this._updateDynamicElements();
+        }
 
         // Update pill opacities after render completes
         // This ensures pills reflect current value on first load and subsequent updates
@@ -1392,6 +1397,38 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Get indicator configuration if enabled, or null if disabled
+     * Consolidates the duplicated config extraction logic
+     * @param {Object} gaugeConfig - Gauge configuration object
+     * @returns {Object|null} Indicator config object or null if disabled
+     * @private
+     */
+    _getIndicatorConfig(gaugeConfig) {
+        const indicatorConfig = gaugeConfig?.indicator;
+
+        // Check if indicator is enabled
+        const indicatorEnabled = indicatorConfig?.enabled === true ||
+                                (indicatorConfig?.enabled !== false &&
+                                 (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
+
+        if (!indicatorEnabled) return null;
+
+        // Extract all config parameters
+        return {
+            type: indicatorConfig.type || 'line',
+            color: ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)'),
+            width: indicatorConfig.size?.width || 4,
+            height: indicatorConfig.size?.height || 25,
+            rotation: indicatorConfig.rotation || 0,
+            offsetX: indicatorConfig.offset?.x || 0,
+            offsetY: indicatorConfig.offset?.y || 0,
+            borderEnabled: indicatorConfig.border?.enabled !== false,
+            borderColor: ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)'),
+            borderWidth: indicatorConfig.border?.width || 1
+        };
+    }
+
+    /**
      * Render indicator SVG at specified position
      * Supports three types: round (ellipse), triangle (polygon), line (rect)
      * All types support rotation and optional borders
@@ -1716,49 +1753,39 @@ export class LCARdSSlider extends LCARdSButton {
                 `;
             }
 
-            // Draw indicator if enabled
-            const indicatorConfig = gaugeConfig?.indicator;
-            // Enable indicator if explicitly enabled OR if indicator properties are configured
-            const indicatorEnabled = indicatorConfig?.enabled === true ||
-                                    (indicatorConfig?.enabled !== false &&
-                                     (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
+            // Draw indicator if enabled (skip if component has separate progress zone)
+            if (!skipProgressBar) {
+                const indicator = this._getIndicatorConfig(gaugeConfig);
+                if (indicator) {
+                    // Calculate base indicator position (at progress bar end, apply inversion)
+                    let indicatorX = valuePercent * trackWidth;
+                    if (this._invertFill) {
+                        indicatorX = trackWidth - indicatorX;
+                    }
 
-            if (indicatorEnabled) {
-                const indicatorType = indicatorConfig.type || 'line';
-                const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
-                const indicatorWidth = indicatorConfig.size?.width || 4;
-                const indicatorHeight = indicatorConfig.size?.height || 25;
-                const rotation = indicatorConfig.rotation || 0;
-                const offsetX = indicatorConfig.offset?.x || 0;
-                const offsetY = indicatorConfig.offset?.y || 0;
-                const borderEnabled = indicatorConfig.border?.enabled !== false;
-                const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
-                const borderWidth = indicatorConfig.border?.width || 1;
+                    // Apply offset
+                    indicatorX += indicator.offsetX;
 
-                // Calculate base indicator position (at progress bar end, apply inversion)
-                let indicatorX = valuePercent * trackWidth;
-                if (this._invertFill) {
-                    indicatorX = trackWidth - indicatorX;
+                    // Y position: center on progress bar if shown, otherwise center in track
+                    const indicatorY = skipProgressBar
+                        ? (trackHeight / 2) + indicator.offsetY
+                        : (progressY + (progressHeight / 2)) + indicator.offsetY;
+
+                    // Render indicator using helper
+                    svg += this._renderIndicator(
+                        indicator.type,
+                        indicatorX,
+                        indicatorY,
+                        indicator.width,
+                        indicator.height,
+                        indicator.rotation,
+                        indicator.color,
+                        indicator.borderEnabled,
+                        indicator.borderColor,
+                        indicator.borderWidth,
+                        false // isVertical = false for horizontal gauge
+                    );
                 }
-
-                // Apply offset
-                indicatorX += offsetX;
-                const indicatorY = (trackHeight / 2) + offsetY;
-
-                // Render indicator using helper (ColorUtils: static colors for indicators)
-                svg += this._renderIndicator(
-                    indicatorType,
-                    indicatorX,
-                    indicatorY,
-                    indicatorWidth,
-                    indicatorHeight,
-                    rotation,
-                    indicatorColor,
-                    borderEnabled,
-                    borderColor,
-                    borderWidth,
-                    false // isVertical = false for horizontal gauge
-                );
             }
 
         } else {
@@ -1877,50 +1904,38 @@ export class LCARdSSlider extends LCARdSButton {
                 `;
             }
 
-            // Draw indicator if enabled - skip if component has separate progress zone
-            const indicatorConfig = gaugeConfig?.indicator;
-            // Enable indicator if explicitly enabled OR if indicator properties are configured
-            const indicatorEnabled = indicatorConfig?.enabled === true ||
-                                    (indicatorConfig?.enabled !== false &&
-                                     (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
+            // Draw indicator if enabled (skip if component has separate progress zone)
+            if (!skipProgressBar) {
+                const indicator = this._getIndicatorConfig(gaugeConfig);
+                if (indicator) {
+                    // Calculate base indicator position (at progress bar end, inverted Y, with fill inversion support)
+                    let baseIndicatorY = trackHeight - (valuePercent * trackHeight);
+                    if (this._invertFill) {
+                        baseIndicatorY = valuePercent * trackHeight;
+                    }
 
-            if (indicatorEnabled && !skipProgressBar) {
-                const indicatorType = indicatorConfig.type || 'line';
-                const indicatorColor = ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
-                const indicatorWidth = indicatorConfig.size?.width || 4;
-                const indicatorHeight = indicatorConfig.size?.height || 25;
-                const rotation = indicatorConfig.rotation || 0;
-                const offsetX = indicatorConfig.offset?.x || 0;
-                const offsetY = indicatorConfig.offset?.y || 0;
-                const borderEnabled = indicatorConfig.border?.enabled !== false;
-                const borderColor = ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
-                const borderWidth = indicatorConfig.border?.width || 1;
+                    // Apply offset (note: for vertical, offsetY moves up/down, offsetX moves left/right)
+                    // X position: center on progress bar if shown, otherwise center in track width
+                    const indicatorX = skipProgressBar
+                        ? (trackWidth / 2) + indicator.offsetX
+                        : (progressX + (progressBarWidth / 2)) + indicator.offsetX;
+                    const indicatorY = baseIndicatorY + indicator.offsetY;
 
-                // Calculate base indicator position (at progress bar end, inverted Y, with fill inversion support)
-                let baseIndicatorY = trackHeight - (valuePercent * trackHeight);
-                if (this._invertFill) {
-                    baseIndicatorY = valuePercent * trackHeight;
+                    // Render indicator using helper
+                    svg += this._renderIndicator(
+                        indicator.type,
+                        indicatorX,
+                        indicatorY,
+                        indicator.width,
+                        indicator.height,
+                        indicator.rotation,
+                        indicator.color,
+                        indicator.borderEnabled,
+                        indicator.borderColor,
+                        indicator.borderWidth,
+                        true // isVertical = true for vertical gauge
+                    );
                 }
-
-                // Apply offset (note: for vertical, offsetY moves up/down, offsetX moves left/right)
-                // Position indicator at center of progress bar (progressX + half of progress bar width)
-                const indicatorX = progressX + (progressBarWidth / 2) + offsetX;
-                const indicatorY = baseIndicatorY + offsetY;
-
-                // Render indicator using helper (ColorUtils: static colors for indicators)
-                svg += this._renderIndicator(
-                    indicatorType,
-                    indicatorX,
-                    indicatorY,
-                    indicatorWidth,
-                    indicatorHeight,
-                    rotation,
-                    indicatorColor,
-                    borderEnabled,
-                    borderColor,
-                    borderWidth,
-                    true // isVertical = true for vertical gauge
-                );
             }
         }
 
@@ -2811,8 +2826,61 @@ export class LCARdSSlider extends LCARdSButton {
             svg += `<rect x="${barX}" y="${y}" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
 
-        // NOTE: Pills mode does not support indicators - they only make sense for gauge mode
-        // with its continuous scale. Pills already show discrete value state visually.
+        // Render indicator if in gauge mode and enabled
+        if (this._mode === 'gauge') {
+            const indicator = this._getIndicatorConfig(gaugeConfig);
+            if (indicator) {
+                if (isVertical) {
+                    // Calculate indicator position along value axis (Y)
+                    let baseIndicatorY = height * (1 - progress); // From bottom (default)
+                    if (this._invertFill) {
+                        baseIndicatorY = height * progress; // From top (inverted)
+                    }
+
+                    // Position indicator at center of progress bar (X)
+                    const indicatorX = x + (width / 2) + indicator.offsetX;
+                    const indicatorY = y + baseIndicatorY + indicator.offsetY;
+
+                    svg += this._renderIndicator(
+                        indicator.type,
+                        indicatorX,
+                        indicatorY,
+                        indicator.width,
+                        indicator.height,
+                        indicator.rotation,
+                        indicator.color,
+                        indicator.borderEnabled,
+                        indicator.borderColor,
+                        indicator.borderWidth,
+                        true // isVertical
+                    );
+                } else {
+                    // Calculate indicator position along value axis (X)
+                    let indicatorX = width * progress; // From left (default)
+                    if (this._invertFill) {
+                        indicatorX = width * (1 - progress); // From right (inverted)
+                    }
+
+                    // Position indicator at center of progress bar (Y)
+                    indicatorX += x + indicator.offsetX;
+                    const indicatorY = y + (height / 2) + indicator.offsetY;
+
+                    svg += this._renderIndicator(
+                        indicator.type,
+                        indicatorX,
+                        indicatorY,
+                        indicator.width,
+                        indicator.height,
+                        indicator.rotation,
+                        indicator.color,
+                        indicator.borderEnabled,
+                        indicator.borderColor,
+                        indicator.borderWidth,
+                        false // isVertical = false for horizontal
+                    );
+                }
+            }
+        }
 
         return svg;
     }
