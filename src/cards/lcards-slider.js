@@ -99,6 +99,29 @@ import { getSliderSchema } from './schemas/slider-schema.js';
 // Import editor (registers custom element)
 import '../editor/cards/lcards-slider-editor.js';
 
+/**
+ * COLOR RESOLUTION PATTERNS:
+ *
+ * This card uses three different color resolution methods depending on the use case:
+ *
+ * 1. resolveStateColor() - For state-aware colors
+ *    - Use when color should change based on entity state (on/off/unavailable)
+ *    - Examples: tick colors, label colors, borders with state variants
+ *    - Takes: {actualState, classifiedState, colorConfig, fallback}
+ *    - Config structure: { default: '#color', active: '#color', inactive: '#color', unavailable: '#color' }
+ *
+ * 2. ColorUtils.resolveCssVariable() - For static colors
+ *    - Use when color is single value, no state awareness needed
+ *    - Examples: progress bars, range backgrounds, indicators
+ *    - Takes: string (CSS variable or hex color)
+ *    - Resolves CSS variables to actual color values
+ *
+ * 3. _resolveStateBorderColor() - Convenience wrapper for borders
+ *    - Wraps resolveStateColor() with border-specific defaults
+ *    - Use for all border color resolution (consistent fallback)
+ *    - Automatically uses current entity state
+ */
+
 export class LCARdSSlider extends LCARdSButton {
 
     /** Card type identifier for CoreConfigManager */
@@ -1369,6 +1392,72 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Render indicator SVG at specified position
+     * Supports three types: round (ellipse), triangle (polygon), line (rect)
+     * All types support rotation and optional borders
+     * @param {string} type - Indicator type: 'round', 'triangle', or 'line'
+     * @param {number} centerX - X coordinate of indicator center
+     * @param {number} centerY - Y coordinate of indicator center
+     * @param {number} width - Indicator width
+     * @param {number} height - Indicator height
+     * @param {number} rotation - Rotation angle in degrees
+     * @param {string} color - Fill color (already resolved)
+     * @param {boolean} borderEnabled - Whether border is enabled
+     * @param {string} borderColor - Border color (already resolved)
+     * @param {number} borderWidth - Border width in pixels
+     * @param {boolean} isVertical - Whether gauge is vertical (affects triangle orientation)
+     * @returns {string} SVG markup for indicator
+     * @private
+     */
+    _renderIndicator(type, centerX, centerY, width, height, rotation, color, borderEnabled, borderColor, borderWidth, isVertical = false) {
+        if (type === 'round') {
+            const rx = width / 2;
+            const ry = height / 2;
+            return `
+                <ellipse cx="0" cy="0" rx="${rx}" ry="${ry}"
+                         fill="${color}"
+                         ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
+                         transform="translate(${centerX},${centerY}) rotate(${rotation})" />
+            `;
+        } else if (type === 'triangle') {
+            // Triangle orientation differs for vertical vs horizontal
+            let points;
+            if (isVertical) {
+                // Vertical gauge: triangle points right (default)
+                const halfWidth = height / 2;  // For vertical, height is horizontal extent
+                const halfHeight = width / 2;  // For vertical, width is vertical extent
+                points = `${halfWidth},0 ${-halfWidth},${-halfHeight} ${-halfWidth},${halfHeight}`;
+            } else {
+                // Horizontal gauge: triangle points down (default)
+                const halfWidth = width / 2;
+                const halfHeight = height / 2;
+                points = `0,${halfHeight} ${-halfWidth},${-halfHeight} ${halfWidth},${-halfHeight}`;
+            }
+            return `
+                <polygon points="${points}"
+                         fill="${color}"
+                         ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
+                         transform="translate(${centerX},${centerY}) rotate(${rotation})" />
+            `;
+        } else {
+            // Line indicator (rect)
+            // For vertical gauge, swap dimensions (horizontal line)
+            const rectWidth = isVertical ? height : width;
+            const rectHeight = isVertical ? width : height;
+            const halfWidth = rectWidth / 2;
+            const halfHeight = rectHeight / 2;
+            return `
+                <rect x="${-halfWidth}" y="${-halfHeight}"
+                      width="${rectWidth}" height="${rectHeight}"
+                      fill="${color}"
+                      ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
+                      rx="1" ry="1"
+                      transform="translate(${centerX},${centerY}) rotate(${rotation})" />
+            `;
+        }
+    }
+
+    /**
      * Generate gauge SVG elements (ruler style with progress bar)
      * Design: Transparent ruler with ticks/labels and a thin progress bar
      * @param {number} trackWidth - Width of the gauge
@@ -1656,45 +1745,20 @@ export class LCARdSSlider extends LCARdSButton {
                 indicatorX += offsetX;
                 const indicatorY = (trackHeight / 2) + offsetY;
 
-                if (indicatorType === 'round') {
-                    // Ellipse/circle indicator using rx/ry
-                    const rx = indicatorWidth / 2;
-                    const ry = indicatorHeight / 2;
-
-                    svg += `
-                        <ellipse cx="0" cy="0" rx="${rx}" ry="${ry}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else if (indicatorType === 'triangle') {
-                    // Triangle with rotation support
-                    const halfWidth = indicatorWidth / 2;
-                    const halfHeight = indicatorHeight / 2;
-
-                    // Triangle pointing down (default)
-                    const points = `0,${halfHeight} ${-halfWidth},${-halfHeight} ${halfWidth},${-halfHeight}`;
-
-                    svg += `
-                        <polygon points="${points}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else {
-                    // Line indicator (default)
-                    const halfWidth = indicatorWidth / 2;
-                    const halfHeight = indicatorHeight / 2;
-
-                    svg += `
-                        <rect x="${-halfWidth}" y="${-halfHeight}"
-                              width="${indicatorWidth}" height="${indicatorHeight}"
-                              fill="${indicatorColor}"
-                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                              rx="1" ry="1"
-                              transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                }
+                // Render indicator using helper (ColorUtils: static colors for indicators)
+                svg += this._renderIndicator(
+                    indicatorType,
+                    indicatorX,
+                    indicatorY,
+                    indicatorWidth,
+                    indicatorHeight,
+                    rotation,
+                    indicatorColor,
+                    borderEnabled,
+                    borderColor,
+                    borderWidth,
+                    false // isVertical = false for horizontal gauge
+                );
             }
 
         } else {
@@ -1843,46 +1907,20 @@ export class LCARdSSlider extends LCARdSButton {
                 const indicatorX = progressX + (progressBarWidth / 2) + offsetX;
                 const indicatorY = baseIndicatorY + offsetY;
 
-                if (indicatorType === 'round') {
-                    // Ellipse/circle indicator using rx/ry
-                    const rx = indicatorWidth / 2;
-                    const ry = indicatorHeight / 2;
-
-                    svg += `
-                        <ellipse cx="0" cy="0" rx="${rx}" ry="${ry}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else if (indicatorType === 'triangle') {
-                    // Triangle with rotation support (default: pointing right for vertical gauge)
-                    const halfWidth = indicatorHeight / 2;  // For vertical, height is horizontal extent
-                    const halfHeight = indicatorWidth / 2; // For vertical, width is vertical extent
-
-                    // Triangle pointing right (default for vertical orientation)
-                    const points = `${halfWidth},0 ${-halfWidth},${-halfHeight} ${-halfWidth},${halfHeight}`;
-
-                    svg += `
-                        <polygon points="${points}"
-                                 fill="${indicatorColor}"
-                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
-                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                } else {
-                    // Line indicator (horizontal for vertical gauge)
-                    // For vertical gauge: height is line length (horizontal), width is thickness (vertical)
-                    const halfWidth = indicatorHeight / 2;
-                    const halfHeight = indicatorWidth / 2;
-
-                    svg += `
-                        <rect x="${-halfWidth}" y="${-halfHeight}"
-                              width="${indicatorHeight}" height="${indicatorWidth}"
-                              fill="${indicatorColor}"
-                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
-                              rx="1" ry="1"
-                              transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
-                    `;
-                }
+                // Render indicator using helper (ColorUtils: static colors for indicators)
+                svg += this._renderIndicator(
+                    indicatorType,
+                    indicatorX,
+                    indicatorY,
+                    indicatorWidth,
+                    indicatorHeight,
+                    rotation,
+                    indicatorColor,
+                    borderEnabled,
+                    borderColor,
+                    borderWidth,
+                    true // isVertical = true for vertical gauge
+                );
             }
         }
 
