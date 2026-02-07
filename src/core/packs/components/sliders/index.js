@@ -11,6 +11,7 @@
 
 import defaultComponent from './default.js';
 import picardComponent from './picard.js';
+import demoComponent from './demo.js';
 
 /**
  * Slider component registry
@@ -28,7 +29,10 @@ export const sliderComponents = {
     'default': defaultComponent,
 
     // Picard component - render function architecture
-    'picard': picardComponent
+    'picard': picardComponent,
+
+    // Demo component - comprehensive feature showcase (development/testing)
+    'demo': demoComponent
 };
 
 /**
