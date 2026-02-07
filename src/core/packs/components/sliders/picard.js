@@ -38,9 +38,15 @@ export function calculateZones(width, height) {
     return {
         progress: {
             x: 100 * scaleX,
-            y: 92 * scaleY,
+            y: 72 * scaleY,
             width: 19 * scaleX,
-            height: 421 * scaleY
+            height: 441 * scaleY
+        },
+        control: {
+            x: 100 * scaleX,
+            y: 72 * scaleY,
+            width: 19 * scaleX,
+            height: 441 * scaleY
         },
         range: {
             x: 148 * scaleX,
@@ -48,16 +54,16 @@ export function calculateZones(width, height) {
             width: 16 * scaleX,
             height: 418 * scaleY
         },
-        track: {
+        solidBar: {
             x: 183 * scaleX,
             y: 72 * scaleY,
-            width: 146 * scaleX,
+            width: 16 * scaleX,
             height: 441 * scaleY
         },
-        control: {
-            x: 183 * scaleX,
+        track: {
+            x: 199 * scaleX,
             y: 72 * scaleY,
-            width: 146 * scaleX,
+            width: 120 * scaleX,
             height: 441 * scaleY
         },
         text: {
@@ -89,21 +95,29 @@ export function resolveColors(actualState, classifiedState, config, hass) {
     // Determine if entity is active based on classified state
     const isActive = classifiedState === 'on';
 
+    // Resolve border colors (state-based by default)
+    const borderTop = resolveStateColor(
+        config.style?.border?.top?.color,
+        isActive ? DEFAULT_BORDER_ACTIVE : DEFAULT_BORDER_INACTIVE
+    );
+    const borderBottom = resolveStateColor(
+        config.style?.border?.bottom?.color,
+        DEFAULT_BORDER_INACTIVE
+    );
+
     return {
-        borderTop: resolveStateColor(
-            config.style?.border?.top?.color,
-            isActive ? DEFAULT_BORDER_ACTIVE : DEFAULT_BORDER_INACTIVE
-        ),
-        borderBottom: resolveStateColor(
-            config.style?.border?.bottom?.color,
-            DEFAULT_BORDER_INACTIVE
-        ),
+        borderTop,
+        borderBottom,
         progressBar: resolveStateColor(
             config.style?.gauge?.progress_bar?.color,
             DEFAULT_PROGRESS_COLOR
         ),
+        // Range border (individual range bar borders)
         rangeBorder: config.style?.range?.border?.color || DEFAULT_RANGE_BORDER_COLOR,
-        rangeFrame: config.style?.range?.frame?.color || DEFAULT_RANGE_FRAME_COLOR,
+        // Range frame defaults to same state-based color as top border (L-shapes)
+        rangeFrame: config.style?.range?.frame?.color || borderTop,
+        // Solid bar defaults to same state-based color as top border (L-shapes)
+        solidBar: config.style?.solid_bar?.color || borderTop,
         animationIndicator: config.style?.animation?.indicator?.color || DEFAULT_ANIMATION_COLOR
     };
 }
@@ -133,6 +147,9 @@ export function render(context) {
     const animationSpeed = config.animation_speed || 2;
     const borderRadius = style?.border?.radius ?? 0;
     const frameThickness = style?.range?.frame?.thickness ?? 5;
+    const armHorizontalHeight = style?.border?.arm?.horizontal_height ?? 16;
+    const armVerticalWidth = style?.border?.arm?.vertical_width ?? 30;
+    const hasRanges = config.style?.range?.ranges && config.style.range.ranges.length > 0;
 
     return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -145,20 +162,29 @@ export function render(context) {
   <!-- Background (transparent) -->
   <rect width="${width}" height="${height}" fill="transparent" rx="${borderRadius}" />
 
-  <!-- Top-left border (state-aware: blue when active) -->
+  <!-- Top-left border ] shape (state-aware: blue when active) -->
   <path fill="${colors.borderTop}" d="M0,0 L${175*sx},0 L${175*sx},${64*sy} L${145*sx},${64*sy} L${145*sx},${16*sy} L0,${16*sy} Z" />
 
-  <!-- Top-right border (gray) -->
+  <!-- Top-right border [ shape (gray) -->
   <path fill="${colors.borderBottom}" d="M${183*sx},0 L${width},0 L${width},${16*sy} L${199*sx},${16*sy} L${199*sx},${64*sy} L${183*sx},${64*sy} Z" />
 
-  <!-- Bottom-left border (state-aware: blue when active) -->
+  <!-- Bottom-left border ] shape (state-aware: blue when active) -->
   <path fill="${colors.borderTop}" d="M0,${570*sy} L${145*sx},${570*sy} L${145*sx},${522*sy} L${175*sx},${522*sy} L${175*sx},${height} L0,${height} Z" />
 
-  <!-- Bottom-right border (gray) -->
+  <!-- Bottom-right border [ shape (gray) -->
   <path fill="${colors.borderBottom}" d="M${183*sx},${522*sy} L${199*sx},${522*sy} L${199*sx},${570*sy} L${width},${570*sy} L${width},${height} L${183*sx},${height} Z" />
 
-  <!-- Range area border frame (customizable color and thickness) -->
-  <path fill="${colors.rangeFrame}" stroke="${colors.rangeFrame}" stroke-width="${frameThickness}" d="M${145*sx},${72*sy} L${175*sx},${72*sy} L${175*sx},${514*sy} L${145*sx},${514*sy} L${145*sx},${509*sy} L${170*sx},${509*sy} L${170*sx},${77*sy} L${145*sx},${77*sy} Z" />
+  <!-- Range zone: solid bar when no ranges, notched frame when ranges exist -->
+  ${hasRanges ? `
+  <!-- Range area border frame (notched, customizable color) -->
+  <path fill="${colors.rangeFrame}" d="M${145*sx},${72*sy} L${175*sx},${72*sy} L${175*sx},${514*sy} L${145*sx},${514*sy} L${145*sx},${509*sy} L${170*sx},${509*sy} L${170*sx},${77*sy} L${145*sx},${77*sy} Z" />
+  ` : `
+  <!-- Solid range bar (no ranges defined) - fills the frame area -->
+  <rect x="${145*sx}" y="${72*sy}" width="${30*sx}" height="${442*sy}" fill="${colors.rangeFrame}" />
+  `}
+
+  <!-- Solid vertical bar (connector between range and track) -->
+  <rect x="${zones.solidBar.x}" y="${zones.solidBar.y}" width="${zones.solidBar.width}" height="${zones.solidBar.height}" fill="${colors.solidBar}" />
 
   <!-- Animation indicator (conditional + customizable speed) -->
   ${showAnimation ? `
@@ -167,11 +193,18 @@ export function render(context) {
   </rect>
   ` : ''}
 
-  <!-- Progress bar zone -->
+  <!-- Progress bar zone (leftmost) -->
   <g id="progress-zone" data-zone="progress"
      transform="translate(${zones.progress.x}, ${zones.progress.y})"
      data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">
   </g>
+
+  <!-- Control overlay zone (overlaps progress bar for slider interaction) -->
+  <rect id="control-zone" data-zone="control"
+        x="${zones.control.x}" y="${zones.control.y}"
+        width="${zones.control.width}" height="${zones.control.height}"
+        fill="none" stroke="none" pointer-events="all"
+        data-bounds="${zones.control.x},${zones.control.y},${zones.control.width},${zones.control.height}" />
 
   <!-- Range indicators zone -->
   <g id="range-zone" data-zone="range"
@@ -179,18 +212,11 @@ export function render(context) {
      data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
   </g>
 
-  <!-- Track zone (pills or gauge) -->
+  <!-- Track zone (pills or gauge - rightmost) -->
   <g id="track-zone" data-zone="track"
      transform="translate(${zones.track.x}, ${zones.track.y})"
      data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}">
   </g>
-
-  <!-- Control overlay zone (invisible) -->
-  <rect id="control-zone" data-zone="control"
-        x="${zones.control.x}" y="${zones.control.y}"
-        width="${zones.control.width}" height="${zones.control.height}"
-        fill="none" stroke="none" pointer-events="none"
-        data-bounds="${zones.control.x},${zones.control.y},${zones.control.width},${zones.control.height}" />
 
   <!-- Text zone -->
   <g id="text-zone" data-zone="text"
@@ -293,6 +319,53 @@ export const metadata = {
             'x-ui-hints': {
                 label: 'Frame Color',
                 helper: 'Color of decorative range frame (default: #2765FD)',
+                format: 'color-lcards'
+            }
+        },
+        {
+            key: 'style.border.arm.horizontal_height',
+            type: 'number',
+            default: 16,
+            description: 'Height of horizontal arms on corner borders',
+            'x-ui-hints': {
+                label: 'Horizontal Arm Height',
+                helper: 'Height of horizontal parts of ] [ corner borders (default: 16)',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        step: 1,
+                        min: 8,
+                        max: 40
+                    }
+                }
+            }
+        },
+        {
+            key: 'style.border.arm.vertical_width',
+            type: 'number',
+            default: 30,
+            description: 'Width of vertical arms on corner borders',
+            'x-ui-hints': {
+                label: 'Vertical Arm Width',
+                helper: 'Width of vertical parts of ] [ corner borders (default: 30)',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        step: 1,
+                        min: 10,
+                        max: 60
+                    }
+                }
+            }
+        },
+        {
+            key: 'style.solid_bar.color',
+            type: 'color',
+            default: '#9DA4B9',
+            description: 'Color of solid vertical connector bar',
+            'x-ui-hints': {
+                label: 'Solid Bar Color',
+                helper: 'Color of vertical bar between ranges and gauge (default: #9DA4B9)',
                 format: 'color-lcards'
             }
         }

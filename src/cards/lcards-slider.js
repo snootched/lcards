@@ -278,6 +278,14 @@ export class LCARdSSlider extends LCARdSButton {
         // Bind event handlers
         this._handleSliderInput = this._handleSliderInput.bind(this);
         this._handleSliderChange = this._handleSliderChange.bind(this);
+        this._handleVerticalSliderMouseDown = this._handleVerticalSliderMouseDown.bind(this);
+        this._handleVerticalSliderMouseMove = this._handleVerticalSliderMouseMove.bind(this);
+        this._handleVerticalSliderMouseUp = this._handleVerticalSliderMouseUp.bind(this);
+        this._handleVerticalSliderTouchStart = this._handleVerticalSliderTouchStart.bind(this);
+        this._handleVerticalSliderTouchMove = this._handleVerticalSliderTouchMove.bind(this);
+        this._handleVerticalSliderTouchEnd = this._handleVerticalSliderTouchEnd.bind(this);
+
+        this._isDragging = false;
     }
 
     /**
@@ -396,8 +404,11 @@ export class LCARdSSlider extends LCARdSButton {
 
                 lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
 
-                // Update pill opacities without regenerating track
+                // Update dynamic elements (progress bar, pills, etc.)
                 this._updateDynamicElements();
+
+                // Trigger re-render to update input element value
+                this.requestUpdate();
             }
 
             // Update control config if entity attributes changed
@@ -1842,7 +1853,7 @@ export class LCARdSSlider extends LCARdSButton {
                         }
 
                         // Major tick - full height or custom height
-                        const tickY2 = majorHeight !== undefined ? majorHeight : '100%';
+                        const tickY2 = majorHeight !== undefined ? majorHeight : trackHeight;
                         svg += `
                     <line x1="${x}" y1="0" x2="${x}" y2="${tickY2}"
                           stroke="${majorColor}" stroke-width="${majorStrokeWidth}" />
@@ -2025,7 +2036,7 @@ export class LCARdSSlider extends LCARdSButton {
                         }
 
                         // Determine tick width (full width or custom)
-                        const tickX2 = majorHeight !== undefined ? majorHeight : '100%';
+                        const tickX2 = majorHeight !== undefined ? majorHeight : trackWidth;
 
                         // Draw horizontal tick line
                         svg += `
@@ -2106,14 +2117,14 @@ export class LCARdSSlider extends LCARdSButton {
                 `;
             }
 
-            // Draw indicator if enabled
+            // Draw indicator if enabled - skip if component has separate progress zone
             const indicatorConfig = gaugeConfig?.indicator;
             // Enable indicator if explicitly enabled OR if indicator properties are configured
             const indicatorEnabled = indicatorConfig?.enabled === true ||
                                     (indicatorConfig?.enabled !== false &&
                                      (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
 
-            if (indicatorEnabled) {
+            if (indicatorEnabled && !skipProgressBar) {
                 const indicatorType = indicatorConfig.type || 'line';
                 const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
                 const indicatorWidth = indicatorConfig.size?.width || 4;
@@ -2349,6 +2360,7 @@ export class LCARdSSlider extends LCARdSButton {
      */
     _handleSliderInput(event) {
         let value = parseFloat(event.target.value);
+        const rawValue = value;
 
         // For sliders with inverted fill, flip the value
         // Inverted fill means the slider physical movement is opposite to the visual fill
@@ -2358,7 +2370,17 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
-        lcardsLog.debug(`[LCARdSSlider] Input event - raw: ${event.target.value}, parsed: ${value}, current: ${this._sliderValue}, vertical: ${isVertical}, inverted: ${this._invertFill}`);
+        lcardsLog.debug(`[LCARdSSlider] Input event`, {
+            raw: rawValue,
+            processed: value,
+            current: this._sliderValue,
+            vertical: isVertical,
+            inverted: this._invertFill,
+            min: this._controlConfig.min,
+            max: this._controlConfig.max,
+            inputMin: event.target.min,
+            inputMax: event.target.max
+        });
         this._sliderValue = value;
 
         // Update visuals immediately
@@ -2371,6 +2393,7 @@ export class LCARdSSlider extends LCARdSButton {
      */
     async _handleSliderChange(event) {
         let value = parseFloat(event.target.value);
+        const rawValue = value;
 
         // For sliders with inverted fill, flip the value
         if (this._invertFill) {
@@ -2378,8 +2401,169 @@ export class LCARdSSlider extends LCARdSButton {
             value = max - value + min;
         }
 
+        lcardsLog.debug(`[LCARdSSlider] Change event`, {
+            raw: rawValue,
+            processed: value,
+            domain: this._domain,
+            entity: this.config.entity
+        });
+
         // Call appropriate service based on entity domain
         await this._setEntityValue(value);
+    }
+
+    /**
+     * Handle vertical slider mouse down
+     * @private
+     */
+    _handleVerticalSliderMouseDown(event) {
+        event.preventDefault();
+        this._isDragging = true;
+        this._verticalSliderOverlay = event.currentTarget; // Store reference
+        this._updateVerticalSliderValue(event);
+
+        // Add global listeners for drag
+        window.addEventListener('mousemove', this._handleVerticalSliderMouseMove);
+        window.addEventListener('mouseup', this._handleVerticalSliderMouseUp);
+    }
+
+    /**
+     * Handle vertical slider mouse move
+     * @private
+     */
+    _handleVerticalSliderMouseMove(event) {
+        if (!this._isDragging) return;
+        event.preventDefault();
+        this._updateVerticalSliderValue(event);
+    }
+
+    /**
+     * Handle vertical slider mouse up
+     * @private
+     */
+    async _handleVerticalSliderMouseUp(event) {
+        if (!this._isDragging) return;
+        this._isDragging = false;
+
+        // Remove global listeners
+        window.removeEventListener('mousemove', this._handleVerticalSliderMouseMove);
+        window.removeEventListener('mouseup', this._handleVerticalSliderMouseUp);
+
+        // Call service to update entity
+        await this._setEntityValue(this._sliderValue);
+    }
+
+    /**
+     * Handle vertical slider touch start
+     * @private
+     */
+    _handleVerticalSliderTouchStart(event) {
+        event.preventDefault();
+        this._isDragging = true;
+        this._verticalSliderOverlay = event.currentTarget; // Store reference
+        this._updateVerticalSliderValueFromTouch(event);
+
+        // Add global listeners for drag
+        window.addEventListener('touchmove', this._handleVerticalSliderTouchMove, { passive: false });
+        window.addEventListener('touchend', this._handleVerticalSliderTouchEnd);
+    }
+
+    /**
+     * Handle vertical slider touch move
+     * @private
+     */
+    _handleVerticalSliderTouchMove(event) {
+        if (!this._isDragging) return;
+        event.preventDefault();
+        this._updateVerticalSliderValueFromTouch(event);
+    }
+
+    /**
+     * Handle vertical slider touch end
+     * @private
+     */
+    async _handleVerticalSliderTouchEnd(event) {
+        if (!this._isDragging) return;
+        this._isDragging = false;
+
+        // Remove global listeners
+        window.removeEventListener('touchmove', this._handleVerticalSliderTouchMove);
+        window.removeEventListener('touchend', this._handleVerticalSliderTouchEnd);
+
+        // Call service to update entity
+        await this._setEntityValue(this._sliderValue);
+    }
+
+    /**
+     * Update vertical slider value from mouse event
+     * @private
+     */
+    _updateVerticalSliderValue(event) {
+        if (!this._verticalSliderOverlay) return;
+        const rect = this._verticalSliderOverlay.getBoundingClientRect();
+
+        // Calculate relative position (0 = top, 1 = bottom)
+        const relativeY = (event.clientY - rect.top) / rect.height;
+
+        // Convert to value (inverted: bottom = min, top = max)
+        const { min, max } = this._controlConfig;
+        let value = max - (relativeY * (max - min));
+
+        // Apply invert fill if configured
+        if (this._invertFill) {
+            value = max - value + min;
+        }
+
+        // Clamp and apply step
+        value = Math.max(min, Math.min(max, value));
+        const step = this._controlConfig.step || 1;
+        value = Math.round(value / step) * step;
+
+        lcardsLog.debug(`[LCARdSSlider] Vertical slider input`, {
+            mouseY: event.clientY,
+            rectTop: rect.top,
+            rectHeight: rect.height,
+            relativeY,
+            value,
+            min,
+            max
+        });
+
+        this._sliderValue = value;
+        this._updateDynamicElements();
+        this.requestUpdate();
+    }
+
+    /**
+     * Update vertical slider value from touch event
+     * @private
+     */
+    _updateVerticalSliderValueFromTouch(event) {
+        if (!event.touches || event.touches.length === 0) return;
+        if (!this._verticalSliderOverlay) return;
+        const rect = this._verticalSliderOverlay.getBoundingClientRect();
+        const touch = event.touches[0];
+
+        // Calculate relative position (0 = top, 1 = bottom)
+        const relativeY = (touch.clientY - rect.top) / rect.height;
+
+        // Convert to value (inverted: bottom = min, top = max)
+        const { min, max } = this._controlConfig;
+        let value = max - (relativeY * (max - min));
+
+        // Apply invert fill if configured
+        if (this._invertFill) {
+            value = max - value + min;
+        }
+
+        // Clamp and apply step
+        value = Math.max(min, Math.min(max, value));
+        const step = this._controlConfig.step || 1;
+        value = Math.round(value / step) * step;
+
+        this._sliderValue = value;
+        this._updateDynamicElements();
+        this.requestUpdate();
     }
 
     /**
@@ -2658,9 +2842,32 @@ export class LCARdSSlider extends LCARdSButton {
         const controlZone = zones.control;
         const isVertical = orientation === 'vertical';
 
-        const inputTransform = this._invertFill
-            ? (isVertical ? 'scaleY(-1)' : 'scaleX(-1)')
-            : '';
+        // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
+        // because writing-mode breaks mouse coordinate mapping in browsers
+        if (isVertical) {
+            return html`
+                <div class="slider-container">
+                    ${unsafeHTML(finalSvg)}
+                    ${!this._controlConfig.locked ? html`
+                        <div
+                            class="slider-input-overlay vertical-slider-overlay"
+                            @mousedown="${this._handleVerticalSliderMouseDown}"
+                            @touchstart="${this._handleVerticalSliderTouchStart}"
+                            style="
+                                left: ${controlZone.x}px;
+                                top: ${controlZone.y}px;
+                                width: ${controlZone.width}px;
+                                height: ${controlZone.height}px;
+                                cursor: pointer;
+                            "
+                        ></div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Horizontal sliders work fine with <input type="range">
+        const inputTransform = this._invertFill ? 'scaleX(-1)' : '';
 
         return html`
             <div class="slider-container">
@@ -2676,13 +2883,11 @@ export class LCARdSSlider extends LCARdSButton {
                         ?disabled="${this._controlConfig.locked}"
                         @input="${this._handleSliderInput}"
                         @change="${this._handleSliderChange}"
-                        orient="${isVertical ? 'vertical' : 'horizontal'}"
                         style="
                             left: ${controlZone.x}px;
                             top: ${controlZone.y}px;
                             width: ${controlZone.width}px;
                             height: ${controlZone.height}px;
-                            ${isVertical ? 'writing-mode: vertical-lr; direction: rtl;' : ''}
                             ${inputTransform ? `transform: ${inputTransform};` : ''}
                         "
                     />
@@ -2762,8 +2967,6 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _generateProgressBar(zoneSpec, orientation) {
-        lcardsLog.debug('[LCARdSSlider] _generateProgressBar()', { zoneSpec, orientation });
-
         const isVertical = orientation === 'vertical';
         const width = zoneSpec.width;
         const height = zoneSpec.height;
@@ -2775,18 +2978,138 @@ export class LCARdSSlider extends LCARdSButton {
         const range = max - min;
         const progress = range > 0 ? (value - min) / range : 0;
 
+        lcardsLog.debug('[LCARdSSlider] _generateProgressBar()', {
+            zoneSpec,
+            orientation,
+            sliderValue: this._sliderValue,
+            min,
+            max,
+            value,
+            range,
+            progress,
+            height,
+            barHeight: isVertical ? height * progress : null
+        });
+
         // Get fill color (gauge active color)
         const fillColor = this._sliderStyle?.gauge?.fill?.color?.active || '#93e1ff';
 
-        // Generate progress bar rect
+        let svg = '';
+
+        // Generate progress bar rect - fill zone based on value percentage
         if (isVertical) {
             const barHeight = height * progress;
             const barY = height - barHeight; // Start from bottom
-            return `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${fillColor}" rx="2" ry="2"></rect>`;
+            svg += `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         } else {
             const barWidth = width * progress;
-            return `<rect x="0" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
+            svg += `<rect x="0" y="0" width="${barWidth}" height="${height}" fill="${fillColor}" rx="2" ry="2"></rect>`;
         }
+
+        // Add indicator overlay if enabled
+        const gaugeConfig = this._sliderStyle?.gauge;
+        const indicatorConfig = gaugeConfig?.indicator;
+        const indicatorEnabled = indicatorConfig?.enabled === true ||
+                                (indicatorConfig?.enabled !== false &&
+                                 (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
+
+        if (indicatorEnabled) {
+            const indicatorType = indicatorConfig.type || 'line';
+            const indicatorColor = this._resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)');
+            const indicatorWidth = indicatorConfig.size?.width || 4;
+            const indicatorHeight = indicatorConfig.size?.height || 25;
+            const rotation = indicatorConfig.rotation || 0;
+            const offsetX = indicatorConfig.offset?.x || 0;
+            const offsetY = indicatorConfig.offset?.y || 0;
+            const borderEnabled = indicatorConfig.border?.enabled !== false;
+            const borderColor = this._resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)');
+            const borderWidth = indicatorConfig.border?.width || 1;
+
+            if (isVertical) {
+                // Calculate indicator Y position (inverted, matching progress bar top edge)
+                let indicatorY = height - (progress * height);
+                if (this._invertFill) {
+                    indicatorY = progress * height;
+                }
+                indicatorY += offsetY;
+
+                // Position at center of progress bar width
+                const indicatorX = width / 2 + offsetX;
+
+                if (indicatorType === 'round') {
+                    const rx = indicatorWidth / 2;
+                    const ry = indicatorHeight / 2;
+                    svg += `
+                        <ellipse cx="${indicatorX}" cy="${indicatorY}" rx="${rx}" ry="${ry}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                    `;
+                } else if (indicatorType === 'triangle') {
+                    const halfWidth = indicatorHeight / 2;
+                    const halfHeight = indicatorWidth / 2;
+                    const points = `${halfWidth},0 ${-halfWidth},${-halfHeight} ${-halfWidth},${halfHeight}`;
+                    svg += `
+                        <polygon points="${points}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
+                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
+                    `;
+                } else {
+                    // Line indicator (horizontal for vertical gauge)
+                    const lineY = indicatorY - (indicatorWidth / 2);
+                    const lineX = indicatorX - (indicatorHeight / 2);
+                    svg += `
+                        <rect x="${lineX}" y="${lineY}"
+                              width="${indicatorHeight}" height="${indicatorWidth}"
+                              fill="${indicatorColor}"
+                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
+                              rx="1" ry="1" />
+                    `;
+                }
+            } else {
+                // Horizontal indicator (at progress bar right edge)
+                let indicatorX = progress * width;
+                if (this._invertFill) {
+                    indicatorX = width - (progress * width);
+                }
+                indicatorX += offsetX;
+
+                const indicatorY = height / 2 + offsetY;
+
+                if (indicatorType === 'round') {
+                    const rx = indicatorWidth / 2;
+                    const ry = indicatorHeight / 2;
+                    svg += `
+                        <ellipse cx="${indicatorX}" cy="${indicatorY}" rx="${rx}" ry="${ry}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''} />
+                    `;
+                } else if (indicatorType === 'triangle') {
+                    const halfWidth = indicatorHeight / 2;
+                    const halfHeight = indicatorWidth / 2;
+                    const points = `0,${halfWidth} ${-halfHeight},${-halfWidth} ${halfHeight},${-halfWidth}`;
+                    svg += `
+                        <polygon points="${points}"
+                                 fill="${indicatorColor}"
+                                 ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}" stroke-linejoin="miter"` : ''}
+                                 transform="translate(${indicatorX},${indicatorY}) rotate(${rotation})" />
+                    `;
+                } else {
+                    // Line indicator (vertical for horizontal gauge)
+                    const lineY = indicatorY - (indicatorHeight / 2);
+                    const lineX = indicatorX - (indicatorWidth / 2);
+                    svg += `
+                        <rect x="${lineX}" y="${lineY}"
+                              width="${indicatorWidth}" height="${indicatorHeight}"
+                              fill="${indicatorColor}"
+                              ${borderEnabled ? `stroke="${borderColor}" stroke-width="${borderWidth}"` : ''}
+                              rx="1" ry="1" />
+                    `;
+                }
+            }
+        }
+
+        return svg;
     }
 
     /**
@@ -3212,11 +3535,32 @@ export class LCARdSSlider extends LCARdSButton {
             scaledBounds.y = (controlBounds.y * scaleY) + (trackHeight * (1 - controlEndPercent));
         }
 
-        // Apply CSS transform to flip slider input when fill is inverted
-        // This ensures the physical thumb position matches the visual fill direction
-        const inputTransform = this._invertFill
-            ? (isVertical ? 'scaleY(-1)' : 'scaleX(-1)')
-            : '';
+        // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
+        // because writing-mode breaks mouse coordinate mapping in browsers
+        if (isVertical) {
+            return html`
+                <div class="slider-container">
+                    ${unsafeHTML(svgContent)}
+                    ${!this._controlConfig.locked ? html`
+                        <div
+                            class="slider-input-overlay vertical-slider-overlay"
+                            @mousedown="${this._handleVerticalSliderMouseDown}"
+                            @touchstart="${this._handleVerticalSliderTouchStart}"
+                            style="
+                                left: ${scaledBounds.x}px;
+                                top: ${scaledBounds.y}px;
+                                width: ${scaledBounds.width}px;
+                                height: ${scaledBounds.height}px;
+                                cursor: pointer;
+                            "
+                        ></div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Horizontal sliders work fine with <input type="range">
+        const inputTransform = this._invertFill ? 'scaleX(-1)' : '';
 
         return html`
             <div class="slider-container">
@@ -3233,13 +3577,12 @@ export class LCARdSSlider extends LCARdSButton {
                         ?disabled="${this._controlConfig.locked}"
                         @input="${this._handleSliderInput}"
                         @change="${this._handleSliderChange}"
-                        orient="${isVertical ? 'vertical' : 'horizontal'}"
                         style="
                             left: ${scaledBounds.x}px;
                             top: ${scaledBounds.y}px;
                             width: ${scaledBounds.width}px;
                             height: ${scaledBounds.height}px;
-                            ${isVertical ? 'writing-mode: vertical-lr; direction: rtl;' : ''}
+                            ${inputTransform ? `transform: ${inputTransform};` : ''}
                         "
                     />
                 ` : ''}
