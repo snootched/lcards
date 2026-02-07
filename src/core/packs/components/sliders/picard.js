@@ -1,6 +1,6 @@
 /**
  * Picard Slider Component
- * 
+ *
  * Star Trek LCARS-inspired vertical slider with:
  * - State-aware borders (blue when active, gray when inactive)
  * - Animated indicator (pulsing light blue in top-left)
@@ -8,10 +8,10 @@
  * - Range indicator zone (inset colored bars with black borders)
  * - Decorative border frame around range area
  * - Track zone for pills or gauge
- * 
+ *
  * Orientation: Vertical only (initially)
  * ViewBox: 365×601 (scales proportionally with container)
- * 
+ *
  * @module core/packs/components/sliders/picard
  */
 
@@ -34,7 +34,7 @@ export function calculateZones(width, height) {
     // Scale from original 365×601 viewBox
     const scaleX = width / 365;
     const scaleY = height / 601;
-    
+
     return {
         progress: {
             x: 100 * scaleX,
@@ -85,10 +85,10 @@ export function resolveColors(actualState, classifiedState, config, hass) {
         // Try actual state first, then classified state, then default
         return colorConfig[actualState] || colorConfig[classifiedState] || colorConfig.default || fallback;
     };
-    
+
     // Determine if entity is active based on classified state
     const isActive = classifiedState === 'on';
-    
+
     return {
         borderTop: resolveStateColor(
             config.style?.border?.top?.color,
@@ -123,17 +123,17 @@ export function resolveColors(actualState, classifiedState, config, hass) {
 export function render(context) {
     const { width, height, colors, config, style } = context;
     const zones = calculateZones(width, height);
-    
+
     // Scale factors for border paths
     const sx = width / 365;
     const sy = height / 601;
-    
+
     // User-configurable options with defaults
     const showAnimation = config.show_animation !== false;
     const animationSpeed = config.animation_speed || 2;
     const borderRadius = style?.border?.radius ?? 0;
     const frameThickness = style?.range?.frame?.thickness ?? 5;
-    
+
     return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -141,57 +141,57 @@ export function render(context) {
       <rect x="0" y="0" width="${width}" height="${height}" rx="${borderRadius}" />
     </clipPath>
   </defs>
-  
+
   <!-- Background (transparent) -->
   <rect width="${width}" height="${height}" fill="transparent" rx="${borderRadius}" />
-  
+
   <!-- Top-left border (state-aware: blue when active) -->
   <path fill="${colors.borderTop}" d="M0,0 L${175*sx},0 L${175*sx},${64*sy} L${145*sx},${64*sy} L${145*sx},${16*sy} L0,${16*sy} Z" />
-  
+
   <!-- Top-right border (gray) -->
   <path fill="${colors.borderBottom}" d="M${183*sx},0 L${width},0 L${width},${16*sy} L${199*sx},${16*sy} L${199*sx},${64*sy} L${183*sx},${64*sy} Z" />
-  
+
   <!-- Bottom-left border (state-aware: blue when active) -->
   <path fill="${colors.borderTop}" d="M0,${570*sy} L${145*sx},${570*sy} L${145*sx},${522*sy} L${175*sx},${522*sy} L${175*sx},${height} L0,${height} Z" />
-  
+
   <!-- Bottom-right border (gray) -->
   <path fill="${colors.borderBottom}" d="M${183*sx},${522*sy} L${199*sx},${522*sy} L${199*sx},${570*sy} L${width},${570*sy} L${width},${height} L${183*sx},${height} Z" />
-  
+
   <!-- Range area border frame (customizable color and thickness) -->
   <path fill="${colors.rangeFrame}" stroke="${colors.rangeFrame}" stroke-width="${frameThickness}" d="M${145*sx},${72*sy} L${175*sx},${72*sy} L${175*sx},${514*sy} L${145*sx},${514*sy} L${145*sx},${509*sy} L${170*sx},${509*sy} L${170*sx},${77*sy} L${145*sx},${77*sy} Z" />
-  
+
   <!-- Animation indicator (conditional + customizable speed) -->
   ${showAnimation ? `
   <rect x="${2*sx}" y="${32*sy}" width="${16*sx}" height="${18*sy}" fill="${colors.animationIndicator}">
     <animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s" repeatCount="indefinite" />
   </rect>
   ` : ''}
-  
+
   <!-- Progress bar zone -->
   <g id="progress-zone" data-zone="progress"
      transform="translate(${zones.progress.x}, ${zones.progress.y})"
      data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">
   </g>
-  
+
   <!-- Range indicators zone -->
   <g id="range-zone" data-zone="range"
      transform="translate(${zones.range.x}, ${zones.range.y})"
      data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
   </g>
-  
+
   <!-- Track zone (pills or gauge) -->
   <g id="track-zone" data-zone="track"
      transform="translate(${zones.track.x}, ${zones.track.y})"
      data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}">
   </g>
-  
+
   <!-- Control overlay zone (invisible) -->
   <rect id="control-zone" data-zone="control"
         x="${zones.control.x}" y="${zones.control.y}"
         width="${zones.control.width}" height="${zones.control.height}"
         fill="none" stroke="none" pointer-events="none"
         data-bounds="${zones.control.x},${zones.control.y},${zones.control.width},${zones.control.height}" />
-  
+
   <!-- Text zone -->
   <g id="text-zone" data-zone="text"
      transform="translate(${zones.text.x}, ${zones.text.y})"
@@ -224,31 +224,77 @@ export const metadata = {
             key: 'show_animation',
             type: 'boolean',
             default: true,
-            description: 'Show pulsing animation indicator in top-left'
+            description: 'Show pulsing animation indicator in top-left',
+            'x-ui-hints': {
+                label: 'Show Animation',
+                helper: 'Show pulsing animation indicator in top-left (default: true)',
+                selector: { boolean: {} }
+            }
         },
         {
             key: 'animation_speed',
             type: 'number',
             default: 2,
-            description: 'Animation pulse speed in seconds'
+            description: 'Animation pulse speed in seconds',
+            'x-ui-hints': {
+                label: 'Animation Speed',
+                helper: 'Animation pulse speed in seconds (default: 2)',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        step: 0.1,
+                        min: 0.1,
+                        max: 10
+                    }
+                }
+            }
         },
         {
             key: 'style.border.radius',
             type: 'number',
             default: 0,
-            description: 'Border radius for rounded corners'
+            description: 'Border radius for rounded corners',
+            'x-ui-hints': {
+                label: 'Border Radius',
+                helper: 'Border radius for rounded corners (default: 0)',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        step: 1,
+                        min: 0,
+                        max: 50
+                    }
+                }
+            }
         },
         {
             key: 'style.range.frame.thickness',
             type: 'number',
             default: 5,
-            description: 'Thickness of decorative range frame'
+            description: 'Thickness of decorative range frame',
+            'x-ui-hints': {
+                label: 'Frame Thickness',
+                helper: 'Thickness of decorative range frame (default: 5)',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        step: 1,
+                        min: 0,
+                        max: 20
+                    }
+                }
+            }
         },
         {
             key: 'style.range.frame.color',
-            type: 'string',
+            type: 'color',
             default: '#2765FD',
-            description: 'Color of decorative range frame'
+            description: 'Color of decorative range frame',
+            'x-ui-hints': {
+                label: 'Frame Color',
+                helper: 'Color of decorative range frame (default: #2765FD)',
+                format: 'color-lcards'
+            }
         }
     ],
     description: 'Star Trek LCARS-inspired vertical slider with state-aware borders and animated indicator'

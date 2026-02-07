@@ -21,6 +21,7 @@ import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-message.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
+import '../components/shared/lcards-color-picker.js';
 
 // Import specialized editor components
 import '../components/editors/lcards-multi-text-editor-v2.js';
@@ -214,6 +215,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Get component metadata from ComponentManager
+     * @param {string} componentName - Component name (e.g., 'picard')
+     * @returns {Object|null} Component metadata or null
+     * @private
+     */
+    _getComponentMetadata(componentName) {
+        if (!componentName) return null;
+
+        const componentManager = window.lcards?.core?.getComponentManager?.();
+        if (!componentManager) {
+            lcardsLog.warn('[LCARdSSliderEditor] ComponentManager not available');
+            return null;
+        }
+
+        return componentManager.getComponentMetadata(componentName);
+    }
+
+    /**
      * Get entity attribute options for dropdown
      * @returns {Array} Array of {value, label} options
      * @private
@@ -231,6 +250,55 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             { value: '', label: '(State)' },
             ...attributes.map(attr => ({ value: attr, label: attr }))
         ];
+    }
+
+    /**
+     * Render orientation selector with component metadata filtering
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderOrientationSelector() {
+        const componentName = this.config?.component;
+        const metadata = this._getComponentMetadata(componentName);
+
+        // If component has fixed orientation, show it as disabled text
+        if (metadata?.orientation && metadata.orientation !== 'auto') {
+            const orientationLabel = metadata.orientation.charAt(0).toUpperCase() +
+                                   metadata.orientation.slice(1);
+
+            return html`
+                <ha-textfield
+                    .label=${'Orientation'}
+                    .value=${`${orientationLabel} (fixed)`}
+                    .disabled=${true}
+                    .helper=${'This component only supports ${metadata.orientation} orientation'}
+                ></ha-textfield>
+            `;
+        }
+
+        // Show full orientation selector
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Orientation'}
+                .value=${this.config?.style?.track?.orientation || 'horizontal'}
+                .selector=${{
+                    select: {
+                        mode: 'dropdown',
+                        options: [
+                            { value: 'horizontal', label: 'Horizontal' },
+                            { value: 'vertical', label: 'Vertical' }
+                        ]
+                    }
+                }}
+                @value-changed=${(e) => this._valueChanged({
+                    target: {
+                        configPath: 'style.track.orientation',
+                        value: e.detail.value
+                    }
+                })}
+            ></ha-selector>
+        `;
     }
 
     /**
@@ -292,16 +360,37 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
     /**
      * Define editor tabs - 5 tabs + utility tabs from base class
+     * Conditionally adds Component Options tab when component has configurableOptions
      * @returns {Array} Tab definitions
      * @protected
      */
     _getTabDefinitions() {
-        return [
-            { label: 'Config', content: () => this._renderFromConfig(this._getConfigTabConfig()) },
+        const baseTabs = [
+            { label: 'Config', content: () => this._renderFromConfig(this._getConfigTabConfig()) }
+        ];
+
+        // Add Component Options tab right after Config if component has configurable options
+        const componentName = this.config?.component;
+        if (componentName) {
+            const metadata = this._getComponentMetadata(componentName);
+            if (metadata?.configurableOptions?.length > 0) {
+                baseTabs.push({
+                    label: 'Component Options',
+                    content: () => this._renderComponentOptionsTab()
+                });
+            }
+        }
+
+        // Add remaining tabs
+        baseTabs.push(
             { label: 'Slider Track', content: () => this._renderTrackTab() },
             { label: 'Borders', content: () => this._renderBordersTab() },
             { label: 'Text Fields', content: () => this._renderTextTab() },
-            { label: 'Actions', content: () => this._renderActionsTab() },
+            { label: 'Actions', content: () => this._renderActionsTab() }
+        );
+
+        return [
+            ...baseTabs,
             ...this._getUtilityTabs()
         ];
     }
@@ -346,10 +435,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                 helper: 'Shell SVG (basic, picard, etc.)'
                             },
                             {
-                                type: 'field',
-                                path: 'style.track.orientation',
-                                label: 'Orientation',
-                                helper: 'Layout direction (horizontal or vertical)'
+                                type: 'custom',
+                                render: () => this._renderOrientationSelector()
                             }
                         ]
                     },
@@ -367,6 +454,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                 message="✓ Preset '${state.preset}' applied! Track style, colors, and spacing configured automatically.">
                             </lcards-message>
                         `
+                    }] : []),
+                    ...(this.config.component ? [{
+                        type: 'custom',
+                        render: () => this._renderComponentInfo(this.config.component)
                     }] : [])
                 ]
             },
@@ -1194,6 +1285,229 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             double_tap_action: actions.double_tap_action
         };
         this._updateConfig(updatedConfig);
+    }
+
+    /**
+     * Render Component Options tab with dynamic fields from configurableOptions
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentOptionsTab() {
+        const componentName = this.config?.component;
+        const metadata = this._getComponentMetadata(componentName);
+
+        if (!metadata?.configurableOptions || metadata.configurableOptions.length === 0) {
+            return html`
+                <lcards-message
+                    type="info"
+                    message="No component-specific options available.">
+                </lcards-message>
+            `;
+        }
+
+        return html`
+            <lcards-form-section
+                header="${metadata.displayName || componentName} Options"
+                description="Component-specific configuration options"
+                icon="mdi:tune-variant"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message style="margin-bottom: 16px;"
+                    type="info"
+                    message="These options are specific to the <strong>${metadata.displayName || componentName}</strong> component. Changes will only affect cards using this component."></lcards-message>
+                </lcards-message>
+
+                ${metadata.configurableOptions.map(option => this._renderComponentOption(option))}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render a single component option using schema-based FormField
+     * @param {Object} option - Component option metadata with schema format
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentOption(option) {
+        const { key, type, description, default: defaultValue } = option;
+
+        // Special handling for color type - use lcards-color-picker
+        if (type === 'color' || option['x-ui-hints']?.format === 'color-lcards') {
+            // Get current value from config (support nested paths)
+            const pathParts = key.split('.');
+            let currentValue = this.config;
+            for (const part of pathParts) {
+                currentValue = currentValue?.[part];
+            }
+            if (currentValue === undefined) currentValue = defaultValue;
+
+            const label = option['x-ui-hints']?.label || this._formatOptionLabel(key);
+            const helper = option['x-ui-hints']?.helper ||
+                          (defaultValue !== undefined ? `${description} (default: ${defaultValue})` : description);
+
+            return html`
+                <div style="margin-bottom: 8px;">
+                    <div style="font-size: 14px; font-weight: 500; color: var(--secondary-text-color); margin-bottom: 4px; padding: 0 8px;">
+                        ${label}
+                    </div>
+                    <lcards-color-picker
+                        .hass=${this.hass}
+                        .value=${String(currentValue || '')}
+                        .showPreview=${true}
+                        @value-changed=${(e) => this._handleComponentOptionChanged(key, e.detail.value)}>
+                    </lcards-color-picker>
+                    ${helper ? html`
+                        <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">
+                            ${helper}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // For all other types, use FormField with option as schema
+        // This leverages the existing schema infrastructure
+        return html`
+            <div style="margin-bottom: 8px;">
+                ${this._renderComponentOptionField(key, option)}
+            </div>
+        `;
+    }
+
+    /**
+     * Render component option field using FormField
+     * Creates temporary schema entry to leverage FormField infrastructure
+     * @param {string} key - Option key path
+     * @param {Object} option - Option schema definition
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentOptionField(key, option) {
+        // Temporarily inject option schema so _getSchemaForPath can find it
+        const originalMethod = this._getSchemaForPath;
+        this._getSchemaForPath = (path) => {
+            if (path === key) {
+                return option;
+            }
+            return originalMethod?.call(this, path);
+        };
+
+        // Render using FormField
+        const result = FormField.renderField(this, key);
+
+        // Restore original method
+        this._getSchemaForPath = originalMethod;
+
+        return result;
+    }
+
+    /**
+     * Handle component option value changes
+     * @param {string} key - Option key (may be nested path like 'style.border.radius')
+     * @param {any} value - New value
+     * @private
+     */
+    _handleComponentOptionChanged(key, value) {
+        const pathParts = key.split('.');
+        const newConfig = { ...this.config };
+
+        // Navigate to the parent object
+        let target = newConfig;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            const part = pathParts[i];
+            if (!target[part]) target[part] = {};
+            target = target[part];
+        }
+
+        // Set the final value
+        target[pathParts[pathParts.length - 1]] = value;
+
+        this._updateConfig(newConfig);
+    }
+
+    /**
+     * Format option key into human-readable label
+     * @param {string} key - Option key (e.g., 'show_animation' or 'style.border.radius')
+     * @returns {string} Formatted label
+     * @private
+     */
+    _formatOptionLabel(key) {
+        // Get the last part of dotted path
+        const parts = key.split('.');
+        const lastPart = parts[parts.length - 1];
+
+        // Convert snake_case to Title Case
+        return lastPart
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    /**
+     * Render component information panel with features as chips
+     * @param {string} componentName - Component name
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderComponentInfo(componentName) {
+        const metadata = this._getComponentMetadata(componentName);
+
+        if (!metadata) {
+            return html``;
+        }
+
+        const features = metadata.features || [];
+        const configurableOptions = metadata.configurableOptions || [];
+        const orientation = metadata.orientation || 'auto';
+
+        return html`
+            <div style="margin-top: 12px; padding: 12px; background: var(--secondary-background-color); border-radius: 8px; border: 1px solid var(--divider-color);">
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--primary-text-color);">
+                    ${metadata.displayName || componentName}
+                </div>
+                ${metadata.description ? html`
+                    <div style="margin-bottom: 12px; font-size: 13px; color: var(--secondary-text-color);">
+                        ${metadata.description}
+                    </div>
+                ` : ''}
+
+                <!-- Orientation Info -->
+                <div style="margin-bottom: 8px; font-size: 12px;">
+                    <span style="color: var(--secondary-text-color);">Orientation:</span>
+                    <span style="margin-left: 4px; padding: 2px 8px; background: var(--primary-color); color: white; border-radius: 4px; font-size: 11px; font-weight: 500;">
+                        ${orientation === 'auto' ? 'Flexible' : orientation}
+                    </span>
+                </div>
+
+                <!-- Features as chips -->
+                ${features.length > 0 ? html`
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 6px;">
+                            Features:
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            ${features.map(feature => html`
+                                <span style="display: inline-flex; align-items: center; padding: 4px 10px; background: var(--success-color, #4caf50); color: white; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                    <ha-icon icon="mdi:check" style="--mdc-icon-size: 14px; margin-right: 4px;"></ha-icon>
+                                    ${feature}
+                                </span>
+                            `)}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Configurable Options Info -->
+                ${configurableOptions.length > 0 ? html`
+                    <div style="font-size: 12px; color: var(--secondary-text-color);">
+                        <ha-icon icon="mdi:tune" style="--mdc-icon-size: 14px; vertical-align: middle; margin-right: 4px;"></ha-icon>
+                        <strong>${configurableOptions.length}</strong> configurable option${configurableOptions.length !== 1 ? 's' : ''} available
+                        <span style="color: var(--primary-color); font-weight: 500;"> → See "Component Options" tab</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
     }
 }
 
