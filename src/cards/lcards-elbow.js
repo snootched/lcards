@@ -128,9 +128,20 @@ export class LCARdSElbow extends LCARdSButton {
         this._themeEntityUnsubscribes = []; // Track subscriptions for cleanup
 
         // Interaction states (hover/pressed)
+        // Simple elbow (single segment)
         this._elbowHoverStyle = null;
         this._elbowPressedStyle = null;
         this._elbowInteractivityCleanup = null;
+
+        // Segmented elbow (outer segment)
+        this._elbowOuterHoverStyle = null;
+        this._elbowOuterPressedStyle = null;
+        this._elbowOuterInteractivityCleanup = null;
+
+        // Segmented elbow (inner segment)
+        this._elbowInnerHoverStyle = null;
+        this._elbowInnerPressedStyle = null;
+        this._elbowInnerInteractivityCleanup = null;
     }
 
     /**
@@ -272,28 +283,68 @@ export class LCARdSElbow extends LCARdSButton {
     _injectElbowColors() {
         if (!this._elbowConfig || !this._buttonStyle) return;
 
-        // Extract interaction styles (hover/pressed) from elbow's segment.color config
-        // Elbow cards use segment.color.hover/pressed instead of style.card.color.background.hover/pressed
-        const segmentColor = this._elbowConfig.segment?.color;
-        if (segmentColor) {
-            const hoverColor = segmentColor.hover;
-            const pressedColor = segmentColor.pressed;
+        // Check if segmented or simple elbow
+        const isSegmented = this._elbowConfig?.style === 'segmented';
 
-            // Resolve theme tokens and CSS variables
-            const resolvedHover = hoverColor ? this._resolveColorValue(hoverColor, this._getButtonState()) : null;
-            const resolvedPressed = pressedColor ? this._resolveColorValue(pressedColor, this._getButtonState()) : null;
+        if (isSegmented) {
+            // Extract interaction styles for OUTER segment
+            const outerColor = this._elbowConfig.segments?.outer_segment?.color;
+            if (outerColor) {
+                const hoverColor = outerColor.hover;
+                const pressedColor = outerColor.pressed;
+                const resolvedHover = hoverColor ? this._resolveColorValue(hoverColor, this._getButtonState()) : null;
+                const resolvedPressed = pressedColor ? this._resolveColorValue(pressedColor, this._getButtonState()) : null;
 
-            this._elbowHoverStyle = resolvedHover ? { backgroundColor: resolvedHover } : null;
-            this._elbowPressedStyle = resolvedPressed ? { backgroundColor: resolvedPressed } : null;
+                this._elbowOuterHoverStyle = resolvedHover ? { backgroundColor: resolvedHover } : null;
+                this._elbowOuterPressedStyle = resolvedPressed ? { backgroundColor: resolvedPressed } : null;
 
-            lcardsLog.debug('[LCARdSElbow] Extracted interaction styles from segment.color', {
-                hasHover: !!this._elbowHoverStyle,
-                hasPressed: !!this._elbowPressedStyle,
-                hoverColorInput: hoverColor,
-                hoverColorResolved: resolvedHover,
-                pressedColorInput: pressedColor,
-                pressedColorResolved: resolvedPressed
-            });
+                lcardsLog.debug('[LCARdSElbow] Extracted outer segment interaction styles', {
+                    hasHover: !!this._elbowOuterHoverStyle,
+                    hasPressed: !!this._elbowOuterPressedStyle,
+                    hoverColorResolved: resolvedHover,
+                    pressedColorResolved: resolvedPressed
+                });
+            }
+
+            // Extract interaction styles for INNER segment
+            const innerColor = this._elbowConfig.segments?.inner_segment?.color;
+            if (innerColor) {
+                const hoverColor = innerColor.hover;
+                const pressedColor = innerColor.pressed;
+                const resolvedHover = hoverColor ? this._resolveColorValue(hoverColor, this._getButtonState()) : null;
+                const resolvedPressed = pressedColor ? this._resolveColorValue(pressedColor, this._getButtonState()) : null;
+
+                this._elbowInnerHoverStyle = resolvedHover ? { backgroundColor: resolvedHover } : null;
+                this._elbowInnerPressedStyle = resolvedPressed ? { backgroundColor: resolvedPressed } : null;
+
+                lcardsLog.debug('[LCARdSElbow] Extracted inner segment interaction styles', {
+                    hasHover: !!this._elbowInnerHoverStyle,
+                    hasPressed: !!this._elbowInnerPressedStyle,
+                    hoverColorResolved: resolvedHover,
+                    pressedColorResolved: resolvedPressed
+                });
+            }
+        } else {
+            // Simple elbow - extract from segment.color
+            const segmentColor = this._elbowConfig.segment?.color;
+            if (segmentColor) {
+                const hoverColor = segmentColor.hover;
+                const pressedColor = segmentColor.pressed;
+
+                // Resolve theme tokens and CSS variables
+                const resolvedHover = hoverColor ? this._resolveColorValue(hoverColor, this._getButtonState()) : null;
+                const resolvedPressed = pressedColor ? this._resolveColorValue(pressedColor, this._getButtonState()) : null;
+
+                this._elbowHoverStyle = resolvedHover ? { backgroundColor: resolvedHover } : null;
+                this._elbowPressedStyle = resolvedPressed ? { backgroundColor: resolvedPressed } : null;
+
+                lcardsLog.debug('[LCARdSElbow] Extracted simple segment interaction styles', {
+                    hasHover: !!this._elbowHoverStyle,
+                    hasPressed: !!this._elbowPressedStyle,
+                    hoverColorResolved: resolvedHover,
+                    pressedColorResolved: resolvedPressed
+                });
+            }
         }
 
         // Get component metadata
@@ -364,7 +415,11 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Always re-setup interaction states after each render
         // This ensures handlers are attached to the current DOM element, not stale references
-        if (this._elbowHoverStyle || this._elbowPressedStyle) {
+        const hasSimpleInteraction = this._elbowHoverStyle || this._elbowPressedStyle;
+        const hasSegmentedInteraction = this._elbowOuterHoverStyle || this._elbowOuterPressedStyle ||
+                                        this._elbowInnerHoverStyle || this._elbowInnerPressedStyle;
+
+        if (hasSimpleInteraction || hasSegmentedInteraction) {
             lcardsLog.debug('[LCARdSElbow] Re-setting up interactivity after render');
             this._setupElbowInteractivity();
         }
@@ -550,6 +605,21 @@ export class LCARdSElbow extends LCARdSButton {
      */
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
+
+        // Clean up interaction event listeners
+        if (this._elbowInteractivityCleanup) {
+            this._elbowInteractivityCleanup();
+            this._elbowInteractivityCleanup = null;
+        }
+        if (this._elbowOuterInteractivityCleanup) {
+            this._elbowOuterInteractivityCleanup();
+            this._elbowOuterInteractivityCleanup = null;
+        }
+        if (this._elbowInnerInteractivityCleanup) {
+            this._elbowInnerInteractivityCleanup();
+            this._elbowInnerInteractivityCleanup = null;
+        }
+
         super.disconnectedCallback();
     }
 
@@ -977,35 +1047,78 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _setupElbowInteractivity() {
-        // Find the elbow background element
-        const elbowBg = this.shadowRoot?.querySelector('.elbow-bg');
+        const isSegmented = this._elbowConfig?.style === 'segmented';
 
-        if (!elbowBg) {
-            lcardsLog.warn('[LCARdSElbow] Cannot setup interactivity - .elbow-bg element not found');
-            return;
+        if (isSegmented) {
+            // Setup interactivity for OUTER segment
+            const elbowOuter = this.shadowRoot?.querySelector('.elbow-outer');
+            if (elbowOuter && (this._elbowOuterHoverStyle || this._elbowOuterPressedStyle)) {
+                lcardsLog.debug('[LCARdSElbow] Setting up outer segment interactivity', {
+                    hasHoverStyle: !!this._elbowOuterHoverStyle,
+                    hasPressedStyle: !!this._elbowOuterPressedStyle,
+                    hoverColor: this._elbowOuterHoverStyle?.backgroundColor
+                });
+
+                // Clean up previous listeners
+                if (this._elbowOuterInteractivityCleanup) {
+                    this._elbowOuterInteractivityCleanup();
+                }
+
+                this._elbowOuterInteractivityCleanup = this._setupBaseInteractivity(elbowOuter, {
+                    hoverStyle: this._elbowOuterHoverStyle,
+                    pressedStyle: this._elbowOuterPressedStyle,
+                    getRestoreColor: () => this._getElbowColor('outer', this._elbowConfig.segments?.outer_segment)
+                });
+            }
+
+            // Setup interactivity for INNER segment
+            const elbowInner = this.shadowRoot?.querySelector('.elbow-inner');
+            if (elbowInner && (this._elbowInnerHoverStyle || this._elbowInnerPressedStyle)) {
+                lcardsLog.debug('[LCARdSElbow] Setting up inner segment interactivity', {
+                    hasHoverStyle: !!this._elbowInnerHoverStyle,
+                    hasPressedStyle: !!this._elbowInnerPressedStyle,
+                    hoverColor: this._elbowInnerHoverStyle?.backgroundColor
+                });
+
+                // Clean up previous listeners
+                if (this._elbowInnerInteractivityCleanup) {
+                    this._elbowInnerInteractivityCleanup();
+                }
+
+                this._elbowInnerInteractivityCleanup = this._setupBaseInteractivity(elbowInner, {
+                    hoverStyle: this._elbowInnerHoverStyle,
+                    pressedStyle: this._elbowInnerPressedStyle,
+                    getRestoreColor: () => this._getElbowColor('inner', this._elbowConfig.segments?.inner_segment)
+                });
+            }
+        } else {
+            // Simple elbow - single segment
+            const elbowBg = this.shadowRoot?.querySelector('.elbow-bg');
+
+            if (!elbowBg) {
+                lcardsLog.warn('[LCARdSElbow] Cannot setup interactivity - .elbow-bg element not found');
+                return;
+            }
+
+            lcardsLog.debug('[LCARdSElbow] Setting up simple elbow interactivity', {
+                hasHoverStyle: !!this._elbowHoverStyle,
+                hasPressedStyle: !!this._elbowPressedStyle,
+                hoverColor: this._elbowHoverStyle?.backgroundColor,
+                elementClass: elbowBg?.className
+            });
+
+            // Clean up previous listeners
+            if (this._elbowInteractivityCleanup) {
+                this._elbowInteractivityCleanup();
+            }
+
+            // Use base class method to setup interactivity
+            this._elbowInteractivityCleanup = this._setupBaseInteractivity(elbowBg, {
+                hoverStyle: this._elbowHoverStyle,
+                pressedStyle: this._elbowPressedStyle,
+                getRestoreColor: () => this._getElbowColor()
+            });
         }
-
-        lcardsLog.debug('[LCARdSElbow] Setting up elbow interactivity', {
-            hasHoverStyle: !!this._elbowHoverStyle,
-            hasPressedStyle: !!this._elbowPressedStyle,
-            hoverColor: this._elbowHoverStyle?.backgroundColor,
-            pressedColor: this._elbowPressedStyle?.backgroundColor,
-            elementFound: !!elbowBg,
-            elementClass: elbowBg?.className,
-            elementTag: elbowBg?.tagName
-        });
-
-        // Clean up previous listeners
-        if (this._elbowInteractivityCleanup) {
-            this._elbowInteractivityCleanup();
-        }
-
-        // Use base class method to setup interactivity
-        this._elbowInteractivityCleanup = this._setupBaseInteractivity(elbowBg, {
-            hoverStyle: this._elbowHoverStyle,
-            pressedStyle: this._elbowPressedStyle,
-            getRestoreColor: () => this._getElbowColor()
-        });
     }
 
     /**
