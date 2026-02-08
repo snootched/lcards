@@ -294,6 +294,11 @@ export class LCARdSSlider extends LCARdSButton {
             locked: false
         };
 
+        // Interaction states (hover/pressed)
+        this._sliderHoverStyle = null;
+        this._sliderPressedStyle = null;
+        this._sliderInteractivityCleanup = null;
+
         // Display configuration (derived from config + entity)
         // Defines visual scale range (what pills/gauge render)
         this._displayConfig = {
@@ -464,6 +469,9 @@ export class LCARdSSlider extends LCARdSButton {
                 this._updatePillOpacities();
             });
         }
+
+        // Setup interaction states (hover/pressed) on slider container
+        this._setupSliderInteractivity();
 
         // Register for rules
         if (this.config.id) {
@@ -637,6 +645,16 @@ export class LCARdSSlider extends LCARdSButton {
         this._invertFill = !!invertFill;
 
         this._sliderStyle = style;
+
+        // Extract interaction styles (hover/pressed) from resolved style
+        if (this._sliderStyle) {
+            // Pass all required parameters for button's _extractInteractionStyles signature
+            const buttonState = this._getButtonState();
+            const actualEntityState = this._entity?.state;
+            const { hover, pressed } = this._extractInteractionStyles(this._sliderStyle, buttonState, actualEntityState);
+            this._sliderHoverStyle = hover;
+            this._sliderPressedStyle = pressed;
+        }
     }
 
 
@@ -716,24 +734,74 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Setup slider interactivity for hover and pressed states
+     * Uses base class method for consistent interaction handling
+     * Targets the slider container background for interaction feedback
+     * @private
+     */
+    _setupSliderInteractivity() {
+        // Find the slider SVG container - this is the main interactive element
+        // For component-based rendering, we target the root SVG element
+        const sliderSvg = this.shadowRoot?.querySelector('svg');
+
+        // Clean up previous listeners
+        if (this._sliderInteractivityCleanup) {
+            this._sliderInteractivityCleanup();
+        }
+
+        // Use base class method to setup interactivity
+        // Note: For sliders, we apply color to the SVG root background/first rect
+        this._sliderInteractivityCleanup = this._setupBaseInteractivity(sliderSvg, {
+            hoverStyle: this._sliderHoverStyle,
+            pressedStyle: this._sliderPressedStyle,
+            getRestoreColor: () => this._resolveEntityStateColor(
+                this._sliderStyle?.card?.color?.background,
+                'var(--lcars-orange, #FF9900)'
+            )
+        });
+    }
+
+    /**
+     * Setup slider interactivity for hover and pressed states
+     * Uses base class method for consistent interaction handling
+     * Targets the slider container background for interaction feedback
+     * @private
+     */
+    _setupSliderInteractivity() {
+        // Find the slider SVG container - this is the main interactive element
+        // For component-based rendering, we target the root SVG element
+        const sliderSvg = this.shadowRoot?.querySelector('svg');
+
+        // Clean up previous listeners
+        if (this._sliderInteractivityCleanup) {
+            this._sliderInteractivityCleanup();
+        }
+
+        // Use base class method to setup interactivity
+        // Note: For sliders, we apply color to the SVG root background/first rect
+        this._sliderInteractivityCleanup = this._setupBaseInteractivity(sliderSvg, {
+            hoverStyle: this._sliderHoverStyle,
+            pressedStyle: this._sliderPressedStyle,
+            getRestoreColor: () => this._resolveEntityStateColor(
+                this._sliderStyle?.card?.color?.background,
+                'var(--lcars-orange, #FF9900)'
+            )
+        });
+    }
+
+    /**
      * Resolve state-based border color
-     * Uses resolveStateColor utility (theme tokens already resolved by CoreConfigManager)
+     * Uses base class method for consistent color resolution across all cards
      * @param {Object|string} colorConfig - Color configuration (state object or string)
      * @returns {string} Resolved color
      * @private
      */
     _resolveStateBorderColor(colorConfig) {
-        // Get current state for state-based color resolution
-        const sliderState = this._getButtonState();
-        const actualEntityState = this._entity?.state;
-
-        // Use shared resolution utility (matches button pattern)
-        return resolveStateColor({
-            actualState: actualEntityState,
-            classifiedState: sliderState,
-            colorConfig: colorConfig,
-            fallback: 'var(--lcars-color-secondary, #000000)'
-        });
+        // Use base class method for state-based color resolution
+        return this._resolveEntityStateColor(
+            colorConfig,
+            'var(--lcars-color-secondary, #000000)'
+        );
     }
 
     /**
@@ -2692,6 +2760,20 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         return svg;
+    }
+
+    /**
+     * Cleanup on card removal
+     * @protected
+     */
+    disconnectedCallback() {
+        super.disconnectedCallback();
+
+        // Cleanup interaction listeners
+        if (this._sliderInteractivityCleanup) {
+            this._sliderInteractivityCleanup();
+            this._sliderInteractivityCleanup = null;
+        }
     }
 
     /**

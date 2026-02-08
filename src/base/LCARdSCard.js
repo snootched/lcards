@@ -32,6 +32,7 @@ import { deepMerge } from '../core/config-manager/merge-helpers.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
+import { resolveStateColor } from '../utils/state-color-resolver.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -2167,6 +2168,9 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Classify entity state into standardized categories
      * Useful for determining which theme colors/styles to apply
      *
+     * Enhanced to support more domains and state patterns.
+     * Alias: _getButtonState() for backward compatibility
+     *
      * @param {Object} entity - Entity state object (optional, uses card's entity if not provided)
      * @returns {string} State classification: 'active', 'inactive', 'unavailable', or 'default'
      * @protected
@@ -2186,19 +2190,271 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         const state = targetEntity.state;
 
-        // Unavailable is universal
+        // Unavailable/Unknown is universal
         if (state === 'unavailable' || state === 'unknown') {
             return 'unavailable';
         }
 
-        // Active states (ON, locked, open, home, playing, etc.)
-        if (state === 'on' || state === 'locked' || state === 'open' ||
-            state === 'home' || state === 'playing' || state === 'active') {
+        // Comprehensive active states across all HA domains
+        const activeStates = [
+            'on', 'open', 'playing', 'home', 'heat', 'cool', 'auto',
+            'fan_only', 'dry', 'locked', 'armed_home', 'armed_away',
+            'armed_night', 'armed_vacation', 'armed_custom_bypass',
+            'cleaning', 'mowing', 'docked', 'returning', 'paused',
+            'active', 'above_horizon'
+        ];
+
+        if (activeStates.includes(state)) {
             return 'active';
         }
 
-        // Inactive states (OFF, unlocked, closed, etc.)
+        // Inactive states (OFF, unlocked, closed, idle, etc.)
         return 'inactive';
+    }
+
+    /**
+     * Alias for _classifyEntityState() for backward compatibility
+     * Used by button, elbow, and slider cards
+     * @returns {string} State classification
+     * @protected
+     */
+    _getButtonState() {
+        return this._classifyEntityState();
+    }
+
+    // ============================================================================
+    // STATE-BASED COLOR RESOLUTION
+    // ============================================================================
+
+    /**
+     * Resolve state-based color with entity context
+     * Wrapper around resolveStateColor utility that automatically provides
+     * entity state and classification
+     *
+     * @param {Object|string} colorConfig - Color config (state object or plain string)
+     * @param {string} fallback - Fallback color if not resolved
+     * @returns {string|null} Resolved color value
+     * @protected
+     *
+     * @example
+     * // Resolve background color based on entity state
+     * const bgColor = this._resolveEntityStateColor(
+     *     this._buttonStyle?.card?.color?.background,
+     *     'var(--lcars-orange, #FF9900)'
+     * );
+     */
+    _resolveEntityStateColor(colorConfig, fallback = null) {
+        const actualEntityState = this._entity?.state;
+        const classifiedState = this._getButtonState();
+
+        return resolveStateColor({
+            actualState: actualEntityState,
+            classifiedState: classifiedState,
+            colorConfig: colorConfig,
+            fallback: fallback
+        });
+    }
+
+    /**
+     * Resolve theme token to concrete value
+     * Handles theme: prefix resolution
+     *
+     * @param {string} value - Value to resolve (may be theme token or plain value)
+     * @returns {string} Resolved value
+     * @protected
+     */
+    _resolveThemeToken(value) {
+        if (!value || typeof value !== 'string') {
+            return value;
+        }
+
+        // Check if it's a theme token
+        if (value.startsWith('theme:')) {
+            const tokenPath = value.replace('theme:', '');
+            return this.getThemeToken(tokenPath, value);
+        }
+
+        return value;
+    }
+
+    // ============================================================================
+    // INTERACTION STATES (hover/pressed)
+    // ============================================================================
+
+    /**
+     * Extract interaction style colors (hover/pressed) from resolved style
+     * Resolves theme tokens and returns ready-to-use color values
+     *
+     * @param {Object} resolvedStyle - Fully resolved style object
+     * @returns {Object} { hover: { backgroundColor }, pressed: { backgroundColor } }
+     * @protected
+     *
+     * @example
+     * const { hover, pressed } = this._extractInteractionStyles(this._buttonStyle);
+     * if (hover) {
+     *     // Setup hover interactions
+     * }
+     */
+    _extractInteractionStyles(resolvedStyle) {
+        if (!resolvedStyle) {
+            return { hover: null, pressed: null };
+        }
+
+        // Extract hover color from style.card.color.background.hover
+        const hoverColor = resolvedStyle.card?.color?.background?.hover;
+
+        // Extract pressed color from style.card.color.background.pressed
+        const pressedColor = resolvedStyle.card?.color?.background?.pressed;
+
+        return {
+            hover: hoverColor ? {
+                backgroundColor: this._resolveThemeToken(hoverColor)
+            } : null,
+            pressed: pressedColor ? {
+                backgroundColor: this._resolveThemeToken(pressedColor)
+            } : null
+        };
+    }
+
+    /**
+     * Setup interaction state listeners (hover/pressed/leave)
+     * Attaches mouse/touch event listeners to element for visual feedback
+     *
+     * Returns cleanup function to remove all listeners
+     *
+     * @param {HTMLElement} targetElement - Element to attach listeners to (e.g., .button-bg)
+     * @param {Object} options - Configuration options
+     * @param {Object} options.hoverStyle - Hover style object with backgroundColor
+     * @param {Object} options.pressedStyle - Pressed style object with backgroundColor
+     * @param {Function} options.getRestoreColor - Function that returns color to restore on leave
+     * @returns {Function} Cleanup function to remove all listeners
+     * @protected
+     *
+     * @example
+     * const buttonBg = this.shadowRoot?.querySelector('.button-bg');
+     * const { hover, pressed } = this._extractInteractionStyles(this._buttonStyle);
+     *
+     * this._interactivityCleanup = this._setupBaseInteractivity(buttonBg, {
+     *     hoverStyle: hover,
+     *     pressedStyle: pressed,
+     *     getRestoreColor: () => this._resolveEntityStateColor(
+     *         this._buttonStyle?.card?.color?.background,
+     *         'var(--lcars-orange, #FF9900)'
+     *     )
+     * });
+     */
+    _setupBaseInteractivity(targetElement, { hoverStyle, pressedStyle, getRestoreColor }) {
+        // Skip if no interaction styles defined
+        if (!hoverStyle && !pressedStyle) {
+            lcardsLog.trace('[LCARdSCard] No interaction styles defined, skipping interactivity setup');
+            return () => {};
+        }
+
+        // Skip if target element not found
+        if (!targetElement) {
+            lcardsLog.warn('[LCARdSCard] Target element not found for interactivity setup');
+            return () => {};
+        }
+
+        // Interaction state tracking
+        let isHovering = false;
+        let isPressed = false;
+
+        /**
+         * Apply color to target element
+         * Uses style.fill for SVG elements (higher specificity than setAttribute)
+         */
+        const applyColor = (color) => {
+            if (!targetElement || !color) {
+                lcardsLog.trace('[LCARdSCard] Skipping color application', {
+                    hasTarget: !!targetElement,
+                    hasColor: !!color
+                });
+                return;
+            }
+
+            // Use style.fill for higher CSS specificity (overrides inline style="fill: ...")
+            targetElement.style.fill = color;
+
+            lcardsLog.trace('[LCARdSCard] Applied interaction color', {
+                color,
+                element: targetElement.className,
+                tagName: targetElement.tagName
+            });
+        };
+
+        // Event handlers
+        const handleMouseEnter = (e) => {
+            if (hoverStyle && !isPressed) {
+                isHovering = true;
+                lcardsLog.trace('[LCARdSCard] Applying hover style', {
+                    backgroundColor: hoverStyle.backgroundColor
+                });
+                applyColor(hoverStyle.backgroundColor);
+            }
+            e.stopPropagation(); // Prevent button-level hover interference
+        };
+
+        const handleMouseLeave = (e) => {
+            isHovering = false;
+            if (!isPressed) {
+                // Restore to current entity state color (recalculate dynamically)
+                const restoreColor = getRestoreColor();
+                lcardsLog.trace('[LCARdSCard] Restoring color on leave', {
+                    restoreColor
+                });
+                applyColor(restoreColor);
+            }
+            e.stopPropagation();
+        };
+
+        const handleMouseDown = (e) => {
+            if (pressedStyle) {
+                isPressed = true;
+                applyColor(pressedStyle.backgroundColor);
+            }
+            e.stopPropagation();
+        };
+
+        const handleMouseUp = (e) => {
+            isPressed = false;
+            // Return to hover or entity state
+            if (isHovering && hoverStyle) {
+                applyColor(hoverStyle.backgroundColor);
+            } else {
+                const restoreColor = getRestoreColor();
+                applyColor(restoreColor);
+            }
+            e.stopPropagation();
+        };
+
+        // Attach listeners
+        targetElement.addEventListener('mouseenter', handleMouseEnter);
+        targetElement.addEventListener('mouseleave', handleMouseLeave);
+        targetElement.addEventListener('mousedown', handleMouseDown);
+        targetElement.addEventListener('mouseup', handleMouseUp);
+
+        // Touch support
+        targetElement.addEventListener('touchstart', handleMouseDown, { passive: true });
+        targetElement.addEventListener('touchend', handleMouseUp);
+
+        lcardsLog.debug('[LCARdSCard] Interaction listeners attached', {
+            hasHover: !!hoverStyle,
+            hasPressed: !!pressedStyle,
+            element: targetElement.className
+        });
+
+        // Return cleanup function
+        return () => {
+            targetElement.removeEventListener('mouseenter', handleMouseEnter);
+            targetElement.removeEventListener('mouseleave', handleMouseLeave);
+            targetElement.removeEventListener('mousedown', handleMouseDown);
+            targetElement.removeEventListener('mouseup', handleMouseUp);
+            targetElement.removeEventListener('touchstart', handleMouseDown);
+            targetElement.removeEventListener('touchend', handleMouseUp);
+
+            lcardsLog.trace('[LCARdSCard] Interaction listeners removed');
+        };
     }
 
     /**

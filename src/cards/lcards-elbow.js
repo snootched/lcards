@@ -126,6 +126,11 @@ export class LCARdSElbow extends LCARdSButton {
         this._elbowGeometry = null;
         this._themeBarDimensions = { horizontal: null, vertical: null, angle: null };
         this._themeEntityUnsubscribes = []; // Track subscriptions for cleanup
+
+        // Interaction states (hover/pressed)
+        this._elbowHoverStyle = null;
+        this._elbowPressedStyle = null;
+        this._elbowInteractivityCleanup = null;
     }
 
     /**
@@ -261,10 +266,35 @@ export class LCARdSElbow extends LCARdSButton {
      * Inject elbow-specific colors into the resolved button style
      * Called after button style resolution to ensure colors aren't overwritten
      * Uses same fallback logic as _initializeElbowDefaultColors()
+     * Also extracts interaction styles (hover/pressed) for dynamic state handling
      * @private
      */
     _injectElbowColors() {
         if (!this._elbowConfig || !this._buttonStyle) return;
+
+        // Extract interaction styles (hover/pressed) from elbow's segment.color config
+        // Elbow cards use segment.color.hover/pressed instead of style.card.color.background.hover/pressed
+        const segmentColor = this._elbowConfig.segment?.color;
+        if (segmentColor) {
+            const hoverColor = segmentColor.hover;
+            const pressedColor = segmentColor.pressed;
+
+            // Resolve theme tokens and CSS variables
+            const resolvedHover = hoverColor ? this._resolveColorValue(hoverColor, this._getButtonState()) : null;
+            const resolvedPressed = pressedColor ? this._resolveColorValue(pressedColor, this._getButtonState()) : null;
+
+            this._elbowHoverStyle = resolvedHover ? { backgroundColor: resolvedHover } : null;
+            this._elbowPressedStyle = resolvedPressed ? { backgroundColor: resolvedPressed } : null;
+
+            lcardsLog.debug('[LCARdSElbow] Extracted interaction styles from segment.color', {
+                hasHover: !!this._elbowHoverStyle,
+                hasPressed: !!this._elbowPressedStyle,
+                hoverColorInput: hoverColor,
+                hoverColorResolved: resolvedHover,
+                pressedColorInput: pressedColor,
+                pressedColorResolved: resolvedPressed
+            });
+        }
 
         // Get component metadata
         const component = getElbowComponent(this._elbowConfig.type);
@@ -322,6 +352,22 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Subscribe to theme input_number entities if configured to use them
         this._subscribeToThemeEntities();
+    }
+
+    /**
+     * Lit lifecycle - called after every render when DOM updates
+     * Setup interactivity on the rendered elbow element
+     * @protected
+     */
+    updated(changedProps) {
+        super.updated?.(changedProps);
+
+        // Always re-setup interaction states after each render
+        // This ensures handlers are attached to the current DOM element, not stale references
+        if (this._elbowHoverStyle || this._elbowPressedStyle) {
+            lcardsLog.debug('[LCARdSElbow] Re-setting up interactivity after render');
+            this._setupElbowInteractivity();
+        }
     }
 
     /**
@@ -926,34 +972,66 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Setup elbow interactivity for hover and pressed states
+     * Uses base class method for consistent interaction handling
+     * @private
+     */
+    _setupElbowInteractivity() {
+        // Find the elbow background element
+        const elbowBg = this.shadowRoot?.querySelector('.elbow-bg');
+
+        if (!elbowBg) {
+            lcardsLog.warn('[LCARdSElbow] Cannot setup interactivity - .elbow-bg element not found');
+            return;
+        }
+
+        lcardsLog.debug('[LCARdSElbow] Setting up elbow interactivity', {
+            hasHoverStyle: !!this._elbowHoverStyle,
+            hasPressedStyle: !!this._elbowPressedStyle,
+            hoverColor: this._elbowHoverStyle?.backgroundColor,
+            pressedColor: this._elbowPressedStyle?.backgroundColor,
+            elementFound: !!elbowBg,
+            elementClass: elbowBg?.className,
+            elementTag: elbowBg?.tagName
+        });
+
+        // Clean up previous listeners
+        if (this._elbowInteractivityCleanup) {
+            this._elbowInteractivityCleanup();
+        }
+
+        // Use base class method to setup interactivity
+        this._elbowInteractivityCleanup = this._setupBaseInteractivity(elbowBg, {
+            hoverStyle: this._elbowHoverStyle,
+            pressedStyle: this._elbowPressedStyle,
+            getRestoreColor: () => this._getElbowColor()
+        });
+    }
+
+    /**
      * Resolve color value with state-based support and theme token resolution
-     * First selects the appropriate state, then resolves theme tokens
+     * Uses base class method for consistent color resolution across all cards
      * @param {string|Object} colorValue - Color value (string or state object)
-     * @param {string} [currentState] - Current button/entity state for state-based colors
+     * @param {string} [currentState] - Current button/entity state (not used, kept for compatibility)
      * @returns {string} Resolved CSS color value
      * @private
      */
     _resolveColorValue(colorValue, currentState = 'default') {
-        // Step 1: Select appropriate state using resolveStateColor
-        const selectedColor = resolveStateColor({
-            actualState: this._entity?.state,
-            classifiedState: currentState,
-            colorConfig: colorValue,
-            fallback: null
-        });
+        // Use base class method for state-based color resolution with theme token support
+        // The base class method handles both state selection and theme token resolution
+        const resolved = this._resolveEntityStateColor(colorValue, null);
 
-        if (!selectedColor) return null;
+        if (!resolved) return null;
 
-        // Step 2: If it's a theme token, resolve it
-        if (typeof selectedColor === 'string' && selectedColor.startsWith('theme:')) {
-            const tokenPath = selectedColor.replace('theme:', '');
-            const resolved = this.getThemeToken(tokenPath, selectedColor);
-            lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${selectedColor}" -> "${resolved}"`);
-            return resolved;
+        // If base class didn't resolve theme token (returns theme:* as-is), resolve it here
+        if (typeof resolved === 'string' && resolved.startsWith('theme:')) {
+            const tokenPath = resolved.replace('theme:', '');
+            const tokenValue = this.getThemeToken(tokenPath, resolved);
+            lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${resolved}" -> "${tokenValue}"`);
+            return tokenValue;
         }
 
-        // Step 3: Return the color as-is (already a concrete value)
-        return selectedColor;
+        return resolved;
     }
 
     /**

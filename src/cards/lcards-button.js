@@ -1933,6 +1933,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {Object} resolvedStyle - Resolved button style
      * @param {string} buttonState - Current classified button state (active/inactive/unavailable)
      * @param {string} actualEntityState - Actual entity state (on/off/heat/cool/etc.)
+     * @returns {Object} { hover: { backgroundColor }, pressed: { backgroundColor } }
      */
     _extractInteractionStyles(resolvedStyle, buttonState, actualEntityState) {
         const themeManager = this._singletons?.themeManager;
@@ -1964,6 +1965,13 @@ export class LCARdSButton extends LCARdSCard {
             pressedColor: pressedBgColor,
             backgroundObject: resolvedStyle.card?.color?.background
         });
+
+        // Return values for compatibility with base class signature
+        // (used by elbow and slider which extend button)
+        return {
+            hover: this._buttonHoverStyle,
+            pressed: this._buttonPressedStyle
+        };
     }
 
     /**
@@ -2479,15 +2487,8 @@ export class LCARdSButton extends LCARdSCard {
         lcardsLog.trace(`[LCARdSButton] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
     }
 
-    /**
-     * Translate HA entity state to button state
-     * Uses base class _classifyEntityState() for standardized state classification
-     * @private
-     * @returns {string} Button state: 'active', 'inactive', 'unavailable', or 'default'
-     */
-    _getButtonState() {
-        return this._classifyEntityState(this._entity);
-    }
+    // NOTE: _getButtonState() is now inherited from LCARdSCard base class
+    // Provides standardized state classification across all cards
 
     /**
      * Setup action handlers on the rendered button
@@ -2499,156 +2500,38 @@ export class LCARdSButton extends LCARdSCard {
      * Called after button is rendered in DOM
     /**
      * Setup button interactivity for hover and pressed states
-     * Attaches mouse event listeners to apply interaction styles dynamically
-     * Called after button is rendered in DOM
+     * Uses base class method for consistent interaction handling across all cards
      * @private
      */
     _setupButtonInteractivity() {
-        // Only setup if we have interaction styles defined
-        if (!this._buttonHoverStyle && !this._buttonPressedStyle) {
-            lcardsLog.debug('[LCARdSButton] No interaction styles defined, skipping interactivity setup');
-            return;
-        }
-
         // Find the button background element (rect or path)
         const buttonBg = this.shadowRoot?.querySelector('.button-bg');
-        if (!buttonBg) {
-            lcardsLog.warn('[LCARdSButton] Button background element not found, cannot setup interactivity');
-            return;
-        }
 
         // Clean up previous listeners
         if (this._buttonInteractivityCleanup) {
             this._buttonInteractivityCleanup();
         }
 
-        // Get initial background color (entity state or default)
-        const buttonState = this._buttonStyle?._currentState || this._getButtonState();
-        const actualEntityState = this._entity?.state;
-
-        const initialBgColor = resolveStateColor({
-            actualState: actualEntityState,
-            classifiedState: buttonState,
-            colorConfig: this._buttonStyle?.card?.color?.background,
-            fallback: 'var(--lcars-orange, #FF9900)'
+        // Use base class method to setup interactivity
+        this._buttonInteractivityCleanup = this._setupBaseInteractivity(buttonBg, {
+            hoverStyle: this._buttonHoverStyle,
+            pressedStyle: this._buttonPressedStyle,
+            getRestoreColor: () => this._getCurrentEntityStateColor()
         });
-
-        lcardsLog.debug('[LCARdSButton] Setting up button interactivity', {
-            hasHover: !!this._buttonHoverStyle,
-            hasPressed: !!this._buttonPressedStyle,
-            initialColor: initialBgColor
-        });
-
-        // Event handlers
-        const handleMouseEnter = (e) => {
-            if (this._buttonHoverStyle && !this._isButtonPressed) {
-                this._isButtonHovering = true;
-                this._applyButtonBackgroundColor(this._buttonHoverStyle.backgroundColor);
-                lcardsLog.trace('[LCARdSButton] Mouse enter - applied hover color', { color: this._buttonHoverStyle.backgroundColor });
-            }
-            e.stopPropagation(); // Prevent button-level hover
-        };
-
-        const handleMouseLeave = (e) => {
-            this._isButtonHovering = false;
-            if (!this._isButtonPressed) {
-                // Restore to current entity state color (recalculate dynamically)
-                const currentBgColor = this._getCurrentEntityStateColor();
-                this._applyButtonBackgroundColor(currentBgColor);
-                lcardsLog.trace('[LCARdSButton] Mouse leave - restored entity color', { color: currentBgColor });
-            }
-            e.stopPropagation();
-        };
-
-        const handleMouseDown = (e) => {
-            if (this._buttonPressedStyle) {
-                this._isButtonPressed = true;
-                this._applyButtonBackgroundColor(this._buttonPressedStyle.backgroundColor);
-                lcardsLog.trace('[LCARdSButton] Mouse down - applied pressed color', { color: this._buttonPressedStyle.backgroundColor });
-            }
-            e.stopPropagation();
-        };
-
-        const handleMouseUp = (e) => {
-            this._isButtonPressed = false;
-            // Return to hover or entity state
-            if (this._isButtonHovering && this._buttonHoverStyle) {
-                this._applyButtonBackgroundColor(this._buttonHoverStyle.backgroundColor);
-                lcardsLog.trace('[LCARdSButton] Mouse up (hovering) - restored hover color', { color: this._buttonHoverStyle.backgroundColor });
-            } else {
-                // Recalculate current entity state color
-                const currentBgColor = this._getCurrentEntityStateColor();
-                this._applyButtonBackgroundColor(currentBgColor);
-                lcardsLog.trace('[LCARdSButton] Mouse up (not hovering) - restored entity color', { color: currentBgColor });
-            }
-            e.stopPropagation();
-        };
-
-        // Attach listeners
-        buttonBg.addEventListener('mouseenter', handleMouseEnter);
-        buttonBg.addEventListener('mouseleave', handleMouseLeave);
-        buttonBg.addEventListener('mousedown', handleMouseDown);
-        buttonBg.addEventListener('mouseup', handleMouseUp);
-
-        // Touch support
-        buttonBg.addEventListener('touchstart', handleMouseDown, { passive: true });
-        buttonBg.addEventListener('touchend', handleMouseUp);
-
-        // Store cleanup function
-        this._buttonInteractivityCleanup = () => {
-            buttonBg.removeEventListener('mouseenter', handleMouseEnter);
-            buttonBg.removeEventListener('mouseleave', handleMouseLeave);
-            buttonBg.removeEventListener('mousedown', handleMouseDown);
-            buttonBg.removeEventListener('mouseup', handleMouseUp);
-            buttonBg.removeEventListener('touchstart', handleMouseDown);
-            buttonBg.removeEventListener('touchend', handleMouseUp);
-        };
     }
 
     /**
      * Get current entity state background color (dynamically calculated)
      * Used when returning from hover/pressed states to restore the correct color
+     * Uses base class method for consistent color resolution
      * @private
      * @returns {string} Current background color based on entity state
      */
     _getCurrentEntityStateColor() {
-        const buttonState = this._buttonStyle?._currentState || this._getButtonState();
-        const actualEntityState = this._entity?.state;
-
-        return resolveStateColor({
-            actualState: actualEntityState,
-            classifiedState: buttonState,
-            colorConfig: this._buttonStyle?.card?.color?.background,
-            fallback: 'var(--lcars-orange, #FF9900)'
-        });
-    }
-
-    /**
-     * Apply background color to button dynamically
-     * Updates the fill attribute of the button background element
-     * Uses style.fill for higher specificity to override inline styles
-     * @private
-     * @param {string} color - Color to apply (hex, rgb, theme token)
-     */
-    _applyButtonBackgroundColor(color) {
-        const buttonBg = this.shadowRoot?.querySelector('.button-bg');
-        if (!buttonBg) {
-            lcardsLog.warn('[LCARdSButton] Button background element not found');
-            return;
-        }
-        if (!color) {
-            lcardsLog.warn('[LCARdSButton] No color provided to apply');
-            return;
-        }
-
-        // Use style.fill instead of setAttribute for higher specificity
-        buttonBg.style.fill = color;
-        lcardsLog.trace('[LCARdSButton] Applied background color', {
-            color,
-            currentStyleFill: buttonBg.style.fill,
-            currentAttributeFill: buttonBg.getAttribute('fill'),
-            computedFill: window.getComputedStyle(buttonBg).fill
-        });
+        return this._resolveEntityStateColor(
+            this._buttonStyle?.card?.color?.background,
+            'var(--lcars-orange, #FF9900)'
+        );
     }
 
     /**
