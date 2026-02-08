@@ -301,6 +301,11 @@ export class LCARdSSlider extends LCARdSButton {
         this._borderInteractivityCleanups = { left: null, top: null, right: null, bottom: null };
         this._borderActionCleanups = { left: null, top: null, right: null, bottom: null };
 
+        // Unified border hover state (all borders hover together as one frame)
+        this._allBordersHovering = false;
+        this._borderHoverRestoreTimer = null;
+        this._borderElements = { left: null, top: null, right: null, bottom: null };
+
         // Display configuration (derived from config + entity)
         // Defines visual scale range (what pills/gauge render)
         this._displayConfig = {
@@ -2723,6 +2728,157 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Setup unified border interactivity with synchronized hover across all borders
+     * Treats all 4 borders as a single interactive frame - hovering any border highlights all
+     * Uses debounced restore (30ms) to handle transitions between borders without flicker
+     * @private
+     */
+    _setupUnifiedBorderInteractivity() {
+        const borders = ['left', 'top', 'right', 'bottom'];
+
+        // Query and cache all border elements
+        borders.forEach(side => {
+            this._borderElements[side] = this.shadowRoot?.querySelector(`#border-${side}`);
+        });
+
+        // Apply hover color to all borders that have hover configured
+        const applyHoverToAllBorders = () => {
+            borders.forEach(side => {
+                const element = this._borderElements[side];
+                const hoverColor = this._borderHoverStyles[side];
+                if (element && hoverColor) {
+                    element.style.fill = hoverColor;
+                }
+            });
+        };
+
+        // Restore default color to all borders
+        const restoreAllBorders = () => {
+            borders.forEach(side => {
+                const element = this._borderElements[side];
+                if (element) {
+                    const borderConfig = this._sliderStyle?.border?.[side];
+                    const restoreColor = borderConfig ?
+                        this._resolveStateBorderColor(borderConfig.color) :
+                        '#000000';
+                    element.style.fill = restoreColor;
+                }
+            });
+        };
+
+        // Apply pressed color to all borders that have pressed configured
+        const applyPressedToAllBorders = () => {
+            borders.forEach(side => {
+                const element = this._borderElements[side];
+                const pressedColor = this._borderPressedStyles[side];
+                if (element && pressedColor) {
+                    element.style.fill = pressedColor;
+                }
+            });
+        };
+
+        // Setup unified hover handlers on each border
+        borders.forEach(side => {
+            const element = this._borderElements[side];
+            if (!element) return;
+
+            const hoverColor = this._borderHoverStyles[side];
+            const pressedColor = this._borderPressedStyles[side];
+
+            // Skip if no interaction styles configured
+            if (!hoverColor && !pressedColor) {
+                return;
+            }
+
+            // Clean up previous listeners
+            if (this._borderInteractivityCleanups[side]) {
+                this._borderInteractivityCleanups[side]();
+            }
+
+            let isPressed = false;
+
+            const handleMouseEnter = (e) => {
+                // Cancel any pending restore timer (mouse moved to another border)
+                if (this._borderHoverRestoreTimer) {
+                    clearTimeout(this._borderHoverRestoreTimer);
+                    this._borderHoverRestoreTimer = null;
+                }
+
+                // Set shared hover state and apply to all borders
+                if (!isPressed && !this._allBordersHovering) {
+                    this._allBordersHovering = true;
+                    applyHoverToAllBorders();
+                    lcardsLog.trace(`[LCARdSSlider] Unified border hover activated via ${side}`);
+                }
+                e.stopPropagation();
+            };
+
+            const handleMouseLeave = (e) => {
+                // Debounce the restore to allow transition between borders
+                // If mouse enters another border within 30ms, the timer is cancelled
+                if (this._borderHoverRestoreTimer) {
+                    clearTimeout(this._borderHoverRestoreTimer);
+                }
+
+                this._borderHoverRestoreTimer = setTimeout(() => {
+                    if (!isPressed) {
+                        this._allBordersHovering = false;
+                        restoreAllBorders();
+                        lcardsLog.trace(`[LCARdSSlider] Unified border hover deactivated`);
+                    }
+                    this._borderHoverRestoreTimer = null;
+                }, 30); // 30ms debounce for smooth border transitions
+
+                e.stopPropagation();
+            };
+
+            const handleMouseDown = (e) => {
+                if (pressedColor) {
+                    isPressed = true;
+                    applyPressedToAllBorders();
+                }
+                e.stopPropagation();
+            };
+
+            const handleMouseUp = (e) => {
+                isPressed = false;
+                // Return to hover state or restore
+                if (this._allBordersHovering) {
+                    applyHoverToAllBorders();
+                } else {
+                    restoreAllBorders();
+                }
+                e.stopPropagation();
+            };
+
+            // Attach listeners
+            element.addEventListener('mouseenter', handleMouseEnter);
+            element.addEventListener('mouseleave', handleMouseLeave);
+            element.addEventListener('mousedown', handleMouseDown);
+            element.addEventListener('mouseup', handleMouseUp);
+
+            // Touch support
+            element.addEventListener('touchstart', handleMouseDown, { passive: true });
+            element.addEventListener('touchend', handleMouseUp);
+
+            // Store cleanup function
+            this._borderInteractivityCleanups[side] = () => {
+                element.removeEventListener('mouseenter', handleMouseEnter);
+                element.removeEventListener('mouseleave', handleMouseLeave);
+                element.removeEventListener('mousedown', handleMouseDown);
+                element.removeEventListener('mouseup', handleMouseUp);
+                element.removeEventListener('touchstart', handleMouseDown);
+                element.removeEventListener('touchend', handleMouseUp);
+            };
+
+            lcardsLog.trace(`[LCARdSSlider] Setup ${side} border unified interactivity`, {
+                hover: hoverColor,
+                pressed: pressedColor
+            });
+        });
+    }
+
+    /**
      * Setup border interactivity after render
      * Re-attaches handlers on every render to ensure they target current DOM elements
      * (SVG elements are replaced during re-renders, creating stale references if attached once)
@@ -2751,54 +2907,12 @@ export class LCARdSSlider extends LCARdSButton {
             return;
         }
 
-        // Setup interactivity for each enabled border
-        const borders = ['left', 'top', 'right', 'bottom'];
-        borders.forEach(side => {
-            const hoverColor = this._borderHoverStyles[side];
-            const pressedColor = this._borderPressedStyles[side];
-
-            // Only setup if border has hover or pressed styles configured
-            if (!hoverColor && !pressedColor) {
-                return;
-            }
-
-            // Find border element by ID
-            const borderElement = this.shadowRoot?.querySelector(`#border-${side}`);
-            if (!borderElement) {
-                return; // Border not rendered (disabled or no size)
-            }
-
-            // Clean up previous listener for this border
-            if (this._borderInteractivityCleanups[side]) {
-                this._borderInteractivityCleanups[side]();
-            }
-
-            // Get restore color from border config
-            const borderConfig = this._sliderStyle?.border?.[side];
-            const restoreColor = borderConfig ?
-                this._resolveStateBorderColor(borderConfig.color) :
-                '#000000';
-
-            // Wrap colors in style objects (required by _setupBaseInteractivity)
-            const hoverStyle = hoverColor ? { backgroundColor: hoverColor } : null;
-            const pressedStyle = pressedColor ? { backgroundColor: pressedColor } : null;
-
-            // Setup base interactivity
-            this._borderInteractivityCleanups[side] = this._setupBaseInteractivity(borderElement, {
-                hoverStyle,
-                pressedStyle,
-                getRestoreColor: () => restoreColor
-            });
-
-            lcardsLog.trace(`[LCARdSSlider] Setup ${side} border interactivity`, {
-                hover: hoverColor,
-                pressed: pressedColor,
-                restore: restoreColor
-            });
-        });
+        // Setup unified border interactivity (all borders hover together)
+        this._setupUnifiedBorderInteractivity();
 
         // Setup action handlers for each enabled border
         // All borders trigger the same actions (tap/hold/double-tap)
+        const borders = ['left', 'top', 'right', 'bottom'];
         borders.forEach(side => {
             const borderElement = this.shadowRoot?.querySelector(`#border-${side}`);
             if (!borderElement) {
@@ -2857,6 +2971,12 @@ export class LCARdSSlider extends LCARdSButton {
      */
     disconnectedCallback() {
         super.disconnectedCallback();
+
+        // Clear any pending hover restore timer
+        if (this._borderHoverRestoreTimer) {
+            clearTimeout(this._borderHoverRestoreTimer);
+            this._borderHoverRestoreTimer = null;
+        }
 
         // Cleanup border interaction listeners
         const borders = ['left', 'top', 'right', 'bottom'];
