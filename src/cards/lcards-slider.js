@@ -294,10 +294,11 @@ export class LCARdSSlider extends LCARdSButton {
             locked: false
         };
 
-        // Interaction states (hover/pressed)
-        this._sliderHoverStyle = null;
-        this._sliderPressedStyle = null;
-        this._sliderInteractivityCleanup = null;
+        // Border interaction states (hover/pressed) for Default component
+        // Each border can have independent hover/pressed colors
+        this._borderHoverStyles = { left: null, top: null, right: null, bottom: null };
+        this._borderPressedStyles = { left: null, top: null, right: null, bottom: null };
+        this._borderInteractivityCleanups = { left: null, top: null, right: null, bottom: null };
 
         // Display configuration (derived from config + entity)
         // Defines visual scale range (what pills/gauge render)
@@ -469,9 +470,6 @@ export class LCARdSSlider extends LCARdSButton {
                 this._updatePillOpacities();
             });
         }
-
-        // Setup interaction states (hover/pressed) on slider container
-        this._setupSliderInteractivity();
 
         // Register for rules
         if (this.config.id) {
@@ -646,14 +644,31 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._sliderStyle = style;
 
-        // Extract interaction styles (hover/pressed) from resolved style
-        if (this._sliderStyle) {
-            // Pass all required parameters for button's _extractInteractionStyles signature
-            const buttonState = this._getButtonState();
-            const actualEntityState = this._entity?.state;
-            const { hover, pressed } = this._extractInteractionStyles(this._sliderStyle, buttonState, actualEntityState);
-            this._sliderHoverStyle = hover;
-            this._sliderPressedStyle = pressed;
+        // Extract border interaction styles (hover/pressed) from resolved style
+        // Only for Default component borders - Advanced components have custom rendering
+        if (this._sliderStyle && this._sliderStyle.border) {
+            const borders = ['left', 'top', 'right', 'bottom'];
+            borders.forEach(side => {
+                const borderConfig = this._sliderStyle.border[side];
+                if (borderConfig && borderConfig.enabled) {
+                    // Extract hover/pressed from border color config
+                    // Structure: style.border.{side}.color.hover/pressed
+                    const colorConfig = borderConfig.color;
+                    if (colorConfig && typeof colorConfig === 'object') {
+                        this._borderHoverStyles[side] = colorConfig.hover || null;
+                        this._borderPressedStyles[side] = colorConfig.pressed || null;
+
+                        lcardsLog.trace(`[LCARdSSlider] Extracted ${side} border interaction:`, {
+                            hover: this._borderHoverStyles[side],
+                            pressed: this._borderPressedStyles[side]
+                        });
+                    }
+                } else {
+                    // Border not enabled - clear any previous interaction styles
+                    this._borderHoverStyles[side] = null;
+                    this._borderPressedStyles[side] = null;
+                }
+            });
         }
     }
 
@@ -731,62 +746,6 @@ export class LCARdSSlider extends LCARdSButton {
             this._componentLoaded = false;
             this._componentMetadata = null;
         }
-    }
-
-    /**
-     * Setup slider interactivity for hover and pressed states
-     * Uses base class method for consistent interaction handling
-     * Targets the slider container background for interaction feedback
-     * @private
-     */
-    _setupSliderInteractivity() {
-        // Find the slider SVG container - this is the main interactive element
-        // For component-based rendering, we target the root SVG element
-        const sliderSvg = this.shadowRoot?.querySelector('svg');
-
-        // Clean up previous listeners
-        if (this._sliderInteractivityCleanup) {
-            this._sliderInteractivityCleanup();
-        }
-
-        // Use base class method to setup interactivity
-        // Note: For sliders, we apply color to the SVG root background/first rect
-        this._sliderInteractivityCleanup = this._setupBaseInteractivity(sliderSvg, {
-            hoverStyle: this._sliderHoverStyle,
-            pressedStyle: this._sliderPressedStyle,
-            getRestoreColor: () => this._resolveEntityStateColor(
-                this._sliderStyle?.card?.color?.background,
-                'var(--lcars-orange, #FF9900)'
-            )
-        });
-    }
-
-    /**
-     * Setup slider interactivity for hover and pressed states
-     * Uses base class method for consistent interaction handling
-     * Targets the slider container background for interaction feedback
-     * @private
-     */
-    _setupSliderInteractivity() {
-        // Find the slider SVG container - this is the main interactive element
-        // For component-based rendering, we target the root SVG element
-        const sliderSvg = this.shadowRoot?.querySelector('svg');
-
-        // Clean up previous listeners
-        if (this._sliderInteractivityCleanup) {
-            this._sliderInteractivityCleanup();
-        }
-
-        // Use base class method to setup interactivity
-        // Note: For sliders, we apply color to the SVG root background/first rect
-        this._sliderInteractivityCleanup = this._setupBaseInteractivity(sliderSvg, {
-            hoverStyle: this._sliderHoverStyle,
-            pressedStyle: this._sliderPressedStyle,
-            getRestoreColor: () => this._resolveEntityStateColor(
-                this._sliderStyle?.card?.color?.background,
-                'var(--lcars-orange, #FF9900)'
-            )
-        });
     }
 
     /**
@@ -2763,17 +2722,83 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Setup border interactivity after render
+     * Re-attaches handlers on every render to ensure they target current DOM elements
+     * (SVG elements are replaced during re-renders, creating stale references if attached once)
+     * @protected
+     */
+    updated(changedProps) {
+        super.updated(changedProps);
+
+        // Only setup border interactivity for Default component
+        // Advanced components (Gauge, Pills) have complex custom rendering
+        const componentName = this.config.component || 'default';
+        if (componentName !== 'default') {
+            return;
+        }
+
+        // Setup interactivity for each enabled border
+        const borders = ['left', 'top', 'right', 'bottom'];
+        borders.forEach(side => {
+            const hoverColor = this._borderHoverStyles[side];
+            const pressedColor = this._borderPressedStyles[side];
+
+            // Only setup if border has hover or pressed styles configured
+            if (!hoverColor && !pressedColor) {
+                return;
+            }
+
+            // Find border element by ID
+            const borderElement = this.shadowRoot?.querySelector(`#border-${side}`);
+            if (!borderElement) {
+                return; // Border not rendered (disabled or no size)
+            }
+
+            // Clean up previous listener for this border
+            if (this._borderInteractivityCleanups[side]) {
+                this._borderInteractivityCleanups[side]();
+            }
+
+            // Get restore color from border config
+            const borderConfig = this._sliderStyle?.border?.[side];
+            const restoreColor = borderConfig ?
+                this._resolveStateBorderColor(borderConfig.color) :
+                '#000000';
+
+            // Wrap colors in style objects (required by _setupBaseInteractivity)
+            const hoverStyle = hoverColor ? { backgroundColor: hoverColor } : null;
+            const pressedStyle = pressedColor ? { backgroundColor: pressedColor } : null;
+
+            // Setup base interactivity
+            this._borderInteractivityCleanups[side] = this._setupBaseInteractivity(borderElement, {
+                hoverStyle,
+                pressedStyle,
+                getRestoreColor: () => restoreColor
+            });
+
+            lcardsLog.trace(`[LCARdSSlider] Setup ${side} border interactivity`, {
+                hover: hoverColor,
+                pressed: pressedColor,
+                restore: restoreColor
+            });
+        });
+    }
+
+    /**
      * Cleanup on card removal
      * @protected
      */
     disconnectedCallback() {
         super.disconnectedCallback();
 
-        // Cleanup interaction listeners
-        if (this._sliderInteractivityCleanup) {
-            this._sliderInteractivityCleanup();
-            this._sliderInteractivityCleanup = null;
-        }
+        // Cleanup border interaction listeners
+        const borders = ['left', 'top', 'right', 'bottom'];
+        borders.forEach(side => {
+            if (this._borderInteractivityCleanups[side]) {
+                this._borderInteractivityCleanups[side]();
+                this._borderInteractivityCleanups[side] = null;
+            }
+        });
     }
 
     /**
