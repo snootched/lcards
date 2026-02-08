@@ -74,11 +74,9 @@ Legend:  ✅ Present | ❌ Not present | ⚠️ Partial
 <br>
 
 1. Open HACS in your Home Assistant instance
-2. Go to **Frontend** → Click **⊕** button
-3. Search for **LCARdS** and install
-4. Restart Home Assistant
-5. Refresh your browser cache
-6. Add LCARdS cards from the dashboard editor
+2. Search for **LCARdS** and install
+3. Refresh your browser cache
+4. Add LCARdS cards from the dashboard editor
 
 </details>
 
@@ -100,8 +98,6 @@ Legend:  ✅ Present | ❌ Not present | ⚠️ Partial
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=frontend)
 
-**Need help?** Check the [Getting Started Guide →](doc/user-guide/getting-started/)
-
 <br>
 
 ---
@@ -109,16 +105,15 @@ Legend:  ✅ Present | ❌ Not present | ⚠️ Partial
 
 ### 🎯 Unified Architecture & Core Systems
 - LCARdS is now based on Lit - moving away from the custom-button-card base of CB-LCARS.
-- Cards share a set of common core systems:
+- LCARdS makes use of popular libaries under the hook like **[ApexCharts](https://apexcharts.com)**, **[Animje.js](https://animejs.com)**, and **[d3](https://d3js.org/)** components.
+- The cards share a set of common core systems:
   - **Systems Manager** - centralized entity subscriptions and smart card notifications (reducing multiple subscriptions on same entities)
   - **Rules Engine** — centralized processing of conditional styling and cross-card behaviors - send updates to multiple cards targetable by tags, types, IDs, etc.
   - **Theme Manager** — token-based theming allowing for themes to define many visual aspects.
   - **Animation Framework** — provides fully integrated anime.js v4 with helper methods and a core set of animation presets.
-  - **DataSource Manager** — centralized data buffers providing entity history, transformations and aggregations that can be used for runtime visualizations.
+  - **DataSource Manager** — centralized data buffers providing runtime entity history, and processors to transform output for card usage such as charting visualizations.
   - ..and more
 - Template support (JavaScript, Jinja2, LCARdS tokens)
-- Unified action handlers and lifecycle
-
 
 ### 🎨 Visual Editors
 - Card editors have been upgraded with immersive configuration studios.
@@ -204,25 +199,19 @@ graph LR
 
 ### Button Card [`lcards-button`]
 
-![Button Card Samples](docs/assets/card-button-samples.png)
-<!--
-IMAGE PLACEHOLDER: Button card varieties
-Show: Lozenge, bullet, capped, Picard variants in active/inactive states
-File: docs/assets/card-button-samples.png
--->
+![Button Card Samples](doc/img/lcards-button.png)
 
 Provides all standard LCARS buttons, plus advanced multi-segment/multi-function buttons.
 
 <details>
 <summary><b>Key Features</b></summary>
 
-- Multiple preset styles (lozenge, bullet, capped, Picard, text, etc.)
-- Complex SVG `component` with configurabale interactive `segments` for multi-funtion buttons.
+- Multiple preset styles (lozenge, bullet, capped, outline, text, etc.)
+- For more complex shapes - SVG `component` function providing configurabale interactive `segments` to create multi-funtion buttons.
 - Dynamic state-based styling.
-- Full rules engine and template support.
 - Multiple custom text fields supported with full configuration and template support.
 
-**[→ Full Documentation](doc/user-guide/)**
+**[Button Documentation](doc/user/cards/button/button.md)**
 
 </details>
 
@@ -242,12 +231,13 @@ Interactive sliders for display of sensors, and control of entities.
 <details>
 <summary><b>Key Features</b></summary>
 
-- Multiple presets available (pills and gauge mode)
+- Multiple components and presets available
+- Out of the box Pills, Gauge, and `Picard mode`)
 - Horizontal and vertical orientations
-- Full display and control inversion options (ie. for cover support.)
-- Both display min/max settings and control min/max settings.
+- Full display and control inversion options
+- Configure differnt min/max settings for the display and the slider control
 
-**[→ Full Documentation](doc/user-guide/)**
+**[Slider Documentation](doc/user/cards/slider/slider.md)**
 
 </details>
 
@@ -272,8 +262,9 @@ Classic LCARS corner designs for authentic interface aesthetics.
 - Multiple elbow types available (header, footer, open, contained, etc)
 - Mutiple elbow style presets available: standard LCARS arc, corner-cuts with configurable angles.
 - Extends `lcards-button` and inherits functionality (multi-text fields, actions, rules, animations, templates)
+- Supports optional HA-LCARS input helper binding for sizing controls.
 
-**[→ Full Documentation](doc/user-guide/)**
+**[Elbow Documentation](doc/user/cards/elbow/elbow.md)**
 
 </details>
 
@@ -300,12 +291,12 @@ Highly configurable canvas with multi-card and routing line support.
 <details>
 <summary><b>Key Features</b></summary>
 
-- Multiple controls per MSD (controls are other HA cards.)
+- Add multiple controls per MSD (controls are other HA cards.)
 - Dynamic connecting lines and animations
 - **Studio Editor**: Drag-and-drop visual configuration with live preview.
 
 
-**[→ Full Documentation](doc/user-guide/advanced/msd-controls.md)**
+**[MSD Documentation](doc/user/cards/msd/msd.md)**
 
 </details>
 
@@ -328,9 +319,9 @@ LCARdS integrated charting card powered by ApexCharts library.
 - 15+ chart types (line, area, bar, pie, scatter, heatmap, radar)
 - Real-time entity updates with multi-series support
 - Advanced data sources with history preload
-- Automatic data transformations from LCARdS datasources/entities to ApexChards data series.
+- Automatic data transformations from LCARdS datasources or HA entities to ApexCharts data series format.
 
-**[→ Full Documentation](doc/user-guide/configuration/overlays/apexcharts-overlay.md)**
+**[Chart Documentation](doc/user/cards/chart/chart.md)**
 
 </details>
 
@@ -351,18 +342,14 @@ LCARS data grids with configurable data modes and cascade animations.
 <summary><b>Key Features</b></summary>
 
 - Multiple modes available: decorative mode (random generated data) and data mode (real entity data.)
-- Cascade animation with LCARS color cycling.
+- Customizable data-cascade animation with LCARS color cycling.
 - Static text and templates supported.
-- "spreadsheet" mode with configurable column and row headers.
+- "spreadsheet"-like configuration in configuration studio
 - Hierarchical cascading styles: table-level defaults with overrides available at column, row, and cell level.
 
-**[→ Full Documentation](doc/user-guide/)**
+**[Data-Grid Documentation](doc/user/cards/data-grid/data-grid.md)**
 
 </details>
-
----
-
-**[→ View Full Documentation](doc/user-guide/)**
 
 <br>
 
@@ -418,7 +405,7 @@ From here you can access and manage data sources, inspect provenance tracking, b
 
 <td width="60%">
 
-pic
+![datasource browser](doc/img/ds-browser.png)
 
 </td>
 </tr>
@@ -434,7 +421,7 @@ pic
 
 <td width="60%">
 
-pic
+![theme browser](doc/img/theme-browser.png)
 
 </td>
 
@@ -452,7 +439,7 @@ pic
 
 <td width="60%">
 
-pic
+![provenance browser](doc/img/provenance-browser.png)
 
 </td>
 
@@ -470,7 +457,7 @@ pic
 
 <td width="60%">
 
-pic
+![rules browser](doc/img/rules-browser.png)
 
 </td>
 

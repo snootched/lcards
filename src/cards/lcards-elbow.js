@@ -166,8 +166,17 @@ export class LCARdSElbow extends LCARdSButton {
 
     /**
      * Initialize position-aware default state-based colors for elbows
-     * Sets card.color.background defaults based on elbow position (header vs footer)
+     * Sets card.color.background defaults based on elbow type and position
      * MUST override any button preset colors
+     *
+     * Token resolution strategy:
+     * 1. Try component-specific: components.elbow.{type}.background.*
+     * 2. Fall back to position-specific: components.elbow.{header|footer}.background.*
+     * 3. Ultimate fallback handled in _getElbowColor()
+     *
+     * This allows themes to define colors for specific elbow types (e.g., diagonal-cap-left)
+     * while falling back to header/footer defaults for standard elbows.
+     *
      * @private
      */
     _initializeElbowDefaultColors() {
@@ -176,16 +185,42 @@ export class LCARdSElbow extends LCARdSButton {
             return;
         }
 
-        // Get component layout to determine position
+        // Get component metadata
         const component = getElbowComponent(this._elbowConfig.type);
         const position = component?.layout?.position || 'header';
+        const componentType = this._elbowConfig.type; // e.g., 'diagonal-cap-left', 'header-left'
 
-        lcardsLog.debug(`[LCARdSElbow] Initializing elbow colors for position: ${position}`);
+        lcardsLog.debug(`[LCARdSElbow] Initializing elbow colors for type: ${componentType}, position: ${position}`);
 
-        // Use position-specific theme token paths (header vs footer)
-        const tokenPath = position === 'footer'
-            ? 'theme:components.elbow.footer.background'
-            : 'theme:components.elbow.header.background';
+        // Try to get component-specific colors from theme first
+        const themeManager = this._singletons?.themeManager || window.lcards?.core?.themeManager;
+
+        let tokenBase;
+        if (themeManager) {
+            // Check if component-specific tokens exist
+            const componentTokenPath = `components.elbow.${componentType}.background`;
+            const hasComponentTokens = themeManager.getToken(`${componentTokenPath}.default`, null) !== null;
+
+            if (hasComponentTokens) {
+                // Use component-specific tokens
+                tokenBase = `theme:${componentTokenPath}`;
+                lcardsLog.debug(`[LCARdSElbow] Using component-specific tokens: ${componentTokenPath}`);
+            } else {
+                // Fall back to position-specific tokens
+                const positionTokenPath = position === 'footer'
+                    ? 'components.elbow.footer.background'
+                    : 'components.elbow.header.background';
+                tokenBase = `theme:${positionTokenPath}`;
+                lcardsLog.debug(`[LCARdSElbow] Falling back to position tokens: ${positionTokenPath}`);
+            }
+        } else {
+            // No theme manager - use position-based tokens as fallback
+            lcardsLog.warn('[LCARdSElbow] No theme manager available, using position-based tokens');
+            const positionTokenPath = position === 'footer'
+                ? 'components.elbow.footer.background'
+                : 'components.elbow.header.background';
+            tokenBase = `theme:${positionTokenPath}`;
+        }
 
         // ALWAYS set elbow colors - override button preset defaults
         // Initialize nested structure if needed
@@ -193,15 +228,20 @@ export class LCARdSElbow extends LCARdSButton {
         if (!this.config.style.card) this.config.style.card = {};
         if (!this.config.style.card.color) this.config.style.card.color = {};
 
-        // Set position-aware state-based colors using theme tokens
+        // Set state-based colors using determined token path
         this.config.style.card.color.background = {
-            default: `${tokenPath}.default`,
-            active: `${tokenPath}.active`,
-            inactive: `${tokenPath}.inactive`,
-            unavailable: `${tokenPath}.unavailable`
+            default: `${tokenBase}.default`,
+            active: `${tokenBase}.active`,
+            inactive: `${tokenBase}.inactive`,
+            unavailable: `${tokenBase}.unavailable`
         };
 
-        lcardsLog.debug(`[LCARdSElbow] Force-set elbow background colors:`, this.config.style.card.color.background);
+        lcardsLog.debug(`[LCARdSElbow] Set elbow background colors:`, {
+            type: componentType,
+            position,
+            tokenBase,
+            colors: this.config.style.card.color.background
+        });
     }
 
     /**
@@ -220,32 +260,57 @@ export class LCARdSElbow extends LCARdSButton {
     /**
      * Inject elbow-specific colors into the resolved button style
      * Called after button style resolution to ensure colors aren't overwritten
+     * Uses same fallback logic as _initializeElbowDefaultColors()
      * @private
      */
     _injectElbowColors() {
         if (!this._elbowConfig || !this._buttonStyle) return;
 
-        // Get component layout to determine position
+        // Get component metadata
         const component = getElbowComponent(this._elbowConfig.type);
         const position = component?.layout?.position || 'header';
+        const componentType = this._elbowConfig.type;
 
-        // Use position-specific theme token paths
-        const tokenPath = position === 'footer'
-            ? 'theme:components.elbow.footer.background'
-            : 'theme:components.elbow.header.background';
+        // Apply same fallback logic as initialization
+        const themeManager = this._singletons?.themeManager || window.lcards?.core?.themeManager;
+
+        let tokenBase;
+        if (themeManager) {
+            // Check if component-specific tokens exist
+            const componentTokenPath = `components.elbow.${componentType}.background`;
+            const hasComponentTokens = themeManager.getToken(`${componentTokenPath}.default`, null) !== null;
+
+            if (hasComponentTokens) {
+                tokenBase = `theme:${componentTokenPath}`;
+            } else {
+                const positionTokenPath = position === 'footer'
+                    ? 'components.elbow.footer.background'
+                    : 'components.elbow.header.background';
+                tokenBase = `theme:${positionTokenPath}`;
+            }
+        } else {
+            const positionTokenPath = position === 'footer'
+                ? 'components.elbow.footer.background'
+                : 'components.elbow.header.background';
+            tokenBase = `theme:${positionTokenPath}`;
+        }
 
         // Inject elbow colors into resolved button style
         if (!this._buttonStyle.card) this._buttonStyle.card = {};
         if (!this._buttonStyle.card.color) this._buttonStyle.card.color = {};
 
         this._buttonStyle.card.color.background = {
-            default: `${tokenPath}.default`,
-            active: `${tokenPath}.active`,
-            inactive: `${tokenPath}.inactive`,
-            unavailable: `${tokenPath}.unavailable`
+            default: `${tokenBase}.default`,
+            active: `${tokenBase}.active`,
+            inactive: `${tokenBase}.inactive`,
+            unavailable: `${tokenBase}.unavailable`
         };
 
-        lcardsLog.debug(`[LCARdSElbow] Injected elbow colors into _buttonStyle:`, this._buttonStyle.card.color.background);
+        lcardsLog.debug(`[LCARdSElbow] Injected elbow colors:`, {
+            type: componentType,
+            position,
+            tokenBase
+        });
     }
 
     /**
@@ -861,21 +926,34 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
-     * Resolve color value with state-based support
-     * Uses resolveStateColor utility (theme tokens already resolved by CoreConfigManager)
+     * Resolve color value with state-based support and theme token resolution
+     * First selects the appropriate state, then resolves theme tokens
      * @param {string|Object} colorValue - Color value (string or state object)
      * @param {string} [currentState] - Current button/entity state for state-based colors
      * @returns {string} Resolved CSS color value
      * @private
      */
     _resolveColorValue(colorValue, currentState = 'default') {
-        // Use shared resolution utility (matches button/slider pattern)
-        return resolveStateColor({
+        // Step 1: Select appropriate state using resolveStateColor
+        const selectedColor = resolveStateColor({
             actualState: this._entity?.state,
             classifiedState: currentState,
             colorConfig: colorValue,
             fallback: null
         });
+
+        if (!selectedColor) return null;
+
+        // Step 2: If it's a theme token, resolve it
+        if (typeof selectedColor === 'string' && selectedColor.startsWith('theme:')) {
+            const tokenPath = selectedColor.replace('theme:', '');
+            const resolved = this.getThemeToken(tokenPath, selectedColor);
+            lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${selectedColor}" -> "${resolved}"`);
+            return resolved;
+        }
+
+        // Step 3: Return the color as-is (already a concrete value)
+        return selectedColor;
     }
 
     /**
