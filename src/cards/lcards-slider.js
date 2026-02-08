@@ -299,6 +299,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._borderHoverStyles = { left: null, top: null, right: null, bottom: null };
         this._borderPressedStyles = { left: null, top: null, right: null, bottom: null };
         this._borderInteractivityCleanups = { left: null, top: null, right: null, bottom: null };
+        this._borderActionCleanups = { left: null, top: null, right: null, bottom: null };
 
         // Display configuration (derived from config + entity)
         // Defines visual scale range (what pills/gauge render)
@@ -2730,6 +2731,19 @@ export class LCARdSSlider extends LCARdSButton {
     updated(changedProps) {
         super.updated(changedProps);
 
+        // Update dynamic elements when slider value changes
+        // Lit's hasChanged() ensures this only fires when value actually changes
+        if (changedProps.has('_sliderValue')) {
+            this._updateDynamicElements();
+        }
+
+        // Update pill opacities after render completes
+        // This ensures pills reflect current value on first load and subsequent updates
+        if (this._mode === 'pills') {
+            this._updatePillOpacities();
+        }
+        // Note: Gauge mode uses full re-render, no incremental updates needed
+
         // Only setup border interactivity for Default component
         // Advanced components (Gauge, Pills) have complex custom rendering
         const componentName = this.config.component || 'default';
@@ -2782,6 +2796,59 @@ export class LCARdSSlider extends LCARdSButton {
                 restore: restoreColor
             });
         });
+
+        // Setup action handlers for each enabled border
+        // All borders trigger the same actions (tap/hold/double-tap)
+        borders.forEach(side => {
+            const borderElement = this.shadowRoot?.querySelector(`#border-${side}`);
+            if (!borderElement) {
+                return; // Border not rendered
+            }
+
+            // Clean up previous action handler for this border
+            if (this._borderActionCleanups[side]) {
+                this._borderActionCleanups[side]();
+            }
+
+            // Build action configurations from card config
+            const actions = {
+                tap_action: this.config.tap_action,
+                hold_action: this.config.hold_action,
+                double_tap_action: this.config.double_tap_action
+            };
+
+            // Skip if no actions configured
+            if (!actions.tap_action && !actions.hold_action && !actions.double_tap_action) {
+                return;
+            }
+
+            // Get AnimationManager for action triggers
+            const getAnimationManager = () => {
+                if (this._singletons?.animationManager) {
+                    return this._singletons.animationManager;
+                }
+                return window.lcards?.core?.animationManager;
+            };
+
+            // Register border with ActionHandler
+            this._borderActionCleanups[side] = this.setupActions(
+                borderElement,
+                actions,
+                {
+                    animationManager: getAnimationManager(),
+                    getAnimationManager,
+                    elementId: `slider-${this._cardGuid}-border-${side}`,
+                    entity: this.config.entity,
+                    animations: this.config.animations
+                }
+            );
+
+            lcardsLog.trace(`[LCARdSSlider] Setup ${side} border actions`, {
+                tap: !!actions.tap_action,
+                hold: !!actions.hold_action,
+                doubleTap: !!actions.double_tap_action
+            });
+        });
     }
 
     /**
@@ -2797,6 +2864,10 @@ export class LCARdSSlider extends LCARdSButton {
             if (this._borderInteractivityCleanups[side]) {
                 this._borderInteractivityCleanups[side]();
                 this._borderInteractivityCleanups[side] = null;
+            }
+            if (this._borderActionCleanups[side]) {
+                this._borderActionCleanups[side]();
+                this._borderActionCleanups[side] = null;
             }
         });
     }
