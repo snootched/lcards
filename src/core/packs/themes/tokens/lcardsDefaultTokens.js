@@ -136,6 +136,8 @@ export const lcardsDefaultTokens = {
         active: 'lighten(colors.card.button, 0.1)',
         inactive: 'colors.card.buttonOff',
         unavailable: 'colors.card.buttonUnavailable',
+        hover: 'lighten(colors.card.button, 0.15)',
+        pressed: 'darken(colors.card.button, 0.1)',
         transparent: 'transparent'
       },
       border: {
@@ -145,7 +147,9 @@ export const lcardsDefaultTokens = {
           default: 'colors.card.button',
           active: 'lighten(colors.card.button, 0.1)',
           inactive: 'darken(colors.card.button, 0.25)',
-          unavailable: 'darken(colors.card.button, 0.45)'
+          unavailable: 'darken(colors.card.button, 0.45)',
+          hover: 'lighten(colors.card.button, 0.15)',
+          pressed: 'darken(colors.card.button, 0.1)'
         }
       },
       text: {
@@ -202,7 +206,9 @@ export const lcardsDefaultTokens = {
           default: 'colors.card.topColor',
           active: 'lighten(colors.card.topColor, 0.1)',
           inactive: 'darken(colors.card.topColor, 0.2)',
-          unavailable: 'darken(colors.card.topColor, 0.4)'
+          unavailable: 'darken(colors.card.topColor, 0.4)',
+          hover: 'lighten(colors.card.topColor, 0.15)',
+          pressed: 'darken(colors.card.topColor, 0.1)'
         }
       },
       footer: {
@@ -210,7 +216,9 @@ export const lcardsDefaultTokens = {
           default: 'colors.card.bottomColor',
           active: 'lighten(colors.card.bottomColor, 0.1)',
           inactive: 'darken(colors.card.bottomColor, 0.2)',
-          unavailable: 'darken(colors.card.bottomColor, 0.4)'
+          unavailable: 'darken(colors.card.bottomColor, 0.4)',
+          hover: 'lighten(colors.card.bottomColor, 0.15)',
+          pressed: 'darken(colors.card.bottomColor, 0.1)'
         }
       },
       stroke: {
@@ -219,7 +227,9 @@ export const lcardsDefaultTokens = {
           default: 'colors.card.button',
           active: 'colors.card.button',
           inactive: 'colors.card.buttonOff',
-          unavailable: 'colors.card.buttonUnavailable'
+          unavailable: 'colors.card.buttonUnavailable',
+          hover: 'lighten(colors.card.button, 0.15)',
+          pressed: 'darken(colors.card.button, 0.1)'
         }
       },
       text: 'components.button.text'
@@ -244,7 +254,9 @@ export const lcardsDefaultTokens = {
           default: 'colors.card.button',
           active: 'lighten(colors.card.button, 0.1)',
           inactive: 'colors.card.buttonOff',
-          unavailable: 'colors.card.buttonUnavailable'
+          unavailable: 'colors.card.buttonUnavailable',
+          hover: 'lighten(colors.card.button, 0.15)',
+          pressed: 'darken(colors.card.button, 0.1)'
         }
       },
       pills: {

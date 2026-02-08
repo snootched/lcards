@@ -33,7 +33,9 @@ export const BUTTON_PRESETS = {
           default: 'theme:components.button.background.active',
           active: 'theme:components.button.background.active',
           inactive: 'theme:components.button.background.inactive',
-          unavailable: 'theme:components.button.background.unavailable'
+          unavailable: 'theme:components.button.background.unavailable',
+          hover: 'theme:components.button.background.hover',
+          pressed: 'theme:components.button.background.pressed'
         }
       }
     },
@@ -75,7 +77,9 @@ export const BUTTON_PRESETS = {
         default: 'theme:components.button.border.color.default',
         active: 'theme:components.button.border.color.active',
         inactive: 'theme:components.button.border.color.inactive',
-        unavailable: 'theme:components.button.border.color.unavailable'
+        unavailable: 'theme:components.button.border.color.unavailable',
+        hover: 'theme:components.button.border.color.hover',
+        pressed: 'theme:components.button.border.color.pressed'
       },
       radius: 'theme:components.button.radius.none'
     },

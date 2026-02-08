@@ -36,7 +36,9 @@ export const SLIDER_PRESETS = {
           default: 'theme:components.slider.border.color.default',
           active: 'theme:components.slider.border.color.active',
           inactive: 'theme:components.slider.border.color.inactive',
-          unavailable: 'theme:components.slider.border.color.unavailable'
+          unavailable: 'theme:components.slider.border.color.unavailable',
+          hover: 'theme:components.slider.border.color.hover',
+          pressed: 'theme:components.slider.border.color.pressed'
         }
       },
       top: {
@@ -46,7 +48,9 @@ export const SLIDER_PRESETS = {
           default: 'theme:components.slider.border.color.default',
           active: 'theme:components.slider.border.color.active',
           inactive: 'theme:components.slider.border.color.inactive',
-          unavailable: 'theme:components.slider.border.color.unavailable'
+          unavailable: 'theme:components.slider.border.color.unavailable',
+          hover: 'theme:components.slider.border.color.hover',
+          pressed: 'theme:components.slider.border.color.pressed'
         }
       },
       right: {
@@ -56,7 +60,9 @@ export const SLIDER_PRESETS = {
           default: 'theme:components.slider.border.color.default',
           active: 'theme:components.slider.border.color.active',
           inactive: 'theme:components.slider.border.color.inactive',
-          unavailable: 'theme:components.slider.border.color.unavailable'
+          unavailable: 'theme:components.slider.border.color.unavailable',
+          hover: 'theme:components.slider.border.color.hover',
+          pressed: 'theme:components.slider.border.color.pressed'
         }
       },
       bottom: {
@@ -66,7 +72,9 @@ export const SLIDER_PRESETS = {
           default: 'theme:components.slider.border.color.default',
           active: 'theme:components.slider.border.color.active',
           inactive: 'theme:components.slider.border.color.inactive',
-          unavailable: 'theme:components.slider.border.color.unavailable'
+          unavailable: 'theme:components.slider.border.color.unavailable',
+          hover: 'theme:components.slider.border.color.hover',
+          pressed: 'theme:components.slider.border.color.pressed'
         }
       }
     },
