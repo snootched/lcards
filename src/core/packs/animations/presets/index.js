@@ -21,6 +21,8 @@
 
 import { registerAnimationPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { TIMELINE_PRESETS } from './timeline-presets.js';
+import { STAGGER_PRESETS } from './stagger-presets.js';
 
 /**
  * Register all builtin animation presets
@@ -1320,37 +1322,79 @@ registerAnimationPreset('set', (def) => {
 });
 
 /**
- * Motionpath - Path following animation (placeholder)
- * TODO: Implement full motionpath support with anime.js v4
+ * Motionpath - Follow SVG path animation
+ * Uses anime.js v4 createMotionPath() for smooth path following
  *
  * Parameters:
+ * - path (required) - CSS selector for path element or path string
  * - duration (default: 4000)
  * - easing (default: 'linear')
- * - loop (default: true)
- * - path_selector (required) - CSS selector for path element
+ * - loop (default: false)
+ * - alternate (default: false)
+ * - rotate (default: true) - Auto-rotate element along path
+ * - anchor (default: '50% 50%') - Transform origin for rotation
+ *
+ * Example:
+ * {
+ *   preset: 'motionpath',
+ *   targets: '.follower',
+ *   params: { path: '#circuit-path', duration: 3000, rotate: true }
+ * }
  */
 registerAnimationPreset('motionpath', (def) => {
   const p = def.params || def;
+  const path = p.path; // Required
   const duration = p.duration || 4000;
   const easing = p.easing || 'linear';
-  const loop = p.loop !== undefined ? p.loop : true;
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate || false;
+  const rotate = p.rotate !== undefined ? p.rotate : true;
+  const anchor = p.anchor || '50% 50%';
 
-  // Placeholder implementation
-  // TODO: Add anime.js v4 createMotionPath() support
-  lcardsLog.warn('[AnimationPresets] Motionpath preset is a placeholder - full implementation pending');
+  if (!path) {
+    lcardsLog.warn('[motionpath preset] Missing required "path" parameter');
+    return { anime: {}, styles: {} };
+  }
 
   return {
     anime: {
       duration,
       easing,
       loop,
-      update: p.update
+      alternate,
+      // AnimationManager will transform this using createMotionPath()
+      motionPath: {
+        path,
+        rotate
+      }
     },
-    styles: {},
-    postInit(instance, ctx) {
-      // Future: attach tracer element along path if p.tracer defined
-      void instance;
-      void ctx;
+    styles: {
+      transformOrigin: anchor
+    },
+    setup: (element) => {
+      if (!element || !path) return;
+
+      // Resolve path element or string
+      let pathElement = path;
+      if (typeof path === 'string' && path.startsWith('#') || path.startsWith('.')) {
+        // Try to find path in same root
+        const root = element.getRootNode();
+        pathElement = root.querySelector(path);
+        if (!pathElement) {
+          lcardsLog.warn(`[motionpath preset] Path element not found: ${path}`);
+          return;
+        }
+      }
+
+      // Use anime.js v4 createMotionPath
+      if (window.lcards?.animejs?.svg?.createMotionPath) {
+        try {
+          const motionPath = window.lcards.animejs.svg.createMotionPath(pathElement);
+          element._motionPath = motionPath;
+        } catch (e) {
+          lcardsLog.error('[motionpath preset] Failed to create motion path:', e);
+        }
+      }
     }
   };
 });
@@ -1582,6 +1626,22 @@ registerAnimationPreset('physics-spring', (def) => {
       transformBox: 'fill-box'
     }
   };
+});
+
+// ==============================================================================
+// TIMELINE PRESETS
+// ==============================================================================
+
+Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
+  registerAnimationPreset(name, factory);
+});
+
+// ==============================================================================
+// STAGGER PRESETS
+// ==============================================================================
+
+Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
+  registerAnimationPreset(name, factory);
 });
 
 }
