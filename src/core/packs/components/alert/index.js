@@ -42,28 +42,28 @@ const alertSvg = `<?xml version="1.0" encoding="UTF-8"?>
   <g id="shape">
     <!-- Octagon outline -->
     <path d="M 30,15 L 70,15 L 85,30 L 85,60 L 70,75 L 30,75 L 15,60 L 15,30 Z" 
-          fill="none" stroke-width="3" />
+          fill="none" stroke="#999999" stroke-width="3" />
     
     <!-- Exclamation mark -->
-    <rect x="47" y="28" width="6" height="28" rx="2" />
-    <circle cx="50" cy="64" r="3.5" />
+    <rect x="47" y="28" width="6" height="28" rx="2" fill="#999999" />
+    <circle cx="50" cy="64" r="3.5" fill="#999999" />
   </g>
 
   <!-- Top Bar Segments (above alert symbol) -->
-  <rect id="bar-top-1" x="5" y="2" width="12" height="4" rx="1" />
-  <rect id="bar-top-2" x="20" y="2" width="12" height="4" rx="1" />
-  <rect id="bar-top-3" x="35" y="2" width="12" height="4" rx="1" />
-  <rect id="bar-top-4" x="53" y="2" width="12" height="4" rx="1" />
-  <rect id="bar-top-5" x="68" y="2" width="12" height="4" rx="1" />
-  <rect id="bar-top-6" x="83" y="2" width="12" height="4" rx="1" />
+  <rect id="bar-top-1" x="5" y="2" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-top-2" x="20" y="2" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-top-3" x="35" y="2" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-top-4" x="53" y="2" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-top-5" x="68" y="2" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-top-6" x="83" y="2" width="12" height="4" rx="1" fill="#999999" />
 
   <!-- Bottom Bar Segments (below alert symbol) -->
-  <rect id="bar-bottom-1" x="5" y="67.56" width="12" height="4" rx="1" />
-  <rect id="bar-bottom-2" x="20" y="67.56" width="12" height="4" rx="1" />
-  <rect id="bar-bottom-3" x="35" y="67.56" width="12" height="4" rx="1" />
-  <rect id="bar-bottom-4" x="53" y="67.56" width="12" height="4" rx="1" />
-  <rect id="bar-bottom-5" x="68" y="67.56" width="12" height="4" rx="1" />
-  <rect id="bar-bottom-6" x="83" y="67.56" width="12" height="4" rx="1" />
+  <rect id="bar-bottom-1" x="5" y="67.56" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-bottom-2" x="20" y="67.56" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-bottom-3" x="35" y="67.56" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-bottom-4" x="53" y="67.56" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-bottom-5" x="68" y="67.56" width="12" height="4" rx="1" fill="#999999" />
+  <rect id="bar-bottom-6" x="83" y="67.56" width="12" height="4" rx="1" fill="#999999" />
 </svg>`;
 
 /**
