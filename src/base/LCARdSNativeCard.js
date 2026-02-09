@@ -7,7 +7,6 @@
  */
 
 import { LitElement, html, css, unsafeCSS } from 'lit';
-import { lcards } from '../lcards-vars.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**

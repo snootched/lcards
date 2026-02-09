@@ -1,4 +1,3 @@
-//import * as LCARdS from '../lcards-vars.js';
 import { lcardsLog } from './lcards-logging.js';
 import jsyaml from 'js-yaml';
 

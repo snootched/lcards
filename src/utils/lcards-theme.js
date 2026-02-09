@@ -1,4 +1,3 @@
-import { core_fonts } from '../lcards-vars.js';
 import { lcardsLog } from './lcards-logging.js';
 
 /**

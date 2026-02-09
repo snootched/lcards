@@ -9,5 +9,3 @@ export const core_fonts = [
         'lcards_jeffries',
         'lcards_microgramma'
     ];
-
-export const theme_colors_uri = '/hacsfiles/lcards/lcards-themes.yaml';
