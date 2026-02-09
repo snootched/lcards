@@ -126,6 +126,26 @@ export async function animateWithRoot(options) {
  * Process special animation markers (_timeline, _stagger, _radial)
  * These are inserted by presets to signal special handling
  * 
+ * Marker Types:
+ * 
+ * 1. _timeline: true
+ *    - Creates an anime.js timeline instead of a single animation
+ *    - Input: { _timeline: true, steps: [{targets, params, offset}], loop, ... }
+ *    - Output: Timeline instance that can have multiple steps added
+ *    - Example: timeline-cascade preset creates sequential reveals
+ * 
+ * 2. _stagger: true (in delay object)
+ *    - Converts delay config object to anime.js stagger() function
+ *    - Input: delay: { _stagger: true, value: 100, grid: [6,2], from: 'center' }
+ *    - Output: delay: stagger(100, { grid: [6,2], from: 'center' })
+ *    - Example: stagger-grid preset animates grid elements with progressive delay
+ * 
+ * 3. _radial: true (in delay object)
+ *    - Creates radial stagger pattern from center point outward
+ *    - Input: delay: { _radial: true, value: 50, from: 'center' }
+ *    - Output: delay: stagger(50, { from: 'center' })
+ *    - Example: stagger-radial preset creates ripple effects
+ * 
  * @param {Object} params - Animation parameters from preset
  * @param {Element} element - Target element for animation
  * @param {Object} scope - Scope object with scope.scope property
@@ -152,15 +172,15 @@ function _processAnimationMarkers(params, element, scope) {
     // Add each step to timeline
     if (Array.isArray(steps)) {
       steps.forEach(step => {
-        const { targets, offset, params: stepParams, ...vars } = step;
+        const { targets, offset, params: stepParams, ...stepAnimationProps } = step;
         
         // If step has targets, resolve them; otherwise use element
         const stepTargets = targets || element;
         
         // Merge step params if provided
-        const stepVars = stepParams ? { ...vars, ...stepParams } : vars;
+        const finalStepProps = stepParams ? { ...stepAnimationProps, ...stepParams } : stepAnimationProps;
         
-        timeline.add(stepTargets, stepVars, offset);
+        timeline.add(stepTargets, finalStepProps, offset);
       });
     }
 
