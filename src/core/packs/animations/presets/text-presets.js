@@ -494,11 +494,26 @@ export const TEXT_PRESETS = {
             .replace(/'/g, "\\'")    // Escape single quotes
             .replace(/"/g, '\\"');   // Escape double quotes
 
+          // Sanitize element ID to ensure valid CSS identifier (only alphanumeric, dash, underscore)
+          const sanitizeId = (id) => {
+            return id.replace(/[^a-zA-Z0-9_-]/g, '_');
+          };
+
           // Generate unique style ID for this element's cursor settings
-          const elementId = element.id || `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-          if (!element.id) {
-            element.id = elementId;
+          // Use crypto.randomUUID() if available, otherwise fallback to timestamp+random
+          let rawElementId = element.id;
+          if (!rawElementId) {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+              rawElementId = `lcards-typewriter-${crypto.randomUUID()}`;
+            } else {
+              // Fallback for older browsers
+              rawElementId = `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+            }
+            element.id = rawElementId;
           }
+          
+          // Sanitize the element ID for CSS safety
+          const elementId = sanitizeId(rawElementId);
           const styleId = `lcards-typewriter-cursor-${elementId}`;
           
           // Check if this specific style already exists
