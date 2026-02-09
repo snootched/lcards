@@ -10,6 +10,8 @@
  * @module core/packs/style-presets/buttons
  */
 
+import { ALERT_PRESETS } from './alert-presets.js';
+
 /**
  * Button presets object
  * Universal button presets (work for StatusGrid, ButtonOverlay, V2 Cards, etc.)
@@ -737,5 +739,10 @@ export const BUTTON_PRESETS = {
         position: 'right-center'
       }
     }
-  }
+  },
+  
+  // =====================================
+  // ALERT PRESETS - LCARS Alert Symbol
+  // =====================================
+  ...ALERT_PRESETS
 };

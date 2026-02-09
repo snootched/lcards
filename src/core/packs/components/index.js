@@ -20,6 +20,7 @@
 import { dpadComponents } from './dpad/index.js';
 import { sliderComponents } from './sliders/index.js';
 import { elbowComponents } from './elbows/index.js';
+import { alertComponents } from './alert/index.js';
 
 /**
  * Component registry mapping component names to their presets
@@ -29,6 +30,7 @@ export const components = {
     ...dpadComponents,           // D-Pad components (dpad)
     ...sliderComponents,         // Slider components (basic, picard, picard-vertical)
     ...elbowComponents,          // Elbow components (header-left, header-right, footer-left, footer-right)
+    ...alertComponents,          // Alert components (alert)
 };
 
 /**

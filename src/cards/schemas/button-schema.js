@@ -92,10 +92,11 @@ export function getButtonSchema(options = {}) {
 
             component: {
                 type: 'string',
-                enum: ['dpad'],
+                enum: ['dpad', 'alert'],
                 description: 'Component type (mutually exclusive with preset)',
                 enumDescriptions: [
-                    'D-pad directional control (up/down/left/right/center)'
+                    'D-pad directional control (up/down/left/right/center)',
+                    'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)'
                 ]
             },
 
