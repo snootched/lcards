@@ -31,6 +31,16 @@ function _escapeHtml(text) {
 }
 
 /**
+ * Sanitize element ID to ensure valid CSS identifier (only alphanumeric, dash, underscore)
+ * @param {string} id - ID to sanitize
+ * @returns {string} Sanitized ID
+ * @private
+ */
+function _sanitizeId(id) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/**
  * Simple text splitter utility
  * Splits text into characters, words, or lines and wraps each in a span
  * 
@@ -494,27 +504,26 @@ export const TEXT_PRESETS = {
             .replace(/'/g, "\\'")    // Escape single quotes
             .replace(/"/g, '\\"');   // Escape double quotes
 
-          // Sanitize element ID to ensure valid CSS identifier (only alphanumeric, dash, underscore)
-          const sanitizeId = (id) => {
-            return id.replace(/[^a-zA-Z0-9_-]/g, '_');
-          };
-
-          // Generate unique style ID for this element's cursor settings
+          // Generate unique element ID if needed
           // Use crypto.randomUUID() if available, otherwise fallback to timestamp+random
-          let rawElementId = element.id;
-          if (!rawElementId) {
+          if (!element.id) {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-              rawElementId = `lcards-typewriter-${crypto.randomUUID()}`;
+              element.id = `lcards-typewriter-${crypto.randomUUID()}`;
             } else {
               // Fallback for older browsers
-              rawElementId = `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+              element.id = `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
             }
-            element.id = rawElementId;
           }
           
-          // Sanitize the element ID for CSS safety
-          const elementId = sanitizeId(rawElementId);
-          const styleId = `lcards-typewriter-cursor-${elementId}`;
+          // Sanitize the element ID for CSS safety (after setting it)
+          const sanitizedElementId = _sanitizeId(element.id);
+          
+          // If sanitization changed the ID, update the element's actual ID to match
+          if (sanitizedElementId !== element.id) {
+            element.id = sanitizedElementId;
+          }
+          
+          const styleId = `lcards-typewriter-cursor-${sanitizedElementId}`;
           
           // Check if this specific style already exists
           let styleEl = document.getElementById(styleId);
@@ -523,7 +532,7 @@ export const TEXT_PRESETS = {
             styleEl = document.createElement('style');
             styleEl.id = styleId;
             styleEl.textContent = `
-              #${elementId}.lcards-typewriter-cursor::after {
+              #${sanitizedElementId}.lcards-typewriter-cursor::after {
                 content: '${sanitizedCursor}';
                 animation: lcards-cursor-blink ${cursorBlinkSpeed}ms step-end infinite;
                 margin-left: 2px;
