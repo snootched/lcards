@@ -19,6 +19,18 @@
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 
 /**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ * @private
+ */
+function _escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
  * Simple text splitter utility
  * Splits text into characters, words, or lines and wraps each in a span
  * 
@@ -47,7 +59,7 @@ function _splitText(element, options = {}) {
     // Split into characters (using Array.from for proper Unicode support)
     const chars = Array.from(originalText);
     wrappedHTML = chars
-      .map(char => `<span class="${charsClass}">${char}</span>`)
+      .map(char => `<span class="${charsClass}">${_escapeHtml(char)}</span>`)
       .join('');
   } else if (type === 'words') {
     // Split into words (preserving spaces)
@@ -58,14 +70,14 @@ function _splitText(element, options = {}) {
           // Preserve whitespace as-is
           return word;
         }
-        return `<span class="${charsClass}">${word}</span>`;
+        return `<span class="${charsClass}">${_escapeHtml(word)}</span>`;
       })
       .join('');
   } else if (type === 'lines') {
     // Split into lines
     const lines = originalText.split('\n');
     wrappedHTML = lines
-      .map(line => `<span class="${charsClass}">${line}</span>`)
+      .map(line => `<span class="${charsClass}">${_escapeHtml(line)}</span>`)
       .join('\n');
   }
 
@@ -216,8 +228,8 @@ export const TEXT_PRESETS = {
       setup: (element) => {
         if (!element) return;
 
-        // Store original text content
-        const originalText = element.textContent;
+        // Store original text content as array for proper Unicode indexing
+        const originalChars = Array.from(element.textContent);
 
         // Split text into characters
         element._textSplitter = _splitText(element, {
@@ -228,7 +240,7 @@ export const TEXT_PRESETS = {
         // Store original character in data attribute for each span
         const chars = element.querySelectorAll('.lcards-char-split');
         chars.forEach((char, i) => {
-          char.setAttribute('data-original-char', originalText[i] || '');
+          char.setAttribute('data-original-char', originalChars[i] || '');
         });
 
         lcardsLog.debug('[text-scramble] Text split complete', {
@@ -483,7 +495,7 @@ export const TEXT_PRESETS = {
             .replace(/"/g, '\\"');   // Escape double quotes
 
           // Generate unique style ID for this element's cursor settings
-          const elementId = element.id || `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const elementId = element.id || `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
           if (!element.id) {
             element.id = elementId;
           }
