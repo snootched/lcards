@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { AnimationPerformanceMonitor } from '../../core/animation/PerformanceMonitor.js';
 
 export class WebGLBackgroundRenderer {
   constructor(container, config) {
@@ -19,6 +20,9 @@ export class WebGLBackgroundRenderer {
     this.nebulaParticles = null;
     this.isDragging = false;
     this.previousMousePosition = { x: 0, y: 0 };
+    
+    // Performance monitoring
+    this.performanceMonitor = new AnimationPerformanceMonitor();
     
     // Performance constants
     this.PARTICLE_REDUCTION_FACTOR = 0.5; // Reduce to 50% on low FPS
@@ -88,6 +92,10 @@ export class WebGLBackgroundRenderer {
 
       // Listen for performance events
       this._setupPerformanceListener();
+
+      // Start performance monitoring
+      this.performanceMonitor.start();
+      lcardsLog.debug('[WebGL] Performance monitoring started');
 
       // Start render loop
       this.animate();
@@ -339,6 +347,12 @@ export class WebGLBackgroundRenderer {
    * Clean up resources
    */
   destroy() {
+    // Stop performance monitoring
+    if (this.performanceMonitor) {
+      this.performanceMonitor.stop();
+      lcardsLog.debug('[WebGL] Performance monitoring stopped');
+    }
+
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
     }
