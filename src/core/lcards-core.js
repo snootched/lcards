@@ -25,6 +25,7 @@ import { DataSourceManager } from './data-sources/DataSourceManager.js';  // ✅
 import { RulesEngine } from './rules/RulesEngine.js';  // ✅ Moved to Core
 import { ThemeManager } from './themes/ThemeManager.js';  // ✅ Moved to Core
 import { AnimationManager } from './animation/AnimationManager.js';
+import { AnimationPerformanceMonitor } from './animation/PerformanceMonitor.js';  // ✅ Performance monitoring
 import { CoreValidationService } from './validation-service/index.js';
 import { ComponentManager } from './components/ComponentManager.js';  // ✅ Component registry
 
@@ -55,6 +56,7 @@ class LCARdSCore {
         this.rulesManager = null;        // Rule evaluation (Phase 1c)
         this.themeManager = null;        // Theme and style management (Phase 2a)
         this.animationManager = null;    // Animation coordination (Phase 2a)
+        this.performanceMonitor = null;  // Performance monitoring (Phase 2a)
         this.validationService = null;   // Config validation and error reporting (Phase 2a)
         this.stylePresetManager = null;  // Unified style system: presets + CSS utilities (Phase 2b)
         this.animationRegistry = null;   // Animation instance caching (Phase 2b)
@@ -152,6 +154,10 @@ class LCARdSCore {
             this.animationManager = new AnimationManager(null); // No systemsManager in core
             await this.animationManager.initialize([], { suppressMountWarning: true }); // Suppress mount warning during core init
             lcardsLog.debug('[LCARdSCore] ✅ AnimationManager initialized');
+
+            // Initialize PerformanceMonitor (Phase 2a)
+            this.performanceMonitor = new AnimationPerformanceMonitor();
+            lcardsLog.debug('[LCARdSCore] ✅ PerformanceMonitor created (will start when 3D backgrounds are used)');
 
             // Initialize ValidationService (Phase 2a)
             this.validationService = new CoreValidationService({

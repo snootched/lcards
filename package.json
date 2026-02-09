@@ -24,6 +24,7 @@
     "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json"
   },
   "devDependencies": {
+    "@types/three": "^0.160.0",
     "clean-webpack-plugin": "^4.0.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
@@ -51,6 +52,7 @@
     "custom-card-helpers": "^1.9.0",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
-    "lit": "^3.3.2"
+    "lit": "^3.3.2",
+    "three": "^0.160.0"
   }
 }

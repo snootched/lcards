@@ -33,6 +33,7 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { BackgroundAnimationMixin } from './mixins/BackgroundAnimationMixin.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -99,7 +100,7 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
  *     }
  * }
  */
-export class LCARdSCard extends LCARdSNativeCard {
+export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
 
     static get properties() {
         return {
