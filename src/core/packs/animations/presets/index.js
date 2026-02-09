@@ -1394,6 +1394,8 @@ registerAnimationPreset('motionpath', (def) => {
         } catch (e) {
           lcardsLog.error('[motionpath preset] Failed to create motion path:', e);
         }
+      } else {
+        lcardsLog.warn('[motionpath preset] createMotionPath not available - anime.js v4 SVG features required');
       }
     }
   };

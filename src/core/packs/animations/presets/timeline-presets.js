@@ -49,7 +49,7 @@ export const TIMELINE_PRESETS = {
   'timeline-cascade': (def) => {
     const p = def.params || def;
     const steps = p.steps || [];
-    const loop = p.loop || false;
+    const loop = p.loop !== undefined ? p.loop : false;
 
     if (!steps.length) {
       lcardsLog.warn('[timeline-cascade preset] No steps provided');
@@ -94,7 +94,7 @@ export const TIMELINE_PRESETS = {
     const durationScale = p.duration_scale || 200;
     const durationShake = p.duration_shake || 300;
     const durationSettle = p.duration_settle || 400;
-    const loop = p.loop || false;
+    const loop = p.loop !== undefined ? p.loop : false;
 
     // Build timeline steps
     const steps = [

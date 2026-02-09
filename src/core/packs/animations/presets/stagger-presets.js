@@ -59,7 +59,7 @@ export const STAGGER_PRESETS = {
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 600;
     const easing = p.easing || 'easeOutQuad';
-    const loop = p.loop || false;
+    const loop = p.loop !== undefined ? p.loop : false;
 
     if (!Array.isArray(grid) || grid.length !== 2) {
       lcardsLog.warn('[stagger-grid preset] Invalid grid parameter, expected [cols, rows]');
@@ -117,8 +117,8 @@ export const STAGGER_PRESETS = {
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
     const easing = p.easing || 'easeOutElastic';
-    const loop = p.loop || false;
-    const alternate = p.alternate !== undefined ? p.alternate : true;
+    const loop = p.loop !== undefined ? p.loop : false;
+    const alternate = p.alternate !== undefined ? p.alternate : false;
 
     return {
       anime: {
@@ -171,7 +171,7 @@ export const STAGGER_PRESETS = {
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 800;
     const easing = p.easing || 'easeOutExpo';
-    const loop = p.loop || false;
+    const loop = p.loop !== undefined ? p.loop : false;
 
     return {
       anime: {
