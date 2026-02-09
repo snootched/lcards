@@ -615,6 +615,24 @@ export const msdStudioStyles = css`
         min-height: 300px;
         max-height: 500px;
         overflow-y: auto;
+        padding: 16px;
+        background: var(--card-background-color);
+        border-radius: 8px;
+    }
+
+    .card-picker-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-height: 200px;
+        color: var(--secondary-text-color);
+    }
+
+    hui-card-picker {
+        display: block;
+        width: 100%;
     }
 
     /* HA Native Card Editor Styles */

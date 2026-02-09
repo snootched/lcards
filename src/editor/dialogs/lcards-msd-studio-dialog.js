@@ -51,6 +51,11 @@ import { getPreviewCoordinatesFromMouseEvent, snapToGrid } from './msd-studio/ms
 import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide } from './msd-studio/msd-anchor-utils.js';
 import { msdStudioStyles } from './msd-studio/msd-studio-styles.js';
 
+// Native HA Card Picker & Editor Integration
+import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
+import { MSDCardEditorLauncher } from './msd-studio/msd-card-editor-launcher.js';
+import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
+
 // Mode constants
 const MODES = {
     VIEW: 'view',
@@ -329,6 +334,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Card Config Editor Mode
         this._cardConfigMode = 'graphical';
 
+        // Native HA Card Picker & Editor Managers
+        this._cardPickerManager = null;
+        this._editorLauncher = null;
+        this._eventInterceptor = null;
+        this._activeChildEditors = new Set();
+
         lcardsLog.debug('[MSDStudio] Initialized');
     }
 
@@ -366,6 +377,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._workingConfig.msd = {};
         }
 
+        // Initialize Native HA Card Picker & Editor Managers
+        this._cardPickerManager = new MSDCardPickerManager(this);
+        this._editorLauncher = new MSDCardEditorLauncher(this);
+        this._eventInterceptor = new MSDEventInterceptor(this);
+
+        // Setup event interception
+        this._eventInterceptor.setupEventInterception();
+
+        // Load card picker asynchronously
+        this._cardPickerManager.ensureCardPickerLoaded().then((loaded) => {
+            if (loaded) {
+                lcardsLog.debug('[MSDStudio] ✅ Card picker loaded successfully');
+                this.requestUpdate();
+            } else {
+                lcardsLog.debug('[MSDStudio] ⚠️ Card picker not available, using manual config');
+            }
+        });
+
         // Add keyboard event listener (Phase 7)
         this._boundKeyDownHandler = this._handleKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyDownHandler);
@@ -396,6 +425,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._previewUpdateTimer) {
             clearTimeout(this._previewUpdateTimer);
         }
+        
+        // Cleanup Native HA Card Picker & Editor Managers
+        this._eventInterceptor?.cleanupEventInterception();
+        this._cardPickerManager?.cleanup();
+        this._editorLauncher?.cleanup();
+        
         // Remove keyboard event listener (Phase 7)
         if (this._boundKeyDownHandler) {
             document.removeEventListener('keydown', this._boundKeyDownHandler);
@@ -12364,6 +12399,129 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             document.body.appendChild(dialog);
         });
+    }
+
+    /**
+     * Get lovelace configuration for card picker
+     * @returns {Object} Lovelace config
+     * @private
+     */
+    _getLovelaceConfig() {
+        const mainApp = document.querySelector("home-assistant");
+        return mainApp?.lovelace || { config: { views: [] }, editMode: true };
+    }
+
+    /**
+     * Handle card selection from native HA card picker
+     * @param {Object} cardConfig - Selected card configuration
+     * @private
+     */
+    _handleCardPickerSelection(cardConfig) {
+        if (!cardConfig) return;
+        
+        lcardsLog.debug('[MSDStudio] 🎯 Card selected from picker:', cardConfig.type);
+        
+        // Generate new control ID
+        const newControlId = this._generateControlId();
+        
+        // Create new control overlay with selected card
+        const newControl = {
+            id: newControlId,
+            position: [100, 100], // Default position
+            size: 'auto',
+            attachment: 'center',
+            obstacle: false,
+            card: cardConfig
+        };
+        
+        // Add to working config
+        const controls = this._workingConfig.msd?.controls || [];
+        const updatedControls = [...controls, newControl];
+        
+        this._workingConfig = {
+            ...this._workingConfig,
+            msd: {
+                ...this._workingConfig.msd,
+                controls: updatedControls
+            }
+        };
+        
+        // Update preview
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+        
+        lcardsLog.debug('[MSDStudio] ✅ Control added:', newControlId);
+    }
+
+    /**
+     * Generate unique control ID
+     * @returns {string} New control ID
+     * @private
+     */
+    _generateControlId() {
+        const controls = this._workingConfig.msd?.controls || [];
+        let id = 1;
+        while (controls.some(c => c.id === `control_${id}`)) {
+            id++;
+        }
+        return `control_${id}`;
+    }
+
+    /**
+     * Update control card configuration
+     * @param {string} controlId - Control ID
+     * @param {Object} cardConfig - New card configuration
+     * @param {Object} metadata - Event metadata
+     * @private
+     */
+    _updateLayerCard(controlId, cardConfig, metadata = {}) {
+        const controls = this._workingConfig.msd?.controls || [];
+        const controlIndex = controls.findIndex(c => c.id === controlId);
+        
+        if (controlIndex === -1) {
+            lcardsLog.warn('[MSDStudio] ⚠️ Control not found:', controlId);
+            return;
+        }
+        
+        // Update control
+        const updatedControls = [...controls];
+        updatedControls[controlIndex] = {
+            ...updatedControls[controlIndex],
+            card: cardConfig
+        };
+        
+        this._workingConfig = {
+            ...this._workingConfig,
+            msd: {
+                ...this._workingConfig.msd,
+                controls: updatedControls
+            }
+        };
+        
+        // Update preview if not maintaining editor state
+        if (!metadata.maintainEditorState) {
+            this._schedulePreviewUpdate();
+        }
+        
+        this.requestUpdate();
+        
+        lcardsLog.debug('[MSDStudio] 🔄 Control card updated:', controlId, metadata);
+    }
+
+    /**
+     * Open native HA editor for control's card
+     * @param {string} controlId - Control ID
+     * @private
+     */
+    _editLayerCard(controlId) {
+        const control = this._workingConfig.msd?.controls?.find(c => c.id === controlId);
+        if (!control?.card) {
+            lcardsLog.warn('[MSDStudio] ⚠️ No card found for control:', controlId);
+            return;
+        }
+        
+        lcardsLog.debug('[MSDStudio] 🎨 Opening editor for control:', controlId);
+        this._editorLauncher?.openCardEditor(controlId, control.card);
     }
 
     /**
