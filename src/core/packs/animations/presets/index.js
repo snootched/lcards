@@ -555,10 +555,14 @@ registerAnimationPreset('cascade', (def) => {
 });
 
 /**
- * Cascade Color - Row-by-row color cycling for data grids
+ * Cascade Color - Row-by-row color cycling for data grids (ENHANCED)
  *
  * Animates color property through multiple values with authentic LCARS timing.
  * Replicates legacy CB-LCARS cascade effect with distinct color "snap" behavior.
+ *
+ * Modes:
+ * - 'css' (default) - Lightweight CSS keyframes for simple cycling
+ * - 'animejs' - Advanced features: custom stagger, interactivity, complex easing
  *
  * Legacy timing behavior:
  * - 0-75%: Stay at start color (blue)
@@ -566,6 +570,7 @@ registerAnimationPreset('cascade', (def) => {
  * - 100%: End at end color (moonlight) - brief appearance
  *
  * Parameters:
+ * - mode (default: 'css') - 'css' or 'animejs'
  * - colors (required) - Array of 3 colors [start, text, end]
  * - duration (default: 5000) - Duration of full color cycle
  * - easing (default: 'linear')
@@ -573,6 +578,12 @@ registerAnimationPreset('cascade', (def) => {
  * - alternate (default: true) - Alternate direction each cycle
  * - property (default: 'color') - CSS property to animate ('color', 'fill', etc.)
  * - delay (default: 0) - Row-level delay for when animation starts (used in timing patterns)
+ * - interactive (default: false) - Pause on hover (requires animejs mode)
+ * - stagger_from (default: 'first') - 'first', 'last', 'center', 'random' (animejs only)
+ * - stagger_delay (default: 100) - Delay between elements in ms (animejs only)
+ * - axis (default: 'row') - 'row' or 'column' for stagger direction (animejs only)
+ *
+ * Note: If interactive, stagger_from, or custom axis is specified, mode is forced to 'animejs'
  *
  * Usage Pattern:
  * Each row should be animated independently with its own duration and delay.
@@ -618,6 +629,16 @@ registerAnimationPreset('cascade-color', (def) => {
 
   // Row-level delay from timing pattern (when rows start relative to animation start)
   const rowDelay = p.delay !== undefined ? p.delay : 0;
+  
+  // Mode selection
+  const interactive = p.interactive !== undefined ? p.interactive : false;
+  const staggerFrom = p.stagger_from;
+  const staggerDelay = p.stagger_delay !== undefined ? p.stagger_delay : 100;
+  const axis = p.axis || 'row';
+  
+  // Force anime.js mode if advanced features requested
+  const mode = p.mode || (interactive || staggerFrom || (axis && axis !== 'row') ? 'animejs' : 'css');
+  const useAnimejs = mode === 'animejs';
 
   if (!Array.isArray(colors) || colors.length < 3) {
     lcardsLog.warn('[AnimationPresets] cascade-color requires 3 colors [start, text, end]');
@@ -641,15 +662,67 @@ registerAnimationPreset('cascade-color', (def) => {
     { [property]: colors[2], duration: duration * 0.05 }             // 95-100% - Hold moonlight before loop
   ];
 
-  return {
-    anime: {
-      keyframes,
-      delay: rowDelay,  // All cells in row start together, just delayed by row timing
-      loop,
-      alternate
-    },
+  // CSS mode (default) - lightweight
+  if (!useAnimejs) {
+    return {
+      anime: {
+        keyframes,
+        delay: rowDelay,  // All cells in row start together, just delayed by row timing
+        loop,
+        alternate
+      },
+      styles: {}
+    };
+  }
+
+  // Anime.js mode - advanced features
+  const animeParams = {
+    keyframes,
+    loop,
+    alternate
+  };
+
+  // Add stagger if specified
+  if (staggerFrom) {
+    animeParams.delay = window.lcards?.animejs?.stagger?.(staggerDelay, {
+      from: staggerFrom,
+      axis: axis
+    }) || ((el, i) => i * staggerDelay);
+  } else {
+    animeParams.delay = rowDelay;
+  }
+
+  const result = {
+    anime: animeParams,
     styles: {}
   };
+
+  // Add interactive controls if requested
+  if (interactive) {
+    result.setup = (element, animeInstance) => {
+      if (!element || !animeInstance) return;
+
+      const handleMouseEnter = () => {
+        if (animeInstance.pause) animeInstance.pause();
+      };
+
+      const handleMouseLeave = () => {
+        if (animeInstance.play) animeInstance.play();
+      };
+
+      element.addEventListener('mouseenter', handleMouseEnter);
+      element.addEventListener('mouseleave', handleMouseLeave);
+
+      // Store cleanup function
+      if (!element._cleanupFns) element._cleanupFns = [];
+      element._cleanupFns.push(() => {
+        element.removeEventListener('mouseenter', handleMouseEnter);
+        element.removeEventListener('mouseleave', handleMouseLeave);
+      });
+    };
+  }
+
+  return result;
 });
 
 /**
@@ -769,9 +842,54 @@ registerAnimationPreset('scale-reset', (def) => {
  */
 registerAnimationPreset('slide', (def) => {
   const p = def.params || def;
-  // TODO: Implement slide animation
-  lcardsLog.warn('[AnimationPresets] slide preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const direction = p.direction || 'up';
+  const distance = p.distance !== undefined ? p.distance : 100;
+  const duration = p.duration || 600;
+  const easing = p.easing || 'easeOutQuad';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
+
+  // Determine if distance is percentage or pixels
+  const isPercentage = typeof distance === 'string' && distance.includes('%');
+  const distanceValue = isPercentage ? distance : `${distance}px`;
+
+  // Map direction to translateX/Y
+  let translateProp;
+  let translateValue;
+  
+  switch (direction) {
+    case 'up':
+      translateProp = 'translateY';
+      translateValue = [distanceValue, 0];
+      break;
+    case 'down':
+      translateProp = 'translateY';
+      translateValue = [isPercentage ? `-${distance}` : -distance, 0];
+      break;
+    case 'left':
+      translateProp = 'translateX';
+      translateValue = [distanceValue, 0];
+      break;
+    case 'right':
+      translateProp = 'translateX';
+      translateValue = [isPercentage ? `-${distance}` : -distance, 0];
+      break;
+    default:
+      lcardsLog.warn(`[AnimationPresets] slide: unknown direction '${direction}', using 'up'`);
+      translateProp = 'translateY';
+      translateValue = [distanceValue, 0];
+  }
+
+  return {
+    anime: {
+      [translateProp]: translateValue,
+      duration,
+      easing,
+      loop,
+      alternate
+    },
+    styles: {}
+  };
 });
 
 /**
@@ -787,9 +905,44 @@ registerAnimationPreset('slide', (def) => {
  */
 registerAnimationPreset('rotate', (def) => {
   const p = def.params || def;
-  // TODO: Implement rotate animation
-  lcardsLog.warn('[AnimationPresets] rotate preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  
+  // Support direction shorthand or explicit from/to
+  let from, to;
+  if (p.direction) {
+    if (p.direction === 'clockwise') {
+      from = 0;
+      to = 360;
+    } else if (p.direction === 'counterclockwise') {
+      from = 0;
+      to = -360;
+    } else {
+      lcardsLog.warn(`[AnimationPresets] rotate: unknown direction '${p.direction}', using clockwise`);
+      from = 0;
+      to = 360;
+    }
+  } else {
+    from = p.from !== undefined ? p.from : 0;
+    to = p.to !== undefined ? p.to : 360;
+  }
+
+  const duration = p.duration || 1000;
+  const easing = p.easing || 'linear';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
+
+  return {
+    anime: {
+      rotate: [from, to],
+      duration,
+      easing,
+      loop,
+      alternate
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
 });
 
 /**
@@ -804,9 +957,32 @@ registerAnimationPreset('rotate', (def) => {
  */
 registerAnimationPreset('shake', (def) => {
   const p = def.params || def;
-  // TODO: Implement shake animation
-  lcardsLog.warn('[AnimationPresets] shake preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const intensity = p.intensity !== undefined ? p.intensity : 10;
+  const duration = p.duration || 500;
+  const frequency = p.frequency !== undefined ? p.frequency : 4;
+  const easing = p.easing || 'easeInOutSine';
+  const loop = p.loop !== undefined ? p.loop : false;
+
+  // Generate keyframes for shake effect
+  // Create back-and-forth motion based on frequency
+  const keyframes = [];
+  for (let i = 0; i <= frequency; i++) {
+    // Alternate between positive and negative
+    const direction = i % 2 === 0 ? 1 : -1;
+    keyframes.push({ translateX: direction * intensity });
+  }
+  // End at 0
+  keyframes.push({ translateX: 0 });
+
+  return {
+    anime: {
+      keyframes,
+      duration,
+      easing,
+      loop
+    },
+    styles: {}
+  };
 });
 
 /**
@@ -822,9 +998,53 @@ registerAnimationPreset('shake', (def) => {
  */
 registerAnimationPreset('bounce', (def) => {
   const p = def.params || def;
-  // TODO: Implement bounce animation
-  lcardsLog.warn('[AnimationPresets] bounce preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.2;
+  const duration = p.duration || 800;
+  const bounces = p.bounces !== undefined ? p.bounces : 3;
+  const easing = p.easing || 'easeOutElastic';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
+
+  // If multiple bounces requested, generate keyframes
+  if (bounces > 1) {
+    const keyframes = [];
+    for (let i = 0; i < bounces; i++) {
+      // Each bounce goes from 1 to scaleMax and back
+      // Decrease intensity with each bounce for natural effect
+      const intensity = scaleMax - (scaleMax - 1) * (i / bounces) * 0.5;
+      keyframes.push({ scale: intensity });
+      keyframes.push({ scale: 1 });
+    }
+
+    return {
+      anime: {
+        keyframes,
+        duration: duration * bounces,
+        easing: 'easeOutQuad', // Use simpler easing for keyframes
+        loop,
+        alternate
+      },
+      styles: {
+        transformOrigin: 'center',
+        transformBox: 'fill-box'
+      }
+    };
+  }
+
+  // Single bounce with elastic easing
+  return {
+    anime: {
+      scale: [1, scaleMax],
+      duration,
+      easing,
+      loop,
+      alternate
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
 });
 
 /**
@@ -841,9 +1061,30 @@ registerAnimationPreset('bounce', (def) => {
  */
 registerAnimationPreset('color-shift', (def) => {
   const p = def.params || def;
-  // TODO: Implement color-shift animation
-  lcardsLog.warn('[AnimationPresets] color-shift preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const colorFrom = p.color_from;
+  const colorTo = p.color_to;
+  const property = p.property || 'color';
+  const duration = p.duration || 1000;
+  const easing = p.easing || 'easeInOutQuad';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
+
+  // Validate required parameters
+  if (!colorFrom || !colorTo) {
+    lcardsLog.warn('[AnimationPresets] color-shift requires color_from and color_to parameters');
+    return { anime: {}, styles: {} };
+  }
+
+  return {
+    anime: {
+      [property]: [colorFrom, colorTo],
+      duration,
+      easing,
+      loop,
+      alternate
+    },
+    styles: {}
+  };
 });
 
 /**
@@ -861,9 +1102,47 @@ registerAnimationPreset('color-shift', (def) => {
  */
 registerAnimationPreset('border-pulse', (def) => {
   const p = def.params || def;
-  // TODO: Implement border-pulse animation
-  lcardsLog.warn('[AnimationPresets] border-pulse preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const colorFrom = p.color_from;
+  const colorTo = p.color_to;
+  const widthFrom = p.width_from;
+  const widthTo = p.width_to;
+  const duration = p.duration || 1000;
+  const easing = p.easing || 'easeInOutSine';
+  const loop = p.loop !== undefined ? p.loop : true;
+  const alternate = p.alternate !== undefined ? p.alternate : true;
+
+  // Build animation object based on what properties are specified
+  const animeParams = {
+    duration,
+    easing,
+    loop,
+    alternate
+  };
+
+  // Add border-color animation if colors specified
+  if (colorFrom && colorTo) {
+    animeParams['border-color'] = [colorFrom, colorTo];
+  } else if (colorFrom || colorTo) {
+    lcardsLog.warn('[AnimationPresets] border-pulse: both color_from and color_to must be specified for color animation');
+  }
+
+  // Add border-width animation if widths specified
+  if (widthFrom !== undefined && widthTo !== undefined) {
+    animeParams['border-width'] = [widthFrom, widthTo];
+  } else if (widthFrom !== undefined || widthTo !== undefined) {
+    lcardsLog.warn('[AnimationPresets] border-pulse: both width_from and width_to must be specified for width animation');
+  }
+
+  // Check if any animation was configured
+  if (!animeParams['border-color'] && !animeParams['border-width']) {
+    lcardsLog.warn('[AnimationPresets] border-pulse: no valid animation parameters (specify color_from/color_to or width_from/width_to)');
+    return { anime: {}, styles: {} };
+  }
+
+  return {
+    anime: animeParams,
+    styles: {}
+  };
 });
 
 /**
@@ -881,9 +1160,46 @@ registerAnimationPreset('border-pulse', (def) => {
  */
 registerAnimationPreset('skew', (def) => {
   const p = def.params || def;
-  // TODO: Implement skew animation
-  lcardsLog.warn('[AnimationPresets] skew preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const duration = p.duration || 600;
+  const easing = p.easing || 'easeInOutQuad';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
+
+  // Support both from/to syntax and direct target values
+  let skewXValue, skewYValue;
+
+  if (p.from_skewX !== undefined || p.from_skewY !== undefined) {
+    // Use from/to syntax
+    const fromX = p.from_skewX !== undefined ? p.from_skewX : 0;
+    const toX = p.skewX !== undefined ? p.skewX : 0;
+    const fromY = p.from_skewY !== undefined ? p.from_skewY : 0;
+    const toY = p.skewY !== undefined ? p.skewY : 0;
+    
+    skewXValue = [fromX, toX];
+    skewYValue = [fromY, toY];
+  } else {
+    // Use direct target values (from current to target)
+    const targetX = p.skewX !== undefined ? p.skewX : 0;
+    const targetY = p.skewY !== undefined ? p.skewY : 0;
+    
+    skewXValue = [0, targetX];
+    skewYValue = [0, targetY];
+  }
+
+  return {
+    anime: {
+      skewX: skewXValue,
+      skewY: skewYValue,
+      duration,
+      easing,
+      loop,
+      alternate
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
 });
 
 /**
@@ -898,9 +1214,33 @@ registerAnimationPreset('skew', (def) => {
  */
 registerAnimationPreset('scan-line', (def) => {
   const p = def.params || def;
-  // TODO: Implement scan-line animation
-  lcardsLog.warn('[AnimationPresets] scan-line preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const direction = p.direction || 'horizontal';
+  const color = p.color || 'rgba(255,255,255,0.3)';
+  const duration = p.duration || 2000;
+  const easing = p.easing || 'linear';
+  const loop = p.loop !== undefined ? p.loop : true;
+
+  // Use background-position animation for gradient movement
+  // Create a linear gradient that will be animated
+  const isHorizontal = direction === 'horizontal';
+  
+  // Set up the gradient and animate background-position
+  const gradientAngle = isHorizontal ? '90deg' : '0deg';
+  const positionProp = isHorizontal ? 'background-position-x' : 'background-position-y';
+  
+  return {
+    anime: {
+      [positionProp]: isHorizontal ? ['0%', '100%'] : ['0%', '100%'],
+      duration,
+      easing,
+      loop
+    },
+    styles: {
+      backgroundImage: `linear-gradient(${gradientAngle}, transparent 0%, transparent 40%, ${color} 50%, transparent 60%, transparent 100%)`,
+      backgroundSize: isHorizontal ? '200% 100%' : '100% 200%',
+      backgroundRepeat: 'no-repeat'
+    }
+  };
 });
 
 /**
@@ -914,9 +1254,42 @@ registerAnimationPreset('scan-line', (def) => {
  */
 registerAnimationPreset('glitch', (def) => {
   const p = def.params || def;
-  // TODO: Implement glitch animation
-  lcardsLog.warn('[AnimationPresets] glitch preset is a placeholder - implementation pending');
-  return { anime: {}, styles: {} };
+  const intensity = p.intensity !== undefined ? p.intensity : 5;
+  const frequency = p.frequency !== undefined ? p.frequency : 10;
+  const duration = p.duration || 1000;
+  const loop = p.loop !== undefined ? p.loop : false;
+
+  // Generate random keyframes for glitch effect
+  const keyframes = [];
+  for (let i = 0; i < frequency; i++) {
+    // Random position shifts
+    const randomX = (Math.random() - 0.5) * 2 * intensity;
+    const randomY = (Math.random() - 0.5) * 2 * intensity;
+    
+    keyframes.push({
+      translateX: randomX,
+      translateY: randomY,
+      // Optional: add filter effects for more intense glitch
+      filter: Math.random() > 0.7 ? `hue-rotate(${Math.random() * 360}deg)` : 'hue-rotate(0deg)'
+    });
+  }
+  
+  // Return to normal at the end
+  keyframes.push({
+    translateX: 0,
+    translateY: 0,
+    filter: 'hue-rotate(0deg)'
+  });
+
+  return {
+    anime: {
+      keyframes,
+      duration,
+      easing: 'linear', // Use linear for chaotic glitch effect
+      loop
+    },
+    styles: {}
+  };
 });
 
 // ==============================================================================
@@ -978,6 +1351,235 @@ registerAnimationPreset('motionpath', (def) => {
       // Future: attach tracer element along path if p.tracer defined
       void instance;
       void ctx;
+    }
+  };
+});
+
+// ==============================================================================
+// ADVANCED PRESETS
+// ==============================================================================
+
+/**
+ * Sequence - Multi-step coordinated animation using anime.js timeline
+ *
+ * Creates complex multi-step animations where each step can have independent
+ * timing, easing, and properties. Uses anime.js v4 timeline for precise control.
+ *
+ * Parameters:
+ * - steps (array, required) - Array of animation step configs
+ *   Each step: { ...animeParams, at: position }
+ *   'at' can be:
+ *     - absolute time in ms (e.g., 500)
+ *     - relative offset (e.g., '+=500')
+ *     - '<' for previous step start time
+ * - duration (default: 2000) - Not used if steps have individual durations
+ * - loop (default: false) - Loop entire sequence
+ * - easing (default: 'easeOutQuad') - Default easing for steps without easing
+ *
+ * Example:
+ * {
+ *   preset: 'sequence',
+ *   params: {
+ *     steps: [
+ *       { opacity: [0, 1], duration: 500, at: 0 },
+ *       { scale: [1, 1.2], duration: 300, at: 500 },
+ *       { rotate: [0, 360], duration: 1000, at: '<' }
+ *     ]
+ *   }
+ * }
+ */
+registerAnimationPreset('sequence', (def) => {
+  const p = def.params || def;
+  const steps = p.steps;
+  const defaultDuration = p.duration || 2000;
+  const loop = p.loop !== undefined ? p.loop : false;
+  const defaultEasing = p.easing || 'easeOutQuad';
+
+  if (!Array.isArray(steps) || steps.length === 0) {
+    lcardsLog.warn('[AnimationPresets] sequence requires steps array with at least one step');
+    return { anime: {}, styles: {} };
+  }
+
+  // Mark this as a timeline animation for AnimationManager
+  // AnimationManager will use window.lcards.animejs.createTimeline() instead of animate()
+  return {
+    _timeline: true,
+    anime: {
+      loop,
+      defaultEasing,
+      steps: steps.map(step => ({
+        ...step,
+        duration: step.duration || defaultDuration,
+        easing: step.easing || defaultEasing
+      }))
+    },
+    styles: {}
+  };
+});
+
+/**
+ * Grid Stagger - Staggered animation based on grid position
+ *
+ * Animates elements in a grid pattern with staggered delays based on position.
+ * Creates wave-like effects emanating from a chosen origin point.
+ *
+ * Parameters:
+ * - grid (default: [10, 10]) - Grid dimensions [cols, rows]
+ * - from (default: 'center') - Origin point:
+ *   - 'center': Wave from center
+ *   - 'first': Wave from top-left
+ *   - 'last': Wave from bottom-right
+ *   - 'random': Random order
+ *   - [x, y]: Custom grid position (0-based)
+ * - property (default: 'scale') - Property to animate
+ * - from_value (default: 1) - Starting value
+ * - to_value (default: 1.5) - Ending value
+ * - stagger_duration (default: 50) - Delay between each element (ms)
+ * - wave_duration (default: 1000) - Duration of individual element animation
+ * - easing (default: 'easeInOutQuad')
+ * - loop (default: false)
+ * - alternate (default: true)
+ */
+registerAnimationPreset('grid-stagger', (def) => {
+  const p = def.params || def;
+  const grid = p.grid || [10, 10];
+  const from = p.from || 'center';
+  const property = p.property || 'scale';
+  const fromValue = p.from_value !== undefined ? p.from_value : 1;
+  const toValue = p.to_value !== undefined ? p.to_value : 1.5;
+  const staggerDuration = p.stagger_duration !== undefined ? p.stagger_duration : 50;
+  const waveDuration = p.wave_duration || 1000;
+  const easing = p.easing || 'easeInOutQuad';
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : true;
+
+  return {
+    anime: {
+      [property]: [fromValue, toValue],
+      duration: waveDuration,
+      easing,
+      // Use anime.js v4 stagger with grid positioning
+      delay: window.lcards?.animejs?.stagger?.(staggerDuration, { 
+        grid: grid, 
+        from: from 
+      }) || ((el, i) => i * staggerDuration),
+      loop,
+      alternate
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
+});
+
+/**
+ * Chaos - Randomized multi-property animation for glitch/malfunction effects
+ *
+ * Creates unpredictable, chaotic motion by randomizing multiple properties
+ * simultaneously. Perfect for error states, alerts, or sci-fi malfunction effects.
+ *
+ * Parameters:
+ * - properties (default: ['x', 'y', 'rotate']) - Properties to randomize
+ * - range (default: { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] }) - Min/max for each property
+ * - duration_min (default: 200) - Minimum animation duration
+ * - duration_max (default: 800) - Maximum animation duration
+ * - easing (default: 'easeInOutQuad')
+ * - loop (default: true)
+ * - composition (default: 'blend') - 'blend' or 'replace'
+ */
+registerAnimationPreset('chaos', (def) => {
+  const p = def.params || def;
+  const properties = p.properties || ['x', 'y', 'rotate'];
+  const defaultRange = { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] };
+  const range = { ...defaultRange, ...(p.range || {}) };
+  const durationMin = p.duration_min !== undefined ? p.duration_min : 200;
+  const durationMax = p.duration_max !== undefined ? p.duration_max : 800;
+  const easing = p.easing || 'easeInOutQuad';
+  const loop = p.loop !== undefined ? p.loop : true;
+  const composition = p.composition || 'blend';
+
+  // Build animation parameters with function-based random values
+  const animeParams = {
+    easing,
+    loop,
+    composition,
+    // Randomize duration for each element
+    duration: () => durationMin + Math.random() * (durationMax - durationMin)
+  };
+
+  // Add randomized properties
+  properties.forEach(prop => {
+    const propRange = range[prop];
+    if (propRange && Array.isArray(propRange) && propRange.length === 2) {
+      // Map property names (x/y shorthand to translateX/translateY)
+      const animeProp = prop === 'x' ? 'translateX' : prop === 'y' ? 'translateY' : prop;
+      
+      // Use function to generate random value for each element
+      animeParams[animeProp] = () => {
+        return propRange[0] + Math.random() * (propRange[1] - propRange[0]);
+      };
+    }
+  });
+
+  return {
+    anime: animeParams,
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
+    }
+  };
+});
+
+/**
+ * Physics Spring - Spring-physics based animation using anime.js v4 springs
+ *
+ * Creates natural, physics-based motion using spring dynamics. Provides more
+ * organic movement than traditional easing functions.
+ *
+ * Parameters:
+ * - property (default: 'scale') - Property to animate
+ * - from (required) - Starting value
+ * - to (required) - Target value
+ * - stiffness (default: 100) - Spring stiffness (higher = snappier)
+ * - damping (default: 10) - Spring damping (higher = less bounce)
+ * - mass (default: 1) - Spring mass (higher = slower)
+ * - velocity (default: 0) - Initial velocity
+ * - loop (default: false)
+ */
+registerAnimationPreset('physics-spring', (def) => {
+  const p = def.params || def;
+  const property = p.property || 'scale';
+  const from = p.from;
+  const to = p.to;
+  const stiffness = p.stiffness !== undefined ? p.stiffness : 100;
+  const damping = p.damping !== undefined ? p.damping : 10;
+  const mass = p.mass !== undefined ? p.mass : 1;
+  const velocity = p.velocity !== undefined ? p.velocity : 0;
+  const loop = p.loop !== undefined ? p.loop : false;
+
+  if (from === undefined || to === undefined) {
+    lcardsLog.warn('[AnimationPresets] physics-spring requires from and to parameters');
+    return { anime: {}, styles: {} };
+  }
+
+  // Use anime.js v4 spring as easing function
+  const springEasing = window.lcards?.animejs?.spring?.({ 
+    stiffness, 
+    damping, 
+    mass, 
+    velocity 
+  }) || 'easeOutElastic';
+
+  return {
+    anime: {
+      [property]: [from, to],
+      easing: springEasing,
+      loop
+    },
+    styles: {
+      transformOrigin: 'center',
+      transformBox: 'fill-box'
     }
   };
 });
