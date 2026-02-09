@@ -165,21 +165,9 @@ export class MSDCardEditorLauncher {
         } catch (err) {
             lcardsLog.error('[MSDCardEditorLauncher] ❌ Error opening editor:', err);
             
-            // Fallback to event-based approach
-            this._fireHAEvent("ll-show-dialog", {
-                dialogTag: "hui-dialog-edit-card",
-                dialogImport: () => import("hui-dialog-edit-card"),
-                dialogParams: {
-                    cardConfig: cardConfig,
-                    lovelaceConfig: mainApp.lovelace,
-                    saveCardConfig: async (savedCardConfig) => {
-                        if (!savedCardConfig) return;
-                        this.dialog._updateLayerCard(layerId, savedCardConfig, {
-                            reason: 'layer_card_updated_fallback',
-                        });
-                    },
-                },
-            });
+            // Fallback: Just log error - the native approach should work
+            // The import statement causes build issues, so we rely on the primary method
+            lcardsLog.warn('[MSDCardEditorLauncher] ⚠️ Cannot open editor - native dialog method failed');
         }
     }
 

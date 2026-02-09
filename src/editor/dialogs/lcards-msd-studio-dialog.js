@@ -6837,6 +6837,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     `}
                 </lcards-form-section>
 
+                <!-- Native HA Card Picker -->
+                ${this._renderCardPickerSection()}
+
                 ${this._renderControlHelp()}
             </div>
         `;
@@ -6998,6 +7001,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const cardType = control.card?.type || 'unknown';
         const position = control.position || control.anchor || 'not set';
         const positionStr = Array.isArray(position) ? `[${position[0]}, ${position[1]}]` : position;
+        const hasCard = control.card && control.card.type;
 
         return html`
             <ha-card style="padding: 12px; margin-bottom: 8px;">
@@ -7010,6 +7014,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
+                        ${hasCard ? html`
+                            <ha-icon-button
+                                @click=${() => this._editLayerCard(control.id)}
+                                .label=${'Edit Card'}
+                                title="Edit card with native HA editor">
+                                <ha-icon icon="mdi:card-edit-outline"></ha-icon>
+                            </ha-icon-button>
+                        ` : ''}
                         <ha-icon-button
                             @click=${() => this._editControl(control)}
                             .label=${'Edit'}
@@ -7028,6 +7040,53 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
             </ha-card>
+        `;
+    }
+
+    /**
+     * Render native HA card picker section
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderCardPickerSection() {
+        if (!this._cardPickerManager?.isLoaded()) {
+            return html`
+                <lcards-form-section
+                    header="Quick Add Card"
+                    description="Native HA card picker (loading...)"
+                    icon="mdi:card-plus"
+                    ?expanded=${false}
+                    ?outlined=${true}>
+                    
+                    <div class="card-picker-loading">
+                        <ha-circular-progress indeterminate></ha-circular-progress>
+                        <p>Loading card picker...</p>
+                    </div>
+                </lcards-form-section>
+            `;
+        }
+
+        return html`
+            <lcards-form-section
+                header="Quick Add Card"
+                description="Select a card type to add as a new control overlay"
+                icon="mdi:card-plus"
+                ?expanded=${false}
+                ?outlined=${true}>
+                
+                <div id="card-picker-container" class="card-picker-container">
+                    <hui-card-picker
+                        .hass=${this.hass}
+                        .lovelace=${this._getLovelaceConfig()}
+                        @config-changed=${(e) => {
+                            // This event is handled by the interceptor
+                            // but we include this handler for clarity
+                            lcardsLog.debug('[MSDStudio] Card picker config-changed event:', e.detail);
+                        }}
+                        label="Select Card Type">
+                    </hui-card-picker>
+                </div>
+            </lcards-form-section>
         `;
     }
 
