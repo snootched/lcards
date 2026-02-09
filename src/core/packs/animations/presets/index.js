@@ -23,6 +23,7 @@ import { registerAnimationPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
+import { TEXT_PRESETS } from './text-presets.js';
 
 /**
  * Register all builtin animation presets
@@ -1643,6 +1644,14 @@ Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
+  registerAnimationPreset(name, factory);
+});
+
+// ==============================================================================
+// TEXT ANIMATION PRESETS
+// ==============================================================================
+
+Object.entries(TEXT_PRESETS).forEach(([name, factory]) => {
   registerAnimationPreset(name, factory);
 });
 
