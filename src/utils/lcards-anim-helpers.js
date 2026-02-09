@@ -243,14 +243,12 @@ function _processAnimationMarkers(params, element, scope) {
     if (!window.lcards?.anim?.animejs?.stagger) {
       lcardsLog.warn('[animateElement] stagger() not available for _radial marker');
     } else {
-      const from = radialConfig.from || 'center';
-      
       // Use anime.js stagger with 'center' from option
       // This creates a radial effect from the center point
       processedParams.delay = window.lcards.anim.animejs.stagger(
         radialConfig.value || 50,
         {
-          from: from,
+          from: radialConfig.from || 'center',
           grid: radialConfig.grid,
           axis: radialConfig.axis
         }
@@ -258,7 +256,7 @@ function _processAnimationMarkers(params, element, scope) {
       
       lcardsLog.debug('[animateElement] Converted _radial to radial stagger', { 
         value: radialConfig.value,
-        from: from
+        from: radialConfig.from || 'center'
       });
     }
   }
