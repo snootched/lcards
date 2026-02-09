@@ -870,41 +870,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         `;
     }
 
-    /**
-     * Advanced tab - CSS classes and animations
-     * @returns {TemplateResult}
-     * @private
-     */
-    /**
-     * Get Advanced tab configuration
-     * @returns {Array} Advanced tab config
-     * @protected
-     */
-    _getAdvancedTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Advanced features for custom styling and animations.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Advanced Options',
-                description: 'Additional configuration options',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    { type: 'field', path: 'css_class', label: 'Custom CSS Class', helper: 'Add custom CSS class for styling' }
-                ]
-            }
-        ];
-    }
-
     // ==================== Helper Methods ====================
 
     /**

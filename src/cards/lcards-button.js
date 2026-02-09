@@ -4787,12 +4787,6 @@ export class LCARdSButton extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSButton] Registering schema with presets:', availablePresets);
 
-        // Register behavioral defaults (NO STYLES - those come from theme/presets)
-        configManager.registerCardDefaults('button', {
-            enable_hold_action: true,   // Hold actions enabled
-            enable_double_tap: false    // Double-tap disabled by default
-        });
-
         // Position options with proper labels
         const positionEnum = [
             'top-left', 'top-center', 'top-right',

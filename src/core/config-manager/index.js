@@ -81,9 +81,6 @@ export class CoreConfigManager {
       lcardsLog.debug('[CoreConfigManager] StylePresetManager not available during init (will be added later)');
     }
 
-    // Register builtin card types
-    this._registerBuiltinCardTypes();
-
     this.initialized = true;
     lcardsLog.debug('[CoreConfigManager] Initialized');
   }
@@ -794,29 +791,6 @@ export class CoreConfigManager {
       'simple-gauge': 'gauge'     // Legacy alias
     };
     return mapping[cardType] || cardType;
-  }
-
-  /**
-   * Register builtin card types with behavioral defaults
-   * Includes legacy 'simple-*' aliases for backward compatibility
-   * @private
-   */
-  _registerBuiltinCardTypes() {
-    // Legacy Simple Button: BEHAVIORAL defaults only
-    this.registerCardDefaults('simple-button', {
-      show_label: true,
-      show_icon: false,
-      enable_hold_action: true,
-      enable_double_tap: false
-    });
-
-    // Legacy Simple Label
-    this.registerCardDefaults('simple-label', {
-      show_label: true,
-      show_name: true
-    });
-
-    lcardsLog.debug('[CoreConfigManager] Registered builtin card types');
   }
 
   /**

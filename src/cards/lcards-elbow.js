@@ -1845,12 +1845,6 @@ export class LCARdSElbow extends LCARdSButton {
 
         lcardsLog.debug('[LCARdSElbow] Registering schema with presets:', availablePresets);
 
-        // Register behavioral defaults (elbow extends button, inherits defaults)
-        configManager.registerCardDefaults('elbow', {
-            enable_hold_action: true,   // Hold actions enabled (inherited)
-            enable_double_tap: false    // Double-tap disabled by default (inherited)
-        });
-
         // Position options with proper labels (same as button)
         const positionEnum = [
             'top-left', 'top-center', 'top-right',

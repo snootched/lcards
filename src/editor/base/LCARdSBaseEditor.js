@@ -1082,7 +1082,7 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _cleanConfigForMode(baseConfig, mode, validKeys = []) {
         // Common properties to always preserve
-        const commonKeys = ['type', 'entity', 'id', 'tap_action', 'hold_action', 'double_tap_action', 'style', 'css_class'];
+        const commonKeys = ['type', 'entity', 'id', 'tap_action', 'hold_action', 'double_tap_action', 'style'];
 
         // Start with common properties
         const newConfig = {};
@@ -1314,31 +1314,8 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _getUtilityTabs() {
         return [
-            //{ label: 'Advanced', content: () => this._renderFromConfig(this._getAdvancedTabConfig()) },
             { label: '🖖 Main Engineering', content: () => this._renderDeveloperTab() },
             { label: 'YAML', content: () => this._renderYamlTab() }
-        ];
-    }
-
-    /**
-     * Get Advanced tab configuration (override in child classes)
-     * Default includes CSS class configuration
-     * @returns {Array} Advanced tab config
-     * @protected
-     */
-    _getAdvancedTabConfig() {
-        return [
-            {
-                type: 'section',
-                header: 'Advanced Options',
-                description: 'Additional configuration options',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    { type: 'field', path: 'css_class', label: 'Custom CSS Class', helper: 'Add custom CSS class for styling' }
-                ]
-            }
         ];
     }
 

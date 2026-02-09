@@ -328,34 +328,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Advanced tab - declarative configuration
-     */
-    _getAdvancedTabConfig() {
-        return [
-            {
-                type: 'custom',
-                render: () => html`
-                    <lcards-message
-                        type="info"
-                        message="Advanced features (animations, SVG backgrounds) will be added in Phase 2.">
-                    </lcards-message>
-                `
-            },
-            {
-                type: 'section',
-                header: 'Advanced Options',
-                description: 'Additional configuration options',
-                icon: 'mdi:cog',
-                expanded: true,
-                outlined: true,
-                children: [
-                    { type: 'field', path: 'css_class', label: 'Custom CSS Class', helper: 'Add custom CSS class for styling' }
-                ]
-            }
-        ];
-    }
-
-    /**
      * Text tab - uses enhanced component
      */
     _renderTextTab() {

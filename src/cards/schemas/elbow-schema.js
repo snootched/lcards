@@ -556,17 +556,6 @@ export function getElbowSchema(options = {}) {
             },
 
             // ============================================================================
-            // ADVANCED OPTIONS
-            // ============================================================================
-
-            css_class: {
-                type: 'string',
-                pattern: '^[a-zA-Z0-9_-]+$',
-                description: 'Custom CSS class for styling (alphanumeric, underscore, hyphen)',
-                examples: ['custom-elbow', 'header-style', 'primary-corner']
-            },
-
-            // ============================================================================
             // LAYOUT (HA Grid System)
             // ============================================================================
 
