@@ -265,6 +265,22 @@ export const animationSchema = {
             default: 0,
             description: 'Delay before animation starts (milliseconds)'
         },
+        entity: {
+            type: 'string',
+            description: 'Entity ID to monitor (required for on_entity_change trigger)',
+            pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+            examples: ['light.bedroom', 'sensor.temperature', 'binary_sensor.door']
+        },
+        from_state: {
+            type: 'string',
+            description: 'Filter: Only trigger when transitioning FROM this state (on_entity_change only)',
+            examples: ['on', 'off', 'home', 'unavailable']
+        },
+        to_state: {
+            type: 'string',
+            description: 'Filter: Only trigger when transitioning TO this state (on_entity_change only)',
+            examples: ['on', 'off', 'home', 'unavailable']
+        },
         color: {
             type: 'string',
             pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
@@ -592,9 +608,71 @@ export const rulesSchema = {
                     },
                     animations: {
                         type: 'array',
-                        items: { type: 'string' },
-                        description: 'Animation IDs to trigger when rule matches',
-                        examples: [['pulse_alert'], ['fade_in', 'glow']]
+                        description: 'Animations to trigger when rule matches. Supports overlay targeting (ID, tag, type, pattern) and automatic lifecycle management (start on match, stop on unmatch).',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                overlay: {
+                                    type: 'string',
+                                    description: 'Target specific overlay by ID',
+                                    examples: ['temp_display_1', 'cpu_gauge']
+                                },
+                                tag: {
+                                    type: 'string',
+                                    description: 'Target all overlays with this tag (recommended for cross-card coordination)',
+                                    examples: ['temperature', 'critical_alert', 'system_status']
+                                },
+                                type: {
+                                    type: 'string',
+                                    description: 'Target all overlays of this type',
+                                    examples: ['gauge', 'text', 'icon']
+                                },
+                                pattern: {
+                                    type: 'string',
+                                    description: 'Target overlays matching regex pattern',
+                                    examples: ['^temp_.*', '.*_gauge$']
+                                },
+                                preset: {
+                                    type: 'string',
+                                    description: 'Animation preset name',
+                                    examples: ['pulse', 'flash', 'glow', 'alert_pulse']
+                                },
+                                duration: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    description: 'Animation duration in milliseconds'
+                                },
+                                loop: {
+                                    type: 'boolean',
+                                    default: false,
+                                    description: 'Loop animation (automatically stops when rule unmatches)'
+                                },
+                                delay: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    description: 'Delay before animation starts (milliseconds)'
+                                },
+                                easing: {
+                                    type: 'string',
+                                    description: 'Animation easing function',
+                                    examples: ['easeInOutQuad', 'linear', 'easeOutElastic']
+                                }
+                            },
+                            required: ['preset'],
+                            examples: [
+                                { tag: 'temp_widgets', preset: 'alert_pulse', loop: true },
+                                { overlay: 'cpu_gauge', preset: 'glow', duration: 500 },
+                                { type: 'gauge', preset: 'pulse', duration: 800 }
+                            ]
+                        },
+                        examples: [
+                            [{ tag: 'alert_targets', preset: 'flash', loop: true }],
+                            [{ overlay: 'temp_display', preset: 'glow', duration: 600 }],
+                            [
+                                { tag: 'temperature', preset: 'pulse', loop: true },
+                                { tag: 'status_icon', preset: 'flash', duration: 300 }
+                            ]
+                        ]
                     }
                 },
                 examples: [
