@@ -86,7 +86,7 @@ export class LCARdSMSDLivePreview extends LitElement {
             .preview-card-container {
                 flex: 1;
                 padding: 16px;
-                overflow: visible;
+                overflow: visible;  /* Allow zoomed content to extend beyond bounds */
                 position: relative;
                 display: flex;
                 align-items: center;
@@ -194,11 +194,6 @@ export class LCARdSMSDLivePreview extends LitElement {
 
         if (changedProps.has('config') || changedProps.has('debugSettings') || changedProps.has('hass')) {
             this._schedulePreviewUpdate();
-        }
-
-        // zoomTransform changes don't need preview rebuild, just re-render
-        if (changedProps.has('zoomTransform')) {
-            this.requestUpdate();
         }
     }
 
@@ -357,7 +352,7 @@ export class LCARdSMSDLivePreview extends LitElement {
             <div class="preview-container">
                 <!-- Preview Card Container (populated by _updatePreviewCard) -->
                 <div class="preview-card-container">
-                    <!-- Zoom wrapper applies transform -->
+                    <!-- Zoom wrapper applies transform. Content dynamically inserted by _updatePreviewCard() -->
                     <div class="zoom-wrapper" style="transform: ${transformStyle}">
                     </div>
                 </div>
