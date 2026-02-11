@@ -12859,7 +12859,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         .hass=${this.hass}
                                         .config=${this._workingConfig}
                                         .debugSettings=${this._getDebugSettings()}
-                                        .showRefreshButton=${true}>
+                                        .showRefreshButton=${true}
+                                        .zoomTransform=${this._getZoomTransform()}>
                                     </lcards-msd-live-preview>
                                 </div>
 

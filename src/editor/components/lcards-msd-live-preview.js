@@ -11,13 +11,15 @@
  * @property {Object} config - Current MSD card configuration
  * @property {Object} debugSettings - Debug visualization settings
  * @property {Boolean} showRefreshButton - Show manual refresh button (default: true)
+ * @property {Object} zoomTransform - Zoom/pan transform from d3-zoom {x, y, k}
  *
  * @example
  * <lcards-msd-live-preview
  *   .hass=${this.hass}
  *   .config=${this._workingConfig}
  *   .debugSettings=${{ anchors: true, bounding_boxes: true }}
- *   .showRefreshButton=${true}>
+ *   .showRefreshButton=${true}
+ *   .zoomTransform=${{ x: 0, y: 0, k: 1 }}>
  * </lcards-msd-live-preview>
  */
 
@@ -32,6 +34,7 @@ export class LCARdSMSDLivePreview extends LitElement {
         config: { type: Object },
         debugSettings: { type: Object },
         showRefreshButton: { type: Boolean },
+        zoomTransform: { type: Object },
         _renderKey: { type: Number, state: true },
         _debounceTimer: { state: true }
     };
@@ -42,6 +45,7 @@ export class LCARdSMSDLivePreview extends LitElement {
         this.config = null;
         this.debugSettings = {};
         this.showRefreshButton = true;
+        this.zoomTransform = null;
         this._renderKey = 0;
         this._debounceTimer = null;
     }
@@ -82,12 +86,18 @@ export class LCARdSMSDLivePreview extends LitElement {
             .preview-card-container {
                 flex: 1;
                 padding: 16px;
-                overflow: auto;
+                overflow: visible;
                 position: relative;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 background: var(--primary-background-color, #fafafa);
+            }
+
+            .zoom-wrapper {
+                width: 100%;
+                height: 100%;
+                transform-origin: 0 0;
             }
 
             lcards-msd-card {
@@ -185,6 +195,11 @@ export class LCARdSMSDLivePreview extends LitElement {
         if (changedProps.has('config') || changedProps.has('debugSettings') || changedProps.has('hass')) {
             this._schedulePreviewUpdate();
         }
+
+        // zoomTransform changes don't need preview rebuild, just re-render
+        if (changedProps.has('zoomTransform')) {
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -223,9 +238,9 @@ export class LCARdSMSDLivePreview extends LitElement {
      * @private
      */
     _updatePreviewCard() {
-        const container = this.shadowRoot?.querySelector('.preview-card-container');
+        const container = this.shadowRoot?.querySelector('.zoom-wrapper');
         if (!container) {
-            lcardsLog.warn('[MSDLivePreview] Preview container not found');
+            lcardsLog.warn('[MSDLivePreview] Zoom wrapper not found');
             return;
         }
 
@@ -333,10 +348,18 @@ export class LCARdSMSDLivePreview extends LitElement {
      * Render component
      */
     render() {
+        // Calculate CSS transform from zoomTransform
+        const transformStyle = this.zoomTransform
+            ? `translate(${this.zoomTransform.x}px, ${this.zoomTransform.y}px) scale(${this.zoomTransform.k})`
+            : 'none';
+
         return html`
             <div class="preview-container">
                 <!-- Preview Card Container (populated by _updatePreviewCard) -->
                 <div class="preview-card-container">
+                    <!-- Zoom wrapper applies transform -->
+                    <div class="zoom-wrapper" style="transform: ${transformStyle}">
+                    </div>
                 </div>
             </div>
         `;
