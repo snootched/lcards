@@ -129,7 +129,7 @@ export class MSDCardPickerManager {
                     composed: true,
                     cancelable: true,
                     detail: {
-                        suggested: []
+                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
                     }
                 });
 
@@ -155,7 +155,7 @@ export class MSDCardPickerManager {
                     composed: true,
                     cancelable: true,
                     detail: {
-                        suggested: []
+                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
                     }
                 });
 
