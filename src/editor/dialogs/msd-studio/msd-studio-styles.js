@@ -276,6 +276,7 @@ export const msdStudioStyles = css`
         flex: 1;
         overflow: auto;
         position: relative;
+        padding-top: 48px;  /* Push content down below action bar */
     }
 
     /* Cursor feedback based on mode */

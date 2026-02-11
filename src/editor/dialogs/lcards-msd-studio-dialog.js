@@ -3889,17 +3889,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
         let pixelX = event.clientX - panelRect.left;
         let pixelY = event.clientY - panelRect.top;
 
-        // If snap is enabled, snap viewBox coords and convert back to pixels
+        // If snap is enabled (either toggle), snap viewBox coords and convert back to pixels
         const debugSettings = this._getDebugSettings();
-        if (debugSettings.snap_to_grid) {
+        const snapEnabled = this._enableSnapping || this._snapToGrid;
+        if (snapEnabled) {
             const gridSpacing = debugSettings.grid_spacing || 50;
             coordX = Math.round(coordX / gridSpacing) * gridSpacing;
             coordY = Math.round(coordY / gridSpacing) * gridSpacing;
 
             // Convert snapped viewBox coords back to pixel position relative to SVG
             // Account for letterboxing offset
-            const snappedSvgX = (coordX - vbX) / scale + offsetX;
-            const snappedSvgY = (coordY - vbY) / scale + offsetY;
+            let snappedSvgX = (coordX - vbX) / scale + offsetX;
+            let snappedSvgY = (coordY - vbY) / scale + offsetY;
+
+            // Re-apply zoom transform to get visual position
+            if (zoomTransform?.k && zoomTransform.k !== 1) {
+                snappedSvgX = snappedSvgX * zoomTransform.k + zoomTransform.x;
+                snappedSvgY = snappedSvgY * zoomTransform.k + zoomTransform.y;
+            }
 
             // Convert to preview panel coordinates
             pixelX = (rect.left - panelRect.left) + snappedSvgX;
@@ -4280,51 +4287,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const gridSpacing = this._gridSpacing || 50;
             displayX = Math.round(x / gridSpacing) * gridSpacing;
             displayY = Math.round(y / gridSpacing) * gridSpacing;
-
-            // Calculate snapped pixel position accounting for letterboxing
-            const viewBox = this._workingConfig.msd?.view_box;
-            let vbX = 0, vbY = 0, vbWidth = 1920, vbHeight = 1200;
-            if (Array.isArray(viewBox) && viewBox.length === 4) {
-                [vbX, vbY, vbWidth, vbHeight] = viewBox;
-            }
-
-            // Find SVG to get rect and calculate letterboxing
-            const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
-            if (previewPanel) {
-                const livePreview = previewPanel.querySelector('lcards-msd-live-preview');
-                if (livePreview?.shadowRoot) {
-                    const cardContainer = livePreview.shadowRoot.querySelector('.preview-card-container');
-                    if (cardContainer) {
-                        const msdCard = cardContainer.querySelector('lcards-msd-card');
-                        if (msdCard?.shadowRoot) {
-                            const svg = msdCard.shadowRoot.querySelector('svg');
-                            if (svg) {
-                                const rect = svg.getBoundingClientRect();
-                                const panelRect = previewPanel.getBoundingClientRect();
-
-                                // Calculate scale accounting for preserveAspectRatio
-                                const scaleX = vbWidth / rect.width;
-                                const scaleY = vbHeight / rect.height;
-                                const scale = Math.max(scaleX, scaleY);
-
-                                // Calculate rendered size and letterboxing offset
-                                const renderedWidth = vbWidth / scale;
-                                const renderedHeight = vbHeight / scale;
-                                const offsetX = (rect.width - renderedWidth) / 2;
-                                const offsetY = (rect.height - renderedHeight) / 2;
-
-                                // Convert snapped viewBox coords to pixel position
-                                const snappedSvgX = (displayX - vbX) / scale + offsetX;
-                                const snappedSvgY = (displayY - vbY) / scale + offsetY;
-
-                                // Convert to preview panel coordinates
-                                snappedPixelX = (rect.left - panelRect.left) + snappedSvgX;
-                                snappedPixelY = (rect.top - panelRect.top) + snappedSvgY;
-                            }
-                        }
-                    }
-                }
-            }
+            // Note: pixelX/pixelY from _cursorPosition already have snap applied
+            // and zoom transform accounted for, so we use them as-is
         }
 
         const lineColor = snapEnabled ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 153, 0, 0.5)';
