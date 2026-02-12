@@ -567,6 +567,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
         lcardsLog.debug('[MSDStudio][ZOOM] Found zoomable wrapper');
 
+        // Store original wrapper dimensions before any transformations
+        const baseWidth = zoomableWrapper.offsetWidth;
+        const baseHeight = zoomableWrapper.offsetHeight;
+
         // Create zoom behavior with constraints
         this._zoomBehavior = zoom()
             .scaleExtent([0.25, 4])  // 25% to 400% zoom range
@@ -598,9 +602,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 zoomableWrapper.style.transformOrigin = 'top left';
 
                 // Update wrapper dimensions to match scaled size for proper scrollbar sizing
-                // Add margin to account for negative translate values (panning)
-                const baseWidth = zoomableWrapper.scrollWidth / (this._currentZoom?.k || 1);
-                const baseHeight = zoomableWrapper.scrollHeight / (this._currentZoom?.k || 1);
+                // Use stored base dimensions, not current scrollWidth (which changes with each zoom)
                 const marginX = Math.abs(Math.min(0, t.x));
                 const marginY = Math.abs(Math.min(0, t.y));
                 zoomableWrapper.style.width = `${baseWidth * t.k + marginX}px`;
@@ -612,11 +614,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this._currentZoom = { x: t.x, y: t.y, k: t.k };
                 this.requestUpdate(); // Updates studio overlays
 
-                lcardsLog.debug('[MSDStudio][ZOOM] Transform applied:', {
-                    transform: `translate(${t.x}px, ${t.y}px) scale(${t.k})`,
-                    dimensions: `${baseWidth * t.k}px × ${baseHeight * t.k}px`,
-                    x: t.x, y: t.y, k: t.k
-                });
+                lcardsLog.trace('[MSDStudio][ZOOM] Transform applied:', { x: t.x, y: t.y, k: t.k });
             })
             .on('end', () => {
                 // Request update after pan/zoom ends to refresh overlay positions
@@ -4999,58 +4997,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
-        const zoomWrapper = this.shadowRoot.querySelector('.msd-zoom-wrapper');
-        const wrapperRect = zoomWrapper?.getBoundingClientRect();
-
-        // Get scroll container for scroll position
-        const scrollContainer = this.shadowRoot.querySelector('.preview-scroll-container');
-        const scrollLeft = scrollContainer?.scrollLeft || 0;
-        const scrollTop = scrollContainer?.scrollTop || 0;
-
-        // Get current zoom transform to calculate untransformed coordinates
-        const zoomTransform = this._getZoomTransform();
-        const zoomK = zoomTransform?.k || 1;
-        const zoomX = zoomTransform?.x || 0;
-        const zoomY = zoomTransform?.y || 0;
-
-        lcardsLog.debug('[MSDStudio][GRID] SCROLL & ZOOM DEBUG:', {
-            scroll: { left: scrollLeft, top: scrollTop },
-            svg: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-            panel: { left: panelRect.left, top: panelRect.top },
-            wrapper: wrapperRect ? { left: wrapperRect.left, top: wrapperRect.top, width: wrapperRect.width, height: wrapperRect.height } : null,
-            wrapperTransform: zoomWrapper?.style.transform,
-            zoom: { k: zoomK, x: zoomX, y: zoomY },
-            // Calculate what overlay position will be
-            overlayCalc: {
-                baseSvgLeft: rect.left - panelRect.left,
-                baseSvgTop: rect.top - panelRect.top,
-                note: 'Overlay positioned relative to panel using SVG rect'
-            }
-        });
-
-        // Calculate scale (NO ZOOM - CSS transform handles it)
+        // Calculate scale factor from viewBox to screen pixels
         const scaleX = viewBoxWidth / rect.width;
         const scaleY = viewBoxHeight / rect.height;
         const scale = Math.max(scaleX, scaleY);
-
-        lcardsLog.debug('[MSDStudio][GRID] Scale calculation:', {
-            scaleX, scaleY, scale,
-            viewBoxSize: { width: viewBoxWidth, height: viewBoxHeight },
-            rectSize: { width: rect.width, height: rect.height }
-        });
 
         const renderedWidth = viewBoxWidth / scale;
         const renderedHeight = viewBoxHeight / scale;
         const offsetX = (rect.width - renderedWidth) / 2;
         const offsetY = (rect.height - renderedHeight) / 2;
-
-        lcardsLog.debug('[MSDStudio][GRID] Calculated positions:', {
-            renderedSize: { width: renderedWidth, height: renderedHeight },
-            offset: { x: offsetX, y: offsetY },
-            baseSvgLeft: (rect.left - panelRect.left) + offsetX,
-            baseSvgTop: (rect.top - panelRect.top) + offsetY
-        });
-        lcardsLog.trace('[MSDStudio] Rendering grid with', verticalLines.length, 'vertical and', horizontalLines.length, 'horizontal lines');
 
         // Calculate base_svg boundary position
         // Use SVG rect directly - it's already in transformed screen space
@@ -5085,15 +5040,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 "></div>
 
                 <!-- Grid Lines -->
-                ${verticalLines.map((x, idx) => {
+                ${verticalLines.map((x) => {
                     const svgPixelX = (x - viewBoxX) / scale;
-                    if (idx === 0) {
-                        lcardsLog.debug('[MSDStudio][GRID] First vertical line:', {
-                            viewBoxX: x,
-                            svgPixelX,
-                            calculation: `(${x} - ${viewBoxX}) / ${scale} = ${svgPixelX}`
-                        });
-                    }
                     return html`
                         <div style="
                             position: absolute;
