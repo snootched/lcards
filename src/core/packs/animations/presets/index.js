@@ -632,13 +632,13 @@ registerAnimationPreset('cascade-color', (def) => {
 
   // Row-level delay from timing pattern (when rows start relative to animation start)
   const rowDelay = p.delay !== undefined ? p.delay : 0;
-  
+
   // Mode selection
   const interactive = p.interactive !== undefined ? p.interactive : false;
   const staggerFrom = p.stagger_from;
   const staggerDelay = p.stagger_delay !== undefined ? p.stagger_delay : 100;
   const axis = p.axis || 'row';
-  
+
   // Force anime.js mode if advanced features requested
   const mode = p.mode || (interactive || staggerFrom || (axis && axis !== 'row') ? 'animejs' : 'css');
   const useAnimejs = mode === 'animejs';
@@ -845,7 +845,8 @@ registerAnimationPreset('scale-reset', (def) => {
  */
 registerAnimationPreset('slide', (def) => {
   const p = def.params || def;
-  const direction = p.direction || 'up';
+  // Support both 'from' (editor) and 'direction' (legacy) parameters
+  const from = p.from || p.direction || 'right';
   const distance = p.distance !== undefined ? p.distance : 100;
   const duration = p.duration || 600;
   const easing = p.easing || 'easeOutQuad';
@@ -857,29 +858,42 @@ registerAnimationPreset('slide', (def) => {
   const distanceValue = isPercentage ? distance : `${distance}px`;
 
   // Map direction to translateX/Y
+  // "from right" means element starts at right (positive X) and slides to 0
+  // "from left" means element starts at left (negative X) and slides to 0
+  // "from top" means element starts at top (negative Y) and slides to 0
+  // "from bottom" means element starts at bottom (positive Y) and slides to 0
   let translateProp;
   let translateValue;
-  
-  switch (direction) {
+
+  switch (from) {
+    case 'right':
+      translateProp = 'translateX';
+      translateValue = [distanceValue, 0];
+      break;
+    case 'left':
+      translateProp = 'translateX';
+      translateValue = [isPercentage ? `-${distance}` : `-${distance}px`, 0];
+      break;
+    case 'top':
+      translateProp = 'translateY';
+      translateValue = [isPercentage ? `-${distance}` : `-${distance}px`, 0];
+      break;
+    case 'bottom':
+      translateProp = 'translateY';
+      translateValue = [distanceValue, 0];
+      break;
+    // Legacy 'direction' parameter support
     case 'up':
       translateProp = 'translateY';
       translateValue = [distanceValue, 0];
       break;
     case 'down':
       translateProp = 'translateY';
-      translateValue = [isPercentage ? `-${distance}` : -distance, 0];
-      break;
-    case 'left':
-      translateProp = 'translateX';
-      translateValue = [distanceValue, 0];
-      break;
-    case 'right':
-      translateProp = 'translateX';
-      translateValue = [isPercentage ? `-${distance}` : -distance, 0];
+      translateValue = [isPercentage ? `-${distance}` : `-${distance}px`, 0];
       break;
     default:
-      lcardsLog.warn(`[AnimationPresets] slide: unknown direction '${direction}', using 'up'`);
-      translateProp = 'translateY';
+      lcardsLog.warn(`[AnimationPresets] slide: unknown from/direction '${from}', using 'right'`);
+      translateProp = 'translateX';
       translateValue = [distanceValue, 0];
   }
 
@@ -908,7 +922,7 @@ registerAnimationPreset('slide', (def) => {
  */
 registerAnimationPreset('rotate', (def) => {
   const p = def.params || def;
-  
+
   // Support direction shorthand or explicit from/to
   let from, to;
   if (p.direction) {
@@ -1177,14 +1191,14 @@ registerAnimationPreset('skew', (def) => {
     const toX = p.skewX !== undefined ? p.skewX : 0;
     const fromY = p.from_skewY !== undefined ? p.from_skewY : 0;
     const toY = p.skewY !== undefined ? p.skewY : 0;
-    
+
     skewXValue = [fromX, toX];
     skewYValue = [fromY, toY];
   } else {
     // Use direct target values (from current to target)
     const targetX = p.skewX !== undefined ? p.skewX : 0;
     const targetY = p.skewY !== undefined ? p.skewY : 0;
-    
+
     skewXValue = [0, targetX];
     skewYValue = [0, targetY];
   }
@@ -1226,11 +1240,11 @@ registerAnimationPreset('scan-line', (def) => {
   // Use background-position animation for gradient movement
   // Create a linear gradient that will be animated
   const isHorizontal = direction === 'horizontal';
-  
+
   // Set up the gradient and animate background-position
   const gradientAngle = isHorizontal ? '90deg' : '0deg';
   const positionProp = isHorizontal ? 'background-position-x' : 'background-position-y';
-  
+
   return {
     anime: {
       [positionProp]: isHorizontal ? ['0%', '100%'] : ['0%', '100%'],
@@ -1268,7 +1282,7 @@ registerAnimationPreset('glitch', (def) => {
     // Random position shifts
     const randomX = (Math.random() - 0.5) * 2 * intensity;
     const randomY = (Math.random() - 0.5) * 2 * intensity;
-    
+
     keyframes.push({
       translateX: randomX,
       translateY: randomY,
@@ -1276,7 +1290,7 @@ registerAnimationPreset('glitch', (def) => {
       filter: Math.random() > 0.7 ? `hue-rotate(${Math.random() * 360}deg)` : 'hue-rotate(0deg)'
     });
   }
-  
+
   // Return to normal at the end
   keyframes.push({
     translateX: 0,
@@ -1506,9 +1520,9 @@ registerAnimationPreset('grid-stagger', (def) => {
       duration: waveDuration,
       easing,
       // Use anime.js v4 stagger with grid positioning
-      delay: window.lcards?.animejs?.stagger?.(staggerDuration, { 
-        grid: grid, 
-        from: from 
+      delay: window.lcards?.animejs?.stagger?.(staggerDuration, {
+        grid: grid,
+        from: from
       }) || ((el, i) => i * staggerDuration),
       loop,
       alternate
@@ -1561,7 +1575,7 @@ registerAnimationPreset('chaos', (def) => {
     if (propRange && Array.isArray(propRange) && propRange.length === 2) {
       // Map property names (x/y shorthand to translateX/translateY)
       const animeProp = prop === 'x' ? 'translateX' : prop === 'y' ? 'translateY' : prop;
-      
+
       // Use function to generate random value for each element
       animeParams[animeProp] = () => {
         return propRange[0] + Math.random() * (propRange[1] - propRange[0]);
@@ -1611,11 +1625,11 @@ registerAnimationPreset('physics-spring', (def) => {
   }
 
   // Use anime.js v4 spring as easing function
-  const springEasing = window.lcards?.animejs?.spring?.({ 
-    stiffness, 
-    damping, 
-    mass, 
-    velocity 
+  const springEasing = window.lcards?.animejs?.spring?.({
+    stiffness,
+    damping,
+    mass,
+    velocity
   }) || 'easeOutElastic';
 
   return {

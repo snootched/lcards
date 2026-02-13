@@ -373,7 +373,8 @@ export class LCARdSAnimationEditor extends LitElement {
                 { value: 'on_hover', label: 'On Hover' },
                 { value: 'on_leave', label: 'On Leave (Exit Hover)' },
                 { value: 'on_tap', label: 'On Tap' },
-                { value: 'on_datasource_change', label: 'On Data Change' }
+                { value: 'on_datasource_change', label: 'On Data Change' },
+                { value: 'on_entity_change', label: '\u2728 On Entity Change (PR#235)' }
               ]
             }
           }}
@@ -382,6 +383,8 @@ export class LCARdSAnimationEditor extends LitElement {
           .helper=${this._getTriggerHelp(anim.trigger || 'on_load')}
           @value-changed=${(e) => this._updateAnimation(index, 'trigger', e.detail.value)}
         ></ha-selector>
+
+        ${anim.trigger === 'on_entity_change' ? this._renderEntityChangeTriggerConfig(anim, index) : ''}
       </lcards-form-section>
 
       <!-- Custom Toggle -->
@@ -847,17 +850,483 @@ export class LCARdSAnimationEditor extends LitElement {
 
       // Placeholder presets (not yet implemented)
       case 'slide':
-      case 'rotate':
-      case 'shake':
-      case 'bounce':
-      case 'color-shift':
-      case 'border-pulse':
-      case 'skew':
-      case 'scan-line':
-      case 'glitch':
-      case 'motionpath':
         specificParams = html`
-          <lcards-message type="warning" .message=${"This preset is awaiting implementation. Parameters will be available soon."}></lcards-message>
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: [
+                    { value: 'right', label: 'From Right' },
+                    { value: 'left', label: 'From Left' },
+                    { value: 'top', label: 'From Top' },
+                    { value: 'bottom', label: 'From Bottom' }
+                  ]
+                }
+              }}
+              .value=${params.from ?? 'right'}
+              .label=${'Slide Direction'}
+              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -500, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.distance ?? 100}
+              .label=${'Distance (px or %)'}
+              .helper=${'Positive number or use % for percentage'}
+              @value-changed=${(e) => this._updateParam(index, 'distance', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'rotate':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -720, max: 720, step: 15, mode: 'box' } }}
+              .value=${params.angle ?? 360}
+              .label=${'Rotation Angle (degrees)'}
+              .helper=${'Positive = clockwise, negative = counter-clockwise'}
+              @value-changed=${(e) => this._updateParam(index, 'angle', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              label="Transform Origin"
+              .value=${params.origin ?? 'center'}
+              .helper=${'e.g., "center", "top left", "50% 50%"'}
+              @input=${(e) => this._updateParam(index, 'origin', e.target.value)}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      case 'shake':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
+              .value=${params.intensity ?? 10}
+              .label=${'Shake Intensity (px)'}
+              @value-changed=${(e) => this._updateParam(index, 'intensity', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: [
+                    { value: 'horizontal', label: 'Horizontal' },
+                    { value: 'vertical', label: 'Vertical' },
+                    { value: 'both', label: 'Both Directions' }
+                  ]
+                }
+              }}
+              .value=${params.direction ?? 'horizontal'}
+              .label=${'Shake Direction'}
+              @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'bounce':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0.1, max: 3, step: 0.1, mode: 'slider' } }}
+              .value=${params.max_scale ?? 1.3}
+              .label=${'Max Scale'}
+              @value-changed=${(e) => this._updateParam(index, 'max_scale', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
+              .value=${params.bounces ?? 3}
+              .label=${'Number of Bounces'}
+              @value-changed=${(e) => this._updateParam(index, 'bounces', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0.1, max: 2, step: 0.05, mode: 'slider' } }}
+              .value=${params.elasticity ?? 0.6}
+              .label=${'Elasticity'}
+              @value-changed=${(e) => this._updateParam(index, 'elasticity', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'color-shift':
+        specificParams = html`
+          <div class="param-grid">
+            <div class="param-full">
+              <label class="field-label">From Color</label>
+              <lcards-color-picker
+                .value=${params.from_color ?? '#0783FF'}
+                @value-changed=${(e) => this._updateParam(index, 'from_color', e.detail.value)}>
+              </lcards-color-picker>
+            </div>
+            <div class="param-full">
+              <label class="field-label">To Color</label>
+              <lcards-color-picker
+                .value=${params.to_color ?? '#FF6600'}
+                @value-changed=${(e) => this._updateParam(index, 'to_color', e.detail.value)}>
+              </lcards-color-picker>
+            </div>
+            <ha-textfield
+              label="CSS Property"
+              .value=${params.property ?? 'color'}
+              .helper=${'Property to animate: color, fill, stroke, background, etc.'}
+              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      case 'border-pulse':
+        specificParams = html`
+          <div class="param-grid">
+            <div class="param-full">
+              <label class="field-label">Border Color</label>
+              <lcards-color-picker
+                .value=${params.color ?? '#0783FF'}
+                @value-changed=${(e) => this._updateParam(index, 'color', e.detail.value)}>
+              </lcards-color-picker>
+            </div>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
+              .value=${params.min_width ?? 1}
+              .label=${'Min Width (px)'}
+              @value-changed=${(e) => this._updateParam(index, 'min_width', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
+              .value=${params.max_width ?? 5}
+              .label=${'Max Width (px)'}
+              @value-changed=${(e) => this._updateParam(index, 'max_width', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'skew':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
+              .value=${params.x ?? 0}
+              .label=${'Skew X (degrees)'}
+              @value-changed=${(e) => this._updateParam(index, 'x', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
+              .value=${params.y ?? 10}
+              .label=${'Skew Y (degrees)'}
+              @value-changed=${(e) => this._updateParam(index, 'y', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'scan-line':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: [
+                    { value: 'vertical', label: 'Vertical (Top to Bottom)' },
+                    { value: 'horizontal', label: 'Horizontal (Left to Right)' }
+                  ]
+                }
+              }}
+              .value=${params.direction ?? 'vertical'}
+              .label=${'Scan Direction'}
+              @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
+            </ha-selector>
+            <div class="param-full">
+              <label class="field-label">Scan Color</label>
+              <lcards-color-picker
+                .value=${params.color ?? '#0783FF'}
+                @value-changed=${(e) => this._updateParam(index, 'color', e.detail.value)}>
+              </lcards-color-picker>
+            </div>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 100, step: 1, mode: 'slider' } }}
+              .value=${params.width ?? 20}
+              .label=${'Line Width (%)'}
+              @value-changed=${(e) => this._updateParam(index, 'width', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      // Text Animation Presets (PR#234)
+      case 'text-reveal':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: [
+                    { value: 'chars', label: 'Characters' },
+                    { value: 'words', label: 'Words' },
+                    { value: 'lines', label: 'Lines' }
+                  ]
+                }
+              }}
+              .value=${params.split_type ?? 'chars'}
+              .label=${'Split By'}
+              @value-changed=${(e) => this._updateParam(index, 'split_type', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 50}
+              .label=${'Stagger Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
+              .value=${params.from_opacity ?? 0}
+              .label=${'From Opacity'}
+              @value-changed=${(e) => this._updateParam(index, 'from_opacity', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'text-typewriter':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 10, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 80}
+              .label=${'Character Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ boolean: {} }}
+              .value=${params.cursor ?? true}
+              .label=${'Show Cursor'}
+              @value-changed=${(e) => this._updateParam(index, 'cursor', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              label="Cursor Character"
+              .value=${params.cursor_char ?? '▊'}
+              maxlength="2"
+              @input=${(e) => this._updateParam(index, 'cursor_char', e.target.value)}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      case 'text-scramble':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 10, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 50}
+              .label=${'Character Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 20, step: 1, mode: 'slider' } }}
+              .value=${params.scramble_iterations ?? 5}
+              .label=${'Scramble Iterations'}
+              @value-changed=${(e) => this._updateParam(index, 'scramble_iterations', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              label="Scramble Characters"
+              .value=${params.chars ?? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'}
+              @input=${(e) => this._updateParam(index, 'chars', e.target.value)}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      case 'text-wave':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
+              .value=${params.amplitude ?? 10}
+              .label=${'Wave Amplitude (px)'}
+              @value-changed=${(e) => this._updateParam(index, 'amplitude', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 20, step: 1, mode: 'slider' } }}
+              .value=${params.wave_length ?? 4}
+              .label=${'Wave Length (characters)'}
+              @value-changed=${(e) => this._updateParam(index, 'wave_length', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 10, max: 200, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 50}
+              .label=${'Stagger Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      case 'text-glitch':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
+              .value=${params.intensity ?? 10}
+              .label=${'Glitch Intensity (px)'}
+              @value-changed=${(e) => this._updateParam(index, 'intensity', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 10, max: 200, step: 10, mode: 'box' } }}
+              .value=${params.interval ?? 50}
+              .label=${'Glitch Interval (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'interval', e.detail.value)}>
+            </ha-selector>
+          </div>
+        `;
+        break;
+
+      // Stagger Animation Presets (PR#233)
+      case 'stagger-grid':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-textfield
+              label="Grid Dimensions"
+              .value=${JSON.stringify(params.grid ?? [3, 3])}
+              .helper=${'Format: [columns, rows] e.g., [6, 1] for alert bars'}
+              @input=${(e) => {
+                try {
+                  this._updateParam(index, 'grid', JSON.parse(e.target.value));
+                } catch (err) {}
+              }}>
+            </ha-textfield>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  options: [
+                    { value: 'start', label: 'From Start (Top-Left)' },
+                    { value: 'end', label: 'From End (Bottom-Right)' },
+                    { value: 'center', label: 'From Center Outward' },
+                    { value: 'edges', label: 'From Edges Inward' }
+                  ]
+                }
+              }}
+              .value=${params.from ?? 'start'}
+              .label=${'Wave Direction'}
+              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 100}
+              .label=${'Stagger Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              label="Property"
+              .value=${params.property ?? 'scale'}
+              .helper=${'Property to animate (scale, opacity, translateY, etc.)'}
+              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      case 'stagger-wave':
+      case 'stagger-radial':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
+              .value=${params.delay ?? 100}
+              .label=${'Stagger Delay (ms)'}
+              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
+            </ha-selector>
+            <ha-textfield
+              label="Property"
+              .value=${params.property ?? 'scale'}
+              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
+            </ha-textfield>
+            <ha-textfield
+              label="Center Point (for radial)"
+              .value=${params.center ? JSON.stringify(params.center) : '[50, 50]'}
+              .helper=${'Format: [x, y] in percentage. e.g., [50, 50]'}
+              @input=${(e) => {
+                try {
+                  this._updateParam(index, 'center', JSON.parse(e.target.value));
+                } catch (err) {}
+              }}>
+            </ha-textfield>
+          </div>
+        `;
+        break;
+
+      // Timeline Animation Presets (PR#233)
+      case 'timeline-cascade':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-textfield
+              label="Steps (JSON)"
+              .value=${JSON.stringify(params.steps ?? [])}
+              .helper=${'Array of step objects with targets, params, duration, offset'}
+              @input=${(e) => {
+                try {
+                  this._updateParam(index, 'steps', JSON.parse(e.target.value));
+                } catch (err) {}
+              }}>
+            </ha-textfield>
+            <lcards-message type="info" .message=${'Define multiple sequential animation steps. Example: [{ targets: ".step-1", params: { opacity: [0, 1] }, duration: 300, offset: 0 }]'}></lcards-message>
+          </div>
+        `;
+        break;
+
+      case 'timeline-attention':
+        specificParams = html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0.5, max: 3, step: 0.1, mode: 'slider' } }}
+              .value=${params.scale_amount ?? 1.3}
+              .label=${'Scale Amount'}
+              @value-changed=${(e) => this._updateParam(index, 'scale_amount', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
+              .value=${params.shake_intensity ?? 10}
+              .label=${'Shake Intensity'}
+              @value-changed=${(e) => this._updateParam(index, 'shake_intensity', e.detail.value)}>
+            </ha-selector>
+          </div>
         `;
         break;
     }
@@ -983,7 +1452,8 @@ export class LCARdSAnimationEditor extends LitElement {
       'on_hover': 'Hover',
       'on_leave': 'Leave',
       'on_tap': 'Tap',
-      'on_datasource_change': 'Data Change'
+      'on_datasource_change': 'Data Change',
+      'on_entity_change': 'Entity Change'
     };
     return map[trigger] || trigger;
   }
@@ -994,7 +1464,8 @@ export class LCARdSAnimationEditor extends LitElement {
       'on_hover': 'mdi:cursor-default-click',
       'on_leave': 'mdi:cursor-default-outline',
       'on_tap': 'mdi:gesture-tap',
-      'on_datasource_change': 'mdi:database-sync'
+      'on_datasource_change': 'mdi:database-sync',
+      'on_entity_change': 'mdi:state-machine'
     };
     return icons[trigger] || 'mdi:lightning-bolt';
   }
@@ -1005,9 +1476,46 @@ export class LCARdSAnimationEditor extends LitElement {
       'on_hover': 'Executes when mouse enters the element',
       'on_leave': 'Executes when mouse leaves the element (use for exit animations)',
       'on_tap': 'Executes when the element is clicked/tapped',
-      'on_datasource_change': 'Executes when associated data source value changes'
+      'on_datasource_change': 'Executes when associated data source value changes',
+      'on_entity_change': 'Executes when monitored entity state changes (NEW in PR#235) - supports state filtering'
     };
     return help[trigger] || '';
+  }
+
+  _renderEntityChangeTriggerConfig(anim, index) {
+    return html`
+      <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px;">
+        <label class="field-label">Entity Change Configuration</label>
+
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ entity: {} }}
+          .value=${anim.entity || ''}
+          .label=${'Entity to Monitor'}
+          .helper=${'Entity whose state changes will trigger this animation'}
+          @value-changed=${(e) => this._updateAnimation(index, 'entity', e.detail.value)}
+          style="margin-bottom: 12px;">
+        </ha-selector>
+
+        <ha-textfield
+          label="From State (optional)"
+          .value=${anim.from_state || ''}
+          .helper=${'Only trigger when changing FROM this state (leave empty for any)'}
+          @input=${(e) => this._updateAnimation(index, 'from_state', e.target.value)}
+          style="width: 100%; margin-bottom: 12px;">
+        </ha-textfield>
+
+        <ha-textfield
+          label="To State (optional)"
+          .value=${anim.to_state || ''}
+          .helper=${'Only trigger when changing TO this state (leave empty for any)'}
+          @input=${(e) => this._updateAnimation(index, 'to_state', e.target.value)}
+          style="width: 100%; margin-bottom: 12px;">
+        </ha-textfield>
+
+        <lcards-message type="info" .message=${'Example: Monitor light.bedroom, animate only when changing from "off" to "on"'}></lcards-message>
+      </div>
+    `;
   }
 
   _formatPresetName(preset) {
@@ -1090,19 +1598,33 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'scale', label: 'Scale - Simple scale transform' },
       { value: 'scale-reset', label: 'Scale Reset - Return to original' },
 
-      // Motion Effects (Placeholder)
-      { value: 'slide', label: '🚧 Slide - Translate/position animation' },
-      { value: 'rotate', label: '🚧 Rotate - Rotation animation' },
-      { value: 'shake', label: '🚧 Shake - Vibrate/shake effect' },
-      { value: 'bounce', label: '🚧 Bounce - Elastic bounce' },
-      { value: 'color-shift', label: '🚧 Color Shift - Pure color transition' },
-      { value: 'border-pulse', label: '🚧 Border Pulse - Border animation' },
-      { value: 'skew', label: '🚧 Skew - Slant transformation' },
+      // Motion Effects (NEW - PR#229)
+      { value: 'slide', label: 'Slide - Translate/position animation' },
+      { value: 'rotate', label: 'Rotate - Rotation animation' },
+      { value: 'shake', label: 'Shake - Vibrate/shake effect' },
+      { value: 'bounce', label: 'Bounce - Elastic bounce' },
+      { value: 'color-shift', label: 'Color Shift - Pure color transition' },
+      { value: 'border-pulse', label: 'Border Pulse - Border animation' },
+      { value: 'skew', label: 'Skew - Slant transformation' },
+      { value: 'scan-line', label: 'Scan Line - Moving gradient' },
 
-      // Special Effects (Placeholder)
-      { value: 'scan-line', label: '🚧 Scan Line - Moving gradient' },
-      { value: 'glitch', label: '🚧 Glitch - Random shifts' },
-      { value: 'motionpath', label: '🚧 Motion Path - Path following' },
+      // Text Animations (NEW - PR#234)
+      { value: 'text-reveal', label: '✨ Text Reveal - Character-by-character reveal' },
+      { value: 'text-typewriter', label: '✨ Text Typewriter - Typing effect' },
+      { value: 'text-scramble', label: '✨ Text Scramble - Matrix-style scramble' },
+      { value: 'text-wave', label: '✨ Text Wave - Sinusoidal motion' },
+      { value: 'text-glitch', label: '✨ Text Glitch - Rapid jitter' },
+
+      // Stagger Animations (NEW - PR#233)
+      { value: 'stagger-grid', label: '⚡ Stagger Grid - Grid-based stagger' },
+      { value: 'stagger-wave', label: '⚡ Stagger Wave - Wave pattern' },
+      { value: 'stagger-radial', label: '⚡ Stagger Radial - Radial burst' },
+
+      // Timeline Animations (NEW - PR#233)
+      { value: 'timeline-cascade', label: '🎬 Timeline Cascade - Sequential steps' },
+      { value: 'timeline-attention', label: '🎬 Timeline Attention - Attention-getter' },
+
+      // Utility
       { value: 'set', label: 'Set - Immediate property change' }
     ];
   }
@@ -1124,26 +1646,31 @@ export class LCARdSAnimationEditor extends LitElement {
       'scale': 'Simple scale transform - great for hover feedback',
       'scale-reset': 'Returns element to original scale - use with on_leave',
       'set': 'Immediately sets CSS properties without animation',
-      'motionpath': 'Animates element along a path (placeholder)',
-      'slide': 'Slide element in/out from a direction (not yet implemented)',
-      'rotate': 'Rotate element continuously or to angle (not yet implemented)',
-      'shake': 'Horizontal shake for error states (not yet implemented)',
-      'bounce': 'Elastic bouncing scale effect (not yet implemented)',
-      'color-shift': 'Pure color animation between two colors (not yet implemented)',
-      'border-pulse': 'Animates border color and width (not yet implemented)',
-      'skew': 'Skew/slant transformation for perspective (not yet implemented)',
-      'scan-line': 'Moving gradient scan line effect (not yet implemented)',
-      'glitch': 'Random position/color shifts for malfunction (not yet implemented)'
+      'slide': 'Slide element in from a direction (top/bottom/left/right)',
+      'rotate': 'Rotate element continuously or to a specific angle',
+      'shake': 'Horizontal shake effect - great for error states',
+      'bounce': 'Elastic bouncing scale effect with spring physics',
+      'color-shift': 'Smoothly transition between two colors',
+      'border-pulse': 'Animate border color and width',
+      'skew': 'Skew/slant transformation for 3D perspective effects',
+      'scan-line': 'Moving gradient scan line effect (LCARS-style)',
+      'text-reveal': 'Character-by-character reveal with stagger - supports chars/words/lines',
+      'text-typewriter': 'Classic typewriter effect with optional cursor',
+      'text-scramble': 'Matrix-style scramble with random character replacement',
+      'text-wave': 'Sinusoidal wave motion across text characters',
+      'text-glitch': 'Rapid position and opacity jitter for malfunction effect',
+      'stagger-grid': 'Grid-based stagger - animate elements in grid pattern with directional wave',
+      'stagger-wave': 'Wave pattern stagger - creates ripple effect across elements',
+      'stagger-radial': 'Radial burst stagger - animates outward from center point',
+      'timeline-cascade': 'Sequential coordinated animations across multiple targets',
+      'timeline-attention': 'Attention-getting sequence (scale up → shake → return)'
     };
     return help[preset] || 'Animation preset';
   }
 
   _isPlaceholderPreset(preset) {
-    const placeholders = [
-      'slide', 'rotate', 'shake', 'bounce', 'color-shift',
-      'border-pulse', 'skew', 'scan-line', 'glitch', 'motionpath'
-    ];
-    return placeholders.includes(preset);
+    // All core presets are now implemented
+    return false;
   }
 
   _toggleExpanded(index) {
