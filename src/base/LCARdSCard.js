@@ -2358,9 +2358,9 @@ export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
             return () => {};
         }
 
-        // Skip if target element not found
+        // Skip if target element not found (common during initial render cycles)
         if (!targetElement) {
-            lcardsLog.warn('[LCARdSCard] Target element not found for interactivity setup');
+            lcardsLog.trace('[LCARdSCard] Target element not found for interactivity setup (likely not rendered yet)');
             return () => {};
         }
 

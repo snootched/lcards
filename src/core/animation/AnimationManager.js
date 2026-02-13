@@ -131,6 +131,23 @@ export class AnimationManager extends BaseService {
     lcardsLog.debug(`[AnimationManager] 🎨 Overlay rendered: ${overlayId}`);
 
     try {
+      // Check if scope already exists
+      const existingScope = this.scopes.get(overlayId);
+
+      // Strategy: Preserve onLoadFired if scope was created more than 500ms ago
+      // This distinguishes initial setup (multiple rapid calls) from state changes (later calls)
+      // - Initial setup: 2-3 calls within ~100ms → only first fires animation
+      // - State changes: Calls happen >500ms after creation → don't fire animation
+      const now = Date.now();
+      const scopeAge = existingScope ? (now - existingScope.createdAt) : 0;
+      const isInitialSetup = scopeAge < 500; // Consider calls within 500ms as "initial setup"
+
+      const preserveOnLoadFlag = existingScope?.onLoadFired && !isInitialSetup;
+
+      if (existingScope) {
+        lcardsLog.debug(`[AnimationManager] Scope exists for ${overlayId}, age: ${scopeAge}ms, preserving onLoadFired: ${preserveOnLoadFlag} (initial setup: ${isInitialSetup})`);
+      }
+
       // Create anime.js scope for this overlay
       const scope = this.createScopeForOverlay(overlayId, element);
 
@@ -148,7 +165,12 @@ export class AnimationManager extends BaseService {
         // Structure: Map<trigger, Array<animeInstance>>
         runningInstances: new Map(),
         // Store systemsManager reference for accessing overlay instances
-        systemsManager: systemsManager
+        systemsManager: systemsManager,
+        // Track whether on_load animations have already fired
+        // Preserve the flag if scope is being recreated (e.g., on element changes)
+        onLoadFired: preserveOnLoadFlag,
+        // Track when scope was created to distinguish initial setup from state changes
+        createdAt: existingScope?.createdAt || now
       });
 
       // Get registered animations for this overlay
@@ -196,9 +218,18 @@ export class AnimationManager extends BaseService {
     // Register with trigger manager
     scopeData.triggerManager.register(trigger, resolvedAnimDef);
 
-    // For on_load triggers, execute immediately
+    // For on_load triggers, execute immediately (but only once)
     if (trigger === 'on_load') {
-      await this.playAnimation(overlayId, resolvedAnimDef);
+      // Only fire on_load animation if it hasn't already fired for this overlay
+      // This prevents on_load from firing again when the TriggerManager is recreated
+      // (e.g., when button SVG is recreated on state changes)
+      if (!scopeData.onLoadFired) {
+        lcardsLog.debug(`[AnimationManager] Executing on_load animation for ${overlayId}`);
+        scopeData.onLoadFired = true;
+        await this.playAnimation(overlayId, resolvedAnimDef);
+      } else {
+        lcardsLog.debug(`[AnimationManager] Skipping on_load animation (already fired for ${overlayId})`);
+      }
     }
 
     // ✨ NEW: For on_datasource_change triggers, setup datasource listener
@@ -270,7 +301,7 @@ export class AnimationManager extends BaseService {
   /**
    * Extract value from datasource using dot notation path
    * NEW: Updated for datasource buffer structure (main buffer + processor buffers)
-   * 
+   *
    * @param {Object} data - Datasource data object with structure: { v: value, processorKey: value, ... }
    * @param {Array<string>} pathParts - Path parts (e.g., ['celsius'] for processor buffer)
    * @returns {*} Extracted value
@@ -290,7 +321,7 @@ export class AnimationManager extends BaseService {
 
     // Single path part - look for processor buffer (e.g., 'celsius', 'rolling_avg')
     const processorKey = pathParts[0];
-    
+
     if (data[processorKey] !== undefined) {
       // Found processor buffer - return its value
       return data[processorKey];
@@ -1092,7 +1123,9 @@ export class AnimationManager extends BaseService {
           // Segment-specific metadata
           isSegment: true,
           cardId: cardId,
-          segmentId: segmentId
+          segmentId: segmentId,
+          // Track whether on_load animations have already fired
+          onLoadFired: false
         });
 
         lcardsLog.debug(`[AnimationManager] Created segment scope: ${scopeKey}`);
@@ -1107,9 +1140,14 @@ export class AnimationManager extends BaseService {
         // Register with trigger manager
         scopeData.triggerManager.register(trigger, this.resolveAnimationDefinition(animDef));
 
-        // For on_load triggers, execute immediately
+        // For on_load triggers, execute immediately (but only once)
         if (trigger === 'on_load') {
-          await this.playAnimation(scopeKey, this.resolveAnimationDefinition(animDef));
+          if (!scopeData.onLoadFired) {
+            scopeData.onLoadFired = true;
+            await this.playAnimation(scopeKey, this.resolveAnimationDefinition(animDef));
+          } else {
+            lcardsLog.debug(`[AnimationManager] Skipping on_load animation (already fired for ${scopeKey})`);
+          }
         }
 
         // For on_entity_change triggers, setup is handled by the card
