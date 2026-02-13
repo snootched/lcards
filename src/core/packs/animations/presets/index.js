@@ -21,9 +21,29 @@
 
 import { registerAnimationPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
+
+/**
+ * Helper function to resolve easing configuration
+ * Handles both string easings and object-based parametric easings
+ * @param {string|object} easeConfig - Either a string like 'spring' or an object with { ease, ease_params }
+ * @param {object} params - Full params object containing ease and ease_params
+ * @returns {string|function} Resolved easing value for anime.js
+ */
+function getResolvedEasing(params) {
+  // If ease_params is present, create config object for resolveEasing
+  if (params.ease_params) {
+    return resolveEasing({
+      type: params.ease,
+      params: params.ease_params
+    });
+  }
+  // Otherwise just return the ease string
+  return params.ease;
+}
 
 /**
  * Register all builtin animation presets
@@ -48,7 +68,7 @@ export function registerBuiltinAnimationPresets() {
  * - max_scale (default: 1.15) or scale - How much to grow
  * - max_brightness (default: 1.4) - How much to brighten (1.0 = normal)
  * - duration (default: 1200)
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - loop (default: true) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: true)
  */
@@ -57,7 +77,7 @@ registerAnimationPreset('pulse', (def) => {
   const maxScale = p.max_scale !== undefined ? p.max_scale : (p.scale !== undefined ? p.scale : 1.15);
   const maxBrightness = p.max_brightness !== undefined ? p.max_brightness : 1.4;
   const duration = p.duration || 1200;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -66,7 +86,7 @@ registerAnimationPreset('pulse', (def) => {
       scale: [1, maxScale],
       filter: [`brightness(1)`, `brightness(${maxBrightness})`],
       duration,
-      easing,
+      ease,
       loop,
       alternate,
       complete: (anim) => {
@@ -99,7 +119,7 @@ registerAnimationPreset('pulse', (def) => {
  * - from (default: 1) - Starting opacity
  * - to (default: 0.3) - Target opacity
  * - duration (default: 1000)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: false) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: false)
  */
@@ -108,7 +128,7 @@ registerAnimationPreset('fade', (def) => {
   const from = p.from !== undefined ? p.from : 1;
   const to = p.to !== undefined ? p.to : 0.3;
   const duration = p.duration || 1000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate || false;
 
@@ -116,7 +136,7 @@ registerAnimationPreset('fade', (def) => {
     anime: {
       opacity: [from, to],
       duration,
-      easing,
+      ease,
       loop,
       alternate,
       complete: alternate ? (anim) => {
@@ -139,7 +159,7 @@ registerAnimationPreset('fade', (def) => {
  * - blur_min (default: 0)
  * - blur_max (default: 10)
  * - duration (default: 1500)
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - loop (default: true) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: true)
  */
@@ -149,7 +169,7 @@ registerAnimationPreset('glow', (def) => {
   const blurMin = p.blur_min !== undefined ? p.blur_min : 0;
   const blurMax = p.blur_max !== undefined ? p.blur_max : 10;
   const duration = p.duration || 1500;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -160,7 +180,7 @@ registerAnimationPreset('glow', (def) => {
         `drop-shadow(0 0 ${blurMax}px ${color})`
       ],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -174,7 +194,7 @@ registerAnimationPreset('glow', (def) => {
  *
  * Parameters:
  * - duration (default: 2000)
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - reverse (default: false) - If true, draws from end to start
  * - loop (default: false)
  * - alternate (default: false)
@@ -183,7 +203,7 @@ registerAnimationPreset('glow', (def) => {
 registerAnimationPreset('draw', (def) => {
   const p = def.params || def;
   const duration = p.duration || 2000;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const reverse = p.reverse || false;
   const loop = p.loop || false;
   const alternate = p.alternate || false;
@@ -203,7 +223,7 @@ registerAnimationPreset('draw', (def) => {
   return {
     anime: {
       duration,
-      easing,
+      ease,
       loop,
       alternate,
       draw: drawValues
@@ -379,7 +399,7 @@ registerAnimationPreset('march', (def) => {
  * - max_opacity (default: 1)
  * - min_opacity (default: 0.3)
  * - duration (default: 1200)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: true)
  * - alternate (default: true)
  */
@@ -388,7 +408,7 @@ registerAnimationPreset('blink', (def) => {
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0.3;
   const duration = p.duration || 1200;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -396,7 +416,7 @@ registerAnimationPreset('blink', (def) => {
     anime: {
       opacity: [maxOpacity, minOpacity],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -416,7 +436,7 @@ registerAnimationPreset('blink', (def) => {
  * - opacity_from (default: 1)
  * - opacity_to (default: 0.5)
  * - duration (default: 1500)
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - loop (default: true)
  * - alternate (default: true)
  */
@@ -427,7 +447,7 @@ registerAnimationPreset('shimmer', (def) => {
   const opacityFrom = p.opacity_from !== undefined ? p.opacity_from : 1;
   const opacityTo = p.opacity_to !== undefined ? p.opacity_to : 0.5;
   const duration = p.duration || 1500;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -435,7 +455,7 @@ registerAnimationPreset('shimmer', (def) => {
   const animeParams = {
     opacity: [opacityFrom, opacityTo],
     duration,
-    easing,
+    ease,
     loop,
     alternate
   };
@@ -458,7 +478,7 @@ registerAnimationPreset('shimmer', (def) => {
  * - duration (default: 100)
  * - max_opacity (default: 1)
  * - min_opacity (default: 0)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: true)
  * - alternate (default: true)
  */
@@ -467,7 +487,7 @@ registerAnimationPreset('strobe', (def) => {
   const duration = p.duration || 100;
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -475,7 +495,7 @@ registerAnimationPreset('strobe', (def) => {
     anime: {
       opacity: [maxOpacity, minOpacity],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -490,7 +510,7 @@ registerAnimationPreset('strobe', (def) => {
  * - max_opacity (default: 1)
  * - min_opacity (default: 0.3)
  * - duration (default: 1000)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: true)
  */
 registerAnimationPreset('flicker', (def) => {
@@ -498,7 +518,7 @@ registerAnimationPreset('flicker', (def) => {
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0.3;
   const duration = p.duration || 1000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
 
   // Generate random opacity keyframes
@@ -516,7 +536,7 @@ registerAnimationPreset('flicker', (def) => {
     anime: {
       keyframes,
       duration,
-      easing,
+      ease,
       loop
     },
     styles: {}
@@ -532,7 +552,7 @@ registerAnimationPreset('flicker', (def) => {
  * - from (default: 0)
  * - to (default: 1)
  * - duration (default: 1000)
- * - easing (default: 'easeOutExpo')
+ * - ease (default: 'easeOutExpo')
  * - loop (default: false)
  */
 registerAnimationPreset('cascade', (def) => {
@@ -542,14 +562,14 @@ registerAnimationPreset('cascade', (def) => {
   const from = p.from !== undefined ? p.from : 0;
   const to = p.to !== undefined ? p.to : 1;
   const duration = p.duration || 1000;
-  const easing = p.easing || 'easeOutExpo';
+  const ease = getResolvedEasing(p) || 'easeOutExpo';
   const loop = p.loop || false;
 
   return {
     anime: {
       [property]: [from, to],
       duration,
-      easing,
+      ease,
       delay: window.lcards?.animejs?.stagger?.(stagger) || ((el, i) => i * stagger),
       loop
     },
@@ -565,7 +585,7 @@ registerAnimationPreset('cascade', (def) => {
  *
  * Modes:
  * - 'css' (default) - Lightweight CSS keyframes for simple cycling
- * - 'animejs' - Advanced features: custom stagger, interactivity, complex easing
+ * - 'animejs' - Advanced features: custom stagger, interactivity, complex ease
  *
  * Legacy timing behavior:
  * - 0-75%: Stay at start color (blue)
@@ -576,7 +596,7 @@ registerAnimationPreset('cascade', (def) => {
  * - mode (default: 'css') - 'css' or 'animejs'
  * - colors (required) - Array of 3 colors [start, text, end]
  * - duration (default: 5000) - Duration of full color cycle
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: true)
  * - alternate (default: true) - Alternate direction each cycle
  * - property (default: 'color') - CSS property to animate ('color', 'fill', etc.)
@@ -625,7 +645,7 @@ registerAnimationPreset('cascade-color', (def) => {
   const p = def.params || def;
   const colors = p.colors || ['#0783FF', '#0439A3', '#E7F3F7'];
   const duration = p.duration || 5000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
   const property = p.property || 'color';
@@ -735,7 +755,7 @@ registerAnimationPreset('cascade-color', (def) => {
  * - scale_max (default: 1.5)
  * - opacity_min (default: 0)
  * - duration (default: 1000)
- * - easing (default: 'easeOutExpo')
+ * - ease (default: 'easeOutExpo')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -744,7 +764,7 @@ registerAnimationPreset('ripple', (def) => {
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.5;
   const opacityMin = p.opacity_min !== undefined ? p.opacity_min : 0;
   const duration = p.duration || 1000;
-  const easing = p.easing || 'easeOutExpo';
+  const ease = getResolvedEasing(p) || 'easeOutExpo';
   const loop = p.loop || false;
   const alternate = p.alternate || false;
 
@@ -753,7 +773,7 @@ registerAnimationPreset('ripple', (def) => {
       scale: [1, scaleMax],
       opacity: [1, opacityMin],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -772,7 +792,7 @@ registerAnimationPreset('ripple', (def) => {
  * - scale (default: 1.1) - Target scale factor
  * - from (default: 1) - Starting scale
  * - duration (default: 200)
- * - easing (default: 'easeOutQuad')
+ * - ease (default: 'easeOutQuad')
  * - loop (default: false) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: false)
  */
@@ -781,7 +801,7 @@ registerAnimationPreset('scale', (def) => {
   const scale = p.scale !== undefined ? p.scale : 1.1;
   const from = p.from !== undefined ? p.from : 1;
   const duration = p.duration || 200;
-  const easing = p.easing || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'easeOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate || false;
 
@@ -789,7 +809,7 @@ registerAnimationPreset('scale', (def) => {
     anime: {
       scale: [from, scale],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -806,18 +826,18 @@ registerAnimationPreset('scale', (def) => {
  *
  * Parameters:
  * - duration (default: 200)
- * - easing (default: 'easeOutQuad')
+ * - ease (default: 'easeOutQuad')
  */
 registerAnimationPreset('scale-reset', (def) => {
   const p = def.params || def;
   const duration = p.duration || 200;
-  const easing = p.easing || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'easeOutQuad';
 
   return {
     anime: {
       scale: [null, 1], // null means "from current value"
       duration,
-      easing,
+      ease,
       loop: false,
       alternate: false
     },
@@ -839,7 +859,7 @@ registerAnimationPreset('scale-reset', (def) => {
  * - direction (default: 'up') - 'up', 'down', 'left', 'right'
  * - distance (default: 100) - Distance to slide in pixels
  * - duration (default: 600)
- * - easing (default: 'easeOutQuad')
+ * - ease (default: 'easeOutQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -849,7 +869,7 @@ registerAnimationPreset('slide', (def) => {
   const from = p.from || p.direction || 'right';
   const distance = p.distance !== undefined ? p.distance : 100;
   const duration = p.duration || 600;
-  const easing = p.easing || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'easeOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -901,7 +921,7 @@ registerAnimationPreset('slide', (def) => {
     anime: {
       [translateProp]: translateValue,
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -916,7 +936,7 @@ registerAnimationPreset('slide', (def) => {
  * - from (default: 0) - Starting rotation in degrees
  * - to (default: 360) - Ending rotation in degrees
  * - duration (default: 1000)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -943,7 +963,7 @@ registerAnimationPreset('rotate', (def) => {
   }
 
   const duration = p.duration || 1000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -951,7 +971,7 @@ registerAnimationPreset('rotate', (def) => {
     anime: {
       rotate: [from, to],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -969,7 +989,7 @@ registerAnimationPreset('rotate', (def) => {
  * - intensity (default: 10) - Shake distance in pixels
  * - duration (default: 500)
  * - frequency (default: 4) - Number of shakes
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - loop (default: false)
  */
 registerAnimationPreset('shake', (def) => {
@@ -977,7 +997,7 @@ registerAnimationPreset('shake', (def) => {
   const intensity = p.intensity !== undefined ? p.intensity : 10;
   const duration = p.duration || 500;
   const frequency = p.frequency !== undefined ? p.frequency : 4;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const loop = p.loop !== undefined ? p.loop : false;
 
   // Generate keyframes for shake effect
@@ -995,7 +1015,7 @@ registerAnimationPreset('shake', (def) => {
     anime: {
       keyframes,
       duration,
-      easing,
+      ease,
       loop
     },
     styles: {}
@@ -1003,13 +1023,13 @@ registerAnimationPreset('shake', (def) => {
 });
 
 /**
- * Bounce - Bouncing scale effect with elastic easing
+ * Bounce - Bouncing scale effect with elastic ease
  *
  * Parameters:
  * - scale_max (default: 1.2) - Maximum scale factor
  * - duration (default: 800)
  * - bounces (default: 3) - Number of bounces
- * - easing (default: 'easeOutElastic')
+ * - ease (default: 'easeOutElastic')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -1018,7 +1038,7 @@ registerAnimationPreset('bounce', (def) => {
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.2;
   const duration = p.duration || 800;
   const bounces = p.bounces !== undefined ? p.bounces : 3;
-  const easing = p.easing || 'easeOutElastic';
+  const ease = getResolvedEasing(p) || 'easeOutElastic';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1037,7 +1057,7 @@ registerAnimationPreset('bounce', (def) => {
       anime: {
         keyframes,
         duration: duration * bounces,
-        easing: 'easeOutQuad', // Use simpler easing for keyframes
+        ease: 'easeOutQuad', // Use simpler easing for keyframes
         loop,
         alternate
       },
@@ -1048,12 +1068,12 @@ registerAnimationPreset('bounce', (def) => {
     };
   }
 
-  // Single bounce with elastic easing
+  // Single bounce with elastic ease
   return {
     anime: {
       scale: [1, scaleMax],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -1072,7 +1092,7 @@ registerAnimationPreset('bounce', (def) => {
  * - color_to (required) - Ending color
  * - property (default: 'color') - CSS property to animate ('color', 'fill', 'stroke', 'background-color', etc.)
  * - duration (default: 1000)
- * - easing (default: 'easeInOutQuad')
+ * - ease (default: 'easeInOutQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -1082,7 +1102,7 @@ registerAnimationPreset('color-shift', (def) => {
   const colorTo = p.color_to;
   const property = p.property || 'color';
   const duration = p.duration || 1000;
-  const easing = p.easing || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'easeInOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1096,7 +1116,7 @@ registerAnimationPreset('color-shift', (def) => {
     anime: {
       [property]: [colorFrom, colorTo],
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -1113,7 +1133,7 @@ registerAnimationPreset('color-shift', (def) => {
  * - width_from (optional) - Starting border width
  * - width_to (optional) - Ending border width
  * - duration (default: 1000)
- * - easing (default: 'easeInOutSine')
+ * - ease (default: 'easeInOutSine')
  * - loop (default: true)
  * - alternate (default: true)
  */
@@ -1124,14 +1144,14 @@ registerAnimationPreset('border-pulse', (def) => {
   const widthFrom = p.width_from;
   const widthTo = p.width_to;
   const duration = p.duration || 1000;
-  const easing = p.easing || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'easeInOutSine';
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
   // Build animation object based on what properties are specified
   const animeParams = {
     duration,
-    easing,
+    ease,
     loop,
     alternate
   };
@@ -1171,14 +1191,14 @@ registerAnimationPreset('border-pulse', (def) => {
  * - from_skewX (default: 0) - Starting horizontal skew
  * - from_skewY (default: 0) - Starting vertical skew
  * - duration (default: 600)
- * - easing (default: 'easeInOutQuad')
+ * - ease (default: 'easeInOutQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
 registerAnimationPreset('skew', (def) => {
   const p = def.params || def;
   const duration = p.duration || 600;
-  const easing = p.easing || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'easeInOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1208,7 +1228,7 @@ registerAnimationPreset('skew', (def) => {
       skewX: skewXValue,
       skewY: skewYValue,
       duration,
-      easing,
+      ease,
       loop,
       alternate
     },
@@ -1226,7 +1246,7 @@ registerAnimationPreset('skew', (def) => {
  * - direction (default: 'horizontal') - 'horizontal' or 'vertical'
  * - color (default: 'rgba(255,255,255,0.3)') - Scan line color
  * - duration (default: 2000)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: true)
  */
 registerAnimationPreset('scan-line', (def) => {
@@ -1234,7 +1254,7 @@ registerAnimationPreset('scan-line', (def) => {
   const direction = p.direction || 'horizontal';
   const color = p.color || 'rgba(255,255,255,0.3)';
   const duration = p.duration || 2000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
 
   // Use background-position animation for gradient movement
@@ -1249,7 +1269,7 @@ registerAnimationPreset('scan-line', (def) => {
     anime: {
       [positionProp]: isHorizontal ? ['0%', '100%'] : ['0%', '100%'],
       duration,
-      easing,
+      ease,
       loop
     },
     styles: {
@@ -1302,7 +1322,7 @@ registerAnimationPreset('glitch', (def) => {
     anime: {
       keyframes,
       duration,
-      easing: 'linear', // Use linear for chaotic glitch effect
+      ease: 'linear', // Use linear for chaotic glitch effect
       loop
     },
     styles: {}
@@ -1343,7 +1363,7 @@ registerAnimationPreset('set', (def) => {
  * Parameters:
  * - path (required) - CSS selector for path element or path string
  * - duration (default: 4000)
- * - easing (default: 'linear')
+ * - ease (default: 'linear')
  * - loop (default: false)
  * - alternate (default: false)
  * - rotate (default: true) - Auto-rotate element along path
@@ -1360,7 +1380,7 @@ registerAnimationPreset('motionpath', (def) => {
   const p = def.params || def;
   const path = p.path; // Required
   const duration = p.duration || 4000;
-  const easing = p.easing || 'linear';
+  const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate || false;
   const rotate = p.rotate !== undefined ? p.rotate : true;
@@ -1374,7 +1394,7 @@ registerAnimationPreset('motionpath', (def) => {
   return {
     anime: {
       duration,
-      easing,
+      ease,
       loop,
       alternate,
       // AnimationManager will transform this using createMotionPath()
@@ -1424,7 +1444,7 @@ registerAnimationPreset('motionpath', (def) => {
  * Sequence - Multi-step coordinated animation using anime.js timeline
  *
  * Creates complex multi-step animations where each step can have independent
- * timing, easing, and properties. Uses anime.js v4 timeline for precise control.
+ * timing, ease, and properties. Uses anime.js v4 timeline for precise control.
  *
  * Parameters:
  * - steps (array, required) - Array of animation step configs
@@ -1435,7 +1455,7 @@ registerAnimationPreset('motionpath', (def) => {
  *     - '<' for previous step start time
  * - duration (default: 2000) - Not used if steps have individual durations
  * - loop (default: false) - Loop entire sequence
- * - easing (default: 'easeOutQuad') - Default easing for steps without easing
+ * - ease (default: 'easeOutQuad') - Default easing for steps without ease
  *
  * Example:
  * {
@@ -1454,7 +1474,7 @@ registerAnimationPreset('sequence', (def) => {
   const steps = p.steps;
   const defaultDuration = p.duration || 2000;
   const loop = p.loop !== undefined ? p.loop : false;
-  const defaultEasing = p.easing || 'easeOutQuad';
+  const defaultEasing = p.ease || 'easeOutQuad';
 
   if (!Array.isArray(steps) || steps.length === 0) {
     lcardsLog.warn('[AnimationPresets] sequence requires steps array with at least one step');
@@ -1471,7 +1491,7 @@ registerAnimationPreset('sequence', (def) => {
       steps: steps.map(step => ({
         ...step,
         duration: step.duration || defaultDuration,
-        easing: step.easing || defaultEasing
+        ease: step.ease || defaultEasing
       }))
     },
     styles: {}
@@ -1497,7 +1517,7 @@ registerAnimationPreset('sequence', (def) => {
  * - to_value (default: 1.5) - Ending value
  * - stagger_duration (default: 50) - Delay between each element (ms)
  * - wave_duration (default: 1000) - Duration of individual element animation
- * - easing (default: 'easeInOutQuad')
+ * - ease (default: 'easeInOutQuad')
  * - loop (default: false)
  * - alternate (default: true)
  */
@@ -1510,7 +1530,7 @@ registerAnimationPreset('grid-stagger', (def) => {
   const toValue = p.to_value !== undefined ? p.to_value : 1.5;
   const staggerDuration = p.stagger_duration !== undefined ? p.stagger_duration : 50;
   const waveDuration = p.wave_duration || 1000;
-  const easing = p.easing || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'easeInOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -1518,7 +1538,7 @@ registerAnimationPreset('grid-stagger', (def) => {
     anime: {
       [property]: [fromValue, toValue],
       duration: waveDuration,
-      easing,
+      ease,
       // Use anime.js v4 stagger with grid positioning
       delay: window.lcards?.animejs?.stagger?.(staggerDuration, {
         grid: grid,
@@ -1545,7 +1565,7 @@ registerAnimationPreset('grid-stagger', (def) => {
  * - range (default: { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] }) - Min/max for each property
  * - duration_min (default: 200) - Minimum animation duration
  * - duration_max (default: 800) - Maximum animation duration
- * - easing (default: 'easeInOutQuad')
+ * - ease (default: 'easeInOutQuad')
  * - loop (default: true)
  * - composition (default: 'blend') - 'blend' or 'replace'
  */
@@ -1556,13 +1576,13 @@ registerAnimationPreset('chaos', (def) => {
   const range = { ...defaultRange, ...(p.range || {}) };
   const durationMin = p.duration_min !== undefined ? p.duration_min : 200;
   const durationMax = p.duration_max !== undefined ? p.duration_max : 800;
-  const easing = p.easing || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'easeInOutQuad';
   const loop = p.loop !== undefined ? p.loop : true;
   const composition = p.composition || 'blend';
 
   // Build animation parameters with function-based random values
   const animeParams = {
-    easing,
+    ease,
     loop,
     composition,
     // Randomize duration for each element
@@ -1635,7 +1655,7 @@ registerAnimationPreset('physics-spring', (def) => {
   return {
     anime: {
       [property]: [from, to],
-      easing: springEasing,
+      ease: springEasing,
       loop
     },
     styles: {

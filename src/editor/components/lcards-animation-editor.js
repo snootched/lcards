@@ -1332,83 +1332,414 @@ export class LCARdSAnimationEditor extends LitElement {
     }
 
     return html`
-      ${specificParams}
+      ${specificParams ? html`
+        <lcards-form-section
+          header="Preset Parameters"
+          icon="mdi:tune-variant"
+          ?expanded=${true}>
+          ${specificParams}
+        </lcards-form-section>
+      ` : ''}
       ${commonParams}
     `;
   }
 
   _renderCommonParams(params, index) {
     return html`
-      <div class="param-grid">
-        <ha-textfield
-          type="number"
-          label="Duration (ms)"
-          .value=${params.duration ?? 1000}
-          min="0"
-          step="100"
-          @input=${(e) => this._updateParam(index, 'duration', Number(e.target.value))}>
-        </ha-textfield>
+      <lcards-form-section
+        header="Timing & Duration"
+        icon="mdi:timer-outline"
+        ?expanded=${true}>
+        <div class="param-grid">
+          <ha-textfield
+            type="number"
+            label="Duration (ms)"
+            .value=${params.duration ?? 1000}
+            min="0"
+            step="100"
+            @input=${(e) => this._updateParam(index, 'duration', Number(e.target.value))}>
+          </ha-textfield>
 
-        <ha-selector
+          <ha-textfield
+            type="number"
+            label="Start Delay (ms)"
+            .value=${params.delay ?? 0}
+            min="0"
+            step="100"
+            helper="Delay before animation starts"
+            @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
+          </ha-textfield>
+
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ boolean: {} }}
+            .value=${typeof params.loop === 'boolean' ? params.loop : (params.loop ? true : false)}
+            .label=${'Loop Animation (Infinite)'}
+            .helper=${'Toggle for infinite loop, or use Loop Count below for specific iterations'}
+            @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
+          </ha-selector>
+
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
+            .value=${typeof params.loop === 'number' ? params.loop : ''}
+            .label=${'Loop Count (0 = off, leave empty for infinite)'}
+            @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value || false)}>
+          </ha-selector>
+
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ boolean: {} }}
+            .value=${params.alternate ?? false}
+            .label=${'Alternate Direction'}
+            .helper=${'Reverse animation direction on each loop'}
+            @value-changed=${(e) => this._updateParam(index, 'alternate', e.detail.value)}>
+          </ha-selector>
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Easing Function"
+        icon="mdi:chart-bell-curve"
+        ?expanded=${true}>
+        <div class="param-grid">
+          <ha-selector
           .hass=${this.hass}
           .selector=${{
             select: {
               mode: 'dropdown',
               options: [
+                // Linear
                 { value: 'linear', label: 'Linear' },
-                { value: 'easeInOutQuad', label: 'Ease In/Out (Quad)' },
-                { value: 'easeOutQuad', label: 'Ease Out (Quad)' },
-                { value: 'easeInQuad', label: 'Ease In (Quad)' },
-                { value: 'easeInOutCubic', label: 'Ease In/Out (Cubic)' },
-                { value: 'easeInOutSine', label: 'Ease In/Out (Sine)' },
-                { value: 'easeOutExpo', label: 'Ease Out (Expo)' },
-                { value: 'easeInOutElastic', label: 'Elastic' },
-                { value: 'spring', label: 'Spring' }
+
+                // Power (parametric: power = 1.675 by default)
+                { value: 'in', label: 'Power - In' },
+                { value: 'out', label: 'Power - Out' },
+                { value: 'inOut', label: 'Power - In/Out' },
+                { value: 'outIn', label: 'Power - Out/In' },
+
+                // Quad (Quadratic)
+                { value: 'inQuad', label: 'Quad - In' },
+                { value: 'outQuad', label: 'Quad - Out' },
+                { value: 'inOutQuad', label: 'Quad - In/Out' },
+                { value: 'outInQuad', label: 'Quad - Out/In' },
+
+                // Cubic
+                { value: 'inCubic', label: 'Cubic - In' },
+                { value: 'outCubic', label: 'Cubic - Out' },
+                { value: 'inOutCubic', label: 'Cubic - In/Out' },
+                { value: 'outInCubic', label: 'Cubic - Out/In' },
+
+                // Quart (Quartic)
+                { value: 'inQuart', label: 'Quart - In' },
+                { value: 'outQuart', label: 'Quart - Out' },
+                { value: 'inOutQuart', label: 'Quart - In/Out' },
+                { value: 'outInQuart', label: 'Quart - Out/In' },
+
+                // Quint (Quintic)
+                { value: 'inQuint', label: 'Quint - In' },
+                { value: 'outQuint', label: 'Quint - Out' },
+                { value: 'inOutQuint', label: 'Quint - In/Out' },
+                { value: 'outInQuint', label: 'Quint - Out/In' },
+
+                // Sine
+                { value: 'inSine', label: 'Sine - In' },
+                { value: 'outSine', label: 'Sine - Out' },
+                { value: 'inOutSine', label: 'Sine - In/Out' },
+                { value: 'outInSine', label: 'Sine - Out/In' },
+
+                // Exponential
+                { value: 'inExpo', label: 'Expo - In' },
+                { value: 'outExpo', label: 'Expo - Out' },
+                { value: 'inOutExpo', label: 'Expo - In/Out' },
+                { value: 'outInExpo', label: 'Expo - Out/In' },
+
+                // Circular
+                { value: 'inCirc', label: 'Circ - In' },
+                { value: 'outCirc', label: 'Circ - Out' },
+                { value: 'inOutCirc', label: 'Circ - In/Out' },
+                { value: 'outInCirc', label: 'Circ - Out/In' },
+
+                // Back (parametric: overshoot = 1.70158 by default)
+                { value: 'inBack', label: 'Back - In ↩️' },
+                { value: 'outBack', label: 'Back - Out ↩️' },
+                { value: 'inOutBack', label: 'Back - In/Out ↩️' },
+                { value: 'outInBack', label: 'Back - Out/In ↩️' },
+
+                // Elastic (parametric: amplitude = 1, period = 0.3 by default)
+                { value: 'inElastic', label: 'Elastic - In 🎯' },
+                { value: 'outElastic', label: 'Elastic - Out 🎯' },
+                { value: 'inOutElastic', label: 'Elastic - In/Out 🎯' },
+                { value: 'outInElastic', label: 'Elastic - Out/In 🎯' },
+
+                // Bounce
+                { value: 'inBounce', label: 'Bounce - In' },
+                { value: 'outBounce', label: 'Bounce - Out' },
+                { value: 'inOutBounce', label: 'Bounce - In/Out' },
+                { value: 'outInBounce', label: 'Bounce - Out/In' },
+
+                // Advanced Easings (require custom parameters)
+                { value: 'cubicBezier', label: '🔧 Cubic Bézier - Custom curve' },
+                { value: 'spring', label: '🔧 Spring - Physics-based' },
+                { value: 'steps', label: '🔧 Steps - Frame-by-frame' },
+                { value: 'linear', label: '🔧 Linear - Custom linear points' },
+                { value: 'irregular', label: '🔧 Irregular - Randomized' },
+                { value: 'custom', label: '🔧 Custom - anime.js string' }
               ]
             }
           }}
-          .value=${params.easing ?? 'easeInOutQuad'}
+          .value=${params.ease ?? 'inOutQuad'}
           .label=${'Easing Function'}
-          @value-changed=${(e) => this._updateParam(index, 'easing', e.detail.value)}>
+          @value-changed=${(e) => this._updateParam(index, 'ease', e.detail.value)}>
         </ha-selector>
+        </div>
 
-        <ha-selector
-          .hass=${this.hass}
-          .selector=${{ boolean: {} }}
-          .value=${typeof params.loop === 'boolean' ? params.loop : (params.loop ? true : false)}
-          .label=${'Loop Animation (Infinite)'}
-          .helper=${'Toggle for infinite loop, or use Loop Count below for specific iterations'}
-          @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-        </ha-selector>
+        ${this._renderParametricEasingFields(params, index)}
+      </lcards-form-section>
+    `;
+  }
 
-        <ha-selector
-          .hass=${this.hass}
-          .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
-          .value=${typeof params.loop === 'number' ? params.loop : ''}
-          .label=${'Loop Count (0 = off, leave empty for infinite)'}
-          @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value || false)}>
-        </ha-selector>
+  _renderParametricEasingFields(params, index) {
+    const ease = params.ease || 'inOutQuad';
 
-        <ha-selector
-          .hass=${this.hass}
-          .selector=${{ boolean: {} }}
-          .value=${params.alternate ?? false}
-          .label=${'Alternate Direction'}
-          .helper=${'Reverse animation direction on each loop'}
-          @value-changed=${(e) => this._updateParam(index, 'alternate', e.detail.value)}>
-        </ha-selector>
-
+    // Power easings (in, out, inOut, outIn)
+    if (['in', 'out', 'inOut', 'outIn'].includes(ease)) {
+      return html`
         <ha-textfield
           type="number"
-          label="Start Delay (ms)"
-          .value=${params.delay ?? 0}
-          min="0"
-          step="100"
-          helper="Delay before animation starts"
-          @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
+          label="Power (exponent)"
+          .value=${params.ease_params?.power ?? 1.675}
+          min="0.1"
+          max="10"
+          step="0.1"
+          helper="Default: 1.675. Higher = steeper curve"
+          @input=${(e) => this._updateEaseParam(index, 'power', Number(e.target.value))}>
         </ha-textfield>
-      </div>
-    `;
+      `;
+    }
+
+    // Back easings (overshoot parameter)
+    if (ease.includes('Back')) {
+      return html`
+        <ha-textfield
+          type="number"
+          label="Overshoot"
+          .value=${params.ease_params?.overshoot ?? 1.70158}
+          min="0"
+          max="5"
+          step="0.1"
+          helper="Default: 1.70158. Higher = more overshoot"
+          @input=${(e) => this._updateEaseParam(index, 'overshoot', Number(e.target.value))}>
+        </ha-textfield>
+      `;
+    }
+
+    // Elastic easings (amplitude and period)
+    if (ease.includes('Elastic')) {
+      return html`
+        <div class="param-grid" style="grid-template-columns: 1fr 1fr;">
+          <ha-textfield
+            type="number"
+            label="Amplitude"
+            .value=${params.ease_params?.amplitude ?? 1}
+            min="0.1"
+            max="5"
+            step="0.1"
+            helper="Default: 1"
+            @input=${(e) => this._updateEaseParam(index, 'amplitude', Number(e.target.value))}>
+          </ha-textfield>
+
+          <ha-textfield
+            type="number"
+            label="Period"
+            .value=${params.ease_params?.period ?? 0.3}
+            min="0.1"
+            max="2"
+            step="0.05"
+            helper="Default: 0.3"
+            @input=${(e) => this._updateEaseParam(index, 'period', Number(e.target.value))}>
+          </ha-textfield>
+        </div>
+      `;
+    }
+
+    // Cubic Bézier (4 control points: x1, y1, x2, y2)
+    if (ease === 'cubicBezier') {
+      return html`
+        <div class="param-grid" style="grid-template-columns: 1fr 1fr;">
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 1, step: 0.01, mode: 'box' } }}
+            .value=${params.ease_params?.x1 ?? 0.25}
+            .label=${'X1'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'x1', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: -2, max: 2, step: 0.01, mode: 'box' } }}
+            .value=${params.ease_params?.y1 ?? 0.1}
+            .label=${'Y1'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'y1', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 1, step: 0.01, mode: 'box' } }}
+            .value=${params.ease_params?.x2 ?? 0.25}
+            .label=${'X2'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'x2', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: -2, max: 2, step: 0.01, mode: 'box' } }}
+            .value=${params.ease_params?.y2 ?? 1}
+            .label=${'Y2'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'y2', e.detail.value)}>
+          </ha-selector>
+        </div>
+        <lcards-message type="info" .message=${'Define custom curve: (x1,y1) and (x2,y2) control points'}></lcards-message>
+      `;
+    }
+
+    // Spring (physics-based easing)
+    if (ease === 'spring') {
+      return html`
+        <div class="param-grid" style="grid-template-columns: 1fr 1fr;">
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0.1, max: 10, step: 0.1, mode: 'box' } }}
+            .value=${params.ease_params?.mass ?? 1}
+            .label=${'Mass'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'mass', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 1, max: 1000, step: 10, mode: 'box' } }}
+            .value=${params.ease_params?.stiffness ?? 100}
+            .label=${'Stiffness'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'stiffness', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
+            .value=${params.ease_params?.damping ?? 10}
+            .label=${'Damping'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'damping', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: -100, max: 100, step: 1, mode: 'box' } }}
+            .value=${params.ease_params?.velocity ?? 0}
+            .label=${'Velocity'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'velocity', e.detail.value)}>
+          </ha-selector>
+        </div>
+        <lcards-message type="info" .message=${'Physics simulation. Try: mass=1, stiffness=170, damping=26'}></lcards-message>
+      `;
+    }
+
+    // Steps (frame-by-frame animation)
+    if (ease === 'steps') {
+      return html`
+        <div class="param-grid" style="grid-template-columns: 2fr 1fr;">
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 1, max: 100, step: 1, mode: 'box' } }}
+            .value=${params.ease_params?.steps ?? 10}
+            .label=${'Number of Steps'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'steps', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ boolean: {} }}
+            .value=${params.ease_params?.fromStart ?? false}
+            .label=${'From Start'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'fromStart', e.detail.value)}>
+          </ha-selector>
+        </div>
+        <lcards-message type="info" .message=${'Choppy frame-by-frame. fromStart: change at step start vs end'}></lcards-message>
+      `;
+    }
+
+    // Linear (custom linear curve with points)
+    if (ease === 'linear') {
+      const pointsStr = JSON.stringify(params.ease_params?.points ?? [0, 0.25, 0.75, 1]);
+      return html`
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ text: { multiline: false } }}
+          .value=${pointsStr}
+          .label=${'Value Points (JSON)'}
+          @value-changed=${(e) => {
+            try {
+              const parsed = JSON.parse(e.detail.value);
+              if (Array.isArray(parsed)) {
+                this._updateEaseParam(index, 'points', parsed);
+              }
+            } catch (err) {}
+          }}>
+        </ha-selector>
+        <lcards-message type="info" .message=${'Linear between points: [0, 0.5, 1] or with timing: [0, "0.5 50%", 1]'}></lcards-message>
+      `;
+    }
+
+    // Irregular (randomized easing)
+    if (ease === 'irregular') {
+      return html`
+        <div class="param-grid" style="grid-template-columns: 1fr 1fr;">
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 2, max: 100, step: 1, mode: 'box' } }}
+            .value=${params.ease_params?.steps ?? 10}
+            .label=${'Steps'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'steps', e.detail.value)}>
+          </ha-selector>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0.1, max: 5, step: 0.1, mode: 'box' } }}
+            .value=${params.ease_params?.randomness ?? 1}
+            .label=${'Randomness'}
+            @value-changed=${(e) => this._updateEaseParam(index, 'randomness', e.detail.value)}>
+          </ha-selector>
+        </div>
+        <lcards-message type="info" .message=${'Erratic motion. Higher randomness = wilder jumps'}></lcards-message>
+      `;
+    }
+
+    // Custom (anime.js easing string)
+    if (ease === 'custom') {
+      return html`
+        <ha-textarea
+          label="anime.js Easing String"
+          .value=${params.ease_params?.customString ?? ''}
+          @input=${(e) => this._updateEaseParam(index, 'customString', e.target.value)}
+          rows="3"
+          style="width: 100%; font-family: 'Roboto Mono', monospace; --mdc-theme-primary: var(--primary-color);">
+        </ha-textarea>
+        <lcards-message type="info">
+          Paste from <a href="https://animejs.com/easing-editor/spring/default" target="_blank">anime.js Easing Editor</a>.
+          Example: <code>spring({ bounce: 0.4, duration: 500 })</code>
+        </lcards-message>
+      `;
+    }
+
+    return ''; // No parametric fields for other easings
+  }
+
+  _updateEaseParam(index, paramKey, value) {
+    const updated = [...this.animations];
+    const current = updated[index];
+    updated[index] = {
+      ...current,
+      params: {
+        ...current.params,
+        ease_params: {
+          ...current.params?.ease_params,
+          [paramKey]: value
+        }
+      }
+    };
+    this.animations = updated;
+    this._fireChange();
   }
 
   _renderCustomForm(anim, index) {
@@ -1556,8 +1887,8 @@ export class LCARdSAnimationEditor extends LitElement {
     // Show duration if set
     if (params.duration) parts.push(`${params.duration}ms`);
 
-    // Show easing if set
-    if (params.easing && params.easing !== 'easeInOutQuad') parts.push(params.easing);
+    // Show ease if set
+    if (params.ease && params.ease !== 'inOutQuad') parts.push(params.ease);
 
     // Show loop info
     if (params.loop === true) parts.push('loop: ∞');
@@ -1683,7 +2014,7 @@ export class LCARdSAnimationEditor extends LitElement {
       preset: 'pulse',
       params: {
         duration: 1000,
-        easing: 'easeInOutQuad',
+        ease: 'inOutQuad',
         loop: true,
         alternate: true,
         max_scale: 1.15,

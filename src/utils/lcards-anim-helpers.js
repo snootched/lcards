@@ -2,6 +2,166 @@ import { lcardsLog } from './lcards-logging.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
 
 /**
+ * Resolve easing configuration to anime.js easing value
+ *
+ * Supports multiple input formats:
+ * - String: 'inOutQuad', 'linear', etc. (passed through as-is)
+ * - Object with type and params: { type: 'inBack', params: { overshoot: 2.0 } }
+ * - Advanced easing objects for cubicBezier, spring, steps, linear, irregular
+ *
+ * @param {string|Object} easingConfig - Easing configuration from animation definition
+ * @returns {string|Function} - anime.js easing (string or function)
+ *
+ * @example
+ * // Simple string
+ * resolveEasing('inOutQuad')  // → 'inOutQuad'
+ *
+ * // Parametric Back with custom overshoot
+ * resolveEasing({ type: 'inBack', params: { overshoot: 2.5 } })  // → inBack(2.5) function
+ *
+ * // Spring physics
+ * resolveEasing({ type: 'spring', params: { stiffness: 150, damping: 15 } })  // → createSpring() function
+ */
+export function resolveEasing(easingConfig) {
+  // Simple string - use as-is (default case)
+  if (typeof easingConfig === 'string' || !easingConfig) {
+    return easingConfig || 'linear';
+  }
+
+  // Object configuration
+  if (typeof easingConfig === 'object' && easingConfig.type) {
+    const type = easingConfig.type;
+    const params = easingConfig.params || {};
+    const anim = window.lcards?.anim;
+
+    if (!anim) {
+      lcardsLog.warn('[resolveEasing] Animation namespace not available, falling back to string');
+      return type; // Fallback to string (may still work if it's a built-in name)
+    }
+
+    try {
+      switch (type) {
+        // Parametric Power easings (default power = 1.675)
+        case 'in':
+        case 'powerIn':
+          return anim.eases.in(params.power ?? 1.675);
+        case 'out':
+        case 'powerOut':
+          return anim.eases.out(params.power ?? 1.675);
+        case 'inOut':
+        case 'powerInOut':
+          return anim.eases.inOut(params.power ?? 1.675);
+        case 'outIn':
+        case 'powerOutIn':
+          return anim.eases.outIn(params.power ?? 1.675);
+
+        // Parametric Back easings (default overshoot = 1.70158)
+        case 'inBack':
+          return anim.eases.inBack(params.overshoot ?? 1.70158);
+        case 'outBack':
+          return anim.eases.outBack(params.overshoot ?? 1.70158);
+        case 'inOutBack':
+          return anim.eases.inOutBack(params.overshoot ?? 1.70158);
+        case 'outInBack':
+          return anim.eases.outInBack(params.overshoot ?? 1.70158);
+
+        // Parametric Elastic easings (default amplitude = 1, period = 0.3)
+        case 'inElastic':
+          return anim.eases.inElastic(params.amplitude ?? 1, params.period ?? 0.3);
+        case 'outElastic':
+          return anim.eases.outElastic(params.amplitude ?? 1, params.period ?? 0.3);
+        case 'inOutElastic':
+          return anim.eases.inOutElastic(params.amplitude ?? 1, params.period ?? 0.3);
+        case 'outInElastic':
+          return anim.eases.outInElastic(params.amplitude ?? 1, params.period ?? 0.3);
+
+        // Advanced easings (cubicBezier, steps, linear, irregular are on anime.eases)
+        // Note: spring is the ONLY one that's a top-level function (anime.createSpring)
+        case 'cubicBezier':
+          return anim.eases.cubicBezier(
+            params.x1 ?? 0.25,
+            params.y1 ?? 0.1,
+            params.x2 ?? 0.25,
+            params.y2 ?? 1
+          );
+
+        case 'spring':
+          // spring is a top-level function (anime.createSpring), not on eases object
+          // Returns an easing function that generates spring physics-based curves
+          return anim.spring({
+            mass: params.mass ?? 1,
+            stiffness: params.stiffness ?? 100,
+            damping: params.damping ?? 10,
+            velocity: params.velocity ?? 0
+          });
+
+        case 'steps':
+          return anim.eases.steps(params.steps ?? 10, params.fromStart ?? false);
+
+        case 'linear':
+          // Expects array of value points (or value/percentage string pairs)
+          return anim.eases.linear(...(params.points ?? [0, 1]));
+
+        case 'irregular':
+          // Expects steps and randomness parameters
+          return anim.eases.irregular(params.steps ?? 10, params.randomness ?? 1);
+
+        case 'custom':
+          // Parse and evaluate custom anime.js easing string
+          if (params.customString) {
+            try {
+              // Create a safe evaluation context with anime.js functions
+              const evalContext = {
+                spring: anim.spring,
+                cubicBezier: anim.eases.cubicBezier,
+                steps: anim.eases.steps,
+                linear: anim.eases.linear,
+                irregular: anim.eases.irregular
+              };
+
+              const customStr = params.customString.trim();
+
+              // If not already wrapped in quotes, wrap it
+              let wrappedString = customStr;
+              if (!((customStr.startsWith("'") && customStr.endsWith("'")) ||
+                    (customStr.startsWith('"') && customStr.endsWith('"')))) {
+                wrappedString = `'${customStr}'`;
+              }
+
+              // Replace function calls in the string with context calls
+              // e.g., "spring({ bounce: 0.4 })" -> "evalContext.spring({ bounce: 0.4 })"
+              wrappedString = wrappedString.replace(
+                /\b(spring|cubicBezier|steps|linear|irregular)\s*\(/g,
+                'evalContext.$1('
+              );
+
+              // Safely evaluate the string
+              const evalFunc = new Function('evalContext', `return ${wrappedString}`);
+              return evalFunc(evalContext);
+            } catch (error) {
+              lcardsLog.error(`[resolveEasing] Failed to parse custom easing string:`, error);
+              return 'linear'; // Safe fallback
+            }
+          }
+          lcardsLog.warn(`[resolveEasing] Custom easing specified but no customString provided`);
+          return 'linear';
+
+        default:
+          lcardsLog.warn(`[resolveEasing] Unknown easing type: ${type}, using as string`);
+          return type; // Fallback to string
+      }
+    } catch (error) {
+      lcardsLog.error(`[resolveEasing] Failed to create easing function:`, error);
+      return 'linear'; // Safe fallback
+    }
+  }
+
+  // Fallback for unexpected input
+  lcardsLog.warn('[resolveEasing] Invalid easing config, using linear', easingConfig);
+  return 'linear';
+}
+
+/**
  * Waits for an element to be present in the DOM.
  * @param {string} selector - The CSS selector for the element.
  * @param {Element|Document} root - The root element to search within.
@@ -125,27 +285,27 @@ export async function animateWithRoot(options) {
 /**
  * Process special animation markers (_timeline, _stagger, _radial)
  * These are inserted by presets to signal special handling
- * 
+ *
  * Marker Types:
- * 
+ *
  * 1. _timeline: true
  *    - Creates an anime.js timeline instead of a single animation
  *    - Input: { _timeline: true, steps: [{targets, params, offset}], loop, ... }
  *    - Output: Timeline instance that can have multiple steps added
  *    - Example: timeline-cascade preset creates sequential reveals
- * 
+ *
  * 2. _stagger: true (in delay object)
  *    - Converts delay config object to anime.js stagger() function
  *    - Input: delay: { _stagger: true, value: 100, grid: [6,2], from: 'center' }
  *    - Output: delay: stagger(100, { grid: [6,2], from: 'center' })
  *    - Example: stagger-grid preset animates grid elements with progressive delay
- * 
+ *
  * 3. _radial: true (in delay object)
  *    - Creates radial stagger pattern from center point outward
  *    - Input: delay: { _radial: true, value: 50, from: 'center' }
  *    - Output: delay: stagger(50, { from: 'center' })
  *    - Example: stagger-radial preset creates ripple effects
- * 
+ *
  * @param {Object} params - Animation parameters from preset
  * @param {Element} element - Target element for animation
  * @param {Object} scope - Scope object with scope.scope property
@@ -156,14 +316,14 @@ function _processAnimationMarkers(params, element, scope) {
   // 1. Handle _timeline marker - create timeline instead of single animation
   if (params._timeline === true) {
     lcardsLog.debug('[animateElement] Processing _timeline marker');
-    
+
     const { _timeline, steps, ...timelineGlobals } = params;
-    
+
     if (!window.lcards?.anim?.animejs?.createTimeline) {
       lcardsLog.error('[animateElement] createTimeline not available for _timeline marker');
       return { isTimeline: false, timelineInstance: null, processedParams: params };
     }
-    
+
     const timeline = window.lcards.anim.animejs.createTimeline({
       scope: scope?.scope,
       ...timelineGlobals
@@ -173,21 +333,21 @@ function _processAnimationMarkers(params, element, scope) {
     if (Array.isArray(steps)) {
       steps.forEach(step => {
         const { targets, offset, params: stepParams, ...stepAnimationProps } = step;
-        
+
         // If step has targets, resolve them; otherwise use element
         const stepTargets = targets || element;
-        
+
         // Merge step params if provided
         const finalStepProps = stepParams ? { ...stepAnimationProps, ...stepParams } : stepAnimationProps;
-        
+
         timeline.add(stepTargets, finalStepProps, offset);
       });
     }
 
-    return { 
-      isTimeline: true, 
-      timelineInstance: timeline, 
-      processedParams: params 
+    return {
+      isTimeline: true,
+      timelineInstance: timeline,
+      processedParams: params
     };
   }
 
@@ -197,15 +357,15 @@ function _processAnimationMarkers(params, element, scope) {
   // 2. Handle _stagger marker - convert to stagger function
   if (processedParams.delay?._stagger === true) {
     lcardsLog.debug('[animateElement] Processing _stagger marker');
-    
+
     const staggerConfig = processedParams.delay;
-    
+
     if (!window.lcards?.anim?.animejs?.stagger) {
       lcardsLog.warn('[animateElement] stagger() not available for _stagger marker');
     } else {
       // Build stagger options
       const staggerOptions = {};
-      
+
       if (staggerConfig.from !== undefined) {
         staggerOptions.from = staggerConfig.from;
       }
@@ -215,19 +375,19 @@ function _processAnimationMarkers(params, element, scope) {
       if (staggerConfig.axis !== undefined) {
         staggerOptions.axis = staggerConfig.axis;
       }
-      if (staggerConfig.easing !== undefined) {
-        staggerOptions.easing = staggerConfig.easing;
+      if (staggerConfig.ease !== undefined) {
+        staggerOptions.ease = staggerConfig.ease;
       }
       if (staggerConfig.direction !== undefined) {
         staggerOptions.direction = staggerConfig.direction;
       }
-      
+
       processedParams.delay = window.lcards.anim.animejs.stagger(
         staggerConfig.value || 100,
         staggerOptions
       );
-      
-      lcardsLog.debug('[animateElement] Converted _stagger to stagger function', { 
+
+      lcardsLog.debug('[animateElement] Converted _stagger to stagger function', {
         value: staggerConfig.value,
         options: staggerOptions
       });
@@ -237,9 +397,9 @@ function _processAnimationMarkers(params, element, scope) {
   // 3. Handle _radial marker - calculate radial stagger positions
   if (processedParams.delay?._radial === true) {
     lcardsLog.debug('[animateElement] Processing _radial marker');
-    
+
     const radialConfig = processedParams.delay;
-    
+
     if (!window.lcards?.anim?.animejs?.stagger) {
       lcardsLog.warn('[animateElement] stagger() not available for _radial marker');
     } else {
@@ -253,18 +413,18 @@ function _processAnimationMarkers(params, element, scope) {
           axis: radialConfig.axis
         }
       );
-      
-      lcardsLog.debug('[animateElement] Converted _radial to radial stagger', { 
+
+      lcardsLog.debug('[animateElement] Converted _radial to radial stagger', {
         value: radialConfig.value,
         from: radialConfig.from || 'center'
       });
     }
   }
 
-  return { 
-    isTimeline: false, 
-    timelineInstance: null, 
-    processedParams 
+  return {
+    isTimeline: false,
+    timelineInstance: null,
+    processedParams
   };
 }
 
@@ -300,9 +460,14 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
       for (const element of elements) {
         const params = {
           duration: 1000,
-          easing: 'easeInOutQuad',
+          ease: 'inOutQuad',  // Default to v4 naming
           ...animOptions,
         };
+
+        // ✨ Resolve ease configuration (string or parametric object)
+        if (params.ease) {
+          params.ease = resolveEasing(params.ease);
+        }
 
         // state_resolver hook (left as-is)
         if (options.state_resolver && options.entity && window.lcards.styleHelpers?.resolveStateStyles) {
@@ -370,22 +535,22 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
 
         // ✨ NEW: Process special animation markers (_timeline, _stagger, _radial)
         const markerResult = _processAnimationMarkers(params, element, scope);
-        
+
         // If timeline marker was processed, track the timeline instance and skip anime() call
         if (markerResult.isTimeline && markerResult.timelineInstance) {
           lcardsLog.debug(`[animateElement] Timeline created for ${type}`, {
             scopeId: scope.id || 'no-id',
             element: element.id || element.tagName
           });
-          
+
           // Call callback with the timeline instance (for tracking)
           if (onInstanceCreated && typeof onInstanceCreated === 'function') {
             onInstanceCreated(markerResult.timelineInstance);
           }
-          
+
           continue; // Skip anime() call for timelines
         }
-        
+
         // Use processed params (with stagger/radial converted if needed)
         const processedParams = markerResult.processedParams;
 

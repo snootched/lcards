@@ -14,6 +14,17 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
+
+/**
+ * Helper function to resolve easing configuration
+ */
+function getResolvedEasing(params) {
+  if (params.ease_params) {
+    return resolveEasing({ type: params.ease, params: params.ease_params });
+  }
+  return params.ease;
+}
 
 /**
  * Stagger animation presets
@@ -22,7 +33,7 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
 export const STAGGER_PRESETS = {
   /**
    * Stagger Grid - Grid-based stagger with from parameter
-   * 
+   *
    * Staggers animation across elements arranged in a grid pattern.
    * Supports directional wave from center, edges, or specific corners.
    *
@@ -39,7 +50,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0.8) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 600)
-   * - easing (default: 'easeOutQuad')
+   * - ease (default: 'easeOutQuad')
    * - loop (default: false)
    *
    * Example (Alert bars):
@@ -58,7 +69,7 @@ export const STAGGER_PRESETS = {
     const fromValue = p.from_value !== undefined ? p.from_value : 0.8;
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 600;
-    const easing = p.easing || 'easeOutQuad';
+    const ease = getResolvedEasing(p) || 'easeOutQuad';
     const loop = p.loop !== undefined ? p.loop : false;
 
     if (!Array.isArray(grid) || grid.length !== 2) {
@@ -70,7 +81,7 @@ export const STAGGER_PRESETS = {
       anime: {
         [property]: [fromValue, toValue],
         duration,
-        easing,
+        ease,
         loop,
         delay: {
           _stagger: true,
@@ -88,7 +99,7 @@ export const STAGGER_PRESETS = {
 
   /**
    * Stagger Wave - Wave effect across elements
-   * 
+   *
    * Creates a wave-like animation across a linear sequence of elements.
    * Perfect for horizontal/vertical lists or rows.
    *
@@ -98,7 +109,7 @@ export const STAGGER_PRESETS = {
    * - property (default: 'translateY') - Property to animate
    * - amplitude (default: -20) - Wave amplitude (distance)
    * - duration (default: 800)
-   * - easing (default: 'easeOutElastic')
+   * - ease (default: 'easeOutElastic')
    * - loop (default: false)
    * - alternate (default: true)
    *
@@ -116,7 +127,7 @@ export const STAGGER_PRESETS = {
     const property = p.property || 'translateY';
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
-    const easing = p.easing || 'easeOutElastic';
+    const ease = getResolvedEasing(p) || 'easeOutElastic';
     const loop = p.loop !== undefined ? p.loop : false;
     const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -124,7 +135,7 @@ export const STAGGER_PRESETS = {
       anime: {
         [property]: [0, amplitude, 0],
         duration,
-        easing,
+        ease,
         loop,
         alternate,
         delay: {
@@ -139,7 +150,7 @@ export const STAGGER_PRESETS = {
 
   /**
    * Stagger Radial - Radial stagger from center/custom point
-   * 
+   *
    * Staggers animation in a radial pattern outward from a center point.
    * Useful for ripple effects and circular layouts.
    *
@@ -152,7 +163,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 800)
-   * - easing (default: 'easeOutExpo')
+   * - ease (default: 'easeOutExpo')
    * - loop (default: false)
    *
    * Example:
@@ -170,14 +181,14 @@ export const STAGGER_PRESETS = {
     const fromValue = p.from_value !== undefined ? p.from_value : 0;
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 800;
-    const easing = p.easing || 'easeOutExpo';
+    const ease = getResolvedEasing(p) || 'easeOutExpo';
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {
       anime: {
         [property]: [fromValue, toValue],
         duration,
-        easing,
+        ease,
         loop,
         delay: {
           _stagger: true,

@@ -102,7 +102,7 @@ export const TIMELINE_PRESETS = {
       {
         params: {
           scale: [1, scaleMax],
-          easing: 'easeOutQuad'
+          ease: 'easeOutQuad'
         },
         duration: durationScale,
         offset: 0
@@ -111,7 +111,7 @@ export const TIMELINE_PRESETS = {
       {
         params: {
           translateX: [0, shakeIntensity, -shakeIntensity, shakeIntensity, 0],
-          easing: 'easeInOutSine'
+          ease: 'easeInOutSine'
         },
         duration: durationShake,
         offset: '<' // Start immediately after previous
@@ -120,7 +120,7 @@ export const TIMELINE_PRESETS = {
       {
         params: {
           scale: [scaleMax, 1],
-          easing: 'easeInOutQuad'
+          ease: 'easeInOutQuad'
         },
         duration: durationSettle,
         offset: '<'

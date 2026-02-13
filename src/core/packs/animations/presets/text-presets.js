@@ -17,6 +17,17 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
+
+/**
+ * Helper function to resolve easing configuration
+ */
+function getResolvedEasing(params) {
+  if (params.ease_params) {
+    return resolveEasing({ type: params.ease, params: params.ease_params });
+  }
+  return params.ease;
+}
 
 /**
  * Escape HTML special characters to prevent XSS
@@ -43,7 +54,7 @@ function _sanitizeId(id) {
 /**
  * Simple text splitter utility
  * Splits text into characters, words, or lines and wraps each in a span
- * 
+ *
  * @param {Element} element - The text element to split
  * @param {Object} options - Split options
  * @param {string} options.type - Split type: 'chars', 'words', or 'lines'
@@ -53,7 +64,7 @@ function _sanitizeId(id) {
  */
 function _splitText(element, options = {}) {
   const { type = 'chars', charsClass = 'lcards-char-split' } = options;
-  
+
   if (!element) {
     lcardsLog.warn('[_splitText] No element provided');
     return { revert: () => {} };
@@ -107,7 +118,7 @@ function _splitText(element, options = {}) {
 export const TEXT_PRESETS = {
   /**
    * Text Reveal - Character-by-character reveal
-   * 
+   *
    * Splits text into characters/words and reveals them with a stagger effect.
    * Characters fade in and optionally translate from a Y offset.
    *
@@ -118,7 +129,7 @@ export const TEXT_PRESETS = {
    * - duration (default: 800) - per-character animation duration
    * - from_opacity (default: 0) - starting opacity
    * - from_y (default: 20) - starting Y offset in pixels
-   * - easing (default: 'easeOutQuad')
+   * - ease (default: 'easeOutQuad')
    * - loop (default: false)
    *
    * Example:
@@ -136,7 +147,7 @@ export const TEXT_PRESETS = {
     const duration = p.duration || 800;
     const fromOpacity = p.from_opacity !== undefined ? p.from_opacity : 0;
     const fromY = p.from_y !== undefined ? p.from_y : 20;
-    const easing = p.easing || 'easeOutQuad';
+    const ease = getResolvedEasing(p) || 'easeOutQuad';
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {
@@ -145,7 +156,7 @@ export const TEXT_PRESETS = {
         opacity: [fromOpacity, 1],
         translateY: [fromY, 0],
         duration,
-        easing,
+        ease,
         loop,
         delay: {
           _stagger: true,
@@ -180,7 +191,7 @@ export const TEXT_PRESETS = {
 
   /**
    * Text Scramble - Matrix-style scramble effect
-   * 
+   *
    * Scrambles characters before revealing the final text.
    * Each character cycles through random characters before settling on the correct one.
    *
@@ -210,7 +221,7 @@ export const TEXT_PRESETS = {
       anime: {
         targets: '.lcards-char-split',
         duration,
-        easing: 'linear',
+        ease: 'linear',
         loop,
         delay: {
           _stagger: true,
@@ -221,16 +232,16 @@ export const TEXT_PRESETS = {
         innerHTML: (el) => {
           const originalChar = el.getAttribute('data-original-char') || el.textContent;
           const keyframes = [];
-          
+
           // Generate random character keyframes
           for (let i = 0; i < iterations; i++) {
             const randomChar = characters[Math.floor(Math.random() * characters.length)];
             keyframes.push(randomChar);
           }
-          
+
           // Final keyframe reveals original character
           keyframes.push(originalChar);
-          
+
           return keyframes;
         }
       },
@@ -270,7 +281,7 @@ export const TEXT_PRESETS = {
 
   /**
    * Text Wave - Wave motion through text
-   * 
+   *
    * Animates characters in a wave pattern with vertical movement.
    * Creates a smooth sine wave effect across the text.
    *
@@ -279,7 +290,7 @@ export const TEXT_PRESETS = {
    * - wavelength (default: 3) - characters per wave cycle
    * - duration (default: 2000) - animation duration
    * - stagger (default: 100) - phase shift between characters
-   * - easing (default: 'easeInOutSine')
+   * - ease (default: 'easeInOutSine')
    * - loop (default: true)
    * - alternate (default: true)
    *
@@ -296,7 +307,7 @@ export const TEXT_PRESETS = {
     const wavelength = p.wavelength !== undefined ? p.wavelength : 3;
     const duration = p.duration || 2000;
     const stagger = p.stagger !== undefined ? p.stagger : 100;
-    const easing = p.easing || 'easeInOutSine';
+    const ease = getResolvedEasing(p) || 'easeInOutSine';
     const loop = p.loop !== undefined ? p.loop : true;
     const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -309,7 +320,7 @@ export const TEXT_PRESETS = {
           return [0, Math.sin(phase) * amplitude];
         },
         duration,
-        easing,
+        ease,
         loop,
         alternate,
         delay: {
@@ -354,7 +365,7 @@ export const TEXT_PRESETS = {
 
   /**
    * Text Glitch - Per-character glitch effect
-   * 
+   *
    * Creates random position and color shifts for each character,
    * simulating a glitch/distortion effect.
    *
@@ -383,7 +394,7 @@ export const TEXT_PRESETS = {
     const animConfig = {
       targets: '.lcards-char-split',
       duration,
-      easing: 'easeInOutQuad',
+      ease: 'easeInOutQuad',
       loop,
       delay: {
         _stagger: true,
@@ -445,7 +456,7 @@ export const TEXT_PRESETS = {
 
   /**
    * Text Typewriter - Typewriter reveal effect
-   * 
+   *
    * Reveals characters one at a time in sequence, like a typewriter.
    * Optionally displays a blinking cursor during and after typing.
    *
@@ -477,7 +488,7 @@ export const TEXT_PRESETS = {
         opacity: [0, 1],
         delay: (el, i) => i * speed,
         duration: 1,
-        easing: 'linear',
+        ease: 'linear',
         loop
       },
       styles: {},
@@ -514,20 +525,20 @@ export const TEXT_PRESETS = {
               element.id = `lcards-typewriter-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
             }
           }
-          
+
           // Sanitize the element ID for CSS safety (after setting it)
           const sanitizedElementId = _sanitizeId(element.id);
-          
+
           // If sanitization changed the ID, update the element's actual ID to match
           if (sanitizedElementId !== element.id) {
             element.id = sanitizedElementId;
           }
-          
+
           const styleId = `lcards-typewriter-cursor-${sanitizedElementId}`;
-          
+
           // Check if this specific style already exists
           let styleEl = document.getElementById(styleId);
-          
+
           if (!styleEl) {
             styleEl = document.createElement('style');
             styleEl.id = styleId;
@@ -543,7 +554,7 @@ export const TEXT_PRESETS = {
               }
             `;
             document.head.appendChild(styleEl);
-            
+
             // Store style element reference for cleanup
             element._cursorStyleEl = styleEl;
           }
@@ -563,13 +574,13 @@ export const TEXT_PRESETS = {
         if (element) {
           // Remove cursor class
           element.classList.remove('lcards-typewriter-cursor');
-          
+
           // Remove cursor style element if it exists
           if (element._cursorStyleEl) {
             element._cursorStyleEl.remove();
             delete element._cursorStyleEl;
           }
-          
+
           // Revert text split
           if (element._textSplitter) {
             element._textSplitter.revert();

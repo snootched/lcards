@@ -243,10 +243,10 @@ export const animationSchema = {
             default: 500,
             description: 'Animation duration in milliseconds (0-10000)'
         },
-        easing: {
-            type: 'string',
-            description: 'CSS easing function',
-            examples: ['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier(0.4, 0, 0.2, 1)']
+        ease: {
+            type: ['string', 'object'],
+            description: 'Easing function (string name or object with type and params)',
+            examples: ['inOutQuad', 'outElastic', 'linear', { type: 'spring', params: { stiffness: 150 } }]
         },
         loop: {
             type: 'boolean',

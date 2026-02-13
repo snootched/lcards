@@ -57,12 +57,23 @@ async function initializeCustomCard() {
         animejs: anime,                // full animejs module
         anime: anime.animate,          // shortcut for anime.animate
         stagger: anime.stagger,        // stagger function for animations
+        spring: anime.createSpring,    // spring easing generator (v4 API)
         utils: anime.utils,            // CENTRAL canonical utils reference
         animateElement: animHelpers.animateElement,
         animateWithRoot: animHelpers.animateWithRoot,
         waitForElement: animHelpers.waitForElement,
         presets: {},   // Populated entirely by pack loading (legacy presets disabled)
         scopes: new Map(),
+        // Easing function shortcuts
+        eases: anime.eases,            // All easing functions (built-in and advanced)
+        // Easing function API reference:
+        // - Built-in parametric: anime.eases.in(), .out(), .inOut(), .inBack(), etc.
+        // - Advanced generators:
+        //   • anime.createSpring({ mass, stiffness, damping, velocity }) - top-level export
+        //   • anime.eases.cubicBezier(x1, y1, x2, y2)
+        //   • anime.eases.steps(count, fromStart)
+        //   • anime.eases.linear(...points)
+        //   • anime.eases.irregular(steps, randomness)
     };
 
 
