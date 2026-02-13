@@ -52,7 +52,7 @@ export class MsdIntrospection {
   static getOverlayBBox(id, root) {
     if (!id || !root) return null;
 
-    lcardsLog.debug(`[MsdIntrospection] 📦 Getting bbox for overlay: ${id}`);
+    lcardsLog.trace(`[MsdIntrospection] 📦 Getting bbox for overlay: ${id}`);
 
     // Get SVG element first - we need to search within it
     const svg = this.getOverlaysSvg(root);
@@ -63,7 +63,7 @@ export class MsdIntrospection {
 
     // 1) Try SVG element getBBox using getElementById on the SVG or querySelector
     let el = svg.getElementById?.(id) || svg.querySelector(`#${CSS.escape(id)}`);
-    lcardsLog.debug(`[MsdIntrospection] 🎯 Found element for '${id}':`, !!el);
+    lcardsLog.trace(`[MsdIntrospection] 🎯 Found element for '${id}':`, !!el);
 
     if (el && typeof el.getBBox === 'function') {
       try {
@@ -91,7 +91,7 @@ export class MsdIntrospection {
           return { x, y, w: gbb.width, h: gbb.height };
         }
       } catch (e) {
-        lcardsLog.debug(`[MsdIntrospection] ⚠️ getBBox() failed:`, e);
+        lcardsLog.trace(`[MsdIntrospection] ⚠️ getBBox() failed:`, e);
       }
     }
 

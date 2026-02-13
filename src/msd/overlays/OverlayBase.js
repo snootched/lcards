@@ -63,7 +63,7 @@ export class OverlayBase extends BaseRenderer {
       lastUpdate: null
     };
 
-    lcardsLog.debug(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
+    lcardsLog.trace(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
   }
 
   /**
@@ -86,14 +86,14 @@ export class OverlayBase extends BaseRenderer {
 
     this.mountEl = mountEl;
 
-    lcardsLog.debug(`[${this.rendererName}] Initializing overlay:`, this.overlay.id);
+    lcardsLog.trace(`[${this.rendererName}] Initializing overlay:`, this.overlay.id);
 
     try {
       // Get explicit update triggers from overlay config
       const updateTriggers = this._getUpdateTriggers();
 
       if (updateTriggers.length > 0) {
-        lcardsLog.debug(`[${this.rendererName}] Subscribing to update triggers:`, updateTriggers);
+        lcardsLog.trace(`[${this.rendererName}] Subscribing to update triggers:`, updateTriggers);
 
         // Subscribe to each trigger (HA entity or MSD datasource)
         for (const triggerRef of updateTriggers) {
@@ -104,7 +104,7 @@ export class OverlayBase extends BaseRenderer {
           }
         }
       } else {
-        lcardsLog.debug(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
+        lcardsLog.trace(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
       }
 
       // Create animation scope if overlay has animations
@@ -113,7 +113,7 @@ export class OverlayBase extends BaseRenderer {
       }
 
       this._initialized = true;
-      lcardsLog.debug(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
+      lcardsLog.trace(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
 
     } catch (error) {
       lcardsLog.error(`[${this.rendererName}] Initialization failed:`, error);
@@ -187,7 +187,7 @@ export class OverlayBase extends BaseRenderer {
       return;
     }
 
-    lcardsLog.debug(`[${this.rendererName}] Destroying overlay:`, this.overlay.id);
+    lcardsLog.trace(`[${this.rendererName}] Destroying overlay:`, this.overlay.id);
 
     // Cleanup subscriptions
     this._cleanupSubscriptions();
@@ -204,7 +204,7 @@ export class OverlayBase extends BaseRenderer {
 
     this._destroyed = true;
 
-    lcardsLog.debug(`[${this.rendererName}] Destruction complete:`, this.overlay.id);
+    lcardsLog.trace(`[${this.rendererName}] Destruction complete:`, this.overlay.id);
   }
 
   // ============================================================
@@ -220,7 +220,7 @@ export class OverlayBase extends BaseRenderer {
       return;
     }
 
-    lcardsLog.debug(`[${this.rendererName}] DataSource update:`, sourceId, data);
+    lcardsLog.trace(`[${this.rendererName}] DataSource update:`, sourceId, data);
 
     // Find DOM element if not cached
     if (!this.element && this.mountEl) {
@@ -263,7 +263,7 @@ export class OverlayBase extends BaseRenderer {
   _subscribeToEntity(entityId) {
     // TODO: Implement HA entity subscription
     // This would integrate with MsdTemplateEngine or Home Assistant connection
-    lcardsLog.debug(`[${this.rendererName}] HA entity subscription requested:`, entityId);
+    lcardsLog.trace(`[${this.rendererName}] HA entity subscription requested:`, entityId);
     lcardsLog.warn(`[${this.rendererName}] HA entity subscriptions not yet implemented - ${entityId} will not auto-update`);
 
     // Note: For now, HA entity updates are handled by MsdTemplateEngine separately
@@ -288,7 +288,7 @@ export class OverlayBase extends BaseRenderer {
 
       if (unsubscribe) {
         this._registerSubscription(unsubscribe);
-        lcardsLog.debug(`[${this.rendererName}] Subscribed to DataSource:`, sourceId);
+        lcardsLog.trace(`[${this.rendererName}] Subscribed to DataSource:`, sourceId);
       }
 
     } catch (error) {
@@ -323,7 +323,7 @@ export class OverlayBase extends BaseRenderer {
     if (typeof window !== 'undefined' && window.lcards && window.lcards.anim) {
       try {
         this._animationScope = window.lcards.anim.createScope();
-        lcardsLog.debug(`[${this.rendererName}] Animation scope created`);
+        lcardsLog.trace(`[${this.rendererName}] Animation scope created`);
       } catch (error) {
         lcardsLog.warn(`[${this.rendererName}] Failed to create animation scope:`, error);
       }
@@ -336,7 +336,7 @@ export class OverlayBase extends BaseRenderer {
    */
   _cleanupSubscriptions() {
     if (this._subscriptions.length > 0) {
-      lcardsLog.debug(`[${this.rendererName}] Cleaning up ${this._subscriptions.length} subscriptions`);
+      lcardsLog.trace(`[${this.rendererName}] Cleaning up ${this._subscriptions.length} subscriptions`);
 
       this._subscriptions.forEach(unsub => {
         try {
@@ -360,7 +360,7 @@ export class OverlayBase extends BaseRenderer {
         if (typeof this._animationScope.destroy === 'function') {
           this._animationScope.destroy();
         }
-        lcardsLog.debug(`[${this.rendererName}] Animation scope destroyed`);
+        lcardsLog.trace(`[${this.rendererName}] Animation scope destroyed`);
       } catch (error) {
         lcardsLog.warn(`[${this.rendererName}] Animation cleanup error:`, error);
       }
@@ -375,7 +375,7 @@ export class OverlayBase extends BaseRenderer {
    */
   _cleanupTimers() {
     if (this._timers.length > 0) {
-      lcardsLog.debug(`[${this.rendererName}] Cleaning up ${this._timers.length} timers`);
+      lcardsLog.trace(`[${this.rendererName}] Cleaning up ${this._timers.length} timers`);
 
       this._timers.forEach(timerId => {
         try {

@@ -129,7 +129,7 @@ export class RendererUtils {
     const transformInfo = this._getSvgTransformInfo(containerElement);
     if (!transformInfo) {
       // Fallback to pixel metrics is acceptable - not all contexts have transform info
-      lcardsLog.debug('[RendererUtils] No transform info available, using pixel metrics');
+      lcardsLog.trace('[RendererUtils] No transform info available, using pixel metrics');
       return metrics;
     }
 

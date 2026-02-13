@@ -128,7 +128,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Apply config ID to element if present and element doesn't already have one
         if (this.config?.id && !this.id) {
             this.id = this.config.id;
-            lcardsLog.debug(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
+            lcardsLog.trace(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
         }
 
         // Re-detect preview mode now that we're in the DOM
@@ -158,7 +158,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @protected
      */
     _onConfigUpdated() {
-        lcardsLog.debug('[LCARdSMSDCard] _onConfigUpdated called');
+        lcardsLog.trace('[LCARdSMSDCard] _onConfigUpdated called');
 
         // Extract MSD config from processed config
         // Config is ALREADY processed by parent's _processConfigAsync() with provenance
@@ -187,7 +187,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @protected
      */
     async _onFirstUpdated(changedProperties) {
-        lcardsLog.debug('[LCARdSMSDCard] _onFirstUpdated called');
+        lcardsLog.trace('[LCARdSMSDCard] _onFirstUpdated called');
 
         // Call parent first
         await super._onFirstUpdated(changedProperties);
@@ -196,10 +196,10 @@ export class LCARdSMSDCard extends LCARdSCard {
         // LCARdSCard.setConfig() starts _processConfigAsync() in background.
         // We must wait for it before accessing this.config or derived properties.
         if (this._configProcessingPromise) {
-            lcardsLog.debug('[LCARdSMSDCard] Waiting for config processing...');
+            lcardsLog.trace('[LCARdSMSDCard] Waiting for config processing...');
             try {
                 await this._configProcessingPromise;
-                lcardsLog.debug('[LCARdSMSDCard] Config processing complete');
+                lcardsLog.trace('[LCARdSMSDCard] Config processing complete');
             } catch (error) {
                 lcardsLog.error('[LCARdSMSDCard] Config processing failed:', error);
                 this._configIssues = { errors: [`Config processing failed: ${error.message}`] };
@@ -221,9 +221,9 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // Skip loading if source is "none" (viewBox-only mode)
             if (svgSource === 'none') {
-                lcardsLog.debug('[LCARdSMSDCard] Skipping SVG load - source is "none" (viewBox-only mode)');
+                lcardsLog.trace('[LCARdSMSDCard] Skipping SVG load - source is "none" (viewBox-only mode)');
             } else {
-                lcardsLog.debug('[LCARdSMSDCard] Loading base SVG:', svgSource);
+                lcardsLog.trace('[LCARdSMSDCard] Loading base SVG:', svgSource);
                 await this._loadBaseSvg(this._msdConfig.base_svg);
 
                 if (!this._svgContent) {
@@ -233,7 +233,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                     return;
                 }
 
-                lcardsLog.debug('[LCARdSMSDCard] SVG loaded:', this._svgContent.length, 'bytes');
+                lcardsLog.trace('[LCARdSMSDCard] SVG loaded:', this._svgContent.length, 'bytes');
             }
         }
 
@@ -241,22 +241,22 @@ export class LCARdSMSDCard extends LCARdSCard {
         if (!this._msdInstanceGuid) {
             if (this.config.id) {
                 this._msdInstanceGuid = `msd-${this.config.id}`;
-                lcardsLog.debug('[LCARdSMSDCard] Using config.id as GUID:', this._msdInstanceGuid);
+                lcardsLog.trace('[LCARdSMSDCard] Using config.id as GUID:', this._msdInstanceGuid);
             } else {
                 this._msdInstanceGuid = `msd-${this._cardGuid}`;
-                lcardsLog.debug('[LCARdSMSDCard] Generated GUID:', this._msdInstanceGuid);
+                lcardsLog.trace('[LCARdSMSDCard] Generated GUID:', this._msdInstanceGuid);
             }
         }
 
         // ✅ FIX: Wait for Lit's render to complete before initializing pipeline
         // This ensures the SVG container from _renderSvgContainer() is mounted to DOM
         // before MsdControlsRenderer tries to find it with getSvgControlsContainer()
-        lcardsLog.debug('[LCARdSMSDCard] Waiting for Lit render to complete...');
+        lcardsLog.trace('[LCARdSMSDCard] Waiting for Lit render to complete...');
         await this.updateComplete;
-        lcardsLog.debug('[LCARdSMSDCard] Lit render complete');
+        lcardsLog.trace('[LCARdSMSDCard] Lit render complete');
 
         // Initialize MSD pipeline (now with config guaranteed ready)
-        lcardsLog.debug('[LCARdSMSDCard] Initializing pipeline:', {
+        lcardsLog.trace('[LCARdSMSDCard] Initializing pipeline:', {
             hasConfig: !!this._msdConfig,
             hasSvg: !!this._svgContent,
             hasHass: !!this.hass,
@@ -273,7 +273,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _registerOverlaysWithRulesEngine() {
-        lcardsLog.debug('[LCARdSMSDCard] Registering MSD overlays with rules engine');
+        lcardsLog.trace('[LCARdSMSDCard] Registering MSD overlays with rules engine');
 
         // CRITICAL: Temporarily save and clear HASS to prevent auto-evaluation during registration
         // Each call to _registerOverlayForRules() triggers rule evaluation if HASS exists
@@ -288,7 +288,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         // NOTE: _registerOverlayForRules() can only be called ONCE per card (sets this._overlayRegistered = true)
         // For additional overlays, we must register directly with SystemsManager
         if (this._msdConfig?.overlays) {
-            lcardsLog.debug(`[LCARdSMSDCard] Found ${this._msdConfig.overlays.length} overlays to register`);
+            lcardsLog.trace(`[LCARdSMSDCard] Found ${this._msdConfig.overlays.length} overlays to register`);
 
             this._msdConfig.overlays.forEach(overlay => {
                 if (overlay.id) {
@@ -305,9 +305,9 @@ export class LCARdSMSDCard extends LCARdSCard {
                             tags: ['msd-overlay', overlay.type],
                             sourceCardId: this._cardGuid
                         });
-                        lcardsLog.debug(`[LCARdSMSDCard] ✅ Registered overlay: ${overlay.id} (${overlay.type})`);
+                        lcardsLog.trace(`[LCARdSMSDCard] ✅ Registered overlay: ${overlay.id} (${overlay.type})`);
                     } else {
-                        lcardsLog.debug(`[LCARdSMSDCard] Skipping registration for LCARdS control: ${overlay.id} (will self-register)`);
+                        lcardsLog.trace(`[LCARdSMSDCard] Skipping registration for LCARdS control: ${overlay.id} (will self-register)`);
                     }
                 }
             });
@@ -318,11 +318,11 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Restore HASS
         this.hass = savedHass;
 
-        lcardsLog.debug('[LCARdSMSDCard] ✅ MSD card and overlays registered with core rulesManager');
+        lcardsLog.trace('[LCARdSMSDCard] ✅ MSD card and overlays registered with core rulesManager');
 
         // NOW trigger rule evaluation with all overlays registered
         if (this.hass && this._singletons?.rulesEngine) {
-            lcardsLog.debug('[LCARdSMSDCard] Triggering initial rule evaluation with all overlays registered');
+            lcardsLog.trace('[LCARdSMSDCard] Triggering initial rule evaluation with all overlays registered');
             this._singletons.rulesEngine.markAllDirty();
 
             // Trigger the callback for this card (which evaluates rules for all registered overlays)

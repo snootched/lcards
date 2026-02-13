@@ -7049,14 +7049,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        ${hasCard ? html`
-                            <ha-icon-button
-                                @click=${() => this._editLayerCard(control.id)}
-                                .label=${'Edit Card'}
-                                title="Edit card with native HA editor">
-                                <ha-icon icon="mdi:card-edit-outline"></ha-icon>
-                            </ha-icon-button>
-                        ` : ''}
                         <ha-icon-button
                             @click=${() => this._editControl(control)}
                             .label=${'Edit'}
@@ -7581,12 +7573,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </lcards-form-section>
                 ` : html`
                     <!-- Selected Card Info + Change Button -->
-                    <div class="selected-card-info" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--info-color, #03a9f4); color: white; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="selected-card-info" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--primary-background-color, #03a9f4); color: white; border-radius: var(--ha-card-border-radius, 12px); margin-bottom: 16px;">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <ha-icon icon="${this._getCardIcon(cardType)}" style="--mdc-icon-size: 28px; color: white;"></ha-icon>
                             <div>
                                 <div style="font-weight: 600; font-size: 15px;">${this._getCardTypeName(cardType)}</div>
-                                <div style="font-size: 12px; opacity: 0.9;">Card type selected</div>
+                                <div style="font-size: 12px; opacity: 0.9;">Selected card type</div>
                             </div>
                         </div>
                         <ha-button
@@ -7704,12 +7696,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </lcards-form-section>
                 ` : html`
                     <!-- Selected Card Info + Change Button -->
-                    <div class="selected-card-info" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--info-color, #03a9f4); color: white; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="selected-card-info" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--primary-background-color, #03a9f4); color: white; border-radius: var(--ha-card-border-radius, 12px); margin-bottom: 16px;">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <ha-icon icon="${this._getCardIcon(cardType)}" style="--mdc-icon-size: 28px; color: white;"></ha-icon>
                             <div>
                                 <div style="font-weight: 600; font-size: 15px;">${this._getCardTypeName(cardType)}</div>
-                                <div style="font-size: 12px; opacity: 0.9;">Card type selected</div>
+                                <div style="font-size: 12px; opacity: 0.9;">Selected card type</div>
                             </div>
                         </div>
                         <ha-button
@@ -8304,10 +8296,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const cleanType = type.replace(/^custom:/, '');
 
         // Convert kebab-case to Title Case
-        return cleanType
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+        return cleanType;
+            //.split('-')
+            //.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            //.join(' ');
     }
 
     /**
@@ -12717,22 +12709,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this.requestUpdate();
 
         lcardsLog.debug('[MSDStudio] 🔄 Control card updated:', controlId, metadata);
-    }
-
-    /**
-     * Open native HA editor for control's card
-     * @param {string} controlId - Control ID
-     * @private
-     */
-    _editLayerCard(controlId) {
-        const control = this._workingConfig.msd?.controls?.find(c => c.id === controlId);
-        if (!control?.card) {
-            lcardsLog.warn('[MSDStudio] ⚠️ No card found for control:', controlId);
-            return;
-        }
-
-        lcardsLog.debug('[MSDStudio] 🎨 Opening editor for control:', controlId);
-        this._editorLauncher?.openCardEditor(controlId, control.card);
     }
 
     /**

@@ -16,7 +16,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     throw new Error('[ConfigProcessor] CoreConfigManager not initialized - this is a fatal error');
   }
 
-  lcardsLog.debug('[ConfigProcessor] Processing config with SVG extraction');
+  lcardsLog.trace('[ConfigProcessor] Processing config with SVG extraction');
 
   // ✅ NEW: Extract SVG metadata BEFORE config processing
   let viewBox = null;
@@ -35,7 +35,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
 
     anchors = anchorResult.anchors;
 
-    lcardsLog.debug('[ConfigProcessor] SVG metadata extracted:', {
+    lcardsLog.trace('[ConfigProcessor] SVG metadata extracted:', {
       viewBox,
       anchorCount: anchorResult.metadata.totalCount,
       svgAnchors: anchorResult.metadata.svgAnchorCount,
@@ -50,7 +50,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
       viewBox || [0, 0, 1920, 1080]
     ).anchors;
 
-    lcardsLog.debug('[ConfigProcessor] base_svg: "none" - using explicit viewBox:', viewBox);
+    lcardsLog.trace('[ConfigProcessor] base_svg: "none" - using explicit viewBox:', viewBox);
   }
 
   // ✅ CRITICAL: Merge extracted metadata into config BEFORE validation
@@ -89,7 +89,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
       ...fullConfig.anchors,           // Extracted anchors (base layer)
       ...(mergedConfig.anchors || {})  // User anchors (override layer)
     };
-    lcardsLog.debug('[ConfigProcessor] Merged anchors after CoreConfigManager:', {
+    lcardsLog.trace('[ConfigProcessor] Merged anchors after CoreConfigManager:', {
       extractedCount: Object.keys(fullConfig.anchors).length,
       userCount: Object.keys(mergedConfig.anchors || {}).length - Object.keys(fullConfig.anchors).length,
       totalCount: Object.keys(mergedConfig.anchors).length
@@ -145,7 +145,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     });
   } catch(_) {}
 
-  lcardsLog.debug('[ConfigProcessor] ✅ Config processed with provenance:', {
+  lcardsLog.trace('[ConfigProcessor] ✅ Config processed with provenance:', {
     layers: provenance?.merge_order?.length || 0,
     fields: Object.keys(provenance?.field_sources || {}).length,
     errors: issues.errors.length,
@@ -166,7 +166,7 @@ export async function processMsdConfig(userMsdConfig) {
     throw new Error('[ConfigProcessor] CoreConfigManager not initialized - this is a fatal error');
   }
 
-  lcardsLog.debug('[ConfigProcessor] processMsdConfig using CoreConfigManager');
+  lcardsLog.trace('[ConfigProcessor] processMsdConfig using CoreConfigManager');
 
   const result = await core.configManager.processConfig(
     userMsdConfig,

@@ -47,7 +47,7 @@ export class ModelBuilder {
     // DEBUG: Check final overlay state before rendering
     const titleOverlay = resolved.overlays.find(o => o.id === 'title_overlay');
     if (titleOverlay) {
-      lcardsLog.debug('[ModelBuilder] 🏁 Final title_overlay state before rendering:', {
+      lcardsLog.trace('[ModelBuilder] 🏁 Final title_overlay state before rendering:', {
         id: titleOverlay.id,
         color: titleOverlay.style?.color,
         status_indicator: titleOverlay.style?.status_indicator,
@@ -175,7 +175,7 @@ export class ModelBuilder {
    */
   destroy() {
     if (this._overlayUnsubscribers) {
-      lcardsLog.debug(`[ModelBuilder] Cleaning up ${this._overlayUnsubscribers.size} overlay subscriptions`);
+      lcardsLog.trace(`[ModelBuilder] Cleaning up ${this._overlayUnsubscribers.size} overlay subscriptions`);
 
       for (const [overlayId, unsubscribers] of this._overlayUnsubscribers) {
         unsubscribers.forEach(unsubscribe => {
@@ -203,13 +203,13 @@ export class ModelBuilder {
         return;
       }
 
-      lcardsLog.debug(`[ModelBuilder] Setting up subscriptions for ${overlay.id}:`, overlay.triggers_update);
+      lcardsLog.trace(`[ModelBuilder] Setting up subscriptions for ${overlay.id}:`, overlay.triggers_update);
 
       overlay.triggers_update.forEach(ref => {
         // Use HADomains utility to distinguish HA entities from MSD datasources
         if (isHAEntity(ref)) {
           // HA entity - skip for now (handled by card template systems)
-          lcardsLog.debug(`[ModelBuilder] Skipping HA entity: ${ref} (handled by card template systems)`);
+          lcardsLog.trace(`[ModelBuilder] Skipping HA entity: ${ref} (handled by card template systems)`);
           return;
         }
 
@@ -253,7 +253,7 @@ export class ModelBuilder {
 
       // Create subscription callback
       const callback = (data) => {
-        lcardsLog.debug(`[ModelBuilder] 📊 Overlay ${overlayId} received DataSource update from ${sourceName}`);
+        lcardsLog.trace(`[ModelBuilder] 📊 Overlay ${overlayId} received DataSource update from ${sourceName}`);
 
         // Notify AdvancedRenderer to update the overlay
         if (this.systems.renderer && this.systems.renderer.updateOverlayData) {
@@ -268,7 +268,7 @@ export class ModelBuilder {
       const unsubscribe = dataSource.subscribe(callback);
       this._overlayUnsubscribers.get(overlayId).push(unsubscribe);
 
-      lcardsLog.debug(`[ModelBuilder] ✅ Subscribed overlay ${overlayId} to DataSource ${sourceName}`);
+      lcardsLog.trace(`[ModelBuilder] ✅ Subscribed overlay ${overlayId} to DataSource ${sourceName}`);
 
     } catch (error) {
       lcardsLog.error(`[ModelBuilder] Failed to subscribe overlay ${overlayId} to DataSource ${dataSourceRef}:`, error);

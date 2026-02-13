@@ -129,7 +129,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // when schemas check for properties that get added during ModelBuilder processing
 
   // Build card model (now safe to process overlays)
-  lcardsLog.debug('[PipelineCore] 🏗️ Building card model');
+  lcardsLog.trace('[PipelineCore] 🏗️ Building card model');
   const cardModel = await buildCardModel(mergedConfig);
 
   // Ensure anchors are available
@@ -137,7 +137,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   if (!Object.keys(cardModel.anchors).length) {
     if (mergedConfig.anchors && Object.keys(mergedConfig.anchors).length) {
       cardModel.anchors = { ...mergedConfig.anchors };
-      lcardsLog.debug('[PipelineCore] Adopted user anchors');
+      lcardsLog.trace('[PipelineCore] Adopted user anchors');
     }
   }
 
@@ -152,7 +152,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
   // ✅ NEW: Initialize AnimationManager with overlays to register animations
   if (coordinator.animationManager && mergedConfig.overlays) {
-    lcardsLog.debug('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
+    lcardsLog.trace('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
     try {
       // ⚠️ CRITICAL: Set mountEl explicitly so AnimationManager can find overlay elements
       coordinator.animationManager.mountEl = mountEl;
@@ -175,7 +175,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
   // Initialize HASS state
   if (hass) {
-    lcardsLog.debug('[PipelineCore] 📥 Initializing HASS via ingestHass');
+    lcardsLog.trace('[PipelineCore] 📥 Initializing HASS via ingestHass');
     coordinator.ingestHass(hass);
   }
 
@@ -190,7 +190,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   });
 
   // Initialize model builder (now everything is ready)
-  lcardsLog.debug('[PipelineCore] 🏭 Initializing model builder');
+  lcardsLog.trace('[PipelineCore] 🏭 Initializing model builder');
   const modelBuilder = new ModelBuilder(mergedConfig, cardModel, coordinator);
 
   // Store ModelBuilder reference in MsdCardCoordinator for accessibility
@@ -219,7 +219,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     coordinator._queuedReRender = false;
 
     try {
-      lcardsLog.debug('[PipelineCore] 📊 Computing resolved model...');
+      lcardsLog.trace('[PipelineCore] 📊 Computing resolved model...');
       const startTime = performance.now();
       const resolvedModel = await modelBuilder.computeResolvedModel();
 
@@ -230,7 +230,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         hasViewBox: !!resolvedModel.viewBox
       });
 
-      lcardsLog.debug(`[PipelineCore] 🎨 Starting AdvancedRenderer.render() - overlays: ${resolvedModel.overlays.length}`);
+      lcardsLog.trace(`[PipelineCore] 🎨 Starting AdvancedRenderer.render() - overlays: ${resolvedModel.overlays.length}`);
 
       // ADDED: Defensive rendering with error boundary
       let renderResult;
@@ -340,8 +340,8 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   coordinator.setReRenderCallback(reRender);
 
   // Initial render - now everything is properly sequenced
-  lcardsLog.debug('[PipelineCore] 🎬 Performing initial render');
-  lcardsLog.debug('[PipelineCore] DataSourceManager status:', {
+  lcardsLog.trace('[PipelineCore] 🎬 Performing initial render');
+  lcardsLog.trace('[PipelineCore] DataSourceManager status:', {
     sourcesCount: coordinator.dataSourceManager?.getAllSources?.()?.length || 0,
     entityCount: coordinator.dataSourceManager?.listIds?.()?.length || 0
   });
@@ -355,12 +355,12 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
   // Apply base SVG filters after initial render
   if (cardModel.baseSvg?.filters) {
-    lcardsLog.debug('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
+    lcardsLog.trace('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
     try {
       // Target the base content group (__ prefix = internal/reserved ID, not an anchor)
       const baseContentGroup = mountEl?.querySelector('#__msd-base-content');
 
-      lcardsLog.debug('[PipelineCore] 🔍 Filter application details:', {
+      lcardsLog.trace('[PipelineCore] 🔍 Filter application details:', {
         hasMountEl: !!mountEl,
         mountElTag: mountEl?.tagName,
         baseContentGroup: !!baseContentGroup,
@@ -370,7 +370,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       });
 
       if (baseContentGroup) {
-        lcardsLog.debug('[PipelineCore] 🎨 Applying base SVG filters during initialization:', {
+        lcardsLog.trace('[PipelineCore] 🎨 Applying base SVG filters during initialization:', {
           elementId: baseContentGroup.id,
           elementTag: baseContentGroup.tagName,
           currentFilter: baseContentGroup.style.filter,
@@ -384,7 +384,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
         // Verify filters were applied with delay to catch async issues
         setTimeout(() => {
-          lcardsLog.debug('[PipelineCore] ✅ Base SVG filters verification after 50ms:', {
+          lcardsLog.trace('[PipelineCore] ✅ Base SVG filters verification after 50ms:', {
             appliedFilter: baseContentGroup.style.filter,
             elementId: baseContentGroup.id,
             elementTag: baseContentGroup.tagName,
@@ -400,7 +400,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   }
 
   // Create pipeline API and finalize
-  lcardsLog.debug('[PipelineCore] 🔌 Creating pipeline API');
+  lcardsLog.trace('[PipelineCore] 🔌 Creating pipeline API');
   const pipelineApi = createPipelineApi(
     mergedConfig, cardModel, coordinator, modelBuilder, reRender, fullUserConfig
   );
@@ -412,7 +412,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
   // Legacy debug interface removed - use DOM-based card access
   // Example: document.querySelector('lcards-msd')._msdPipeline.coordinator.router
-  lcardsLog.debug('[PipelineCore] ✅ Pipeline API created (access via card._msdPipeline)');
+  lcardsLog.trace('[PipelineCore] ✅ Pipeline API created (access via card._msdPipeline)');
 
   // Provenance tracked in card via _provenanceTracker (PR #165)
   // Access via: card.getProvenance()
@@ -425,10 +425,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     window.lcards.debug.msd.validation = { issues: () => mergedConfig.__issues };
   }
 
-  lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete with provenance:', {
-    hasProvenance: !!provenance,
-    layers: provenance?.merge_order?.length || 0
-  });
+  lcardsLog.debug('[PipelineCore] ✅ Pipeline initialization complete');
 
   return pipelineApi;
 }
@@ -708,7 +705,7 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
      */
     reRender: () => {
       try {
-        lcardsLog.debug('[PipelineCore] Manual re-render triggered');
+        lcardsLog.trace('[PipelineCore] Manual re-render triggered');
         return reRender();
       } catch (error) {
         lcardsLog.error('[PipelineCore] Manual re-render failed:', error);
@@ -767,7 +764,7 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
 
     // Action system methods
     setCardInstance: (cardInstance) => {
-      lcardsLog.debug('[PipelineCore] Setting card instance:', {
+      lcardsLog.trace('[PipelineCore] Setting card instance:', {
         hasCardInstance: !!cardInstance,
         cardType: cardInstance?.tagName,
         hasHandleAction: typeof cardInstance?._handleAction,
@@ -775,7 +772,7 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
       });
       // Store in MsdCardCoordinator for broader access
       coordinator.cardInstance = cardInstance;
-      lcardsLog.debug('[PipelineCore] Card instance set via API for action system');
+      lcardsLog.trace('[PipelineCore] Card instance set via API for action system');
     }
   };
 

@@ -75,7 +75,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
     }
   };
 
-  lcardsLog.debug('[MSD index.js] Production namespace initialized: window.lcards.cards.msd');
+  lcardsLog.trace('[MSD index.js] Production namespace initialized: window.lcards.cards.msd');
 
   // ============================================================================
   // DEBUG NAMESPACE: window.lcards.debug.msd.*
@@ -118,7 +118,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
     card.debugProvenance();
   };
 
-  lcardsLog.debug('[MSD index.js] Debug namespace initialized with MsdDebugAPI');
+  lcardsLog.trace('[MSD index.js] Debug namespace initialized with MsdDebugAPI');
 
   // ============================================================================
   // GLOBAL DEBUG HELPERS
@@ -146,5 +146,5 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
     };
   }
 
-  lcardsLog.debug('[MSD index.js] Global debug helpers initialized');
+  lcardsLog.trace('[MSD index.js] Global debug helpers initialized');
 })();

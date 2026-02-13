@@ -324,7 +324,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 
       defs.appendChild(filterElement);
 
-      lcardsLog.debug('[BaseSvgFilters] Created SVG filter definition:', svgFilterId, 'with', svgFilters.length, 'chained primitives');
+      lcardsLog.trace('[BaseSvgFilters] Created SVG filter definition:', svgFilterId, 'with', svgFilters.length, 'chained primitives');
     }
   }
 
@@ -361,7 +361,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
         svgElement.style.filter = finalFilterValue;
       }
 
-      lcardsLog.debug('[BaseSvgFilters] ✅ Filter applied with transition to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
+      lcardsLog.trace('[BaseSvgFilters] ✅ Filter applied with transition to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
 
       // Remove transition after it completes to avoid interfering with other updates
       setTimeout(() => {
@@ -382,7 +382,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
       svgElement.style.filter = '';
     }
 
-    lcardsLog.debug('[BaseSvgFilters] ✅ Filter applied instantly to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
+    lcardsLog.trace('[BaseSvgFilters] ✅ Filter applied instantly to #' + (svgElement.id || 'element') + '. Current style.filter:', svgElement.style.filter);
   }
 }
 
@@ -424,7 +424,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
     return;
   }
 
-  lcardsLog.debug('[BaseSvgFilters] Clearing filters', { hasTransition: !!transition, transition });
+  lcardsLog.trace('[BaseSvgFilters] Clearing filters', { hasTransition: !!transition, transition });
 
   if (transition && transition > 0) {
     // Use normalized default filters for smooth transition to "no effect"

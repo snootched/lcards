@@ -53,7 +53,7 @@ export class AttachmentPointManager {
      */
     this._anchors = new Map();
 
-    lcardsLog.debug('[AttachmentPointManager] Initialized');
+    lcardsLog.trace('[AttachmentPointManager] Initialized');
   }
 
   /**
@@ -88,7 +88,7 @@ export class AttachmentPointManager {
       this._anchors.set(overlayId, attachmentData.center);
     }
 
-    lcardsLog.debug(`[AttachmentPointManager] Set attachment points for ${overlayId}`, {
+    lcardsLog.trace(`[AttachmentPointManager] Set attachment points for ${overlayId}`, {
       hasBbox: !!attachmentData.bbox,
       hasPoints: !!attachmentData.points,
       center: attachmentData.center
@@ -219,7 +219,7 @@ export class AttachmentPointManager {
   clear() {
     this._attachmentPoints.clear();
     this._anchors.clear();
-    lcardsLog.debug('[AttachmentPointManager] Cleared all attachment points and anchors');
+    lcardsLog.trace('[AttachmentPointManager] Cleared all attachment points and anchors');
   }
 
   /**

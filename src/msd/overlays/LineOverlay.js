@@ -56,7 +56,7 @@ export class LineOverlay extends OverlayBase {
     // Attachment points for overlay-to-overlay connections
     this.overlayAttachmentPoints = null;
 
-    lcardsLog.debug(`[LineOverlay] Created instance for overlay ${overlay.id}`);
+    lcardsLog.trace(`[LineOverlay] Created instance for overlay ${overlay.id}`);
   }
 
   /**
@@ -80,7 +80,7 @@ export class LineOverlay extends OverlayBase {
       const style = this.overlay.finalStyle || this.overlay.style || {};
       this._cachedLineStyle = this._resolveLineStyles(style, this.overlay.id, viewBox);
 
-      lcardsLog.debug(`[LineOverlay] Initialized overlay ${this.overlay.id}:`, {
+      lcardsLog.trace(`[LineOverlay] Initialized overlay ${this.overlay.id}:`, {
         hasStyle: !!this._cachedLineStyle,
         features: this._cachedLineStyle?.features?.length || 0,
         routingStrategy: this.overlay.routing_strategy
@@ -98,7 +98,7 @@ export class LineOverlay extends OverlayBase {
    */
   setOverlayAttachmentPoints(overlayAttachmentPoints) {
     this.overlayAttachmentPoints = overlayAttachmentPoints;
-    lcardsLog.debug(`[LineOverlay] Updated with ${overlayAttachmentPoints?.size || 0} attachment points`);
+    lcardsLog.trace(`[LineOverlay] Updated with ${overlayAttachmentPoints?.size || 0} attachment points`);
   }
 
   /**
@@ -234,7 +234,7 @@ export class LineOverlay extends OverlayBase {
         this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
 
-      lcardsLog.debug(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
+      lcardsLog.trace(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
 
       const markup = `<g id="${overlay.id}"
                 data-overlay-id="${overlay.id}"
@@ -293,7 +293,7 @@ export class LineOverlay extends OverlayBase {
   update(overlayElement, overlay, sourceData) {
     // Lines typically don't update based on data changes
     // They update when anchor positions change, which triggers a full re-render
-    lcardsLog.debug(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
+    lcardsLog.trace(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
     return true;
   }
 
@@ -321,7 +321,7 @@ export class LineOverlay extends OverlayBase {
    * Cleanup cached definitions and resources
    */
   destroy() {
-    lcardsLog.debug(`[LineOverlay] Destroying overlay ${this.overlay.id}`);
+    lcardsLog.trace(`[LineOverlay] Destroying overlay ${this.overlay.id}`);
 
     // Clear caches
     this._cachedLineStyle = null;
@@ -427,7 +427,7 @@ export class LineOverlay extends OverlayBase {
 
     // Debug logging for dash_array
     if (lineStyle.dashArray) {
-      lcardsLog.debug(`[LineOverlay] Dash array configured for ${overlayId}:`, {
+      lcardsLog.trace(`[LineOverlay] Dash array configured for ${overlayId}:`, {
         input: style.dash_array,
         resolved: lineStyle.dashArray,
         willRender: true

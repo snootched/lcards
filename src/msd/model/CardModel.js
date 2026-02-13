@@ -37,7 +37,7 @@ export async function buildCardModel(mergedConfig) {
         const presetFilters = themeManager.getFilterPreset(baseSvgFilterPreset);
         if (presetFilters) {
           resolvedFilters = { ...presetFilters };
-          lcardsLog.debug('[CardModel] Resolved filter preset:', baseSvgFilterPreset, presetFilters);
+          lcardsLog.trace('[CardModel] Resolved filter preset:', baseSvgFilterPreset, presetFilters);
         } else {
           lcardsLog.warn('[CardModel] Unknown filter preset:', baseSvgFilterPreset);
         }
@@ -48,25 +48,25 @@ export async function buildCardModel(mergedConfig) {
         // If filters is an array (new format), use it directly
         if (Array.isArray(baseSvgFilters)) {
           resolvedFilters = baseSvgFilters;
-          lcardsLog.debug('[CardModel] Using array-based filters:', resolvedFilters);
+          lcardsLog.trace('[CardModel] Using array-based filters:', resolvedFilters);
         } else {
           // Legacy object format - merge with preset
           resolvedFilters = resolvedFilters ? { ...resolvedFilters, ...baseSvgFilters } : { ...baseSvgFilters };
-          lcardsLog.debug('[CardModel] Applied explicit filters (object format):', resolvedFilters);
+          lcardsLog.trace('[CardModel] Applied explicit filters (object format):', resolvedFilters);
         }
       }
     }
 
     // Try to extract actual SVG viewBox from base_svg (unless source is "none")
     if (baseSvgSource && baseSvgSource !== 'none') {
-      lcardsLog.debug('[CardModel] Using SVG source:', baseSvgSource);
+      lcardsLog.trace('[CardModel] Using SVG source:', baseSvgSource);
       const { getSvgContent, getSvgViewBox } = await import('../../utils/lcards-anchor-helpers.js');
       const svgContent = getSvgContent(baseSvgSource);
       if (svgContent) {
         const extractedViewBox = getSvgViewBox(svgContent);
         if (extractedViewBox && Array.isArray(extractedViewBox) && extractedViewBox.length === 4) {
           viewBox = extractedViewBox;
-          lcardsLog.debug('[CardModel] Extracted viewBox from SVG:', viewBox);
+          lcardsLog.trace('[CardModel] Extracted viewBox from SVG:', viewBox);
         } else {
           lcardsLog.warn('[CardModel] Could not extract viewBox from SVG content');
         }
@@ -77,7 +77,7 @@ export async function buildCardModel(mergedConfig) {
       // When source is "none", use explicit view_box from config
       if (mergedConfig.view_box && Array.isArray(mergedConfig.view_box)) {
         viewBox = mergedConfig.view_box;
-        lcardsLog.debug('[CardModel] Using explicit viewBox for base_svg="none":', viewBox);
+        lcardsLog.trace('[CardModel] Using explicit viewBox for base_svg="none":', viewBox);
       } else {
         lcardsLog.warn('[CardModel] base_svg is "none" but no explicit view_box provided, using fallback');
       }
@@ -85,7 +85,7 @@ export async function buildCardModel(mergedConfig) {
       lcardsLog.warn('[CardModel] No base_svg specified in merged config');
     }
 
-    lcardsLog.debug('[CardModel] Final viewBox:', viewBox);
+    lcardsLog.trace('[CardModel] Final viewBox:', viewBox);
 
     // Build baseSvg object for model
     const baseSvg = {
@@ -96,7 +96,7 @@ export async function buildCardModel(mergedConfig) {
     // Copy anchors from config - these are used by OverlayUtils.resolvePosition()
     const anchors = mergedConfig.anchors || {};
 
-    lcardsLog.debug('[CardModel] Anchors from config:', {
+    lcardsLog.trace('[CardModel] Anchors from config:', {
       count: Object.keys(anchors).length,
       anchors: anchors
     });

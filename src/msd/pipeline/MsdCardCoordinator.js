@@ -58,12 +58,12 @@ export class MsdCardCoordinator extends BaseService {
 
         // CRITICAL FIX: Execute queued render when render completes (true → false)
         if (oldValue === true && value === false && this._queuedReRender) {
-          lcardsLog.debug('[MsdCardCoordinator] 🔄 Executing queued re-render (render completed)');
+          lcardsLog.trace('[MsdCardCoordinator] 🔄 Executing queued re-render (render completed)');
           this._queuedReRender = false;
 
           setTimeout(() => {
             if (!this._internalRenderInProgress && this._reRenderCallback) {
-              lcardsLog.debug('[MsdCardCoordinator] 🚀 Executing queued re-render callback');
+              lcardsLog.trace('[MsdCardCoordinator] 🚀 Executing queued re-render callback');
               try {
                 this._reRenderCallback();
               } catch (error) {
@@ -88,21 +88,21 @@ export class MsdCardCoordinator extends BaseService {
    * Now uses global core managers (no local pack loading)
    */
   async initializeSystemsWithPacksFirst(mergedConfig, mountEl, hass) {
-    lcardsLog.debug('[MsdCardCoordinator] 🚀 Enhanced initialization: using global core managers');
+    lcardsLog.trace('[MsdCardCoordinator] 🚀 Enhanced initialization: using global core managers');
 
     // Store config and HASS context immediately
     this.mergedConfig = mergedConfig;
     this._hass = hass; // PHASE 1: Use single source
 
     // Use shared core ThemeManager singleton (real MSD class)
-    lcardsLog.debug('[MsdCardCoordinator] 🔗 Using shared core ThemeManager singleton');
+    lcardsLog.trace('[MsdCardCoordinator] 🔗 Using shared core ThemeManager singleton');
     if (!lcardsCore.themeManager) {
       throw new Error('lcardsCore.themeManager is null - core not initialized?');
     }
     this.themeManager = lcardsCore.themeManager;
 
     // PHASE 1: Theme system already initialized by core - just verify
-    lcardsLog.debug('[MsdCardCoordinator] 🎨 Initializing theme system');
+    lcardsLog.trace('[MsdCardCoordinator] 🎨 Initializing theme system');
 
     const activeTheme = this.themeManager.getActiveTheme();
     if (!activeTheme) {
@@ -110,11 +110,7 @@ export class MsdCardCoordinator extends BaseService {
     }
 
     // Log theme provenance
-    lcardsLog.debug('[MsdCardCoordinator] 🎨 Initializing theme system');
-    lcardsLog.debug('[MsdCardCoordinator] ✅ Theme system ready', {
-      active: this.themeManager.getActiveTheme()?.name || 'none',
-      themeCount: this.themeManager.listThemes().length
-    });
+    lcardsLog.debug('[MsdCardCoordinator] ✅ Theme system ready');
 
     // Store in global namespace for access by overlays
     if (typeof window !== 'undefined') {
@@ -124,12 +120,12 @@ export class MsdCardCoordinator extends BaseService {
     }
 
     // PHASE 2: Initialize other critical systems that overlays might need
-    lcardsLog.debug('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
+    lcardsLog.trace('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
 
     // Initialize debug manager early with config
     const debugConfig = mergedConfig.debug || {};
     this.debugManager.init(debugConfig);
-    lcardsLog.debug('[MsdCardCoordinator] DebugManager initialized with config:', debugConfig);
+    lcardsLog.trace('[MsdCardCoordinator] DebugManager initialized with config:', debugConfig);
 
     // Initialize data source manager FIRST (overlays may reference it)
     await this._initializeDataSources(hass, mergedConfig);
@@ -145,13 +141,13 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.warn('[MsdCardCoordinator] ⚠️ StylePresetManager not initialized - this should not happen');
     }
 
-    lcardsLog.debug('[MsdCardCoordinator] ✅ Connected to core singletons', {
+    lcardsLog.trace('[MsdCardCoordinator] ✅ Connected to core singletons', {
       theme: !!this.themeManager,
       stylePresets: !!this.stylePresetManager,
       dataSourceManager: !!this.dataSourceManager
     });
 
-    lcardsLog.debug('[MsdCardCoordinator] ✅ Critical systems ready for overlay processing');
+    lcardsLog.trace('[MsdCardCoordinator] ✅ Critical systems ready for overlay processing');
   }
 
   /**
@@ -159,7 +155,7 @@ export class MsdCardCoordinator extends BaseService {
    * This is the second phase that happens after overlays can safely be processed
    */
   async completeSystems(mergedConfig, cardModel, mountEl, hass) {
-    lcardsLog.debug('[MsdCardCoordinator] 🔧 Completing systems initialization');
+    lcardsLog.trace('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
     // REMOVED: RulesEngine setup - now handled by card via _registerOverlayForRules()
     // The MSD card registers its overlays with the core rulesManager singleton,
@@ -181,7 +177,7 @@ export class MsdCardCoordinator extends BaseService {
 
     // ADDED: Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {
-      lcardsLog.debug('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
+      lcardsLog.trace('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
 
@@ -204,18 +200,7 @@ export class MsdCardCoordinator extends BaseService {
       this._registerMsdPanelsWithHud(this._cardGuid);
     }
 
-    lcardsLog.debug('[MsdCardCoordinator] ✅ All systems initialization complete', {
-      hasThemeManager: !!this.themeManager,
-      hasStyleResolver: !!this.styleResolver,
-      hasDataSourceManager: !!this.dataSourceManager,
-      hasRouter: !!this.router,
-      hasRenderer: !!this.renderer,
-      // hasRulesEngine: managed by core singleton
-      hasAnimRegistry: !!this.animRegistry,
-      hasAnimationManager: !!this.animationManager,
-      hasDebugManager: !!this.debugManager,
-      hasControlsRenderer: !!this.controlsRenderer
-    });
+    lcardsLog.debug('[MsdCardCoordinator] ✅ All systems initialization complete');
   }
 
   setReRenderCallback(callback) {
@@ -288,7 +273,7 @@ export class MsdCardCoordinator extends BaseService {
 
     // Only log if data sources actually configured (avoid noise for common case)
     if (Object.keys(configuredDataSources).length > 0 || controlEntities.length > 0) {
-      lcardsLog.debug('[MsdCardCoordinator] 📊 Data sources configured', {
+      lcardsLog.trace('[MsdCardCoordinator] 📊 Data sources configured', {
         configured: Object.keys(configuredDataSources).length,
         controls: controlEntities.length,
         total: Object.keys(allDataSources).length
@@ -296,15 +281,15 @@ export class MsdCardCoordinator extends BaseService {
     }
 
     if (Object.keys(allDataSources).length === 0) {
-      lcardsLog.debug('[MsdCardCoordinator] No data sources configured or auto-created - DataSourceManager will not be initialized');
+      lcardsLog.trace('[MsdCardCoordinator] No data sources configured or auto-created - DataSourceManager will not be initialized');
       return;
     }
 
-    lcardsLog.debug('[MsdCardCoordinator] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
+    lcardsLog.trace('[MsdCardCoordinator] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
 
     try {
       // ✅ Use shared core DataSourceManager singleton (real MSD class)
-      lcardsLog.debug('[MsdCardCoordinator] 🔗 Using shared core DataSourceManager singleton');
+      lcardsLog.trace('[MsdCardCoordinator] 🔗 Using shared core DataSourceManager singleton');
       if (!lcardsCore.dataSourceManager) {
         throw new Error('lcardsCore.dataSourceManager is null - core not initialized?');
       }
@@ -324,15 +309,15 @@ export class MsdCardCoordinator extends BaseService {
         // Core rulesManager receives entity changes via BaseService and evaluates globally
       });
 
-      lcardsLog.debug('[MsdCardCoordinator] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
+      lcardsLog.trace('[MsdCardCoordinator] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
       this._entityChangeListenerRegistered = true;
 
       const sourceCount = await this.dataSourceManager.initializeFromConfig(allDataSources);
-      lcardsLog.debug('[MsdCardCoordinator] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
+      lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
 
       // ADDED: Verify entities are available
       const entityIds = this.dataSourceManager.listIds();
-      lcardsLog.debug('[MsdCardCoordinator] ✅ DataSourceManager entities available:', entityIds);
+      lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager entities available:', entityIds);
 
     } catch (error) {
       lcardsLog.error('[MsdCardCoordinator] ❌ DataSourceManager initialization failed:', error);
@@ -386,7 +371,7 @@ export class MsdCardCoordinator extends BaseService {
     if (this.styleResolver) {
       try {
         this.styleResolver.invalidateCache('overlay');
-        lcardsLog.debug('[MsdCardCoordinator] StyleResolver overlay cache invalidated');
+        lcardsLog.trace('[MsdCardCoordinator] StyleResolver overlay cache invalidated');
       } catch (error) {
         lcardsLog.error('[MsdCardCoordinator] StyleResolver cleanup error:', error);
       }
