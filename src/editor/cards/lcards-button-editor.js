@@ -6,7 +6,9 @@
  */
 
 import { html } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -339,10 +341,20 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             `
                         },
                         ...(mode === 'preset' ? [
-                            { type: 'field', path: 'preset', label: 'Preset Style' }
+                            {
+                                type: 'custom',
+                                render: () => keyed(mode, FormField.renderField(this, 'preset', {
+                                    label: 'Preset Style'
+                                }))
+                            }
                         ] : []),
                         ...(mode === 'component' ? [
-                            { type: 'field', path: 'component', label: 'Component Type' }
+                            {
+                                type: 'custom',
+                                render: () => keyed(mode, FormField.renderField(this, 'component', {
+                                    label: 'Component Type'
+                                }))
+                            }
                         ] : []),
                         ...(mode === 'svg' ? [
                             {
