@@ -18,8 +18,10 @@
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-form-field.js';
+import '../shared/lcards-message.js';
 import './lcards-multi-action-editor.js';
 import './lcards-color-section-v2.js';
+import '../lcards-animation-editor.js';
 
 export class LCARdSUnifiedSegmentEditor extends LitElement {
     static get properties() {
@@ -382,6 +384,9 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
                     </lcards-multi-action-editor>
 
+                    <!-- Animations -->
+                    ${this._renderSegmentAnimations(segmentId)}
+
                     <!-- SVG Style -->
                     ${this._renderSegmentStyle(segmentId)}
 
@@ -453,6 +458,42 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 this.editor._setConfigValue(basePath, updatedConfig);
             }
         });
+    }
+
+    /**
+     * Render segment animations section
+     * @param {string} segmentId
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSegmentAnimations(segmentId) {
+        const basePath = this._getBasePath(segmentId);
+        const segmentConfig = this.segments?.[segmentId] || {};
+        const animations = segmentConfig.animations || [];
+
+        return html`
+            <lcards-form-section
+                header="Segment Animations"
+                description="Animations triggered only when this specific segment is interacted with"
+                icon="mdi:animation"
+                ?expanded=${false}>
+
+                <lcards-message type="info">
+                    <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                        These animations trigger <strong>only for this segment</strong>. For card-wide animations, use the Effects tab.
+                    </p>
+                </lcards-message>
+
+                <lcards-animation-editor
+                    .hass=${this.hass}
+                    .animations=${animations}
+                    .cardElement=${this.editor._cardElement}
+                    @animations-changed=${(e) => {
+                        this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
+                    }}>
+                </lcards-animation-editor>
+            </lcards-form-section>
+        `;
     }
 
     /**

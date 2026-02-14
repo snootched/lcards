@@ -39,10 +39,141 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'button';
+        this._cardElement = null;
     }
 
     static get styles() {
         return [super.styles, editorComponentStyles];
+    }
+
+    /**
+     * Called after first render - reliable initialization point
+     * @override
+     */
+    firstUpdated() {
+        super.firstUpdated?.();
+        this._tryFindCardElement();
+    }
+
+    /**
+     * Try to find card element with retries
+     * @private
+     */
+    _tryFindCardElement() {
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        const tryFind = () => {
+            attempts++;
+            this._findCardElement();
+
+            if (!this._cardElement && attempts < maxAttempts) {
+                requestAnimationFrame(tryFind);
+            }
+        };
+
+        requestAnimationFrame(tryFind);
+    }
+
+    /**
+     * Find the card preview element in DOM using sibling-aware traversal
+     *
+     * DOM Structure in HA editor:
+     * hui-dialog-edit-card
+     *   ├─ .element-editor (contains THIS editor)
+     *   └─ .element-preview (contains card preview) ← SIBLING not descendant!
+     *
+     * @private
+     */
+    _findCardElement() {
+        const cardType = `lcards-${this.cardType}`;
+
+        // Check if already found and still valid
+        if (this._cardElement?.isConnected) {
+            return;
+        }
+
+        let card = null;
+
+        // UPDATED STRATEGY: Based on actual DOM structure
+        // Editor path: hui-dialog-edit-card > ha-dialog (shadow) > .content > .element-editor >
+        //              hui-card-element-editor (shadow) > .wrapper > .gui-editor > lcards-button-editor
+        // Preview path: hui-dialog-edit-card > ha-dialog (shadow) > .content > .element-preview >
+        //               hui-section > hui-grid-section (shadow) > ... > lcards-button
+
+        // Step 1: Find wrapper and cross shadow boundary
+        const wrapper = this.closest('.wrapper');
+        if (wrapper) {
+            // Step 2: Cross shadow boundary to get to hui-card-element-editor
+            const shadowRoot = wrapper.getRootNode();
+            if (shadowRoot && shadowRoot !== document) {
+                const shadowHost = shadowRoot.host;
+
+                if (shadowHost) {
+                    // Step 3: Navigate to .element-editor parent
+                    const editorContainer = shadowHost.parentElement;
+                    if (editorContainer) {
+                        // Step 4: Navigate to .content (common parent of editor and preview)
+                        const content = editorContainer.parentElement;
+                        if (content) {
+                            // Step 5: Find .element-preview sibling
+                            const preview = content.querySelector('.element-preview');
+                            if (preview) {
+
+                                // Step 6: Search for card within preview (must traverse shadow DOMs)
+                                const searchInShadows = (root, depth = 0) => {
+                                    if (depth > 5) return null;
+                                    const found = root.querySelector(cardType);
+                                    if (found) return found;
+
+                                    const elements = root.querySelectorAll('*');
+                                    for (const el of elements) {
+                                        if (el.shadowRoot) {
+                                            const inShadow = searchInShadows(el.shadowRoot, depth + 1);
+                                            if (inShadow) return inShadow;
+                                        }
+                                    }
+                                    return null;
+                                };
+
+                                // First try direct search, then shadow DOM traversal
+                                card = preview.querySelector(cardType);
+                                if (!card) {
+                                    card = searchInShadows(preview);
+                                }
+
+                                if (!card) {
+                                    lcardsLog.warn('[ButtonEditor] Card preview not found in .element-preview');
+                                }
+                            } else {
+                                lcardsLog.warn('[ButtonEditor] .element-preview not found in editor dialog');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // FALLBACK: Global search
+        if (!card) {
+            card = document.querySelector(cardType);
+            if (!card) {
+                // Try in all shadow roots as last resort
+                const allElements = document.querySelectorAll('*');
+                for (const el of allElements) {
+                    if (el.shadowRoot) {
+                        card = el.shadowRoot.querySelector(cardType);
+                        if (card) break;
+                    }
+                }
+            }
+        }
+
+        // Store result
+        if (card && card !== this._cardElement) {
+            this._cardElement = card;
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -150,15 +281,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             tabs.push({ label: 'Actions', content: () => this._renderActionsTab() });
         }
 
-        // Show Effects tab (animations + filters) in preset mode
-        if (mode === 'preset') {
-            tabs.push({ label: 'Effects', content: () => this._renderEffectsTab() });
-        }
-
         // Show Segments tab for component (dpad) and svg modes
         if (mode === 'component' || mode === 'svg') {
             tabs.push({ label: 'Segments', content: () => this._renderSegmentsTab() });
         }
+
+        // Effects tab is relevant for all modes
+        tabs.push({ label: 'Effects', content: () => this._renderEffectsTab() });
 
         return [...tabs, ...this._getUtilityTabs()];
     }
@@ -652,14 +781,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderEffectsTab() {
         return html`
             <div class="tab-content-container">
-                <!-- Info Message -->
+                <!-- Card-Level Effects Info -->
                 <lcards-message type="info">
-                    <strong>Combining Effects:</strong>
+                    <strong>Card-Level Effects:</strong>
                     <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Animations and filters work together. For example:
-                        <br/>• Add a <strong>glow filter</strong> with a <strong>pulse animation</strong> for breathing light effects
-                        <br/>• Use <strong>blur + brightness filters</strong> with <strong>hover animations</strong> for depth effects
-                        <br/>• Apply <strong>SVG filters</strong> for advanced effects like displacement maps or morphology
+                        This tab configures effects for the <strong>entire card</strong>. Animations here trigger on any card interaction.
+                        <br/>• For <strong>per-segment animations</strong> (e.g., animate only the "up" button), use the <strong>Segments tab</strong> instead
+                        <br/>• Card-level animations can target specific segments using the "targets" selector
                     </p>
                 </lcards-message>
 
@@ -673,6 +801,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     <lcards-animation-editor
                         .hass=${this.hass}
                         .animations=${this.config.animations || []}
+                        .cardElement=${this._cardElement}
                         @animations-changed=${(e) => {
                             this._updateConfig({ animations: e.detail.value });
                         }}>

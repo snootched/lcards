@@ -30,6 +30,7 @@ export class LCARdSAnimationEditor extends LitElement {
     return {
       hass: { type: Object },
       animations: { type: Array },
+      cardElement: { type: Object },  // Card element for target discovery
       _expandedIndex: { type: Number }
     };
   }
@@ -255,6 +256,76 @@ export class LCARdSAnimationEditor extends LitElement {
         margin-top: 2px;
       }
 
+      /* Target Selection Styles */
+      .mode-selector {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 8px 0;
+      }
+
+      .mode-selector ha-formfield {
+        display: flex;
+        align-items: center;
+      }
+
+      .target-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .target-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .target-item ha-selector {
+        flex: 1;
+      }
+
+      .target-item ha-icon-button {
+        margin-top: 8px;
+        --mdc-icon-button-size: 36px;
+        --mdc-icon-size: 20px;
+      }
+
+      .validation-message {
+        font-size: 14px;
+        margin-top: 4px;
+        padding: 8px 12px;
+        border-radius: var(--ha-card-border-radius, 12px);
+      }
+
+      .validation-message.valid {
+        color: var(--success-color, #4caf50);
+        background: rgba(76, 175, 80, 0.1);
+      }
+
+      .validation-message.error {
+        color: var(--error-color, #f44336);
+        background: rgba(244, 67, 54, 0.1);
+      }
+
+      .validation-summary {
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: var(--ha-card-border-radius, 12px);
+        text-align: center;
+        margin-top: 8px;
+      }
+
+      .validation-summary.valid {
+        color: var(--success-color);
+        background: rgba(76, 175, 80, 0.1);
+      }
+
+      .validation-summary.error {
+        color: var(--warning-color);
+        background: rgba(255, 152, 0, 0.1);
+      }
+
       @media (max-width: 600px) {
         .animation-header {
           padding: 12px;
@@ -386,6 +457,9 @@ export class LCARdSAnimationEditor extends LitElement {
 
         ${anim.trigger === 'on_entity_change' ? this._renderEntityChangeTriggerConfig(anim, index) : ''}
       </lcards-form-section>
+
+      <!-- Target Selection Section -->
+      ${this._renderTargetSelector(anim, index)}
 
       <!-- Custom Toggle -->
       <ha-selector
@@ -966,15 +1040,15 @@ export class LCARdSAnimationEditor extends LitElement {
             <div class="param-full">
               <label class="field-label">From Color</label>
               <lcards-color-picker
-                .value=${params.from_color ?? '#0783FF'}
-                @value-changed=${(e) => this._updateParam(index, 'from_color', e.detail.value)}>
+                .value=${params.color_from ?? '#0783FF'}
+                @value-changed=${(e) => this._updateParam(index, 'color_from', e.detail.value)}>
               </lcards-color-picker>
             </div>
             <div class="param-full">
               <label class="field-label">To Color</label>
               <lcards-color-picker
-                .value=${params.to_color ?? '#FF6600'}
-                @value-changed=${(e) => this._updateParam(index, 'to_color', e.detail.value)}>
+                .value=${params.color_to ?? '#FF6600'}
+                @value-changed=${(e) => this._updateParam(index, 'color_to', e.detail.value)}>
               </lcards-color-picker>
             </div>
             <ha-textfield
@@ -2009,6 +2083,11 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _addAnimation() {
+    console.log('[AnimationEditor] 🎬 Add Animation button clicked!', {
+      currentAnimations: this.animations.length,
+      expandedIndex: this._expandedIndex
+    });
+
     const newAnimation = {
       trigger: 'on_load',
       preset: 'pulse',
@@ -2024,7 +2103,15 @@ export class LCARdSAnimationEditor extends LitElement {
 
     this.animations = [...this.animations, newAnimation];
     this._expandedIndex = this.animations.length - 1;
+
+    console.log('[AnimationEditor] ✅ Animation added', {
+      newCount: this.animations.length,
+      newExpandedIndex: this._expandedIndex,
+      newAnimation
+    });
+
     this._fireChange();
+    this.requestUpdate(); // Force re-render
   }
 
   _duplicateAnimation(e, index) {
@@ -2125,6 +2212,420 @@ export class LCARdSAnimationEditor extends LitElement {
       bubbles: true,
       composed: true
     }));
+  }
+
+  // ============================================================================
+  // TARGET SELECTION METHODS
+  // ============================================================================
+
+  /**
+   * Render target selection section
+   * @param {Object} animation - Animation config object
+   * @param {number} index - Animation index in array
+   * @returns {TemplateResult}
+   */
+  _renderTargetSelector(animation, index) {
+    const targetMode = animation.targets ? 'multiple' : 'single';
+
+    return html`
+      <lcards-form-section
+        header="Target"
+        icon="mdi:crosshairs-gps"
+        description="Select which element(s) to animate"
+        ?expanded=${true}>
+
+        <div class="mode-selector">
+          <ha-formfield .label=${'Single Element'}>
+            <ha-radio
+              .checked=${targetMode === 'single'}
+              .value=${'single'}
+              .name=${'target-mode-' + index}
+              @change=${() => this._setTargetMode(index, 'single')}
+            ></ha-radio>
+          </ha-formfield>
+
+          <ha-formfield .label=${'Multiple Elements'}>
+            <ha-radio
+              .checked=${targetMode === 'multiple'}
+              .value=${'multiple'}
+              .name=${'target-mode-' + index}
+              @change=${() => this._setTargetMode(index, 'multiple')}
+            ></ha-radio>
+          </ha-formfield>
+        </div>
+
+        ${targetMode === 'single'
+          ? this._renderSingleTarget(animation, index)
+          : this._renderMultipleTargets(animation, index)
+        }
+      </lcards-form-section>
+    `;
+  }
+
+  /**
+   * Render single target mode UI
+   * @param {Object} animation
+   * @param {number} index
+   * @returns {TemplateResult}
+   */
+  _renderSingleTarget(animation, index) {
+    const options = this._getTargetOptions();
+    const currentValue = animation.target || null;
+
+    return html`
+      <ha-selector
+        .hass=${this.hass}
+        .selector=${{
+          select: {
+            mode: 'dropdown',
+            custom_value: true,
+            options: [
+              { value: '_default', label: 'Card (Default)' },
+              ...options
+            ]
+          }
+        }}
+        .value=${currentValue === null ? '_default' : currentValue}
+        .label=${'Target Element'}
+        @value-changed=${(e) => this._updateTarget(index, e.detail.value)}
+      ></ha-selector>
+
+      <div class="help-text">
+        ${currentValue && currentValue !== '_default'
+          ? this._renderValidation(currentValue)
+          : html`<span>Leave empty to use card's default animation target</span>`
+        }
+      </div>
+    `;
+  }
+
+  /**
+   * Render multiple targets mode UI
+   * @param {Object} animation
+   * @param {number} index
+   * @returns {TemplateResult}
+   */
+  _renderMultipleTargets(animation, index) {
+    const options = this._getTargetOptions();
+    const targets = animation.targets || [];
+
+    return html`
+      <div class="target-list">
+        ${targets.map((target, targetIndex) => html`
+          <div class="target-item">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{
+                select: {
+                  mode: 'dropdown',
+                  custom_value: true,
+                  options: options
+                }
+              }}
+              .value=${target}
+              .label=${`Target ${targetIndex + 1}`}
+              @value-changed=${(e) => this._updateTargetItem(index, targetIndex, e.detail.value)}
+            ></ha-selector>
+
+            <ha-icon-button
+              .label=${'Remove target'}
+              @click=${() => this._removeTarget(index, targetIndex)}
+            >
+              <ha-icon icon="mdi:close"></ha-icon>
+            </ha-icon-button>
+          </div>
+        `)}
+
+        <ha-button
+          outlined
+          @click=${() => this._addTarget(index)}
+        >
+          <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+          Add Target
+        </ha-button>
+
+        ${targets.length > 0 ? this._renderMultiTargetValidation(targets) : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Get list of available target options from card's shadow DOM
+   * @returns {Array<{value: string, label: string}>}
+   */
+  _getTargetOptions() {
+    const options = [];
+
+    // Check if we have card element access
+    if (!this.cardElement) {
+      lcardsLog.warn('[AnimationEditor] No card element provided for target discovery');
+      return options;
+    }
+
+    const root = this.cardElement.shadowRoot || this.cardElement.renderRoot;
+
+    if (!root) {
+      lcardsLog.warn('[AnimationEditor] Card element has no shadow/render root:', {
+        element: this.cardElement.tagName,
+        hasShadowRoot: !!this.cardElement.shadowRoot,
+        hasRenderRoot: !!this.cardElement.renderRoot
+      });
+      return options;
+    }
+
+    try {
+      // Discover all elements with ID attributes OR data-* id attributes
+      const elementsWithId = root.querySelectorAll('[id], [data-button-id], [data-overlay-id], [data-segment-id]');
+
+      elementsWithId.forEach(el => {
+        // Priority: id > data-button-id > data-overlay-id > data-segment-id
+        const id = el.id || el.getAttribute('data-button-id') || el.getAttribute('data-overlay-id') || el.getAttribute('data-segment-id');
+        const tagName = el.tagName.toLowerCase();
+
+        // Safely get class names (handle SVG elements where className is SVGAnimatedString)
+        let classes = '';
+        if (el.classList && el.classList.length > 0) {
+          classes = '.' + Array.from(el.classList).join('.');
+        }
+
+        // Skip internal framework IDs (if any)
+        if (id && (id.startsWith('_') || id.startsWith('ha-'))) {
+          return;
+        }
+
+        if (id) {
+          options.push({
+            value: `#${id}`,
+            label: `#${id} <${tagName}>${classes || ''}`
+          });
+        }
+      });
+
+      // Also scan for elements with CSS classes for more flexibility
+      const elementsWithClass = root.querySelectorAll('[class]');
+      const seenClasses = new Set();
+
+      elementsWithClass.forEach(el => {
+        const classList = Array.from(el.classList);
+        classList.forEach(cls => {
+          // Skip generic/common classes
+          if (cls && !seenClasses.has(cls) && !cls.startsWith('_') && !cls.match(/^(ha-|mdc-|button-svg)/)) {
+            seenClasses.add(cls);
+            const tagName = el.tagName.toLowerCase();
+            options.push({
+              value: `.${cls}`,
+              label: `.${cls} <${tagName}>`
+            });
+          }
+        });
+      });
+
+      lcardsLog.debug('[AnimationEditor] Discovered targets:', {
+        count: options.length
+      });
+
+    } catch (error) {
+      lcardsLog.error('[AnimationEditor] Error discovering targets:', error);
+    }
+
+    // Sort alphabetically
+    options.sort((a, b) => a.label.localeCompare(b.label));
+
+    return options;
+  }
+
+  /**
+   * Set target mode (single vs multiple)
+   * @param {number} index - Animation index
+   * @param {string} mode - 'single' or 'multiple'
+   */
+  _setTargetMode(index, mode) {
+    const animations = [...this.animations];
+    const animation = animations[index];
+
+    if (mode === 'single') {
+      // Convert to single mode
+      const firstTarget = animation.targets?.[0] || '';
+      animation.target = firstTarget;
+      delete animation.targets;
+    } else {
+      // Convert to multiple mode
+      const currentTarget = animation.target || '';
+      animation.targets = currentTarget ? [currentTarget] : [];
+      delete animation.target;
+    }
+
+    this.animations = animations;
+    this._fireChange();
+  }
+
+  /**
+   * Update single target value
+   * @param {number} index
+   * @param {string} value
+   */
+  _updateTarget(index, value) {
+    const animations = [...this.animations];
+    const animation = animations[index];
+
+    if (value === '' || value === null || value === '_default') {
+      // Remove target field to use default
+      delete animation.target;
+    } else {
+      animation.target = value;
+    }
+
+    // Remove targets array if switching from multiple mode
+    delete animation.targets;
+
+    this.animations = animations;
+    this._fireChange();
+  }
+
+  /**
+   * Add new target to multiple targets array
+   * @param {number} index
+   */
+  _addTarget(index) {
+    const animations = [...this.animations];
+    const animation = animations[index];
+
+    if (!animation.targets) {
+      animation.targets = [];
+    }
+
+    animation.targets.push('');  // Empty string for user to fill
+
+    this.animations = animations;
+    this._fireChange();
+  }
+
+  /**
+   * Update specific target in multiple targets array
+   * @param {number} animIndex
+   * @param {number} targetIndex
+   * @param {string} value
+   */
+  _updateTargetItem(animIndex, targetIndex, value) {
+    const animations = [...this.animations];
+    const animation = animations[animIndex];
+
+    if (!animation.targets) {
+      animation.targets = [];
+    }
+
+    animation.targets[targetIndex] = value;
+
+    this.animations = animations;
+    this._fireChange();
+  }
+
+  /**
+   * Remove target from multiple targets array
+   * @param {number} animIndex
+   * @param {number} targetIndex
+   */
+  _removeTarget(animIndex, targetIndex) {
+    const animations = [...this.animations];
+    const animation = animations[animIndex];
+
+    if (animation.targets) {
+      animation.targets.splice(targetIndex, 1);
+
+      // Clean up empty array
+      if (animation.targets.length === 0) {
+        delete animation.targets;
+      }
+    }
+
+    this.animations = animations;
+    this._fireChange();
+  }
+
+  /**
+   * Validate CSS selector against card's shadow DOM
+   * @param {string} selector
+   * @returns {Object} {valid: boolean, count: number, message: string}
+   * @private
+   */
+  _validateSelector(selector) {
+    if (!selector) {
+      return { valid: true, count: 0, message: '' };
+    }
+
+    if (!this.cardElement?.shadowRoot && !this.cardElement?.renderRoot) {
+      return {
+        valid: false,
+        count: 0,
+        message: '⚠️ Cannot validate - card preview not available'
+      };
+    }
+
+    const root = this.cardElement.shadowRoot || this.cardElement.renderRoot;
+
+    try {
+      const matches = root.querySelectorAll(selector);
+      const count = matches.length;
+
+      if (count === 0) {
+        return {
+          valid: true,  // Valid syntax, just no matches
+          count: 0,
+          message: '⚠️ No elements match this selector'
+        };
+      }
+
+      return {
+        valid: true,
+        count: count,
+        message: `✅ ${count} element${count === 1 ? '' : 's'} matched`
+      };
+
+    } catch (error) {
+      return {
+        valid: false,
+        count: 0,
+        message: `❌ Invalid selector: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Render validation message for single selector
+   */
+  _renderValidation(selector) {
+    const validation = this._validateSelector(selector);
+
+    return html`
+      <div class="validation-message ${validation.valid ? 'valid' : 'error'}">
+        ${validation.message}
+      </div>
+    `;
+  }
+
+  /**
+   * Render validation for multiple targets
+   */
+  _renderMultiTargetValidation(targets) {
+    let totalCount = 0;
+    let hasErrors = false;
+
+    targets.forEach(selector => {
+      const result = this._validateSelector(selector);
+      if (!result.valid) {
+        hasErrors = true;
+      }
+      totalCount += result.count;
+    });
+
+    return html`
+      <div class="validation-summary ${hasErrors ? 'error' : 'valid'}">
+        ${hasErrors
+          ? html`⚠️ Some selectors are invalid`
+          : html`✅ ${totalCount} total element${totalCount === 1 ? '' : 's'} matched`
+        }
+      </div>
+    `;
   }
 }
 
