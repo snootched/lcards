@@ -1,5 +1,52 @@
 import { lcardsLog } from './lcards-logging.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
+
+/**
+ * Resolve CSS variables in animation parameters
+ * Converts var(--lcards-*) to computed color values that anime.js can interpolate
+ *
+ * @param {Object} params - Animation parameters (may contain CSS variables)
+ * @returns {Object} Parameters with CSS variables resolved to actual colors
+ *
+ * @example
+ * // Before: { fill: ['var(--lcards-blue-light)', 'var(--lcards-gray-dark)'] }
+ * // After:  { fill: ['#6688cc', '#445566'] }
+ */
+function resolveAnimationCssVariables(params) {
+  if (!params || typeof params !== 'object') {
+    return params;
+  }
+
+  const resolved = { ...params };
+
+  // Properties that commonly contain color values for anime.js
+  const colorProperties = ['fill', 'stroke', 'background', 'backgroundColor', 'color', 'borderColor'];
+
+  colorProperties.forEach(prop => {
+    if (resolved[prop]) {
+      // Handle arrays (e.g., fill: [from, to])
+      if (Array.isArray(resolved[prop])) {
+        resolved[prop] = resolved[prop].map(value => {
+          if (typeof value === 'string' && value.includes('var(')) {
+            const resolvedColor = ColorUtils.resolveCssVariable(value);
+            lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}: ${value} → ${resolvedColor}`);
+            return resolvedColor;
+          }
+          return value;
+        });
+      }
+      // Handle single values
+      else if (typeof resolved[prop] === 'string' && resolved[prop].includes('var(')) {
+        const original = resolved[prop];
+        resolved[prop] = ColorUtils.resolveCssVariable(original);
+        lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}: ${original} → ${resolved[prop]}`);
+      }
+    }
+  });
+
+  return resolved;
+}
 
 /**
  * Resolve easing configuration to anime.js easing value
@@ -497,6 +544,10 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
               if (presetResult.anime) {
                 Object.assign(params, presetResult.anime);
               }
+
+              // Resolve CSS variables in animation params (for theme reactivity)
+              const resolvedParams = resolveAnimationCssVariables(params);
+              Object.assign(params, resolvedParams);
 
               // Call setup function if provided (for CSS keyframe injection, etc.)
               if (presetResult.setup && typeof presetResult.setup === 'function') {
