@@ -967,8 +967,12 @@ export class AnimationManager extends BaseService {
       }
 
       // Revert and cleanup scope
-      if (scopeData.scope && scopeData.scope.revert) {
-        scopeData.scope.revert();
+      if (scopeData.scope && typeof scopeData.scope.revert === 'function') {
+        try {
+          scopeData.scope.revert();
+        } catch (revertError) {
+          lcardsLog.warn(`[AnimationManager] Error reverting scope for ${overlayId}:`, revertError);
+        }
       }
 
       // Remove from maps

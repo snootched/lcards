@@ -55,7 +55,7 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
-import { deepMerge } from '../utils/deepMerge.js';
+import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
@@ -300,13 +300,63 @@ export class LCARdSButton extends LCARdSCard {
         };
 
         // Convert merged segments object to array format expected by _finalizeSvgProcessing
-        // Auto-generate selector from segment ID if not explicitly provided
+        // CRITICAL: Apply 'default' segment config to each segment with array replacement behavior
         const mergedSegments = mergedComponentConfig.segments;
-        svgConfig.segments = Object.entries(mergedSegments).map(([id, config]) => ({
-            id,
-            selector: config.selector || `#${id}`,  // Default to ID selector if not specified
-            ...config
-        }));
+        const defaultSegment = mergedSegments.default || {};
+
+        lcardsLog.debug(`[LCARdSButton] Processing segments with defaults`, {
+            segmentIds: Object.keys(mergedSegments),
+            hasDefault: !!mergedSegments.default,
+            defaultAnimations: defaultSegment.animations?.length || 0
+        });
+
+        svgConfig.segments = Object.entries(mergedSegments)
+            .filter(([id]) => id !== 'default')  // Exclude 'default' - it's a template
+            .map(([id, segmentConfig]) => {
+                // Manually merge default with segment
+                // CRITICAL: Arrays must REPLACE (not concat)
+                const merged = {};
+
+                // Step 1: Copy all properties from default
+                for (const [key, defaultValue] of Object.entries(defaultSegment)) {
+                    if (Array.isArray(defaultValue)) {
+                        merged[key] = [...defaultValue];  // Clone array
+                    } else if (defaultValue && typeof defaultValue === 'object' && defaultValue.constructor === Object) {
+                        merged[key] = { ...defaultValue };  // Clone object
+                    } else {
+                        merged[key] = defaultValue;  // Copy primitive
+                    }
+                }
+
+                // Step 2: Override with segment-specific properties
+                for (const [key, segmentValue] of Object.entries(segmentConfig)) {
+                    if (Array.isArray(segmentValue)) {
+                        // Arrays from segment REPLACE default (no merge/concat)
+                        merged[key] = [...segmentValue];
+                        lcardsLog.debug(`[LCARdSButton] Segment ${id}: Replacing ${key} array`, {
+                            defaultLength: defaultSegment[key]?.length || 0,
+                            segmentLength: segmentValue.length
+                        });
+                    } else if (segmentValue && typeof segmentValue === 'object' && segmentValue.constructor === Object) {
+                        // Objects get deep merged
+                        merged[key] = { ...(merged[key] || {}), ...segmentValue };
+                    } else {
+                        merged[key] = segmentValue;
+                    }
+                }
+
+                lcardsLog.debug(`[LCARdSButton] Segment ${id} final config`, {
+                    hasAnimations: !!merged.animations,
+                    animationCount: merged.animations?.length || 0,
+                    animationTriggers: merged.animations?.map(a => a.trigger).join(', ') || 'none'
+                });
+
+                return {
+                    id,
+                    selector: merged.selector || `#${id}`,
+                    ...merged
+                };
+            });
 
         lcardsLog.debug(`[LCARdSButton] Component segments ready for processing`, {
             segmentCount: svgConfig.segments.length
@@ -502,8 +552,8 @@ export class LCARdSButton extends LCARdSCard {
                 return;
             }
 
-            // Merge default + user config
-            const mergedConfig = deepMerge(defaultConfig, userConfig);
+            // Merge default + user config (using immutable version to prevent mutation)
+            const mergedConfig = deepMergeImmutable(defaultConfig, userConfig);
 
             // Auto-generate selector if not provided
             const selector = userConfig.selector || `#${id}`;
@@ -1814,7 +1864,7 @@ export class LCARdSButton extends LCARdSCard {
                 });
                 if (preset) {
                     // Deep copy preset to avoid mutation issues
-                    style = deepMerge({}, preset);
+                    style = deepMergeImmutable({}, preset);
                     lcardsLog.debug(`[LCARdSButton] Applied preset '${this.config.preset}'`, {
                         borderRadius: preset.border?.radius,
                         borderWidth: preset.border?.width,
@@ -1838,7 +1888,7 @@ export class LCARdSButton extends LCARdSCard {
             // Then resolve ALL tokens recursively (theme: and computed)
             const configWithTokens = resolveThemeTokensRecursive(configStyleCopy, this._singletons?.themeManager);
             // Then deep merge (handles nested objects)
-            style = deepMerge(style, configWithTokens);
+            style = deepMergeImmutable(style, configWithTokens);
             lcardsLog.trace(`[LCARdSButton] Config styles merged`);
         }
 

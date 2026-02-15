@@ -283,6 +283,29 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
                     </ha-selector>
                 </lcards-form-section>
+
+                <!-- Default Animations -->
+                <lcards-form-section
+                    header="Default Segment Animations"
+                    description="Default animations for all segments"
+                    icon="mdi:animation"
+                    ?expanded=${false}>
+
+                    <lcards-message type="info">
+                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                            These animations apply to <strong>all segments</strong> unless overridden. For card-wide animations, use the Effects tab.
+                        </p>
+                    </lcards-message>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${defaultConfig.animations || []}
+                        .cardElement=${this.editor._cardElement}
+                        @animations-changed=${(e) => {
+                            this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
+                        }}>
+                    </lcards-animation-editor>
+                </lcards-form-section>
             </lcards-form-section>
         `;
     }
