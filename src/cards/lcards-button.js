@@ -4792,7 +4792,8 @@ export class LCARdSButton extends LCARdSCard {
         // Initialize renderer
         this._backgroundRenderer = new BackgroundAnimationRenderer(
             backgroundLayer,
-            this.config.background_animation
+            this.config.background_animation,
+            this // Pass card instance for theme token resolution
         );
 
         const success = this._backgroundRenderer.init();

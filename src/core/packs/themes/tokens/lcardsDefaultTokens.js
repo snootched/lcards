@@ -121,7 +121,7 @@ export const lcardsDefaultTokens = {
       axis: 'var(--lcars-text-gray, var(--lcards-moonlight))',
       stroke: 'var(--lcards-moonlight)'
     },
-    
+
     // Alert colors (LCARS alert symbol component)
     alert: {
       red: 'var(--lcars-red, var(--lcards-orange-dark))',         // Critical/Emergency
@@ -476,6 +476,39 @@ export const lcardsDefaultTokens = {
             unavailable: 0.25,
             unknown: 0.25
           }
+        }
+      }
+    },
+
+    // ------------------------------------------------------------------------
+    // BACKGROUND ANIMATION COMPONENT
+    // ------------------------------------------------------------------------
+    backgroundAnimation: {
+      grid: {
+        line: {
+          color: 'alpha(colors.ui.primary, 0.3)',
+          colorMajor: 'alpha(colors.ui.primary, 0.6)',
+          width: 1,
+          widthMajor: 2
+        },
+        fill: {
+          color: 'alpha(colors.ui.primary, 0.05)'
+        },
+        spacing: {
+          default: 40,
+          diagonal: 30,
+          hexRadius: 40,
+          filled: 50
+        },
+        scroll: {
+          speedX: 20,
+          speedY: 20,
+          speedDiagonal: 15,
+          speedFilled: 25
+        },
+        intervals: {
+          majorRow: 3,
+          majorCol: 3
         }
       }
     }

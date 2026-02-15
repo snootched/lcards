@@ -13,9 +13,10 @@ import { ZoomEffect } from './effects/ZoomEffect.js';
  * Orchestrates background animation rendering using Canvas2D with modular effects
  */
 export class BackgroundAnimationRenderer {
-  constructor(container, config) {
+  constructor(container, config, cardInstance = null) {
     this.container = container;
     this.config = config;
+    this.cardInstance = cardInstance; // Reference to card for theme token resolution
     this.renderer = null;
     this.canvas = null;
   }
@@ -107,7 +108,9 @@ export class BackgroundAnimationRenderer {
         if (preset.createEffects) {
           // Pass nested config object to preset factory
           const config = effectConfig.config || {};
-          const effects = preset.createEffects(config);
+
+          // Pass card instance for theme token resolution
+          const effects = preset.createEffects(config, this.cardInstance);
 
           // Check if zoom wrapper should be applied
           if (effectConfig.zoom) {

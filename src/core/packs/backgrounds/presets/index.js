@@ -24,28 +24,36 @@ export const BACKGROUND_PRESETS = {
     name: 'Grid',
     description: 'Configurable grid with major/minor line divisions',
 
-    createEffects(config) {
+    createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid] Creating grid effect');
+
+      // Helper function to resolve theme token or use fallback
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
 
       const gridConfig = {
         // Sizing - supports both cell-based and spacing-based
         numRows: config.num_rows,
         numCols: config.num_cols,
-        lineSpacing: config.line_spacing ?? 40,
+        lineSpacing: config.line_spacing ?? resolveToken('components.backgroundAnimation.grid.spacing.default', 40),
 
-        // Line styling
-        lineWidthMinor: config.line_width_minor ?? config.line_width ?? 1,
-        lineWidthMajor: config.line_width_major ?? 2,
-        color: config.color ?? 'rgba(255, 153, 102, 0.3)',
-        colorMajor: config.color_major ?? config.color,
+        // Line styling - resolve from theme tokens
+        lineWidthMinor: config.line_width_minor ?? config.line_width ?? resolveToken('components.backgroundAnimation.grid.line.width', 1),
+        lineWidthMajor: config.line_width_major ?? resolveToken('components.backgroundAnimation.grid.line.widthMajor', 2),
+        color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.3)'),
+        colorMajor: config.color_major ?? config.color ?? resolveToken('components.backgroundAnimation.grid.line.colorMajor', null),
 
         // Major line intervals (0 = no major lines)
-        majorRowInterval: config.major_row_interval ?? 0,
-        majorColInterval: config.major_col_interval ?? 0,
+        majorRowInterval: config.major_row_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorRow', 0),
+        majorColInterval: config.major_col_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorCol', 0),
 
         // Scrolling
-        scrollSpeedX: config.scroll_speed_x ?? 20,
-        scrollSpeedY: config.scroll_speed_y ?? 20,
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
         pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
 
@@ -63,15 +71,23 @@ export const BACKGROUND_PRESETS = {
     name: 'Diagonal Grid',
     description: 'Diagonal hatched grid pattern',
 
-    createEffects(config) {
+    createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-diagonal] Creating diagonal grid effect');
 
+      // Helper function to resolve theme token or use fallback
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
+
       const gridConfig = {
-        lineSpacing: config.line_spacing ?? 30,
-        lineWidthMinor: config.line_width ?? 1,
-        color: config.color ?? 'rgba(255, 153, 102, 0.25)',
-        scrollSpeedX: config.scroll_speed_x ?? 15,
-        scrollSpeedY: config.scroll_speed_y ?? 15,
+        lineSpacing: config.line_spacing ?? resolveToken('components.backgroundAnimation.grid.spacing.diagonal', 30),
+        lineWidthMinor: config.line_width ?? resolveToken('components.backgroundAnimation.grid.line.width', 1),
+        color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.25)'),
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
         pattern: 'diagonal',
         opacity: config.opacity ?? 1
       };
@@ -87,19 +103,27 @@ export const BACKGROUND_PRESETS = {
     name: 'Hexagonal Grid',
     description: 'Honeycomb hexagonal grid with major/minor divisions',
 
-    createEffects(config) {
+    createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-hexagonal] Creating hexagonal grid effect');
 
+      // Helper function to resolve theme token or use fallback
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
+
       const gridConfig = {
-        hexRadius: config.hex_radius ?? 40,
-        lineWidthMinor: config.line_width_minor ?? 1,
-        lineWidthMajor: config.line_width_major ?? 2,
-        color: config.color ?? 'rgba(255, 153, 102, 0.3)',
-        colorMajor: config.color_major ?? 'rgba(255, 153, 102, 0.6)',
-        majorRowInterval: config.major_row_interval ?? 3,
-        majorColInterval: config.major_col_interval ?? 3,
-        scrollSpeedX: config.scroll_speed_x ?? 20,
-        scrollSpeedY: config.scroll_speed_y ?? 20,
+        hexRadius: config.hex_radius ?? resolveToken('components.backgroundAnimation.grid.spacing.hexRadius', 40),
+        lineWidthMinor: config.line_width_minor ?? resolveToken('components.backgroundAnimation.grid.line.width', 1),
+        lineWidthMajor: config.line_width_major ?? resolveToken('components.backgroundAnimation.grid.line.widthMajor', 2),
+        color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.3)'),
+        colorMajor: config.color_major ?? resolveToken('components.backgroundAnimation.grid.line.colorMajor', 'rgba(255, 153, 102, 0.6)'),
+        majorRowInterval: config.major_row_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorRow', 3),
+        majorColInterval: config.major_col_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorCol', 3),
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
         pattern: 'hexagonal',
         opacity: config.opacity ?? 1
       };
@@ -115,16 +139,24 @@ export const BACKGROUND_PRESETS = {
     name: 'Filled Grid',
     description: 'Grid with colored cell backgrounds',
 
-    createEffects(config) {
+    createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-filled] Creating filled grid effect');
 
+      // Helper function to resolve theme token or use fallback
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
+
       const gridConfig = {
-        lineSpacing: config.line_spacing ?? 50,
-        lineWidthMinor: config.line_width ?? 2,
-        color: config.color ?? 'rgba(255, 153, 102, 0.4)',
-        fillColor: config.fill_color ?? 'rgba(255, 153, 102, 0.05)',
-        scrollSpeedX: config.scroll_speed_x ?? 25,
-        scrollSpeedY: config.scroll_speed_y ?? 25,
+        lineSpacing: config.line_spacing ?? resolveToken('components.backgroundAnimation.grid.spacing.filled', 50),
+        lineWidthMinor: config.line_width ?? resolveToken('components.backgroundAnimation.grid.line.widthMajor', 2),
+        color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.4)'),
+        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.grid.fill.color', 'rgba(255, 153, 102, 0.05)'),
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedFilled', 25),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedFilled', 25),
         pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
         opacity: config.opacity ?? 1
