@@ -36,11 +36,7 @@ export class TriggerManager {
     // Maps trigger type to cleanup function
     this.listeners = new Map(); // trigger -> cleanup function
 
-    lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`, {
-      hasAnimationManager: !!animationManager,
-      hasSystemsManager: !!animationManager?.systemsManager,
-      animationManagerType: animationManager?.constructor?.name
-    });
+    lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 
   /**
@@ -161,7 +157,7 @@ export class TriggerManager {
       // Subscribe to entity state changes
       // SystemsManager callback signature: (entityId, newState, oldState)
       const unsubscribe = systemsManager.subscribeToEntity(entityId, (changedEntityId, newState, oldState) => {
-        lcardsLog.debug(`[TriggerManager] Entity change detected: ${changedEntityId} (overlay: ${this.overlayId})`);
+        lcardsLog.trace(`[TriggerManager] Entity change detected: ${changedEntityId} (overlay: ${this.overlayId})`);
 
         // Filter animations by state transition if specified
         animations.forEach(anim => {
@@ -173,14 +169,14 @@ export class TriggerManager {
           // Note: If oldState is null/undefined (entity just became available), only match if from_state is not specified
           if (anim.from_state) {
             if (!oldState || oldState.state !== anim.from_state) {
-              lcardsLog.debug(`[TriggerManager] Skipping animation - from_state mismatch: expected ${anim.from_state}, got ${oldState?.state || 'unavailable'}`);
+              lcardsLog.trace(`[TriggerManager] Skipping animation - from_state mismatch: expected ${anim.from_state}, got ${oldState?.state || 'unavailable'}`);
               return;
             }
           }
 
           // Check to_state filter
           if (anim.to_state && newState?.state !== anim.to_state) {
-            lcardsLog.debug(`[TriggerManager] Skipping animation - to_state mismatch: expected ${anim.to_state}, got ${newState?.state || 'unavailable'}`);
+            lcardsLog.trace(`[TriggerManager] Skipping animation - to_state mismatch: expected ${anim.to_state}, got ${newState?.state || 'unavailable'}`);
             return;
           }
 

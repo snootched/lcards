@@ -115,9 +115,9 @@ export class CoreSystemsManager {
         if (!oldState || oldState.state !== newState.state ||
             oldState.last_changed !== newState.last_changed) {
           changedEntities.add(entityId);
-          // Debug log for subscribed entities
+          // Trace log for subscribed entities
           if (this._entitySubscriptions.has(entityId)) {
-            lcardsLog.debug(`[CoreSystemsManager] 🔍 Tracked entity changed: ${entityId} (${oldState?.state} → ${newState.state})`);
+            lcardsLog.trace(`[CoreSystemsManager] 🔍 Tracked entity changed: ${entityId} (${oldState?.state} → ${newState.state})`);
           }
           // Save old state before updating
           if (oldState) {
@@ -222,6 +222,7 @@ export class CoreSystemsManager {
 
     const overlayData = {
       id: overlayId,
+      type: metadata.type || 'unknown',
       tags: metadata.tags || [],
       sourceCardId: metadata.sourceCardId || 'unknown',
       element: metadata.element || null,
@@ -444,7 +445,7 @@ export class CoreSystemsManager {
       if (subscribers && subscribers.size > 0) {
         const newState = this.getEntityState(entityId);
         const oldState = this._oldEntityStates?.get(entityId) || null;
-        lcardsLog.debug(`[CoreSystemsManager] 📢 Entity ${entityId} changed: ${oldState?.state} → ${newState?.state}, notifying ${subscribers.size} subscribers`);
+        lcardsLog.trace(`[CoreSystemsManager] 📢 Entity ${entityId} changed: ${oldState?.state} → ${newState?.state}, notifying ${subscribers.size} subscribers`);
         subscribers.forEach(callback => {
           try {
             callback(entityId, newState, oldState);

@@ -384,14 +384,19 @@ export class AnimationManager extends BaseService {
    * @param {string} [trigger] - Optional trigger type to stop (stops all if not specified)
    */
   stopAnimations(overlayId, trigger = null) {
-    const scopeData = this.scopes.get(overlayId);
-
-    if (!scopeData || !scopeData.scope) {
+    const resolved = this._resolveScopeFromOverlay(overlayId);
+    if (!resolved) {
       lcardsLog.debug(`[AnimationManager] No scope found for ${overlayId}`);
       return;
     }
 
-    lcardsLog.debug(`[AnimationManager] stopAnimations called for ${overlayId}, trigger=${trigger}`);
+    const { scopeId, scopeData } = resolved;
+    if (!scopeData.scope) {
+      lcardsLog.debug(`[AnimationManager] Scope ${scopeId} has no anime scope`);
+      return;
+    }
+
+    lcardsLog.debug(`[AnimationManager] stopAnimations called for ${scopeId}, trigger=${trigger}`);
 
     if (trigger) {
       // Get anime instances tracked for this trigger
@@ -543,6 +548,83 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * Create an ad-hoc animation scope for rule-based animations
+   * Used when rules target overlays that don't have pre-defined animations
+   *
+   * @param {string} overlayId - Original overlay ID from SystemsManager
+   * @param {Object} overlayMetadata - Overlay metadata (type, element, etc.)
+   * @param {string} scopeId - Computed scope ID (type-overlayId)
+   * @private
+   */
+  async _createAdHocScope(overlayId, overlayMetadata, scopeId) {
+    try {
+      // Query for the actual DOM element
+      // For simple cards, the element is the card itself
+      const cardElement = document.querySelector(`[data-card-id="${overlayId}"]`) ||
+                          document.querySelector(`lcards-${overlayMetadata.type}[data-card-id="${overlayId.replace(/^lcards-/, '')}"]`);
+
+      if (!cardElement) {
+        lcardsLog.warn(`[AnimationManager] Cannot create ad-hoc scope - element not found for overlay: ${overlayId}`);
+        return;
+      }
+
+      // Create minimal scope for rule-based animations
+      const scope = {
+        overlay: cardElement,
+        activeAnimations: new Set(),
+        triggerManager: null, // No trigger manager needed for rule-based
+        onLoadFired: true // Skip on_load trigger
+      };
+
+      this.scopes.set(scopeId, scope);
+      this.activeAnimations.set(scopeId, new Set());
+
+      lcardsLog.debug(`[AnimationManager] ✅ Created ad-hoc scope: ${scopeId}`);
+    } catch (error) {
+      lcardsLog.error(`[AnimationManager] Failed to create ad-hoc scope for ${overlayId}:`, error);
+    }
+  }
+
+  /**
+   * Resolve overlay ID to scope ID with type prefix
+   * @param {string} overlayId - Overlay identifier
+   * @returns {Object|null} Object with scopeId and scopeData, or null if not found
+   * @private
+   */
+  _resolveScopeFromOverlay(overlayId) {
+    // Try direct lookup first
+    let scopeData = this.scopes.get(overlayId);
+    if (scopeData) {
+      return { scopeId: overlayId, scopeData };
+    }
+
+    // If not found, try to resolve from SystemsManager overlay registry
+    // (Simple cards register with card GUID, but may have scope with type prefix)
+    if (this.systemsManager) {
+      const overlayRegistry = this.systemsManager.getOverlayRegistry?.() || this.systemsManager._overlayRegistry;
+      const overlayMetadata = overlayRegistry?.get(overlayId);
+
+      if (overlayMetadata) {
+        // Use stored type field from overlay metadata
+        const cardType = overlayMetadata.type;
+
+        // Try scope with type prefix (e.g., "button-lcards-abc123")
+        const scopeId = `${cardType}-${overlayId}`;
+        scopeData = this.scopes.get(scopeId);
+
+        if (scopeData) {
+          lcardsLog.debug(`[AnimationManager] Resolved overlay ${overlayId} to scope ${scopeId} (type: ${cardType})`);
+          return { scopeId, scopeData };
+        } else {
+          lcardsLog.warn(`[AnimationManager] Scope not found for overlay: ${overlayId} (tried ${scopeId}). Card may not have initialized properly.`);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Play an animation on an overlay
    *
    * @param {string} overlayId - Overlay identifier
@@ -550,12 +632,13 @@ export class AnimationManager extends BaseService {
    * @returns {Object|null} Animation instance
    */
   async playAnimation(overlayId, animDef) {
-    const scopeData = this.scopes.get(overlayId);
-
-    if (!scopeData) {
+    const resolved = this._resolveScopeFromOverlay(overlayId);
+    if (!resolved) {
       lcardsLog.warn(`[AnimationManager] Cannot play animation - overlay not found: ${overlayId}`);
       return null;
     }
+
+    const { scopeId, scopeData } = resolved;
 
     try {
       // Resolve datasource-driven parameters if needed
@@ -868,12 +951,13 @@ export class AnimationManager extends BaseService {
    * @param {string} overlayId - Overlay identifier
    */
   stopAnimation(overlayId) {
-    const scopeData = this.scopes.get(overlayId);
-
-    if (!scopeData) {
+    const resolved = this._resolveScopeFromOverlay(overlayId);
+    if (!resolved) {
       lcardsLog.warn(`[AnimationManager] Cannot stop animations - overlay not found: ${overlayId}`);
       return;
     }
+
+    const { scopeId, scopeData } = resolved;
 
     try {
       // Use scope's revert method to stop all animations
@@ -884,10 +968,10 @@ export class AnimationManager extends BaseService {
       // Clear active animations tracking
       scopeData.activeAnimations.clear();
 
-      lcardsLog.debug(`[AnimationManager] ⏹️ Stopped animations on overlay: ${overlayId}`);
+      lcardsLog.debug(`[AnimationManager] ⏹️ Stopped animations on overlay: ${scopeId}`);
 
     } catch (error) {
-      lcardsLog.error(`[AnimationManager] Failed to stop animations on ${overlayId}:`, error);
+      lcardsLog.error(`[AnimationManager] Failed to stop animations on ${scopeId}:`, error);
     }
   }
 

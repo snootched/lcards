@@ -1073,7 +1073,7 @@ export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
      *
      * @protected
      */
-    _registerOverlayForRules(overlayId, tags = []) {
+    _registerOverlayForRules(overlayId, type, tags = []) {
         if (!this._singletons?.rulesEngine || !this._singletons?.systemsManager) {
             lcardsLog.debug('[LCARdSCard] Rules or SystemsManager not available, skipping overlay registration');
             return;
@@ -1094,6 +1094,7 @@ export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
         // Register overlay with CoreSystemsManager
         this._singletons.systemsManager.registerOverlay(this._overlayId, {
             id: this._overlayId,
+            type: type,
             tags: this._overlayTags,
             sourceCardId: this._cardGuid
         });
@@ -1723,7 +1724,7 @@ export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
 
     /**
      * Extract and track entities from Jinja2 templates
-     * Base implementation tracks primary entity and animation trigger entities.
+     * Base implementation tracks primary entity, animation trigger entities, and rule entities.
      * Subclasses should override to add their specific template sources.
      * @private
      */
@@ -1740,6 +1741,26 @@ export class LCARdSCard extends BackgroundAnimationMixin(LCARdSNativeCard) {
             this.config.animations.forEach(anim => {
                 if (anim.trigger === 'on_entity_change' && anim.entity) {
                     trackedEntities.add(anim.entity);
+                }
+            });
+        }
+
+        // Add rule condition entities
+        if (this.config.rules && Array.isArray(this.config.rules)) {
+            this.config.rules.forEach(rule => {
+                if (rule.when && rule.when.entity) {
+                    trackedEntities.add(rule.when.entity);
+                }
+                // Also check for 'all' and 'any' compound conditions
+                if (rule.when && rule.when.all && Array.isArray(rule.when.all)) {
+                    rule.when.all.forEach(cond => {
+                        if (cond.entity) trackedEntities.add(cond.entity);
+                    });
+                }
+                if (rule.when && rule.when.any && Array.isArray(rule.when.any)) {
+                    rule.when.any.forEach(cond => {
+                        if (cond.entity) trackedEntities.add(cond.entity);
+                    });
                 }
             });
         }

@@ -1534,8 +1534,9 @@ export class LCARdSButton extends LCARdSCard {
             tags.push(...this.config.tags);
         }
 
-        // Use card ID directly - config.id takes precedence over entity ID
-        const overlayId = this.config.id || this.config.entity || this._cardGuid;
+        // ALWAYS use card GUID for overlay registration (consistent ID space)
+        // User can still set config.id for custom identification if needed
+        const overlayId = this.config.id || this._cardGuid;
 
         lcardsLog.debug(`[LCARdSButton] Registering overlay with ID: ${overlayId}`, {
             hasConfigId: !!this.config.id,
@@ -1547,7 +1548,7 @@ export class LCARdSButton extends LCARdSCard {
             tags: tags
         });
 
-        this._registerOverlayForRules(overlayId, tags);
+        this._registerOverlayForRules(overlayId, 'button', tags);
 
         // Setup actions after DOM is ready
         this.updateComplete.then(() => {
@@ -2654,6 +2655,7 @@ export class LCARdSButton extends LCARdSCard {
     _getAnimationSetup() {
         return {
             overlayId: `button-${this._cardGuid}`,
+            type: 'button',
             elementSelector: '[data-overlay-id="button"]'
         };
     }    /**

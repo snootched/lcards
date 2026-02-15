@@ -1169,7 +1169,7 @@ export class RulesEngine extends BaseService {
   /**
    * Execute animations from rule matches
    * Called when rules are evaluated and animations are specified in apply.animations
-   * 
+   *
    * @param {Array} animationCommands - Array of animation commands from aggregated rule results
    * @param {string} ruleId - Rule ID that triggered these animations
    * @private
@@ -1179,7 +1179,8 @@ export class RulesEngine extends BaseService {
       return;
     }
 
-    const animationManager = this.systemsManager?.animationManager;
+    // Get AnimationManager from Core singleton (it's not in SystemsManager)
+    const animationManager = window.lcards?.core?.animationManager;
     if (!animationManager) {
       lcardsLog.warn('[RulesEngine] Cannot execute rule animations - no AnimationManager available');
       return;
@@ -1211,9 +1212,9 @@ export class RulesEngine extends BaseService {
 
         // Execute animation on each target overlay
         for (const overlayId of targetOverlays) {
-          await animationManager.playAnimation(overlayId, animCmd);
-          
-          // Track that this overlay has an active rule animation
+          // Add trigger type so the animation can be tracked and stopped
+          const ruleAnimDef = { ...animCmd, trigger: 'on_rule' };
+          await animationManager.playAnimation(overlayId, ruleAnimDef);
           if (animCmd.loop) {
             activeOverlays.add(overlayId);
           }
@@ -1228,18 +1229,19 @@ export class RulesEngine extends BaseService {
   /**
    * Stop animations that were started by a rule
    * Called when a rule unmatches and its animations should stop
-   * 
+   *
    * @param {string} ruleId - Rule ID whose animations should be stopped
    * @private
    */
   _stopRuleAnimations(ruleId) {
     const activeOverlays = this.activeRuleAnimations.get(ruleId);
-    
+
     if (!activeOverlays || activeOverlays.size === 0) {
       return;
     }
 
-    const animationManager = this.systemsManager?.animationManager;
+    // Get AnimationManager from Core singleton (it's not in SystemsManager)
+    const animationManager = window.lcards?.core?.animationManager;
     if (!animationManager) {
       lcardsLog.warn('[RulesEngine] Cannot stop rule animations - no AnimationManager available');
       return;
@@ -1264,17 +1266,17 @@ export class RulesEngine extends BaseService {
   /**
    * Resolve animation targets to overlay IDs
    * Supports: overlay (direct ID), tag, type, pattern
-   * 
+   *
    * @param {Object} animCmd - Animation command with targeting info
    * @returns {Array<string>} Array of overlay IDs
    * @private
    */
   _resolveAnimationTargets(animCmd) {
     const targets = [];
-    
+
     // Try method first, then direct property access, then empty Map
-    const overlayRegistry = this.systemsManager?.getOverlayRegistry?.() 
-      || this.systemsManager?._overlayRegistry 
+    const overlayRegistry = this.systemsManager?.getOverlayRegistry?.()
+      || this.systemsManager?._overlayRegistry
       || new Map();
 
     if (overlayRegistry.size === 0) {

@@ -78,30 +78,30 @@ export class LCARdSActionHandler {
         let triggerManager = null;
         let pendingAnimationSetup = null;
 
-        if (elementId && options.animations) {
-            const animations = options.animations;
+        // ALWAYS register animation scope (even without animations) for rule-based targeting
+        if (elementId && animationManager) {
             const animationSetup = options.getAnimationSetup?.() || {};
             const overlayId = animationSetup.overlayId || elementId;
+            const shadowRoot = options.shadowRoot;
+            const targetElement = shadowRoot?.querySelector(animationSetup.elementSelector || '[data-overlay-id]') || element;
 
-            if (animationManager) {
-                // AnimationManager is ready - register immediately
+            // Register overlay scope with AnimationManager (creates empty scope for rule-based animations)
+            if (animationManager.onOverlayRendered) {
+                animationManager.onOverlayRendered(overlayId, targetElement, { animations: options.animations || [] });
+                lcardsLog.debug(`[LCARdSActionHandler] Registered animation scope: ${overlayId} (${options.animations?.length || 0} animations)`);
+            }
+
+            // Only create TriggerManager if animations are defined
+            if (options.animations && options.animations.length > 0) {
+                const animations = options.animations;
+
                 lcardsLog.debug(`[LCARdSActionHandler] Creating TriggerManager for ${overlayId}:`, {
                     animationCount: animations.length,
                     triggers: animations.map(a => a.trigger || 'on_tap')
                 });
 
-                // Get or query for the target element
-                const shadowRoot = options.shadowRoot;
-                const targetElement = shadowRoot?.querySelector(animationSetup.elementSelector || '[data-overlay-id]') || element;
-
                 // Create TriggerManager instance
                 triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
-
-                // Register overlay scope with AnimationManager first
-                if (animationManager.onOverlayRendered) {
-                    animationManager.onOverlayRendered(overlayId, targetElement, { animations });
-                    lcardsLog.debug(`[LCARdSActionHandler] Registered overlay scope: ${overlayId}`);
-                }
 
                 // Register each animation with TriggerManager
                 animations.forEach(animConfig => {
@@ -116,21 +116,24 @@ export class LCARdSActionHandler {
                     triggerManager.destroy();
                     lcardsLog.debug(`[LCARdSActionHandler] TriggerManager destroyed for ${overlayId}`);
                 });
-            } else {
-                // AnimationManager not ready - store for late binding
-                lcardsLog.debug(`[LCARdSActionHandler] AnimationManager not ready, storing for late binding:`, {
-                    overlayId,
-                    animationCount: animations.length
-                });
-
-                pendingAnimationSetup = {
-                    overlayId,
-                    animations,
-                    elementSelector: animationSetup.elementSelector || '[data-overlay-id]',
-                    element,
-                    shadowRoot: options.shadowRoot
-                };
             }
+        } else if (elementId && options.animations && !animationManager) {
+            // AnimationManager not ready - store for late binding
+            const animationSetup = options.getAnimationSetup?.() || {};
+            const overlayId = animationSetup.overlayId || elementId;
+
+            lcardsLog.debug(`[LCARdSActionHandler] AnimationManager not ready, storing for late binding:`, {
+                overlayId,
+                animationCount: options.animations.length
+            });
+
+            pendingAnimationSetup = {
+                overlayId,
+                animations: options.animations,
+                elementSelector: animationSetup.elementSelector || '[data-overlay-id]',
+                element,
+                shadowRoot: options.shadowRoot
+            };
         }
 
         // Helper to ensure animations are registered (late-binding)
