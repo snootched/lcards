@@ -711,18 +711,25 @@ export class AnimationManager extends BaseService {
       const hass = this.systemsManager?.getHass?.() || this.systemsManager?._hass;
 
       // Build animation options for animateElement
-      // Pass resolved targets (single element or array)
+      // For stagger presets with multiple targets, pass as array directly to animateElement
+      // which will handle them properly via anime.js stagger functionality
       const animOptions = {
         type: finalAnimDef.preset || finalAnimDef.type,
-        targets: targetElements.length === 1 ? targetElements[0] : targetElements,
+        targets: targetElements,  // Pass resolved DOM elements, not original selectors
         root: scopeData.element.getRootNode(),
         duration: finalAnimDef.duration,
         easing: finalAnimDef.easing,
         loop: finalAnimDef.loop,
         alternate: finalAnimDef.alternate,
         delay: finalAnimDef.delay,
-        // Pass through preset-specific config
-        ...finalAnimDef
+        // Pass through preset-specific params but exclude original target/targets selectors
+        ...(finalAnimDef.params || {}),
+        // Pass other animation def properties except targets/target which we already resolved
+        ...Object.fromEntries(
+          Object.entries(finalAnimDef).filter(([key]) =>
+            !['target', 'targets', 'params', 'preset', 'type', 'duration', 'easing', 'loop', 'alternate', 'delay'].includes(key)
+          )
+        )
       };
 
       // Prepare array to collect anime instances created by animateElement

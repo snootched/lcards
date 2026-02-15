@@ -2012,6 +2012,9 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'border-pulse', label: 'Border Pulse - Border animation' },
       { value: 'skew', label: 'Skew - Slant transformation' },
       { value: 'scan-line', label: 'Scan Line - Moving gradient' },
+      { value: 'motionpath', label: 'Motion Path - Follow SVG path' },
+      { value: 'glitch', label: 'Glitch - Digital distortion' },
+      { value: 'physics-spring', label: 'Physics Spring - Spring physics simulation' },
 
       // Text Animations (NEW - PR#234)
       { value: 'text-reveal', label: '✨ Text Reveal - Character-by-character reveal' },
@@ -2059,6 +2062,9 @@ export class LCARdSAnimationEditor extends LitElement {
       'border-pulse': 'Animate border color and width',
       'skew': 'Skew/slant transformation for 3D perspective effects',
       'scan-line': 'Moving gradient scan line effect (LCARS-style)',
+      'motionpath': 'Follow an SVG path - element moves along curve with auto-rotation',
+      'glitch': 'Digital glitch/distortion effect with rapid transforms',
+      'physics-spring': 'Spring physics animation with realistic elasticity',
       'text-reveal': 'Character-by-character reveal with stagger - supports chars/words/lines',
       'text-typewriter': 'Classic typewriter effect with optional cursor',
       'text-scramble': 'Matrix-style scramble with random character replacement',
