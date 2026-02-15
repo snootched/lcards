@@ -1,0 +1,145 @@
+import { lcardsLog } from '../../../../utils/lcards-logging.js';
+
+/**
+ * ZoomEffect - Layered scaling effect wrapper for pseudo-3D depth illusion
+ *
+ * Wraps another effect (like GridEffect) and creates multiple scaled layers
+ * with opacity fade-in/out to simulate infinite zoom/depth.
+ *
+ * Based on legacy CB-LCARS zoom effect implementation.
+ *
+ * Note: This is a wrapper/compositor, not a BaseEffect extension.
+ * It implements the same interface (update, draw, isActive, destroy) for compatibility
+ * with Canvas2DRenderer.
+ *
+ * @class ZoomEffect
+ */
+export class ZoomEffect {
+  /**
+   * @param {Object} config - Zoom effect configuration
+   * @param {BaseEffect} config.baseEffect - The effect to apply zoom to
+   * @param {number} [config.layers=3] - Number of zoom layers to render
+   * @param {number} [config.scaleFrom=1] - Initial scale (1 = normal size)
+   * @param {number} [config.scaleTo=2] - Final scale before fade out
+   * @param {number} [config.duration=10] - Duration for full zoom cycle (seconds)
+   * @param {number} [config.opacityFadeIn=10] - Opacity fade-in percentage (0-100)
+   * @param {number} [config.opacityFadeOut=80] - Opacity fade-out start percentage (0-100)
+   */
+  constructor(config = {}) {
+    this.baseEffect = config.baseEffect;
+    if (!this.baseEffect) {
+      throw new Error('[ZoomEffect] baseEffect is required');
+    }
+
+    this.layers = config.layers ?? 3;
+    this.scaleFrom = config.scaleFrom ?? 1;
+    this.scaleTo = config.scaleTo ?? 2;
+    this.duration = config.duration ?? 10; // seconds
+    this.opacityFadeIn = config.opacityFadeIn ?? 10; // percentage
+    this.opacityFadeOut = config.opacityFadeOut ?? 80; // percentage
+
+    // Track time for animation
+    this._elapsedTime = 0;
+    this._isActive = true;
+
+    lcardsLog.debug('[ZoomEffect] Created zoom effect wrapper', {
+      layers: this.layers,
+      scaleRange: [this.scaleFrom, this.scaleTo],
+      duration: this.duration,
+      fadeIn: this.opacityFadeIn,
+      fadeOut: this.opacityFadeOut
+    });
+  }
+
+  /**
+   * Check if effect is still active
+   * @returns {boolean}
+   */
+  isActive() {
+    return this._isActive;
+  }
+
+  /**
+   * Update zoom animation state
+   *
+   * @param {number} deltaTime - Time since last update in milliseconds
+   * @param {number} canvasWidth - Canvas width in pixels
+   * @param {number} canvasHeight - Canvas height in pixels
+   */
+  update(deltaTime, canvasWidth, canvasHeight) {
+    // Update elapsed time
+    this._elapsedTime += deltaTime / 1000; // Convert to seconds
+
+    // Update the base effect
+    if (this.baseEffect.update) {
+      this.baseEffect.update(deltaTime, canvasWidth, canvasHeight);
+    }
+  }
+
+  /**
+   * Draw layered zoom effect
+   *
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+   * @param {number} canvasWidth - Canvas width in pixels
+   * @param {number} canvasHeight - Canvas height in pixels
+   */
+  draw(ctx, canvasWidth, canvasHeight) {
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+
+    // Calculate current progress in animation cycle (0-1)
+    const cycleProgress = (this._elapsedTime % this.duration) / this.duration;
+
+    // Draw layers from back to front (smallest to largest scale)
+    for (let i = 0; i < this.layers; i++) {
+      // Stagger each layer's timing
+      const layerOffset = i / this.layers;
+      const layerProgress = (cycleProgress + layerOffset) % 1.0;
+
+      // Calculate scale for this layer
+      const scale = this.scaleFrom + (this.scaleTo - this.scaleFrom) * layerProgress;
+
+      // Calculate opacity with fade-in and fade-out
+      let opacity = 1.0;
+      const fadeInThreshold = this.opacityFadeIn / 100;
+      const fadeOutThreshold = this.opacityFadeOut / 100;
+
+      if (layerProgress < fadeInThreshold) {
+        // Fade in
+        opacity = layerProgress / fadeInThreshold;
+      } else if (layerProgress > fadeOutThreshold) {
+        // Fade out
+        opacity = 1.0 - ((layerProgress - fadeOutThreshold) / (1.0 - fadeOutThreshold));
+      }
+
+      // Skip fully transparent layers
+      if (opacity <= 0) continue;
+
+      ctx.save();
+
+      // Apply layer transform (scale from center)
+      ctx.translate(centerX, centerY);
+      ctx.scale(scale, scale);
+      ctx.translate(-centerX, -centerY);
+
+      // Apply layer opacity
+      ctx.globalAlpha = opacity;
+
+      // Draw the base effect
+      if (this.baseEffect.draw) {
+        this.baseEffect.draw(ctx, canvasWidth, canvasHeight);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  destroy() {
+    if (this.baseEffect && this.baseEffect.destroy) {
+      this.baseEffect.destroy();
+    }
+  }
+}

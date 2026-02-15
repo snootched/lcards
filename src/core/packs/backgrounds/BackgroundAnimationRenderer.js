@@ -68,44 +68,59 @@ export class BackgroundAnimationRenderer {
 
   /**
    * Load effects from preset or direct config
+   * Supports both single effect and array of effects for stacking
+   *
+   * Schema formats:
+   * 1. Single effect: { preset: 'grid-basic', config: { ... } }
+   * 2. Array of effects: [{ preset: 'grid-basic', config: { ... } }, { preset: 'starfield', config: { ... } }]
+   *
    * @private
    * @returns {boolean} True if at least one effect was loaded
    */
   _loadEffects() {
-    const presetId = this.config.type;
+    // Normalize config to array format
+    const effectConfigs = Array.isArray(this.config) ? this.config : [this.config];
 
-    // If preset specified, load it
-    if (presetId) {
-      const preset = BACKGROUND_PRESETS[presetId];
-      if (!preset) {
-        lcardsLog.error(`[BackgroundAnimation] Unknown preset: ${presetId}`);
-        return false;
+    let loadedEffects = 0;
+
+    for (const effectConfig of effectConfigs) {
+      // Skip if disabled
+      if (effectConfig.enabled === false) {
+        continue;
       }
 
-      lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
+      const presetId = effectConfig.preset;
 
-      // Preset will provide effect factory functions
-      if (preset.createEffects) {
-        const effects = preset.createEffects(this.config);
-        effects.forEach(effect => this.renderer.addEffect(effect));
-        return effects.length > 0;
+      // If preset specified, load it
+      if (presetId) {
+        const preset = BACKGROUND_PRESETS[presetId];
+        if (!preset) {
+          lcardsLog.error(`[BackgroundAnimation] Unknown preset: ${presetId}`);
+          continue;
+        }
+
+        lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
+
+        // Preset will provide effect factory functions
+        if (preset.createEffects) {
+          // Pass nested config object to preset factory
+          const config = effectConfig.config || {};
+          const effects = preset.createEffects(config);
+          effects.forEach(effect => this.renderer.addEffect(effect));
+          loadedEffects += effects.length;
+        }
+      } else {
+        lcardsLog.warn('[BackgroundAnimation] Effect config missing preset', { effectConfig });
       }
     }
 
-    // If no preset or direct effects specified, load from config.effects
-    if (this.config.effects && Array.isArray(this.config.effects)) {
-      lcardsLog.debug('[BackgroundAnimation] Loading effects from config', {
-        effectCount: this.config.effects.length
-      });
-
-      // Effects array will be processed by effect registry (future implementation)
-      // For now, just log that we received them
-      lcardsLog.warn('[BackgroundAnimation] Direct effect specification not yet implemented');
+    if (loadedEffects === 0) {
+      lcardsLog.warn('[BackgroundAnimation] No effects were loaded');
       return false;
     }
 
-    lcardsLog.warn('[BackgroundAnimation] No preset or effects specified');
-    return false;
+    lcardsLog.info(`[BackgroundAnimation] Loaded ${loadedEffects} effect(s)`);
+    return true;
   }
 
   /**
