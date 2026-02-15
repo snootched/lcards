@@ -420,6 +420,15 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     const preset = effect.preset || 'grid';
     const config = effect.config || {};
 
+    // Starfield uses different sections
+    if (preset === 'starfield') {
+      return html`
+        ${this._renderStarfieldSection(config, index)}
+        ${this._renderScrollingSection(config, index)}
+      `;
+    }
+
+    // Grid presets use pattern/major-minor/scrolling/color sections
     return html`
       ${this._renderPatternSection(preset, config, index)}
       ${this._renderMajorMinorSection(preset, config, index)}
@@ -508,6 +517,44 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         <div class="param-grid">
           ${this._renderField({ key: 'scroll_speed_x', label: 'Scroll Speed X (px/s)', type: 'number', min: -200, max: 200, step: 5, default: 20 }, config, index)}
           ${this._renderField({ key: 'scroll_speed_y', label: 'Scroll Speed Y (px/s)', type: 'number', min: -200, max: 200, step: 5, default: 20 }, config, index)}
+        </div>
+      </lcards-form-section>
+    `;
+  }
+
+  _renderStarfieldSection(config, index) {
+    return html`
+      <lcards-form-section
+        header="Star Properties"
+        icon="mdi:star-circle"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'seed', label: 'Random Seed', type: 'number', min: 1, max: 1000000000, step: 1, default: Math.floor(Math.random() * 1e9), helper: 'Change for different star patterns' }, config, index)}
+          ${this._renderField({ key: 'count', label: 'Star Count', type: 'number', min: 50, max: 500, step: 10, default: 150 }, config, index)}
+          ${this._renderField({ key: 'min_radius', label: 'Min Star Radius (px)', type: 'number', min: 0.1, max: 5, step: 0.1, default: 0.5 }, config, index)}
+          ${this._renderField({ key: 'max_radius', label: 'Max Star Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 }, config, index)}
+          ${this._renderField({ key: 'min_opacity', label: 'Min Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 }, config, index)}
+          ${this._renderField({ key: 'max_opacity', label: 'Max Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 1.0 }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Color"
+        icon="mdi:palette"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'color', label: 'Star Color', type: 'color', default: '#ffffff', helper: 'Color of stars' }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Parallax Depth"
+        icon="mdi:layers"
+        description="Multiple layers create depth effect - closer layers scroll faster"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'parallax_layers', label: 'Parallax Layers', type: 'number', min: 1, max: 5, step: 1, default: 3, helper: 'More layers = more depth' }, config, index)}
+          ${this._renderField({ key: 'depth_factor', label: 'Depth Factor', type: 'number', min: 0, max: 1, step: 0.1, default: 0.5, helper: 'Speed variation between layers' }, config, index)}
         </div>
       </lcards-form-section>
     `;
@@ -653,7 +700,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'grid': 'mdi:grid',
       'grid-diagonal': 'mdi:grid-large',
       'grid-hexagonal': 'mdi:hexagon-multiple',
-      'grid-filled': 'mdi:grid'
+      'grid-filled': 'mdi:grid',
+      'starfield': 'mdi:star-circle'
     };
     return icons[preset] || 'mdi:blur';
   }
@@ -716,6 +764,20 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' },
           ...commonFields.scrolling,
           ...commonFields.styling
+        ];
+
+      case 'starfield':
+        return [
+          { key: 'seed', label: 'Random Seed', type: 'number', min: 1, max: 1000000000, step: 1, default: Math.floor(Math.random() * 1e9), helper: 'Change for different star patterns' },
+          { key: 'count', label: 'Star Count', type: 'number', min: 50, max: 500, step: 10, default: 150 },
+          { key: 'min_radius', label: 'Min Star Radius (px)', type: 'number', min: 0.1, max: 5, step: 0.1, default: 0.5 },
+          { key: 'max_radius', label: 'Max Star Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 },
+          { key: 'min_opacity', label: 'Min Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 },
+          { key: 'max_opacity', label: 'Max Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 1.0 },
+          { key: 'color', label: 'Star Color', type: 'color', default: '#ffffff', fullWidth: true },
+          { key: 'parallax_layers', label: 'Parallax Layers', type: 'number', min: 1, max: 5, step: 1, default: 3, helper: 'More layers = more depth' },
+          { key: 'depth_factor', label: 'Depth Factor', type: 'number', min: 0, max: 1, step: 0.1, default: 0.5, helper: 'Speed variation between layers' },
+          ...commonFields.scrolling
         ];
 
       default:

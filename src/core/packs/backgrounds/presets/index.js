@@ -10,6 +10,7 @@
  * @module core/packs/backgrounds/presets
  */
 import { GridEffect } from '../effects/GridEffect.js';
+import { StarfieldEffect } from '../effects/StarfieldEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 
 /**
@@ -164,10 +165,52 @@ export const BACKGROUND_PRESETS = {
 
       return [new GridEffect(gridConfig)];
     }
+  },
+
+  /**
+   * Starfield effect with parallax scrolling
+   */
+  'starfield': {
+    name: 'Starfield',
+    description: 'Scrolling starfield with parallax depth layers',
+
+    createEffects(config, cardInstance = null) {
+      lcardsLog.debug('[Preset:starfield] Creating starfield effect');
+
+      // Helper function to resolve theme token or use fallback
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
+
+      const starfieldConfig = {
+        // Star generation
+        seed: config.seed ?? Math.floor(Math.random() * 1e9), // Random seed by default
+        count: config.count ?? resolveToken('components.backgroundAnimation.starfield.star.count', 150),
+        minRadius: config.min_radius ?? resolveToken('components.backgroundAnimation.starfield.star.minRadius', 0.5),
+        maxRadius: config.max_radius ?? resolveToken('components.backgroundAnimation.starfield.star.maxRadius', 2),
+        minOpacity: config.min_opacity ?? resolveToken('components.backgroundAnimation.starfield.star.minOpacity', 0.3),
+        maxOpacity: config.max_opacity ?? resolveToken('components.backgroundAnimation.starfield.star.maxOpacity', 1.0),
+        color: config.color ?? resolveToken('components.backgroundAnimation.starfield.star.color', '#ffffff'),
+
+        // Scrolling
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.starfield.scroll.speedX', 30),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.starfield.scroll.speedY', 0),
+
+        // Parallax
+        parallaxLayers: config.parallax_layers ?? resolveToken('components.backgroundAnimation.starfield.parallax.layers', 3),
+        depthFactor: config.depth_factor ?? resolveToken('components.backgroundAnimation.starfield.parallax.depthFactor', 0.5),
+
+        opacity: config.opacity ?? 1
+      };
+
+      return [new StarfieldEffect(starfieldConfig)];
+    }
   }
 
   // Future presets will be added here:
-  // 'starfield': { ... },
   // 'nebula': { ... },
   // 'geometric-array': { ... },
   // etc.

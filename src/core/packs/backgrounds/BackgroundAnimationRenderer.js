@@ -109,31 +109,73 @@ export class BackgroundAnimationRenderer {
           // Pass nested config object to preset factory
           const config = effectConfig.config || {};
 
-          // Pass card instance for theme token resolution
-          const effects = preset.createEffects(config, this.cardInstance);
-
           // Check if zoom wrapper should be applied
           if (effectConfig.zoom) {
             lcardsLog.debug('[BackgroundAnimation] Applying zoom wrapper to preset', { presetId });
 
-            // Wrap each effect with zoom
-            effects.forEach(baseEffect => {
-              const zoomConfig = {
-                baseEffect: baseEffect,
-                layers: effectConfig.zoom.layers ?? 4,
-                scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
-                scaleTo: effectConfig.zoom.scale_to ?? 2.0,
-                duration: effectConfig.zoom.duration ?? 15,
-                opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
-                opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
-              };
+            // Special handling for starfield: create multiple instances with unique seeds
+            if (presetId === 'starfield') {
+              const layers = effectConfig.zoom.layers ?? 4;
+              const baseSeed = config.seed ?? Math.floor(Math.random() * 1e9);
 
-              const zoomEffect = new ZoomEffect(zoomConfig);
-              this.renderer.addEffect(zoomEffect);
-              loadedEffects++;
-            });
+              lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', {
+                layers,
+                baseSeed
+              });
+
+              // Create one starfield instance per zoom layer with incremented seeds
+              for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
+                // Create unique config for this layer
+                const layerConfig = {
+                  ...config,
+                  seed: baseSeed + layerIndex // Increment seed for each layer
+                };
+
+                // Create effect instance for this layer
+                const layerEffects = preset.createEffects(layerConfig, this.cardInstance);
+
+                // Wrap with zoom effect configured for this specific layer
+                layerEffects.forEach(baseEffect => {
+                  const zoomConfig = {
+                    baseEffect: baseEffect,
+                    layers: 1, // Single layer - we're creating multiple ZoomEffects
+                    layerIndex: layerIndex, // Pass layer index for offset
+                    totalLayers: layers,
+                    scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
+                    scaleTo: effectConfig.zoom.scale_to ?? 2.0,
+                    duration: effectConfig.zoom.duration ?? 15,
+                    opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
+                    opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
+                  };
+
+                  const zoomEffect = new ZoomEffect(zoomConfig);
+                  this.renderer.addEffect(zoomEffect);
+                  loadedEffects++;
+                });
+              }
+            } else {
+              // Standard zoom handling for other effects (single instance, multiple renders)
+              const effects = preset.createEffects(config, this.cardInstance);
+
+              effects.forEach(baseEffect => {
+                const zoomConfig = {
+                  baseEffect: baseEffect,
+                  layers: effectConfig.zoom.layers ?? 4,
+                  scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
+                  scaleTo: effectConfig.zoom.scale_to ?? 2.0,
+                  duration: effectConfig.zoom.duration ?? 15,
+                  opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
+                  opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
+                };
+
+                const zoomEffect = new ZoomEffect(zoomConfig);
+                this.renderer.addEffect(zoomEffect);
+                loadedEffects++;
+              });
+            }
           } else {
-            // Add effects directly without zoom wrapper
+            // No zoom - add effects directly
+            const effects = preset.createEffects(config, this.cardInstance);
             effects.forEach(effect => this.renderer.addEffect(effect));
             loadedEffects += effects.length;
           }

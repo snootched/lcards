@@ -18,7 +18,9 @@ export class ZoomEffect {
   /**
    * @param {Object} config - Zoom effect configuration
    * @param {BaseEffect} config.baseEffect - The effect to apply zoom to
-   * @param {number} [config.layers=3] - Number of zoom layers to render
+   * @param {number} [config.layers=3] - Number of zoom layers to render (can be 1 if using multiple ZoomEffect instances)
+   * @param {number} [config.layerIndex] - Index of this layer in multi-instance setup (for timing offset)
+   * @param {number} [config.totalLayers] - Total number of layers in multi-instance setup
    * @param {number} [config.scaleFrom=1] - Initial scale (1 = normal size)
    * @param {number} [config.scaleTo=2] - Final scale before fade out
    * @param {number} [config.duration=10] - Duration for full zoom cycle (seconds)
@@ -32,6 +34,8 @@ export class ZoomEffect {
     }
 
     this.layers = config.layers ?? 3;
+    this.layerIndex = config.layerIndex ?? null; // For multi-instance setup
+    this.totalLayers = config.totalLayers ?? this.layers;
     this.scaleFrom = config.scaleFrom ?? 1;
     this.scaleTo = config.scaleTo ?? 2;
     this.duration = config.duration ?? 10; // seconds
@@ -44,6 +48,8 @@ export class ZoomEffect {
 
     lcardsLog.debug('[ZoomEffect] Created zoom effect wrapper', {
       layers: this.layers,
+      layerIndex: this.layerIndex,
+      totalLayers: this.totalLayers,
       scaleRange: [this.scaleFrom, this.scaleTo],
       duration: this.duration,
       fadeIn: this.opacityFadeIn,
@@ -93,7 +99,11 @@ export class ZoomEffect {
     // Draw layers from back to front (smallest to largest scale)
     for (let i = 0; i < this.layers; i++) {
       // Stagger each layer's timing
-      const layerOffset = i / this.layers;
+      // If layerIndex is set, use it for offset (multi-instance mode)
+      // Otherwise use loop index (single-instance multi-layer mode)
+      const layerOffset = this.layerIndex !== null
+        ? this.layerIndex / this.totalLayers
+        : i / this.layers;
       const layerProgress = (cycleProgress + layerOffset) % 1.0;
 
       // Calculate scale for this layer

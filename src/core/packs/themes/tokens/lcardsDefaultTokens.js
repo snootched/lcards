@@ -510,6 +510,24 @@ export const lcardsDefaultTokens = {
           majorRow: 3,
           majorCol: 3
         }
+      },
+      starfield: {
+        star: {
+          count: 150,
+          minRadius: 0.5,
+          maxRadius: 2,
+          minOpacity: 0.3,
+          maxOpacity: 1.0,
+          color: 'var(--lcars-white, var(--lcards-moonlight))'
+        },
+        scroll: {
+          speedX: 30,
+          speedY: 0
+        },
+        parallax: {
+          layers: 3,
+          depthFactor: 0.5
+        }
       }
     }
   }

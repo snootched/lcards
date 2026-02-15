@@ -34,6 +34,7 @@ export class Canvas2DRenderer {
    */
   addEffect(effect) {
     this.effects.push(effect);
+
     lcardsLog.debug('[Canvas2DRenderer] Added effect', {
       effectType: effect.constructor.name,
       totalEffects: this.effects.length
