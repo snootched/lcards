@@ -286,6 +286,115 @@ config:
 
 ---
 
+### `starfield`
+
+Scrolling starfield with parallax layers and multi-color support.
+
+**When to use:**
+- Space/sci-fi backgrounds
+- Subtle animated depth
+- Combined with zoom for dynamic star movement
+
+**Configuration:**
+
+```yaml
+preset: starfield
+config:
+  count: 150                # Number of stars
+  min_radius: 0.5          # Minimum star radius in pixels
+  max_radius: 2            # Maximum star radius in pixels
+  min_opacity: 0.3         # Minimum star opacity (0-1)
+  max_opacity: 1.0         # Maximum star opacity (0-1)
+  colors:                  # Single color or array of colors
+    - "var(--lcards-blue-lightest)"
+    - "#4455ff"
+  scroll_speed_x: 30       # Horizontal scroll speed (px/sec)
+  scroll_speed_y: 0        # Vertical scroll speed (px/sec)
+  parallax_layers: 3       # Number of depth layers (1-5)
+  depth_factor: 0.5        # Speed variance between layers (0-1)
+  seed: 1                  # Random seed for star generation
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `count` | number | 150 | Total number of stars to generate |
+| `min_radius` | number | 0.5 | Minimum star size in pixels |
+| `max_radius` | number | 2 | Maximum star size in pixels |
+| `min_opacity` | number | 0.3 | Minimum star opacity (0-1) |
+| `max_opacity` | number | 1.0 | Maximum star opacity (0-1) |
+| `colors` | string \| array | "#ffffff" | Single color or array of colors. Each star randomly selects one color. Supports CSS variables. |
+| `scroll_speed_x` | number | 30 | Horizontal scroll speed in pixels/second |
+| `scroll_speed_y` | number | 0 | Vertical scroll speed in pixels/second |
+| `parallax_layers` | number | 3 | Number of depth layers for parallax effect (1-5) |
+| `depth_factor` | number | 0.5 | Speed multiplier between layers (0=all same speed, 1=max variance) |
+| `seed` | number | 1 | Random seed for reproducible star patterns |
+
+**Parallax Layers:**
+
+Stars are distributed across multiple depth layers, with farther layers moving slower:
+- Layer 0 (farthest): moves at `depth_factor` speed
+- Layer N-1 (closest): moves at full speed
+- Intermediate layers: interpolated speeds
+
+**Seeded Random:**
+
+Each starfield instance uses a seeded random number generator for reproducible patterns. When using zoom with multiple layers, each zoom layer receives a unique seed (incrementing from base seed), ensuring different star patterns per layer.
+
+**Example - Simple Starfield:**
+
+```yaml
+- preset: starfield
+  config:
+    count: 200
+    colors: "var(--lcards-blue-lightest)"
+    scroll_speed_x: 40
+```
+
+**Example - Multi-Color Starfield:**
+
+```yaml
+- preset: starfield
+  config:
+    count: 250
+    min_radius: 0.8
+    max_radius: 2.5
+    colors:
+      - "var(--lcards-blue-lightest)"
+      - "var(--lcards-moonlight)"
+      - "#ffffff"
+    parallax_layers: 4
+    scroll_speed_x: 50
+```
+
+**Example - Starfield with Zoom (Recommended):**
+
+```yaml
+- preset: starfield
+  config:
+    count: 200
+    min_radius: 0.5
+    max_radius: 2
+    colors:
+      - "var(--lcards-blue-lightest)"
+      - "#4455ff"
+    scroll_speed_x: 0        # Stationary stars
+    scroll_speed_y: 0
+    parallax_layers: 4
+  zoom:
+    layers: 6
+    scale_from: 0.5
+    scale_to: 2.5
+    duration: 15
+    opacity_fade_in: 15
+    opacity_fade_out: 75
+```
+
+> **💡 Tip:** Starfield works exceptionally well with zoom effects. Each zoom layer gets a unique seed, creating 6 different star patterns that zoom independently, producing a compelling "flying through space" effect.
+
+---
+
 ## 🔍 Zoom Wrapper
 
 The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion.

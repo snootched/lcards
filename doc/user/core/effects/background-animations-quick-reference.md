@@ -81,6 +81,26 @@
     show_border_lines: true
 ```
 
+### Starfield Preset
+
+```yaml
+- preset: starfield
+  config:
+    count: 150                # Number of stars
+    min_radius: 0.5          # Minimum star size (px)
+    max_radius: 2            # Maximum star size (px)
+    min_opacity: 0.3         # 0-1
+    max_opacity: 1.0         # 0-1
+    colors:                  # Single color or array
+      - "var(--lcards-blue-lightest)"
+      - "#4455ff"
+    scroll_speed_x: 30       # px/sec
+    scroll_speed_y: 0        # px/sec
+    parallax_layers: 3       # 1-5 depth layers
+    depth_factor: 0.5        # 0-1 speed variance
+    seed: 1                  # Random seed
+```
+
 ### Zoom Wrapper
 
 ```yaml

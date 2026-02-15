@@ -32,6 +32,7 @@ BackgroundAnimationRenderer (Canvas2DRenderer)
 | `BackgroundAnimationRenderer` | Main renderer, manages effect stack | `BackgroundAnimationRenderer.js` |
 | `BaseEffect` | Abstract base for all effects | `BaseEffect.js` |
 | `GridEffect` | Configurable grid pattern effect | `GridEffect.js` |
+| `StarfieldEffect` | Scrolling starfield with parallax | `StarfieldEffect.js` |
 | `ZoomEffect` | Layered scaling wrapper | `ZoomEffect.js` |
 | `BACKGROUND_PRESETS` | Preset registry | `presets/index.js` |
 
@@ -584,6 +585,7 @@ const isMajor = globalRow % majorRowInterval === 0;
 - **[BackgroundAnimationRenderer.js](../../../../../../src/core/packs/backgrounds/BackgroundAnimationRenderer.js)** - Main renderer
 - **[BaseEffect.js](../../../../../../src/core/packs/backgrounds/effects/BaseEffect.js)** - Effect interface
 - **[GridEffect.js](../../../../../../src/core/packs/backgrounds/effects/GridEffect.js)** - Grid effect implementation
+- **[StarfieldEffect.js](../../../../../../src/core/packs/backgrounds/effects/StarfieldEffect.js)** - Starfield effect with parallax
 - **[ZoomEffect.js](../../../../../../src/core/packs/backgrounds/effects/ZoomEffect.js)** - Zoom wrapper
 - **[presets/index.js](../../../../../../src/core/packs/backgrounds/presets/index.js)** - Preset registry
 
