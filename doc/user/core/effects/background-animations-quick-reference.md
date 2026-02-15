@@ -101,6 +101,27 @@
     seed: 1                  # Random seed
 ```
 
+### Nebula Preset
+
+```yaml
+- preset: nebula
+  config:
+    cloud_count: 4           # Number of clouds (1-10)
+    min_radius: 0.15         # Min cloud radius (0-1, fraction)
+    max_radius: 0.4          # Max cloud radius (0-1, fraction)
+    min_opacity: 0.3         # 0-1
+    max_opacity: 0.8         # 0-1
+    colors:                  # Single color or array
+      - "var(--lcards-blue-medium)"
+      - "var(--lcards-orange)"
+      - "var(--lcards-blue-light)"
+    turbulence: 0.5          # 0-1 distortion intensity
+    noise_scale: 0.003       # 0.001-0.01 (smaller = larger features)
+    scroll_speed_x: 5        # px/sec
+    scroll_speed_y: 5        # px/sec
+    seed: 1                  # Random seed
+```
+
 ### Zoom Wrapper
 
 ```yaml

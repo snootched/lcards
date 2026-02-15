@@ -395,6 +395,121 @@ Each starfield instance uses a seeded random number generator for reproducible p
 
 ---
 
+### `nebula`
+
+Layered nebula clouds with Perlin noise turbulence and organic movement.
+
+**When to use:**
+- Space/sci-fi atmospheric backgrounds
+- Organic, flowing visual effects
+- Colorful cosmic backgrounds
+
+**Configuration:**
+
+```yaml
+preset: nebula
+config:
+  cloud_count: 4           # Number of nebula clouds (1-10)
+  min_radius: 0.15         # Minimum cloud radius (0-1, fraction of canvas)
+  max_radius: 0.4          # Maximum cloud radius (0-1, fraction of canvas)
+  min_opacity: 0.3         # Minimum cloud opacity (0-1)
+  max_opacity: 0.8         # Maximum cloud opacity (0-1)
+  colors:                  # Single color or array of colors
+    - "var(--lcards-blue-medium)"
+    - "var(--lcards-orange)"
+    - "var(--lcards-blue-light)"
+  turbulence: 0.5          # Turbulence intensity (0-1)
+  noise_scale: 0.003       # Perlin noise scale (0.001-0.01)
+  scroll_speed_x: 5        # Horizontal scroll speed (px/sec)
+  scroll_speed_y: 5        # Vertical scroll speed (px/sec)
+  seed: 1                  # Random seed for cloud generation
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `cloud_count` | number | 4 | Number of nebula clouds to generate (1-10) |
+| `min_radius` | number | 0.15 | Minimum cloud radius as fraction of canvas size (0-1) |
+| `max_radius` | number | 0.4 | Maximum cloud radius as fraction of canvas size (0-1) |
+| `min_opacity` | number | 0.3 | Minimum cloud opacity (0-1) |
+| `max_opacity` | number | 0.8 | Maximum cloud opacity (0-1) |
+| `colors` | string \| array | ["#FF00FF"] | Single color or array of colors. Each cloud randomly selects one color. Supports CSS variables. |
+| `turbulence` | number | 0.5 | Turbulence displacement intensity (0=none, 1=maximum distortion) |
+| `noise_scale` | number | 0.003 | Perlin noise scale factor. Smaller values create larger noise features. |
+| `scroll_speed_x` | number | 5 | Horizontal scroll speed in pixels/second |
+| `scroll_speed_y` | number | 5 | Vertical scroll speed in pixels/second |
+| `seed` | number | 1 | Random seed for reproducible cloud patterns |
+
+**Perlin Noise Turbulence:**
+
+Nebula clouds use 2D Perlin noise to create organic, flowing patterns:
+- Each pixel's position is displaced based on noise value
+- `turbulence` controls displacement magnitude
+- `noise_scale` controls noise feature size (smaller = larger features)
+- Creates realistic cloud-like formations
+
+**Seeded Random:**
+
+Each nebula instance uses a seeded random number generator for reproducible cloud patterns. This ensures consistent placement and colors across sessions with the same seed.
+
+**Example - Simple Nebula:**
+
+```yaml
+- preset: nebula
+  config:
+    cloud_count: 3
+    colors: "var(--lcards-purple)"
+    scroll_speed_x: 10
+    scroll_speed_y: 10
+```
+
+**Example - Multi-Color Cosmic Nebula:**
+
+```yaml
+- preset: nebula
+  config:
+    cloud_count: 6
+    min_radius: 0.2
+    max_radius: 0.5
+    min_opacity: 0.4
+    max_opacity: 0.9
+    colors:
+      - "var(--lcards-blue-medium)"
+      - "var(--lcards-orange)"
+      - "var(--lcards-purple)"
+      - "var(--lcards-blue-light)"
+    turbulence: 0.7
+    noise_scale: 0.002
+    scroll_speed_x: 3
+    scroll_speed_y: 3
+```
+
+**Example - Nebula with Zoom:**
+
+```yaml
+- preset: nebula
+  config:
+    cloud_count: 5
+    colors:
+      - "var(--lcards-blue-medium)"
+      - "var(--lcards-orange)"
+    turbulence: 0.6
+    scroll_speed_x: 0
+    scroll_speed_y: 0
+  zoom:
+    layers: 4
+    scale_from: 0.6
+    scale_to: 2.0
+    duration: 20
+    opacity_fade_in: 20
+    opacity_fade_out: 70
+```
+
+> **💡 Tip:** Nebula works beautifully with slow scroll speeds (3-10 px/sec) to create a drifting cosmic effect. Combine with zoom for mesmerizing depth.
+
+---
+
 ## 🔍 Zoom Wrapper
 
 The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion.
