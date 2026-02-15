@@ -193,7 +193,9 @@ export const BACKGROUND_PRESETS = {
         maxRadius: config.max_radius ?? resolveToken('components.backgroundAnimation.starfield.star.maxRadius', 2),
         minOpacity: config.min_opacity ?? resolveToken('components.backgroundAnimation.starfield.star.minOpacity', 0.3),
         maxOpacity: config.max_opacity ?? resolveToken('components.backgroundAnimation.starfield.star.maxOpacity', 1.0),
-        color: config.color ?? resolveToken('components.backgroundAnimation.starfield.star.color', '#ffffff'),
+
+        // Support both 'colors' (array) and 'color' (single) - prefer colors if present
+        colors: config.colors ?? (config.color ? [config.color] : [resolveToken('components.backgroundAnimation.starfield.star.color', '#ffffff')]),
 
         // Scrolling
         scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.starfield.scroll.speedX', 30),

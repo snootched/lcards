@@ -23,6 +23,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BACKGROUND_PRESETS } from '../../core/packs/backgrounds/presets/index.js';
 import './shared/lcards-color-picker.js';
+import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import './editors/lcards-color-section.js';
@@ -542,9 +543,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         header="Color"
         icon="mdi:palette"
         ?expanded=${true}>
-        <div class="param-grid">
-          ${this._renderField({ key: 'color', label: 'Star Color', type: 'color', default: '#ffffff', helper: 'Color of stars' }, config, index)}
-        </div>
+        <lcards-color-list
+          .hass=${this.hass}
+          .colors=${config.colors || (config.color ? [config.color] : ['#ffffff'])}
+          .label=${'Star Colors'}
+          .description=${'Stars will randomly use one of these colors'}
+          @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
+        ></lcards-color-list>
       </lcards-form-section>
 
       <lcards-form-section

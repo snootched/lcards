@@ -34,7 +34,7 @@ export class StarfieldEffect extends BaseEffect {
    * @param {number} [config.maxRadius=2] - Maximum star radius in pixels
    * @param {number} [config.minOpacity=0.3] - Minimum star opacity (0-1)
    * @param {number} [config.maxOpacity=1.0] - Maximum star opacity (0-1)
-   * @param {string} [config.color='#ffffff'] - Star color
+   * @param {string|string[]} [config.color='#ffffff'] - Star color (single color or array of colors)
    *
    * Scrolling:
    * @param {number} [config.scrollSpeedX=30] - Horizontal scroll speed (pixels/second)
@@ -54,7 +54,13 @@ export class StarfieldEffect extends BaseEffect {
     this.maxRadius = config.maxRadius ?? 2;
     this.minOpacity = config.minOpacity ?? 0.3;
     this.maxOpacity = config.maxOpacity ?? 1.0;
-    this.color = ColorUtils.resolveCssVariable(config.color ?? '#ffffff');
+
+    // Support both 'color' (single) and 'colors' (array) for legacy compatibility
+    const colorInput = config.colors ?? config.color ?? '#ffffff';
+    this.colors = Array.isArray(colorInput) ? colorInput : [colorInput];
+
+    // Resolve CSS variables for all colors
+    this.resolvedColors = this.colors.map(c => ColorUtils.resolveCssVariable(c));
 
     // Scrolling
     this.scrollSpeedX = config.scrollSpeedX ?? 30;
@@ -72,6 +78,8 @@ export class StarfieldEffect extends BaseEffect {
       count: this.count,
       seed: this.seed,
       parallaxLayers: this.parallaxLayers,
+      colorCount: this.resolvedColors.length,
+      colors: this.resolvedColors,
       scrollSpeeds: { x: this.scrollSpeedX, y: this.scrollSpeedY }
     });
   }
@@ -117,6 +125,10 @@ export class StarfieldEffect extends BaseEffect {
       const speedMultiplier = this.depthFactor + (1 - this.depthFactor) * (layer / Math.max(1, this.parallaxLayers - 1));
 
       for (let i = 0; i < layerCount; i++) {
+        // Randomly select a color from the resolved colors array
+        const colorIndex = Math.floor(this._rng() * this.resolvedColors.length);
+        const starColor = this.resolvedColors[colorIndex];
+
         this.stars.push({
           // Random position in normalized 0-1 space (scaled during draw)
           x: this._rng(),
@@ -125,6 +137,9 @@ export class StarfieldEffect extends BaseEffect {
           // Random size and opacity
           radius: this.minRadius + this._rng() * (this.maxRadius - this.minRadius),
           opacity: this.minOpacity + this._rng() * (this.maxOpacity - this.minOpacity),
+
+          // Color from array
+          color: starColor,
 
           // Layer for parallax
           layer: layer,
@@ -174,22 +189,26 @@ export class StarfieldEffect extends BaseEffect {
       return;
     }
 
-    // Set fill color
-    ctx.fillStyle = this.color;
+    // Save the current globalAlpha (set by ZoomEffect wrapper)
+    const parentAlpha = ctx.globalAlpha;
 
     // Draw each star, scaling from normalized 0-1 space to canvas pixels
     for (const star of this.stars) {
       const x = star.x * canvasWidth;
       const y = star.y * canvasHeight;
 
-      // Apply opacity
-      ctx.globalAlpha = star.opacity * this.opacity;
+      // Set star color and multiply opacity (don't replace parentAlpha)
+      ctx.fillStyle = star.color;
+      ctx.globalAlpha = parentAlpha * star.opacity * this.opacity;
 
       // Draw star as a filled circle
       ctx.beginPath();
       ctx.arc(x, y, star.radius, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Restore parent alpha
+    ctx.globalAlpha = parentAlpha;
 
     // Reset alpha
     ctx.globalAlpha = 1.0;
@@ -198,7 +217,7 @@ export class StarfieldEffect extends BaseEffect {
     if (!this._hasLoggedFirstDraw) {
       lcardsLog.info(`[StarfieldEffect] First draw: ${this.stars.length} stars`, {
         canvasSize: `${canvasWidth}x${canvasHeight}`,
-        color: this.color,
+        colors: this.resolvedColors,
         scrollSpeed: `${this.scrollSpeedX},${this.scrollSpeedY}`
       });
       this._hasLoggedFirstDraw = true;
