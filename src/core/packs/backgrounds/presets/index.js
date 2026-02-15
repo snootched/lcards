@@ -10,7 +10,6 @@
  * @module core/packs/backgrounds/presets
  */
 import { GridEffect } from '../effects/GridEffect.js';
-import { ZoomEffect } from '../effects/ZoomEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 
 /**
@@ -18,59 +17,36 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
  */
 export const BACKGROUND_PRESETS = {
   /**
-   * Simple scrolling grid effect (basic, no animation)
+   * Grid effect with major/minor line divisions
+   * Unified preset combining basic and enhanced grid functionality
    */
-  'grid-basic': {
-    name: 'Basic Grid',
-    description: 'Simple scrolling LCARS grid with uniform lines',
+  'grid': {
+    name: 'Grid',
+    description: 'Configurable grid with major/minor line divisions',
 
     createEffects(config) {
-      lcardsLog.debug('[Preset:grid-basic] Creating basic grid effect');
+      lcardsLog.debug('[Preset:grid] Creating grid effect');
 
       const gridConfig = {
+        // Sizing - supports both cell-based and spacing-based
+        numRows: config.num_rows,
+        numCols: config.num_cols,
         lineSpacing: config.line_spacing ?? 40,
-        lineWidthMinor: config.line_width ?? 1,
-        color: config.color ?? 'rgba(255, 153, 102, 0.3)',
-        scrollSpeedX: config.scroll_speed_x ?? 20,
-        scrollSpeedY: config.scroll_speed_y ?? 20,
-        pattern: config.pattern ?? 'both',  // Which lines to draw
-        showBorderLines: config.show_border_lines ?? true,
-        opacity: config.opacity ?? 1
-      };
-
-      return [new GridEffect(gridConfig)];
-    }
-  },
-
-  /**
-   * Enhanced grid with major/minor lines
-   */
-  'grid-enhanced': {
-    name: 'Enhanced Grid',
-    description: 'Grid with major/minor line divisions',
-
-    createEffects(config) {
-      lcardsLog.debug('[Preset:grid-enhanced] Creating enhanced grid effect');
-
-      const gridConfig = {
-        // Cell-based sizing
-        numRows: config.num_rows ?? 10,
-        numCols: config.num_cols ?? 10,
 
         // Line styling
-        lineWidthMinor: config.line_width_minor ?? 1,
-        lineWidthMajor: config.line_width_major ?? 3,
-        color: config.color ?? 'rgba(255, 153, 102, 0.25)',
-        colorMajor: config.color_major ?? 'rgba(255, 153, 102, 0.5)',
+        lineWidthMinor: config.line_width_minor ?? config.line_width ?? 1,
+        lineWidthMajor: config.line_width_major ?? 2,
+        color: config.color ?? 'rgba(255, 153, 102, 0.3)',
+        colorMajor: config.color_major ?? config.color,
 
-        // Major line intervals
-        majorRowInterval: config.major_row_interval ?? 5,
-        majorColInterval: config.major_col_interval ?? 5,
+        // Major line intervals (0 = no major lines)
+        majorRowInterval: config.major_row_interval ?? 0,
+        majorColInterval: config.major_col_interval ?? 0,
 
         // Scrolling
-        scrollSpeedX: config.scroll_speed_x ?? 30,
-        scrollSpeedY: config.scroll_speed_y ?? 30,
-        pattern: config.pattern ?? 'both',  // Which lines to draw
+        scrollSpeedX: config.scroll_speed_x ?? 20,
+        scrollSpeedY: config.scroll_speed_y ?? 20,
+        pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
 
         opacity: config.opacity ?? 1
@@ -155,44 +131,6 @@ export const BACKGROUND_PRESETS = {
       };
 
       return [new GridEffect(gridConfig)];
-    }
-  },
-
-  /**
-   * Zooming grid effect (pseudo-3D depth)
-   */
-  'grid-zoom': {
-    name: 'Zooming Grid',
-    description: 'Infinite zoom grid effect with layered scaling',
-
-    createEffects(config) {
-      lcardsLog.debug('[Preset:grid-zoom] Creating zooming grid effect');
-
-      // Create base grid effect
-      const gridConfig = {
-        lineSpacing: config.line_spacing ?? 60,
-        lineWidthMinor: config.line_width ?? 1,
-        color: config.color ?? 'rgba(255, 153, 102, 0.4)',
-        scrollSpeedX: 0, // No scroll, zoom handles movement
-        scrollSpeedY: 0,
-        pattern: config.pattern ?? 'both',
-        showBorderLines: config.show_border_lines ?? true
-      };
-
-      const baseGrid = new GridEffect(gridConfig);
-
-      // Wrap in zoom effect
-      const zoomConfig = {
-        baseEffect: baseGrid,
-        layers: config.zoom_layers ?? 4,
-        scaleFrom: config.scale_from ?? 0.5,
-        scaleTo: config.scale_to ?? 2.0,
-        duration: config.zoom_duration ?? 15,
-        opacityFadeIn: config.opacity_fade_in ?? 15,
-        opacityFadeOut: config.opacity_fade_out ?? 75
-      };
-
-      return [new ZoomEffect(zoomConfig)];
     }
   }
 

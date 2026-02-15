@@ -7,6 +7,7 @@
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { Canvas2DRenderer } from './renderers/Canvas2DRenderer.js';
 import { BACKGROUND_PRESETS } from './presets/index.js';
+import { ZoomEffect } from './effects/ZoomEffect.js';
 
 /**
  * Orchestrates background animation rendering using Canvas2D with modular effects
@@ -73,6 +74,7 @@ export class BackgroundAnimationRenderer {
    * Schema formats:
    * 1. Single effect: { preset: 'grid-basic', config: { ... } }
    * 2. Array of effects: [{ preset: 'grid-basic', config: { ... } }, { preset: 'starfield', config: { ... } }]
+   * 3. With zoom wrapper: { preset: 'grid-basic', config: { ... }, zoom: { layers: 5, ... } }
    *
    * @private
    * @returns {boolean} True if at least one effect was loaded
@@ -106,8 +108,32 @@ export class BackgroundAnimationRenderer {
           // Pass nested config object to preset factory
           const config = effectConfig.config || {};
           const effects = preset.createEffects(config);
-          effects.forEach(effect => this.renderer.addEffect(effect));
-          loadedEffects += effects.length;
+
+          // Check if zoom wrapper should be applied
+          if (effectConfig.zoom) {
+            lcardsLog.debug('[BackgroundAnimation] Applying zoom wrapper to preset', { presetId });
+
+            // Wrap each effect with zoom
+            effects.forEach(baseEffect => {
+              const zoomConfig = {
+                baseEffect: baseEffect,
+                layers: effectConfig.zoom.layers ?? 4,
+                scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
+                scaleTo: effectConfig.zoom.scale_to ?? 2.0,
+                duration: effectConfig.zoom.duration ?? 15,
+                opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
+                opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
+              };
+
+              const zoomEffect = new ZoomEffect(zoomConfig);
+              this.renderer.addEffect(zoomEffect);
+              loadedEffects++;
+            });
+          } else {
+            // Add effects directly without zoom wrapper
+            effects.forEach(effect => this.renderer.addEffect(effect));
+            loadedEffects += effects.length;
+          }
         }
       } else {
         lcardsLog.warn('[BackgroundAnimation] Effect config missing preset', { effectConfig });
