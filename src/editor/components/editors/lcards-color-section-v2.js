@@ -25,6 +25,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-color-picker.js';
@@ -321,7 +322,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                         <!-- Color Preview Bar -->
                         ${color && this.showPreview ? html`
                             <div class="color-preview-bar"
-                                style="background: ${color}">
+                                style="background: ${this._resolveColorForPreview(color)}">
                             </div>
                         ` : ''}
                     </div>
@@ -568,8 +569,99 @@ export class LCARdSColorSectionV2 extends LitElement {
 
 
 
+    /**     * Resolve color for preview (handles computed tokens and CSS variables)
+     * @param {string} color - Color value
+     * @returns {string} Resolved color
+     * @private
+     */
+    _resolveColorForPreview(color) {
+        if (!color) return 'transparent';
+
+        // Check if it's a computed token
+        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+        const isComputedToken = validFunctions.some(fn => color.startsWith(`${fn}(`));
+
+        if (isComputedToken) {
+            try {
+                const match = color.match(/^(\w+)\((.+)\)$/);
+                if (match) {
+                    const [, funcName, argsStr] = match;
+                    const args = this._splitArguments(argsStr);
+
+                    if (args.length >= 2) {
+                        const baseColor = this._resolveColorForPreview(args[0].trim());
+                        const amount = parseFloat(args[1]);
+
+                        switch (funcName) {
+                            case 'lighten': return ColorUtils.lighten(baseColor, amount);
+                            case 'darken': return ColorUtils.darken(baseColor, amount);
+                            case 'alpha': return ColorUtils.alpha(baseColor, amount);
+                            case 'saturate': return ColorUtils.saturate(baseColor, amount);
+                            case 'desaturate': return ColorUtils.desaturate(baseColor, amount);
+                            case 'mix':
+                                if (args.length === 3) {
+                                    const color2 = this._resolveColorForPreview(args[1].trim());
+                                    return ColorUtils.mix(baseColor, color2, amount);
+                                }
+                        }
+                    }
+                }
+            } catch (error) {
+                lcardsLog.warn('[ColorSectionV2] Failed to resolve computed color:', error);
+            }
+        }
+
+        // Handle CSS variables via DOM
+        if (color.includes('var(')) {
+            try {
+                const temp = document.createElement('div');
+                temp.style.color = color;
+                document.body.appendChild(temp);
+                const computed = getComputedStyle(temp).color;
+                document.body.removeChild(temp);
+                return computed;
+            } catch (err) {
+                return color;
+            }
+        }
+
+        return color;
+    }
+
     /**
-     * Format state name as readable label
+     * Split function arguments handling nested parentheses
+     * @param {string} argsStr - Arguments string
+     * @returns {Array<string>} Array of arguments
+     * @private
+     */
+    _splitArguments(argsStr) {
+        const args = [];
+        let current = '';
+        let depth = 0;
+
+        for (const char of argsStr) {
+            if (char === '(') {
+                depth++;
+                current += char;
+            } else if (char === ')') {
+                depth--;
+                current += char;
+            } else if (char === ',' && depth === 0) {
+                args.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+
+        if (current) {
+            args.push(current.trim());
+        }
+
+        return args;
+    }
+
+    /**     * Format state name as readable label
      * @param {string} state - State name
      * @returns {string} Formatted label
      * @private

@@ -14,6 +14,7 @@
 
 import { LitElement, html, css } from 'lit';
 import './lcards-color-picker.js';
+import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 
 export class LCARdSColorList extends LitElement {
   static get properties() {
@@ -219,7 +220,7 @@ export class LCARdSColorList extends LitElement {
 
           <!-- Color Preview -->
           <div class="color-preview">
-            <div class="color-preview-fill" style="background-color: ${color || 'transparent'};"></div>
+            <div class="color-preview-fill" style="background-color: ${this._resolveColorForPreview(color)};"></div>
           </div>
 
           <!-- Color Info -->
@@ -277,6 +278,100 @@ export class LCARdSColorList extends LitElement {
       ...this._expandedItems,
       [index]: !this._expandedItems[index]
     };
+  }
+
+  /**
+   * Resolve color for preview (handles computed tokens)
+   * @param {string} color - Color value
+   * @returns {string} Resolved color for display
+   * @private
+   */
+  _resolveColorForPreview(color) {
+    if (!color) return 'transparent';
+
+    // Check if it's a computed token
+    const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+    const isComputedToken = validFunctions.some(fn => color.startsWith(`${fn}(`));
+
+    if (isComputedToken) {
+      // Try to resolve using a simple parser and ColorUtils
+      try {
+        const match = color.match(/^(\w+)\((.+)\)$/);
+        if (match) {
+          const [, funcName, argsStr] = match;
+          const args = this._splitArguments(argsStr);
+
+          if (args.length >= 2) {
+            const baseColor = this._resolveColorForPreview(args[0].trim());
+            const amount = parseFloat(args[1]);
+
+            switch (funcName) {
+              case 'lighten': return ColorUtils.lighten(baseColor, amount);
+              case 'darken': return ColorUtils.darken(baseColor, amount);
+              case 'alpha': return ColorUtils.alpha(baseColor, amount);
+              case 'saturate': return ColorUtils.saturate(baseColor, amount);
+              case 'desaturate': return ColorUtils.desaturate(baseColor, amount);
+              case 'mix':
+                if (args.length === 3) {
+                  const color2 = this._resolveColorForPreview(args[1].trim());
+                  return ColorUtils.mix(baseColor, color2, amount);
+                }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[ColorList] Failed to resolve computed color:', error);
+      }
+    }
+
+    // Handle CSS variables via DOM
+    if (color.includes('var(')) {
+      try {
+        const temp = document.createElement('div');
+        temp.style.color = color;
+        document.body.appendChild(temp);
+        const computed = getComputedStyle(temp).color;
+        document.body.removeChild(temp);
+        return computed;
+      } catch (err) {
+        return color;
+      }
+    }
+
+    return color;
+  }
+
+  /**
+   * Split function arguments handling nested parentheses
+   * @param {string} argsStr - Arguments string
+   * @returns {Array<string>} Array of arguments
+   * @private
+   */
+  _splitArguments(argsStr) {
+    const args = [];
+    let current = '';
+    let depth = 0;
+
+    for (const char of argsStr) {
+      if (char === '(') {
+        depth++;
+        current += char;
+      } else if (char === ')') {
+        depth--;
+        current += char;
+      } else if (char === ',' && depth === 0) {
+        args.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    if (current) {
+      args.push(current.trim());
+    }
+
+    return args;
   }
 
   _addColor() {

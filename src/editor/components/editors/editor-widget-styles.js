@@ -118,7 +118,7 @@ export const editorWidgetStyles = css`
     /* Item Content (collapsible) */
     .editor-item-content {
         padding: 16px;
-        background: var(--card-background-color);
+        background: var(--primary-background-color);
         border-top: 1px solid var(--divider-color);
     }
 
