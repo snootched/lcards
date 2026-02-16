@@ -537,7 +537,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       /* HSL Formula Table */
       .hsl-formula-table {
         margin-top: 12px;
-        background: var(--secondary-background-color);
         border-radius: 8px;
         overflow: hidden;
         border: 1px solid var(--divider-color);
@@ -557,7 +556,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .hsl-formula-table th {
-        background: var(--secondary-background-color);
         font-weight: 600;
         color: var(--primary-text-color);
       }
@@ -1246,16 +1244,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           </ha-tab-group-tab>
         </ha-tab-group>
         ${this._activeView === 'css-vars' ? html`
-          <div class="alert-mode-info">
-            <div
-              class="alert-mode-toggle ${this._alertModePreview ? 'active' : ''}"
-              @click=${this._toggleAlertModePreview}
-              title="Toggle alert mode color previews">
-              <ha-icon icon="mdi:${this._alertModePreview ? 'eye' : 'eye-off'}"></ha-icon>
-              <span class="alert-mode-toggle-label">Alert Mode Preview</span>
-            </div>
-          </div>
-          ${this._alertModePreview ? html`
+          <lcards-form-section
+            .header=${'Alert Mode Transformation Values'}
+            .description=${'HSL transformation parameters for each alert mode'}
+            ?expanded=${this._alertModePreviewExpanded}
+            @expanded-changed=${this._toggleAlertModePreviewSection}>
             <div class="hsl-formula-table">
               <table>
                 <thead>
@@ -1265,55 +1258,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                     <th>Hue Strength</th>
                     <th>Saturation ×</th>
                     <th>Lightness ×</th>
+                    <th>Additional Settings</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td><span class="mode-icon">🟢</span><span class="mode-name">Green (Normal)</span></td>
-                    <td>0°</td>
-                    <td>0</td>
-                    <td>1.0</td>
-                    <td>1.0</td>
-                  </tr>
-                  <tr>
-                    <td><span class="mode-icon">🔴</span><span class="mode-name">Red Alert</span></td>
-                    <td>0°</td>
-                    <td>0.8</td>
-                    <td>1.2</td>
-                    <td>0.9</td>
-                  </tr>
-                  <tr>
-                    <td><span class="mode-icon">🔵</span><span class="mode-name">Blue Alert</span></td>
-                    <td>240°</td>
-                    <td>0.8</td>
-                    <td>1.0</td>
-                    <td>1.0</td>
-                  </tr>
-                  <tr>
-                    <td><span class="mode-icon">🟡</span><span class="mode-name">Yellow Alert</span></td>
-                    <td>45°</td>
-                    <td>0.7</td>
-                    <td>1.1</td>
-                    <td>1.05</td>
-                  </tr>
-                  <tr>
-                    <td><span class="mode-icon">⚫</span><span class="mode-name">Gray Alert</span></td>
-                    <td>0°</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>1.0</td>
-                  </tr>
-                  <tr>
-                    <td><span class="mode-icon">⚪</span><span class="mode-name">Black Alert</span></td>
-                    <td>0°</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0.3</td>
-                  </tr>
+                  ${this._renderAlertModeConfigRow('green_alert', '🟢', 'Green (Normal)')}
+                  ${this._renderAlertModeConfigRow('red_alert', '🔴', 'Red Alert')}
+                  ${this._renderAlertModeConfigRow('blue_alert', '🔵', 'Blue Alert')}
+                  ${this._renderAlertModeConfigRow('yellow_alert', '🟡', 'Yellow Alert')}
+                  ${this._renderAlertModeConfigRow('gray_alert', '⚫', 'Gray Alert')}
+                  ${this._renderAlertModeConfigRow('black_alert', '⚪', 'Black Alert')}
                 </tbody>
               </table>
             </div>
-          ` : ''}
+          </lcards-form-section>
         ` : ''}
         ${this._activeView !== 'alert-lab' ? html`
           <div class="search-container">
@@ -1611,8 +1569,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Color preview - only show for actual CSS colors (not computed functions)
       if (token.category === 'colors' || this._isColorValue(valueStr)) {
-        // If alert mode preview is enabled, show swatches for all modes
-        if (this._alertModePreview) {
+        // If alert mode preview section is expanded, show swatches for all modes
+        if (this._alertModePreviewExpanded) {
           return this._renderAlertModeSwatches(valueStr, token.path);
         }
 
@@ -1907,7 +1865,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </td>
         <td class="token-preview-cell">
           ${cssVar.isColor ? (
-            this._alertModePreview
+            this._alertModePreviewExpanded
               ? this._renderAlertModeSwatches(cssVar.value, cssVar.name, true)
               : html`
                 <div
@@ -3269,6 +3227,47 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _toggleAlertModePreview() {
     this._alertModePreview = !this._alertModePreview;
     lcardsLog.debug('[ThemeTokenBrowser] Alert mode preview:', this._alertModePreview);
+  }
+
+  _toggleAlertModePreviewSection(ev) {
+    this._alertModePreviewExpanded = ev.detail.expanded;
+    lcardsLog.debug('[ThemeTokenBrowser] Alert mode preview section expanded:', this._alertModePreviewExpanded);
+    this.requestUpdate(); // Force immediate re-render to update preview columns
+  }
+
+  /**
+   * Render a single alert mode configuration row with actual values from getAlertModeTransform
+   */
+  _renderAlertModeConfigRow(mode, icon, label) {
+    const transform = getAlertModeTransform(mode);
+    if (!transform) {
+      return html`<tr><td colspan="6">Error: Unknown mode ${mode}</td></tr>`;
+    }
+
+    // Format additional settings for black_alert
+    let additionalSettings = '—';
+    if (mode === 'black_alert' && transform.contrastEnhancement) {
+      const ce = transform.contrastEnhancement;
+      additionalSettings = html`
+        <div style="font-size: 0.9em; line-height: 1.4;">
+          <div><strong>Contrast:</strong> ${ce.enabled ? 'Enabled' : 'Disabled'}</div>
+          <div>Threshold: ${ce.threshold}</div>
+          <div>Dark ×: ${ce.darkMultiplier}</div>
+          <div>Light ×: ${ce.lightMultiplier}</div>
+        </div>
+      `;
+    }
+
+    return html`
+      <tr>
+        <td><span class="mode-icon">${icon}</span><span class="mode-name">${label}</span></td>
+        <td>${transform.hueShift}°</td>
+        <td>${transform.hueStrength}</td>
+        <td>${transform.saturationMultiplier}</td>
+        <td>${transform.lightnessMultiplier}</td>
+        <td>${additionalSettings}</td>
+      </tr>
+    `;
   }
 
   /**

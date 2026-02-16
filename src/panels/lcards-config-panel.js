@@ -22,6 +22,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import '../editor/components/theme-browser/lcards-theme-token-browser-tab.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -88,7 +89,6 @@ export class LCARdSConfigPanel extends LitElement {
       display: flex;
       flex-direction: column;
       height: 100%;
-      max-width: 1400px;
       margin: 0 auto;
     }
 
@@ -153,6 +153,7 @@ export class LCARdSConfigPanel extends LitElement {
       overflow-x: hidden;
       padding: 16px;
       min-height: 0;
+      background: var(--card-background-color);
     }
 
     @keyframes fadeIn {
@@ -383,6 +384,23 @@ export class LCARdSConfigPanel extends LitElement {
       overflow-y: auto;
       margin-top: 12px;
       border: 1px solid var(--divider-color);
+    }
+
+    /* Embedded Theme Browser styling */
+    .embedded-theme-browser {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      background: var(--primary-background-color);
+      border-radius: var(--ha-card-border-radius, 12px);
+    }
+
+    .embedded-theme-browser lcards-theme-token-browser-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     /* Empty State */
@@ -721,6 +739,10 @@ export class LCARdSConfigPanel extends LitElement {
             Alert Lab
           </ha-tab-group-tab>
           <ha-tab-group-tab value="2" ?active=${this._selectedTab === 2}>
+            <ha-icon icon="mdi:palette-swatch"></ha-icon>
+            Theme Browser
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="3" ?active=${this._selectedTab === 3}>
             <ha-icon icon="mdi:code-braces"></ha-icon>
             YAML Export
           </ha-tab-group-tab>
@@ -749,6 +771,8 @@ export class LCARdSConfigPanel extends LitElement {
       case 1:
         return this._renderAlertLabTab();
       case 2:
+        return this._renderThemeBrowserTab();
+      case 3:
         return this._renderYAMLTab();
       default:
         return html`<div>Unknown tab</div>`;
@@ -1022,6 +1046,19 @@ export class LCARdSConfigPanel extends LitElement {
           </div>
         </div>
       `)}
+    `;
+  }
+
+  _renderThemeBrowserTab() {
+    // Create an instance with dialogOpen forced to true and render inline
+    return html`
+      <div class="embedded-theme-browser">
+        <lcards-theme-token-browser-tab
+          .hass=${this.hass}
+          ._dialogOpen=${true}
+          ._inlineMode=${true}
+        ></lcards-theme-token-browser-tab>
+      </div>
     `;
   }
 

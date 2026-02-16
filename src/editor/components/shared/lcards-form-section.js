@@ -59,6 +59,7 @@ export class LCARdSFormSection extends LitElement {
             ha-expansion-panel {
                 border-radius: var(--ha-card-border-radius, 24px);
                 --expansion-panel-summary-padding: 0 8px 0 16px;
+                background-color: rgba(60, 60, 60, 0.5);
             }
 
             ha-expansion-panel[outlined] {
@@ -67,6 +68,13 @@ export class LCARdSFormSection extends LitElement {
 
             ha-expansion-panel[expanded] {
                 background-color: rgba(60, 60, 60, 0.5);
+            }
+
+            /* Override focused state background */
+            ha-expansion-panel:focus-within,
+            ha-expansion-panel.focused {
+                background-color: rgba(60, 60, 60, 0.7);
+                --input-fill-color: rgba(60, 60, 60, 0.7);
             }
 
             .section-content {
