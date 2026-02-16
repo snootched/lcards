@@ -884,11 +884,16 @@ export class LCARdSConfigPanel extends LitElement {
 
         ${Object.entries(groupedHelpers).length > 0 ? Object.entries(groupedHelpers).map(([category, helpers]) => {
           const isExpanded = this._expandedCategories.has(category);
+          // Calculate total helpers in this category (from full list, not filtered)
+          const allCategoryHelpers = this._helpers.filter(h => (h.category || 'other') === category);
+          const configuredCount = allCategoryHelpers.filter(h => h.exists).length;
+          const totalCount = allCategoryHelpers.length;
+
           return html`
             <lcards-collapsible-section
               .title=${categoryLabels[category] || category}
-              .count=${helpers.length}
-              .countLabel=${'helpers'}
+              .count=${configuredCount}
+              .totalCount=${totalCount}
               ?expanded=${isExpanded}
               @toggle=${() => this._toggleCategory(category)}>
               <table class="helper-table">

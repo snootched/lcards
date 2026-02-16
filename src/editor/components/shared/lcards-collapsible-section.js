@@ -24,6 +24,9 @@ export class LCARdSCollapsibleSection extends LitElement {
       // Count to display in the chip
       count: { type: Number },
 
+      // Total count (optional - if provided, shows count/total format)
+      totalCount: { type: Number, attribute: 'total-count' },
+
       // Whether section is expanded
       expanded: { type: Boolean },
 
@@ -36,6 +39,7 @@ export class LCARdSCollapsibleSection extends LitElement {
     super();
     this.title = '';
     this.count = 0;
+    this.totalCount = null; // null means don't show total
     this.expanded = false;
     this.countLabel = 'items';
   }
@@ -163,10 +167,10 @@ export class LCARdSCollapsibleSection extends LitElement {
               <slot name="actions"></slot>
             </div>
             <ha-assist-chip
-              .label=${`${this.count} ${this.countLabel}`}
+              .label=${this.totalCount !== null ? `${this.count} / ${this.totalCount}` : `${this.count} ${this.countLabel}`}
               .filled=${true}
               style="
-                --ha-assist-chip-filled-container-color: var(--primary-color);
+                --ha-assist-chip-filled-container-color: ${this.totalCount !== null ? (this.count === this.totalCount ? 'var(--success-color)' : 'var(--warning-color)') : 'var(--primary-color)'};
                 --md-assist-chip-label-text-color: white;
                 --md-sys-color-on-surface: white;
               "
