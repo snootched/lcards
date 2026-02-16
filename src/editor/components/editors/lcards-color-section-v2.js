@@ -601,7 +601,8 @@ export class LCARdSColorSectionV2 extends LitElement {
                             case 'mix':
                                 if (args.length === 3) {
                                     const color2 = this._resolveColorForPreview(args[1].trim());
-                                    return ColorUtils.mix(baseColor, color2, amount);
+                                    const ratio = parseFloat(args[2]);
+                                    return ColorUtils.mix(baseColor, color2, ratio);
                                 }
                         }
                     }

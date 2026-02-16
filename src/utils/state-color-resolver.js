@@ -11,6 +11,9 @@
 /**
  * Resolve a state-based color value
  *
+ * Automatically resolves computed color tokens (e.g., "darken(var(--lcards-orange), 0.2)")
+ * via the ThemeTokenResolver singleton, making computed tokens work seamlessly across all cards.
+ *
  * @param {Object} options - Resolution options
  * @param {string|null} options.actualState - The actual entity state (e.g., "heat", "cool", "playing")
  * @param {string} options.classifiedState - The classified/mapped state (e.g., "active", "inactive", "unavailable")
@@ -26,6 +29,15 @@
  *   colorConfig: { heat: '#FF6600', inactive: '#666666', default: '#999999' }
  * });
  * // Returns: '#FF6600'
+ *
+ * @example
+ * // With computed color token
+ * resolveStateColor({
+ *   actualState: 'on',
+ *   classifiedState: 'active',
+ *   colorConfig: { active: 'darken(var(--lcards-orange), 0.2)' }
+ * });
+ * // Returns: 'rgb(204, 102, 0)' (computed color)
  *
  * @example
  * // With actual state "heat" that doesn't exist in config
@@ -61,10 +73,18 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
     // 2. Classified state (e.g., "active", "inactive", "unavailable")
     // 3. Default state
     // 4. Fallback parameter
-    return (actualState && colorConfig[actualState]) ||
-           colorConfig[classifiedState] ||
-           colorConfig.default ||
-           fallback;
+    let resolved = (actualState && colorConfig[actualState]) ||
+                   colorConfig[classifiedState] ||
+                   colorConfig.default ||
+                   fallback;
+
+    // Resolve computed tokens (e.g., "darken(var(--lcards-orange), 0.2)") via ThemeTokenResolver
+    // This enables computed color tokens created in the color picker to work everywhere
+    if (resolved && window.lcards?.core?.themeManager?.resolver) {
+        resolved = window.lcards.core.themeManager.resolver.resolve(resolved, resolved);
+    }
+
+    return resolved;
 }
 
 /**

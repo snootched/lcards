@@ -163,18 +163,13 @@ export function resolveThemeTokensRecursive(obj, themeManager) {
         } else {
           lcardsLog.warn(`[resolveThemeTokensRecursive] Theme token not found: '${value}' - using as literal value`);
         }
-      } else if (value.includes('(') && (value.startsWith('alpha(') || value.startsWith('darken(') || value.startsWith('lighten('))) {
-        // Resolve computed token (alpha, darken, lighten, etc.)
+      } else if (value.includes('(') && /^(alpha|darken|lighten|saturate|desaturate|mix)\(/.test(value)) {
+        // Resolve computed token (all ColorUtils functions)
         try {
-          lcardsLog.debug(`[resolveThemeTokensRecursive] Attempting to resolve computed token: ${value}`);
-          lcardsLog.debug(`[resolveThemeTokensRecursive] Resolver available:`, !!themeManager?.resolver);
           const resolved = themeManager.resolver.resolve(value, value);
-          lcardsLog.debug(`[resolveThemeTokensRecursive] Resolution result: ${value} -> ${resolved}`);
           if (resolved !== value) {
             result[key] = resolved;
             lcardsLog.trace(`[resolveThemeTokensRecursive] Resolved computed token: ${value} -> ${resolved}`);
-          } else {
-            lcardsLog.warn(`[resolveThemeTokensRecursive] Computed token unchanged: ${value}`);
           }
         } catch (error) {
           lcardsLog.warn(`[resolveThemeTokensRecursive] Failed to resolve computed token: ${value}`, error);

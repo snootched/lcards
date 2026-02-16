@@ -234,6 +234,12 @@ export class ThemeTokenResolver {
   _isDirectValue(value) {
     if (typeof value !== 'string') return true;
 
+    // Check for computed tokens first (they may contain var() but need processing)
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix'];
+    if (computedFunctions.some(fn => value.startsWith(`${fn}(`))) {
+      return false; // Not a direct value - needs computed token processing
+    }
+
     // CSS variables are direct values
     if (value.includes('var(')) return true;
 

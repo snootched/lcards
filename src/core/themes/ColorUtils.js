@@ -64,7 +64,8 @@ export class ColorUtils {
     // Handle CSS variables with color-mix()
     if (this._isCssVariable(color)) {
       const percentage = Math.round(percent * 100);
-      return `color-mix(in srgb, ${color} ${100 - percentage}%, white ${percentage}%)`;
+      const result = `color-mix(in srgb, ${color} ${100 - percentage}%, white ${percentage}%)`;
+      return result;
     }
 
     // Handle direct colors
@@ -74,6 +75,7 @@ export class ColorUtils {
       if (typeof color === 'string' && color.includes('.') && !color.startsWith('#') && !color.startsWith('rgb')) {
         lcardsLog.warn(`[ColorUtils] lighten() received what appears to be an unresolved token: '${color}' - returning unchanged`);
       }
+      lcardsLog.debug(`[ColorUtils.lighten] Unable to parse color, returning unchanged:`, color);
       return color;
     }
 
