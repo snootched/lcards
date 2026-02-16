@@ -1958,6 +1958,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               <ha-icon icon="mdi:restore" slot="start"></ha-icon>
               Reset to Defaults
             </ha-button>
+            <ha-button @click="${this._saveToHelpers}">
+              <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+              Save to Helpers
+            </ha-button>
             <ha-button @click="${this._exportAlertConfig}">
               <ha-icon icon="mdi:export" slot="start"></ha-icon>
               Export Config
@@ -2305,6 +2309,46 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._selectedAlertMode = window.lcards.getAlertMode();
       lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
     }
+    
+    // Load helper values if available
+    this._loadAlertLabFromHelpers();
+  }
+  
+  /**
+   * Load Alert Lab parameters from helpers (if they exist)
+   * @private
+   */
+  _loadAlertLabFromHelpers() {
+    if (!window.lcards?.core?.helperManager) {
+      lcardsLog.debug('[AlertLab] HelperManager not available, skipping helper load');
+      return;
+    }
+    
+    const helperManager = window.lcards.core.helperManager;
+    
+    // Load parameters for each alert mode
+    ['red', 'yellow', 'blue', 'white'].forEach(mode => {
+      const hueKey = `alert_lab_${mode}_hue`;
+      const satKey = `alert_lab_${mode}_saturation`;
+      const lightKey = `alert_lab_${mode}_lightness`;
+      
+      // Check if helpers exist
+      if (helperManager.helperExists(hueKey)) {
+        const hue = parseFloat(helperManager.getHelperValue(hueKey));
+        const saturation = parseFloat(helperManager.getHelperValue(satKey)) / 100; // Convert % to multiplier
+        const lightness = parseFloat(helperManager.getHelperValue(lightKey)) / 100; // Convert % to multiplier
+        
+        // Apply to alert mode transform
+        const modeKey = `${mode}_alert`;
+        setAlertModeTransformParameter(modeKey, 'hueShift', hue);
+        setAlertModeTransformParameter(modeKey, 'saturationMultiplier', saturation);
+        setAlertModeTransformParameter(modeKey, 'lightnessMultiplier', lightness);
+        
+        lcardsLog.debug(`[AlertLab] Loaded ${modeKey} from helpers:`, { hue, saturation, lightness });
+      }
+    });
+    
+    this.requestUpdate();
   }
 
   _closeDialog() {
@@ -3343,6 +3387,68 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // Auto-apply if enabled
     if (this._livePreviewEnabled) {
       await this._applyAlertMode();
+    }
+  }
+  
+  /**
+   * Save current Alert Lab parameters to helpers
+   * @private
+   */
+  async _saveToHelpers() {
+    if (!window.lcards?.core?.helperManager) {
+      lcardsLog.error('[AlertLab] HelperManager not available');
+      if (this.hass?.callService) {
+        await this.hass.callService('persistent_notification', 'create', {
+          title: 'Helper Manager Unavailable',
+          message: 'Helper Manager is not initialized. Cannot save parameters.',
+          notification_id: 'lcards_alert_lab_error'
+        });
+      }
+      return;
+    }
+    
+    const helperManager = window.lcards.core.helperManager;
+    const transform = getAlertModeTransform(this._selectedAlertMode);
+    
+    // Extract mode key (red, yellow, blue, white)
+    const modeKey = this._selectedAlertMode.replace('_alert', '');
+    
+    // Cannot save green_alert (it's baseline)
+    if (modeKey === 'green') {
+      lcardsLog.warn('[AlertLab] Cannot save green_alert parameters');
+      return;
+    }
+    
+    try {
+      // Save hue, saturation, lightness to helpers
+      await helperManager.setHelperValue(`alert_lab_${modeKey}_hue`, transform.hueShift);
+      await helperManager.setHelperValue(`alert_lab_${modeKey}_saturation`, transform.saturationMultiplier * 100);
+      await helperManager.setHelperValue(`alert_lab_${modeKey}_lightness`, transform.lightnessMultiplier * 100);
+      
+      lcardsLog.info('[AlertLab] Saved parameters to helpers:', {
+        mode: this._selectedAlertMode,
+        hue: transform.hueShift,
+        saturation: transform.saturationMultiplier,
+        lightness: transform.lightnessMultiplier
+      });
+      
+      // Show success notification
+      if (this.hass?.callService) {
+        await this.hass.callService('persistent_notification', 'create', {
+          title: 'Alert Lab Saved',
+          message: `Parameters for ${this._selectedAlertMode} saved to helpers successfully.`,
+          notification_id: 'lcards_alert_lab_saved'
+        });
+      }
+    } catch (error) {
+      lcardsLog.error('[AlertLab] Failed to save to helpers:', error);
+      if (this.hass?.callService) {
+        await this.hass.callService('persistent_notification', 'create', {
+          title: 'Save Failed',
+          message: `Failed to save parameters: ${error.message}`,
+          notification_id: 'lcards_alert_lab_error'
+        });
+      }
     }
   }
 

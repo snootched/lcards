@@ -37,6 +37,7 @@ import { injectPalette } from './themes/paletteInjector.js';  // ✅ CB-LCARS pa
 import { PackManager } from './PackManager.js';  // ✅ Pack registration system
 import { AssetManager } from './assets/AssetManager.js';  // ✅ Asset management system
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';  // ✅ DataSource debug tools
+import { LCARdSHelperManager } from './helpers/lcards-helper-manager.js';  // ✅ Helper management system
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -65,6 +66,7 @@ class LCARdSCore {
         this.packManager = null;         // Pack loading and registration (Phase 4)
         this.assetManager = null;        // Asset management system (Phase 4)
         this.componentManager = null;    // Component registry (Phase 4)
+        this.helperManager = null;       // Helper management system (Phase 5)
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -201,6 +203,10 @@ class LCARdSCore {
             this.componentManager = new ComponentManager();
             await this.componentManager.initialize();
             lcardsLog.debug('[LCARdSCore] ✅ ComponentManager initialized');
+
+            // Initialize HelperManager (Phase 2f) - ✅ Helper management system
+            this.helperManager = new LCARdSHelperManager(hass);
+            lcardsLog.debug('[LCARdSCore] ✅ HelperManager initialized');
 
             // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
@@ -761,6 +767,10 @@ class LCARdSCore {
 
         if (this.validationService) {
             this.validationService.updateHass(hass);
+        }
+        
+        if (this.helperManager) {
+            this.helperManager.updateHass(hass);
         }
 
         // StylePresetManager doesn't need HASS updates (it's theme/pack based)

@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Persistent Configuration System**: Complete helper management system for storing configuration in Home Assistant input helpers
+  - `LCARdSHelperManager` service for lifecycle management and state monitoring
+  - `Helper Registry` with schema definitions for 13 POC helpers (alert mode + 12 HSL parameters)
+  - `Helper API` wrapping WebSocket operations for helper creation/deletion
+  - Integration with core singleton at `window.lcards.core.helperManager`
+- **Configuration Panel**: Frontend-only panel for helper management (HACS compatible)
+  - Helpers tab: View status, create, and edit helper values
+  - Alert Lab tab: HSL color pickers for red, yellow, blue, and white alert modes
+  - YAML Export tab: Copy helpers as YAML for manual setup
+  - Manual registration via `panel_custom` in `configuration.yaml`
+  - Separate webpack build: `dist/lcards-config-panel.js`
+- **Alert Lab Persistence**: Bidirectional sync between Alert Lab and helpers
+  - Load helper values when Alert Lab opens
+  - "Save to Helpers" button to persist current parameters
+  - Auto-load feature values on subsequent opens
+- **Documentation**:
+  - User guide for persistent helpers configuration with manual panel setup
+  - Developer guide for Helpers API
+  - Complete JSDoc comments for all new classes and methods
+
+### Changed
+- Alert Lab now loads HSL parameters from helpers if they exist
+- Core system updated to include HelperManager in HASS distribution
+- Webpack configuration updated with separate panel build entry
+
+### Removed
+- Python integration (`custom_components/lcards/`) for HACS compatibility
+- Panel now requires manual registration via `panel_custom` configuration
+
+## [Unreleased]
+
+### Added
 - **Font System Migration to AssetManager**: Complete overhaul of font loading system
   - New `core_fonts` pack containing all 34 LCARdS fonts (Core, Standard, Alien categories)
   - Font management now centralized through AssetManager singleton
