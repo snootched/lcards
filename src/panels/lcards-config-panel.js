@@ -28,16 +28,18 @@ export class LCARdSConfigPanel extends LitElement {
     hass: { type: Object },
     narrow: { type: Boolean },
     panel: { type: Object },
-    _selectedTab: { type: String, state: true },
+    _selectedTab: { type: Number, state: true },
     _helpers: { type: Array, state: true },
     _missingHelpers: { type: Array, state: true },
     _alertLabParams: { type: Object, state: true },
-    _createInProgress: { type: Boolean, state: true }
+    _createInProgress: { type: Boolean, state: true },
+    _filterText: { type: String, state: true },
+    _initialLoadDone: { type: Boolean, state: true }
   };
 
   constructor() {
     super();
-    this._selectedTab = 'helpers';
+    this._selectedTab = 0;
     this._helpers = [];
     this._missingHelpers = [];
     this._alertLabParams = {
@@ -47,6 +49,8 @@ export class LCARdSConfigPanel extends LitElement {
       white_alert: { hue: 0, saturation: 10, lightness: 120 }
     };
     this._createInProgress = false;
+    this._filterText = '';
+    this._initialLoadDone = false;
   }
 
   /**
@@ -61,6 +65,13 @@ export class LCARdSConfigPanel extends LitElement {
       if (window.lcards?.core?.helperManager) {
         lcardsLog.debug('[ConfigPanel] Propagating hass to HelperManager');
         window.lcards.core.helperManager.updateHass(this.hass);
+
+        // Trigger initial load once hass is available
+        if (!this._initialLoadDone) {
+          this._initialLoadDone = true;
+          // Small delay to ensure helper manager state is populated
+          setTimeout(() => this._loadHelperStatus(), 100);
+        }
       }
     }
   }
@@ -68,36 +79,54 @@ export class LCARdSConfigPanel extends LitElement {
   static styles = css`
     :host {
       display: block;
-      padding: 16px;
+      height: 100vh;
       background: var(--primary-background-color);
-      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .panel-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
     }
 
     .header {
-      margin-bottom: 24px;
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      flex-shrink: 0;
     }
 
     .header h1 {
-      font-size: 2em;
-      margin: 0 0 8px 0;
+      font-size: 1.8em;
+      margin: 0 0 4px 0;
       color: var(--primary-text-color);
+      font-weight: 500;
     }
 
     .header p {
       margin: 0;
       color: var(--secondary-text-color);
-      font-size: 1.1em;
+      font-size: 0.95em;
     }
 
-    .tabs {
-      display: flex;
-      gap: 8px;
+    /* HA Native Tab Styling */
+    ha-tab-group {
+      display: block;
+      margin: 0;
       border-bottom: 2px solid var(--divider-color);
-      margin-bottom: 24px;
+      background: var(--card-background-color);
+      flex-shrink: 0;
+    }
+
+    ha-tab-group-tab ha-icon {
+      --mdc-icon-size: 18px;
+      margin-right: 8px;
     }
 
     .tab {
-      padding: 12px 24px;
       background: transparent;
       border: none;
       border-bottom: 3px solid transparent;
@@ -119,7 +148,11 @@ export class LCARdSConfigPanel extends LitElement {
     }
 
     .tab-content {
-      animation: fadeIn 0.3s;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      min-height: 0;
     }
 
     @keyframes fadeIn {
@@ -129,16 +162,26 @@ export class LCARdSConfigPanel extends LitElement {
 
     .card {
       background: var(--card-background-color);
-      border-radius: 8px;
-      padding: 16px;
+      border-radius: var(--ha-card-border-radius, 12px);
+      padding: 20px;
       margin-bottom: 16px;
-      box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1));
+      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.1));
+      border: 1px solid var(--divider-color);
     }
 
     .card h2 {
       margin: 0 0 16px 0;
-      font-size: 1.3em;
+      font-size: 1.2em;
       color: var(--primary-text-color);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 ha-icon {
+      --mdc-icon-size: 20px;
+      color: var(--primary-color);
     }
 
     .helper-table {
@@ -197,6 +240,16 @@ export class LCARdSConfigPanel extends LitElement {
     .helper-description {
       font-size: 0.9em;
       color: var(--secondary-text-color);
+    }
+
+    /* Rotating animation for loading icon */
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .rotating {
+      animation: rotate 2s linear infinite;
     }
 
     .helper-value {
@@ -321,13 +374,71 @@ export class LCARdSConfigPanel extends LitElement {
       background: var(--code-editor-background-color, #1e1e1e);
       color: var(--code-editor-text-color, #d4d4d4);
       padding: 16px;
-      border-radius: 4px;
+      border-radius: 8px;
       font-family: 'Courier New', monospace;
       font-size: 0.9em;
       white-space: pre;
       overflow-x: auto;
       max-height: 600px;
       overflow-y: auto;
+      margin-top: 12px;
+      border: 1px solid var(--divider-color);
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--secondary-text-color);
+    }
+
+    .empty-state ha-icon {
+      --mdc-icon-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 1.1em;
+    }
+
+    /* Success Message */
+    .success-message {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid var(--success-color, #4caf50);
+      border-radius: 8px;
+      color: var(--success-color, #4caf50);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .success-message ha-icon {
+      --mdc-icon-size: 24px;
+    }
+
+    /* Filter Section */
+    .filter-section {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--card-background-color);
+      border-bottom: 1px solid var(--divider-color);
+      flex-shrink: 0;
+    }
+
+    .filter-section ha-textfield {
+      flex: 1;
+      --mdc-text-field-fill-color: var(--secondary-background-color);
     }
 
     .copy-button {
@@ -594,74 +705,156 @@ export class LCARdSConfigPanel extends LitElement {
 
   render() {
     return html`
-      <div class="header">
-        <h1>🖖 LCARdS Configuration</h1>
-        <p>Manage persistent configuration via Home Assistant input helpers</p>
-      </div>
+      <div class="panel-container">
+        <div class="header">
+          <h1>🖖 LCARdS Configuration</h1>
+          <p>Manage persistent configuration via Home Assistant input helpers</p>
+        </div>
 
-      <div class="tabs">
-        <button
-          class="tab ${this._selectedTab === 'helpers' ? 'active' : ''}"
-          @click=${() => this._selectedTab = 'helpers'}
-        >
-          Helpers
-        </button>
-        <button
-          class="tab ${this._selectedTab === 'alert-lab' ? 'active' : ''}"
-          @click=${() => this._selectedTab = 'alert-lab'}
-        >
-          Alert Lab
-        </button>
-        <button
-          class="tab ${this._selectedTab === 'yaml' ? 'active' : ''}"
-          @click=${() => this._selectedTab = 'yaml'}
-        >
-          YAML Export
-        </button>
-      </div>
+        <ha-tab-group @wa-tab-show=${this._handleTabChange}>
+          <ha-tab-group-tab value="0" ?active=${this._selectedTab === 0}>
+            <ha-icon icon="mdi:cog"></ha-icon>
+            Helpers
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="1" ?active=${this._selectedTab === 1}>
+            <ha-icon icon="mdi:palette"></ha-icon>
+            Alert Lab
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="2" ?active=${this._selectedTab === 2}>
+            <ha-icon icon="mdi:code-braces"></ha-icon>
+            YAML Export
+          </ha-tab-group-tab>
+        </ha-tab-group>
 
-      <div class="tab-content">
-        ${this._selectedTab === 'helpers' ? this._renderHelpersTab() : ''}
-        ${this._selectedTab === 'alert-lab' ? this._renderAlertLabTab() : ''}
-        ${this._selectedTab === 'yaml' ? this._renderYAMLTab() : ''}
+        <div class="tab-content">
+          ${this._renderTabContent()}
+        </div>
       </div>
     `;
   }
 
+  _handleTabChange(event) {
+    // CRITICAL: Use getAttribute('value') not .value property or event.detail (matches base editor pattern)
+    const value = event.target.activeTab?.getAttribute('value');
+    if (value !== null && value !== undefined) {
+      this._selectedTab = parseInt(value, 10);
+      this.requestUpdate();
+    }
+  }
+
+  _renderTabContent() {
+    switch (this._selectedTab) {
+      case 0:
+        return this._renderHelpersTab();
+      case 1:
+        return this._renderAlertLabTab();
+      case 2:
+        return this._renderYAMLTab();
+      default:
+        return html`<div>Unknown tab</div>`;
+    }
+  }
+
   _renderHelpersTab() {
+    const filteredHelpers = this._helpers.filter(helper => {
+      if (!this._filterText) return true;
+      const search = this._filterText.toLowerCase();
+      return helper.name.toLowerCase().includes(search) ||
+             helper.description.toLowerCase().includes(search) ||
+             helper.key.toLowerCase().includes(search);
+    });
+
+    // Group helpers by category
+    const groupedHelpers = filteredHelpers.reduce((acc, helper) => {
+      const category = helper.category || 'other';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(helper);
+      return acc;
+    }, {});
+
+    const categoryLabels = {
+      alert_system: 'Alert Lab Configuration',
+      other: 'Other'
+    };
+
     return html`
-      <div class="card">
-        <h2>Helper Status</h2>
+      <div class="filter-section">
+        <ha-textfield
+          .value=${this._filterText}
+          @input=${(e) => { this._filterText = e.target.value; this.requestUpdate(); }}
+          placeholder="Filter helpers..."
+          .label=${'Search'}
+        >
+          <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+        </ha-textfield>
+        ${this._filterText ? html`
+          <ha-button @click=${() => { this._filterText = ''; this.requestUpdate(); }}>
+            <ha-icon icon="mdi:close"></ha-icon>
+            Clear
+          </ha-button>
+        ` : ''}
+      </div>
 
+      <div class="tab-content">
         ${this._missingHelpers.length > 0 ? html`
-          <button
-            class="action-button create-all-button"
-            @click=${this._createAllHelpers}
-            ?disabled=${this._createInProgress}
-          >
-            ${this._createInProgress ? html`<span class="spinner"></span>` : ''}
-            Create All Missing Helpers (${this._missingHelpers.length})
-          </button>
-        ` : html`
-          <div class="success-message">
-            ✓ All helpers exist
+          <div class="card">
+            <h2>
+              <ha-icon icon="mdi:alert-circle"></ha-icon>
+              Missing Helpers2
+            </h2>
+            <ha-button
+              @click=${this._createAllHelpers}
+              ?disabled=${this._createInProgress}
+              raised
+            >
+              ${this._createInProgress ? html`<span class="spinner"></span>` : ''}
+              <ha-icon icon="mdi:plus-circle"></ha-icon>
+              Create All Missing Helpers (${this._missingHelpers.length})
+            </ha-button>
           </div>
-        `}
+        ` : ''}
 
-        <table class="helper-table">
-          <thead>
-            <tr>
-              <th>Icon</th>
-              <th>Helper</th>
-              <th>Status</th>
-              <th>Current Value</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${this._helpers.map(helper => this._renderHelperRow(helper))}
-          </tbody>
-        </table>
+        ${Object.entries(groupedHelpers).map(([category, helpers]) => html`
+          <div class="card">
+            <h2>
+              <ha-icon icon="${category === 'alert_system' ? 'mdi:palette' : 'mdi:cog-outline'}"></ha-icon>
+              ${categoryLabels[category] || category}
+            </h2>
+
+            <table class="helper-table">
+              <thead>
+                <tr>
+                  <th>Icon</th>
+                  <th>Helper</th>
+                  <th>Status</th>
+                  <th>Value</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${helpers.map(helper => this._renderHelperRow(helper))}
+              </tbody>
+            </table>
+          </div>
+        `)}
+
+        ${filteredHelpers.length === 0 && this._filterText ? html`
+          <div class="card">
+            <div class="empty-state">
+              <ha-icon icon="mdi:filter-off"></ha-icon>
+              <p>No helpers match your filter</p>
+            </div>
+          </div>
+        ` : ''}
+
+        ${this._helpers.length === 0 && !this._filterText ? html`
+          <div class="card">
+            <div class="empty-state">
+              <ha-icon icon="mdi:loading" class="rotating"></ha-icon>
+              <p>Loading helpers...</p>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -677,22 +870,28 @@ export class LCARdSConfigPanel extends LitElement {
           <div class="helper-description">${helper.description}</div>
         </td>
         <td>
-          <div class="helper-status">
-            <span class="status-icon ${helper.exists ? 'status-exists' : 'status-missing'}"></span>
-            ${helper.exists ? 'Exists' : 'Missing'}
-          </div>
+          <ha-assist-chip
+            .label=${helper.exists ? 'Exists' : 'Missing'}
+            style="
+              --ha-assist-chip-filled-container-color: ${helper.exists ? 'var(--success-color)' : 'var(--warning-color)'};
+              --md-sys-color-primary: white;
+              --md-sys-color-on-surface: white;
+            "
+          >
+            <ha-icon icon="${helper.exists ? 'mdi:check-circle' : 'mdi:alert-circle'}" slot="icon"></ha-icon>
+          </ha-assist-chip>
         </td>
         <td>
           ${helper.exists ? this._renderValueControl(helper) : '-'}
         </td>
         <td>
           ${!helper.exists ? html`
-            <button
-              class="action-button"
+            <ha-button
               @click=${() => this._createHelper(helper.key)}
             >
+              <ha-icon icon="mdi:plus"></ha-icon>
               Create
-            </button>
+            </ha-button>
           ` : ''}
         </td>
       </tr>
@@ -702,37 +901,39 @@ export class LCARdSConfigPanel extends LitElement {
   _renderValueControl(helper) {
     if (helper.domain === 'input_select') {
       return html`
-        <select
-          @change=${(e) => this._setHelperValue(helper.key, e.target.value)}
-        >
-          ${helper.ws_create_params.options.map(option => html`
-            <option value="${option}" ?selected=${helper.currentValue === option}>
-              ${option}
-            </option>
-          `)}
-        </select>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ select: {
+            options: helper.ws_create_params.options.map(o => ({ value: o, label: o })),
+            mode: 'dropdown'
+          }}}
+          .value=${helper.currentValue}
+          @value-changed=${(e) => this._setHelperValue(helper.key, e.detail.value)}
+        ></ha-selector>
       `;
     } else if (helper.domain === 'input_number') {
       return html`
-        <div class="helper-value">
-          <input
-            type="number"
-            .value=${helper.currentValue}
-            min="${helper.ws_create_params.min}"
-            max="${helper.ws_create_params.max}"
-            step="${helper.ws_create_params.step}"
-            @change=${(e) => this._setHelperValue(helper.key, parseFloat(e.target.value))}
-          />
-          ${helper.ws_create_params.unit_of_measurement || ''}
-        </div>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ number: {
+            min: helper.ws_create_params.min,
+            max: helper.ws_create_params.max,
+            step: helper.ws_create_params.step,
+            mode: 'box',
+            unit_of_measurement: helper.ws_create_params.unit_of_measurement
+          }}}
+          .value=${helper.currentValue}
+          @value-changed=${(e) => this._setHelperValue(helper.key, e.detail.value)}
+        ></ha-selector>
       `;
     } else if (helper.domain === 'input_boolean') {
       return html`
-        <input
-          type="checkbox"
-          ?checked=${helper.currentValue === 'on'}
-          @change=${(e) => this._setHelperValue(helper.key, e.target.checked ? 'on' : 'off')}
-        />
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ boolean: {} }}
+          .value=${helper.currentValue === 'on'}
+          @value-changed=${(e) => this._setHelperValue(helper.key, e.detail.value ? 'on' : 'off')}
+        ></ha-selector>
       `;
     }
 
@@ -805,18 +1006,19 @@ export class LCARdSConfigPanel extends LitElement {
           ></div>
 
           <div class="alert-actions">
-            <button
-              class="action-button"
+            <ha-button
+              raised
               @click=${() => this._saveAlertLabToHelpers(mode)}
             >
+              <ha-icon icon="mdi:content-save"></ha-icon>
               Save to Helpers
-            </button>
-            <button
-              class="action-button secondary"
+            </ha-button>
+            <ha-button
               @click=${() => this._applyAlertMode(mode)}
             >
+              <ha-icon icon="mdi:palette"></ha-icon>
               Apply Theme
-            </button>
+            </ha-button>
           </div>
         </div>
       `)}
@@ -828,15 +1030,19 @@ export class LCARdSConfigPanel extends LitElement {
 
     return html`
       <div class="card">
-        <h2>YAML Configuration</h2>
-        <p>Copy this YAML to your Home Assistant <code>configuration.yaml</code> to manually create helpers:</p>
+          <h2>
+            <ha-icon icon="mdi:code-braces"></ha-icon>
+            YAML Configuration
+          </h2>
+          <p>Copy this YAML to your Home Assistant <code>configuration.yaml</code> to manually create helpers:</p>
 
-        <button class="action-button copy-button" @click=${this._copyYAMLToClipboard}>
-          📋 Copy to Clipboard
-        </button>
+          <ha-button raised @click=${this._copyYAMLToClipboard}>
+            <ha-icon icon="mdi:content-copy"></ha-icon>
+            Copy to Clipboard
+          </ha-button>
 
-        <div class="yaml-output">${yaml}</div>
-      </div>
+          <div class="yaml-output">${yaml}</div>
+        </div>
     `;
   }
 }
