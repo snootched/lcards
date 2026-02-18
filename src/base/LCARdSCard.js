@@ -3332,6 +3332,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             segmentsArray.push({
                 id,
                 selector,
+                text: mergedConfig.text || null,  // Support text property for text segments
                 ...mergedConfig
             });
         });

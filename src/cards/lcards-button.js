@@ -115,6 +115,63 @@ export class LCARdSButton extends LCARdSCard {
                 .button-svg:hover {
                     opacity: 0.8;
                 }
+
+                /* ===================================================================
+                 * ALERT COMPONENT ANIMATIONS
+                 * =================================================================== */
+                
+                /* Flash animation for alert bars */
+                @keyframes flashLine {
+                    0% {
+                        stroke: var(--alert-bar-flash);
+                        opacity: 1;
+                    }
+                    20% {
+                        stroke: var(--alert-bar-base);
+                        opacity: 1;
+                    }
+                    100% {
+                        stroke: var(--alert-bar-base);
+                        opacity: 0.25;
+                    }
+                }
+                
+                /* Blink animation for alert text */
+                @keyframes alertBlink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.25; }
+                }
+                
+                /* Apply animations to ALERT component bars */
+                .button-bg-svg[data-component="alert"] [id^="bar-"] {
+                    animation: flashLine 2s ease-in-out infinite;
+                }
+                
+                /* Stagger animation delays for bars */
+                .button-bg-svg[data-component="alert"] #bar-1 { animation-delay: 0s; }
+                .button-bg-svg[data-component="alert"] #bar-2 { animation-delay: 0.166s; }
+                .button-bg-svg[data-component="alert"] #bar-3 { animation-delay: 0.333s; }
+                .button-bg-svg[data-component="alert"] #bar-4 { animation-delay: 0.5s; }
+                .button-bg-svg[data-component="alert"] #bar-5 { animation-delay: 0.666s; }
+                .button-bg-svg[data-component="alert"] #bar-6 { animation-delay: 0.833s; }
+                .button-bg-svg[data-component="alert"] #bar-7 { animation-delay: 0s; }
+                .button-bg-svg[data-component="alert"] #bar-8 { animation-delay: 0.166s; }
+                .button-bg-svg[data-component="alert"] #bar-9 { animation-delay: 0.333s; }
+                .button-bg-svg[data-component="alert"] #bar-10 { animation-delay: 0.5s; }
+                .button-bg-svg[data-component="alert"] #bar-11 { animation-delay: 0.666s; }
+                .button-bg-svg[data-component="alert"] #bar-12 { animation-delay: 0.833s; }
+                
+                /* Alert text blink */
+                .button-bg-svg[data-component="alert"] #alert-text,
+                .button-bg-svg[data-component="alert"] #sub-text {
+                    animation: alertBlink 4s ease-in-out 2s infinite;
+                }
+                
+                /* CSS variables for dynamic styling */
+                .button-bg-svg[data-component="alert"] {
+                    --alert-bar-base: var(--lcars-ui-quaternary);
+                    --alert-bar-flash: var(--lcars-alert-blue);
+                }
             `
         ];
     }
@@ -222,125 +279,209 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     // ============================================================================
+    // COMPONENT PRESET SYSTEM
+    // ============================================================================
+
+    /**
+     * Validate that preset is compatible with selected component
+     * @param {string} component - Component ID
+     * @param {string} preset - Preset name
+     * @returns {boolean} True if valid
+     * @private
+     */
+    _validateComponentPreset(component, preset) {
+        if (!component || !preset) {
+            return true;
+        }
+        
+        const componentDef = this._getComponent(component);
+        if (!componentDef) {
+            lcardsLog.warn(`[LCARdSButton] Unknown component: ${component}`);
+            return false;
+        }
+        
+        if (typeof componentDef.validatePreset === 'function') {
+            const isValid = componentDef.validatePreset(preset);
+            if (!isValid) {
+                lcardsLog.error(
+                    `[LCARdSButton] Invalid preset "${preset}" for component "${component}". ` +
+                    `Valid presets: ${componentDef.getPresetNames?.().join(', ')}`
+                );
+            }
+            return isValid;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Evaluate range configuration and return matching preset
+     * Supports numeric ranges and exact value matching
+     * @param {Object} rangeConfig - Range configuration
+     * @returns {string|null} Matched preset name or null
+     * @private
+     */
+    _evaluateRangePreset(rangeConfig) {
+        if (!rangeConfig?.enabled || !Array.isArray(rangeConfig.ranges)) {
+            return null;
+        }
+        
+        let value = null;
+        const attribute = rangeConfig.attribute;
+        
+        if (this._entity) {
+            if (attribute) {
+                value = this._entity.attributes?.[attribute];
+                if (attribute === 'brightness' && value != null) {
+                    value = (parseFloat(value) / 256) * 100;
+                }
+            } else {
+                value = this._entity.state;
+            }
+        } else {
+            return null;
+        }
+        
+        const numericValue = typeof value === 'string' && !isNaN(Number(value)) 
+            ? Number(value) 
+            : value;
+        
+        for (const range of rangeConfig.ranges) {
+            if ('equals' in range && value == range.equals) {
+                return range.preset;
+            }
+            
+            if ('from' in range && 'to' in range && typeof numericValue === 'number') {
+                if (numericValue >= range.from && numericValue <= range.to) {
+                    return range.preset;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get component definition from ComponentManager
+     * @param {string} componentName - Component name
+     * @returns {Object|null} Component definition or null
+     * @private
+     */
+    _getComponent(componentName) {
+        const core = window.lcards?.core;
+        const componentManager = core?.getComponentManager?.();
+        
+        if (!componentManager) {
+            lcardsLog.error(`[LCARdSButton] ComponentManager not available`);
+            return null;
+        }
+        
+        return componentManager.getComponent(componentName);
+    }
+
+    // ============================================================================
     // PHASE 1: FULL SVG BACKGROUND SUPPORT
     // ============================================================================
 
     /**
-     * Process component preset from merged configuration
+     * Process component with preset support
      *
-     * CoreConfigManager has already merged component defaults with user config,
-     * so this.config[componentName] contains the final merged segments.
-     * We just need to load the shape SVG and convert to segment array format.
+     * Implements preset merging: component.segments ← preset.segments ← user.segments
+     * Supports range-based preset selection and validation
      *
      * @private
-     * @param {string} componentName - Name of component preset (e.g., 'dpad')
+     * @param {string} componentName - Name of component (e.g., 'alert', 'dpad')
      */
     _processComponentPresetFromMergedConfig(componentName) {
-        lcardsLog.debug(`[LCARdSButton] Processing component from merged config`, { componentName });
+        lcardsLog.debug(`[LCARdSButton] Processing component with preset support`, { componentName });
 
-        // Get merged component config from this.config (already processed by CoreConfigManager)
-        const mergedComponentConfig = this.config[componentName];
-        if (!mergedComponentConfig?.segments) {
-            lcardsLog.warn(`[LCARdSButton] No segments found in merged config for component: ${componentName}`);
+        // Get component definition
+        const component = this._getComponent(componentName);
+        if (!component) {
+            lcardsLog.error(`[LCARdSButton] Component not found: ${componentName}`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
         }
 
-        // Load component preset metadata to get shape reference
-        const core = window.lcards?.core;
-        const componentManager = core?.getComponentManager?.();
-
-        if (!componentManager) {
-            lcardsLog.error(`[LCARdSButton] ComponentManager not available`);
+        // Get SVG content
+        if (!component.svg) {
+            lcardsLog.error(`[LCARdSButton] Component has no SVG content: ${componentName}`);
             this._processedSvg = null;
             this._processedSegments = null;
             return;
         }
 
-        const componentPreset = componentManager.getComponent(componentName);
-        if (!componentPreset) {
-            lcardsLog.error(`[LCARdSButton] Component preset not found: ${componentName}`);
-            this._processedSvg = null;
-            this._processedSegments = null;
-            return;
+        // Determine active preset (range-based or explicit)
+        let activePreset = this.config.preset || 'default';
+        
+        // Apply range-based preset selection
+        if (this.config.ranges?.enabled) {
+            const rangePreset = this._evaluateRangePreset(this.config.ranges);
+            if (rangePreset) {
+                activePreset = rangePreset;
+                lcardsLog.trace(`[LCARdSButton] Range matched preset: ${rangePreset}`);
+            }
         }
-
-        // Get SVG content from component (unified format uses inline svg property)
-        let svgContent;
-        if (componentPreset.svg) {
-            // Unified format - inline SVG
-            svgContent = componentPreset.svg;
-            lcardsLog.debug(`[LCARdSButton] Loaded component SVG (unified format)`, {
-                id: componentPreset.metadata?.id || componentName,
-                hasSegments: !!componentPreset.segments
-            });
-        } else if (componentPreset.shape) {
-            // Legacy format - external shape reference (should not happen with new unified d-pad)
-            lcardsLog.warn(`[LCARdSButton] Component uses legacy shape reference: ${componentPreset.shape}`);
-            lcardsLog.error(`[LCARdSButton] Legacy shape format no longer supported`);
-            this._processedSvg = null;
-            this._processedSegments = null;
-            return;
-        } else {
-            lcardsLog.error(`[LCARdSButton] Component has no SVG content or shape reference`);
-            this._processedSvg = null;
-            this._processedSegments = null;
-            return;
+        
+        // Validate preset
+        if (!this._validateComponentPreset(componentName, activePreset)) {
+            lcardsLog.warn(`[LCARdSButton] Falling back to 'default' preset`);
+            activePreset = 'default';
         }
+        
+        // Get preset configuration
+        const presetConfig = component.presets?.[activePreset] || {};
+        
+        // Merge segments: component ← preset ← user
+        // Use deepMergeImmutable to avoid modifying component definition
+        let mergedSegments = deepMergeImmutable(
+            {},
+            component.segments || {},
+            presetConfig.segments || {},
+            this.config.segments || {}
+        );
+        
+        lcardsLog.debug(`[LCARdSButton] Preset merging complete`, {
+            preset: activePreset,
+            componentSegments: Object.keys(component.segments || {}).length,
+            presetSegments: Object.keys(presetConfig.segments || {}).length,
+            userSegments: Object.keys(this.config.segments || {}).length,
+            finalSegments: Object.keys(mergedSegments).length
+        });
 
-        if (!svgContent) {
-            lcardsLog.error(`[LCARdSButton] No SVG content found for component: ${componentName}`);
-            this._processedSvg = null;
-            this._processedSegments = null;
-            return;
-        }
-
-        // Create SVG config from merged segments
+        // Create SVG config
         const svgConfig = {
-            content: svgContent,
+            content: component.svg,
             enable_tokens: true,
             segments: []
         };
 
-        // Convert merged segments object to array format expected by _finalizeSvgProcessing
-        // CRITICAL: Apply 'default' segment config to each segment with array replacement behavior
-        const mergedSegments = mergedComponentConfig.segments;
+        // Convert segments object to array format expected by _finalizeSvgProcessing
         const defaultSegment = mergedSegments.default || {};
 
-        lcardsLog.debug(`[LCARdSButton] Processing segments with defaults`, {
-            segmentIds: Object.keys(mergedSegments),
-            hasDefault: !!mergedSegments.default,
-            defaultAnimations: defaultSegment.animations?.length || 0
-        });
-
         svgConfig.segments = Object.entries(mergedSegments)
-            .filter(([id]) => id !== 'default')  // Exclude 'default' - it's a template
+            .filter(([id]) => id !== 'default')
             .map(([id, segmentConfig]) => {
-                // Manually merge default with segment
-                // CRITICAL: Arrays must REPLACE (not concat)
+                // Merge default with segment-specific config
                 const merged = {};
 
-                // Step 1: Copy all properties from default
+                // Copy default properties
                 for (const [key, defaultValue] of Object.entries(defaultSegment)) {
                     if (Array.isArray(defaultValue)) {
-                        merged[key] = [...defaultValue];  // Clone array
+                        merged[key] = [...defaultValue];
                     } else if (defaultValue && typeof defaultValue === 'object' && defaultValue.constructor === Object) {
-                        merged[key] = { ...defaultValue };  // Clone object
+                        merged[key] = { ...defaultValue };
                     } else {
-                        merged[key] = defaultValue;  // Copy primitive
+                        merged[key] = defaultValue;
                     }
                 }
 
-                // Step 2: Override with segment-specific properties
+                // Override with segment-specific properties
                 for (const [key, segmentValue] of Object.entries(segmentConfig)) {
                     if (Array.isArray(segmentValue)) {
-                        // Arrays from segment REPLACE default (no merge/concat)
+                        // Arrays from segment REPLACE default
                         merged[key] = [...segmentValue];
-                        lcardsLog.debug(`[LCARdSButton] Segment ${id}: Replacing ${key} array`, {
-                            defaultLength: defaultSegment[key]?.length || 0,
-                            segmentLength: segmentValue.length
-                        });
                     } else if (segmentValue && typeof segmentValue === 'object' && segmentValue.constructor === Object) {
                         // Objects get deep merged
                         merged[key] = { ...(merged[key] || {}), ...segmentValue };
@@ -349,12 +490,6 @@ export class LCARdSButton extends LCARdSCard {
                     }
                 }
 
-                lcardsLog.debug(`[LCARdSButton] Segment ${id} final config`, {
-                    hasAnimations: !!merged.animations,
-                    animationCount: merged.animations?.length || 0,
-                    animationTriggers: merged.animations?.map(a => a.trigger).join(', ') || 'none'
-                });
-
                 return {
                     id,
                     selector: merged.selector || `#${id}`,
@@ -362,7 +497,8 @@ export class LCARdSButton extends LCARdSCard {
                 };
             });
 
-        lcardsLog.debug(`[LCARdSButton] Component segments ready for processing`, {
+        lcardsLog.debug(`[LCARdSButton] Component segments ready`, {
+            preset: activePreset,
             segmentCount: svgConfig.segments.length
         });
 
@@ -687,7 +823,9 @@ export class LCARdSButton extends LCARdSCard {
         // The outer button SVG has viewBox matching button dimensions
         // The inner SVG scales the custom content to fit
         return `
-            <g class="button-bg-svg" style="pointer-events: all;">
+            <g class="button-bg-svg" 
+               data-component="${this.config.component || ''}"
+               style="pointer-events: all;">
                 <svg x="0" y="0"
                      width="${buttonWidth}"
                      height="${buttonHeight}"
@@ -889,6 +1027,46 @@ export class LCARdSButton extends LCARdSCard {
                 this._segmentCleanups.push(cleanup);
             });
         });
+        
+        // Apply text content to text segments (after interactivity setup)
+        this._applySegmentText();
+    }
+
+    /**
+     * Apply text content to text segments
+     * Called after component SVG is rendered and segments are set up
+     * @private
+     */
+    async _applySegmentText() {
+        if (!this._processedSegments) {
+            return;
+        }
+        
+        const svgContainer = this.shadowRoot?.querySelector('.button-bg-svg svg');
+        if (!svgContainer) {
+            return;
+        }
+        
+        for (const segment of this._processedSegments) {
+            if (!segment.text) {
+                continue;
+            }
+            
+            const elements = svgContainer.querySelectorAll(segment.selector);
+            
+            for (const element of elements) {
+                // Process template if needed
+                const textValue = await this.processTemplate(segment.text);
+                
+                // Apply text content
+                element.textContent = textValue;
+                
+                // Apply text styles if present
+                if (segment.style) {
+                    this._applySegmentStyle(element, segment.style);
+                }
+            }
+        }
     }
 
     /**
