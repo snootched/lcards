@@ -331,63 +331,37 @@ export const lcardsDefaultTokens = {
     // ALERT COMPONENT
     // ------------------------------------------------------------------------
     alert: {
-      segment: {
-        shape: {
-          fill: {
-            default: 'colors.alert.grey',
-            active: 'colors.alert.red',
-            inactive: 'colors.alert.grey',
-            hover: 'lighten(colors.alert.red, 0.15)',
-            pressed: 'darken(colors.alert.red, 0.15)',
-            unavailable: 'colors.alert.grey',
-            unknown: 'colors.alert.grey'
+      shape: {
+        fill: {
+          default: 'colors.ui.primary'
+        }
+      },
+      bars: {
+        stroke: {
+          default: 'colors.ui.primary',
+          animation_base: 'colors.ui.quaternary',
+          animation_flash: 'colors.alert.blue'
+        }
+      },
+      text: {
+        alert_text: {
+          font: {
+            size: 14,
+            weight: 500,
+            family: 'typography.fontFamily.primary'
           },
-          stroke: {
-            default: 'colors.alert.grey',
-            active: 'colors.alert.red',
-            inactive: 'colors.alert.grey',
-            hover: 'lighten(colors.alert.red, 0.15)',
-            pressed: 'darken(colors.alert.red, 0.15)',
-            unavailable: 'colors.alert.grey',
-            unknown: 'colors.alert.grey'
-          },
-          'stroke-width': {
-            default: 3,
-            active: 3,
-            inactive: 2,
-            hover: 3.5,
-            pressed: 4,
-            unavailable: 1,
-            unknown: 1
+          color: {
+            default: 'colors.status.error'
           }
         },
-        bar: {
-          fill: {
-            default: 'colors.alert.grey',
-            active: 'colors.alert.red',
-            inactive: 'colors.alert.grey',
-            hover: 'lighten(colors.alert.red, 0.15)',
-            pressed: 'darken(colors.alert.red, 0.15)',
-            unavailable: 'colors.alert.grey',
-            unknown: 'colors.alert.grey'
+        sub_text: {
+          font: {
+            size: 6,
+            weight: 200,
+            family: 'typography.fontFamily.primary'
           },
-          stroke: {
-            default: 'none',
-            active: 'none',
-            inactive: 'none',
-            hover: 'none',
-            pressed: 'none',
-            unavailable: 'none',
-            unknown: 'none'
-          },
-          'stroke-width': {
-            default: 0,
-            active: 0,
-            inactive: 0,
-            hover: 0,
-            pressed: 0,
-            unavailable: 0,
-            unknown: 0
+          color: {
+            default: 'colors.text.onDark'
           }
         }
       }

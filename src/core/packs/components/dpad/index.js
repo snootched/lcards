@@ -159,6 +159,31 @@ export const dpadComponents = {
                 }
             },
         },
+        
+        // Component presets (backward compatibility)
+        presets: {
+            default: {
+                // No overrides - uses segment defaults + theme tokens
+                // Maintains current DPAD behavior
+            }
+        },
+        
+        /**
+         * Validate preset name for this component
+         * @param {string} presetName - Preset name to validate
+         * @returns {boolean} True if preset exists
+         */
+        validatePreset(presetName) {
+            return presetName in this.presets;
+        },
+        
+        /**
+         * Get all available preset names
+         * @returns {Array<string>} Array of preset names
+         */
+        getPresetNames() {
+            return Object.keys(this.presets);
+        },
 
         // Metadata for discovery and documentation
         metadata: {
