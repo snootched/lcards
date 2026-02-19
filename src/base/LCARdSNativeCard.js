@@ -484,11 +484,60 @@ export class LCARdSNativeCard extends LitElement {
 
     /**
      * Load LCARS fonts
+     * Registers a one-shot 'loadingdone' listener on the browser FontFaceSet so
+     * that any card re-renders once all fonts (loaded on-demand via AssetManager)
+     * are fully available.  This prevents text being measured / rendered with the
+     * fallback font on first paint.
      * @private
      */
     _loadFonts() {
-        // Fonts are loaded via CSS @font-face in styles
-        // This method can be extended for dynamic font loading if needed
+        if (!document.fonts) return;
+
+        // Scan the card's own config for every font-family value that starts with
+        // 'lcards_' and load each one.  This covers any custom font the user may have
+        // referenced (not just the built-in two), and window.lcards.loadFont() is
+        // idempotent so calling it multiple times is safe.
+        const fontsToLoad = new Set();
+        const _scanForFonts = (obj) => {
+            if (!obj || typeof obj !== 'object') return;
+            const ff = obj.font_family;
+            if (typeof ff === 'string') {
+                ff.split(',').forEach(part => {
+                    const name = part.trim().replace(/^['"]|['"]$/g, '');
+                    if (name.startsWith('lcards_')) fontsToLoad.add(name);
+                });
+            }
+            for (const v of Object.values(obj)) {
+                if (v && typeof v === 'object') _scanForFonts(v);
+            }
+        };
+        _scanForFonts(this.config);
+        fontsToLoad.forEach(f => window.lcards?.loadFont?.(f));
+
+        // Bind handler with reference so we can remove it in _cleanup()
+        this._fontLoadingDoneHandler = () => {
+            lcardsLog.debug(`[LCARdSNativeCard] Fonts loaded, triggering re-render: ${this._cardGuid}`);
+
+            // Invalidate text measurement cache so sizes are re-measured with real fonts
+            if (window.lcards?._textMeasureCache) {
+                window.lcards._textMeasureCache.clear();
+            }
+
+            this.requestUpdate();
+        };
+
+        document.fonts.addEventListener('loadingdone', this._fontLoadingDoneHandler);
+
+        // Backup: document.fonts.ready resolves when currently-loading fonts finish.
+        // Handles the race where loadingdone already fired before our listener registered.
+        document.fonts.ready.then(() => {
+            if (window.lcards?._textMeasureCache) {
+                window.lcards._textMeasureCache.clear();
+            }
+            this.requestUpdate();
+        });
+
+        lcardsLog.trace(`[LCARdSNativeCard] Font loading initialized: ${this._cardGuid}`);
     }
 
     /**
@@ -509,6 +558,12 @@ export class LCARdSNativeCard extends LitElement {
      * @private
      */
     _cleanup() {
+        // Remove font loading listener
+        if (this._fontLoadingDoneHandler && document.fonts) {
+            document.fonts.removeEventListener('loadingdone', this._fontLoadingDoneHandler);
+            this._fontLoadingDoneHandler = null;
+        }
+
         // Subclasses can override to add cleanup logic
     }
 }

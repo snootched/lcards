@@ -532,11 +532,27 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderTextTab() {
         // CRITICAL: Use this.config?.text to ensure Lit reactivity when config changes
         const textConfig = this.config?.text || {};
+
+        // Resolve component text areas so the editor can show area selectors and
+        // font_size_percent fields when this card uses a component with named text areas.
+        let componentTextAreas = null;
+        let componentTextFields = null;
+        if (this.config?.component) {
+            const componentDef = window.lcards?.core?.getComponentManager?.()?.getComponent?.(this.config.component);
+            componentTextAreas  = componentDef?.text_areas || null;
+            // Preset field names (excluding 'default') so the editor can offer them as
+            // one-click "add" suggestions styled differently from generic quick-add fields.
+            const allComponentFields = Object.keys(componentDef?.text || {}).filter(k => k !== 'default');
+            componentTextFields = allComponentFields.length > 0 ? allComponentFields : null;
+        }
+
         return html`
             <lcards-multi-text-editor-v2
                 .editor=${this}
                 .text=${textConfig}
                 .hass=${this.hass}
+                .componentTextAreas=${componentTextAreas}
+                .componentTextFields=${componentTextFields}
                 @text-changed=${(e) => {
                     // CRITICAL: Replace entire text object, don't merge (deepMerge won't delete fields)
                     this.config = { ...this.config, text: e.detail.value };

@@ -31,6 +31,8 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             editor: { type: Object },         // Parent editor reference (for child components)
             text: { type: Object },           // Text configuration object (our managed state)
             hass: { type: Object },           // Home Assistant instance
+            componentTextAreas: { type: Object }, // Named text areas from component def (may be null)
+            componentTextFields: { type: Array }, // Preset field names from component def (may be null)
             _expandedFields: { type: Object, state: true }, // Track which fields are expanded
             _showAddDialog: { type: Boolean, state: true },
             _newFieldName: { type: String, state: true }
@@ -42,6 +44,8 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
         this.editor = null;
         this.text = {};
         this.hass = null;
+        this.componentTextAreas = null;
+        this.componentTextFields = null;
         this._expandedFields = {};
         this._showAddDialog = false;
         this._newFieldName = '';
@@ -359,6 +363,28 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 helper: 'Where to display this text on the card'
             })}
 
+            <!-- Text Area (component mode only, when >1 area exists) -->
+            ${this.componentTextAreas && Object.keys(this.componentTextAreas).length > 1 ? html`
+                ${FormField.renderField(this.editor, `text.${fieldName}.text_area`, {
+                    label: 'Text Area',
+                    helper: 'Which named area on the component this text field belongs to'
+                })}
+            ` : ''}
+
+            <!-- Font Size % (component mode only) -->
+            ${this.componentTextAreas ? html`
+                ${FormField.renderField(this.editor, `text.${fieldName}.font_size_percent`, {
+                    label: 'Font Size (%)',
+                    helper: 'Font size as % of the text area height (overrides Font Size when set)'
+                })}
+            ` : ''}
+
+            <!-- Stretch -->
+            ${FormField.renderField(this.editor, `text.${fieldName}.stretch`, {
+                label: 'Stretch Text',
+                helper: 'Stretch/compress glyphs to fill a fraction of available width. true = 100%, 0.8 = 80%'
+            })}
+
             <!-- Font Section -->
             <lcards-form-section
                 header="Font"
@@ -459,13 +485,39 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
         const commonFields = ['name', 'label', 'state'];
         const availableCommonFields = commonFields.filter(f => !existingFields.includes(f));
 
+        // Component-preset fields — shown first in a distinct accent-colored group
+        const availableComponentFields = this.componentTextFields
+            ? this.componentTextFields.filter(f => !existingFields.includes(f))
+            : [];
+
         return html`
             <div class="add-dialog">
                 <div class="add-dialog-header">Add Text Field</div>
                 <div class="add-dialog-content">
+
+                    <!-- Component preset fields (shown only in component mode) -->
+                    ${availableComponentFields.length > 0 ? html`
+                        <div>
+                            <div class="field-label" style="color: var(--accent-color); font-size: 12px; font-weight: 600; margin-bottom: 6px;">
+                                Component fields
+                            </div>
+                            <div class="quick-add-buttons">
+                                ${availableComponentFields.map(fieldName => html`
+                                    <ha-button
+                                        @click=${() => this._addField(fieldName)}
+                                        style="--mdc-theme-primary: var(--accent-color)">
+                                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                                        ${fieldName}
+                                    </ha-button>
+                                `)}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Generic quick-add fields -->
                     ${availableCommonFields.length > 0 ? html`
                         <div>
-                            <div class="field-label">Quick Add</div>
+                            <div class="field-label" style="font-size: 12px; margin-bottom: 6px;">Quick Add</div>
                             <div class="quick-add-buttons">
                                 ${availableCommonFields.map(fieldName => html`
                                     <ha-button @click=${() => this._addField(fieldName)}>

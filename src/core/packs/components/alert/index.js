@@ -140,43 +140,49 @@ export const alertComponents = {
         //   Bottom wing join: y = 48.37
         //   Left side panel:  x = 15.10  (inner edge of left slab)
         //   Right side panel: x = 84.77  (inner edge of right slab)
+        //
+        // Split into two named areas (one per label) so the editor can expose a
+        // text_area dropdown and each label can be independently sized/positioned.
         // ---------------------------------------------------------------------------
         text_areas: {
-            center: {
+            alert_line: {
                 x:      15.10,
                 y:      25.26,
-                width:  69.67,   // 84.77 - 15.10
-                height: 23.11    // 48.37 - 25.26
+                width:  69.67,
+                height: 13.00   // upper portion of the cavity (~56% of 23.11)
+            },
+            sub_line: {
+                x:      15.10,
+                y:      38.26,  // 25.26 + 13.00
+                width:  69.67,
+                height: 10.11   // lower portion (25.26 + 23.11 − 38.26 ≈ 10.11)
             }
         },
 
         // ---------------------------------------------------------------------------
         // Default text field configs.
         // font_size is in viewBox units (same coordinate space as x/y).
-        // The text_area height is 23.11 vb-units, so:
-        //   font_size 14 ≈ 61 % of area height  (dominant label)
-        //   font_size  8 ≈ 35 % of area height  (sub-label)
-        // Alternatively use font_size_percent: 55 / 30 for size relative to the area.
+        // Each field is centred within its own named text area.
+        //   alert_line height = 13.00  →  font_size 10 ≈ 77% of area height
+        //   sub_line   height = 10.11  →  font_size  7 ≈ 69% of area height
+        // Use font_size_percent for a more intuitive size declaration.
         // ---------------------------------------------------------------------------
         text: {
             alert_text: {
-                text_area:   'center',
+                text_area:   'alert_line',
                 content:     'ALERT',
                 show:        true,
-                position:    'top-center',
-                font_size:   14,
+                position:    'center',
+                font_size:   10,
                 font_weight: '500',
-                // padding is in viewBox units here (not pixels).
-                // Default to 0 so named positions land at the exact text_area edge;
-                // users can override with e.g. padding: 1 for a small inset.
                 padding:     0
             },
             sub_text: {
-                text_area:   'center',
+                text_area:   'sub_line',
                 content:     'CONDITION',
                 show:        true,
-                position:    'bottom-center',
-                font_size:   8,
+                position:    'center',
+                font_size:   7,
                 font_weight: '200',
                 padding:     0
             }

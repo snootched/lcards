@@ -1843,6 +1843,7 @@ export class LCARdSButton extends LCARdSCard {
                 this._initializeBackgroundAnimation();
             });
         }
+
     }
 
     /**
@@ -2010,6 +2011,7 @@ export class LCARdSButton extends LCARdSCard {
         if (this._initialized) {
             this._scheduleTemplateUpdate();
         }
+
     }
 
     /**
@@ -4031,6 +4033,14 @@ export class LCARdSButton extends LCARdSCard {
                 font_size_percent: fieldConfig.font_size_percent !== undefined ? fieldConfig.font_size_percent
                     : (presetFieldConfig.font_size_percent !== undefined ? presetFieldConfig.font_size_percent : null),
 
+                // stretch: true → fill 100% of available width; number (0–1) → fill that fraction.
+                // In component mode uses the text_area width; in standard mode uses container width.
+                // Renders via SVG textLength + lengthAdjust="spacingAndGlyphs".
+                stretch: fieldConfig.stretch !== undefined ? fieldConfig.stretch
+                    : (userDefaults.stretch !== undefined ? userDefaults.stretch
+                    : (presetFieldConfig.stretch !== undefined ? presetFieldConfig.stretch
+                    : (presetTextDefaults.stretch !== undefined ? presetTextDefaults.stretch : null))),
+
                 // Text background properties for "bar label" effect
                 // Priority: field-specific config > text.default (config) > preset field config > text.default (preset) > null
                 background: fieldConfig.background !== undefined ? fieldConfig.background :
@@ -4475,6 +4485,17 @@ export class LCARdSButton extends LCARdSCard {
                 textAttrs.push(`transform="rotate(${field.rotation} ${field.x} ${field.y})"`);
             }
 
+            // stretch: expand/compress glyphs to fill a fraction of the button width.
+            // true → 100 %, number → that fraction (0–1).
+            if (field.stretch != null && field.stretch !== false) {
+                const factor = field.stretch === true ? 1.0 : Number(field.stretch);
+                const containerWidth = this._containerSize?.width || 200;
+                if (factor > 0) {
+                    textAttrs.push(`textLength="${(containerWidth * factor).toFixed(3)}"`);
+                    textAttrs.push('lengthAdjust="spacingAndGlyphs"');
+                }
+            }
+
             // Add data attribute for field ID (useful for debugging and AnimJS targeting)
             textAttrs.push(`data-field-id="${field.id}"`);
 
@@ -4607,6 +4628,36 @@ export class LCARdSButton extends LCARdSCard {
                 baseline = 'middle';
             }
 
+// ── Stretch pre-computation (must run before textAttrs so x/anchor are correct) ────
+            // stretch: true → 100 % of available width; number (0-1) → that fraction.
+            // Padding is respected as left/right inset — textLength shrinks and x shifts right.
+            // For vertically-centred positions (baseline 'middle'), padding is NOT applied by
+            // _calculateNamedPosition, so we apply padTop/padBottom as a y nudge here.
+            let stretchTextLength = null;
+            if (field.stretch != null && field.stretch !== false) {
+                const factor = field.stretch === true ? 1.0 : Number(field.stretch);
+                if (factor > 0) {
+                    const pad = field.padding;
+                    const padLeft   = (pad != null && typeof pad === 'object') ? (pad.left   ?? 0) : (Number(pad) || 0);
+                    const padRight  = (pad != null && typeof pad === 'object') ? (pad.right  ?? 0) : (Number(pad) || 0);
+                    const availWidth = ta.width - padLeft - padRight;
+                    x = ta.x + padLeft;   // start at left inset edge
+                    anchor = 'start';     // textLength extends rightward from x
+                    stretchTextLength = (availWidth * factor).toFixed(3);
+
+                    // Vertically-centred positions ('center', 'left-center', 'right-center',
+                    // and the no-position default) all produce baseline='middle' and don't
+                    // factor top/bottom padding into y.  Apply the imbalance here so callers
+                    // can nudge text down (padTop > padBottom) or up (padBottom > padTop).
+                    // Symmetric padding (e.g. padding:4) produces a net shift of zero.
+                    if (baseline === 'middle') {
+                        const padTop    = (pad != null && typeof pad === 'object') ? (pad.top    ?? 0) : (Number(pad) || 0);
+                        const padBottom = (pad != null && typeof pad === 'object') ? (pad.bottom ?? 0) : (Number(pad) || 0);
+                        y += padTop - padBottom;
+                    }
+                }
+            }
+
             // ── Color resolution ──────────────────────────────────────────────
             let resolvedColor;
             if (field.color) {
@@ -4643,6 +4694,10 @@ export class LCARdSButton extends LCARdSCard {
             if (field.font_family) textAttrs.push(`font-family="${escapeXmlAttribute(field.font_family)}"`);
             if (field.rotation && field.rotation !== 0) {
                 textAttrs.push(`transform="rotate(${field.rotation} ${x} ${y})"`);
+            }
+            if (stretchTextLength !== null) {
+                textAttrs.push(`textLength="${stretchTextLength}"`);
+                textAttrs.push('lengthAdjust="spacingAndGlyphs"');
             }
 
             textElements.push(`<text ${textAttrs.join(' ')}>${escapeHtml(content)}</text>`);

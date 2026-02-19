@@ -1039,6 +1039,52 @@ export function getTextSchema(options = {}) {
                     type: 'boolean',
                     default: 'false',
                     description: 'Enable template string evaluation (e.g., {{entity.state}})'
+                },
+                stretch: {
+                    oneOf: [
+                        {
+                            type: 'boolean',
+                            description: 'true = stretch text to fill 100% of the available width'
+                        },
+                        {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 1,
+                            description: 'Fraction of available width to stretch text to (0–1)'
+                        }
+                    ],
+                    description: 'Stretch text to fill a fraction of the available width using SVG textLength / lengthAdjust="spacingAndGlyphs". true = 100%, 0.8 = 80%.',
+                    'x-ui-hints': {
+                        label: 'Stretch Text',
+                        helper: 'Expand or compress glyph spacing to fill the specified width fraction'
+                    }
+                },
+                font_size_percent: {
+                    type: 'number',
+                    minimum: 1,
+                    maximum: 100,
+                    description: 'Font size as a percentage of the text area height (component mode). Overrides font_size when set.',
+                    'x-ui-hints': {
+                        label: 'Font Size (%)',
+                        helper: 'Sets font size relative to the text area height. 50 = 50% of the area height.',
+                        selector: {
+                            number: {
+                                mode: 'slider',
+                                min: 1,
+                                max: 100,
+                                step: 1,
+                                unit_of_measurement: '%'
+                            }
+                        }
+                    }
+                },
+                text_area: {
+                    type: 'string',
+                    description: 'Named text area key from the component\'s text_areas map. Positions this field within that area (component mode only). Defaults to the first area if not set.',
+                    'x-ui-hints': {
+                        label: 'Text Area',
+                        helper: 'Which named area on the component this text field belongs to'
+                    }
                 }
             }
         }
