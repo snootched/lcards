@@ -151,7 +151,7 @@ export class LCARdSButton extends LCARdSCard {
         this._componentAnimations = null;   // Component-level animations (not segment-level)
         this._componentAnimationsRegistered = false; // Guard against double-registration
         this._rawUserComponentSegments = {};  // Raw user segment overrides (pre-CoreConfigManager)
-        this._rawUserAnimationColors = { base: null, flash: null }; // User animation_base/flash overrides
+        this._rawUserAnimations = [];         // Raw user config.animations (pre-injection)
     }
 
     /**
@@ -178,15 +178,17 @@ export class LCARdSButton extends LCARdSCard {
             this._rawUserComponentSegments = Object.keys(colorSegments).length > 0
                 ? deepMergeImmutable(colorSegments, explicitSegments)
                 : explicitSegments;
-            // Capture animation color overrides from color shorthand (color.animation_base/flash)
-            this._rawUserAnimationColors = {
-                base:  colorShorthand.animation_base  ?? null,
-                flash: colorShorthand.animation_flash ?? null
-            };
         } else {
             this._rawUserComponentSegments = {};
-            this._rawUserAnimationColors = { base: null, flash: null };
         }
+
+        // Capture raw user animations BEFORE CoreConfigManager processing.
+        // Component animation injection (step 4 of _processComponentPresetFromMergedConfig)
+        // writes into config.animations on every preset change. Saving the original user-authored
+        // entries here lets the merge always reconstruct correctly without accumulating stale values.
+        this._rawUserAnimations = config?.animations
+            ? JSON.parse(JSON.stringify(config.animations))
+            : [];
 
         // Capture raw user text config BEFORE CoreConfigManager processing.
         // _processComponentPresetFromMergedConfig always merges component text defaults UNDER
@@ -427,45 +429,60 @@ export class LCARdSButton extends LCARdSCard {
             return;
         }
 
-        // ── 5. Store component-level animations for post-render registration ──
-        // Resolve animation_base / animation_flash colors from the priority chain:
-        //   user color.animation_base/flash override  (highest)
-        //   active preset's animation_base/flash property
-        // theme: token strings are passed through as-is; resolveAnimationCssVariables()
-        // in lcards-anim-helpers.js resolves them when the animation executes.
-        const animBase  =
-            this._rawUserAnimationColors?.base  ??
-            presetData?.animation_base           ??
-            null;
-        const animFlash =
-            this._rawUserAnimationColors?.flash ??
-            presetData?.animation_flash          ??
-            null;
+        // ── 5. Inject component animations into config.animations ─────────────
+        // Merge hierarchy (low → high priority):
+        //   1. componentDef.animations  — component author defaults (deep cloned)
+        //   2. presetData.animations    — active preset overrides (matched by id)
+        //   3. _rawUserAnimations       — user-authored YAML entries (matched by id or appended)
+        //
+        // The result is written to config.animations so the standard card-level animation
+        // pipeline, the editor, and the YAML view all see a unified list.
+        // _rawUserAnimations was captured in _onConfigSet before CoreConfigManager ran,
+        // preventing accumulated stale values from winning on repeated preset switches.
+        const componentAnims = componentDef.animations
+            ? JSON.parse(JSON.stringify(componentDef.animations))
+            : [];
 
-        // Clone component animations and inject resolved colors into any stroke animations.
-        // This must happen before registration so that the correct preset colors are used.
-        const rawAnims = componentDef.animations ?? null;
-        this._componentAnimations = (animBase || animFlash) && rawAnims
-            ? rawAnims.map(anim => {
-                if (anim.preset === 'stagger-grid' && anim.params?.property === 'stroke') {
-                    return {
-                        ...anim,
-                        params: {
-                            ...anim.params,
-                            ...(animFlash ? { from_value: animFlash } : {}),
-                            ...(animBase  ? { to_value:   animBase  } : {})
-                        }
-                    };
+        // Apply preset animation overrides on top of component defaults (by id)
+        if (presetData?.animations) {
+            for (const presetAnim of presetData.animations) {
+                const idx = componentAnims.findIndex(a => a.id && a.id === presetAnim.id);
+                if (idx >= 0) {
+                    componentAnims[idx] = deepMergeImmutable(componentAnims[idx], presetAnim);
+                } else {
+                    componentAnims.push(presetAnim);
                 }
-                return anim;
-            })
-            : rawAnims;
+            }
+        }
 
-        lcardsLog.debug(`[LCARdSButton] Animation colors resolved`, {
+        // Apply user overrides on top (by id), append user-only entries
+        const mergedAnims = [...componentAnims];
+        for (const userAnim of (this._rawUserAnimations || [])) {
+            const idx = mergedAnims.findIndex(a => a.id && a.id === userAnim.id);
+            if (idx >= 0) {
+                mergedAnims[idx] = deepMergeImmutable(mergedAnims[idx], userAnim);
+            } else {
+                mergedAnims.push(userAnim);
+            }
+        }
+
+        // Write merged list to config.animations (visible in YAML editor)
+        this.config.animations = mergedAnims.length > 0 ? mergedAnims : undefined;
+
+        // Keep _componentAnimations pointing at the component-originated entries so
+        // _setupComponentAnimations can scope them to the SVG container element.
+        // Only the entries that originated from componentDef are routed through the
+        // SVG-scoped path; pure user-added card-level entries are already handled by
+        // the base card's animation setup via config.animations.
+        this._componentAnimations = mergedAnims.filter(a =>
+            componentAnims.some(ca => ca.id && ca.id === a.id)
+        );
+
+        lcardsLog.debug(`[LCARdSButton] Injected component animations into config.animations`, {
             preset: resolvedPreset,
-            animBase,
-            animFlash,
-            hasComponentAnimations: !!this._componentAnimations
+            total: mergedAnims.length,
+            componentCount: this._componentAnimations.length,
+            userCount: (this._rawUserAnimations || []).length
         });
 
         // ── 6. Build segment array and hand off to the SVG pipeline ───────────

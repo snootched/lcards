@@ -29,10 +29,36 @@ export class LCARdSAnimationEditor extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
-      animations: { type: Array },
+      animations: { type: Array, noAccessor: true }, // Custom getter/setter below — seeds _workingAnimations
       cardElement: { type: Object },  // Card element for target discovery
-      _expandedIndex: { type: Number }
+      systemAnimationIds: { type: Array }, // IDs from componentDef.animations — no delete, toggle only
+      _workingAnimations: { state: true }, // Internal editing state — never overwritten by parent re-renders
+      _expandedIndex: { type: Number },
+      _pendingDeleteIndex: { type: Number }
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Custom getter/setter for the `animations` prop.
+  // The setter is ONLY called from outside (parent Lit binding) and only seeds
+  // _workingAnimations when the set of animation IDs changes — it ignores echoes
+  // of our own _fireChange emissions so parent re-renders can't clobber in-progress edits.
+  // ---------------------------------------------------------------------------
+  get animations() {
+    return this._workingAnimations || [];
+  }
+
+  set animations(val) {
+    const incoming = val || [];
+    const current = this._workingAnimations || [];
+    // Compare animation IDs (system anims always have IDs; user anims may not)
+    const incomingIds = incoming.map(a => a.id).filter(Boolean).sort().join(',');
+    const currentIds  = current.map(a => a.id).filter(Boolean).sort().join(',');
+    // Accept update only when there is no working state yet OR the component
+    // animations changed (different IDs = card switched preset/component)
+    if (!current.length || incomingIds !== currentIds) {
+      this._workingAnimations = JSON.parse(JSON.stringify(incoming));
+    }
   }
 
   static get styles() {
@@ -326,6 +352,48 @@ export class LCARdSAnimationEditor extends LitElement {
         background: rgba(255, 152, 0, 0.1);
       }
 
+      .animation-item.is-disabled .animation-icon {
+        opacity: 0.35;
+      }
+
+      .animation-item.is-disabled .animation-type {
+        opacity: 0.5;
+      }
+
+      .danger-zone {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-top: 20px;
+        border-top: 1px solid var(--divider-color);
+        margin-top: 8px;
+      }
+
+      .danger-zone ha-button {
+        --mdc-theme-primary: var(--error-color, #f44336);
+      }
+
+      .confirm-delete-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-end;
+        padding-top: 20px;
+        border-top: 1px solid var(--error-color, #f44336);
+        margin-top: 8px;
+      }
+
+      .confirm-delete-label {
+        flex: 1;
+        font-size: 13px;
+        color: var(--error-color, #f44336);
+        font-weight: 500;
+      }
+
+      .confirm-delete-row ha-button.confirm {
+        --mdc-theme-primary: var(--error-color, #f44336);
+      }
+
       @media (max-width: 600px) {
         .animation-header {
           padding: 12px;
@@ -340,8 +408,10 @@ export class LCARdSAnimationEditor extends LitElement {
 
   constructor() {
     super();
-    this.animations = [];
+    this._workingAnimations = [];
+    this.systemAnimationIds = [];
     this._expandedIndex = null;
+    this._pendingDeleteIndex = null;
   }
 
   render() {
@@ -372,9 +442,11 @@ export class LCARdSAnimationEditor extends LitElement {
     const trigger = anim.trigger || 'on_load';
     const isCustom = anim.type === 'custom';
     const preset = anim.preset || 'pulse';
+    const isEnabled = anim.enabled !== false;
+    const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
 
     return html`
-      <div class="animation-item">
+      <div class="animation-item ${isEnabled ? '' : 'is-disabled'}">
         <div class="animation-header" @click=${() => this._toggleExpanded(index)}>
           <ha-icon
             class="animation-icon"
@@ -391,20 +463,25 @@ export class LCARdSAnimationEditor extends LitElement {
                 .label=${this._formatTrigger(trigger)}>
                 ${this._formatTrigger(trigger)}
               </ha-button>
+              ${!isEnabled ? html`<ha-button size="small" appearance="outlined" .label=${'disabled'}>disabled</ha-button>` : ''}
             </div>
             <div class="animation-details">${this._getAnimationDetails(anim)}</div>
           </div>
 
           <div class="animation-actions">
+            ${!isSystem ? html`
+              <ha-icon-button
+                @click=${(e) => this._duplicateAnimation(e, index)}
+                .label=${'Duplicate'}
+                .path=${'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z'}>
+              </ha-icon-button>
+            ` : ''}
             <ha-icon-button
-              @click=${(e) => this._duplicateAnimation(e, index)}
-              .label=${'Duplicate'}
-              .path=${'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z'}>
-            </ha-icon-button>
-            <ha-icon-button
-              @click=${(e) => this._deleteAnimation(e, index)}
-              .label=${'Delete'}
-              .path=${'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z'}>
+              @click=${(e) => this._toggleEnabled(e, index)}
+              .label=${isEnabled ? 'Disable animation' : 'Enable animation'}
+              .path=${isEnabled
+                ? 'M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,4.5C17,4.5 21.27,7.61 23,12C21.27,16.39 17,19.5 12,19.5C7,19.5 2.73,16.39 1,12C2.73,7.61 7,4.5 12,4.5M3.18,12C4.83,15.36 8.24,17.5 12,17.5C15.76,17.5 19.17,15.36 20.82,12C19.17,8.64 15.76,6.5 12,6.5C8.24,6.5 4.83,8.64 3.18,12Z'
+                : 'M11.83,9L15,12.16C15,12.11 15,12.05 15,12A3,3 0 0,0 12,9C11.94,9 11.89,9 11.83,9M7.53,9.8L9.08,11.35C9.03,11.56 9,11.77 9,12A3,3 0 0,0 12,15C12.22,15 12.44,14.97 12.65,14.92L14.2,16.47C13.53,16.8 12.79,17 12,17A5,5 0 0,1 7,12C7,11.21 7.2,10.47 7.53,9.8M2,4.27L4.28,6.55L4.73,7C3.08,8.3 1.78,10.02 1,12C2.73,16.39 7,19.5 12,19.5C13.55,19.5 15.03,19.2 16.38,18.66L16.81,19.08L19.73,22L21,20.73L3.27,3M12,4.5C17,4.5 21.27,7.61 23,12C22.32,13.76 21.3,15.32 20.05,16.62L18.63,15.19C19.57,14.26 20.35,13.18 20.88,12C19.23,8.64 15.82,6.5 12,6.5C10.92,6.5 9.87,6.7 8.9,7.05L7.42,5.58C8.83,4.88 10.37,4.5 12,4.5Z'}>
             </ha-icon-button>
           </div>
 
@@ -427,8 +504,24 @@ export class LCARdSAnimationEditor extends LitElement {
     const isCustom = anim.type === 'custom';
     const preset = anim.preset || 'pulse';
     const isPlaceholder = this._isPlaceholderPreset(preset);
+    const isEnabled = anim.enabled !== false;
+    const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
 
     return html`
+      <!-- Enabled Toggle -->
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <ha-icon icon=${isEnabled ? 'mdi:play-circle-outline' : 'mdi:pause-circle-outline'}></ha-icon>
+          Animation Enabled
+        </span>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ boolean: {} }}
+          .value=${isEnabled}
+          @value-changed=${(e) => this._setEnabled(index, e.detail.value)}>
+        </ha-selector>
+      </div>
+
       <!-- Trigger Section -->
       <lcards-form-section
         header="Trigger"
@@ -459,7 +552,7 @@ export class LCARdSAnimationEditor extends LitElement {
       </lcards-form-section>
 
       <!-- Target Selection Section -->
-      ${this._renderTargetSelector(anim, index)}
+      ${isSystem ? '' : this._renderTargetSelector(anim, index)}
 
       <!-- Custom Toggle -->
       <ha-selector
@@ -475,6 +568,36 @@ export class LCARdSAnimationEditor extends LitElement {
         ${isPlaceholder ? this._renderPlaceholderWarning(preset) : ''}
         ${this._renderPresetForm(anim, index)}
       `}
+
+      ${!isSystem ? this._renderDeleteSection(index) : ''}
+    `;
+  }
+
+  _renderDeleteSection(index) {
+    if (this._pendingDeleteIndex === index) {
+      return html`
+        <div class="confirm-delete-row">
+          <span class="confirm-delete-label">Delete this animation permanently?</span>
+          <ha-button
+            class="confirm"
+            @click=${() => this._confirmDelete(index)}>
+            <ha-icon icon="mdi:trash-can" slot="start"></ha-icon>
+            Delete
+          </ha-button>
+          <ha-button @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
+            Cancel
+          </ha-button>
+        </div>
+      `;
+    }
+    return html`
+      <div class="danger-zone">
+        <ha-button
+          @click=${() => { this._pendingDeleteIndex = index; this.requestUpdate(); }}>
+          <ha-icon icon="mdi:trash-can-outline" slot="start"></ha-icon>
+          Delete Animation
+        </ha-button>
+      </div>
     `;
   }
 
@@ -1812,7 +1935,7 @@ export class LCARdSAnimationEditor extends LitElement {
         }
       }
     };
-    this.animations = updated;
+    this._workingAnimations = updated;
     this._fireChange();
   }
 
@@ -2094,6 +2217,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
   _toggleExpanded(index) {
     this._expandedIndex = this._expandedIndex === index ? null : index;
+    this._pendingDeleteIndex = null;
   }
 
   _addAnimation() {
@@ -2115,7 +2239,7 @@ export class LCARdSAnimationEditor extends LitElement {
       }
     };
 
-    this.animations = [...this.animations, newAnimation];
+    this._workingAnimations = [...this.animations, newAnimation];
     this._expandedIndex = this.animations.length - 1;
 
     console.log('[AnimationEditor] ✅ Animation added', {
@@ -2133,7 +2257,7 @@ export class LCARdSAnimationEditor extends LitElement {
     const source = this.animations[index];
     const duplicate = JSON.parse(JSON.stringify(source)); // Deep clone
 
-    this.animations = [
+    this._workingAnimations = [
       ...this.animations.slice(0, index + 1),
       duplicate,
       ...this.animations.slice(index + 1)
@@ -2144,19 +2268,44 @@ export class LCARdSAnimationEditor extends LitElement {
 
   _deleteAnimation(e, index) {
     e.stopPropagation();
-    this.animations = this.animations.filter((_, i) => i !== index);
+    this._workingAnimations = this.animations.filter((_, i) => i !== index);
     if (this._expandedIndex === index) {
       this._expandedIndex = null;
     } else if (this._expandedIndex > index) {
       this._expandedIndex--;
     }
+    this._pendingDeleteIndex = null;
+    this._fireChange();
+  }
+
+  _confirmDelete(index) {
+    const e = { stopPropagation: () => {} };
+    this._deleteAnimation(e, index);
+  }
+
+  _toggleEnabled(e, index) {
+    e.stopPropagation();
+    this._setEnabled(index, this.animations[index].enabled !== false ? false : undefined);
+  }
+
+  _setEnabled(index, value) {
+    const updated = [...this.animations];
+    const anim = { ...updated[index] };
+    if (value === false) {
+      anim.enabled = false;
+    } else {
+      // Remove enabled key entirely so YAML stays clean
+      delete anim.enabled;
+    }
+    updated[index] = anim;
+    this._workingAnimations = updated;
     this._fireChange();
   }
 
   _updateAnimation(index, key, value) {
     const updated = [...this.animations];
     updated[index] = { ...updated[index], [key]: value };
-    this.animations = updated;
+    this._workingAnimations = updated;
     this._fireChange();
   }
 
@@ -2169,7 +2318,7 @@ export class LCARdSAnimationEditor extends LitElement {
         [paramKey]: value
       }
     };
-    this.animations = updated;
+    this._workingAnimations = updated;
     this._fireChange();
   }
 
@@ -2200,7 +2349,7 @@ export class LCARdSAnimationEditor extends LitElement {
         }
       };
     }
-    this.animations = updated;
+    this._workingAnimations = updated;
     this._fireChange();
   }
 
@@ -2212,7 +2361,7 @@ export class LCARdSAnimationEditor extends LitElement {
         ...updated[index],
         animejs: config
       };
-      this.animations = updated;
+      this._workingAnimations = updated;
       this._fireChange();
     } catch (error) {
       lcardsLog.warn('[AnimationEditor] Invalid JSON:', error);
@@ -2469,7 +2618,7 @@ export class LCARdSAnimationEditor extends LitElement {
       delete animation.target;
     }
 
-    this.animations = animations;
+    this._workingAnimations = animations;
     this._fireChange();
   }
 
@@ -2492,7 +2641,7 @@ export class LCARdSAnimationEditor extends LitElement {
     // Remove targets array if switching from multiple mode
     delete animation.targets;
 
-    this.animations = animations;
+    this._workingAnimations = animations;
     this._fireChange();
   }
 
@@ -2510,7 +2659,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
     animation.targets.push('');  // Empty string for user to fill
 
-    this.animations = animations;
+    this._workingAnimations = animations;
     this._fireChange();
   }
 
@@ -2530,7 +2679,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
     animation.targets[targetIndex] = value;
 
-    this.animations = animations;
+    this._workingAnimations = animations;
     this._fireChange();
   }
 
@@ -2552,7 +2701,7 @@ export class LCARdSAnimationEditor extends LitElement {
       }
     }
 
-    this.animations = animations;
+    this._workingAnimations = animations;
     this._fireChange();
   }
 

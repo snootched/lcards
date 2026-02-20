@@ -208,6 +208,7 @@ export const alertComponents = {
         // alternate:true — oscillates flash↔base rather than hard-cutting on each loop.
         animations: [
             {
+                id: 'bars-top-sweep',
                 trigger: 'on_load',
                 target: '#bar-1, #bar-2, #bar-3, #bar-4, #bar-5, #bar-6',
                 preset: 'stagger-grid',
@@ -216,7 +217,7 @@ export const alertComponents = {
                     from: 'first',
                     delay: 150,
                     property: 'stroke',
-                    // Fallback colors — overridden at runtime with active preset colors.
+                    // Fallback colors — resolved at runtime via theme tokens on active preset.
                     from_value: 'var(--lcards-moonlight, #dfe1e8)',
                     to_value:   'var(--lcars-ui-quaternary, var(--lcards-gray-dark, #363636))',
                     duration: 1200,
@@ -226,6 +227,7 @@ export const alertComponents = {
                 }
             },
             {
+                id: 'bars-bottom-sweep',
                 trigger: 'on_load',
                 target: '#bar-7, #bar-8, #bar-9, #bar-10, #bar-11, #bar-12',
                 preset: 'stagger-grid',

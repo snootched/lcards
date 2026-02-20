@@ -183,9 +183,21 @@ export class AnimationManager extends BaseService {
         return;
       }
 
+      // Snapshot the on_load fire decision ONCE before iterating.
+      // This prevents the first animation from setting onLoadFired = true and
+      // blocking all subsequent on_load animations in the same scope/batch.
+      const shouldFireOnLoad = !this.scopes.get(overlayId).onLoadFired;
+
       // Register each animation with its trigger
       for (const animDef of animations) {
-        await this.registerAnimation(overlayId, animDef);
+        await this.registerAnimation(overlayId, animDef, { batchShouldFire: shouldFireOnLoad });
+      }
+
+      // Mark on_load as fired AFTER the entire batch has been processed,
+      // so all animations in this call get a chance to fire.
+      if (shouldFireOnLoad) {
+        const sd = this.scopes.get(overlayId);
+        if (sd) sd.onLoadFired = true;
       }
 
       lcardsLog.debug(`[AnimationManager] ✅ Initialized ${animations.length} animations for overlay: ${overlayId}`);
@@ -201,7 +213,13 @@ export class AnimationManager extends BaseService {
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition
    */
-  async registerAnimation(overlayId, animDef) {
+  async registerAnimation(overlayId, animDef, { batchShouldFire = null } = {}) {
+    // Respect the enabled flag — false suppresses registration entirely
+    if (animDef.enabled === false) {
+      lcardsLog.debug(`[AnimationManager] Skipping disabled animation "${animDef.id ?? '(no id)'}" for overlay: ${overlayId}`);
+      return;
+    }
+
     const trigger = animDef.trigger || 'on_load';
     const scopeData = this.scopes.get(overlayId);
 
@@ -218,14 +236,20 @@ export class AnimationManager extends BaseService {
     // Register with trigger manager
     scopeData.triggerManager.register(trigger, resolvedAnimDef);
 
-    // For on_load triggers, execute immediately (but only once)
+    // For on_load triggers, execute immediately (but only once per scope)
     if (trigger === 'on_load') {
-      // Only fire on_load animation if it hasn't already fired for this overlay
-      // This prevents on_load from firing again when the TriggerManager is recreated
-      // (e.g., when button SVG is recreated on state changes)
-      if (!scopeData.onLoadFired) {
+      // batchShouldFire is set by onOverlayRendered before the animation loop so that
+      // ALL animations in the same batch share the same fire decision — fixing the bug
+      // where the first animation setting onLoadFired=true would block the rest.
+      // For direct (non-batch) callers batchShouldFire is null; fall back to the scope flag.
+      const shouldFire = batchShouldFire !== null ? batchShouldFire : !scopeData.onLoadFired;
+      if (shouldFire) {
         lcardsLog.debug(`[AnimationManager] Executing on_load animation for ${overlayId}`);
-        scopeData.onLoadFired = true;
+        if (batchShouldFire === null) {
+          // Direct (non-batch) call — maintain single-fire semantics immediately
+          scopeData.onLoadFired = true;
+        }
+        // In batch mode onLoadFired is set by onOverlayRendered after the full loop.
         await this.playAnimation(overlayId, resolvedAnimDef);
       } else {
         lcardsLog.debug(`[AnimationManager] Skipping on_load animation (already fired for ${overlayId})`);
@@ -1242,6 +1266,12 @@ export class AnimationManager extends BaseService {
 
       // Register each animation with its trigger
       for (const animDef of animations) {
+        // Respect the enabled flag — false suppresses registration entirely
+        if (animDef.enabled === false) {
+          lcardsLog.debug(`[AnimationManager] Skipping disabled animation "${animDef.id ?? '(no id)'}" on ${scopeKey}`);
+          continue;
+        }
+
         const trigger = animDef.trigger || 'on_load';
 
         // Register with trigger manager

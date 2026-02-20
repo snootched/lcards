@@ -181,6 +181,44 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Reconstruct the full animation list for the editor display.
+     *
+     * Merges component animation defaults (_componentAnimations from the card)
+     * with the user's raw overrides (this.config.animations).  This avoids
+     * depending on _cardElement.config which is a shared mutable object and
+     * can lag behind after deepMerge in _updateConfig.
+     *
+     * @returns {Array}
+     * @private
+     */
+    get _effectiveAnimations() {
+        const componentAnims = this._cardElement?._componentAnimations || [];
+        const userAnims = this.config.animations || [];
+        const systemIds = new Set(componentAnims.map(a => a.id).filter(Boolean));
+
+        // Start from component defaults, apply user overrides
+        const result = componentAnims.map(compAnim => {
+            const userOverride = userAnims.find(u => u.id === compAnim.id);
+            if (!userOverride) return { ...compAnim };
+            const merged = { ...compAnim };
+            if (userOverride.enabled === false) merged.enabled = false;
+            else delete merged.enabled;
+            if (userOverride.trigger !== undefined) merged.trigger = userOverride.trigger;
+            if (userOverride.params) merged.params = { ...compAnim.params, ...userOverride.params };
+            return merged;
+        });
+
+        // Append user-defined animations (those without a system ID)
+        for (const anim of userAnims) {
+            if (!anim.id || !systemIds.has(anim.id)) {
+                result.push({ ...anim });
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Get list of entity attributes for dropdown
      * @returns {Array<string>} List of attribute names
      * @private
@@ -1589,10 +1627,30 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                     <lcards-animation-editor
                         .hass=${this.hass}
-                        .animations=${this.config.animations || []}
+                        .animations=${this._effectiveAnimations}
                         .cardElement=${this._cardElement}
+                        .systemAnimationIds=${(this._cardElement?._componentAnimations || []).map(a => a.id).filter(Boolean)}
                         @animations-changed=${(e) => {
-                            this._updateConfig({ animations: e.detail.value });
+                            const newAnims = e.detail.value || [];
+                            const componentAnims = this._cardElement?._componentAnimations || [];
+                            const systemIds = new Set(componentAnims.map(a => a.id).filter(Boolean));
+                            // For system animations, save only the delta (what differs from component defaults)
+                            const toSave = newAnims
+                                .map(anim => {
+                                    if (!anim.id || !systemIds.has(anim.id)) return anim; // user-defined: save as-is
+                                    const compDef = componentAnims.find(c => c.id === anim.id);
+                                    const delta = { id: anim.id };
+                                    if (anim.enabled === false) delta.enabled = false;
+                                    if (anim.trigger !== (compDef?.trigger || 'on_load')) delta.trigger = anim.trigger;
+                                    const diffParams = {};
+                                    for (const [k, v] of Object.entries(anim.params || {})) {
+                                        if (JSON.stringify(v) !== JSON.stringify(compDef?.params?.[k])) diffParams[k] = v;
+                                    }
+                                    if (Object.keys(diffParams).length > 0) delta.params = diffParams;
+                                    return Object.keys(delta).length > 1 ? delta : null;
+                                })
+                                .filter(Boolean);
+                            this._updateConfig({ animations: toSave.length > 0 ? toSave : undefined });
                         }}>
                     </lcards-animation-editor>
                 </lcards-form-section>
