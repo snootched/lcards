@@ -147,6 +147,7 @@ export class LCARdSButton extends LCARdSCard {
 
         // Component preset tracking
         this._activePreset = null;          // Currently applied preset name
+        this._activeRangeColorOverrides = null; // Transient color overrides from active range entry
         this._componentAnimations = null;   // Component-level animations (not segment-level)
         this._componentAnimationsRegistered = false; // Guard against double-registration
         this._rawUserComponentSegments = {};  // Raw user segment overrides (pre-CoreConfigManager)
@@ -163,7 +164,19 @@ export class LCARdSButton extends LCARdSCard {
         // lets _processComponentPresetFromMergedConfig apply the correct merge order:
         //   componentDefault ← presetSegments ← rawUserOverrides
         if (config?.component) {
-            this._rawUserComponentSegments = config[config.component]?.segments || {};
+            const compName = config.component;
+            // Expand color: shorthand into segment style overrides so that:
+            //   alert.color.shape → shape.style.fill
+            //   alert.color.bars  → bars.style.stroke
+            // Explicit segments: are always applied on top (highest priority).
+            const explicitSegments = config[compName]?.segments || {};
+            const colorShorthand  = config[compName]?.color || {};
+            const colorSegments   = {};
+            if (colorShorthand.shape) colorSegments.shape = { style: { fill:   colorShorthand.shape } };
+            if (colorShorthand.bars)  colorSegments.bars  = { style: { stroke: colorShorthand.bars  } };
+            this._rawUserComponentSegments = Object.keys(colorSegments).length > 0
+                ? deepMergeImmutable(colorSegments, explicitSegments)
+                : explicitSegments;
         } else {
             this._rawUserComponentSegments = {};
         }
@@ -229,19 +242,6 @@ export class LCARdSButton extends LCARdSCard {
                 // Schedule template processing AFTER style resolution
                 this._scheduleTemplateUpdate();
 
-                // Range-based preset switching: if config.ranges is defined, re-evaluate which
-                // preset applies to the new state and rebuild the SVG segments if it changed.
-                if (this.config?.component && this.config?.ranges) {
-                    const newPreset = this._evaluateRangePreset(this.config.ranges);
-                    if (newPreset !== this._activePreset) {
-                        lcardsLog.debug(`[LCARdSButton] Range preset changed: ${this._activePreset} -> ${newPreset}`);
-                        this._activePreset = newPreset;
-                        this._componentAnimationsRegistered = false; // Force re-registration
-                        this._processSvgConfig();
-                        this.requestUpdate();
-                    }
-                }
-
                 // Trigger card-level on_entity_change animations AFTER render completes
                 // Use requestAnimationFrame to ensure DOM is updated first
                 if (this.config.animations) {
@@ -253,6 +253,24 @@ export class LCARdSButton extends LCARdSCard {
                             lcardsLog.debug(`[LCARdSButton] Card-level on_entity_change animations triggered`);
                         }
                     });
+                }
+            }
+
+            // Range-based preset switching: evaluate on EVERY hass update, not just state
+            // changes, because the trigger value may be an attribute (e.g. brightness) that
+            // changes without the entity state changing (light stays "on" while brightness varies).
+            if (this.config?.component && this.config?.ranges) {
+                const matchedRange      = this._evaluateRangePreset(this.config.ranges);
+                const newPreset         = matchedRange?.preset ?? null;
+                const newColorOverrides = matchedRange?.color  ?? null;
+                const colorChanged = JSON.stringify(newColorOverrides) !== JSON.stringify(this._activeRangeColorOverrides);
+                if (newPreset !== this._activePreset || colorChanged) {
+                    lcardsLog.debug(`[LCARdSButton] Range preset changed: ${this._activePreset} -> ${newPreset}`, { newColorOverrides });
+                    this._activePreset            = newPreset;
+                    this._activeRangeColorOverrides = newColorOverrides;
+                    this._componentAnimationsRegistered = false; // Force re-registration
+                    this._processSvgConfig();
+                    this.requestUpdate();
                 }
             }
         }
@@ -308,19 +326,33 @@ export class LCARdSButton extends LCARdSCard {
         // Range-driven preset takes priority, then static YAML preset, then 'default'.
         const requestedPreset = this._activePreset || this.config.preset || 'default';
 
+        // Build effective presets by merging user custom_presets over built-in ones.
+        // This allows: (a) creating new named presets, (b) overriding built-in colors/text.
+        // The component registry (componentDef.presets) is NEVER mutated — local copy only.
+        const componentCustomPresets = this.config[componentName]?.custom_presets || {};
+        const effectivePresets = Object.keys(componentCustomPresets).length > 0
+            ? { ...componentDef.presets, ...componentCustomPresets }
+            : componentDef.presets;
+
         let resolvedPreset = requestedPreset;
-        if (componentDef.validatePreset) {
-            if (!componentDef.validatePreset(resolvedPreset)) {
-                lcardsLog.warn(`[LCARdSButton] Unknown preset "${resolvedPreset}" on component "${componentName}", falling back to "default"`);
-                resolvedPreset = 'default';
-            }
+        // Validate against effectivePresets (includes user custom presets)
+        if (!(resolvedPreset in effectivePresets) && resolvedPreset !== 'default') {
+            lcardsLog.warn(`[LCARdSButton] Unknown preset "${resolvedPreset}" on component "${componentName}", falling back to "default"`);
+            resolvedPreset = 'default';
         }
-        // Synchronise _activePreset with what actually resolved
-        this._activePreset = resolvedPreset;
+        // Synchronise _activePreset with what actually resolved.
+        // When ranges are configured _activePreset is exclusively managed by
+        // _evaluateRangePreset so that null means "no range matched yet".
+        // Overwriting it here would cause a spurious "changed" event on the
+        // first HASS update when _evaluateRangePreset legitimately returns null.
+        if (!this.config?.ranges) {
+            this._activePreset = resolvedPreset;
+        }
 
         lcardsLog.debug(`[LCARdSButton] Using preset: ${resolvedPreset}`, {
             requestedPreset,
-            availablePresets: componentDef.getPresetNames?.() ?? []
+            availablePresets: Object.keys(effectivePresets),
+            customPresets: Object.keys(componentCustomPresets)
         });
 
         // ── 3. Build effective segments ───────────────────────────────────────
@@ -331,18 +363,31 @@ export class LCARdSButton extends LCARdSCard {
 
         // Resolve the named preset with full extends-chain support, then apply its
         // segment overrides on top of the component defaults.
-        const rawPresetData = componentDef.presets?.[resolvedPreset];
+        // Use effectivePresets (merged) so custom preset extends chains resolve correctly.
+        const rawPresetData = effectivePresets[resolvedPreset];
         const presetData = rawPresetData
-            ? this._resolveComponentPreset(rawPresetData, componentDef.presets)
+            ? this._resolveComponentPreset(rawPresetData, effectivePresets)
             : null;
 
         if (presetData?.segments) {
             effectiveSegments = deepMergeImmutable(effectiveSegments, presetData.segments);
         }
 
-        // Apply raw user overrides on top (highest priority).
+        // Apply raw user overrides (includes color: shorthand expansion from _onConfigSet).
         if (this._rawUserComponentSegments && Object.keys(this._rawUserComponentSegments).length > 0) {
             effectiveSegments = deepMergeImmutable(effectiveSegments, this._rawUserComponentSegments);
+        }
+
+        // Apply range-specific color overrides — highest priority, only when a range is active.
+        // These override the static color: shorthand for the duration of the matched range.
+        if (this._activeRangeColorOverrides) {
+            const rc = this._activeRangeColorOverrides;
+            const rangeColorSegments = {};
+            if (rc.shape) rangeColorSegments.shape = { style: { fill:   rc.shape } };
+            if (rc.bars)  rangeColorSegments.bars  = { style: { stroke: rc.bars  } };
+            if (Object.keys(rangeColorSegments).length > 0) {
+                effectiveSegments = deepMergeImmutable(effectiveSegments, rangeColorSegments);
+            }
         }
 
         // ── 3b. Inject component/preset text field defaults into this.config.text ─────────────────
@@ -1131,11 +1176,42 @@ export class LCARdSButton extends LCARdSCard {
     // ============================================================================
 
     /**
-     * Evaluate numeric / equality ranges to determine which preset name applies
-     * to the current entity state.  Returns null when no range matches (i.e. the
-     * static `this.config.preset` or 'default' should be used instead).
+     * Resolve the value to compare against for a single range entry.
+     *
+     * Resolution order:
+     *   1. range.attribute   — per-entry override
+     *   2. config.ranges_attribute — card-level default
+     *   3. entity.state      — fallback (works for numeric sensor entities)
+     *
+     * Special virtual attribute:
+     *   "brightness_pct" — computes Math.round(attributes.brightness / 2.55)
+     *   so that 0-100 values can be used directly for light brightness ranges.
+     *
+     * @private
+     * @param {Object} range - Single range entry from config.ranges
+     * @returns {*} Resolved value (may be null if attribute is absent)
+     */
+    _getEntityValueForRanges(range) {
+        if (!this._entity) return null;
+        const attr = range.attribute ?? this.config.ranges_attribute ?? null;
+        if (!attr || attr === 'state') {
+            return this._entity.state;
+        }
+        if (attr === 'brightness_pct') {
+            const brightness = this._entity.attributes?.brightness;
+            return brightness !== undefined ? Math.round(brightness / 2.55) : null;
+        }
+        const val = this._entity.attributes?.[attr];
+        return val !== undefined ? val : null;
+    }
+
+    /**
+     * Evaluate numeric / equality ranges to determine which preset name applies.
+     * Returns null when no range matches (i.e. the static `this.config.preset`
+     * or 'default' should be used instead).
      *
      * YAML example:
+     *   ranges_attribute: brightness_pct   # evaluate light brightness as 0-100
      *   ranges:
      *     - preset: condition_red
      *       above: 80
@@ -1145,37 +1221,39 @@ export class LCARdSButton extends LCARdSCard {
      *     - preset: condition_green
      *       equals: "ok"
      *
+     * Each entry may also override the attribute with its own `attribute` key.
      * Ranges are evaluated in order; the FIRST match wins.
      *
      * @private
-     * @param {Array<{preset:string, above?:number, below?:number, equals?:*}>} rangesConfig
-     * @returns {string|null} Matching preset name, or null if none match
+     * @param {Array<{preset:string, attribute?:string, above?:number, below?:number, equals?:*, color?:Object}>} rangesConfig
+     * @returns {Object|null} The matched range entry (containing .preset and optionally .color), or null if none match
      */
     _evaluateRangePreset(rangesConfig) {
         if (!rangesConfig || !Array.isArray(rangesConfig) || !this._entity) {
             return null;
         }
 
-        const strVal = String(this._entity.state);
-        const numVal = parseFloat(this._entity.state);
-
         for (const range of rangesConfig) {
             if (!range.preset) continue;
+
+            const rawVal = this._getEntityValueForRanges(range);
+            const strVal = String(rawVal ?? '');
+            const numVal = parseFloat(rawVal);
 
             // Equality check (string comparison)
             if (range.equals !== undefined) {
                 if (strVal === String(range.equals)) {
-                    return range.preset;
+                    return range;
                 }
                 continue;
             }
 
-            // Numeric range check
-            if (!isNaN(numVal)) {
+            // Numeric range check — skip if value is null/undefined or non-numeric
+            if (rawVal !== null && rawVal !== undefined && !isNaN(numVal)) {
                 const aboveOk = range.above === undefined || numVal >= parseFloat(range.above);
                 const belowOk = range.below === undefined || numVal <  parseFloat(range.below);
                 if (aboveOk && belowOk) {
-                    return range.preset;
+                    return range;
                 }
             }
         }

@@ -19,6 +19,7 @@ import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section-v2.js';
+import '../components/shared/lcards-color-picker.js';
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-icon-editor.js';
 import '../components/editors/lcards-border-editor.js';
@@ -196,6 +197,29 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Build ha-selector option list for the ranges_attribute dropdown.
+     * Injects the virtual "brightness_pct" option after "brightness" (if present)
+     * and labels it clearly so users know it's the 0-100 computed value.
+     * @returns {Array<{value:string, label:string}>}
+     * @private
+     */
+    _getRangesAttributeOptions() {
+        const entityId = this.config?.entity;
+        const options = [{ value: '', label: '(Entity state)' }];
+        if (!entityId || !this.hass?.states?.[entityId]) return options;
+
+        const attrs = Object.keys(this.hass.states[entityId].attributes || {}).sort();
+        for (const attr of attrs) {
+            options.push({ value: attr, label: attr });
+            // Inject virtual brightness_pct right after brightness
+            if (attr === 'brightness') {
+                options.push({ value: 'brightness_pct', label: 'brightness_pct  (auto 0–100%)' });
+            }
+        }
+        return options;
+    }
+
+    /**
      * Render attribute selector dropdown
      * @returns {TemplateResult}
      * @private
@@ -262,11 +286,18 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         if (!componentType) return html``;
 
         const componentDef = window.lcards?.core?.getComponentManager?.()?.getComponent?.(componentType);
-        const presetNames = componentDef?.getPresetNames?.() || [];
+        const builtInNames = componentDef?.getPresetNames?.() || [];
 
-        if (presetNames.length === 0) return html``;
+        // Merge in user custom presets so they appear in the selector immediately
+        const customPresetNames = Object.keys(this.config?.[componentType]?.custom_presets || {});
+        const allPresetNames = [...builtInNames];
+        for (const name of customPresetNames) {
+            if (!allPresetNames.includes(name)) allPresetNames.push(name);
+        }
 
-        const options = presetNames.map(name => ({
+        if (allPresetNames.length === 0) return html``;
+
+        const options = allPresetNames.map(name => ({
             value: name,
             label: name
                 .replace(/_/g, ' ')
@@ -617,6 +648,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         ?showDefaults=${true}
                         .hass=${this.hass}>
                     </lcards-unified-segment-editor>
+                    ${this._renderRangesConfig()}
                 `;
             }
 
@@ -626,6 +658,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         type="info"
                         message="Override the default segment colours for the alert shape and bars. Text labels are configured in the Text tab.">
                     </lcards-message>
+                    ${this._renderAlertColorSection()}
                     <lcards-unified-segment-editor
                         .editor=${this}
                         mode="dpad"
@@ -635,6 +668,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         ?showDefaults=${false}
                         .hass=${this.hass}>
                     </lcards-unified-segment-editor>
+                    ${this._renderCustomPresetsSection()}
+                    ${this._renderRangesConfig()}
                 `;
             }
 
@@ -653,6 +688,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         ?showDefaults=${false}
                         .hass=${this.hass}>
                     </lcards-unified-segment-editor>
+                    ${this._renderRangesConfig()}
                 `;
             }
 
@@ -662,6 +698,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     type="info"
                     message="Segment editor for '${componentType}' is not yet available.">
                 </lcards-message>
+                ${this._renderRangesConfig()}
             `;
         } else if (mode === 'svg') {
             // Custom SVG mode: auto-discovered segments
@@ -893,6 +930,636 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             bubbles: true,
             composed: true
         }));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Ranges: state-driven preset switching
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Render the "State-Driven Presets (Ranges)" section for component mode.
+     * Allows the user to map entity-state value ranges to named component presets.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRangesConfig() {
+        const componentType = this.config?.component;
+        const hasEntity = !!this.config?.entity;
+
+        // Collect available preset names from the component definition
+        const componentDef = window.lcards?.core?.getComponentManager?.()?.getComponent?.(componentType);
+        const presetNames = componentDef?.getPresetNames?.() || [];
+        // Also include any user-defined custom presets
+        const customPresetNames = Object.keys(this.config?.[componentType]?.custom_presets || {});
+        const allPresetNames = [...presetNames];
+        for (const name of customPresetNames) {
+            if (!allPresetNames.includes(name)) allPresetNames.push(name);
+        }
+        const presetOptions = allPresetNames.map(name => ({
+            value: name,
+            label: name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        }));
+
+        const ranges = this.config?.ranges || [];
+
+        const sectionStyle = 'display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px;';
+        const emptyStyle = 'text-align: center; padding: 24px 16px; color: var(--secondary-text-color);';
+
+        return html`
+            <lcards-form-section
+                header="State-Driven Presets (Ranges)"
+                description="Auto-switch the component preset based on entity state value"
+                icon="mdi:tune-variant"
+                ?expanded=${ranges.length > 0}
+                ?outlined=${true}>
+
+                ${!hasEntity ? html`
+                    <lcards-message type="info"
+                        message="Select an entity above to enable state-driven preset switching.">
+                    </lcards-message>
+                ` : html`
+                    <lcards-message type="info">
+                        Ranges are evaluated top-to-bottom — the first match wins.
+                        Each row maps a value condition to a component preset.
+                    </lcards-message>
+
+                    <ha-selector
+                        style="margin-bottom: 4px;"
+                        .hass=${this.hass}
+                        .label=${'Attribute'}
+                        .helper=${'Entity attribute to compare against the thresholds. Leave as (Entity state) to use the entity state value directly.'}
+                        .selector=${{ select: {
+                            mode: 'dropdown',
+                            options: this._getRangesAttributeOptions(),
+                            custom_value: true
+                        }}}
+                        .value=${this.config?.ranges_attribute || ''}
+                        @value-changed=${(e) => {
+                            let v = (e.detail.value ?? '').trim();
+                            // Auto-convert: selecting the raw 'brightness' attribute
+                            // is almost never what the user wants — swap to the
+                            // virtual brightness_pct so ranges use a 0-100 scale.
+                            if (v === 'brightness') v = 'brightness_pct';
+                            if (v) this._setConfigValue('ranges_attribute', v);
+                            else   this._removeConfigPath('ranges_attribute');
+                        }}>
+                    </ha-selector>
+
+                    <div style="${sectionStyle}">
+                        ${ranges.length === 0 ? html`
+                            <div style="${emptyStyle}">
+                                <div style="font-weight: 600; margin-bottom: 4px;">No ranges defined</div>
+                                <div style="font-size: 12px;">Add a range to switch presets based on entity state</div>
+                            </div>
+                        ` : ranges.map((range, idx) => this._renderRangeRow(range, idx, presetOptions))}
+                    </div>
+
+                    <ha-button @click=${() => this._addPresetRange()}>
+                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                        Add Range
+                    </ha-button>
+                `}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render a single range row (inline grid layout).
+     * @param {Object} range - Range entry { preset, above?, below?, equals? }
+     * @param {number} idx   - Array index
+     * @param {Array}  presetOptions - [{value, label}] for the preset dropdown
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRangeRow(range, idx, presetOptions) {
+        // Determine current condition type
+        const condType = range.equals !== undefined      ? 'equals'
+                       : (range.above !== undefined &&
+                          range.below !== undefined)     ? 'between'
+                       : range.above !== undefined       ? 'above'
+                       : range.below !== undefined       ? 'below'
+                       : 'above';
+
+        const condOptions = [
+            { value: 'above',   label: '≥ Above (or equal)' },
+            { value: 'below',   label: '< Below' },
+            { value: 'between', label: '↔ Between' },
+            { value: 'equals',  label: '= Equals (string)' }
+        ];
+
+        const cardStyle = [
+            'display: flex; flex-direction: column; gap: 10px;',
+            'padding: 12px;',
+            'background: var(--secondary-background-color);',
+            'border-radius: 8px;',
+            'border: 1px solid var(--divider-color);'
+        ].join(' ');
+
+        // Row 1: Preset (fills remaining space) + Delete (icon, right-aligned)
+        const row1Style = 'display: flex; align-items: flex-end; gap: 8px;';
+        // Row 2: Condition + Value(s) — equal split
+        const row2Style = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end;';
+        // Row 2 when "between": Condition + From + To — thirds
+        const row2BetweenStyle = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end;';
+
+        return html`
+            <div style="${cardStyle}">
+
+                <!-- Row 1: Preset + Delete -->
+                <div style="${row1Style}">
+                    <div style="flex: 1;">
+                        ${presetOptions.length > 0 ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Preset'}
+                                .selector=${{ select: { mode: 'dropdown', options: presetOptions } }}
+                                .value=${range.preset || ''}
+                                @value-changed=${(e) => this._updateRangeField(idx, 'preset', e.detail.value)}>
+                            </ha-selector>
+                        ` : html`
+                            <ha-textfield
+                                style="width: 100%;"
+                                .label=${'Preset name'}
+                                .value=${range.preset || ''}
+                                @change=${(e) => this._updateRangeField(idx, 'preset', e.target.value)}>
+                            </ha-textfield>
+                        `}
+                    </div>
+                    <ha-icon-button
+                        .label=${'Remove range'}
+                        .path=${'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z'}
+                        @click=${() => this._deletePresetRange(idx)}>
+                    </ha-icon-button>
+                </div>
+
+                <!-- Row 2: Condition + Value(s) -->
+                <div style="${condType === 'between' ? row2BetweenStyle : row2Style}">
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'When'}
+                        .selector=${{ select: { mode: 'dropdown', options: condOptions } }}
+                        .value=${condType}
+                        @value-changed=${(e) => this._updateRangeCondition(idx, e.detail.value, range)}>
+                    </ha-selector>
+
+                    ${condType === 'between' ? html`
+                        <ha-textfield
+                            .label=${'From (≥)'}
+                            type="number"
+                            .value=${String(range.above ?? '')}
+                            @change=${(e) => this._updateRangeField(idx, 'above', parseFloat(e.target.value))}>
+                        </ha-textfield>
+                        <ha-textfield
+                            .label=${'To (<)'}
+                            type="number"
+                            .value=${String(range.below ?? '')}
+                            @change=${(e) => this._updateRangeField(idx, 'below', parseFloat(e.target.value))}>
+                        </ha-textfield>
+                    ` : condType === 'equals' ? html`
+                        <ha-textfield
+                            .label=${'Value'}
+                            .value=${String(range.equals ?? '')}
+                            @change=${(e) => this._updateRangeField(idx, 'equals', e.target.value)}>
+                        </ha-textfield>
+                    ` : html`
+                        <ha-textfield
+                            .label=${condType === 'above' ? 'Min (≥)' : 'Max (<)'}
+                            type="number"
+                            .value=${String(condType === 'above' ? (range.above ?? '') : (range.below ?? ''))}
+                            @change=${(e) => this._updateRangeField(
+                                idx,
+                                condType === 'above' ? 'above' : 'below',
+                                parseFloat(e.target.value)
+                            )}>
+                        </ha-textfield>
+                    `}
+                </div>
+
+                ${this.config?.component === 'alert' ? html`
+                    <!-- Row 3: Per-range color overrides (alert component only) -->
+                    <details style="margin-top: 4px;" ?open=${!!(range.color?.shape || range.color?.bars)}>
+                        <summary style="cursor: pointer; font-size: 12px; color: var(--secondary-text-color); user-select: none; padding: 4px 0; list-style: none; display: flex; align-items: center; gap: 6px;">
+                            <ha-icon icon="mdi:palette" style="--mdc-icon-size: 14px; opacity: 0.7;"></ha-icon>
+                            Color override
+                            ${(range.color?.shape || range.color?.bars) ? html`<span style="color: var(--primary-color); font-size: 11px; font-weight: 600;">(active)</span>` : ''}
+                        </summary>
+                        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                            <!-- Shape picker card -->
+                            <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--secondary-background-color);">
+                                    <ha-icon icon="mdi:shield-outline" style="color: var(--primary-color); --mdc-icon-size: 15px; flex-shrink: 0;"></ha-icon>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Shape fill</div>
+                                </div>
+                                <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                    <lcards-color-picker
+                                        .hass=${this.hass}
+                                        .value=${range.color?.shape || ''}
+                                        ?showPreview=${true}
+                                        @value-changed=${(e) => this._updateRangeColor(idx, 'shape', e.detail.value)}>
+                                    </lcards-color-picker>
+                                </div>
+                            </div>
+                            <!-- Bars picker card -->
+                            <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--secondary-background-color);">
+                                    <ha-icon icon="mdi:view-sequential" style="color: var(--primary-color); --mdc-icon-size: 15px; flex-shrink: 0;"></ha-icon>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Bars stroke</div>
+                                </div>
+                                <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                    <lcards-color-picker
+                                        .hass=${this.hass}
+                                        .value=${range.color?.bars || ''}
+                                        ?showPreview=${true}
+                                        @value-changed=${(e) => this._updateRangeColor(idx, 'bars', e.detail.value)}>
+                                    </lcards-color-picker>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // ─── Alert Color Shorthand ────────────────────────────────────────────────
+
+    /**
+     * Render the alert-level colour shorthand section (alert.color.shape / alert.color.bars).
+     * These are the top-priority overrides that sit above the active preset.
+     */
+    _renderAlertColorSection() {
+        const shapeVal = this.config?.alert?.color?.shape || '';
+        const barsVal  = this.config?.alert?.color?.bars  || '';
+        const hasColor = !!(shapeVal || barsVal);
+
+        return html`
+            <lcards-form-section
+                header="Alert Colors"
+                description="Override preset colors for the shield shape and animated bars."
+                icon="mdi:palette"
+                ?expanded=${hasColor}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message type="info"
+                    message="These colors take highest priority — they override both the active preset and the segments settings below. Leave blank to inherit from the active preset.">
+                </lcards-message>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; padding: 8px 0;">
+                    <!-- Shape picker card -->
+                    <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--secondary-background-color);">
+                            <ha-icon icon="mdi:shield-outline" style="color: var(--primary-color); --mdc-icon-size: 18px; flex-shrink: 0;"></ha-icon>
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: var(--primary-text-color);">Shape fill</div>
+                                <div style="font-size: 11px; color: var(--secondary-text-color);">Shield outline fill color</div>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 16px; background: var(--primary-background-color);">
+                            <lcards-color-picker
+                                .hass=${this.hass}
+                                .value=${shapeVal}
+                                ?showPreview=${true}
+                                @value-changed=${(e) => {
+                                    if (e.detail.value) this._setConfigValue('alert.color.shape', e.detail.value);
+                                    else this._removeConfigPath('alert.color.shape');
+                                }}>
+                            </lcards-color-picker>
+                        </div>
+                    </div>
+                    <!-- Bars picker card -->
+                    <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--secondary-background-color);">
+                            <ha-icon icon="mdi:view-sequential" style="color: var(--primary-color); --mdc-icon-size: 18px; flex-shrink: 0;"></ha-icon>
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: var(--primary-text-color);">Bars stroke</div>
+                                <div style="font-size: 11px; color: var(--secondary-text-color);">Animated bar line color</div>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 16px; background: var(--primary-background-color);">
+                            <lcards-color-picker
+                                .hass=${this.hass}
+                                .value=${barsVal}
+                                ?showPreview=${true}
+                                @value-changed=${(e) => {
+                                    if (e.detail.value) this._setConfigValue('alert.color.bars', e.detail.value);
+                                    else this._removeConfigPath('alert.color.bars');
+                                }}>
+                            </lcards-color-picker>
+                        </div>
+                    </div>
+                </div>
+            </lcards-form-section>
+        `;
+    }
+
+    // ─── Custom Presets ───────────────────────────────────────────────────────
+
+    /**
+     * Render the Custom Presets section.  Users can define new alert presets or
+     * override the colours of any built-in preset (condition_red, etc.).
+     */
+    _renderCustomPresetsSection() {
+        const componentDef   = window.lcards?.core?.getComponentManager?.()?.getComponent?.('alert');
+        const builtinNames   = componentDef?.getPresetNames?.() ?? [];
+        const customPresets  = this.config?.alert?.custom_presets ?? {};
+        const presetNames    = Object.keys(customPresets);
+
+        return html`
+            <lcards-form-section
+                header="Custom Presets"
+                description="Define new alert presets or override built-in preset colors."
+                icon="mdi:palette-swatch"
+                ?expanded=${presetNames.length > 0}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message type="info"
+                    message="Use the same name as a built-in preset (e.g. condition_red) to override its colors, or use a new name to define your own preset.">
+                </lcards-message>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; margin: 8px 0;">
+                    ${presetNames.map(name => this._renderCustomPresetRow(name, customPresets[name], builtinNames))}
+                </div>
+
+                <ha-button @click=${() => this._addCustomPreset()}>
+                    <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                    Add Custom Preset
+                </ha-button>
+            </lcards-form-section>
+        `;
+    }
+
+    /** Render a single custom-preset row (collapsible). */
+    _renderCustomPresetRow(name, presetData, builtinNames) {
+        const isOverride = builtinNames.includes(name);
+        const isExpanded = this._expandedCustomPresets?.[name] ?? false;
+        const shapeVal   = presetData?.segments?.shape?.style?.fill   ?? '';
+        const barsVal    = presetData?.segments?.bars?.style?.stroke  ?? '';
+        const text1Val   = presetData?.text?.alert_text?.color ?? '';
+        const text2Val   = presetData?.text?.sub_text?.color   ?? '';
+
+        return html`
+            <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden; transition: border-color 0.2s;">
+                <!-- Row header -->
+                <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; user-select: none; background: var(--secondary-background-color); transition: background 0.2s;"
+                     @click=${() => this._toggleCustomPresetExpanded(name)}>
+                    <ha-icon
+                        icon=${isOverride ? 'mdi:palette-advanced' : 'mdi:palette-swatch-outline'}
+                        style="color: var(--primary-color); --mdc-icon-size: 18px; flex-shrink: 0;">
+                    </ha-icon>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+                        <div style="font-size: 11px; color: var(--secondary-text-color);">
+                            ${isOverride ? 'Overrides built-in preset' : 'Custom preset'}
+                        </div>
+                    </div>
+                    <ha-icon-button
+                        title="Delete"
+                        style="--mdc-icon-button-size: 36px; --mdc-icon-size: 18px;"
+                        @click=${(e) => { e.stopPropagation(); this._deleteCustomPreset(name); }}>
+                        <ha-icon icon="mdi:delete-outline"></ha-icon>
+                    </ha-icon-button>
+                    <ha-icon
+                        icon="mdi:chevron-down"
+                        style="flex-shrink: 0; transition: transform 0.2s; ${isExpanded ? 'transform: rotate(180deg);' : ''}">
+                    </ha-icon>
+                </div>
+
+                <!-- Expanded content -->
+                ${isExpanded ? html`
+                    <div style="padding: 12px 16px; background: var(--primary-background-color); border-top: 1px solid var(--divider-color); display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Rename field -->
+                        <div>
+                            <div style="font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--primary-text-color);">Preset name</div>
+                            <ha-textfield
+                                style="width: 100%;"
+                                .value=${name}
+                                placeholder="e.g. condition_red or my_preset"
+                                @change=${(e) => this._renameCustomPreset(name, e.target.value.trim())}>
+                            </ha-textfield>
+                            ${isOverride ? html`
+                                <div style="font-size: 11px; color: var(--warning-color, orange); margin-top: 4px;">
+                                    ⚠ Overrides built-in preset <strong>${name}</strong>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <!-- Shape picker card -->
+                        <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--secondary-background-color);">
+                                <ha-icon icon="mdi:shield-outline" style="color: var(--primary-color); --mdc-icon-size: 16px; flex-shrink: 0;"></ha-icon>
+                                <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Shape fill</div>
+                            </div>
+                            <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                <lcards-color-picker
+                                    .hass=${this.hass}
+                                    .value=${shapeVal}
+                                    ?showPreview=${true}
+                                    @value-changed=${(e) => this._setCustomPresetColor(name, 'shape', e.detail.value)}>
+                                </lcards-color-picker>
+                            </div>
+                        </div>
+                        <!-- Bars picker card -->
+                        <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--secondary-background-color);">
+                                <ha-icon icon="mdi:view-sequential" style="color: var(--primary-color); --mdc-icon-size: 16px; flex-shrink: 0;"></ha-icon>
+                                <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Bars stroke</div>
+                            </div>
+                            <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                <lcards-color-picker
+                                    .hass=${this.hass}
+                                    .value=${barsVal}
+                                    ?showPreview=${true}
+                                    @value-changed=${(e) => this._setCustomPresetColor(name, 'bars', e.detail.value)}>
+                                </lcards-color-picker>
+                            </div>
+                        </div>
+                        <!-- Alert text color picker -->
+                        <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--secondary-background-color);">
+                                <ha-icon icon="mdi:format-color-text" style="color: var(--primary-color); --mdc-icon-size: 16px; flex-shrink: 0;"></ha-icon>
+                                <div>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Label color</div>
+                                    <div style="font-size: 11px; color: var(--secondary-text-color);">Main alert label (alert_text)</div>
+                                </div>
+                            </div>
+                            <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                <lcards-color-picker
+                                    .hass=${this.hass}
+                                    .value=${text1Val}
+                                    ?showPreview=${true}
+                                    @value-changed=${(e) => this._setCustomPresetTextColor(name, 'alert_text', e.detail.value)}>
+                                </lcards-color-picker>
+                            </div>
+                        </div>
+                        <!-- Sub text color picker -->
+                        <div style="background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;">
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--secondary-background-color);">
+                                <ha-icon icon="mdi:format-letter-case" style="color: var(--primary-color); --mdc-icon-size: 16px; flex-shrink: 0;"></ha-icon>
+                                <div>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-text-color);">Sub-label color</div>
+                                    <div style="font-size: 11px; color: var(--secondary-text-color);">Secondary label (sub_text)</div>
+                                </div>
+                            </div>
+                            <div style="padding: 10px 14px; background: var(--primary-background-color);">
+                                <lcards-color-picker
+                                    .hass=${this.hass}
+                                    .value=${text2Val}
+                                    ?showPreview=${true}
+                                    @value-changed=${(e) => this._setCustomPresetTextColor(name, 'sub_text', e.detail.value)}>
+                                </lcards-color-picker>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    _toggleCustomPresetExpanded(name) {
+        this._expandedCustomPresets = {
+            ...(this._expandedCustomPresets ?? {}),
+            [name]: !(this._expandedCustomPresets?.[name])
+        };
+        this.requestUpdate();
+    }
+
+    _addCustomPreset() {
+        const name = `custom_preset_${Date.now()}`;
+        // Write directly to the new key's path to avoid deepMerge touching other presets
+        this._setConfigValue(`alert.custom_presets.${name}`, {
+            segments: { shape: { style: {} }, bars: { style: {} } }
+        });
+        this._expandedCustomPresets = { ...(this._expandedCustomPresets ?? {}), [name]: true };
+        this.requestUpdate();
+    }
+
+    _deleteCustomPreset(name) {
+        const existing = { ...(this.config?.alert?.custom_presets ?? {}) };
+        delete existing[name];
+        if (Object.keys(existing).length === 0) this._removeConfigPath('alert.custom_presets');
+        else this._setConfigValue('alert.custom_presets', existing);
+    }
+
+    _setCustomPresetColor(presetName, segment, value) {
+        const path = segment === 'shape'
+            ? `alert.custom_presets.${presetName}.segments.shape.style.fill`
+            : `alert.custom_presets.${presetName}.segments.bars.style.stroke`;
+        if (value) this._setConfigValue(path, value);
+        else this._removeConfigPath(path);
+    }
+
+    /** Set text color for a specific text field (alert_text or sub_text) in a custom preset. */
+    _setCustomPresetTextColor(presetName, field, value) {
+        const newConfig = JSON.parse(JSON.stringify(this.config ?? {}));
+        const preset = newConfig?.alert?.custom_presets?.[presetName];
+        if (!preset) return;
+        if (value) {
+            preset.text = preset.text ?? {};
+            preset.text[field] = { ...(preset.text[field] ?? {}), color: value };
+        } else {
+            if (preset.text?.[field]) {
+                delete preset.text[field].color;
+                if (!Object.keys(preset.text[field]).length) delete preset.text[field];
+            }
+            if (preset.text && !Object.keys(preset.text).length) delete preset.text;
+        }
+        const oldConfig = this.config;
+        this.config = newConfig;
+        this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this.config }, bubbles: true, composed: true }));
+        this.requestUpdate('config', oldConfig);
+    }
+
+    _renameCustomPreset(oldName, newName) {
+        if (!newName || newName === oldName) return;
+        const existing = this.config?.alert?.custom_presets ?? {};
+        if (newName in existing) return; // name already taken — silently ignore
+
+        // Build the renamed presets map, preserving key order
+        const newPresets = Object.fromEntries(
+            Object.entries(existing).map(([k, v]) => [k === oldName ? newName : k, v])
+        );
+
+        // Atomic single-update: clone config, swap in new presets, fire one config-changed
+        const newConfig = JSON.parse(JSON.stringify(this.config ?? {}));
+        if (!newConfig.alert) newConfig.alert = {};
+        newConfig.alert.custom_presets = newPresets;
+        const oldConfig = this.config;
+        this.config = newConfig;
+        this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this.config }, bubbles: true, composed: true }));
+        this.requestUpdate('config', oldConfig);
+
+        // Keep the row expanded under the new name
+        const expanded = { ...(this._expandedCustomPresets ?? {}) };
+        expanded[newName] = expanded[oldName] ?? true;
+        delete expanded[oldName];
+        this._expandedCustomPresets = expanded;
+        this.requestUpdate();
+    }
+
+    // ─── Range Helpers ────────────────────────────────────────────────────────
+
+    /** Update the color override (shape or bars) on a specific range entry. */
+    _updateRangeColor(idx, segment, value) {
+        const ranges = [...(this.config?.ranges ?? [])];
+        const entry  = { ...ranges[idx] };
+        if (value) {
+            entry.color = { ...(entry.color ?? {}), [segment]: value };
+        } else {
+            if (entry.color) {
+                const c = { ...entry.color };
+                delete c[segment];
+                if (Object.keys(c).length === 0) delete entry.color;
+                else entry.color = c;
+            }
+        }
+        ranges[idx] = entry;
+        this._setConfigValue('ranges', ranges);
+    }
+
+    /** Add a blank range entry. */
+    _addPresetRange() {
+        const ranges = this.config?.ranges || [];
+        this._setConfigValue('ranges', [...ranges, { preset: '', above: 0 }]);
+    }
+
+    /** Delete a range entry by index. */
+    _deletePresetRange(idx) {
+        const ranges = (this.config?.ranges || []).filter((_, i) => i !== idx);
+        if (ranges.length === 0) {
+            this._removeConfigPath('ranges');
+        } else {
+            this._setConfigValue('ranges', ranges);
+        }
+    }
+
+    /** Update a single field on a range entry. */
+    _updateRangeField(idx, field, value) {
+        const ranges = [...(this.config?.ranges || [])];
+        ranges[idx] = { ...ranges[idx], [field]: value };
+        this._setConfigValue('ranges', ranges);
+    }
+
+    /**
+     * Switch the condition type on a range, keeping the preset and migrating
+     * whatever numeric/string value was already present.
+     */
+    _updateRangeCondition(idx, newCondType, existingRange) {
+        const ranges = [...(this.config?.ranges || [])];
+        const { preset } = existingRange;
+        let newRange = { preset };
+
+        if (newCondType === 'above')   newRange.above = existingRange.above ?? 0;
+        if (newCondType === 'below')   newRange.below = existingRange.below ?? 100;
+        if (newCondType === 'between') {
+            newRange.above = existingRange.above ?? 0;
+            newRange.below = existingRange.below ?? 100;
+        }
+        if (newCondType === 'equals')  newRange.equals = existingRange.equals ?? '';
+
+        ranges[idx] = newRange;
+        this._setConfigValue('ranges', ranges);
     }
 
     /**

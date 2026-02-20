@@ -514,6 +514,48 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         });
       }
 
+      // ── Stagger-batch short-circuit ──────────────────────────────────────────
+      // Stagger presets (stagger-grid, stagger-wave, stagger-radial) require a
+      // SINGLE anime() call across ALL elements so that the stagger delay
+      // function receives the correct per-element index.  Calling anime() once
+      // per element (as the loop below does) gives every element index 0.
+      // Detect this case by pre-running the preset and checking delay._stagger.
+      if (elements.length > 1 && !Array.isArray(type)) {
+        const _batchPresetFn = getAnimationPreset(String(type).toLowerCase());
+        if (_batchPresetFn) {
+          try {
+            const _batchProbeParams = { duration: 1000, ease: 'inOutQuad', ...animOptions };
+            if (_batchProbeParams.ease) _batchProbeParams.ease = resolveEasing(_batchProbeParams.ease);
+            const _batchProbeResult = _batchPresetFn({ params: { ..._batchProbeParams }, ...options });
+
+            if (_batchProbeResult?.anime?.delay?._stagger === true) {
+              // Build final batch params by merging preset anime output
+              const _batchParams = { ..._batchProbeParams };
+              Object.assign(_batchParams, _batchProbeResult.anime);
+
+              // Apply per-element CSS styles from preset
+              if (_batchProbeResult.styles) {
+                elements.forEach(el => Object.assign(el.style, _batchProbeResult.styles));
+              }
+              // Run preset setup callbacks
+              if (_batchProbeResult.setup) {
+                elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
+              }
+
+              // Convert _stagger / _radial marker to anime.js stagger() function
+              const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
+              if (!_batchMarkerResult.isTimeline) {
+                const _batchInstance = window.lcards.anim.anime(elements, _batchMarkerResult.processedParams);
+                if (onInstanceCreated) onInstanceCreated(_batchInstance);
+              }
+              return; // bypass per-element loop
+            }
+          } catch (_batchErr) {
+            lcardsLog.debug('[animateElement] Stagger-batch probe failed, using per-element loop', _batchErr);
+          }
+        }
+      }
+
       for (const element of elements) {
         const params = {
           duration: 1000,

@@ -81,9 +81,8 @@ export function getButtonSchema(options = {}) {
 
             preset: {
                 type: 'string',
-                enum: availablePresets,
-                description: 'Style preset name (mutually exclusive with component)',
-                examples: ['lozenge', 'bullet', 'outline', 'pill'],
+                description: 'Style preset name (button preset when used alone; component preset name when component is set)',
+                examples: availablePresets,
                 'x-ui-hints': {
                     label: 'Style Preset',
                     helper: 'Choose a pre-configured button style. Use "component" instead for advanced layouts like D-pad.',
@@ -701,6 +700,87 @@ export function getButtonSchema(options = {}) {
             },
 
             // ============================================================================
+            // ALERT COMPONENT
+            // ============================================================================
+
+            alert: {
+                type: 'object',
+                description: 'Alert component configuration',
+                properties: {
+                    // Color shorthand: expands to segment style overrides at runtime.
+                    //   alert.color.shape → shape.style.fill
+                    //   alert.color.bars  → bars.style.stroke
+                    color: {
+                        type: 'object',
+                        description: 'Color shorthand — overrides the active preset\'s colors',
+                        properties: {
+                            shape: {
+                                type: 'string',
+                                description: 'Fill color for the shield shape',
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                            },
+                            bars: {
+                                type: 'string',
+                                description: 'Stroke color for the bar lines',
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                            }
+                        }
+                    },
+                    // User-defined presets merged over built-in presets.
+                    // Same key as a built-in (e.g. condition_red) overrides it;
+                    // a new key creates an additional preset selectable by name.
+                    custom_presets: {
+                        type: 'object',
+                        description: 'Custom or override presets (merged over built-ins)',
+                        additionalProperties: {
+                            type: 'object',
+                            properties: {
+                                segments: {
+                                    type: 'object',
+                                    properties: {
+                                        shape: {
+                                            type: 'object',
+                                            properties: { style: { type: 'object', properties: { fill: { type: 'string' } } } }
+                                        },
+                                        bars: {
+                                            type: 'object',
+                                            properties: { style: { type: 'object', properties: { stroke: { type: 'string' } } } }
+                                        }
+                                    }
+                                },
+                                text: {
+                                    type: 'object',
+                                    additionalProperties: {
+                                        type: 'object',
+                                        properties: {
+                                            content: { type: 'string' },
+                                            color:   { type: 'string' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    segments: {
+                        type: 'object',
+                        description: 'Per-segment fine-grained overrides (managed by Segments tab)',
+                        additionalProperties: {
+                            type: 'object',
+                            properties: {
+                                style: {
+                                    type: 'object',
+                                    properties: {
+                                        fill:   { type: 'string' },
+                                        stroke: { type: 'string' }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+
+            // ============================================================================
             // DPAD COMPONENT
             // ============================================================================
 
@@ -804,6 +884,63 @@ export function getButtonSchema(options = {}) {
                     }
                 }
             },
+            // ============================================================================
+            // RANGES: STATE-DRIVEN PRESET SWITCHING
+            // ============================================================================
+
+            ranges_attribute: {
+                type: 'string',
+                description: 'Entity attribute to evaluate for all range entries (e.g. "brightness", "brightness_pct", "temperature"). Use "brightness_pct" for a computed 0-100 light brightness value. Defaults to entity state.',
+                examples: ['brightness', 'brightness_pct', 'temperature', 'percentage', 'current_position'],
+                'x-ui-hints': {
+                    label: 'Range Attribute',
+                    helper: 'Attribute to compare against range thresholds. Leave blank to use entity state.'
+                }
+            },
+
+            ranges: {
+                type: 'array',
+                description: 'State-driven preset switching: evaluates entity value against thresholds and applies matching preset',
+                items: {
+                    type: 'object',
+                    required: ['preset'],
+                    properties: {
+                        preset: {
+                            type: 'string',
+                            description: 'Component preset name to apply when this range matches'
+                        },
+                        attribute: {
+                            type: 'string',
+                            description: 'Override ranges_attribute for this entry only'
+                        },
+                        above: {
+                            type: 'number',
+                            description: 'Match when value is >= this threshold'
+                        },
+                        below: {
+                            type: 'number',
+                            description: 'Match when value is < this threshold'
+                        },
+                        equals: {
+                            description: 'Match when value equals this (string comparison)',
+                            type: ['string', 'number', 'boolean']
+                        },
+                        color: {
+                            type: 'object',
+                            description: 'Transient segment color overrides applied while this range is active',
+                            properties: {
+                                shape: { type: 'string', description: 'Override fill for the shape segment' },
+                                bars:  { type: 'string', description: 'Override stroke for the bars segment' }
+                            }
+                        }
+                    },
+                    additionalProperties: false
+                },
+                'x-ui-hints': {
+                    label: 'State-Driven Presets'
+                }
+            },
+
             grid_options: gridOptionsSchema
         }
     };

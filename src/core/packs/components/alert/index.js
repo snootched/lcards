@@ -194,21 +194,43 @@ export const alertComponents = {
         // (not with a single segment element), which lets querySelectorAll resolve
         // all 12 bars correctly for the stagger-grid preset.
         // ---------------------------------------------------------------------------
+        // Two-group converging sweep — replicates the legacy LCARS stagger pattern:
+        //   Top cap  (bar-1 … bar-6):  flash starts at bar-1, sweeps DOWN toward centre.
+        //   Bottom cap (bar-7 … bar-12): flash starts at bar-12, sweeps UP toward centre.
+        // Both groups therefore converge toward the middle of the shield simultaneously.
+        //
+        // 'from: last' on the bottom group means bar-12 (index 5 = last) gets delay 0
+        // and bar-7 (index 0) gets the maximum delay — exactly the reverse of the top.
         animations: [
             {
                 trigger: 'on_load',
-                target: '[id^="bar-"]',
+                target: '#bar-1, #bar-2, #bar-3, #bar-4, #bar-5, #bar-6',
                 preset: 'stagger-grid',
                 params: {
-                    // 6 rows × 1 column per cap, 2 caps = 12 bars total ordered top-to-bottom.
-                    // Using a 1×12 column so stagger cascades top-to-bottom through both caps.
-                    grid: [1, 12],
+                    grid: [1, 6],
                     from: 'first',
-                    delay: 100,
+                    delay: 150,
                     property: 'opacity',
-                    from_value: 0.3,
-                    to_value: 1,
-                    duration: 2000,
+                    from_value: 1.0,
+                    to_value: 0.25,
+                    duration: 1200,
+                    ease: 'easeInOutSine',
+                    loop: true,
+                    alternate: true
+                }
+            },
+            {
+                trigger: 'on_load',
+                target: '#bar-7, #bar-8, #bar-9, #bar-10, #bar-11, #bar-12',
+                preset: 'stagger-grid',
+                params: {
+                    grid: [1, 6],
+                    from: 'last',   // bar-12 gets delay 0 → sweeps upward toward centre
+                    delay: 150,
+                    property: 'opacity',
+                    from_value: 1.0,
+                    to_value: 0.25,
+                    duration: 1200,
                     ease: 'easeInOutSine',
                     loop: true,
                     alternate: true
