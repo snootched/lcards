@@ -506,6 +506,10 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         const segmentConfig = this.segments?.[segmentId] || {};
         const animations = segmentConfig.animations || [];
 
+        // Check if this card has component-level animations (system animations).
+        // When it does, alert the user so they understand the context.
+        const hasComponentAnimations = (this.editor._cardElement?._componentAnimations?.length ?? 0) > 0;
+
         return html`
             <lcards-form-section
                 header="Segment Animations"
@@ -513,11 +517,21 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 icon="mdi:animation"
                 ?expanded=${false}>
 
-                <lcards-message type="info">
-                    <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                        These animations trigger <strong>only for this segment</strong>. For card-wide animations, use the Effects tab.
-                    </p>
-                </lcards-message>
+                ${hasComponentAnimations ? html`
+                    <lcards-message type="warning">
+                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                            This component has <strong>card-level animations</strong> defined (visible in the <strong>Effects tab</strong>).
+                            Segment animations are independent and work best for interaction triggers like <em>on_tap</em> or <em>on_hover</em>.
+                            Avoid redefining the same preset here — it will run in parallel, not replace the card-level animation.
+                        </p>
+                    </lcards-message>
+                ` : html`
+                    <lcards-message type="info">
+                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                            These animations trigger <strong>only for this segment</strong>. For card-wide animations, use the Effects tab.
+                        </p>
+                    </lcards-message>
+                `}
 
                 <lcards-animation-editor
                     .hass=${this.hass}

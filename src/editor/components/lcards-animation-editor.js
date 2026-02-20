@@ -105,22 +105,33 @@ export class LCARdSAnimationEditor extends LitElement {
         min-width: 0;
       }
 
-      .animation-type-row {
+      .animation-id-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         margin-bottom: 4px;
       }
 
-      .animation-type {
+      .animation-id {
         font-weight: 600;
         font-size: 18px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .animation-details {
-        font-size: 12px;
-        color: var(--secondary-text-color);
-        font-family: monospace;
+      .animation-unnamed {
+        font-weight: 500;
+        font-size: 13px;
+        color: var(--warning-color, #ff9800);
+        font-style: italic;
+      }
+
+      .animation-chips {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
       }
 
       .animation-actions {
@@ -369,10 +380,6 @@ export class LCARdSAnimationEditor extends LitElement {
         margin-top: 8px;
       }
 
-      .danger-zone ha-button {
-        --mdc-theme-primary: var(--error-color, #f44336);
-      }
-
       .confirm-delete-row {
         display: flex;
         align-items: center;
@@ -388,10 +395,6 @@ export class LCARdSAnimationEditor extends LitElement {
         font-size: 13px;
         color: var(--error-color, #f44336);
         font-weight: 500;
-      }
-
-      .confirm-delete-row ha-button.confirm {
-        --mdc-theme-primary: var(--error-color, #f44336);
       }
 
       @media (max-width: 600px) {
@@ -444,9 +447,10 @@ export class LCARdSAnimationEditor extends LitElement {
     const preset = anim.preset || 'pulse';
     const isEnabled = anim.enabled !== false;
     const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
+    const hasId = !!(anim.id);
 
     return html`
-      <div class="animation-item ${isEnabled ? '' : 'is-disabled'}">
+      <div class="animation-item ${isEnabled ? '' : 'is-disabled'} ${isSystem ? 'is-system' : ''}">
         <div class="animation-header" @click=${() => this._toggleExpanded(index)}>
           <ha-icon
             class="animation-icon"
@@ -454,18 +458,34 @@ export class LCARdSAnimationEditor extends LitElement {
           </ha-icon>
 
           <div class="animation-info">
-            <div class="animation-type-row">
-              <span class="animation-type">${isCustom ? 'Custom' : this._formatPresetName(preset)}</span>
-              <ha-button
-                size="small"
-                appearance="filled"
-                variant="success"
-                .label=${this._formatTrigger(trigger)}>
-                ${this._formatTrigger(trigger)}
-              </ha-button>
-              ${!isEnabled ? html`<ha-button size="small" appearance="outlined" .label=${'disabled'}>disabled</ha-button>` : ''}
+            <div class="animation-id-row">
+              ${hasId
+                ? html`<span class="animation-id">${anim.id}</span>`
+                : html`<span class="animation-unnamed">⚠ Unnamed animation</span>`
+              }
             </div>
-            <div class="animation-details">${this._getAnimationDetails(anim)}</div>
+            <div class="animation-chips">
+              <ha-assist-chip
+                .filled=${true}
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                .label=${isCustom ? 'custom' : this._formatPresetName(preset)}>
+              </ha-assist-chip>
+              <ha-assist-chip
+                .filled=${true}
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                .label=${this._formatTrigger(trigger)}>
+              </ha-assist-chip>
+              ${isSystem ? html`<ha-assist-chip
+                .filled=${true}
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--info-color, #039be5) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                label="component">
+                <ha-icon slot="icon" icon="mdi:puzzle-outline"></ha-icon>
+              </ha-assist-chip>` : ''}
+              ${!isEnabled ? html`<ha-assist-chip
+                .filled=${true}
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-background-color, #000000) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                label="disabled"></ha-assist-chip>` : ''}
+            </div>
           </div>
 
           <div class="animation-actions">
@@ -508,6 +528,34 @@ export class LCARdSAnimationEditor extends LitElement {
     const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
 
     return html`
+      <!-- ID field for user-defined animations -->
+      ${!isSystem ? html`
+        ${(() => {
+          const idError = anim.id ? this._validateAnimationId(anim.id, index) : null;
+          return html`
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ text: {} }}
+              .value=${anim.id || ''}
+              .label=${'Animation ID'}
+              .helper=${'Letters, numbers, hyphens and underscores only — e.g. my-pulse'}
+              @value-changed=${(e) => this._handleIdChange(index, e.detail.value)}>
+            </ha-selector>
+            ${idError ? html`
+              <lcards-message type="error">
+                <p style="margin:0;font-size:13px;line-height:1.4;">${idError}</p>
+              </lcards-message>
+            ` : !anim.id ? html`
+              <lcards-message type="warning">
+                <p style="margin:0;font-size:13px;line-height:1.4;">
+                  Give this animation an <strong>ID</strong> so you can identify it in the list and reference it in YAML rules.
+                </p>
+              </lcards-message>
+            ` : ''}
+          `;
+        })()}
+      ` : ''}
+
       <!-- Enabled Toggle -->
       <div class="toggle-row">
         <span class="toggle-label">
@@ -578,14 +626,14 @@ export class LCARdSAnimationEditor extends LitElement {
       return html`
         <div class="confirm-delete-row">
           <span class="confirm-delete-label">Delete this animation permanently?</span>
+          <ha-button @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
+            Cancel
+          </ha-button>
           <ha-button
-            class="confirm"
+            variant="danger"
             @click=${() => this._confirmDelete(index)}>
             <ha-icon icon="mdi:trash-can" slot="start"></ha-icon>
             Delete
-          </ha-button>
-          <ha-button @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
-            Cancel
           </ha-button>
         </div>
       `;
@@ -593,6 +641,7 @@ export class LCARdSAnimationEditor extends LitElement {
     return html`
       <div class="danger-zone">
         <ha-button
+          variant="danger"
           @click=${() => { this._pendingDeleteIndex = index; this.requestUpdate(); }}>
           <ha-icon icon="mdi:trash-can-outline" slot="start"></ha-icon>
           Delete Animation
@@ -2302,6 +2351,34 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
+  _validateAnimationId(id, currentIndex) {
+    if (!id) return null;
+    // Only letters, numbers, hyphens, underscores
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      return 'ID can only contain letters, numbers, hyphens (-) and underscores (_). No spaces or special characters.';
+    }
+    // Check for duplicate IDs among all animations at other indices
+    const allAnimations = this._workingAnimations || [];
+    const duplicate = allAnimations.some((anim, i) => i !== currentIndex && anim.id === id);
+    if (duplicate) {
+      return `ID "${id}" is already used by another animation.`;
+    }
+    return null;
+  }
+
+  _handleIdChange(index, rawValue) {
+    const value = rawValue?.trim() || undefined;
+    // Always update working state so the field reflects user input
+    const updated = [...this.animations];
+    updated[index] = { ...updated[index], id: value };
+    this._workingAnimations = updated;
+    this.requestUpdate();
+    // Only persist to config if ID is valid (or cleared)
+    if (!value || !this._validateAnimationId(value, index)) {
+      this._fireChange();
+    }
+  }
+
   _updateAnimation(index, key, value) {
     const updated = [...this.animations];
     updated[index] = { ...updated[index], [key]: value };
@@ -2604,7 +2681,8 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _setTargetMode(index, mode) {
     const animations = [...this.animations];
-    const animation = animations[index];
+    const animation = { ...animations[index] };  // shallow copy to avoid mutating frozen objects
+    animations[index] = animation;
 
     if (mode === 'single') {
       // Convert to single mode
@@ -2629,7 +2707,8 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _updateTarget(index, value) {
     const animations = [...this.animations];
-    const animation = animations[index];
+    const animation = { ...animations[index] };  // shallow copy to avoid mutating frozen objects
+    animations[index] = animation;
 
     if (value === '' || value === null || value === '_default') {
       // Remove target field to use default
@@ -2651,11 +2730,9 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _addTarget(index) {
     const animations = [...this.animations];
-    const animation = animations[index];
-
-    if (!animation.targets) {
-      animation.targets = [];
-    }
+    const animation = { ...animations[index] };  // shallow copy to avoid mutating frozen objects
+    animation.targets = animation.targets ? [...animation.targets] : [];
+    animations[index] = animation;
 
     animation.targets.push('');  // Empty string for user to fill
 
@@ -2671,11 +2748,9 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _updateTargetItem(animIndex, targetIndex, value) {
     const animations = [...this.animations];
-    const animation = animations[animIndex];
-
-    if (!animation.targets) {
-      animation.targets = [];
-    }
+    const animation = { ...animations[animIndex] };  // shallow copy to avoid mutating frozen objects
+    animation.targets = animation.targets ? [...animation.targets] : [];
+    animations[animIndex] = animation;
 
     animation.targets[targetIndex] = value;
 
@@ -2690,9 +2765,11 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _removeTarget(animIndex, targetIndex) {
     const animations = [...this.animations];
-    const animation = animations[animIndex];
+    const animation = { ...animations[animIndex] };  // shallow copy to avoid mutating frozen objects
+    animations[animIndex] = animation;
 
     if (animation.targets) {
+      animation.targets = [...animation.targets];
       animation.targets.splice(targetIndex, 1);
 
       // Clean up empty array
