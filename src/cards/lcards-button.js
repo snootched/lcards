@@ -1090,7 +1090,7 @@ export class LCARdSButton extends LCARdSCard {
                 return;
             }
 
-            lcardsLog.debug(`[LCARdSButton] Setting up segment "${segment.id}" on ${elements.length} elements`);
+            lcardsLog.trace(`[LCARdSButton] Setting up segment "${segment.id}" on ${elements.length} elements`);
 
             elements.forEach(element => {
                 // Get entity state for initial styling
@@ -1148,7 +1148,7 @@ export class LCARdSButton extends LCARdSCard {
 
                 // If scope exists but element is different (DOM was recreated), update the reference
                 if (existingScope && existingScope.element !== element) {
-                    lcardsLog.debug(`[LCARdSButton] Updating stale element reference for segment: ${segment.id}`);
+                    lcardsLog.trace(`[LCARdSButton] Updating stale element reference for segment: ${segment.id}`);
 
                     // Update element reference in scope
                     existingScope.element = element;
@@ -1163,7 +1163,7 @@ export class LCARdSButton extends LCARdSCard {
                         existingScope.triggerManager.element = element;
                     }
 
-                    lcardsLog.debug(`[LCARdSButton] ✅ Updated element reference for segment: ${segment.id}`);
+                    lcardsLog.trace(`[LCARdSButton] ✅ Updated element reference for segment: ${segment.id}`);
                     return;
                 }
 
@@ -1215,7 +1215,7 @@ export class LCARdSButton extends LCARdSCard {
 
         const cardId = this._getAnimationCardId();
 
-        lcardsLog.debug(`[LCARdSButton] Triggering segment animation`, {
+        lcardsLog.trace(`[LCARdSButton] Triggering segment animation`, {
             cardId,
             segmentId,
             trigger
@@ -1845,7 +1845,7 @@ export class LCARdSButton extends LCARdSCard {
                     this._triggerSegmentAnimation(segmentId, 'on_entity_change');
                 }
 
-                lcardsLog.debug(`[LCARdSButton] Updated segment "${segmentId}" style`, {
+                lcardsLog.trace(`[LCARdSButton] Updated segment "${segmentId}" style`, {
                     entityId,
                     oldState: currentEntityState,
                     newState: newEntityState
@@ -2241,7 +2241,7 @@ export class LCARdSButton extends LCARdSCard {
             // Check if the button element exists and if we need to re-attach
             // (Lit recreates SVG on every render, so we need to re-attach)
             if (buttonElement && buttonElement !== this._lastActionElement) {
-                lcardsLog.debug(`[LCARdSButton] 🔄 Re-attaching actions after render (element changed)`);
+                lcardsLog.trace(`[LCARdSButton] 🔄 Re-attaching actions after render (element changed)`);
                 this._setupButtonActions();
                 this._lastActionElement = buttonElement;
             }
@@ -2298,7 +2298,7 @@ export class LCARdSButton extends LCARdSCard {
         const core = window.lcards?.core;
         const stylePresetManager = this._singletons?.stylePresetManager || core?.getStylePresetManager?.();
 
-        lcardsLog.debug(`[LCARdSButton] _resolveButtonStyleSync starting`, {
+        lcardsLog.trace(`[LCARdSButton] _resolveButtonStyleSync starting`, {
             hasPreset: !!this.config.preset,
             presetName: this.config.preset,
             hasGetStylePreset: typeof this.getStylePreset === 'function',
@@ -2316,7 +2316,7 @@ export class LCARdSButton extends LCARdSCard {
                 return;
             } else {
                 const preset = this.getStylePreset('button', this.config.preset);
-                lcardsLog.debug(`[LCARdSButton] Preset lookup result`, {
+                lcardsLog.trace(`[LCARdSButton] Preset lookup result`, {
                     presetName: this.config.preset,
                     presetFound: !!preset,
                     presetKeys: preset ? Object.keys(preset) : [],
@@ -2326,7 +2326,7 @@ export class LCARdSButton extends LCARdSCard {
                 if (preset) {
                     // Deep copy preset to avoid mutation issues
                     style = deepMergeImmutable({}, preset);
-                    lcardsLog.debug(`[LCARdSButton] Applied preset '${this.config.preset}'`, {
+                    lcardsLog.trace(`[LCARdSButton] Applied preset '${this.config.preset}'`, {
                         borderRadius: preset.border?.radius,
                         borderWidth: preset.border?.width,
                         styleKeys: Object.keys(style)
@@ -2334,12 +2334,12 @@ export class LCARdSButton extends LCARdSCard {
                 }
             }
         } else {
-            lcardsLog.debug(`[LCARdSButton] No preset specified, starting with empty style`);
+            lcardsLog.trace(`[LCARdSButton] No preset specified, starting with empty style`);
         }
 
         // 2. DEEP merge config styles (config wins over preset)
         if (this.config.style) {
-            lcardsLog.debug(`[LCARdSButton] Merging config.style`, {
+            lcardsLog.trace(`[LCARdSButton] Merging config.style`, {
                 hasBorder: !!this.config.style.border,
                 borderRadius: this.config.style.border?.radius,
                 borderWidth: this.config.style.border?.width
@@ -2469,7 +2469,7 @@ export class LCARdSButton extends LCARdSCard {
         this._buttonHoverStyle = hoverBgColor ? { backgroundColor: hoverBgColor } : null;
         this._buttonPressedStyle = pressedBgColor ? { backgroundColor: pressedBgColor } : null;
 
-        lcardsLog.debug('[LCARdSButton] Extracted interaction styles', {
+        lcardsLog.trace('[LCARdSButton] Extracted interaction styles', {
             hasHover: !!this._buttonHoverStyle,
             hasPressed: !!this._buttonPressedStyle,
             hoverColor: hoverBgColor,
@@ -2865,7 +2865,7 @@ export class LCARdSButton extends LCARdSCard {
      * @override
      */
     async _processCustomTemplates() {
-        lcardsLog.debug(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
+        lcardsLog.trace(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
 
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
@@ -2884,7 +2884,7 @@ export class LCARdSButton extends LCARdSCard {
         // This ensures preset templates get processed too
         const presetTextFields = this._buttonStyle?.text || {};
 
-        lcardsLog.debug(`[LCARdSButton] Merging preset text fields`, {
+        lcardsLog.trace(`[LCARdSButton] Merging preset text fields`, {
             presetFieldIds: Object.keys(presetTextFields),
             configFieldIds: Object.keys(this.config.text),
             cardGuid: this._cardGuid
@@ -3150,7 +3150,7 @@ export class LCARdSButton extends LCARdSCard {
         const width = this.config.width || this._containerSize?.width || 400;
         const height = this.config.height || this._containerSize?.height || 56;
 
-        lcardsLog.debug(`[LCARdSButton] Size resolution:`, {
+        lcardsLog.trace(`[LCARdSButton] Size resolution:`, {
             'config.width': this.config.width,
             'config.height': this.config.height,
             '_containerSize': this._containerSize,
@@ -3830,7 +3830,7 @@ export class LCARdSButton extends LCARdSCard {
 
         // Generate button background (fill only, no stroke)
         // Priority: SVG background (Phase 1) > custom path > complex path > simple rect
-        lcardsLog.debug(`[LCARdSButton] Rendering button background`, {
+        lcardsLog.trace(`[LCARdSButton] Rendering button background`, {
             hasProcessedSvg: !!this._processedSvg,
             hasContent: !!this._processedSvg?.content,
             contentLength: this._processedSvg?.content?.length
@@ -3839,14 +3839,14 @@ export class LCARdSButton extends LCARdSCard {
         let backgroundMarkup;
         if (this._processedSvg && this._processedSvg.content) {
             // Use full SVG content as background (Phase 1)
-            lcardsLog.debug(`[LCARdSButton] Using SVG background`);
+            lcardsLog.trace(`[LCARdSButton] Using SVG background`);
             backgroundMarkup = this._renderSvgBackground(this._processedSvg, width, height);
         } else if (normalizedPath) {
             backgroundMarkup = this._renderCustomPathBackground(normalizedPath, backgroundColor);
         } else if (needsComplexPath) {
             backgroundMarkup = this._renderComplexButtonPath(width, height, border, backgroundColor);
         } else {
-            lcardsLog.debug(`[LCARdSButton] Using simple rect background`);
+            lcardsLog.trace(`[LCARdSButton] Using simple rect background`);
             backgroundMarkup = this._renderButtonRect(width, height, border, backgroundColor);
         }
 

@@ -576,9 +576,19 @@ export class CoreConfigManager {
     );
 
     if (!preset) {
-      lcardsLog.warn(
-        `[CoreConfigManager] Preset '${userConfig.preset}' not found for ${overlayType}`
-      );
+      // When a component is also configured (e.g. alert, dpad), `preset` refers to a
+      // component-level preset (e.g. 'condition_red') that is resolved by the card's
+      // own _processComponentPresetFromMergedConfig — not by StylePresetManager.
+      // Log at trace so as not to alarm users; the preset will work correctly.
+      if (userConfig.component) {
+        lcardsLog.trace(
+          `[CoreConfigManager] Preset '${userConfig.preset}' not in StylePresetManager for ${overlayType} — will be resolved as component preset`
+        );
+      } else {
+        lcardsLog.warn(
+          `[CoreConfigManager] Preset '${userConfig.preset}' not found for ${overlayType}`
+        );
+      }
       return {};
     }
 

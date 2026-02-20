@@ -396,28 +396,3 @@ export const alertComponents = {
     }
 };
 
-/**
- * Get an alert component by name
- * @param {string} name - Component name
- * @returns {Object|undefined} Component object or undefined if not found
- */
-export function getAlertComponent(name) {
-    return alertComponents[name];
-}
-
-/**
- * Check if an alert component exists
- * @param {string} name - Component name
- * @returns {boolean} True if component exists
- */
-export function hasAlertComponent(name) {
-    return name in alertComponents;
-}
-
-/**
- * Get all available alert component names
- * @returns {string[]} Array of component names
- */
-export function getAlertComponentNames() {
-    return Object.keys(alertComponents);
-}

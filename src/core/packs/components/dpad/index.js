@@ -224,28 +224,3 @@ export const dpadComponents = {
     }
 };
 
-/**
- * Get a d-pad component by name
- * @param {string} name - Component name
- * @returns {Object|undefined} Component object or undefined if not found
- */
-export function getDpadComponent(name) {
-    return dpadComponents[name];
-}
-
-/**
- * Check if a d-pad component exists
- * @param {string} name - Component name
- * @returns {boolean} True if component exists
- */
-export function hasDpadComponent(name) {
-    return name in dpadComponents;
-}
-
-/**
- * Get all available d-pad component names
- * @returns {string[]} Array of component names
- */
-export function getDpadComponentNames() {
-    return Object.keys(dpadComponents);
-}
