@@ -69,8 +69,9 @@ export const STAGGER_PRESETS = {
     const fromValue = p.from_value !== undefined ? p.from_value : 0.8;
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 600;
-    const ease = getResolvedEasing(p) || 'easeOutQuad';
+    const ease = getResolvedEasing(p) || 'outQuad';   // v4 easing name (was 'easeOutQuad')
     const loop = p.loop !== undefined ? p.loop : false;
+    const alternate = p.alternate !== undefined ? p.alternate : false;
 
     if (!Array.isArray(grid) || grid.length !== 2) {
       lcardsLog.warn('[stagger-grid preset] Invalid grid parameter, expected [cols, rows]');
@@ -83,6 +84,7 @@ export const STAGGER_PRESETS = {
         duration,
         ease,
         loop,
+        alternate,
         delay: {
           _stagger: true,
           value: delay,

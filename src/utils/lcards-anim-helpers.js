@@ -3,6 +3,39 @@ import { getAnimationPreset } from '../core/animation/presets.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 
 /**
+ * LCARdS-internal animation meta-params that must NOT be passed to anime.animate().
+ * These are consumed by the preset builder or AnimationManager, not by anime.js itself.
+ * Passing them to anime.js causes it to attempt to tween non-existent element properties.
+ */
+const _LCARDS_META_PARAMS = new Set([
+  'from_value',   // Preset: start color/value used to build the tween property array
+  'to_value',     // Preset: end color/value used to build the tween property array
+  'property',     // Preset: which SVG/CSS property to animate (used to build [property]:[] entry)
+  'from',         // Stagger: position param consumed by stagger() — not an anime.js anim param
+  'grid',         // Stagger: grid dimensions consumed by stagger() — not an anime.js anim param
+  'trigger',      // AnimationManager: when to fire (on_load, on_tap…) — not anime.js
+  'easing',       // v3 alias: anime.js v4 uses 'ease' not 'easing'
+  'amplitude',    // stagger-wave preset meta-param (converted to property value by preset)
+]);
+
+/**
+ * Strip LCARdS-internal meta-params from an anime.js parameter object.
+ * Call this immediately before passing params to anime.animate() / window.lcards.anim.anime().
+ *
+ * @param {Object} params - Raw animation parameters (may include LCARdS meta-params)
+ * @returns {Object} Cleaned parameters safe for anime.js
+ */
+function _cleanAnimeParams(params) {
+  const cleaned = {};
+  for (const [key, val] of Object.entries(params)) {
+    if (!_LCARDS_META_PARAMS.has(key) && val !== undefined) {
+      cleaned[key] = val;
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Resolve CSS variables in animation parameters
  * Converts var(--lcards-*) to computed color values that anime.js can interpolate
  *
@@ -23,24 +56,35 @@ function resolveAnimationCssVariables(params) {
   // Properties that commonly contain color values for anime.js
   const colorProperties = ['fill', 'stroke', 'background', 'backgroundColor', 'color', 'borderColor'];
 
+  // Helper: resolve a single color string through theme: → CSS var → hex chain
+  const resolveColorValue = (value) => {
+    if (typeof value !== 'string') return value;
+    let resolved = value;
+    if (resolved.startsWith('theme:')) {
+      const tokenPath = resolved.replace('theme:', '');
+      resolved = window.lcards?.core?.themeManager?.getToken(tokenPath, resolved) ?? resolved;
+    }
+    if (typeof resolved === 'string' && resolved.includes('var(')) {
+      resolved = ColorUtils.resolveCssVariable(resolved);
+    }
+    return resolved;
+  };
+
   colorProperties.forEach(prop => {
     if (resolved[prop]) {
       // Handle arrays (e.g., fill: [from, to])
       if (Array.isArray(resolved[prop])) {
         resolved[prop] = resolved[prop].map(value => {
-          if (typeof value === 'string' && value.includes('var(')) {
-            const resolvedColor = ColorUtils.resolveCssVariable(value);
-            lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}: ${value} → ${resolvedColor}`);
-            return resolvedColor;
-          }
-          return value;
+          const out = resolveColorValue(value);
+          if (out !== value) lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}[]: ${value} → ${out}`);
+          return out;
         });
       }
       // Handle single values
-      else if (typeof resolved[prop] === 'string' && resolved[prop].includes('var(')) {
+      else if (typeof resolved[prop] === 'string') {
         const original = resolved[prop];
-        resolved[prop] = ColorUtils.resolveCssVariable(original);
-        lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}: ${original} → ${resolved[prop]}`);
+        resolved[prop] = resolveColorValue(original);
+        if (resolved[prop] !== original) lcardsLog.trace(`[resolveAnimationCssVariables] ${prop}: ${original} → ${resolved[prop]}`);
       }
     }
   });
@@ -529,7 +573,10 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             const _batchProbeResult = _batchPresetFn({ params: { ..._batchProbeParams }, ...options });
 
             if (_batchProbeResult?.anime?.delay?._stagger === true) {
-              // Build final batch params by merging preset anime output
+              // Build final batch params by merging preset anime output.
+              // Start from probe params then let the preset output overwrite — this
+              // ensures the preset's [property]:[from,to] tween wins over anything
+              // the probe params might have for the same key.
               const _batchParams = { ..._batchProbeParams };
               Object.assign(_batchParams, _batchProbeResult.anime);
 
@@ -545,13 +592,25 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
               // Convert _stagger / _radial marker to anime.js stagger() function
               const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
               if (!_batchMarkerResult.isTimeline) {
-                const _batchInstance = window.lcards.anim.anime(elements, _batchMarkerResult.processedParams);
+                // Resolve CSS variables (var(--...)) in color properties so anime.js
+                // can interpolate them correctly (it can't parse var() references).
+                const _batchResolvedParams = resolveAnimationCssVariables(_batchMarkerResult.processedParams);
+
+                // Strip LCARdS-internal meta-params that must not be passed to anime.js.
+                // e.g. 'from', 'grid', 'property', 'from_value', 'to_value', 'trigger'
+                // are consumed by the preset/AnimationManager and are not valid anime.js params.
+                const _batchFinalParams = _cleanAnimeParams(_batchResolvedParams);
+                const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
                 if (onInstanceCreated) onInstanceCreated(_batchInstance);
               }
               return; // bypass per-element loop
             }
           } catch (_batchErr) {
-            lcardsLog.debug('[animateElement] Stagger-batch probe failed, using per-element loop', _batchErr);
+            lcardsLog.warn('[animateElement] ⚠️ Stagger-batch probe failed — falling back to per-element loop', {
+              error: _batchErr?.message,
+              type,
+              stack: _batchErr?.stack?.split('\n')[1]
+            });
           }
         }
       }
@@ -674,13 +733,16 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           animeParams = rest;
         }
 
-        const animeInstance = window.lcards.anim.anime(targetElement, animeParams);
+        // Strip LCARdS-internal meta-params before calling anime.animate()
+        const cleanedAnimeParams = _cleanAnimeParams(animeParams);
+
+        const animeInstance = window.lcards.anim.anime(targetElement, cleanedAnimeParams);
         lcardsLog.debug(`[animateElement] Animation instance created:`, {
           scopeId: scope.id || 'no-id',
           element: element.id || element.tagName,
           targetElement: targetElement?.id || targetElement?.tagName || typeof targetElement,
           animeInstance: !!animeInstance,
-          params: animeParams
+          params: cleanedAnimeParams
         });
 
         // Call callback with the created instance (for tracking)

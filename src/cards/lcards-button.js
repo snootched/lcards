@@ -151,6 +151,7 @@ export class LCARdSButton extends LCARdSCard {
         this._componentAnimations = null;   // Component-level animations (not segment-level)
         this._componentAnimationsRegistered = false; // Guard against double-registration
         this._rawUserComponentSegments = {};  // Raw user segment overrides (pre-CoreConfigManager)
+        this._rawUserAnimationColors = { base: null, flash: null }; // User animation_base/flash overrides
     }
 
     /**
@@ -177,8 +178,14 @@ export class LCARdSButton extends LCARdSCard {
             this._rawUserComponentSegments = Object.keys(colorSegments).length > 0
                 ? deepMergeImmutable(colorSegments, explicitSegments)
                 : explicitSegments;
+            // Capture animation color overrides from color shorthand (color.animation_base/flash)
+            this._rawUserAnimationColors = {
+                base:  colorShorthand.animation_base  ?? null,
+                flash: colorShorthand.animation_flash ?? null
+            };
         } else {
             this._rawUserComponentSegments = {};
+            this._rawUserAnimationColors = { base: null, flash: null };
         }
 
         // Capture raw user text config BEFORE CoreConfigManager processing.
@@ -421,7 +428,45 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // ── 5. Store component-level animations for post-render registration ──
-        this._componentAnimations = componentDef.animations ?? null;
+        // Resolve animation_base / animation_flash colors from the priority chain:
+        //   user color.animation_base/flash override  (highest)
+        //   active preset's animation_base/flash property
+        // theme: token strings are passed through as-is; resolveAnimationCssVariables()
+        // in lcards-anim-helpers.js resolves them when the animation executes.
+        const animBase  =
+            this._rawUserAnimationColors?.base  ??
+            presetData?.animation_base           ??
+            null;
+        const animFlash =
+            this._rawUserAnimationColors?.flash ??
+            presetData?.animation_flash          ??
+            null;
+
+        // Clone component animations and inject resolved colors into any stroke animations.
+        // This must happen before registration so that the correct preset colors are used.
+        const rawAnims = componentDef.animations ?? null;
+        this._componentAnimations = (animBase || animFlash) && rawAnims
+            ? rawAnims.map(anim => {
+                if (anim.preset === 'stagger-grid' && anim.params?.property === 'stroke') {
+                    return {
+                        ...anim,
+                        params: {
+                            ...anim.params,
+                            ...(animFlash ? { from_value: animFlash } : {}),
+                            ...(animBase  ? { to_value:   animBase  } : {})
+                        }
+                    };
+                }
+                return anim;
+            })
+            : rawAnims;
+
+        lcardsLog.debug(`[LCARdSButton] Animation colors resolved`, {
+            preset: resolvedPreset,
+            animBase,
+            animFlash,
+            hasComponentAnimations: !!this._componentAnimations
+        });
 
         // ── 6. Build segment array and hand off to the SVG pipeline ───────────
         const svgConfig = {
@@ -1291,10 +1336,38 @@ export class LCARdSButton extends LCARdSCard {
                 return;
             }
 
-            const compAnimKey = `${cardId}:component-0`;
-
-            // If already registered with the same element, nothing to do.
+            const compAnimKey = `${cardId}:segment:component-0`;
             const existingScope = animationManager.scopes?.get(compAnimKey);
+
+            // Detect stale DOM: the SVG is re-rendered (e.g. when the card's
+            // measured size changes from the initial default).  unsafeHTML
+            // replaces the entire <svg> element so all <line> bar elements are
+            // new DOM nodes.  The previous animation instances are running on the
+            // now-detached old elements (invisible).  Reset onLoadFired so the
+            // animations re-play on the fresh elements.
+            if (existingScope && existingScope.element !== svgContainer) {
+                lcardsLog.debug(`[LCARdSButton] SVG re-rendered — resetting component animation scopes for re-play`);
+                this._componentAnimations.forEach((_, index) => {
+                    const scopeKey = `${cardId}:segment:component-${index}`;
+                    const scope = animationManager.scopes?.get(scopeKey);
+                    if (scope) {
+                        // Pause zombie instances running on detached elements
+                        scope.runningInstances?.forEach(instances => {
+                            instances.forEach(inst => {
+                                try { if (inst?.pause) inst.pause(); } catch (_e) {}
+                            });
+                        });
+                        scope.runningInstances?.clear();
+                        // Point to new container so querySelectorAll finds new bars
+                        scope.element = svgContainer;
+                        // Allow on_load to fire again on the new elements
+                        scope.onLoadFired = false;
+                    }
+                });
+                this._componentAnimationsRegistered = false;
+            }
+
+            // Nothing changed — skip
             if (this._componentAnimationsRegistered && existingScope?.element === svgContainer) {
                 return;
             }

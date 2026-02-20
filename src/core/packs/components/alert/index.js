@@ -199,8 +199,13 @@ export const alertComponents = {
         //   Bottom cap (bar-7 … bar-12): flash starts at bar-12, sweeps UP toward centre.
         // Both groups therefore converge toward the middle of the shield simultaneously.
         //
-        // 'from: last' on the bottom group means bar-12 (index 5 = last) gets delay 0
-        // and bar-7 (index 0) gets the maximum delay — exactly the reverse of the top.
+        // property:'stroke' — anime.js animates the SVG stroke CSS property, cycling
+        // between the preset's animation_flash (bright) and animation_base (dim) colors.
+        // The runtime (_processComponentPresetFromMergedConfig) injects the actual resolved
+        // color values from the active preset before registration.
+        //
+        // ease:'inOutSine' — anime.js v4 easing name (v3 was 'easeInOutSine').
+        // alternate:true — oscillates flash↔base rather than hard-cutting on each loop.
         animations: [
             {
                 trigger: 'on_load',
@@ -210,11 +215,12 @@ export const alertComponents = {
                     grid: [1, 6],
                     from: 'first',
                     delay: 150,
-                    property: 'opacity',
-                    from_value: 1.0,
-                    to_value: 0.25,
+                    property: 'stroke',
+                    // Fallback colors — overridden at runtime with active preset colors.
+                    from_value: 'var(--lcards-moonlight, #dfe1e8)',
+                    to_value:   'var(--lcars-ui-quaternary, var(--lcards-gray-dark, #363636))',
                     duration: 1200,
-                    ease: 'easeInOutSine',
+                    ease: 'inOutSine',      // v4 easing name (v3 was 'easeInOutSine')
                     loop: true,
                     alternate: true
                 }
@@ -227,11 +233,11 @@ export const alertComponents = {
                     grid: [1, 6],
                     from: 'last',   // bar-12 gets delay 0 → sweeps upward toward centre
                     delay: 150,
-                    property: 'opacity',
-                    from_value: 1.0,
-                    to_value: 0.25,
+                    property: 'stroke',
+                    from_value: 'var(--lcards-moonlight, #dfe1e8)',
+                    to_value:   'var(--lcars-ui-quaternary, var(--lcards-gray-dark, #363636))',
                     duration: 1200,
-                    ease: 'easeInOutSine',
+                    ease: 'inOutSine',
                     loop: true,
                     alternate: true
                 }
@@ -246,6 +252,8 @@ export const alertComponents = {
         // ---------------------------------------------------------------------------
         presets: {
             default: {
+                animation_base:  '#2f3749',
+                animation_flash: '#dfe1e8',
                 text: {
                     alert_text: { content: 'ALERT',     color: 'var(--lcards-gray)' },
                     sub_text:   { content: 'CONDITION', color: 'var(--lcards-gray)' }
@@ -257,6 +265,8 @@ export const alertComponents = {
             },
 
             condition_red: {
+                animation_base:  'theme:colors.alert.red',
+                animation_flash: 'var(--lcards-orange-lightest, #ffb399)',
                 text: {
                     alert_text: { content: 'ALERT',          color: 'var(--lcards-orange-dark)' },
                     sub_text:   { content: 'CONDITION: RED', color: 'var(--lcards-orange-dark)' }
@@ -268,6 +278,8 @@ export const alertComponents = {
             },
 
             condition_blue: {
+                animation_base:  'theme:colors.alert.blue',
+                animation_flash: 'var(--lcards-blue-light, #93e1ff)',
                 text: {
                     alert_text: { content: 'ALERT',           color: 'var(--lcards-blue-medium)' },
                     sub_text:   { content: 'CONDITION: BLUE', color: 'var(--lcards-blue-medium)' }
@@ -279,6 +291,8 @@ export const alertComponents = {
             },
 
             condition_yellow: {
+                animation_base:  'theme:colors.alert.yellow',
+                animation_flash: 'var(--lcards-yellow-lightest, #f5f5dc)',
                 text: {
                     alert_text: { content: 'ALERT',             color: 'var(--lcards-yellow-medium)' },
                     sub_text:   { content: 'CONDITION: YELLOW', color: 'var(--lcards-yellow-medium)' }
@@ -290,6 +304,8 @@ export const alertComponents = {
             },
 
             condition_green: {
+                animation_base:  'theme:colors.alert.green',
+                animation_flash: 'var(--lcards-green-lightest, #b8e0c1)',
                 text: {
                     alert_text: { content: 'ALERT',            color: 'var(--lcards-green-medium)' },
                     sub_text:   { content: 'CONDITION: GREEN', color: 'var(--lcards-green-medium)' }
@@ -301,6 +317,8 @@ export const alertComponents = {
             },
 
             condition_gray: {
+                animation_base:  'theme:colors.alert.gray',
+                animation_flash: 'var(--lcards-moonlight, #dfe1e8)',
                 text: {
                     alert_text: { content: 'ALERT',           color: 'var(--lcards-gray)' },
                     sub_text:   { content: 'CONDITION: GRAY', color: 'var(--lcards-gray)' }
@@ -312,6 +330,8 @@ export const alertComponents = {
             },
 
             condition_black: {
+                animation_base:  'theme:colors.alert.black',
+                animation_flash: 'var(--lcards-moonlight, #dfe1e8)',
                 text: {
                     alert_text: { content: 'ALERT',             color: 'var(--lcars-ui-primary, var(--lcards-gray-medium))' },
                     sub_text:   { content: 'CONDITION: BLACK' }
