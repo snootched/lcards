@@ -173,18 +173,28 @@ export const alertComponents = {
                 content:     'ALERT',
                 show:        true,
                 position:    'center',
-                font_size:   10,
-                font_weight: '500',
-                padding:     0
+                stretch:     true,  // stretch text to fill width of area
+                font_family: 'lcards_microgramma, Antonio',
+                font_size_percent: 100,
+                padding: {
+                    top: 2,
+                    right: 2,
+                    bottom: 0,
+                    left: 2
+                }
             },
             sub_text: {
                 text_area:   'sub_line',
                 content:     'CONDITION',
                 show:        true,
+                stretch:     true,  // stretch text to fill width of area
+                font_family: 'lcards_microgramma, Antonio',
                 position:    'center',
-                font_size:   7,
-                font_weight: '200',
-                padding:     0
+                font_size_percent: 58,
+                padding: {
+                    right: 2,
+                    left: 2
+                }
             }
         },
 
@@ -254,12 +264,12 @@ export const alertComponents = {
         presets: {
             default: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: '#dfe1e8', trail_color: '#2f3749' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: '#dfe1e8', trail_color: '#2f3749' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',     color: 'var(--lcards-gray)' },
-                    sub_text:   { content: 'CONDITION', color: 'var(--lcards-gray)' }
+                    alert_text: { content: 'ALERT',     color: 'var(--lcards-alert-red, #ff0000)' },
+                    sub_text:   { content: 'CONDITION', color: 'theme:colors.alert.gray' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.gray' } },
@@ -273,8 +283,8 @@ export const alertComponents = {
                     { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'theme:colors.alert.red' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',          color: 'var(--lcards-orange-dark)' },
-                    sub_text:   { content: 'CONDITION: RED', color: 'var(--lcards-orange-dark)' }
+                    alert_text: { content: 'ALERT',          color: 'theme:colors.alert.red' },
+                    sub_text:   { content: 'CONDITION: RED', color: 'theme:colors.alert.red' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.red' } },
@@ -288,8 +298,8 @@ export const alertComponents = {
                     { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'theme:colors.alert.blue' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',           color: 'var(--lcards-blue-medium)' },
-                    sub_text:   { content: 'CONDITION: BLUE', color: 'var(--lcards-blue-medium)' }
+                    alert_text: { content: 'ALERT',           color: 'theme:colors.alert.blue' },
+                    sub_text:   { content: 'CONDITION: BLUE', color: 'theme:colors.alert.blue' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.blue' } },
@@ -303,8 +313,8 @@ export const alertComponents = {
                     { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'theme:colors.alert.yellow' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',             color: 'var(--lcards-yellow-medium)' },
-                    sub_text:   { content: 'CONDITION: YELLOW', color: 'var(--lcards-yellow-medium)' }
+                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.yellow' },
+                    sub_text:   { content: 'CONDITION: YELLOW', color: 'theme:colors.alert.yellow' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.yellow' } },
@@ -318,8 +328,8 @@ export const alertComponents = {
                     { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'theme:colors.alert.green' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',            color: 'var(--lcards-green-medium)' },
-                    sub_text:   { content: 'CONDITION: GREEN', color: 'var(--lcards-green-medium)' }
+                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.green' },
+                    sub_text:   { content: 'CONDITION: GREEN', color: 'theme:colors.alert.green' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.green' } },
@@ -333,8 +343,8 @@ export const alertComponents = {
                     { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.gray' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',           color: 'var(--lcards-gray)' },
-                    sub_text:   { content: 'CONDITION: GRAY', color: 'var(--lcards-gray)' }
+                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.gray' },
+                    sub_text:   { content: 'CONDITION: GRAY', color: 'theme:colors.alert.gray' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.gray' } },
@@ -344,12 +354,12 @@ export const alertComponents = {
 
             condition_black: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.black' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.black' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',             color: 'var(--lcars-ui-primary, var(--lcards-gray-medium))' },
-                    sub_text:   { content: 'CONDITION: BLACK' }
+                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.black' },
+                    sub_text:   { content: 'CONDITION: BLACK', color: 'theme:colors.alert.black' }
                 },
                 segments: {
                     shape: { style: { fill: 'theme:colors.alert.black' } },
@@ -377,6 +387,7 @@ export const alertComponents = {
 
         metadata: {
             type: 'alert',
+            card_type: 'button', // Which card editor this component is valid for
             id: 'alert',
             name: 'Alert Symbol',
             description: 'LCARS alert symbol — shield design with animated bars and condition presets',

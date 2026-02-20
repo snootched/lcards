@@ -365,10 +365,14 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
 
             <!-- Text Area (component mode only, when >1 area exists) -->
             ${this.componentTextAreas && Object.keys(this.componentTextAreas).length > 1 ? html`
-                ${FormField.renderField(this.editor, `text.${fieldName}.text_area`, {
-                    label: 'Text Area',
-                    helper: 'Which named area on the component this text field belongs to'
-                })}
+                <ha-selector
+                    .hass=${this.editor?.hass}
+                    .selector=${{ select: { mode: 'dropdown', options: Object.keys(this.componentTextAreas).map(k => ({ value: k, label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) })) } }}
+                    .value=${this.editor?.config?.text?.[fieldName]?.text_area || Object.keys(this.componentTextAreas)[0]}
+                    .label=${'Text Area'}
+                    .helper=${'Which named area on the component this text field belongs to'}
+                    @value-changed=${(e) => this.editor?._setConfigValue?.(`text.${fieldName}.text_area`, e.detail.value)}>
+                </ha-selector>
             ` : ''}
 
             <!-- Font Size % (component mode only) -->

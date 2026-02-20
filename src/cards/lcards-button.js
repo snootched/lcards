@@ -4842,6 +4842,10 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig:     field.color,
                     fallback:        null
                 });
+                // Resolve theme: tokens that resolveStateColor passes through as-is
+                if (typeof resolvedColor === 'string' && resolvedColor.startsWith('theme:')) {
+                    resolvedColor = this.getThemeToken(resolvedColor.replace('theme:', ''), resolvedColor);
+                }
             }
             if (!resolvedColor) {
                 resolvedColor = resolveStateColor({

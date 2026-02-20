@@ -60,6 +60,19 @@ export function getComponentNames() {
 }
 
 /**
+ * Get component names that are valid for a specific card type.
+ * Filters by metadata.card_type so new components auto-appear in the
+ * right editor without any hardcoded lists.
+ * @param {string} cardType - e.g. 'button', 'slider'
+ * @returns {string[]} Array of component names
+ */
+export function getComponentsForCard(cardType) {
+    return Object.entries(components)
+        .filter(([, def]) => def?.metadata?.card_type === cardType)
+        .map(([name]) => name);
+}
+
+/**
  * Get component metadata
  * @param {string} name - Component name
  * @returns {Object|null} Component metadata (id, name, description, version) or null

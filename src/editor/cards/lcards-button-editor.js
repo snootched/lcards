@@ -12,6 +12,8 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
+import { BUTTON_COMPONENTS } from '../../core/packs/components/buttons/index.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
@@ -457,17 +459,29 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         ...(mode === 'preset' ? [
                             {
                                 type: 'custom',
-                                render: () => keyed(mode, FormField.renderField(this, 'preset', {
-                                    label: 'Preset Style'
-                                }))
+                                render: () => keyed(mode, html`
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .selector=${{ select: { mode: 'dropdown', options: Object.entries(BUTTON_COMPONENTS).map(([k, v]) => ({ value: k, label: v.name || k })) } }}
+                                        .value=${this.config.preset || 'lozenge'}
+                                        .label=${'Preset Style'}
+                                        @value-changed=${(e) => this._setConfigValue('preset', e.detail.value)}>
+                                    </ha-selector>
+                                `)
                             }
                         ] : []),
                         ...(mode === 'component' ? [
                             {
                                 type: 'custom',
-                                render: () => keyed(mode, FormField.renderField(this, 'component', {
-                                    label: 'Component Type'
-                                }))
+                                render: () => keyed(mode, html`
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .selector=${{ select: { mode: 'dropdown', options: getComponentsForCard('button').map(n => ({ value: n, label: n.charAt(0).toUpperCase() + n.slice(1) })) } }}
+                                        .value=${this.config.component || 'dpad'}
+                                        .label=${'Component Type'}
+                                        @value-changed=${(e) => this._handleComponentTypeChange(e.detail.value)}>
+                                    </ha-selector>
+                                `)
                             },
                             {
                                 type: 'custom',
@@ -857,6 +871,49 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     // Event Handlers
+
+    /**
+     * Handle component type change (e.g. dpad → alert).
+     * Clears all known component config keys so stale data from the old
+     * component (segments, text overrides, preset, custom_presets) doesn't
+     * pollute the new one.
+     * @param {string} newComponent
+     * @private
+     */
+    _handleComponentTypeChange(newComponent) {
+        if (!newComponent || newComponent === this.config.component) return;
+
+        const oldComponent = this.config.component;
+        const newConfig = { ...this.config };
+
+        // Remove old component's data key (e.g. config.dpad, config.alert)
+        if (oldComponent) delete newConfig[oldComponent];
+
+        // Also clear any other known component keys that might be stale
+        for (const name of getComponentNames()) {
+            if (name !== newComponent) delete newConfig[name];
+        }
+
+        // Clear fields that are component-specific
+        delete newConfig.text;
+        delete newConfig.preset;
+        delete newConfig.animations;
+
+        // Set new component and seed its data key as an empty object
+        newConfig.component = newComponent;
+        newConfig[newComponent] = { segments: {} };
+
+        const oldConfig = this.config;
+        this.config = newConfig;
+        this.dispatchEvent(new CustomEvent('config-changed', {
+            detail: { config: this.config },
+            bubbles: true,
+            composed: true
+        }));
+        this.requestUpdate('config', oldConfig);
+
+        lcardsLog.debug(`[LCARdSButtonEditor] Component type changed: ${oldComponent} → ${newComponent}`);
+    }
 
     _handleModeChange(event) {
         const newMode = event.detail.value;

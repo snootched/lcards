@@ -124,12 +124,12 @@ export const lcardsDefaultTokens = {
 
     // Alert colors (LCARS alert symbol component)
     alert: {
-      red: 'var(--lcards-orange-dark)',         // Critical/Emergency
-      blue: 'var(--lcards-blue-medium)',       // Security/Tactical
-      green: 'var(--lcards-green-medium)',    // Normal/All Clear
-      yellow: 'var(--lcards-yellow-medium)', // Caution/Warning
+      red: 'var(--lcars-alert-red)',         // Critical/Emergency
+      blue: 'var(--lcars-alert-blue)',       // Security/Tactical
+      green: 'var(--lcars-green-medium)',    // Normal/All Clear
+      yellow: 'var(--lcars-alert-yellow)', // Caution/Warning
       gray: 'var(--lcards-gray)',       // Standby/Inactive
-      black: 'var(--lcards-gray-dark)'        // System Critical
+      black: 'var(--lcards-blue-lightest)'        // System Critical
     }
   },
 

@@ -177,6 +177,7 @@ export const dpadComponents = {
         // Metadata for discovery and documentation
         metadata: {
             type: 'dpad',  // Explicit type for ComponentManager
+            card_type: 'button', // Which card editor this component is valid for
             id: 'dpad',
             name: 'D-Pad Control',
             description: 'Interactive directional control with 9 segments',
