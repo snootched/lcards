@@ -388,6 +388,7 @@ export const alertComponents = {
         metadata: {
             type: 'alert',
             card_type: 'button', // Which card editor this component is valid for
+            pack: 'lcards_buttons',
             id: 'alert',
             name: 'Alert Symbol',
             description: 'LCARS alert symbol — shield design with animated bars and condition presets',

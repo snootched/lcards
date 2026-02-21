@@ -231,6 +231,7 @@ export function render(context) {
  */
 export const metadata = {
     type: 'slider',
+    pack: 'lcards_sliders',
     name: 'picard',
     displayName: 'Picard',
     orientation: 'vertical',

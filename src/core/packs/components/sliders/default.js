@@ -103,6 +103,7 @@ export function render(context) {
 export function getMetadata() {
     return {
         type: 'slider',
+        pack: 'lcards_sliders',
         id: 'default',
         name: 'Default',
         description: 'Simple rectangular slider with state-aware colors and overlapping zones',

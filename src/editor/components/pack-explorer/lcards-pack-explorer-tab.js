@@ -562,13 +562,31 @@ export class LCARdSPackExplorerTab extends LitElement {
         };
 
         componentsForPack.forEach(comp => {
-          componentsNode.children.push({
+          const componentPresets = comp.definition?.presets
+            ? Object.keys(comp.definition.presets)
+            : [];
+
+          const compNode = {
             id: `component_${comp.name}`,
             type: 'component',
             label: comp.name,
             icon: '🧩',
-            data: comp
-          });
+            data: comp,
+            children: componentPresets.map(presetName => ({
+              id: `component_${comp.name}_preset_${presetName}`,
+              type: 'component-preset',
+              label: presetName,
+              icon: '🎛️',
+              data: {
+                componentName: comp.name,
+                presetName,
+                preset: comp.definition.presets[presetName],
+                pack: pack.id
+              }
+            }))
+          };
+
+          componentsNode.children.push(compNode);
         });
 
         packNode.children.push(componentsNode);
@@ -694,23 +712,16 @@ export class LCARdSPackExplorerTab extends LitElement {
   }
 
   /**
-   * Get components associated with a pack
+   * Get components associated with a pack.
+   * Reads `definition.metadata.pack` — no separate mapping needed.
+   * New components are picked up automatically as long as their metadata
+   * declares the correct pack ID.
    * @private
    */
   _getComponentsForPack(packId) {
-    // Components from lcards_buttons pack: dpad
-    // Components from lcards_sliders pack: basic
-    const componentsByPack = {
-      'lcards_buttons': ['dpad'],
-      'lcards_sliders': ['basic']
-    };
-
-    const componentNames = componentsByPack[packId] || [];
-    return componentNames.map(name => ({
-      name,
-      definition: components[name],
-      pack: packId
-    })).filter(c => c.definition);
+    return Object.entries(components)
+      .filter(([, definition]) => (definition?.metadata?.pack ?? 'core') === packId)
+      .map(([name, definition]) => ({ name, definition, pack: packId }));
   }
 
   /**
@@ -843,6 +854,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         return this._renderPresetDetail(node.data);
       case 'component':
         return this._renderComponentDetail(node.data);
+      case 'component-preset':
+        return this._renderComponentPresetDetail(node.data);
       case 'animation':
         return this._renderAnimationDetail(node.data);
       case 'svg_asset':
@@ -1121,6 +1134,56 @@ export class LCARdSPackExplorerTab extends LitElement {
           </div>
         </div>
       ` : ''}
+    `;
+  }
+
+  _renderComponentPresetDetail(data) {
+    const { componentName, presetName, preset, pack } = data;
+    const segments = preset?.segments ? Object.keys(preset.segments) : [];
+    const hasText = preset?.text && Object.keys(preset.text).length > 0;
+    const hasAnimations = preset?.animations && preset.animations.length > 0;
+
+    return html`
+      <div class="detail-section">
+        <h4>Component Preset</h4>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Preset:</span>
+            <span class="detail-value">${presetName}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Component:</span>
+            <span class="detail-value">${componentName}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Pack:</span>
+            <span class="detail-value">${pack}</span>
+          </div>
+          ${segments.length ? html`
+            <div class="detail-item">
+              <span class="detail-label">Segments:</span>
+              <span class="detail-value">${segments.join(', ')}</span>
+            </div>
+          ` : ''}
+          ${hasAnimations ? html`
+            <div class="detail-item">
+              <span class="detail-label">Animations:</span>
+              <span class="detail-value">${preset.animations.map(a => a.id).join(', ')}</span>
+            </div>
+          ` : ''}
+          ${hasText ? html`
+            <div class="detail-item">
+              <span class="detail-label">Text overrides:</span>
+              <span class="detail-value">${Object.keys(preset.text).join(', ')}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Usage</h4>
+        <div class="code-block">component: ${componentName}\npreset: ${presetName}</div>
+      </div>
     `;
   }
 

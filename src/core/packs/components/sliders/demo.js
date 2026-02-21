@@ -296,6 +296,7 @@ export const metadata = {
     // ================================================================
 
     type: 'slider',                    // Component type (always 'slider')
+    pack: 'lcards_sliders',            // Pack this component belongs to
     name: 'demo',                      // Unique identifier (kebab-case)
     displayName: 'Demo Component',     // Human-readable name for UI
 
