@@ -8,6 +8,7 @@
  * - input_number (sliders, number inputs)
  * - input_select (dropdown selections)
  * - input_boolean (toggles, switches)
+ * - input_text (free-text storage, e.g., JSON config blobs)
  *
  * @module core/helpers/lcards-helper-api
  */
@@ -62,7 +63,7 @@ export async function createHelper(hass, domain, name, attributes = {}) {
     throw new Error('[HelperAPI] HASS instance or callWS not available');
   }
 
-  if (!['input_number', 'input_select', 'input_boolean'].includes(domain)) {
+  if (!['input_number', 'input_select', 'input_boolean', 'input_text'].includes(domain)) {
     throw new Error(`[HelperAPI] Unsupported domain: ${domain}`);
   }
 
@@ -268,23 +269,29 @@ export async function setHelperValue(hass, entityId, value) {
   // Extract domain from entity_id
   const [domain] = entityId.split('.');
 
-  if (!['input_number', 'input_select', 'input_boolean'].includes(domain)) {
+  if (!['input_number', 'input_select', 'input_boolean', 'input_text'].includes(domain)) {
     throw new Error(`[HelperAPI] Unsupported domain: ${domain}`);
   }
 
   lcardsLog.debug(`[HelperAPI] Setting ${entityId} = ${value}`);
 
   try {
-    // Use correct service based on domain
-    const service = domain === 'input_select' ? 'select_option' : 'set_value';
-    const serviceData = {
-      entity_id: entityId
-    };
+    // Use correct service based on domain:
+    // - input_boolean: turn_on / turn_off / toggle  (no set_value service)
+    // - input_select:  select_option with 'option' param
+    // - input_number, input_text: set_value with 'value' param
+    let service;
+    const serviceData = { entity_id: entityId };
 
-    // input_select uses 'option' parameter, others use 'value'
-    if (domain === 'input_select') {
+    if (domain === 'input_boolean') {
+      service = value === 'toggle' ? 'toggle'
+              : (value === true || value === 'on' || value === 1) ? 'turn_on'
+              : 'turn_off';
+    } else if (domain === 'input_select') {
+      service = 'select_option';
       serviceData.option = value;
     } else {
+      service = 'set_value';
       serviceData.value = value;
     }
 

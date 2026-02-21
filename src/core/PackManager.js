@@ -107,7 +107,13 @@ export class PackManager {
       await this.core.assetManager.preloadFromPack(pack);
     }
 
-    // ✅ 5. Animations - AnimationRegistry is a cache, no registration needed
+    // ✅ 5. Register sound schemes to SoundManager
+    if (pack.sound_schemes && this.core.soundManager) {
+      this.core.soundManager.registerSchemes(pack.sound_schemes);
+      lcardsLog.debug(`[PackManager] Registered sound schemes from pack: ${pack.id}`);
+    }
+
+    // ✅ 6. Animations - AnimationRegistry is a cache, no registration needed
     // Animation definitions in packs are used on-demand via getOrCreateInstance()
 
     // Store pack reference

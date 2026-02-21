@@ -208,6 +208,20 @@ export class LCARdSActionHandler {
             });
         }
 
+        // Sound playback helper — respects card-level sound_override config
+        // options.soundOverride = { tap: 'assetKey', hold: null, ... }
+        // null = silence that event; undefined key = use scheme default
+        const playSound = (eventType) => {
+            const sm = window.lcards?.core?.soundManager;
+            if (!sm) return;
+            const override = options.soundOverride || {};
+            if (eventType in override) {
+                sm.play(eventType, { cardOverride: override[eventType] });
+            } else {
+                sm.play(eventType);
+            }
+        };
+
         // Track action state to prevent conflicts
         let holdTimer = null;
         let lastTapTime = 0;
@@ -262,6 +276,7 @@ export class LCARdSActionHandler {
                                     currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                                 }
 
+                                playSound('card_tap');
                                 this._executeAction(actions.tap_action, hass, element, defaultEntity);
                             }
                             tapCount = 0;
@@ -284,6 +299,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                     }
 
+                    playSound('card_tap');
                     this._executeAction(actions.tap_action, hass, element, defaultEntity);
                 }
             };
@@ -315,6 +331,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_hold');
                     }
 
+                    playSound('card_hold');
                     this._executeAction(actions.hold_action, hass, element, defaultEntity);
                 }, 500);
             };
@@ -368,6 +385,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_double_tap');
                     }
 
+                    playSound('card_double_tap');
                     this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
                     tapCount = 0;
                 }
@@ -396,6 +414,8 @@ export class LCARdSActionHandler {
                         lcardsLog.trace(`[LCARdSActionHandler] Hover animation triggered on ${elementId}`);
                         currentAnimationManager.triggerAnimations(elementId, 'on_hover');
                     }
+
+                    playSound('card_hover');
                 };
 
                 const leaveHandler = async () => {

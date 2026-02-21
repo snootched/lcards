@@ -539,6 +539,60 @@ export class LCARdSHelperManager extends BaseService {
   }
 
   /**
+   * Update the options list of an input_select helper.
+   * Used by SoundManager to sync sound scheme options after packs load.
+   * Non-fatal if helper doesn't exist yet.
+   *
+   * Uses the documented `input_select.set_options` HA service rather than
+   * the undocumented WebSocket API for reliability across HA versions.
+   *
+   * @param {string} key - Helper registry key (e.g., 'sound_scheme')
+   * @param {string[]} options - New options list
+   * @returns {Promise<void>}
+   */
+  async updateSelectOptions(key, options) {
+    if (!this.hass) return false;
+
+    const definition = getHelperDefinition(key);
+    if (!definition || definition.domain !== 'input_select') {
+      lcardsLog.warn(`[HelperManager] updateSelectOptions: ${key} is not an input_select`);
+      return false;
+    }
+
+    if (!this.helperExists(key)) {
+      lcardsLog.debug(`[HelperManager] updateSelectOptions: helper ${key} does not exist yet`);
+      return false;
+    }
+
+    try {
+      await this.hass.callService('input_select', 'set_options', {
+        entity_id: definition.entity_id,
+        options: options
+      });
+      lcardsLog.debug(`[HelperManager] Updated ${key} options:`, options);
+      return true;
+    } catch (e) {
+      lcardsLog.warn(`[HelperManager] Failed to update ${key} options:`, e.message);
+      return false;
+    }
+  }
+
+  /**
+   * Update the max-length of an input_text helper.
+   * Used to migrate existing helpers that were created with a smaller max.
+   * Non-fatal if helper doesn't exist yet.
+   *
+   * @param {string} key - Helper registry key (e.g., 'sound_overrides')
+   * @param {number} newMax - New maximum character length
+   * @returns {Promise<boolean>} true if the update was actually sent to HA
+   * @deprecated Sound overrides moved to localStorage — this method is no longer used.
+   */
+  async updateInputTextMax(key, newMax) {
+    lcardsLog.warn('[HelperManager] updateInputTextMax() is deprecated — sound overrides use localStorage now');
+    return false;
+  }
+
+  /**
    * Cleanup - unsubscribe from all state listeners
    */
   destroy() {

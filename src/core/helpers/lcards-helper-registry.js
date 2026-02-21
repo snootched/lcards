@@ -1014,6 +1014,92 @@ export const HELPER_REGISTRY = {
         state: >-
           {{ "LCARS " + states("sensor.time") }}
         icon: mdi:text-box`
+  },
+
+  // ===== SOUND SYSTEM =====
+
+  sound_enabled: {
+    entity_id: 'input_boolean.lcards_sound_enabled',
+    domain: 'input_boolean',
+    name: 'LCARdS Sound Effects Enabled',
+    description: 'Master enable/disable for all LCARdS UI sound effects (opt-in: off by default)',
+    icon: 'mdi:volume-high',
+    category: 'sound',
+    ws_create_params: {},
+    default_value: false,
+    yaml_config: `input_boolean:\n  lcards_sound_enabled:\n    name: LCARdS Sound Effects Enabled\n    icon: mdi:volume-high`
+  },
+
+  sound_cards_enabled: {
+    entity_id: 'input_boolean.lcards_sound_cards',
+    domain: 'input_boolean',
+    name: 'LCARdS Card Interaction Sounds',
+    description: 'Enable sounds for card taps, holds, sliders, and toggle interactions',
+    icon: 'mdi:gesture-tap',
+    category: 'sound',
+    ws_create_params: {},
+    default_value: true,
+    yaml_config: `input_boolean:\n  lcards_sound_cards:\n    name: LCARdS Card Interaction Sounds\n    icon: mdi:gesture-tap`
+  },
+
+  sound_ui_enabled: {
+    entity_id: 'input_boolean.lcards_sound_ui',
+    domain: 'input_boolean',
+    name: 'LCARdS UI Navigation Sounds',
+    description: 'Enable sounds for HA sidebar navigation and page transitions',
+    icon: 'mdi:navigation',
+    category: 'sound',
+    ws_create_params: {},
+    default_value: true,
+    yaml_config: `input_boolean:\n  lcards_sound_ui:\n    name: LCARdS UI Navigation Sounds\n    icon: mdi:navigation`
+  },
+
+  sound_alerts_enabled: {
+    entity_id: 'input_boolean.lcards_sound_alerts',
+    domain: 'input_boolean',
+    name: 'LCARdS Alert & System Sounds',
+    description: 'Enable sounds for alert mode changes and system events',
+    icon: 'mdi:alert-circle',
+    category: 'sound',
+    ws_create_params: {},
+    default_value: true,
+    yaml_config: `input_boolean:\n  lcards_sound_alerts:\n    name: LCARdS Alert & System Sounds\n    icon: mdi:alert-circle`
+  },
+
+  sound_volume: {
+    entity_id: 'input_number.lcards_sound_volume',
+    domain: 'input_number',
+    name: 'LCARdS Sound Volume',
+    description: 'Master volume for all LCARdS sound effects (0 = silent, 1 = full)',
+    icon: 'mdi:volume-medium',
+    category: 'sound',
+    ws_create_params: { min: 0, max: 1, step: 0.05, mode: 'slider' },
+    default_value: 0.5,
+    yaml_config: `input_number:\n  lcards_sound_volume:\n    name: LCARdS Sound Volume\n    min: 0\n    max: 1\n    step: 0.05\n    mode: slider\n    icon: mdi:volume-medium`
+  },
+
+  sound_scheme: {
+    entity_id: 'input_select.lcards_sound_scheme',
+    domain: 'input_select',
+    name: 'LCARdS Sound Scheme',
+    description: 'Active sound scheme. Options expand as audio packs are loaded.',
+    icon: 'mdi:music-box-multiple',
+    category: 'sound',
+    ws_create_params: { options: ['none'] },
+    default_value: 'none',
+    yaml_config: `input_select:\n  lcards_sound_scheme:\n    name: LCARdS Sound Scheme\n    options:\n      - none\n    icon: mdi:music-box-multiple`
+  },
+
+  sound_overrides: {
+    entity_id: 'input_text.lcards_sound_overrides',
+    domain: 'input_text',
+    name: 'LCARdS Sound Overrides',
+    description: 'JSON map of per-event sound overrides (managed by Config Panel — do not edit manually)',
+    icon: 'mdi:tune',
+    category: 'sound',
+    ws_create_params: { max: 255 },
+    default_value: '{}',
+    yaml_config: `input_text:\n  lcards_sound_overrides:\n    name: LCARdS Sound Overrides\n    max: 255\n    icon: mdi:tune`
   }
 };
 

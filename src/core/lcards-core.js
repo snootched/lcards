@@ -38,6 +38,7 @@ import { PackManager } from './PackManager.js';  // ✅ Pack registration system
 import { AssetManager } from './assets/AssetManager.js';  // ✅ Asset management system
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';  // ✅ DataSource debug tools
 import { LCARdSHelperManager } from './helpers/lcards-helper-manager.js';  // ✅ Helper management system
+import { SoundManager } from './sound/SoundManager.js';  // ✅ Sound management system
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -67,6 +68,7 @@ class LCARdSCore {
         this.assetManager = null;        // Asset management system (Phase 4)
         this.componentManager = null;    // Component registry (Phase 4)
         this.helperManager = null;       // Helper management system (Phase 5)
+        this.soundManager = null;         // Sound management system (Phase 2g)
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -208,6 +210,11 @@ class LCARdSCore {
             this.helperManager = new LCARdSHelperManager(hass);
             lcardsLog.debug('[LCARdSCore] ✅ HelperManager initialized');
 
+            // Initialize SoundManager (Phase 2g) - ✅ UI sound system
+            this.soundManager = new SoundManager();
+            await this.soundManager.initialize(this);
+            lcardsLog.debug('[LCARdSCore] ✅ SoundManager initialized');
+
             // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
             this.packManager = new PackManager(this);
@@ -241,6 +248,11 @@ class LCARdSCore {
             }
 
             this._coreInitialized = true;
+
+            // Mount global UI sound listener and alert subscription (after core is marked ready)
+            this.soundManager.mountGlobalUIListener();
+            this.soundManager.subscribeToAlertMode();
+            lcardsLog.debug('[LCARdSCore] ✅ SoundManager global listeners mounted');
 
             // Process any cards that were waiting
             if (this._pendingCards.length > 0) {
@@ -402,7 +414,8 @@ class LCARdSCore {
             hasDataSourceManager: !!this.dataSourceManager,
             hasRulesManager: !!this.rulesManager,
             hasThemeManager: !!this.themeManager,
-            hasAnimationManager: !!this.animationManager
+            hasAnimationManager: !!this.animationManager,
+            hasSoundManager: !!this.soundManager
         });
 
         // Forward to all systems
@@ -428,6 +441,10 @@ class LCARdSCore {
 
         if (this.validationService) {
             this.validationService.updateHass(hass);
+        }
+
+        if (this.soundManager) {
+            this.soundManager.updateHass(hass);
         }
 
         // StylePresetManager doesn't need HASS updates (it's theme/pack based)
@@ -843,6 +860,11 @@ class LCARdSCore {
         if (this.stylePresetManager) {
             this.stylePresetManager.destroyCSSUtilities();
             this.stylePresetManager = null;
+        }
+
+        if (this.soundManager) {
+            this.soundManager.destroy();
+            this.soundManager = null;
         }
 
         // Reset state

@@ -366,4 +366,18 @@ window.lcards.alertConfig = {
   }
 };
 
+// === SOUND DEBUG API ===
+// Exposes sound system controls for debugging and testing in the HA developer console.
+// Example usage:
+//   window.lcards.sound.preview('ui_click')        // Preview a specific asset
+//   window.lcards.sound.play('card_tap')            // Simulate a card tap sound
+//   window.lcards.sound.getSchemes()               // List all registered scheme names
+//   window.lcards.sound.getEvents()                // List all sound event types
+window.lcards.sound = {
+  play:       (eventType, ctx) => window.lcards.core.soundManager?.play(eventType, ctx),
+  preview:    (assetKey)       => window.lcards.core.soundManager?.preview(assetKey),
+  getSchemes: ()               => window.lcards.core.soundManager?.getSchemeNames(),
+  getEvents:  ()               => window.lcards.core.soundManager?.getEventTypes(),
+};
+lcardsLog.debug('[lcards.js] Sound console API attached');
 lcardsLog.debug('[lcards.js] Alert mode console API attached');

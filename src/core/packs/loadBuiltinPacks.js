@@ -3,6 +3,7 @@ import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
 import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
 import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
 import { BUILTIN_MSD_SVG_PACK } from './svg-assets/builtin-msd.js';
+import { BUILTIN_SOUNDS_PACK } from './sounds/builtin-sounds.js';
 import { registerBuiltinAnimationPresets } from './animations/index.js';
 import coreFontsJson from './core_fonts.json';
 
@@ -79,7 +80,7 @@ const LCARDS_SLIDERS_PACK = {
 
 /**
  * Core Fonts Pack
- * 
+ *
  * Font pack containing all LCARdS fonts (Core, Standard, Alien).
  * Fonts are registered with AssetManager for lazy-loading.
  * Converts font metadata to font_assets format for PackManager.
@@ -95,8 +96,8 @@ const CORE_FONTS_PACK = {
 // Convert fonts from JSON to font_assets format
 Object.entries(coreFontsJson.fonts).forEach(([key, fontMeta]) => {
   CORE_FONTS_PACK.font_assets[key] = {
-    url: fontMeta.external 
-      ? fontMeta.url 
+    url: fontMeta.external
+      ? fontMeta.url
       : `/hacsfiles/lcards/fonts/${fontMeta.cssFile}`,
     displayName: fontMeta.displayName,
     category: fontMeta.category,
@@ -112,7 +113,8 @@ const BUILTIN_REGISTRY = {
   lcards_sliders: LCARDS_SLIDERS_PACK,
   builtin_themes: BUILTIN_THEMES_PACK,
   builtin_msd_backgrounds: BUILTIN_MSD_SVG_PACK,
-  core_fonts: CORE_FONTS_PACK
+  core_fonts: CORE_FONTS_PACK,
+  lcards_sounds_default: BUILTIN_SOUNDS_PACK,
 };
 
 // Remove getBuiltinPack() function entirely - it's not needed anymore
@@ -122,8 +124,8 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
   // Register animation presets during pack loading
   registerBuiltinAnimationPresets();
 
-  // ✅ CRITICAL FIX: Always load builtin_themes, builtin_msd_backgrounds, and core_fonts packs
-  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds', 'core_fonts'])];
+  // ✅ CRITICAL FIX: Always load builtin_themes, builtin_msd_backgrounds, core_fonts, and lcards_sounds_default packs
+  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds', 'core_fonts', 'lcards_sounds_default'])];
 
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }

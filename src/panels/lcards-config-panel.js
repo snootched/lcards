@@ -25,6 +25,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import '../editor/components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../editor/components/pack-explorer/lcards-pack-explorer-tab.js';
 import '../editor/components/shared/lcards-collapsible-section.js';
+import './components/lcards-sound-config-tab.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -743,10 +744,14 @@ export class LCARdSConfigPanel extends LitElement {
             Alert Lab & Theme Browser
           </ha-tab-group-tab>
           <ha-tab-group-tab value="2" ?active=${this._selectedTab === 2}>
+            <ha-icon icon="mdi:volume-high"></ha-icon>
+            Sounds
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="3" ?active=${this._selectedTab === 3}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
           </ha-tab-group-tab>
-          <ha-tab-group-tab value="3" ?active=${this._selectedTab === 3}>
+          <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
             <ha-icon icon="mdi:code-braces"></ha-icon>
             YAML Export
           </ha-tab-group-tab>
@@ -775,8 +780,10 @@ export class LCARdSConfigPanel extends LitElement {
       case 1:
         return this._renderThemeBrowserTab();
       case 2:
-        return this._renderPackExplorerTab();
+        return this._renderSoundTab();
       case 3:
+        return this._renderPackExplorerTab();
+      case 4:
         return this._renderYAMLTab();
       default:
         return html`<div>Unknown tab</div>`;
@@ -816,6 +823,7 @@ export class LCARdSConfigPanel extends LitElement {
     const categoryLabels = {
       alert_system: 'Alert Lab Configuration',
       ha_lcars_theme: 'HA-LCARS Theme Settings',
+      sound: 'Sound System',
       other: 'Other'
     };
 
@@ -948,7 +956,8 @@ export class LCARdSConfigPanel extends LitElement {
     const categories = [
       { id: 'all', label: 'All', count: totalCount },
       { id: 'alert_system', label: 'Alert Lab', count: categoryCounts.alert_system || 0 },
-      { id: 'ha_lcars_theme', label: 'HA-LCARS Theme', count: categoryCounts.ha_lcars_theme || 0 }
+      { id: 'ha_lcars_theme', label: 'HA-LCARS Theme', count: categoryCounts.ha_lcars_theme || 0 },
+      { id: 'sound', label: 'Sounds', count: categoryCounts.sound || 0 }
     ];
 
     return html`
@@ -1092,6 +1101,14 @@ export class LCARdSConfigPanel extends LitElement {
     }
 
     return helper.currentValue;
+  }
+
+  _renderSoundTab() {
+    return html`
+      <lcards-sound-config-tab
+        .hass=${this.hass}
+      ></lcards-sound-config-tab>
+    `;
   }
 
   _renderThemeBrowserTab() {
