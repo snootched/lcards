@@ -39,16 +39,18 @@ const EVENT_CATEGORY = {
   slider_drag_end:   'cards',
   slider_change:     'cards',
   more_info_open:    'cards',
-  nav_sidebar:            'ui',
   menu_expand:            'ui',
   nav_page:               'ui',
   dialog_open:            'ui',
   dashboard_edit_start:   'ui',
   dashboard_edit_save:    'ui',
   dialog_close:           'ui',
-  alert_activate:         'alerts',
-  alert_clear:       'alerts',
-  alert_escalate:    'alerts',
+  alert_red:             'alerts',
+  alert_yellow:          'alerts',
+  alert_blue:            'alerts',
+  alert_gray:            'alerts',
+  alert_black:           'alerts',
+  alert_clear:           'alerts',
   system_ready:      'alerts',
   error:             'alerts',
   notification:      'alerts',
@@ -70,16 +72,18 @@ export const SOUND_EVENT_LABELS = {
   slider_drag_end:   'Slider Release',
   slider_change:     'Slider Value Change',
   more_info_open:    'More Info Open',
-  nav_sidebar:            'Sidebar Navigation',
-  menu_expand:            'Menu Expand / Collapse',
-  nav_page:               'Page / View Navigation',
+  menu_expand:            'Sidebar Menu Expand / Collapse',
+  nav_page:               'Page / View Navigation (incl. sidebar)',
   dialog_open:            'Dialog Open',
+  dialog_close:           'Dialog Close',
   dashboard_edit_start:   'Dashboard Edit Start',
   dashboard_edit_save:    'Dashboard Edit Save / Done',
-  dialog_close:           'Dialog Close',
-  alert_activate:         'Alert Activated',
-  alert_clear:       'Alert Cleared',
-  alert_escalate:    'Alert Escalated',
+  alert_clear:           'Alert Cleared (Green Alert)',
+  alert_yellow:          'Yellow Alert',
+  alert_red:             'Red Alert',
+  alert_blue:            'Blue Alert',
+  alert_gray:            'Gray Alert',
+  alert_black:           'Black Alert',
   system_ready:      'System Ready',
   error:             'System Error',
   notification:      'Notification',
@@ -134,11 +138,7 @@ export class SoundManager extends BaseService {
     /** @type {Object|null} Reference to LCARdSCore */
     this._core = null;
 
-    /** @type {Function|null} Alert mode unsubscribe */
-    this._alertUnsubscribe = null;
-
-    /**
-     * Whether the sound_scheme input_select options have been successfully
+    /** @type {boolean} Whether the sound_scheme input_select options have been successfully
      * synced to HA at least once.
      * @type {boolean}
      */
@@ -189,41 +189,29 @@ export class SoundManager extends BaseService {
     };
     document.addEventListener('click', this._interactionHandler, { capture: true, passive: true });
 
-    // Global click handler — dispatches Tier 2 UI sounds
+    // Global click handler — handles sidebar hamburger/menu expand only.
+    // Navigation sounds (sidebar items, view changes) are handled by location-changed below.
     this._globalClickHandler = (e) => {
       if (!this._isCategoryEnabled('ui')) return;
       const path = e.composedPath();
       if (!path || path.length === 0) return;
 
-      // Detect sidebar context using both tag names and role attributes (resilient to HA changes)
       const inSidebar = path.some(el =>
         el?.tagName === 'HA-SIDEBAR' ||
         el?.getAttribute?.('role') === 'navigation'
       );
-
       if (!inSidebar) return;
 
       const isHamburger = path.some(el =>
         el?.tagName === 'HA-ICON-BUTTON' ||
         el?.tagName === 'PAPER-ICON-BUTTON'
       );
-
       if (isHamburger) {
         this.play('menu_expand');
-        return;
-      }
-
-      const isNavItem = path.some(el =>
-        el?.tagName === 'PAPER-ICON-ITEM' ||
-        (el?.tagName === 'A' && (el?.getAttribute?.('role') === 'option' || el?.getAttribute?.('role') === 'menuitem'))
-      );
-
-      if (isNavItem) {
-        this.play('nav_sidebar');
       }
     };
 
-    // Page navigation handler
+    // Page / view navigation handler — fires for all location changes including sidebar nav.
     this._navHandler = () => {
       if (this._isCategoryEnabled('ui')) this.play('nav_page');
     };
@@ -297,8 +285,10 @@ export class SoundManager extends BaseService {
   }
 
   /**
-   * Subscribe to alert mode changes for Tier 2 alert sounds.
-   * Called by LCARdSCore after initialization completes and HelperManager is ready.
+   * Subscribe to alert mode changes for alert sounds.
+   * Called by LCARdSCore after initialization.
+   * The input_select is the source of truth — sounds fire via this subscription
+   * whether the change came from the HA UI, the Config Panel, or window.lcards.setAlertMode().
    */
   subscribeToAlertMode() {
     const helperManager = this._core?.helperManager;
@@ -306,25 +296,43 @@ export class SoundManager extends BaseService {
       lcardsLog.warn('[SoundManager] HelperManager not available — alert sound subscription skipped');
       return;
     }
-
-    // Unsubscribe from any previous subscription
     if (this._alertUnsubscribe) {
       this._alertUnsubscribe();
       this._alertUnsubscribe = null;
     }
-
     this._alertUnsubscribe = helperManager.subscribeToHelper('alert_mode', (newMode, oldMode) => {
-      if (!oldMode) return; // Skip initial subscription fire on registration
+      if (!oldMode) return; // Skip initial fire on registration
       if (!this._isCategoryEnabled('alerts')) return;
-
-      if (newMode === 'red_alert' || newMode === 'yellow_alert' || newMode === 'blue_alert') {
-        this.play('alert_activate');
-      } else if (newMode === 'green_alert') {
-        this.play('alert_clear');
-      }
+      const EVENT_MAP = {
+        red_alert:    'alert_red',
+        yellow_alert: 'alert_yellow',
+        blue_alert:   'alert_blue',
+        gray_alert:   'alert_gray',
+        black_alert:  'alert_black',
+        green_alert:  'alert_clear',
+      };
+      const event = EVENT_MAP[newMode];
+      if (event) this.play(event);
     });
-
     lcardsLog.info('[SoundManager] Alert mode subscription active');
+  }
+
+  /**
+   * Play an alert sound directly — used as fallback when no input_select helper exists.
+   * @param {string} mode
+   */
+  playAlertSound(mode) {
+    if (!this._isCategoryEnabled('alerts')) return;
+    const EVENT_MAP = {
+      red_alert:    'alert_red',
+      yellow_alert: 'alert_yellow',
+      blue_alert:   'alert_blue',
+      gray_alert:   'alert_gray',
+      black_alert:  'alert_black',
+      green_alert:  'alert_clear',
+    };
+    const event = EVENT_MAP[mode];
+    if (event) this.play(event);
   }
 
   /**

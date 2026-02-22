@@ -116,21 +116,23 @@ const LCARDS_DEFAULT_SCHEME = {
   more_info_open:    'lcards_default_dialog_open',
 
   // UI navigation
-  nav_sidebar:          'lcards_default_nav',
-  menu_expand:          'lcards_default_nav',
   nav_page:             'lcards_default_nav',
+  menu_expand:          'lcards_default_nav',
   dialog_open:          'lcards_default_dialog_open',
   dashboard_edit_start: 'lcards_default_nav',
   dashboard_edit_save:  'lcards_default_nav',
   dialog_close:         'lcards_default_nav',
 
-  // Alerts & system
-  alert_activate:    'lcards_default_alert_activate',
+  // Alerts & system — per alert level
+  alert_red:         'lcards_default_alert_activate',
+  alert_yellow:      'lcards_default_alert_activate',
+  alert_blue:        'lcards_default_alert_activate',
+  alert_gray:        'lcards_default_alert_activate',
+  alert_black:       'lcards_default_alert_activate',
   alert_clear:       'lcards_default_alert_clear',
-  alert_escalate:    'lcards_default_alert_activate',  // Reuse for now
   system_ready:      'lcards_default_system_ready',
   error:             'lcards_default_error',
-  notification:      'lcards_default_nav',             // Reuse nav beep for notifications
+  notification:      'lcards_default_nav',
 };
 
 // ──────────────────────────────────────────────────────────────

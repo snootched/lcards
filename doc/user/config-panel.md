@@ -63,6 +63,8 @@ Configure LCARdS audio feedback. From here you can:
 - Toggle per-category: card interactions, UI navigation, alerts
 - Set master volume
 - Select or preview sound schemes
+- Override individual events with a specific sound or silence them
+- **Reset all overrides** to scheme defaults (button appears when any overrides are active)
 
 Sound requires helpers to be created first. See [Sound Effects](core/sounds.md) for full setup.
 
@@ -89,13 +91,16 @@ Generates the `configuration.yaml` snippets you need to manually create all LCAR
 
 ## Alert Mode
 
-Alert mode can be triggered from the Helpers tab or via automations. Three levels are supported:
+Alert mode can be triggered from the Helpers tab or via automations. Six modes are supported:
 
-| Mode | Description |
-|------|-------------|
-| Red Alert | Full red-alert with animations across registered cards |
-| Yellow Alert | Caution state |
-| Clear | Returns to normal |
+| Mode (`input_select` value) | Description |
+|---|---|
+| `red_alert` | Full red-alert — animations across all registered cards |
+| `yellow_alert` | Caution state |
+| `blue_alert` | Blue standby / information state |
+| `gray_alert` | Gray subdued state |
+| `black_alert` | Black / blackout state |
+| `green_alert` | Normal / all-clear (default) |
 
 ```yaml
 # Trigger from an automation
@@ -103,8 +108,10 @@ Alert mode can be triggered from the Helpers tab or via automations. Three level
   target:
     entity_id: input_select.lcards_alert_mode
   data:
-    option: red
+    option: red_alert
 ```
+
+Each mode fires a dedicated sound event (`alert_red`, `alert_yellow`, etc.) when a sound scheme is active. See [Sound Effects](core/sounds.md) for details.
 
 ---
 

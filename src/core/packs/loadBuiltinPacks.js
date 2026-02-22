@@ -3,7 +3,8 @@ import { BUTTON_PRESETS } from './style-presets/buttons/index.js';
 import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
 import { BUILTIN_THEMES_PACK } from './themes/builtin-themes.js';
 import { BUILTIN_MSD_SVG_PACK } from './svg-assets/builtin-msd.js';
-import { BUILTIN_SOUNDS_PACK } from './sounds/builtin-sounds.js';
+import { BUILTIN_SOUNDS_PACK } from './sounds/lcards-default-sound-scheme.js';
+import { LCARDS_BEEPS_PACK } from './sounds/lcards-beeps-pack.js';
 import { registerBuiltinAnimationPresets } from './animations/index.js';
 import coreFontsJson from './core_fonts.json';
 
@@ -115,6 +116,7 @@ const BUILTIN_REGISTRY = {
   builtin_msd_backgrounds: BUILTIN_MSD_SVG_PACK,
   core_fonts: CORE_FONTS_PACK,
   lcards_sounds_default: BUILTIN_SOUNDS_PACK,
+  lcards_beeps: LCARDS_BEEPS_PACK,
 };
 
 // Remove getBuiltinPack() function entirely - it's not needed anymore
@@ -125,7 +127,7 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
   registerBuiltinAnimationPresets();
 
   // ✅ CRITICAL FIX: Always load builtin_themes, builtin_msd_backgrounds, core_fonts, and lcards_sounds_default packs
-  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds', 'core_fonts', 'lcards_sounds_default'])];
+  const packsToLoad = [...new Set([...requested, 'builtin_themes', 'builtin_msd_backgrounds', 'core_fonts', 'lcards_sounds_default', 'lcards_beeps'])];
 
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }

@@ -244,6 +244,14 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
+  _resetOverrides() {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm) return;
+    sm.clearAllOverrides();
+    this._overrides = sm.getOverrides();
+    this.requestUpdate();
+  }
+
   _overrideValueFor(eventType) {
     if (eventType in this._overrides) {
       const v = this._overrides[eventType];
@@ -406,6 +414,18 @@ export class LCARdSSoundConfigTab extends LitElement {
           ` : ''}
 
           ${this._eventTypes.length > 0 ? html`
+            <div class="overrides-header-row">
+              <span class="overrides-note">
+                <ha-icon icon="mdi:monitor"></ha-icon>
+                Overrides are stored in this browser only — configure each device separately.
+              </span>
+              ${Object.keys(this._overrides).length > 0 ? html`
+                <ha-button @click=${this._resetOverrides} class="reset-overrides-btn">
+                  <ha-icon slot="start" icon="mdi:restore"></ha-icon>
+                  Reset all to scheme defaults
+                </ha-button>
+              ` : ''}
+            </div>
             <div class="overrides-table-wrapper">
               <table class="overrides-table">
                 <thead>
@@ -654,6 +674,28 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .event-label {
       white-space: nowrap;
+    }
+    .overrides-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 4px 8px;
+    }
+    .overrides-note {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.82em;
+      color: var(--secondary-text-color);
+    }
+    .overrides-note ha-icon {
+      --mdc-icon-size: 14px;
+      flex-shrink: 0;
+    }
+    .reset-overrides-btn {
+      --mdc-theme-primary: var(--warning-color, #ff9800);
+      flex-shrink: 0;
     }
 
     /* Helper status table */

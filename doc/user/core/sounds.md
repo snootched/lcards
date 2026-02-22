@@ -76,9 +76,9 @@ Set to **none** to disable all sounds without turning off the helpers.
 
 You can assign a different sound (or silence) to any individual event, independent of the active scheme.
 
-In the Sound tab, find the event in the table and pick an asset from the dropdown, or set it to **— (use scheme default)** to revert.
+> **Per-browser setting** — overrides are stored in `localStorage` on the current device. If you use LCARdS on multiple devices or browsers, you'll need to configure overrides on each one separately.
 
-Overrides are stored in browser `localStorage` — they're specific to the device/browser you configure them on.
+In the Sound tab, find the event in the overrides table and pick an asset from the dropdown, or set it to **— (use scheme default)** to revert. When any overrides are active, a **Reset all to scheme defaults** button appears above the table to clear them all at once.
 
 ---
 
@@ -98,9 +98,8 @@ Overrides are stored in browser `localStorage` — they're specific to the devic
 ### HA UI Navigation
 | Event | When |
 |-------|------|
-| Sidebar Navigation | Clicking a sidebar nav item |
 | Menu Expand / Collapse | Hamburger menu button |
-| Page / View Navigation | Moving between dashboard views |
+| Page / View Navigation | Moving between dashboard views and sidebar nav items |
 | Dialog Open | Any HA dialog opens |
 | Dialog Close | Any HA dialog dismissed |
 | Dashboard Edit Start | Entering dashboard edit mode |
@@ -109,8 +108,12 @@ Overrides are stored in browser `localStorage` — they're specific to the devic
 ### Alerts & System
 | Event | When |
 |-------|------|
-| Alert Activated | Alert mode changes to red / yellow / blue |
-| Alert Cleared | Alert mode cleared (green) |
+| Red Alert | Alert mode set to `red_alert` |
+| Yellow Alert | Alert mode set to `yellow_alert` |
+| Blue Alert | Alert mode set to `blue_alert` |
+| Gray Alert | Alert mode set to `gray_alert` |
+| Black Alert | Alert mode set to `black_alert` |
+| Alert Clear | Alert mode cleared (back to normal) |
 | System Ready | LCARdS initialization complete |
 | System Error | System error condition |
 | Notification | General notification |

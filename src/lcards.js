@@ -266,7 +266,27 @@ window.lcards.setAlertMode = async (mode) => {
     });
   }
 
+  // Apply theme change immediately.
+  const previousMode = window.lcards.core.themeManager.getAlertMode?.();
   await window.lcards.core.themeManager.setAlertMode(mode);
+
+  // Sync the input_select helper if it exists.
+  // This keeps the HA state in sync when called from the JS console or Config Panel,
+  // and is the trigger for the SoundManager subscription to fire.
+  // If the helper doesn't exist, play the sound directly as a fallback.
+  const helperEntityId = 'input_select.lcards_alert_mode';
+  const helperExists = hass?.states?.[helperEntityId] !== undefined;
+
+  if (helperExists && mode !== previousMode) {
+    // Fire and forget — the HelperManager subscription will handle sound.
+    hass.callService('input_select', 'select_option', {
+      entity_id: helperEntityId,
+      option: mode,
+    }).catch(err => lcardsLog.warn('[LCARdS] Failed to sync alert_mode helper:', err));
+  } else if (!helperExists && mode !== previousMode) {
+    // No helper — play sound directly since the subscription won't fire.
+    window.lcards.core.soundManager?.playAlertSound(mode);
+  }
 };
 
 /**

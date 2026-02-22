@@ -187,29 +187,22 @@ export class LCARdSHelperManager extends BaseService {
   _setupAlertModeAutoSwitch() {
     lcardsLog.debug('[HelperManager] Setting up alert mode auto-switch');
 
-    // Subscribe to alert mode changes
+    // Subscribe to alert mode changes — always apply theme when the input_select changes.
+    // auto_switch toggle no longer gates this; it is reserved for future HA automation use.
     this.subscribeToHelper('alert_mode', (newMode, oldMode) => {
-      // Check if auto-switch is enabled
-      const autoSwitchEnabled = this.getHelperValue('alert_mode_auto_switch');
+      lcardsLog.info(`[HelperManager] Alert mode changed to: ${newMode}`);
 
-      if (autoSwitchEnabled === 'on' || autoSwitchEnabled === true) {
-        lcardsLog.info(`[HelperManager] Auto-switching to alert mode: ${newMode}`);
+      // Ensure HASS is available (critical for green_alert)
+      if (this.hass && window.lcards?.core) {
+        window.lcards.core.ingestHass(this.hass);
+      }
 
-        // Ensure HASS is available (critical for green_alert)
-        if (this.hass && window.lcards?.core) {
-          window.lcards.core.ingestHass(this.hass);
-        }
-
-        // Trigger the alert mode change via window.lcards API
-        if (window.lcards?.setAlertMode) {
-          window.lcards.setAlertMode(newMode).catch(error => {
-            lcardsLog.error('[HelperManager] Failed to auto-switch alert mode:', error);
-          });
-        } else {
-          lcardsLog.warn('[HelperManager] window.lcards.setAlertMode not available');
-        }
+      if (window.lcards?.setAlertMode) {
+        window.lcards.setAlertMode(newMode).catch(error => {
+          lcardsLog.error('[HelperManager] Failed to apply alert mode:', error);
+        });
       } else {
-        lcardsLog.debug(`[HelperManager] Alert mode changed to ${newMode} but auto-switch is disabled`);
+        lcardsLog.warn('[HelperManager] window.lcards.setAlertMode not available');
       }
     });
 
