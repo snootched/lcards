@@ -2,113 +2,99 @@ name: Build Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "msd-globalisation" ]
     paths:
       - 'package.json'
-    # Ignore changes in folders that are affected by the auto commit. (Node.js project)
-    #paths-ignore:
-    #  - 'dist/**'
 
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to build'
-        required: true
-        default: 'main'
+        required: false
+        default: 'msd-globalisation'
+        type: string
+      prerelease:
+        description: 'Publish as pre-release'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
-    name: Build for Release
+    name: Build
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        #node-version: [18.x, 20.x, 22.x]
-        node-version: [20.x]
     permissions:
       contents: write
     outputs:
       version: ${{ steps.get_version.outputs.version }}
+      should_release: ${{ steps.check_tag.outputs.should_release }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0
 
       - name: Get version from package.json
         id: get_version
         run: |
           VERSION=$(jq -r '.version' package.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION"
 
-      - name: Check if tag exists already
-        uses: mukunku/tag-exists-action@v1.4.0
+      - name: Check if tag exists
         id: check_tag
-        with:
-          tag: "v${{ steps.get_version.outputs.version }}"
-
-      - name: Cancel if tag is already present
         run: |
-          echo "Tag already present: v${{ steps.get_version.outputs.version }}. Not creating a new release"
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: steps.check_tag.outputs.exists == 'true'
+          VERSION="${{ steps.get_version.outputs.version }}"
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Tag v$VERSION already exists - skipping"
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "✅ Tag v$VERSION does not exist - proceeding"
+          fi
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
+        if: steps.check_tag.outputs.should_release == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.check_tag.outputs.should_release == 'true'
+        run: npm ci
 
       - name: Build
-        run: |
-          npm install
-          npx webpack
+        if: steps.check_tag.outputs.should_release == 'true'
+        run: npm run build
 
-      - name: Generate per-card JSON editor definitions
-        run: npm run generate-editor-json
-
-      - name: Copy editor JSON files to dist
-        run: |
-          mkdir -p ./dist/editor
-          cp -v ./src/editor/*.json ./dist/editor/
-
-      - name: Create full yaml with version and manage_config as lcards-lovelace.yaml
+      - name: Prepare dist package
+        if: steps.check_tag.outputs.should_release == 'true'
         run: |
           mkdir -p ./dist
-          ./create_full_yaml.sh --output ./dist/lcards-lovelace.yaml --path ./src/cb-lcars
-          echo "lcards:" > ./dist/temp.yaml
-          echo "  version: ${{ steps.get_version.outputs.version }}" >> ./dist/temp.yaml
-          echo "  manage_config: true" >> ./dist/temp.yaml
-          cat ./dist/lcards-lovelace.yaml >> ./dist/temp.yaml
-          mv -f ./dist/temp.yaml ./dist/lcards-lovelace.yaml
-          echo "Head of generated lcards-lovelace.yaml"
-          head -10 ./dist/lcards-lovelace.yaml
-          echo "Copy artifacts from src to dist..."
-          cp -v ./src/*.yaml ./dist
-          cp -Rv ./src/fonts ./dist/
-          cp -Rv ./src/msd ./dist/
+          cp -Rv ./src/assets/fonts  ./dist/
+          cp -Rv ./src/assets/msd    ./dist/
+          cp -Rv ./src/assets/sounds ./dist/
+          cp hacs.json  ./dist/
+          cp README.md  ./dist/
+          echo "✅ dist contents:"
+          ls -la ./dist/
 
-      - name: Lint YAML files
-        uses: ibiqlik/action-yamllint@v3.1.1
+      - name: Upload dist artifact
+        if: steps.check_tag.outputs.should_release == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          file_or_dir: ./dist/*.yaml
-          format: parsable
-          config_data: "{ rules: { line-length: disable, trailing-spaces: disable } }"
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4.3.6
-        with:
-          name: dist-files
-          #path: ./dist/*.yaml
+          name: lcards-dist-${{ steps.get_version.outputs.version }}
           path: ./dist
+          retention-days: 30
 
-      - name: Commit changes
+      - name: Commit dist to branch
+        if: steps.check_tag.outputs.should_release == 'true'
         uses: EndBug/add-and-commit@v9
         with:
-          message: Add dist files
+          message: "chore: update dist for v${{ steps.get_version.outputs.version }}"
           committer_name: GitHub Actions
           committer_email: 41898282+github-actions[bot]@users.noreply.github.com
           add: './dist --force'
@@ -117,73 +103,73 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: build
+    if: needs.build.outputs.should_release == 'true'
     permissions:
       contents: write
-      deployments: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || 'main' }}
+          ref: ${{ github.event.inputs.branch || 'msd-globalisation' }}
+          fetch-depth: 0
 
-      - name: Get git sha
-        id: get_sha
-        run: echo "CURRENT_SHA=$(git log -1 --format='%H')" >> $GITHUB_ENV
-
-      - name: Check if tag exists already
-        uses: mukunku/tag-exists-action@v1.4.0
-        id: check_tag
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
         with:
-          tag: "v${{ needs.build.outputs.version }}"
+          name: lcards-dist-${{ needs.build.outputs.version }}
+          path: ./dist
 
-      - name: Cancel if tag is already present
+      - name: Generate changelog
         run: |
-          echo "Tag already present: v${{ needs.build.outputs.version }}. Not creating a new release"
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: steps.check_tag.outputs.exists == 'true'
+          VERSION="${{ needs.build.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          {
+            echo "## What's Changed"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | head -30
+              echo ""
+              echo ""
+              echo "**Full Changelog:** https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}"
+            else
+              echo "Initial release."
+            fi
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
 
-      - name: "Get previous release version"
-        id: last_release
-        uses: InsonusK/get-latest-release@v1.1.0
-        with:
-          myToken: ${{ secrets.GITHUB_TOKEN }}
-          #exclude_types: "draft|prerelease"
-          exclude_types: "draft"
+      - name: Create zip archive
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          cd dist && zip -r ../lcards-${VERSION}.zip . && cd ..
 
-      - name: Create new tag
-        uses: rickstaa/action-create-tag@v1.7.2
-        id: tag_create
-        with:
-          tag: "v${{ needs.build.outputs.version }}"
-          commit_sha: "${{ env.CURRENT_SHA }}"
-          tag_exists_error: false
-          message: "Version ${{ needs.build.outputs.version }}"
-
- #     - name: Download artifacts
- #       uses: actions/download-artifact@v3
- #       with:
- #         name: dist-yaml-files
-
- #     - name: Extract artifacts
- #       run: tar -xzf dist-yaml-files.tar.gz -C ./dist
-
-#      - name: Generate release changelog
-#        id: changelog
-#        uses: heinrichreimer/github-changelog-generator-action@v2.3
-#        with:
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          sinceTag: ${{ steps.last_release.outputs.tag_name }}
-#          headerLabel: "# Notable changes since ${{ steps.last_release.outputs.tag_name }}"
-#          stripGeneratorNotice: true
+      - name: Create Git tag
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          prerelease: ${{ contains(needs.build.outputs.version, 'alpha') || contains(needs.build.outputs.version, 'beta') }}
-          #body: "${{ steps.changelog.outputs.changelog }}"
-          name: "Version ${{ needs.build.outputs.version }}"
           tag_name: "v${{ needs.build.outputs.version }}"
-          target_commitish: "${{ env.CURRENT_SHA }}"
+          name: "v${{ needs.build.outputs.version }}"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' || contains(needs.build.outputs.version, 'alpha') || contains(needs.build.outputs.version, 'beta') }}
+          files: lcards-${{ needs.build.outputs.version }}.zip
+
+      - name: Summary
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          IS_PRE="${{ github.event.inputs.prerelease }}"
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          {
+            echo "## ✅ Release Created"
+            echo ""
+            echo "**Version:** v$VERSION"
+            echo "**Pre-release:** $IS_PRE"
+            echo "**Branch:** $BRANCH"
+          } >> $GITHUB_STEP_SUMMARY
