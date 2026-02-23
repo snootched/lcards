@@ -190,9 +190,16 @@ export class CoreSystemsManager {
 
     // Clean up entity subscriptions for this card
     cardContext.entitySubscriptions.forEach(entityId => {
-      // Remove all callbacks for this card (would need callback tracking to be more precise)
-      // For now, we'll just note the cleanup needed
-      lcardsLog.debug(`[CoreSystemsManager] Cleaning up subscription for ${entityId} from card ${cardId}`);
+      const entries = this._entitySubscriptions.get(entityId);
+      if (entries) {
+        const filtered = entries.filter(entry => entry.cardId !== cardId);
+        if (filtered.length === 0) {
+          this._entitySubscriptions.delete(entityId);
+        } else {
+          this._entitySubscriptions.set(entityId, filtered);
+        }
+        lcardsLog.debug(`[CoreSystemsManager] Cleaned up entity subscription for ${entityId} from card ${cardId}`);
+      }
     });
 
     this._registeredCards.delete(cardId);
@@ -365,18 +372,32 @@ export class CoreSystemsManager {
    *
    * @param {string} entityId - Entity to monitor
    * @param {Function} callback - Called when entity changes: callback(entityId, newState, oldState)
+   * @param {string|null} [cardId=null] - Optional card ID for cross-reference tracking
    * @returns {Function} Unsubscribe function
    */
-  subscribeToEntity(entityId, callback) {
+  subscribeToEntity(entityId, callback, cardId = null) {
     if (!entityId || typeof callback !== 'function') {
       throw new Error('Invalid entityId or callback for subscription');
     }
 
     if (!this._entitySubscriptions.has(entityId)) {
-      this._entitySubscriptions.set(entityId, new Set());
+      this._entitySubscriptions.set(entityId, []);
     }
 
-    this._entitySubscriptions.get(entityId).add(callback);
+    const entries = this._entitySubscriptions.get(entityId);
+
+    // Avoid duplicate subscription of the same function
+    if (!entries.find(entry => entry.fn === callback)) {
+      entries.push({ cardId, fn: callback });
+    }
+
+    // Cross-reference the entity into the card's subscription Set for cleanup tracking
+    if (cardId) {
+      const cardContext = this._registeredCards.get(cardId);
+      if (cardContext) {
+        cardContext.entitySubscriptions.add(entityId);
+      }
+    }
 
     lcardsLog.debug(`[CoreSystemsManager] ✅ Subscribed to entity: ${entityId}`);
 
@@ -391,13 +412,14 @@ export class CoreSystemsManager {
    * @param {Function} callback - Callback to remove
    */
   unsubscribeFromEntity(entityId, callback) {
-    const subscribers = this._entitySubscriptions.get(entityId);
-    if (subscribers) {
-      subscribers.delete(callback);
+    const entries = this._entitySubscriptions.get(entityId);
+    if (entries) {
+      const filtered = entries.filter(entry => entry.fn !== callback);
 
-      // Clean up empty subscription sets
-      if (subscribers.size === 0) {
+      if (filtered.length === 0) {
         this._entitySubscriptions.delete(entityId);
+      } else {
+        this._entitySubscriptions.set(entityId, filtered);
       }
 
       lcardsLog.debug(`[CoreSystemsManager] ✅ Unsubscribed from entity: ${entityId}`);
@@ -441,14 +463,14 @@ export class CoreSystemsManager {
 
     // Notify individual entity subscribers
     entityIds.forEach(entityId => {
-      const subscribers = this._entitySubscriptions.get(entityId);
-      if (subscribers && subscribers.size > 0) {
+      const entries = this._entitySubscriptions.get(entityId);
+      if (entries && entries.length > 0) {
         const newState = this.getEntityState(entityId);
         const oldState = this._oldEntityStates?.get(entityId) || null;
-        lcardsLog.trace(`[CoreSystemsManager] 📢 Entity ${entityId} changed: ${oldState?.state} → ${newState?.state}, notifying ${subscribers.size} subscribers`);
-        subscribers.forEach(callback => {
+        lcardsLog.trace(`[CoreSystemsManager] 📢 Entity ${entityId} changed: ${oldState?.state} → ${newState?.state}, notifying ${entries.length} subscribers`);
+        entries.forEach(entry => {
           try {
-            callback(entityId, newState, oldState);
+            entry.fn(entityId, newState, oldState);
           } catch (error) {
             lcardsLog.error(`[CoreSystemsManager] Error in entity subscription callback for ${entityId}:`, error);
           }

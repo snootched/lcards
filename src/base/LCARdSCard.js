@@ -937,14 +937,17 @@ export class LCARdSCard extends LCARdSNativeCard {
                 stylePresetManager: core.getStylePresetManager()
             };
 
-            // Register this card with CoreSystemsManager for entity tracking
-            if (this._singletons.systemsManager && this._cardGuid) {
-                this._cardContext = this._singletons.systemsManager.registerCard(
-                    this._cardGuid,
-                    this,
-                    this.config
-                );
-                lcardsLog.trace(`[LCARdSCard] Registered with CoreSystemsManager: ${this._cardGuid}`);
+            // Register this card with LCARdSCore (populates _cardInstances and delegates to SystemsManager)
+            if (core && this._cardGuid) {
+                // registerCard returns a Promise for pending-queue cards; resolve and store context
+                Promise.resolve(core.registerCard(this._cardGuid, this, this.config))
+                    .then(ctx => {
+                        this._cardContext = ctx;
+                        lcardsLog.trace(`[LCARdSCard] Registered with LCARdSCore: ${this._cardGuid}`);
+                    })
+                    .catch(err => {
+                        lcardsLog.error(`[LCARdSCard] Failed to register with LCARdSCore: ${this._cardGuid}`, err);
+                    });
             }
 
             lcardsLog.trace(`[LCARdSCard] Singletons initialized for ${this._cardGuid}`, {
@@ -1650,7 +1653,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Poll for DataSourceManager availability
         const checkInterval = setInterval(() => {
-            const dataSourceManager = window.lcards?.debug?.msd?.pipelineInstance?.systemsManager?.dataSourceManager;
+            const dataSourceManager = window.lcards?.core?.dataSourceManager;
 
             if (dataSourceManager) {
                 clearInterval(checkInterval);
@@ -2561,7 +2564,8 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Subscribe via CoreSystemsManager
         const unsubscribe = this._singletons.systemsManager.subscribeToEntity(
             entityId,
-            callback
+            callback,
+            this._cardGuid
         );
 
         // Track subscription for automatic cleanup
@@ -2748,13 +2752,14 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.debug(`[LCARdSCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
         }
 
-        // Unregister from CoreSystemsManager
-        if (this._singletons?.systemsManager && this._cardGuid) {
+        // Unregister via LCARdSCore (handles _cardInstances, _cardLoadOrder, and SystemsManager cleanup)
+        const core = window.lcards?.core;
+        if (core && this._cardGuid) {
             try {
-                this._singletons.systemsManager.unregisterCard(this._cardGuid);
-                lcardsLog.debug(`[LCARdSCard] Unregistered from CoreSystemsManager: ${this._cardGuid}`);
+                core.unregisterCard(this._cardGuid);
+                lcardsLog.debug(`[LCARdSCard] Unregistered from LCARdSCore: ${this._cardGuid}`);
             } catch (error) {
-                lcardsLog.error('[LCARdSCard] Error unregistering from CoreSystemsManager:', error);
+                lcardsLog.error('[LCARdSCard] Error unregistering from LCARdSCore:', error);
             }
         }
 
