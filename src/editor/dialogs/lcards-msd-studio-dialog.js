@@ -1281,13 +1281,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </div>
                         ` : ''}
 
-                        ${metadata.approximate_size ? html`
-                            <div>
-                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">File Size</div>
-                                <div style="font-weight: 500;">${metadata.approximate_size}</div>
-                            </div>
-                        ` : ''}
-
                         ${metadata.author ? html`
                             <div>
                                 <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Author</div>
@@ -1299,6 +1292,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div>
                                 <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Source</div>
                                 <div style="font-weight: 500;">${metadata.source}</div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.license ? html`
+                            <div>
+                                <div style="opacity: 0.8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">License</div>
+                                <div style="font-weight: 500;">${metadata.license}</div>
                             </div>
                         ` : ''}
                     </div>

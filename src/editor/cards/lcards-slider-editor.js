@@ -981,10 +981,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             label: 'Show Scale Labels'
                         })}
 
-                        ${FormField.renderField(this, 'style.gauge.scale.labels.unit', {
-                        label: 'Unit',
-                        helper: 'Unit to append to values (%, °C, °F, W, etc.)'
-                    })}
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.show_unit', {
+                            label: 'Show Unit',
+                            helper: 'Show unit suffix on labels. Disable to hide even when entity has a unit.'
+                        })}
+
+                        ${(this.config?.style?.gauge?.scale?.labels?.show_unit ?? true) ? FormField.renderField(this, 'style.gauge.scale.labels.unit', {
+                            label: 'Unit',
+                            helper: 'Unit to append to values (e.g. °C, %, W). Leave empty to use entity unit.'
+                        }) : html``}
 
                         ${FormField.renderField(this, 'style.gauge.scale.labels.font_size', {
                         label: 'Font Size',

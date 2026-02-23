@@ -1651,7 +1651,11 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Label configuration
         const labelsEnabled = labelConfig?.enabled !== false;
-        const labelUnit = this._displayConfig.unit || labelConfig?.unit || '';
+        // style.gauge.scale.labels.unit takes priority over entity unit (via _displayConfig.unit).
+        // style.gauge.scale.labels.show_unit: false suppresses unit entirely.
+        const labelUnit = labelConfig?.show_unit !== false
+            ? (labelConfig?.unit ?? this._displayConfig.unit ?? '')
+            : '';
         const labelPadding = labelConfig?.padding || 3; // Padding between tick and label
 
         // Label color - state-aware resolution for tick labels

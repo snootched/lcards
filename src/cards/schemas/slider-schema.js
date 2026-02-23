@@ -574,9 +574,14 @@ export function getSliderSchema(options = {}) {
                                         type: 'object',
                                         properties: {
                                             enabled: { type: 'boolean' },
+                                            show_unit: {
+                                                type: 'boolean',
+                                                description: 'Show unit suffix on scale labels. Set false to hide even when entity has unit_of_measurement.',
+                                                examples: [true, false]
+                                            },
                                             unit: {
                                                 type: 'string',
-                                                description: 'Unit suffix for labels',
+                                                description: 'Unit suffix for labels. Takes priority over entity unit_of_measurement.',
                                                 examples: ['°C', '%', 'lux']
                                             },
                                             color: stateColorSchema,
