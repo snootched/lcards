@@ -1,4 +1,3 @@
-import { applyOverlayPatches } from '../../core/rules/RulesEngine.js';
 import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
 import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { perfTime } from '../../utils/performance.js';
@@ -43,17 +42,6 @@ export class ModelBuilder {
       timelines: tlDiff.active,
       config: this.mergedConfig
     };
-
-    // DEBUG: Check final overlay state before rendering
-    const titleOverlay = resolved.overlays.find(o => o.id === 'title_overlay');
-    if (titleOverlay) {
-      lcardsLog.trace('[ModelBuilder] 🏁 Final title_overlay state before rendering:', {
-        id: titleOverlay.id,
-        color: titleOverlay.style?.color,
-        status_indicator: titleOverlay.style?.status_indicator,
-        finalStyle: titleOverlay.finalStyle
-      });
-    }
 
     // Update router
     try {

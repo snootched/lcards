@@ -4,15 +4,8 @@ import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js'
 import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { lcardsCore } from '../../core/lcards-core.js';
-import { AnimationRegistry } from '../../core/animation/AnimationRegistry.js';
-import { ThemeManager } from '../../core/themes/ThemeManager.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { DebugManager } from '../debug/DebugManager.js';
-
-import { StylePresetManager } from '../../core/presets/StylePresetManager.js';
-
-// Import theme system initialization
-import { initializeThemeSystem } from '../../core/themes/initializeThemeSystem.js';
 
 // Import animation system components
 // AnimationManager now imported as shared singleton from lcardsCore

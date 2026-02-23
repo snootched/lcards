@@ -247,9 +247,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       if (coordinator.animationManager) {
         lcardsLog.trace('[PipelineCore] Notifying AnimationManager about rendered overlays...');
 
-        // Track text overlays for re-initialization after font stabilization
-        const textOverlays = [];
-
         for (const overlay of resolvedModel.overlays) {
           // Check if AnimationManager has animations registered for this overlay
           const hasAnimations = coordinator.animationManager.registeredAnimations.has(overlay.id);
@@ -260,11 +257,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
               try {
                 await coordinator.animationManager.onOverlayRendered(overlay.id, element, overlay, coordinator);
                 lcardsLog.trace(`[PipelineCore] Initialized animations for overlay: ${overlay.id}`);
-
-                // Track text overlays for re-initialization after font stabilization
-                if (overlay.type === 'text') {
-                  textOverlays.push({ id: overlay.id, overlay });
-                }
               } catch (animError) {
                 lcardsLog.error(`[PipelineCore] ❌ Failed to initialize animations for ${overlay.id}:`, animError);
               }
@@ -272,28 +264,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
               lcardsLog.warn(`[PipelineCore] ⚠️ Could not find element for animated overlay: ${overlay.id}`);
             }
           }
-        }
-
-        // Re-initialize text overlay animations after font stabilization completes
-        // Font stabilization happens async and re-renders text elements
-        if (textOverlays.length > 0) {
-          setTimeout(async () => {
-            lcardsLog.trace('[PipelineCore] Re-initializing animations after font stabilization...', {
-              overlays: textOverlays.map(t => t.id)
-            });
-
-            for (const { id, overlay } of textOverlays) {
-              const element = mountEl.querySelector(`[data-overlay-id="${id}"]`);
-              if (element) {
-                try {
-                  await coordinator.animationManager.onOverlayRendered(id, element, overlay, coordinator);
-                  lcardsLog.trace(`[PipelineCore] Re-initialized animations for text overlay: ${id}`);
-                } catch (animError) {
-                  lcardsLog.error(`[PipelineCore] ❌ Failed to re-initialize animations for ${id}:`, animError);
-                }
-              }
-            }
-          }, 1000); // Wait for font stabilization to complete (typically 3-10 passes)
         }
 
         lcardsLog.trace('[PipelineCore] AnimationManager notified about all rendered overlays');

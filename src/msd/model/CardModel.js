@@ -31,7 +31,7 @@ export async function buildCardModel(mergedConfig) {
     let resolvedFilters = null;
     if (baseSvgFilterPreset || baseSvgFilters) {
       // Get ThemeManager instance to resolve preset
-      const themeManager = window.lcards?.theme;
+      const themeManager = window.lcards?.core?.themeManager;
 
       if (baseSvgFilterPreset && themeManager) {
         const presetFilters = themeManager.getFilterPreset(baseSvgFilterPreset);
@@ -57,32 +57,12 @@ export async function buildCardModel(mergedConfig) {
       }
     }
 
-    // Try to extract actual SVG viewBox from base_svg (unless source is "none")
-    if (baseSvgSource && baseSvgSource !== 'none') {
-      lcardsLog.trace('[CardModel] Using SVG source:', baseSvgSource);
-      const { getSvgContent, getSvgViewBox } = await import('../../utils/lcards-anchor-helpers.js');
-      const svgContent = getSvgContent(baseSvgSource);
-      if (svgContent) {
-        const extractedViewBox = getSvgViewBox(svgContent);
-        if (extractedViewBox && Array.isArray(extractedViewBox) && extractedViewBox.length === 4) {
-          viewBox = extractedViewBox;
-          lcardsLog.trace('[CardModel] Extracted viewBox from SVG:', viewBox);
-        } else {
-          lcardsLog.warn('[CardModel] Could not extract viewBox from SVG content');
-        }
-      } else {
-        lcardsLog.warn('[CardModel] Could not get SVG content for:', baseSvgSource);
-      }
-    } else if (baseSvgSource === 'none') {
-      // When source is "none", use explicit view_box from config
-      if (mergedConfig.view_box && Array.isArray(mergedConfig.view_box)) {
-        viewBox = mergedConfig.view_box;
-        lcardsLog.trace('[CardModel] Using explicit viewBox for base_svg="none":', viewBox);
-      } else {
-        lcardsLog.warn('[CardModel] base_svg is "none" but no explicit view_box provided, using fallback');
-      }
+    // Use viewBox already extracted by ConfigProcessor (set as mergedConfig.view_box)
+    if (mergedConfig.view_box && Array.isArray(mergedConfig.view_box) && mergedConfig.view_box.length === 4) {
+      viewBox = mergedConfig.view_box;
+      lcardsLog.trace('[CardModel] Using viewBox from mergedConfig:', viewBox);
     } else {
-      lcardsLog.warn('[CardModel] No base_svg specified in merged config');
+      lcardsLog.warn('[CardModel] No view_box in mergedConfig, using fallback');
     }
 
     lcardsLog.trace('[CardModel] Final viewBox:', viewBox);

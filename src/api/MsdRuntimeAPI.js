@@ -13,7 +13,6 @@
  */
 
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { MsdIntrospection } from '../msd/introspection/MsdIntrospection.js';
 
 export class MsdRuntimeAPI {
   /**
@@ -569,15 +568,8 @@ export class MsdRuntimeAPI {
               return false;
             }
 
-            // Check if MsdIntrospection.highlight is available
-            if (typeof MsdIntrospection?.highlight === 'function') {
-              MsdIntrospection.highlight([overlayId], { root: mountEl, duration });
-              lcardsLog.debug('[RuntimeAPI] Highlighted overlay:', overlayId, 'for', duration, 'ms');
-              return true;
-            }
-
-            // Fallback if MsdIntrospection not available
-            lcardsLog.warn('[RuntimeAPI] MsdIntrospection.highlight not available');
+            // Overlay highlighting via visual debug layer is not available in this build
+            lcardsLog.warn('[RuntimeAPI] Overlay highlighting not available');
             lcardsLog.debug('[RuntimeAPI] Would highlight:', overlayId, 'for', duration, 'ms');
             return false;
 

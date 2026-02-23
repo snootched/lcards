@@ -39,7 +39,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
       if (!core?.systemsManager) {
         // Fallback to DOM query if SystemsManager not available
         lcardsLog.warn('[MSD Production] ⚠️ SystemsManager not available, using fallback');
-        return Array.from(document.querySelectorAll('lcards-msd'));
+        return Array.from(document.querySelectorAll('lcards-msd-card'));
       }
 
       const cards = [];

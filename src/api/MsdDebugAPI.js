@@ -2206,20 +2206,9 @@ export class MsdDebugAPI {
             const overlay = model.overlays.find(o => o.id === overlayId);
             if (!overlay) return null;
 
-            // Get renderer to access mountEl
-            const coordinator = _getMsdCoordinator(cardId);
-            const renderer = coordinator?.renderer;
-            const root = renderer?.mountEl;
-
-            // Import MsdIntrospection dynamically to get bbox
-            const MsdIntrospection = window.MsdIntrospection;
-            const bbox = MsdIntrospection ?
-              MsdIntrospection.getOverlayBBox(overlayId, root) : null;
-
             return {
               id: overlayId,
               type: overlay.type,
-              bbox,
               config: overlay,
               position: overlay.position,
               size: overlay.size,
@@ -2235,10 +2224,10 @@ export class MsdDebugAPI {
         /**
          * Get overlay bounding box
          *
-         * Returns x, y, width, height of overlay in SVG coordinates.
+         * Returns position and size from the resolved model.
          *
          * @param {string} overlayId - Overlay ID
-         * @returns {Object|null} Bounding box {x, y, w, h}
+         * @returns {Object|null} Bounding box derived from model {x, y, w, h}
          *
          * @example
          * const bbox = window.lcards.debug.msd.overlays.getBBox('button_1');
@@ -2247,22 +2236,26 @@ export class MsdDebugAPI {
          */
         getBBox(overlayId, cardId = null) {
           try {
-            const coordinator = _getMsdCoordinator(cardId);
-            const renderer = coordinator?.renderer;
-            const root = renderer?.mountEl;
-
-            if (!root) {
-              lcardsLog.warn('[DebugAPI] Mount element not available');
+            const pipeline = _getMsdPipeline(cardId);
+            if (!pipeline) {
+              lcardsLog.warn('[DebugAPI] Pipeline instance not available');
               return null;
             }
 
-            const MsdIntrospection = window.MsdIntrospection;
-            if (!MsdIntrospection) {
-              lcardsLog.warn('[DebugAPI] MsdIntrospection not available');
-              return null;
-            }
+            const model = typeof pipeline.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
+            if (!model) return null;
 
-            return MsdIntrospection.getOverlayBBox(overlayId, root);
+            const overlay = model.overlays.find(o => o.id === overlayId);
+            if (!overlay || !overlay.position || !overlay.size) return null;
+
+            const pos = overlay.position;
+            const sz = overlay.size;
+            return {
+              x: Array.isArray(pos) ? pos[0] : pos?.x ?? null,
+              y: Array.isArray(pos) ? pos[1] : pos?.y ?? null,
+              w: Array.isArray(sz) ? sz[0] : sz?.w ?? null,
+              h: Array.isArray(sz) ? sz[1] : sz?.h ?? null
+            };
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error getting bbox:', error);
             return null;
@@ -2273,12 +2266,13 @@ export class MsdDebugAPI {
          * Get overlay transform
          *
          * Returns transform attribute if present (e.g., translate values).
+         * Queries the live SVG DOM for the rendered element's transform.
          *
          * @param {string} overlayId - Overlay ID
          * @returns {Object|null} Transform data
          *
          * @example
-         * const transform = window.lcards.debug.msd.overlays.getTransform('status_grid_1');
+         * const transform = window.lcards.debug.msd.overlays.getTransform('line_1');
          * if (transform.translate) {
          *   console.log(`Translate: (${transform.translate.x}, ${transform.translate.y})`);
          * }
@@ -2291,8 +2285,7 @@ export class MsdDebugAPI {
 
             if (!root) return null;
 
-            const MsdIntrospection = window.MsdIntrospection;
-            const svg = MsdIntrospection?.getOverlaysSvg(root);
+            const svg = root.querySelector('svg');
             if (!svg) return null;
 
             const el = svg.getElementById?.(overlayId) || svg.querySelector(`#${CSS.escape(overlayId)}`);

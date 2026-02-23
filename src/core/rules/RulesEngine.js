@@ -1634,8 +1634,7 @@ export class RulesEngine extends BaseService {
 }
 
 /**
- * Helper function for applying overlay patches from rule results
- * Handles special cases like status_grid cell patches and ApexChart updates
+ * Helper function for applying overlay patches from rule results.
  * @param {Array} overlays - Array of overlay configurations
  * @param {Array} patches - Array of patch configurations from rules
  * @returns {Array} Patched overlays array
@@ -1658,8 +1657,8 @@ export function applyOverlayPatches(overlays, patches) {
 
   const patchMap = new Map(patches.map(patch => [patch.id, patch]));
 
-  // Track ApexChart overlays that need updates
-  const apexChartUpdates = [];
+  // Removed: applyStatusGridCellPatch - status_grid overlay type was removed in v1.16.22
+  // Removed: apexChartUpdates - apexchart overlay type was removed in v1.16.22
 
   const patchedOverlays = overlays.map(overlay => {
     const patch = patchMap.get(overlay.id);
@@ -1673,19 +1672,6 @@ export function applyOverlayPatches(overlays, patches) {
       originalStyle: overlay.style,
       patchKeys: Object.keys(patch)
     });
-
-    // Handle cell-specific patches for status_grid overlays
-    if (overlay.type === 'status_grid' && (patch.cell_target || patch.cellTarget)) {
-      return applyStatusGridCellPatch(overlay, patch);
-    }
-
-    // Track ApexChart patches for deferred update
-    if (overlay.type === 'apexchart') {
-      apexChartUpdates.push({
-        overlay: { ...overlay },
-        patch
-      });
-    }
 
     // Deep merge entire patch into overlay (not just .style)
     // This allows rules to patch text, dpad, icon, and other properties
@@ -1706,163 +1692,6 @@ export function applyOverlayPatches(overlays, patches) {
     return patchedOverlay;
   });
   return patchedOverlays;
-}
-
-/**
- * Apply cell-specific patches to status_grid overlays
- * @private
- */
-function applyStatusGridCellPatch(overlay, patch) {
-  const cellTarget = patch.cell_target || patch.cellTarget;
-
-  lcardsLog.info('[RulesEngine] 🔲 APPLYING status_grid cell patch:', {
-    overlayId: overlay.id,
-    cellTarget,
-    cellPatch: patch.style,
-    currentCellCount: overlay.cells?.length || 0
-  });
-
-  // Clone the overlay to avoid mutations
-  const patchedOverlay = {
-    ...overlay,
-    cells: overlay.cells ? [...overlay.cells] : [],
-    // ADDED: Store cell-specific patches separately to prevent cascade
-    _cellPatches: {
-      ...(overlay._cellPatches || {}),
-      [cellTarget.cell_id || `${cellTarget.row}-${cellTarget.col}`]: patch.style
-    }
-  };
-
-  let patchedCellCount = 0;
-
-  // Find and patch the target cell(s)
-  if (patchedOverlay.cells) {
-    patchedOverlay.cells = patchedOverlay.cells.map(cell => {
-      // Check if this cell matches the target
-      const isTargetCell = matchesStatusGridCellTarget(cell, cellTarget);
-
-      if (isTargetCell) {
-        patchedCellCount++;
-        lcardsLog.info('[RulesEngine] 🎯 PATCHING CELL:', {
-          cellId: cell.id,
-          position: [cell.row, cell.col],
-          originalColor: cell.color || cell.cell_color,
-          patchColor: patch.style.color || patch.style.cell_color,
-          patchBracketColor: patch.style.bracket_color,
-          patch: patch.style
-        });
-
-        const patchedCell = {
-          ...cell,
-          // CHANGED: Store patches in a separate property to prevent cascade during style resolution
-          _rulePatch: patch.style,
-
-          // Apply cell-level style overrides
-          // Support both 'color' and 'cell_color' (StatusGrid uses 'cell_color')
-          color: patch.style.color || patch.style.cell_color || cell.color || cell.cell_color,
-          cell_color: patch.style.cell_color || patch.style.color || cell.cell_color || cell.color,
-
-          // StatusGrid-specific properties
-          bracket_color: patch.style.bracket_color !== undefined ? patch.style.bracket_color : cell.bracket_color,
-          cell_opacity: patch.style.cell_opacity !== undefined ? patch.style.cell_opacity : cell.cell_opacity,
-          lcars_button_preset: patch.style.lcars_button_preset !== undefined ? patch.style.lcars_button_preset : cell.lcars_button_preset,
-          text_layout: patch.style.text_layout !== undefined ? patch.style.text_layout : cell.text_layout,
-          label_color: patch.style.label_color !== undefined ? patch.style.label_color : cell.label_color,
-          value_color: patch.style.value_color !== undefined ? patch.style.value_color : cell.value_color,
-
-          // Border properties
-          border: patch.style.border !== undefined ? patch.style.border : cell.border,
-
-          // Generic properties
-          radius: patch.style.radius !== undefined ? patch.style.radius : cell.radius,
-          font_size: patch.style.font_size !== undefined ? patch.style.font_size : cell.font_size,
-
-          // Support content override
-          content: patch.content !== undefined ? patch.content : cell.content,
-          label: patch.label !== undefined ? patch.label : cell.label,
-
-          // Support visibility control
-          visible: patch.visible !== undefined ? patch.visible : (cell.visible !== undefined ? cell.visible : true),
-
-          // Merge style object for StatusGrid style resolution
-          style: {
-            ...(cell.style || {}),
-            ...(patch.style || {})
-          }
-        };
-
-        lcardsLog.info('[RulesEngine] ✅ CELL PATCHED RESULT:', {
-          cellId: patchedCell.id,
-          newColor: patchedCell.color,
-          newCellColor: patchedCell.cell_color,
-          newBracketColor: patchedCell.bracket_color,
-          hadColorChange: (cell.color || cell.cell_color) !== (patchedCell.color || patchedCell.cell_color)
-        });
-
-        return patchedCell;
-      }
-
-      return cell;
-    });
-  }
-
-  lcardsLog.info('[RulesEngine] 🔲 CELL PATCH COMPLETE:', {
-    overlayId: overlay.id,
-    totalCells: patchedOverlay.cells.length,
-    cellsPatched: patchedCellCount
-  });
-
-  // REMOVED: Don't apply overlay-level styles for cell-targeted patches
-  // This was causing the cascade issue
-
-  return patchedOverlay;
-}
-
-/**
- * Check if a cell matches the targeting criteria
- * @private
- */
-function matchesStatusGridCellTarget(cell, cellTarget) {
-  // Target by cell ID
-  if (cellTarget.cell_id && cell.id === cellTarget.cell_id) {
-    return true;
-  }
-
-  // Target by position [row, col]
-  if (cellTarget.position && Array.isArray(cellTarget.position)) {
-    const [targetRow, targetCol] = cellTarget.position;
-    return cell.row === targetRow && cell.col === targetCol;
-  }
-
-  // Target by row/column individually
-  if (cellTarget.row !== undefined && cellTarget.row === cell.row) {
-    if (cellTarget.col === undefined || cellTarget.col === cell.col) {
-      return true;
-    }
-  }
-
-  // ✨ NEW: Target by tag(s)
-  // Single tag: {tag: "critical"}
-  if (cellTarget.tag) {
-    const cellTags = cell.tags || [];
-    return cellTags.includes(cellTarget.tag);
-  }
-
-  // Multiple tags: {tags: ["critical", "propulsion"], match_all: true}
-  if (cellTarget.tags && Array.isArray(cellTarget.tags)) {
-    const cellTags = cell.tags || [];
-    const matchAll = cellTarget.match_all === true;
-
-    if (matchAll) {
-      // AND logic: Cell must have ALL specified tags
-      return cellTarget.tags.every(tag => cellTags.includes(tag));
-    } else {
-      // OR logic (default): Cell must have ANY of the specified tags
-      return cellTarget.tags.some(tag => cellTags.includes(tag));
-    }
-  }
-
-  return false;
 }
 
 // ============================================================================

@@ -948,7 +948,7 @@ export class LineOverlay extends OverlayBase {
   }
 }
 
-// Expose to window for console debugging
-if (typeof window !== 'undefined') {
-  window.LineOverlay = LineOverlay;
+// Expose to window.lcards.debug.msd namespace for console debugging
+if (typeof window !== 'undefined' && window.lcards?.debug?.msd) {
+  window.lcards.debug.msd.LineOverlay = LineOverlay;
 }

@@ -1,10 +1,12 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
- * [DebugManager] Centralized debug state manager - manages debug feature states with proper initialization ordering
- * 🎛️ Provides centralized control for debug features with reactive state management and callback syste        if (this.state[feature] !== enabled) {
-          lcardsLog.debug(`[DebugManager] 🎛️ Setting ${feature} to ${enabled}`);
-          this.state[feature] = enabled;*/
+ * DebugManager - Centralized debug state manager for MSD.
+ *
+ * Manages debug feature states with proper initialization ordering.
+ * Provides centralized control for debug features with reactive state
+ * management and a callback system for state change notifications.
+ */
 export class DebugManager {
   constructor() {
     /** @type {Object} Debug feature states */
