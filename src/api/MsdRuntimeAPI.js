@@ -47,10 +47,10 @@ export class MsdRuntimeAPI {
           
           if (cardId) {
             // Get specific card by ID
-            card = document.querySelector(`lcards-msd[id="${cardId}"]`);
+            card = document.querySelector(`lcards-msd-card[id="${cardId}"]`);
           } else {
             // Get first MSD card
-            card = document.querySelector('lcards-msd');
+            card = document.querySelector('lcards-msd-card');
           }
 
           if (!card) {
@@ -97,7 +97,7 @@ export class MsdRuntimeAPI {
        */
       getAllInstances() {
         try {
-          const cards = document.querySelectorAll('lcards-msd');
+          const cards = document.querySelectorAll('lcards-msd-card');
           const instances = [];
           
           cards.forEach(card => {
@@ -298,7 +298,7 @@ export class MsdRuntimeAPI {
 
           try {
             // Get theme manager from global namespace
-            const themeManager = window.lcards?.theme;
+            const themeManager = window.lcards?.core?.themeManager ?? window.lcards?.theme;
 
             if (!themeManager) {
               lcardsLog.error('[RuntimeAPI] ThemeManager not available');
@@ -348,7 +348,7 @@ export class MsdRuntimeAPI {
          */
         getCurrent(cardId = null) {
           try {
-            const themeManager = window.lcards?.theme;
+            const themeManager = window.lcards?.core?.themeManager ?? window.lcards?.theme;
 
             if (!themeManager) {
               lcardsLog.warn('[RuntimeAPI] ThemeManager not available');
@@ -389,7 +389,7 @@ export class MsdRuntimeAPI {
          */
         list() {
           try {
-            const themeManager = window.lcards?.theme;
+            const themeManager = window.lcards?.core?.themeManager ?? window.lcards?.theme;
 
             if (!themeManager) {
               lcardsLog.warn('[RuntimeAPI] ThemeManager not available');

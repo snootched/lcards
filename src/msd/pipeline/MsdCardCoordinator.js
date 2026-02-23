@@ -108,6 +108,7 @@ export class MsdCardCoordinator extends BaseService {
     // Store in global namespace for access by overlays
     if (typeof window !== 'undefined') {
       window.lcards = window.lcards || {};
+      // Compatibility shim — renderers that predate core.themeManager read from here. Remove when all callers migrated.
       window.lcards.theme = this.themeManager;
       window.lcards.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
     }

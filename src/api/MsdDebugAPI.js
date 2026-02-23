@@ -1347,7 +1347,7 @@ export class MsdDebugAPI {
          */
         listTokens() {
           try {
-            const theme = window.lcards?.theme;
+            const theme = window.lcards?.core?.themeManager ?? window.lcards?.theme;
             if (!theme) {
               lcardsLog.warn('[DebugAPI] Theme manager not available');
               return null;
@@ -1391,7 +1391,7 @@ export class MsdDebugAPI {
          */
         getTokenValue(tokenPath) {
           try {
-            const theme = window.lcards?.theme;
+            const theme = window.lcards?.core?.themeManager ?? window.lcards?.theme;
             if (!theme) {
               lcardsLog.warn('[DebugAPI] Theme manager not available');
               return null;

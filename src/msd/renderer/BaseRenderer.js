@@ -73,24 +73,29 @@ export class BaseRenderer {
    * @returns {Object|null} ThemeManager instance or null if not found
    */
   _resolveThemeManager() {
-    // 1. Global LCARdS namespace (preferred)
+    // 1. Core singleton (preferred)
+    if (typeof window !== 'undefined' && window.lcards?.core?.themeManager) {
+      return window.lcards.core.themeManager;
+    }
+
+    // 2. Compatibility shim — renderers that predate core.themeManager read from here. Remove when all callers migrated.
     if (typeof window !== 'undefined' && window.lcards?.theme) {
       return window.lcards.theme;
     }
 
-    // 2. Pipeline instance via systemsManager
+    // 3. Pipeline instance via systemsManager
     if (typeof window !== 'undefined') {
       const pipelineInstance = window.lcards.debug.msd?.pipelineInstance;
       if (pipelineInstance?.systemsManager?.themeManager) {
         return pipelineInstance.systemsManager.themeManager;
       }
 
-      // 3. Direct pipeline access
+      // 4. Direct pipeline access
       if (pipelineInstance?.themeManager) {
         return pipelineInstance.themeManager;
       }
 
-      // 4. Systems manager global reference
+      // 5. Systems manager global reference
       const systemsManager = window.lcards.debug.msd?.systemsManager;
       if (systemsManager?.themeManager) {
         return systemsManager.themeManager;
