@@ -107,7 +107,8 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Card state
             _entity: { type: Object, state: true },
-            _singletons: { type: Object, state: true },
+            // _singletons intentionally NOT reactive — it holds manager references, not render state.
+            // Assigning it does not need to trigger a re-render.
             _initialized: { type: Boolean, state: true }
         };
     }
@@ -891,11 +892,10 @@ export class LCARdSCard extends LCARdSNativeCard {
             };
 
             // Register this card with LCARdSCore (populates _cardInstances and delegates to SystemsManager)
+            // NOTE: _cardContext is intentionally not stored — cards access systems via this._singletons.
             if (core && this._cardGuid) {
-                // registerCard returns a Promise for pending-queue cards; resolve and store context
                 Promise.resolve(core.registerCard(this._cardGuid, this, this.config))
-                    .then(ctx => {
-                        this._cardContext = ctx;
+                    .then(() => {
                         lcardsLog.trace(`[LCARdSCard] Registered with LCARdSCore: ${this._cardGuid}`);
                     })
                     .catch(err => {

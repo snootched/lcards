@@ -683,14 +683,26 @@ class LCARdSCore {
     }
 
     /**
-     * Get entity subscriptions across all cards
-     * @returns {Object} Entity subscriptions by card
+     * Get entity subscriptions across all cards (for debugging)
+     * Returns a summary of which entities are subscribed to by which cards,
+     * as tracked by CoreSystemsManager.
+     *
+     * @returns {Object} Map of entityId -> array of subscribing cardIds
      */
     getEntitySubscriptions() {
-        if (!this.dataSourceManager) {
+        if (!this.systemsManager) {
             return {};
         }
-        return this.dataSourceManager.getEntitySubscriptions();
+
+        // Build a plain-object summary from the internal Map for easy inspection
+        const result = {};
+        const subs = this.systemsManager._entitySubscriptions;
+        if (subs instanceof Map) {
+            subs.forEach((entries, entityId) => {
+                result[entityId] = entries.map(entry => entry.cardId).filter(Boolean);
+            });
+        }
+        return result;
     }
 
     /**

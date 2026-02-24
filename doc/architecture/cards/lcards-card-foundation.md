@@ -658,7 +658,7 @@ Create test HTML file:
 | `_singletons` | Object | Singleton system references (coordinator, theme, rules, etc.) |
 | `_initialized` | Boolean | Whether card is fully initialized |
 | `_entitySubscriptions` | Set | Tracked entity subscriptions for cleanup |
-| `_cardContext` | Object | CoreSystemsManager registration context |
+| `_cardContext` | — | Removed — cards use `this._singletons` for all manager access |
 | `_overlayRegistered` | Boolean | Whether overlay is registered with RulesEngine |
 | `_currentRulePatches` | Object | Cached rule patches for this overlay |
 
