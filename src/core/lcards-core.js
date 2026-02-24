@@ -72,7 +72,7 @@ class LCARdSCore {
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
-        this._overlayInstances = new Map();  // Map<overlayId, OverlayContext> (Phase 2)
+        this._overlayInstances = new Map();  // Phase 2: overlay tracking (currently delegated to SystemsManager._overlayRegistry)
         this._cardLoadOrder = [];            // Array<cardId> for debugging
 
         // ===== INITIALIZATION STATE =====
@@ -82,6 +82,8 @@ class LCARdSCore {
 
         // ===== HASS TRACKING =====
         this._currentHass = null;
+        this._pendingHass = null;           // Latest HASS for microtask deduplication (Issue 8)
+        this._hassIngestScheduled = false;  // Deduplication guard (Issue 8)
 
         lcardsLog.debug('[LCARdSCore] 🚀 Singleton created (lazy init pending)');
     }
@@ -260,13 +262,15 @@ class LCARdSCore {
 
                 for (const pendingCard of this._pendingCards) {
                     try {
-                        await this._registerCardInternal(
+                        const context = await this._registerCardInternal(
                             pendingCard.cardId,
                             pendingCard.card,
                             pendingCard.config
                         );
+                        pendingCard.resolve(context);
                     } catch (error) {
                         lcardsLog.error(`[LCARdSCore] Failed to process pending card ${pendingCard.cardId}:`, error);
+                        pendingCard.reject(error);
                     }
                 }
 
@@ -342,11 +346,10 @@ class LCARdSCore {
             stylePresetManager: this.stylePresetManager,
             configManager: this.configManager,
             componentManager: this.componentManager,
-            componentManager: this.componentManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
             getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
-            subscribeToEntity: (entityId, callback) => this.systemsManager.subscribeToEntity(entityId, callback),
+            subscribeToEntity: (entityId, callback) => this.systemsManager.subscribeToEntity(entityId, callback, cardId),
             unsubscribeFromEntity: (entityId, callback) => this.systemsManager.unsubscribeFromEntity(entityId, callback),
 
             // Data source methods (for advanced use cases)
@@ -452,20 +455,21 @@ class LCARdSCore {
 
     /**
      * Ingest HASS updates (called from card HASS update handlers)
+     * Deduplicates multiple per-tick calls so only one _updateHass propagation fires per microtask.
      * @param {Object} hass - Updated HASS instance
      */
     ingestHass(hass) {
-        lcardsLog.debug(`[Core] ingestHass called`, {
-            hassAvailable: !!hass,
-            statesCount: Object.keys(hass?.states || {}).length,
-            hasCallService: !!(hass && typeof hass.callService === 'function'),
-            hassKeys: hass ? Object.keys(hass) : [],
-            hassType: hass ? typeof hass : 'undefined',
-            hasRulesManager: !!this.rulesManager
+        if (!hass) return;
+        this._pendingHass = hass; // always take the latest
+        if (this._hassIngestScheduled) return; // already scheduled this tick
+        this._hassIngestScheduled = true;
+        Promise.resolve().then(() => {
+            this._hassIngestScheduled = false;
+            if (this._pendingHass) {
+                this._updateHass(this._pendingHass);
+                this._pendingHass = null;
+            }
         });
-
-        // Always update - HASS properties change even if object reference stays same
-        this._updateHass(hass);
     }
 
     /**
@@ -751,14 +755,11 @@ class LCARdSCore {
         return this.componentManager || null;
     }
 
-    /**     * Get ComponentManager instance
-     * @returns {ComponentManager|null} Component manager or null if not initialized
-     */
-    getComponentManager() {
-        return this.componentManager || null;
-    }
-
-    /**     * Manually update HASS state (for testing)
+    /**     * Manually update HASS state (for testing / external callers)
+     * NOTE: For normal card HASS propagation use ingestHass() which deduplicates per tick.
+     * The loop over _cardInstances pushes HASS directly to each card instance; after
+     * Issues 1-2 are fixed and _cardInstances is populated this will execute for every
+     * registered card.  This is intentional for test-harness / external-caller use only.
      * @param {Object} hass - HASS object
      */
     updateHass(hass) {
