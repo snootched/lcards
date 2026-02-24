@@ -81,7 +81,9 @@ export class LCARdSElbow extends LCARdSButton {
             ...super.properties,
             _elbowConfig: { type: Object, state: true },
             _elbowGeometry: { type: Object, state: true },
-            _themeBarDimensions: { type: Object, state: true } // Track input_number values
+            _themeBarDimensions: { type: Object, state: true }, // Track input_number values
+            _symbiotElement: { type: Object, state: true },
+            _symbiotMounted: { type: Boolean, state: true }
         };
     }
 
@@ -115,6 +117,12 @@ export class LCARdSElbow extends LCARdSButton {
                 .elbow-svg:hover {
                     opacity: 0.8;
                 }
+
+                .lcards-symbiont-container {
+                    position: absolute;
+                    overflow: hidden;
+                    pointer-events: auto;
+                }
             `
         ];
     }
@@ -125,6 +133,10 @@ export class LCARdSElbow extends LCARdSButton {
         this._elbowGeometry = null;
         this._themeBarDimensions = { horizontal: null, vertical: null, angle: null };
         this._themeEntityUnsubscribes = []; // Track subscriptions for cleanup
+
+        // Symbiont state
+        this._symbiotElement = null;
+        this._symbiotMounted = false;
 
         // Interaction states (hover/pressed)
         // Simple elbow (single segment)
@@ -177,6 +189,16 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Initialize position-aware default colors
         this._initializeElbowDefaultColors();
+
+        // Handle symbiont enable/disable when card is already initialized
+        if (this._initialized) {
+            if (config.symbiont?.enabled) {
+                this._unmountSymbiontCard();
+                this._mountSymbiontCard();
+            } else {
+                this._unmountSymbiontCard();
+            }
+        }
     }
 
     /**
@@ -516,6 +538,11 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Subscribe to theme input_number entities if configured to use them
         this._subscribeToThemeEntities();
+
+        // Mount symbiont card if configured
+        if (this.config?.symbiont?.enabled) {
+            this._mountSymbiontCard();
+        }
     }
 
     /**
@@ -548,6 +575,11 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.debug('[LCARdSElbow] Re-setting up interactivity after render');
             this._setupElbowInteractivity();
         }
+
+        // Re-attach symbiont element after each render (Lit may recreate container div)
+        if (this._symbiotElement) {
+            this._attachSymbiontToContainer();
+        }
     }
 
     /**
@@ -559,6 +591,11 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Check if theme entities have changed
         this._updateThemeDimensionsFromHass();
+
+        // Forward HASS to symbiont card
+        if (this._symbiotElement) {
+            this._applySymbiontHass(newHass);
+        }
     }
 
     /**
@@ -730,6 +767,9 @@ export class LCARdSElbow extends LCARdSButton {
      */
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
+
+        // Unmount symbiont card
+        this._unmountSymbiontCard();
 
         // Clean up interaction event listeners
         if (this._elbowInteractivityCleanup) {
@@ -1836,6 +1876,431 @@ export class LCARdSElbow extends LCARdSButton {
 
             return processed;
         });
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Symbiont — embedded card with optional style imprinting
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Override _renderCard() to add symbiont container when enabled
+     * @protected
+     */
+    _renderCard() {
+        const parentContent = super._renderCard();
+
+        if (!this.config?.symbiont?.enabled) {
+            return parentContent;
+        }
+
+        const pos = this.config.symbiont?.position || {};
+        const top = pos.top ?? 10;
+        const left = pos.left ?? 10;
+        const right = pos.right ?? 10;
+        const bottom = pos.bottom ?? 0;
+
+        return html`
+            ${parentContent}
+            <div class="lcards-symbiont-container"
+                 id="lcards-symbiont-host"
+                 style="
+                     top: ${top}px;
+                     left: ${left}px;
+                     right: ${right}px;
+                     bottom: ${bottom}px;
+                 ">
+            </div>
+        `;
+    }
+
+    /**
+     * Mount the symbiont (embedded) card
+     * Creates the child card element, applies config and HASS, then attaches to container
+     * @private
+     */
+    async _mountSymbiontCard() {
+        const symbConfig = this.config?.symbiont;
+        if (!symbConfig?.enabled) return;
+
+        if (!symbConfig?.card?.type) {
+            lcardsLog.warn('[LCARdSElbow] Symbiont enabled but no card.type specified');
+            return;
+        }
+
+        lcardsLog.debug('[LCARdSElbow] Mounting symbiont card', { type: symbConfig.card.type });
+
+        const cardConfig = symbConfig.card;
+        const cardType = cardConfig.type;
+        const normalizedType = this._normalizeSymbiontCardType(cardType);
+
+        let cardElement = null;
+
+        // Strategy 1: Constructor via customElements.get
+        if (window.customElements && typeof window.customElements.get === 'function') {
+            try {
+                const CardClass = window.customElements.get(normalizedType);
+                if (CardClass) {
+                    cardElement = new CardClass();
+                    lcardsLog.debug('[LCARdSElbow] Symbiont: created via constructor:', normalizedType);
+                }
+            } catch (e) {
+                lcardsLog.debug('[LCARdSElbow] Symbiont: strategy 1 failed:', e.message);
+            }
+        }
+
+        // Strategy 2: document.createElement with upgrade wait
+        if (!cardElement) {
+            try {
+                cardElement = document.createElement(normalizedType);
+                await this._waitForSymbiontUpgrade(cardElement, 500);
+            } catch (e) {
+                lcardsLog.debug('[LCARdSElbow] Symbiont: strategy 2 failed:', e.message);
+                cardElement = null;
+            }
+        }
+
+        if (!cardElement) {
+            lcardsLog.warn('[LCARdSElbow] Symbiont: could not create card element for type:', cardType);
+            return;
+        }
+
+        // Apply config with retry
+        await this._applySymbiontConfig(cardElement, cardConfig);
+
+        // Assign HASS
+        if (this.hass) {
+            this._applyHassToSymbiont(cardElement, this.hass);
+        }
+
+        this._symbiotElement = cardElement;
+        this._attachSymbiontToContainer();
+
+        // Inject imprint styles (uses requestAnimationFrame to wait for shadowRoot)
+        if (symbConfig.imprint?.enabled !== false) {
+            requestAnimationFrame(() => {
+                this._injectSymbiontImprint(this._symbiotElement);
+            });
+        }
+    }
+
+    /**
+     * Normalize card type string to element name
+     * Strips 'custom:' prefix and maps HA built-in short names to 'hui-*' elements
+     * @param {string} cardType - Raw card type from config
+     * @returns {string} Normalized element name
+     * @private
+     */
+    _normalizeSymbiontCardType(cardType) {
+        if (!cardType) return null;
+
+        if (cardType.startsWith('custom:')) {
+            return cardType.slice(7);
+        }
+
+        const builtInMap = {
+            'entities': 'hui-entities-card',
+            'entity': 'hui-entity-card',
+            'glance': 'hui-glance-card',
+            'button': 'hui-button-card',
+            'light': 'hui-light-card',
+            'thermostat': 'hui-thermostat-card',
+            'gauge': 'hui-gauge-card',
+            'sensor': 'hui-sensor-card',
+            'history-graph': 'hui-history-graph-card',
+            'picture': 'hui-picture-card',
+            'picture-entity': 'hui-picture-entity-card',
+            'picture-glance': 'hui-picture-glance-card',
+            'markdown': 'hui-markdown-card',
+            'media-control': 'hui-media-control-card',
+            'conditional': 'hui-conditional-card',
+            'tile': 'hui-tile-card',
+            'area': 'hui-area-card',
+            'weather-forecast': 'hui-weather-forecast-card',
+            'grid': 'hui-grid-card',
+            'horizontal-stack': 'hui-horizontal-stack-card',
+            'vertical-stack': 'hui-vertical-stack-card',
+            'alarm-panel': 'hui-alarm-panel-card',
+            'shopping-list': 'hui-shopping-list-card',
+            'map': 'hui-map-card',
+            'logbook': 'hui-logbook-card',
+            'statistics-graph': 'hui-statistics-graph-card'
+        };
+
+        return builtInMap[cardType] || cardType;
+    }
+
+    /**
+     * Wait for custom element to be upgraded (setConfig to become available)
+     * @param {HTMLElement} element - Element to wait for
+     * @param {number} maxWait - Maximum wait in milliseconds
+     * @returns {Promise<HTMLElement>}
+     * @private
+     */
+    async _waitForSymbiontUpgrade(element, maxWait) {
+        const start = Date.now();
+        while (Date.now() - start < maxWait) {
+            if (typeof element.setConfig === 'function') return element;
+            if (element.updateComplete) {
+                try { await element.updateComplete; } catch (e) { /* ignore */ }
+                if (typeof element.setConfig === 'function') return element;
+            }
+            if (window.customElements?.upgrade) {
+                try { window.customElements.upgrade(element); } catch (e) { /* ignore */ }
+            }
+            await new Promise(r => setTimeout(r, 100));
+        }
+        return element;
+    }
+
+    /**
+     * Apply config to symbiont card with retry logic
+     * @param {HTMLElement} cardElement - The card element
+     * @param {Object} cardConfig - Card config to apply
+     * @returns {Promise<boolean>} True if successful
+     * @private
+     */
+    async _applySymbiontConfig(cardElement, cardConfig) {
+        for (let attempt = 0; attempt < 8; attempt++) {
+            if (typeof cardElement.setConfig === 'function') {
+                try {
+                    cardElement.setConfig(cardConfig);
+                    lcardsLog.debug('[LCARdSElbow] Symbiont: config applied on attempt', attempt + 1);
+                    return true;
+                } catch (e) {
+                    lcardsLog.warn('[LCARdSElbow] Symbiont: setConfig failed:', e.message);
+                    return false;
+                }
+            }
+            await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
+        }
+        lcardsLog.warn('[LCARdSElbow] Symbiont: setConfig not available after 8 attempts');
+        return false;
+    }
+
+    /**
+     * Apply HASS to symbiont card using multi-strategy approach
+     * @param {HTMLElement} cardElement - The symbiont card element
+     * @param {Object} hass - HASS object
+     * @private
+     */
+    _applyHassToSymbiont(cardElement, hass) {
+        if (!cardElement || !hass) return;
+        const oldHass = cardElement.hass;
+
+        if (cardElement.setHass && typeof cardElement.setHass === 'function') {
+            cardElement.setHass(hass);
+        } else {
+            cardElement.hass = hass;
+            cardElement._hass = hass;
+        }
+
+        if (typeof cardElement.requestUpdate === 'function') {
+            cardElement.requestUpdate('hass', oldHass);
+        }
+    }
+
+    /**
+     * Forward HASS to symbiont and re-inject imprint (state may have changed)
+     * @param {Object} hass - New HASS object
+     * @private
+     */
+    _applySymbiontHass(hass) {
+        if (!this._symbiotElement) return;
+        this._applyHassToSymbiont(this._symbiotElement, hass);
+
+        // Re-inject imprint on HASS update — colors may change with entity state
+        if (this.config?.symbiont?.imprint?.enabled !== false) {
+            this._injectSymbiontImprint(this._symbiotElement);
+        }
+    }
+
+    /**
+     * Unmount symbiont card and clean up DOM
+     * @private
+     */
+    _unmountSymbiontCard() {
+        if (this._symbiotElement) {
+            this._symbiotElement.remove?.();
+            this._symbiotElement = null;
+        }
+        this._symbiotMounted = false;
+    }
+
+    /**
+     * Attach symbiont element to the container div in shadow root
+     * Called after each render to ensure the element is in the DOM
+     * @private
+     */
+    _attachSymbiontToContainer() {
+        if (!this._symbiotElement) return;
+
+        const container = this.renderRoot?.querySelector('#lcards-symbiont-host');
+        if (!container) return;
+
+        if (!container.contains(this._symbiotElement)) {
+            container.appendChild(this._symbiotElement);
+            this._symbiotMounted = true;
+            lcardsLog.debug('[LCARdSElbow] Symbiont: attached to container');
+        }
+    }
+
+    /**
+     * Inject imprint styles into symbiont card's shadowRoot
+     * Also sets CSS custom properties on the container as a fallback for light-DOM cards
+     * @param {HTMLElement} cardElement - The symbiont card element
+     * @private
+     */
+    _injectSymbiontImprint(cardElement) {
+        if (!cardElement) return;
+
+        const css = this._buildImprintStyle();
+        const customCss = this.config?.symbiont?.custom_style || '';
+        const fullCss = [css, customCss].filter(Boolean).join('\n\n');
+
+        if (!fullCss) return;
+
+        // Inject into shadow root
+        const shadowRoot = cardElement.shadowRoot;
+        if (shadowRoot) {
+            let styleEl = shadowRoot.querySelector('#lcards-symbiont-imprint');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'lcards-symbiont-imprint';
+                shadowRoot.appendChild(styleEl);
+            }
+            styleEl.textContent = fullCss;
+        }
+
+        // Also set CSS custom properties on the container as fallback for light-DOM cards
+        const container = this.renderRoot?.querySelector('#lcards-symbiont-host');
+        if (container && this.config?.symbiont?.imprint) {
+            const imprint = this.config.symbiont.imprint;
+            const buttonState = this._getButtonState();
+            const actualState = this._entity?.state;
+
+            if (imprint.background) {
+                const bg = resolveStateColor({
+                    actualState,
+                    classifiedState: buttonState,
+                    colorConfig: imprint.background,
+                    fallback: null
+                });
+                if (bg) container.style.setProperty('--ha-card-background', bg);
+            }
+
+            if (imprint.text?.color) {
+                const tc = resolveStateColor({
+                    actualState,
+                    classifiedState: buttonState,
+                    colorConfig: imprint.text.color,
+                    fallback: null
+                });
+                if (tc) container.style.setProperty('--primary-text-color', tc);
+            }
+        }
+    }
+
+    /**
+     * Build CSS string for ha-card style injection into symbiont shadowRoot
+     * Only includes properties with non-null/non-empty values
+     * @returns {string} CSS string or empty string
+     * @private
+     */
+    _buildImprintStyle() {
+        const imprint = this.config?.symbiont?.imprint;
+        if (!imprint) return '';
+
+        const buttonState = this._getButtonState();
+        const actualState = this._entity?.state;
+
+        // Resolve background color
+        let bgColor = null;
+        if (imprint.background) {
+            bgColor = resolveStateColor({
+                actualState,
+                classifiedState: buttonState,
+                colorConfig: imprint.background,
+                fallback: null
+            });
+        }
+
+        // Resolve text color
+        let textColor = null;
+        if (imprint.text?.color) {
+            textColor = resolveStateColor({
+                actualState,
+                classifiedState: buttonState,
+                colorConfig: imprint.text.color,
+                fallback: null
+            });
+        }
+
+        const fontSize = imprint.text?.font_size || null;
+        const fontFamily = imprint.text?.font_family || null;
+
+        // Compute border radii
+        const radii = this._deriveSymbiontBorderRadius();
+
+        // Build CSS rules
+        const rules = [];
+        if (bgColor) rules.push(`  background: ${bgColor} !important;`);
+        if (textColor) rules.push(`  color: ${textColor} !important;`);
+        if (fontSize) rules.push(`  font-size: ${fontSize} !important;`);
+        if (fontFamily) rules.push(`  font-family: ${fontFamily} !important;`);
+        if (radii.topLeft != null) rules.push(`  border-top-left-radius: ${radii.topLeft}px !important;`);
+        if (radii.topRight != null) rules.push(`  border-top-right-radius: ${radii.topRight}px !important;`);
+        if (radii.bottomLeft != null) rules.push(`  border-bottom-left-radius: ${radii.bottomLeft}px !important;`);
+        if (radii.bottomRight != null) rules.push(`  border-bottom-right-radius: ${radii.bottomRight}px !important;`);
+
+        if (rules.length === 0) return '';
+
+        return `ha-card {\n${rules.join('\n')}\n}`;
+    }
+
+    /**
+     * Derive border radii for symbiont card
+     * If match_host is true, derives from elbow inner arc geometry
+     * If false, uses manual top_left/top_right/bottom_left/bottom_right values
+     * @returns {Object} Object with topLeft, topRight, bottomLeft, bottomRight (px or null)
+     * @private
+     */
+    _deriveSymbiontBorderRadius() {
+        const borderRadius = this.config?.symbiont?.imprint?.border_radius;
+
+        if (!borderRadius || borderRadius.match_host !== false) {
+            // Auto-derive from elbow inner arc geometry
+            if (!this._elbowGeometry) return {};
+
+            const innerRadius = this._elbowGeometry.innerRadius ||
+                               this._elbowGeometry.inner?.innerRadius ||
+                               0;
+
+            const component = this._getElbowComponent(this._elbowConfig?.type);
+            const position = component?.layout?.position || 'header';
+            const side = component?.layout?.side || 'left';
+
+            // Map the inner arc corner to the correct CSS border-radius property
+            // The "inner content corner" (where elbow meets open content area) gets innerRadius
+            if (position === 'header' && side === 'left') {
+                return { topLeft: null, topRight: null, bottomLeft: null, bottomRight: innerRadius };
+            } else if (position === 'header' && side === 'right') {
+                return { topLeft: null, topRight: null, bottomLeft: innerRadius, bottomRight: null };
+            } else if (position === 'footer' && side === 'left') {
+                return { topLeft: null, topRight: innerRadius, bottomLeft: null, bottomRight: null };
+            } else if (position === 'footer' && side === 'right') {
+                return { topLeft: innerRadius, topRight: null, bottomLeft: null, bottomRight: null };
+            }
+
+            return {};
+        }
+
+        // Manual border radius values
+        return {
+            topLeft: borderRadius.top_left ?? null,
+            topRight: borderRadius.top_right ?? null,
+            bottomLeft: borderRadius.bottom_left ?? null,
+            bottomRight: borderRadius.bottom_right ?? null
+        };
     }
 
     /**

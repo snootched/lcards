@@ -597,7 +597,83 @@ export function getElbowSchema(options = {}) {
                 }
             },
 
-            grid_options: gridOptionsSchema
+            grid_options: gridOptionsSchema,
+
+            // ============================================================================
+            // SYMBIONT (embedded card with optional style imprinting)
+            // ============================================================================
+
+            symbiont: {
+                type: 'object',
+                description: 'Embed another HA card inside the elbow content area with optional style imprinting',
+                properties: {
+                    enabled: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'Enable symbiont card embedding'
+                    },
+                    position: {
+                        type: 'object',
+                        description: 'Padding within the elbow content area (px)',
+                        properties: {
+                            top: { type: 'number', default: 10 },
+                            left: { type: 'number', default: 10 },
+                            right: { type: 'number', default: 10 },
+                            bottom: { type: 'number', default: 0 }
+                        }
+                    },
+                    imprint: {
+                        type: 'object',
+                        description: 'Style imprinting — injects resolved styles into the embedded card shadow root',
+                        properties: {
+                            enabled: { type: 'boolean', default: true },
+                            background: {
+                                ...stateColorSchema,
+                                description: 'Background color to inject into embedded card. Null = do not imprint.'
+                            },
+                            text: {
+                                type: 'object',
+                                properties: {
+                                    color: {
+                                        ...stateColorSchema,
+                                        description: 'Text color to inject into embedded card. Null = do not imprint.'
+                                    },
+                                    font_size: {
+                                        type: 'string',
+                                        description: 'Font size to inject (e.g. "14px"). Null = do not imprint.'
+                                    },
+                                    font_family: {
+                                        type: 'string',
+                                        description: 'Font family string to inject. Null = do not imprint.'
+                                    }
+                                }
+                            },
+                            border_radius: {
+                                type: 'object',
+                                properties: {
+                                    match_host: {
+                                        type: 'boolean',
+                                        default: true,
+                                        description: 'Derive border radius from elbow inner arc geometry'
+                                    },
+                                    top_left: { type: 'number', description: 'Top-left border radius (px)' },
+                                    top_right: { type: 'number', description: 'Top-right border radius (px)' },
+                                    bottom_left: { type: 'number', description: 'Bottom-left border radius (px)' },
+                                    bottom_right: { type: 'number', description: 'Bottom-right border radius (px)' }
+                                }
+                            }
+                        }
+                    },
+                    custom_style: {
+                        type: 'string',
+                        description: 'Raw CSS injected into child card shadowRoot after imprint styles. Does not require card-mod.'
+                    },
+                    card: {
+                        type: 'object',
+                        description: 'Any valid HA card configuration (type + properties). card_mod blocks are passed through as-is.'
+                    }
+                }
+            }
         }
     };
 }

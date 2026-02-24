@@ -29,6 +29,8 @@ import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-multi-text-editor-v2.js';
 import '../components/editors/lcards-multi-action-editor.js';
+import '../components/editors/lcards-padding-editor.js';
+import '../components/editors/lcards-font-selector.js';
 // Import animation and filter components
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
@@ -62,6 +64,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Config', content: () => this._renderFromConfig(this._getConfigTabConfig()) },
             { label: 'Elbow Design', content: () => this._renderElbowDesignTab() },
             { label: 'Text', content: () => this._renderTextTab() },
+            { label: 'Symbiont', content: () => this._renderSymbiontTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
             { label: 'Effects', content: () => this._renderEffectsTab() },
             ...this._getUtilityTabs()
@@ -851,6 +854,249 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     `}
                 ` : ''}
             </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Symbiont tab - embed another HA card in the elbow content area
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderSymbiontTab() {
+        const symbiont = this.config?.symbiont || {};
+        const enabled = symbiont.enabled || false;
+        const imprint = symbiont.imprint || {};
+        const imprintEnabled = imprint.enabled !== false;
+        const borderRadius = imprint.border_radius || {};
+        const matchHost = borderRadius.match_host !== false;
+
+        // Serialize card config as YAML for the code editor
+        const cardYaml = symbiont.card ? configToYaml(symbiont.card) : '';
+
+        return html`
+            <div class="tab-content-container">
+                <lcards-message type="info">
+                    <strong>Symbiont Card</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
+                        Embed any Home Assistant card inside the elbow's content area.
+                        Enable <strong>Imprint</strong> to inject background color, text color, and font
+                        directly into the child card's shadow root — no card-mod required.
+                    </p>
+                </lcards-message>
+
+                <!-- Master Enable -->
+                <lcards-form-section
+                    header="Symbiont"
+                    description="Embed another HA card inside the elbow content area"
+                    icon="mdi:card-multiple"
+                    ?expanded=${true}
+                    ?outlined=${true}>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Enable Symbiont'}
+                        .helper=${'Embed another HA card in the elbow content area'}
+                        .selector=${{ boolean: {} }}
+                        .value=${enabled}
+                        @value-changed=${(e) => this._setConfigValue('symbiont.enabled', e.detail.value)}>
+                    </ha-selector>
+                </lcards-form-section>
+
+                ${enabled ? html`
+
+                    <!-- Embedded Card Config -->
+                    <lcards-form-section
+                        header="Embedded Card"
+                        description="Configure the card to embed (YAML format)"
+                        icon="mdi:code-braces"
+                        ?expanded=${true}
+                        ?outlined=${true}>
+
+                        <lcards-message type="info" message="Enter the card configuration in YAML (same as a Lovelace card config). Example: type: tile&#10;entity: light.kitchen">
+                        </lcards-message>
+
+                        <ha-code-editor
+                            .hass=${this.hass}
+                            .value=${cardYaml}
+                            mode="yaml"
+                            autofocus
+                            @value-changed=${(e) => {
+                                try {
+                                    const parsed = window.jsyaml?.load(e.detail.value);
+                                    if (parsed && typeof parsed === 'object') {
+                                        this._setConfigValue('symbiont.card', parsed);
+                                    }
+                                } catch (_err) {
+                                    // Ignore YAML parse errors while typing
+                                }
+                            }}>
+                        </ha-code-editor>
+                    </lcards-form-section>
+
+                    <!-- Position / Padding -->
+                    <lcards-form-section
+                        header="Position"
+                        description="Padding inside the elbow content area (px)"
+                        icon="mdi:move-resize"
+                        ?expanded=${true}
+                        ?outlined=${true}>
+
+                        <lcards-padding-editor
+                            .editor=${this}
+                            path="symbiont.position"
+                            label="Content Area Padding"
+                            helper="Distance from each edge of the elbow content area">
+                        </lcards-padding-editor>
+                    </lcards-form-section>
+
+                    <!-- Imprint -->
+                    <lcards-form-section
+                        header="Imprint"
+                        description="Inject styles directly into the embedded card's shadow root"
+                        icon="mdi:palette-swatch"
+                        ?expanded=${true}
+                        ?outlined=${true}>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Enable Imprint'}
+                            .helper=${'Inject background color, text color, and font into the embedded card (no card-mod required)'}
+                            .selector=${{ boolean: {} }}
+                            .value=${imprintEnabled}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.imprint.enabled', e.detail.value)}>
+                        </ha-selector>
+
+                        ${imprintEnabled ? html`
+
+                            <!-- Background Color -->
+                            <lcards-form-section
+                                header="Background Color"
+                                description="Background color injected into the embedded card (state-aware)"
+                                icon="mdi:format-color-fill"
+                                ?expanded=${false}
+                                ?outlined=${true}>
+
+                                <lcards-color-section-v2
+                                    .editor=${this}
+                                    basePath="symbiont.imprint.background"
+                                    header="Background"
+                                    description="Background color for each state — null = transparent (do not imprint)"
+                                    .suggestedStates=${['default', 'active', 'inactive']}
+                                    ?allowCustomStates=${true}
+                                    ?expanded=${false}>
+                                </lcards-color-section-v2>
+                            </lcards-form-section>
+
+                            <!-- Text -->
+                            <lcards-form-section
+                                header="Text"
+                                description="Text color, font size, and font family"
+                                icon="mdi:format-text"
+                                ?expanded=${false}
+                                ?outlined=${true}>
+
+                                <lcards-color-section-v2
+                                    .editor=${this}
+                                    basePath="symbiont.imprint.text.color"
+                                    header="Text Color"
+                                    description="Text color for each state — null = do not imprint"
+                                    .suggestedStates=${['default', 'active', 'inactive']}
+                                    ?allowCustomStates=${true}
+                                    ?expanded=${false}>
+                                </lcards-color-section-v2>
+
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Font Size'}
+                                    .helper=${'Font size injected into embedded card (e.g. "14px"). Leave empty to not imprint.'}
+                                    .selector=${{ text: {} }}
+                                    .value=${imprint.text?.font_size || ''}
+                                    @value-changed=${(e) => this._setConfigValue('symbiont.imprint.text.font_size', e.detail.value || undefined)}>
+                                </ha-selector>
+
+                                <lcards-font-selector
+                                    .hass=${this.hass}
+                                    .value=${imprint.text?.font_family || ''}
+                                    .showPreview=${true}
+                                    .label=${'Font Family'}
+                                    .helper=${'Font family injected into the embedded card. Leave empty to not imprint.'}
+                                    @value-changed=${(e) => this._setConfigValue('symbiont.imprint.text.font_family', e.detail.value || undefined)}>
+                                </lcards-font-selector>
+                            </lcards-form-section>
+
+                            <!-- Border Radius -->
+                            <lcards-form-section
+                                header="Border Radius"
+                                description="Corner radius applied to the embedded card"
+                                icon="mdi:rounded-corner"
+                                ?expanded=${false}
+                                ?outlined=${true}>
+
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Match Host Elbow Inner Radius'}
+                                    .helper=${'Automatically derive border radius from elbow inner arc geometry'}
+                                    .selector=${{ boolean: {} }}
+                                    .value=${matchHost}
+                                    @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.match_host', e.detail.value)}>
+                                </ha-selector>
+
+                                ${!matchHost ? html`
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .label=${'Top Left (px)'}
+                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                                        .value=${borderRadius.top_left ?? 0}
+                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.top_left', e.detail.value)}>
+                                    </ha-selector>
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .label=${'Top Right (px)'}
+                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                                        .value=${borderRadius.top_right ?? 0}
+                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.top_right', e.detail.value)}>
+                                    </ha-selector>
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .label=${'Bottom Left (px)'}
+                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                                        .value=${borderRadius.bottom_left ?? 0}
+                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.bottom_left', e.detail.value)}>
+                                    </ha-selector>
+                                    <ha-selector
+                                        .hass=${this.hass}
+                                        .label=${'Bottom Right (px)'}
+                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                                        .value=${borderRadius.bottom_right ?? 0}
+                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.bottom_right', e.detail.value)}>
+                                    </ha-selector>
+                                ` : ''}
+                            </lcards-form-section>
+
+                        ` : ''}
+                    </lcards-form-section>
+
+                    <!-- Advanced / Custom Style -->
+                    <lcards-form-section
+                        header="Advanced"
+                        description="Raw CSS injected into child card shadow root after imprint styles"
+                        icon="mdi:code-tags"
+                        ?expanded=${false}
+                        ?outlined=${true}>
+
+                        <lcards-message type="info" message="Raw CSS injected into the embedded card's shadow root after imprint styles. Works without card-mod.">
+                        </lcards-message>
+
+                        <ha-code-editor
+                            .hass=${this.hass}
+                            .value=${symbiont.custom_style || ''}
+                            mode="css"
+                            @value-changed=${(e) => this._setConfigValue('symbiont.custom_style', e.detail.value || undefined)}>
+                        </ha-code-editor>
+                    </lcards-form-section>
+
+                ` : ''}
+            </div>
         `;
     }
 
