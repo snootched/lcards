@@ -795,53 +795,6 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
-     * Cleanup when card is removed from DOM
-     */
-    disconnectedCallback() {
-        super.disconnectedCallback();
-
-        // Unsubscribe from all datasource subscriptions
-        if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
-            this._datasourceSubscriptions.forEach((unsubscribe, sourceId) => {
-                try {
-                    unsubscribe();
-                    lcardsLog.trace(`[LCARdSCard] Unsubscribed from datasource ${sourceId}`, {
-                        cardId: this._getDisplayId()
-                    });
-                } catch (error) {
-                    lcardsLog.warn(`[LCARdSCard] Error unsubscribing from datasource ${sourceId}:`, error);
-                }
-            });
-            this._datasourceSubscriptions.clear();
-        }
-
-        // Remove this card from all datasource tracking
-        if (this._singletons?.dataSourceManager && this._registeredDataSources) {
-            this._registeredDataSources.forEach(sourceName => {
-                this._singletons.dataSourceManager.removeCardFromSource(
-                    sourceName,
-                    this._getDisplayId() // Use display ID consistently
-                );
-            });
-            this._registeredDataSources.clear();
-        }
-
-        // Unregister overlay and rules callback (consolidated cleanup)
-        this._unregisterOverlayFromRules();
-
-        // Cleanup light color CSS variable
-        this._cleanupLightColorVariable();
-
-        // Cleanup resize observer if set up
-        if (this._resizeObserver) {
-            this._resizeObserver.disconnect();
-            this._resizeObserver = null;
-        }
-
-        lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
-    }
-
-    /**
      * Setup ResizeObserver for automatic container size tracking
      * Enables cards to automatically respond to grid cell size changes
      *
@@ -2728,18 +2681,37 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Called when disconnected from DOM
-     * @protected
-     */
-    /**
      * Lifecycle hook - card disconnected from DOM
      * @protected
      */
     _onDisconnected() {
-        // Cleanup rules integration
-        this._unregisterOverlayFromRules();
+        // --- Datasource subscriptions ---
+        if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
+            this._datasourceSubscriptions.forEach((unsubscribe, sourceId) => {
+                try {
+                    unsubscribe();
+                    lcardsLog.trace(`[LCARdSCard] Unsubscribed from datasource ${sourceId}`, {
+                        cardId: this._getDisplayId()
+                    });
+                } catch (error) {
+                    lcardsLog.warn(`[LCARdSCard] Error unsubscribing from datasource ${sourceId}:`, error);
+                }
+            });
+            this._datasourceSubscriptions.clear();
+        }
 
-        // Cleanup entity subscriptions
+        // --- Datasource tracking ---
+        if (this._singletons?.dataSourceManager && this._registeredDataSources) {
+            this._registeredDataSources.forEach(sourceName => {
+                this._singletons.dataSourceManager.removeCardFromSource(
+                    sourceName,
+                    this._getDisplayId()
+                );
+            });
+            this._registeredDataSources.clear();
+        }
+
+        // --- Entity subscriptions ---
         if (this._entitySubscriptions) {
             this._entitySubscriptions.forEach(unsubscribe => {
                 try {
@@ -2752,7 +2724,19 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.debug(`[LCARdSCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
         }
 
-        // Unregister via LCARdSCore (handles _cardInstances, _cardLoadOrder, and SystemsManager cleanup)
+        // --- Rules / overlay ---
+        this._unregisterOverlayFromRules();
+
+        // --- Light color CSS variable ---
+        this._cleanupLightColorVariable();
+
+        // --- Resize observer ---
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
+
+        // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---
         const core = window.lcards?.core;
         if (core && this._cardGuid) {
             try {
@@ -2764,6 +2748,8 @@ export class LCARdSCard extends LCARdSNativeCard {
         }
 
         // Action handler cleanup is handled by setupActions() cleanup function
+
+        lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
 
         super._onDisconnected();
     }

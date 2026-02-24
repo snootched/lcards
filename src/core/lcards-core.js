@@ -755,48 +755,27 @@ class LCARdSCore {
         return this.componentManager || null;
     }
 
-    /**     * Manually update HASS state (for testing / external callers)
-     * NOTE: For normal card HASS propagation use ingestHass() which deduplicates per tick.
-     * The loop over _cardInstances pushes HASS directly to each card instance; after
-     * Issues 1-2 are fixed and _cardInstances is populated this will execute for every
-     * registered card.  This is intentional for test-harness / external-caller use only.
-     * @param {Object} hass - HASS object
+    /**
+     * Public HASS update method.
+     * Distributes HASS to all subsystems AND pushes directly to registered card instances.
+     * The card-push is required for MSD cards whose controls live in shadow DOM and
+     * do not receive hass from HA directly — they rely on this push to get HASS updates.
+     *
+     * Called from: test harness, and any external code that needs to force a HASS update.
+     * For normal card-triggered updates, prefer ingestHass() which deduplicates per tick.
+     *
+     * @param {Object} hass - Updated HASS instance
      */
     updateHass(hass) {
-        this._currentHass = hass;
+        if (!hass) return;
 
-        // Forward to systems
-        if (this.systemsManager) {
-            this.systemsManager.updateHass(hass);
-        }
+        // Distribute to all subsystems (shared path with ingestHass)
+        this._updateHass(hass);
 
-        if (this.dataSourceManager) {
-            this.dataSourceManager.updateHass(hass);
-        }
-
-        if (this.rulesManager) {
-            this.rulesManager.updateHass(hass);
-        }
-
-        if (this.themeManager) {
-            this.themeManager.updateHass(hass);
-        }
-
-        if (this.animationManager) {
-            this.animationManager.updateHass(hass);
-        }
-
-        if (this.validationService) {
-            this.validationService.updateHass(hass);
-        }
-
-        if (this.helperManager) {
-            this.helperManager.updateHass(hass);
-        }
-
-        // StylePresetManager doesn't need HASS updates (it's theme/pack based)
-
-        // Forward to registered cards
+        // Additionally push directly to each registered card instance.
+        // This is intentional: MSD card controls live in shadow DOM and are not
+        // reachable by HA's native hass setter — they receive HASS only via this push.
+        // For standard cards this is a same-reference no-op (setter guard: oldHass !== hass).
         this._cardInstances.forEach((context) => {
             if (context.card && typeof context.card.hass !== 'undefined') {
                 context.card.hass = hass;
