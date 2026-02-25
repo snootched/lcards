@@ -241,5 +241,67 @@ export const SLIDER_PRESETS = {
         }
       }
     }
+  },
+
+  // =====================================
+  // LOZENGE PRESET - Pill-shaped floating lozenge (vertical)
+  // =====================================
+  'lozenge-basic': {
+    extends: 'slider.pills-basic',
+    description: 'Pill-shaped lozenge slider with exterior text labels',
+
+    component: 'lozenge',
+
+    track: {
+      orientation: 'vertical',
+      invert_fill: true,
+      type: 'pills',
+      segments: {
+        count: 20,
+        gap: 2,
+        shape: { radius: 3 }
+      }
+    },
+
+    lozenge: {
+      label: {
+        top:    { size: 36 },
+        bottom: { size: 28 }
+      },
+      track: {
+        background: 'theme:components.slider.track.background'
+      }
+    },
+
+    text: {
+      name: {
+        position: 'bottom-center',
+        show: true
+      },
+      state: {
+        position: 'top-center',
+        show: true
+      }
+    }
+  },
+
+  // =====================================
+  // LOZENGE PRESET - Pill-shaped floating lozenge (horizontal)
+  // =====================================
+  'lozenge-horizontal': {
+    extends: 'slider.lozenge-basic',
+    description: 'Horizontal pill-shaped lozenge slider',
+
+    track: {
+      orientation: 'horizontal',
+      invert_fill: false
+    },
+
+    lozenge: {
+      label: {
+        left:  { size: 60 },
+        right: { size: 60 }
+      }
+    }
   }
 };

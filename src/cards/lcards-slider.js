@@ -686,7 +686,8 @@ export class LCARdSSlider extends LCARdSButton {
      */
     async _loadSliderComponent() {
         // Default to 'default' component if not specified
-        const componentName = this.config.component || 'default';
+        // Also check config.style.component (set by style presets like lozenge-basic)
+        const componentName = this.config.component || this._sliderStyle?.component || 'default';
 
         lcardsLog.debug(`[LCARdSSlider] Loading component: ${componentName}`);
 
@@ -2326,7 +2327,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Step 1: Calculate zones using component's helper
         const zones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height)
+            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
             : null;
 
         if (!zones) {
@@ -2397,7 +2398,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Solid bar (defaults to same as top border)
             solidBar: ColorUtils.resolveCssVariable(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0'
+            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0',
+            // Lozenge-specific: track background (the "empty" portion of the pill)
+            trackBackground: ColorUtils.resolveCssVariable(
+                this._sliderStyle?.lozenge?.track?.background
+                ?? this._sliderStyle?.track?.background
+                ?? 'var(--lcards-black-medium, #12121c)'
+            )
         };
 
         lcardsLog.debug('[LCARdSSlider] Resolved colors using card logic:', colors);

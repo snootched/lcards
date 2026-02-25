@@ -66,7 +66,7 @@ export function getSliderSchema(options = {}) {
                 type: 'string',
                 enum: availablePresets,
                 description: 'Style preset name (mutually exclusive with advanced component)',
-                examples: ['pills-basic', 'gauge-basic'],
+                examples: ['pills-basic', 'gauge-basic', 'lozenge-basic', 'lozenge-horizontal'],
                 'x-ui-hints': {
                     label: 'Style Preset',
                     helper: 'Choose a pre-configured slider style'
@@ -823,6 +823,40 @@ export function getSliderSchema(options = {}) {
                         'x-ui-hints': {
                             label: 'Value Ranges',
                             helper: 'Define color-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
+                        }
+                    },
+
+                    lozenge: {
+                        type: 'object',
+                        description: 'Lozenge component configuration (used with component: lozenge)',
+                        properties: {
+                            radius: {
+                                type: 'number',
+                                description: 'Override pill radius in pixels (defaults to auto = min(lozengeW,lozengeH)/2)',
+                                examples: [20, 40]
+                            },
+                            label: {
+                                type: 'object',
+                                description: 'Label band sizes (pixels reserved outside the lozenge body)',
+                                properties: {
+                                    top:    { type: 'object', properties: { size: { type: 'number', default: 36 } } },
+                                    bottom: { type: 'object', properties: { size: { type: 'number', default: 28 } } },
+                                    left:   { type: 'object', properties: { size: { type: 'number', default: 60 } } },
+                                    right:  { type: 'object', properties: { size: { type: 'number', default: 60 } } }
+                                }
+                            },
+                            track: {
+                                type: 'object',
+                                description: 'Lozenge track appearance',
+                                properties: {
+                                    background: {
+                                        type: 'string',
+                                        description: 'Lozenge track background colour (the "empty" portion of the pill)',
+                                        default: 'theme:components.slider.track.background',
+                                        examples: ['#12121c', 'theme:components.slider.track.background', 'var(--lcards-black-medium)']
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -12,6 +12,7 @@
 import defaultComponent from './default.js';
 import picardComponent from './picard.js';
 import demoComponent from './demo.js';
+import lozengeComponent from './lozenge.js';
 
 /**
  * Slider component registry
@@ -32,7 +33,10 @@ export const sliderComponents = {
     'picard': picardComponent,
 
     // Demo component - comprehensive feature showcase (development/testing)
-    'demo': demoComponent
+    'demo': demoComponent,
+
+    // Lozenge component - pill-shaped floating lozenge with exterior label bands
+    'lozenge': lozengeComponent
 };
 
 /**

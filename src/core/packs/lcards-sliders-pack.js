@@ -26,8 +26,8 @@ import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
 export const LCARDS_SLIDERS_PACK = {
   id:          'lcards_sliders',
   name:        'LCARdS Sliders',
-  version:     '1.22.0',
-  description: 'Slider style presets — pills (segmented) and gauge (ruler) visual styles',
+  version:     '1.23.0',
+  description: 'Slider style presets — pills (segmented), gauge (ruler), and lozenge (pill-shaped) visual styles',
 
   style_presets: {
     slider: SLIDER_PRESETS
