@@ -53,6 +53,7 @@
 
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { createCardElement, applyHassToCard } from '../../utils/ha-card-factory.js';
 
 export class MsdControlsRenderer {
   constructor(renderer) {
@@ -716,77 +717,6 @@ export class MsdControlsRenderer {
   }
   */
 
-  // ADDED: Normalize card type to handle HA built-in cards
-  _normalizeCardType(cardType) {
-    if (!cardType) return null;
-
-    // Handle custom cards
-    if (cardType.startsWith('custom:')) {
-      return cardType.slice(7); // Remove 'custom:' prefix
-    }
-
-    // ADDED: Map HA built-in card types to their actual element names
-    // This matches the complete list from AdvancedRenderer._isHomeAssistantCardType
-    const builtInCardMap = {
-      // Entity cards
-      'entities': 'hui-entities-card',
-      'entity': 'hui-entity-card',
-      'glance': 'hui-glance-card',
-      'grid': 'hui-grid-card',
-
-      // Layout cards
-      'horizontal-stack': 'hui-horizontal-stack-card',
-      'vertical-stack': 'hui-vertical-stack-card',
-
-      // Entity control cards
-      'button': 'hui-button-card',
-      'light': 'hui-light-card',
-      'thermostat': 'hui-thermostat-card',
-      'gauge': 'hui-gauge-card',
-      'sensor': 'hui-sensor-card',
-
-      // Visualization cards
-      'history-graph': 'hui-history-graph-card',
-      'picture': 'hui-picture-card',
-      'picture-entity': 'hui-picture-entity-card',
-      'picture-glance': 'hui-picture-glance-card',
-      'picture-elements': 'hui-picture-elements-card',
-
-      // Utility cards
-      'conditional': 'hui-conditional-card',
-      'markdown': 'hui-markdown-card',
-      'media-control': 'hui-media-control-card',
-      'alarm-panel': 'hui-alarm-panel-card',
-      'weather-forecast': 'hui-weather-forecast-card',
-      'shopping-list': 'hui-shopping-list-card',
-      'logbook': 'hui-logbook-card',
-      'map': 'hui-map-card',
-      'iframe': 'hui-iframe-card',
-
-      // Special cards
-      'area': 'hui-area-card',
-      'energy': 'hui-energy-card',
-      'humidifier': 'hui-humidifier-card',
-      'statistics-graph': 'hui-statistics-graph-card',
-      'tile': 'hui-tile-card',
-
-      // Legacy/other entity cards
-      'switch': 'hui-switch-card',
-      'binary-sensor': 'hui-binary-sensor-card',
-      'cover': 'hui-cover-card',
-      'fan': 'hui-fan-card',
-      'climate': 'hui-climate-card',
-      'input-number': 'hui-input-number-card',
-      'input-select': 'hui-input-select-card',
-      'input-text': 'hui-input-text-card',
-      'lock': 'hui-lock-card',
-      'vacuum': 'hui-vacuum-card',
-      'water-heater': 'hui-water-heater-card'
-    };
-
-    return builtInCardMap[cardType] || cardType;
-  }
-
   async createControlElement(overlay) {
     const cardDef = this. resolveCardDefinition(overlay);
     if (!cardDef) {
@@ -798,25 +728,14 @@ export class MsdControlsRenderer {
       const cardType = cardDef.type;
       let cardElement = null;
 
-      const normalizedCardType = this._normalizeCardType(cardType);
-
       lcardsLog.debug('[MsdControls] Creating card element:', {
-        originalType: cardType,
-        normalizedType: normalizedCardType,
+        cardType,
         overlayId: overlay.id,
         hasEntities: !!cardDef.entities,
-        entityCount: cardDef.entities?. length
+        entityCount: cardDef.entities?.length
       });
 
-      // Special handling for HA built-in cards
-      if (normalizedCardType. startsWith('hui-')) {
-        lcardsLog.debug('[MsdControls] Creating HA built-in card:', normalizedCardType);
-        cardElement = await this._createHomeAssistantCard(normalizedCardType, cardDef, overlay);
-      } else {
-        // Handle custom cards
-        lcardsLog.debug('[MsdControls] Creating custom card:', normalizedCardType);
-        cardElement = await this._createCustomCard(normalizedCardType, cardDef, overlay);
-      }
+      cardElement = await createCardElement(cardType, overlay.id);
 
       // Fallback:  Create a placeholder
       if (!cardElement) {
@@ -840,7 +759,7 @@ export class MsdControlsRenderer {
 
       // Apply HASS context first
       if (this.hass) {
-        await this._applyHassContext(cardElement, overlay.id);
+        applyHassToCard(cardElement, this.hass, overlay.id);
       }
 
       // Then apply configuration
@@ -871,200 +790,6 @@ export class MsdControlsRenderer {
       lcardsLog.error('[MSD Controls] Error stack:', error.stack);
       return this._createFallbackCard(cardDef?. type || 'unknown', cardDef);
     }
-  }
-
-  // ADDED: Create Home Assistant built-in cards
-  async _createHomeAssistantCard(normalizedCardType, cardDef, overlay) {
-    lcardsLog.debug('[MsdControls] Creating HA built-in card:', normalizedCardType);
-
-    try {
-      // Wait for Home Assistant's card registry to be available
-      if (!window.customCards && !document.querySelector('home-assistant')) {
-        lcardsLog.warn('[MsdControls] Home Assistant not fully loaded yet');
-        return null;
-      }
-
-      // Try to get the card constructor from HA's registry
-      let cardElement = null;
-
-      // Strategy 1: Use HA's card creation helper if available
-      if (window.customElements && window.customElements.get(normalizedCardType)) {
-        const CardClass = window.customElements.get(normalizedCardType);
-        cardElement = new CardClass();
-        lcardsLog.debug('[MsdControls] HA card created via customElements.get:', normalizedCardType);
-      } else {
-        // Strategy 2: Create via document (HA cards need brief upgrade wait)
-        cardElement = document.createElement(normalizedCardType);
-        lcardsLog.debug('[MsdControls] HA card created via createElement:', normalizedCardType);
-
-        // HA cards need a brief moment to upgrade after creation
-        // Wait for setConfig to become available (shorter timeout than custom cards)
-        await this._waitForElementUpgrade(cardElement, 500);
-
-        if (typeof cardElement.setConfig === 'function') {
-          lcardsLog.debug('[MsdControls] ✅ HA card upgraded successfully:', normalizedCardType);
-        } else {
-          lcardsLog.warn('[MsdControls] ⚠️ HA card created but setConfig not available after upgrade:', normalizedCardType);
-        }
-      }
-
-      // NOTE: HA built-in cards (hui-*) handle their own lifecycle and configuration
-      // They need a brief upgrade wait (500ms) for setConfig to become available
-      // This is much faster than the old 5s timeout for custom overlays
-
-      return cardElement;
-
-    } catch (error) {
-      lcardsLog.warn('[MsdControls] HA card creation failed:', error);
-      return null;
-    }
-  }
-
-  // ADDED: Create custom cards (extracted from existing logic)
-  async _createCustomCard(normalizedCardType, cardDef, overlay) {
-    let cardElement = null;
-
-    // Check if this is an LCARdS card (lcards-*)
-    const isLCARdSCard = normalizedCardType.startsWith('lcards-');
-
-    // Strategy 1: Try direct custom element creation
-    if (window.customElements && typeof window.customElements.get === 'function') {
-      try {
-        const CardClass = window.customElements.get(normalizedCardType);
-        if (CardClass) {
-          cardElement = new CardClass();
-          lcardsLog.debug('[MsdControls] ✅ Strategy 1 SUCCESS: Created via constructor:', normalizedCardType);
-        }
-      } catch (e) {
-        lcardsLog.debug('[MsdControls] Strategy 1 failed:', normalizedCardType, e.message);
-      }
-    }
-
-    // Strategy 2: Try document.createElement (simplified for LCARdS cards)
-    if (!cardElement) {
-      lcardsLog.debug('[MsdControls] Strategy 2: Attempting createElement for:', normalizedCardType);
-      try {
-        cardElement = document.createElement(normalizedCardType);
-
-        // Check if this is actually a custom element (not a generic div)
-        if (cardElement.tagName.toLowerCase() === normalizedCardType.toLowerCase()) {
-          if (isLCARdSCard) {
-            // LCARdS cards are already registered, no upgrade wait needed
-            lcardsLog.debug('[MsdControls] ✅ Strategy 2 SUCCESS: Created LCARdS card via createElement:', normalizedCardType);
-          } else {
-            // Other custom cards might need upgrade waiting
-            lcardsLog.debug('[MsdControls] Strategy 2: Created element, checking for upgrade:', normalizedCardType);
-
-            // Quick check with shorter timeout (100ms instead of 5s)
-            await this._waitForElementUpgrade(cardElement, 100);
-
-            if (typeof cardElement.setConfig === 'function') {
-              lcardsLog.debug('[MsdControls] ✅ Strategy 2 SUCCESS: Created via createElement with upgrade:', normalizedCardType);
-            } else {
-              lcardsLog.debug('[MsdControls] ❌ Strategy 2 FAILED: Element created but no setConfig after upgrade:', normalizedCardType);
-              cardElement = null;
-            }
-          }
-        } else {
-          lcardsLog.debug('[MsdControls] ❌ Strategy 2 FAILED: Generic element created, not custom card:', normalizedCardType);
-          cardElement = null;
-        }
-      } catch (e) {
-        lcardsLog.debug('[MsdControls] ❌ Strategy 2 FAILED: createElement error for', normalizedCardType, ':', e.message);
-      }
-    }
-
-    // Strategy 3: Try creating in document body (only for non-LCARdS cards that failed above)
-    if (!cardElement && !isLCARdSCard) {
-      lcardsLog.debug('[MsdControls] Strategy 3: Attempting body attachment technique for:', normalizedCardType);
-      try {
-        cardElement = document.createElement(normalizedCardType);
-        // Temporarily attach to body to trigger upgrade
-        const tempParent = document.createElement('div');
-        tempParent.style.position = 'absolute';
-        tempParent.style.left = '-10000px';
-        document.body.appendChild(tempParent);
-        tempParent.appendChild(cardElement);
-
-        lcardsLog.debug('[MsdControls] Strategy 3: Element attached to body, checking for upgrade:', normalizedCardType);
-        // Shorter timeout for this fallback strategy
-        await this._waitForElementUpgrade(cardElement, 500);
-
-        // Remove from temp parent
-        cardElement.remove();
-        tempParent.remove();
-
-        if (typeof cardElement.setConfig === 'function') {
-          lcardsLog.debug('[MsdControls] ✅ Strategy 3 SUCCESS: Created via body attachment:', normalizedCardType);
-        } else {
-          lcardsLog.debug('[MsdControls] ❌ Strategy 3 FAILED: Body attachment did not result in working card:', normalizedCardType);
-          cardElement = null;
-        }
-      } catch (e) {
-        lcardsLog.debug('[MsdControls] ❌ Strategy 3 FAILED: Body attachment error for', normalizedCardType, ':', e.message);
-      }
-    }
-
-    if (cardElement) {
-      lcardsLog.debug('[MsdControls] 🎉 Custom card creation SUCCESSFUL for:', normalizedCardType);
-    } else {
-      lcardsLog.debug('[MsdControls] 💥 ALL STRATEGIES FAILED for:', normalizedCardType);
-    }
-
-    return cardElement;
-  }
-
-  /**
-   * Wait for custom element to be fully upgraded
-   */
-  async _waitForElementUpgrade(element, maxWait = 5000) {
-    const startTime = Date.now();
-
-    lcardsLog.debug('[MsdControls] Waiting for element upgrade:', {
-      tagName: element.tagName,
-      hasSetConfig: typeof element.setConfig === 'function'
-    });
-
-    while (Date.now() - startTime < maxWait) {
-      // Check if element has been upgraded (has setConfig method)
-      if (typeof element.setConfig === 'function') {
-        lcardsLog.debug('[MsdControls] Element upgraded successfully:', element.tagName);
-        return element;
-      }
-
-      // Check if element has upgrade promise
-      if (element.updateComplete) {
-        try {
-          await element.updateComplete;
-          if (typeof element.setConfig === 'function') {
-            lcardsLog.debug('[MsdControls] Element upgraded via updateComplete:', element.tagName);
-            return element;
-          }
-        } catch (e) {
-          // Ignore update errors
-        }
-      }
-
-      // Force upgrade attempt
-      if (window.customElements && window.customElements.upgrade) {
-        try {
-          window.customElements.upgrade(element);
-        } catch (e) {
-          // Ignore upgrade errors
-        }
-      }
-
-      // Short wait before next check
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    lcardsLog.warn('[MsdControls] Element upgrade timeout:', {
-      tagName: element.tagName,
-      hasSetConfig: typeof element.setConfig === 'function',
-      waitTime: Date.now() - startTime
-    });
-
-    return element;
   }
 
   /**
@@ -1248,83 +973,6 @@ export class MsdControlsRenderer {
     finalConfig._msdGenerated = true;
 
     return finalConfig;
-  }
-
-  /**
-   * Apply HASS context to card element with multiple strategies
-   */
-  async _applyHassContext(cardElement, overlayId) {
-    if (!this.hass) {
-      lcardsLog.warn('[MsdControls] ⚠️ No HASS context available for:', overlayId);
-      return false;
-    }
-
-    lcardsLog.debug('[MsdControls] Starting HASS application strategies for:', overlayId);
-
-    const strategies = [
-      // Strategy 1: Direct property assignment
-      () => {
-        lcardsLog.debug('[MsdControls] HASS Strategy 1: Attempting direct property assignment for:', overlayId);
-        try {
-          cardElement.hass = this.hass;
-          const success = cardElement.hass === this.hass;
-          if (success) {
-            lcardsLog.debug('[MsdControls] ✅ HASS Strategy 1 SUCCESS: Direct property assignment for:', overlayId);
-          } else {
-            lcardsLog.debug('[MsdControls] ❌ HASS Strategy 1 FAILED: Property assignment did not stick for:', overlayId);
-          }
-          return success;
-        } catch (e) {
-          lcardsLog.debug('[MsdControls] ❌ HASS Strategy 1 FAILED: Property assignment error for', overlayId, ':', e.message);
-          return false;
-        }
-      },
-
-      // Strategy 2: Use property descriptor
-      () => {
-        lcardsLog.debug('[MsdControls] HASS Strategy 2: Attempting property descriptor for:', overlayId);
-        try {
-          Object.defineProperty(cardElement, 'hass', {
-            value: this.hass,
-            writable: true,
-            configurable: true
-          });
-          lcardsLog.debug('[MsdControls] ✅ HASS Strategy 2 SUCCESS: Property descriptor applied for:', overlayId);
-          return true;
-        } catch (e) {
-          lcardsLog.debug('[MsdControls] ❌ HASS Strategy 2 FAILED: Property descriptor error for', overlayId, ':', e.message);
-          return false;
-        }
-      },
-
-      // Strategy 3: Store in private property for later access
-      () => {
-        lcardsLog.debug('[MsdControls] HASS Strategy 3: Attempting private property fallback for:', overlayId);
-        try {
-          cardElement._hass = this.hass;
-          // Also try setting via property if it exists
-          if ('hass' in cardElement) {
-            cardElement.hass = this.hass;
-            lcardsLog.debug('[MsdControls] HASS Strategy 3: Also set public hass property for:', overlayId);
-          }
-          lcardsLog.debug('[MsdControls] ✅ HASS Strategy 3 SUCCESS: Private property fallback for:', overlayId);
-          return true;
-        } catch (e) {
-          lcardsLog.debug('[MsdControls] ❌ HASS Strategy 3 FAILED: Private property error for', overlayId, ':', e.message);
-          return false;
-        }
-      }
-    ];
-
-    for (const [index, strategy] of strategies.entries()) {
-      if (strategy()) {
-        lcardsLog.debug(`[MsdControls] 🎉 HASS application SUCCESSFUL via strategy ${index + 1} for:`, overlayId);
-        return true;
-      }
-    }
-
-    lcardsLog.debug('[MsdControls] 💥 ALL HASS STRATEGIES FAILED for:', overlayId);
-    return false;
   }
 
   /**
