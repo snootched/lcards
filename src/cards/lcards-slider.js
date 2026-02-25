@@ -522,7 +522,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Determine track visual style (pills vs gauge ruler)
         // ✅ ONLY use track.type (never config.mode)
         const trackType = this._sliderStyle?.track?.type;
-        const validTypes = ['pills', 'gauge'];
+        const validTypes = ['pills', 'gauge', 'lozenge'];
 
         if (trackType && validTypes.includes(trackType)) {
             this._mode = trackType;
@@ -530,6 +530,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Default based on domain (fallback if no preset or style.track.type)
             const interactiveDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
             this._mode = interactiveDomains.includes(this._domain) ? 'pills' : 'gauge';
+        }
+
+        // When the lozenge component is active, always use lozenge fill mode —
+        // pills and gauge don't make sense inside a pill-shaped shell.
+        const activeComponent = this.config.component || this._sliderStyle?.component;
+        if (activeComponent === 'lozenge') {
+            this._mode = 'lozenge';
         }
 
         // Update control config (handles locked state based on domain)
@@ -2439,14 +2446,18 @@ export class LCARdSSlider extends LCARdSButton {
         const orientation = this._sliderStyle?.track?.orientation || 'vertical';
 
         let trackContent = '';
-        if (this._mode === 'pills') {
+        // Lozenge component always uses lozenge fill mode — ignore this._mode for it
+        const effectiveMode = (componentName === 'lozenge') ? 'lozenge' : this._mode;
+        if (effectiveMode === 'pills') {
             trackContent = this._generatePillsContent(trackZone, orientation);
-        } else if (this._mode === 'gauge') {
+        } else if (effectiveMode === 'gauge') {
             // Pass skipProgressBar=true if component has a progress zone (render progress bar there instead)
             // Pass skipRanges=true ONLY for components that render their own ranges (e.g. picard).
             // Default and lozenge both rely on the card's internal gauge range injection.
             const skipRangesInGauge = !['default', 'lozenge'].includes(componentName);
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, skipRangesInGauge);
+        } else if (effectiveMode === 'lozenge') {
+            trackContent = this._generateLozengeContent(trackZone, orientation);
         }
 
         // Step 6: Inject content into shell using shadow DOM queries
@@ -2579,6 +2590,113 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Use existing _generateGaugeSVG - pass skip flags
         return this._generateGaugeSVG(zoneSpec.width, zoneSpec.height, skipProgressBar, skipRanges);
+    }
+
+    /**
+     * Generate lozenge fill content for the lozenge component.
+     *
+     * Emits raw `<rect>` elements only — the component's `<clipPath>` handles the pill
+     * shape, so no rounding is applied here.
+     *
+     * Render order (bottom → top):
+     *   1. Optional range bands (full-opacity colour blocks)
+     *   2. Solid value fill rect (grows from one end based on progress)
+     *
+     * @param {Object} zoneSpec  - Track zone specification from calculateZones()
+     * @param {string} orientation - 'horizontal' or 'vertical'
+     * @returns {string} SVG content injected into the track zone
+     * @private
+     */
+    _generateLozengeContent(zoneSpec, orientation) {
+        const isVertical = orientation === 'vertical';
+        const w = zoneSpec.width;
+        const h = zoneSpec.height;
+
+        // Value fill colour — check lozenge-specific override first, then gauge active colour
+        const fillColor = ColorUtils.resolveCssVariable(
+            this._sliderStyle?.lozenge?.fill?.color ||
+            this._sliderStyle?.gauge?.fill?.color?.active ||
+            '#93e1ff'
+        );
+
+        const progress = this._calculateValuePercent();
+
+        let svg = '';
+
+        // Range bands (layered under the value fill)
+        const ranges = this._sliderStyle?.ranges || [];
+        if (ranges.length > 0) {
+            svg += this._generateLozengeRangeBands(zoneSpec, orientation, ranges);
+        }
+
+        // Value fill rect — grows from one end based on progress + invert_fill
+        if (isVertical) {
+            const fillH = h * progress;
+            const fillY = this._invertFill ? 0 : h - fillH;
+            svg += `<rect x="0" y="${fillY}" width="${w}" height="${fillH}" fill="${fillColor}" />`;
+        } else {
+            const fillW = w * progress;
+            const fillX = this._invertFill ? w - fillW : 0;
+            svg += `<rect x="${fillX}" y="0" width="${fillW}" height="${h}" fill="${fillColor}" />`;
+        }
+
+        lcardsLog.debug('[LCARdSSlider] _generateLozengeContent()', { zoneSpec, orientation, progress, fillColor });
+
+        return svg;
+    }
+
+    /**
+     * Generate range band rectangles for lozenge fill mode.
+     *
+     * Unlike gauge mode which uses semi-transparent overlays, lozenge ranges are
+     * full-opacity background bands rendered _under_ the value fill. The value fill
+     * rect then paints over them as the slider value increases.
+     *
+     * @param {Object} zoneSpec   - Track zone specification (zone-local coordinates)
+     * @param {string} orientation - 'horizontal' or 'vertical'
+     * @param {Array}  ranges      - Array of range objects {min, max, color, opacity}
+     * @returns {string} SVG `<rect>` elements for the range bands
+     * @private
+     */
+    _generateLozengeRangeBands(zoneSpec, orientation, ranges) {
+        const isVertical = orientation === 'vertical';
+        const w = zoneSpec.width;
+        const h = zoneSpec.height;
+
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+
+        if (displayRange <= 0) return '';
+
+        let svg = '';
+
+        ranges.forEach(range => {
+            const rangeMin = range.min ?? displayMin;
+            const rangeMax = range.max ?? displayMax;
+            const color = range.color || '#888888';
+            const opacity = range.opacity ?? 1;
+
+            const startPct = Math.max(0, (rangeMin - displayMin) / displayRange);
+            const endPct   = Math.min(1, (rangeMax - displayMin) / displayRange);
+            const sizePct  = endPct - startPct;
+
+            if (sizePct <= 0) return;
+
+            if (isVertical) {
+                // Vertical: 0% is at the bottom; ranges stack from bottom upward
+                const bandH = h * sizePct;
+                const bandY = h * (1 - endPct);
+                svg += `<rect x="0" y="${bandY}" width="${w}" height="${bandH}" fill="${color}" opacity="${opacity}" />`;
+            } else {
+                // Horizontal: 0% is at the left
+                const bandW = w * sizePct;
+                const bandX = w * startPct;
+                svg += `<rect x="${bandX}" y="0" width="${bandW}" height="${h}" fill="${color}" opacity="${opacity}" />`;
+            }
+        });
+
+        return svg;
     }
 
     /**

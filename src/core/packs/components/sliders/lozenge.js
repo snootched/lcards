@@ -4,10 +4,10 @@
  * Pill-shaped (fully-rounded-corner rectangle) slider with:
  * - Exterior text label areas above/below (vertical) or left/right (horizontal)
  *   the lozenge body — not overlapping the lozenge itself.
- * - Configurable track background colour.
- * - ClipPath ensures track/pills/progress are clipped to the pill shape.
- * - All existing slider features (pills, gauge, ranges, invert_fill, text fields)
- *   work inside the lozenge body.
+ * - Configurable track background colour and value fill colour.
+ * - ClipPath ensures all injected track content is clipped to the pill shape.
+ * - The card injects a `lozenge`-mode solid fill rect via the track zone; the
+ *   component itself only provides the SVG shell (clip path, background, zones).
  * - Colors are resolved by the card, not the component.
  *
  * Orientation: Auto (horizontal or vertical via style.track.orientation)
@@ -163,7 +163,7 @@ export function render(context) {
      data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">
   </g>
 
-  <!-- Track zone (pills or gauge) — clipped to lozenge shape -->
+  <!-- Track zone (lozenge solid fill, injected by card) — clipped to lozenge shape -->
   <g id="track-zone" data-zone="track"
      clip-path="url(#lozenge-clip-${uid})"
      transform="translate(${zones.track.x}, ${zones.track.y})"
@@ -211,11 +211,10 @@ export function getMetadata() {
             'pill-shape',
             'clipped-track',
             'exterior-labels',
+            'solid-fill',
+            'range-bands',
+            'invert-fill',
             'state-colors',
-            'progress-bar',
-            'gauge',
-            'pills',
-            'ranges',
             'text-fields'
         ],
         configSchema: {
@@ -224,6 +223,14 @@ export function getMetadata() {
                     radius: {
                         description: 'Override pill radius (defaults to auto = min(lozengeW,lozengeH)/2)',
                         type: 'number'
+                    },
+                    fill: {
+                        description: 'Value fill appearance',
+                        color: {
+                            description: 'Colour of the filled (value) portion',
+                            type: 'string',
+                            default: '#93e1ff'
+                        }
                     },
                     label: {
                         description: 'Label band sizes in pixels — space reserved outside the lozenge body',

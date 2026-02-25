@@ -63,20 +63,28 @@ class SliderConfigState {
         return this.config.preset || null;
     }
 
-    // Track type: Visual rendering style (pills or gauge)
-    // Checks: explicit config → preset name → default
+    // Track type: Visual rendering style (pills, gauge, or lozenge)
+    // Checks: explicit config → component name → preset name → default
     get trackType() {
         // 1. Explicit config wins
         if (this.config.style?.track?.type) {
             return this.config.style.track.type;
         }
 
-        // 2. Infer from preset name (gauge-* = gauge, otherwise pills)
-        if (this.preset) {
-            return this.preset.includes('gauge') ? 'gauge' : 'pills';
+        // 2. Lozenge component always uses lozenge fill mode
+        const component = this.config.component || this.config.style?.component;
+        if (component === 'lozenge') {
+            return 'lozenge';
         }
 
-        // 3. Default to pills
+        // 3. Infer from preset name (gauge-* = gauge, lozenge-* = lozenge, otherwise pills)
+        if (this.preset) {
+            if (this.preset.includes('gauge')) return 'gauge';
+            if (this.preset.includes('lozenge')) return 'lozenge';
+            return 'pills';
+        }
+
+        // 4. Default to pills
         return 'pills';
     }
 
@@ -525,8 +533,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </lcards-slider-range-visualizer>
             </lcards-form-section>
 
-            <!-- Dynamic: Pills or Gauge Configuration with INLINE COLORS -->
-            ${trackType === 'pills' ? this._renderPillsConfiguration() : this._renderGaugeConfiguration()}
+            <!-- Dynamic: Pills, Gauge, or Lozenge Configuration -->
+            ${trackType === 'pills'
+                ? this._renderPillsConfiguration()
+                : trackType === 'lozenge'
+                    ? this._renderLozengeConfiguration()
+                    : this._renderGaugeConfiguration()}
 
             <!-- Track Margins -->
             <lcards-form-section
@@ -1089,6 +1101,74 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?expanded=${false}
                     ?useColorPicker=${true}>
                 </lcards-color-section>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Lozenge Configuration - Fill colour and label band sizes
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLozengeConfiguration() {
+        return html`
+            <!-- Lozenge Fill Color -->
+            <lcards-form-section
+                header="Lozenge Fill"
+                description="Solid fill colour that rises from one end of the pill"
+                icon="mdi:water"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.lozenge.fill.color"
+                    header="Fill Color"
+                    description="Color of the value fill inside the lozenge"
+                    ?singleColor=${true}
+                    ?expanded=${true}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.lozenge.track.background"
+                    header="Background Color"
+                    description="Color of the empty (unfilled) portion of the lozenge"
+                    ?singleColor=${true}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+
+            <!-- Lozenge Label Bands -->
+            <lcards-form-section
+                header="Label Band Sizes"
+                description="Pixels reserved outside the pill body for text labels"
+                icon="mdi:format-text-rotation-none"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, 'style.lozenge.label.top.size', {
+                        label: 'Top Band (px)',
+                        helper: 'Space above the lozenge for value label (vertical mode)'
+                    })}
+                    ${FormField.renderField(this, 'style.lozenge.label.bottom.size', {
+                        label: 'Bottom Band (px)',
+                        helper: 'Space below the lozenge for name label (vertical mode)'
+                    })}
+                    ${FormField.renderField(this, 'style.lozenge.label.left.size', {
+                        label: 'Left Band (px)',
+                        helper: 'Space to the left of the lozenge (horizontal mode)'
+                    })}
+                    ${FormField.renderField(this, 'style.lozenge.label.right.size', {
+                        label: 'Right Band (px)',
+                        helper: 'Space to the right of the lozenge (horizontal mode)'
+                    })}
+                </lcards-grid-layout>
             </lcards-form-section>
         `;
     }

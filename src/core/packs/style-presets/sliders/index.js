@@ -255,12 +255,7 @@ export const SLIDER_PRESETS = {
     track: {
       orientation: 'vertical',
       invert_fill: true,
-      type: 'pills',
-      segments: {
-        count: 20,
-        gap: 2,
-        shape: { radius: 3 }
-      }
+      type: 'lozenge'
     },
 
     lozenge: {

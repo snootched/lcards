@@ -268,11 +268,12 @@ export function getSliderSchema(options = {}) {
                             },
                             type: {
                                 type: 'string',
-                                enum: ['pills', 'gauge'],
-                                description: 'Track visual style (pills = segmented, gauge = ruler)',
+                                enum: ['pills', 'gauge', 'lozenge'],
+                                description: 'Track visual style (pills = segmented, gauge = ruler, lozenge = solid fill clipped to pill shape)',
                                 enumDescriptions: [
                                     'Segmented pill style (interactive sliders)',
-                                    'Ruler gauge style (typically for display)'
+                                    'Ruler gauge style (typically for display)',
+                                    'Solid fill inside a pill-shaped lozenge (use with component: lozenge)'
                                 ]
                             },
                             height: {
@@ -834,6 +835,18 @@ export function getSliderSchema(options = {}) {
                                 type: 'number',
                                 description: 'Override pill radius in pixels (defaults to auto = min(lozengeW,lozengeH)/2)',
                                 examples: [20, 40]
+                            },
+                            fill: {
+                                type: 'object',
+                                description: 'Lozenge value fill appearance',
+                                properties: {
+                                    color: {
+                                        type: 'string',
+                                        description: 'Fill colour (the "filled" portion of the lozenge)',
+                                        default: '#93e1ff',
+                                        examples: ['#93e1ff', 'theme:palette.moonlight', 'var(--lcards-blue-light)']
+                                    }
+                                }
                             },
                             label: {
                                 type: 'object',
