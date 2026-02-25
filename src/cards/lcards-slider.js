@@ -2443,8 +2443,9 @@ export class LCARdSSlider extends LCARdSButton {
             trackContent = this._generatePillsContent(trackZone, orientation);
         } else if (this._mode === 'gauge') {
             // Pass skipProgressBar=true if component has a progress zone (render progress bar there instead)
-            // Pass skipRanges=true ONLY for non-Default components (Picard renders ranges separately)
-            const skipRangesInGauge = componentName !== 'default';
+            // Pass skipRanges=true ONLY for components that render their own ranges (e.g. picard).
+            // Default and lozenge both rely on the card's internal gauge range injection.
+            const skipRangesInGauge = !['default', 'lozenge'].includes(componentName);
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, skipRangesInGauge);
         }
 
