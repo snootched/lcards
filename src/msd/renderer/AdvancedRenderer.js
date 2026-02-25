@@ -34,21 +34,6 @@ export class AdvancedRenderer {
     // Maps overlay.id -> OverlayBase instance
     this.overlayRenderers = new Map();
 
-    this._performance = {
-      renderStart: null,
-      renderEnd: null,
-      stages: {
-        preparation: 0,
-        overlayRendering: 0,
-        domInjection: 0,
-        actionAttachment: 0
-      },
-      overlayTimings: new Map(),
-      totalRenderTime: 0,
-      overlayCount: 0,
-      lastRenderTimestamp: null
-    };
-
   }
 
   /**
@@ -59,11 +44,6 @@ export class AdvancedRenderer {
    * @returns {Promise<Object>} {svgMarkup, overlayCount, errors, provenance}
    */
   async render(resolvedModel) {
-    // ✅ NEW: Start overall performance tracking (Phase 5.3)
-    this._performance.renderStart = performance.now();
-    this._performance.overlayTimings.clear();
-    this._performance.overlayCount = 0;
-
     if (!resolvedModel) {
       lcardsLog.warn('[AdvancedRenderer] ⚠️ No resolved model provided');
       return { svgMarkup: '', overlayCount: 0 };
@@ -75,9 +55,6 @@ export class AdvancedRenderer {
     this._staticAnchors = anchors;
 
     lcardsLog.debug(`[AdvancedRenderer] 🎨 Rendering ${overlays.length} overlays, ${Object.keys(anchors).length} anchors`);
-
-    // ✅ NEW: Stage 1 - Preparation (Phase 5.3)
-    const prepStart = performance.now();
 
     this.overlayElements.clear();
 
@@ -97,11 +74,6 @@ export class AdvancedRenderer {
     // Phase 3: Line overlay attachment points are set per-instance during render
     // (removed global lineRenderer.setOverlayAttachmentPoints call)
 
-    this._performance.stages.preparation = performance.now() - prepStart;
-
-    // ✅ NEW: Stage 2 - Overlay Rendering (Phase 5.3)
-    const renderStart = performance.now();
-
     // Initialize provenance collection
     const provenance = {
       renderer: 'AdvancedRenderer',
@@ -120,9 +92,6 @@ export class AdvancedRenderer {
 
     overlays.filter(o => earlyTypes.has(o.type)).forEach(ov => {
       try {
-        // ✅ NEW: Track per-overlay timing (Phase 5.3)
-        const overlayStart = performance.now();
-
         const result = this.renderOverlay(ov, anchors, viewBox);
 
         lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 1 overlay result:`, {
@@ -166,14 +135,6 @@ export class AdvancedRenderer {
           }
         }
 
-        // ✅ NEW: Record overlay timing (Phase 5.3)
-        const overlayDuration = performance.now() - overlayStart;
-        this._performance.overlayTimings.set(ov.id, {
-          type: ov.type,
-          duration: overlayDuration
-        });
-        this._performance.overlayCount++;
-
         processedCount++;
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase1 render failed for overlay ${ov.id}:`, e);
@@ -209,9 +170,6 @@ export class AdvancedRenderer {
     // Phase 2a: render non-line overlays (cards, etc.) that lines may attach to
     overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line').forEach(ov => {
       try {
-        // ✅ NEW: Track per-overlay timing (Phase 5.3)
-        const overlayStart = performance.now();
-
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
         lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
@@ -252,14 +210,6 @@ export class AdvancedRenderer {
           if (el) this.overlayElementCache.set(ov.id, el);
         }
 
-        // ✅ NEW: Record overlay timing (Phase 5.3)
-        const overlayDuration = performance.now() - overlayStart;
-        this._performance.overlayTimings.set(ov.id, {
-          type: ov.type,
-          duration: overlayDuration
-        });
-        this._performance.overlayCount++;
-
         processedCount++;
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2a render failed for overlay ${ov.id}:`, e);
@@ -292,9 +242,6 @@ export class AdvancedRenderer {
     // Phase 2b: render line overlays (now ALL targets exist with attachment points)
     overlays.filter(o => o.type === 'line').forEach(ov => {
       try {
-        // ✅ NEW: Track per-overlay timing (Phase 5.3)
-        const overlayStart = performance.now();
-
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
 
         lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 2b overlay ${ov.id} result:`, {
@@ -368,14 +315,6 @@ export class AdvancedRenderer {
           }
         }
 
-        // ✅ NEW: Record overlay timing (Phase 5.3)
-        const overlayDuration = performance.now() - overlayStart;
-        this._performance.overlayTimings.set(ov.id, {
-          type: ov.type,
-          duration: overlayDuration
-        });
-        this._performance.overlayCount++;
-
         processedCount++;
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2b render failed for overlay ${ov.id}:`, e);
@@ -390,46 +329,21 @@ export class AdvancedRenderer {
       }
     });
 
-    this._performance.stages.overlayRendering = performance.now() - renderStart;
-
-    // ✅ NEW: Stage 3 - DOM Injection (Phase 5.3)
-    const domStart = performance.now();
-
-    this._performance.stages.domInjection = performance.now() - domStart;
-
     lcardsLog.debug('[AdvancedRenderer] Injected elements (after phased render):', {
       total: this.overlayElementCache.size,
       lines: overlayGroup.querySelectorAll('[data-overlay-type="line"]').length,
       controls: overlayGroup.querySelectorAll('[data-overlay-type="control"]').length
     });
 
-    // ✅ NEW: Stage 4 - Action Attachment (already done inline, track time)
-    // Action attachment time is tracked inline above during Phase 1 and Phase 2
-
     // NEW: schedule deferred line refresh to fix first-load orientation/position
     this._scheduleDeferredLineRefresh(overlays, this._staticAnchors, viewBox);
 
     this.lastRenderArgs = { resolvedModel, overlays, svg };
 
-    // ✅ NEW: Calculate total and store final metrics (Phase 5.3)
-    this._performance.renderEnd = performance.now();
-    this._performance.totalRenderTime = this._performance.renderEnd - this._performance.renderStart;
-    this._performance.lastRenderTimestamp = Date.now();
-
-    // ✅ NEW: Add performance summary to provenance (Phase 5.3)
-    provenance.performance = this._getPerformanceSummary();
-
-    // ✅ NEW: Log performance summary (Phase 5.3)
     lcardsLog.debug('[AdvancedRenderer] Render complete', {
       overlays: overlays.length,
       processed: processedCount,
-      errors: overlays.length - processedCount,
-      totalTime: this._performance.totalRenderTime.toFixed(2) + 'ms',
-      stages: {
-        preparation: this._performance.stages.preparation.toFixed(2) + 'ms',
-        rendering: this._performance.stages.overlayRendering.toFixed(2) + 'ms',
-        domInjection: this._performance.stages.domInjection.toFixed(2) + 'ms'
-      }
+      errors: overlays.length - processedCount
     });
 
     // ✅ NEW: Store provenance in config (Phase 5.3)
@@ -442,7 +356,7 @@ export class AdvancedRenderer {
       svgMarkup: svgMarkupAccum,
       overlayCount: processedCount,
       errors: overlays.length - processedCount,
-      provenance  // ✅ NEW: Return provenance data (Phase 5.3)
+      provenance
     };
   }
 
@@ -1631,148 +1545,6 @@ export class AdvancedRenderer {
     }
 
     return null;
-  }
-
-  /**
-   * ✅ NEW: Phase 5.3 - Get performance summary for current render
-   * @private
-   * @returns {Object} Performance summary
-   */
-  _getPerformanceSummary() {
-    const overlayTimingsArray = Array.from(this._performance.overlayTimings.entries())
-      .map(([id, data]) => ({
-        overlay_id: id,
-        type: data.type,
-        duration_ms: data.duration
-      }))
-      .sort((a, b) => b.duration_ms - a.duration_ms);
-
-    return {
-      total_render_time_ms: this._performance.totalRenderTime,
-      overlay_count: this._performance.overlayCount,
-      average_per_overlay_ms: this._performance.overlayCount > 0
-        ? this._performance.totalRenderTime / this._performance.overlayCount
-        : 0,
-      stages: {
-        preparation_ms: this._performance.stages.preparation,
-        overlay_rendering_ms: this._performance.stages.overlayRendering,
-        dom_injection_ms: this._performance.stages.domInjection,
-        action_attachment_ms: this._performance.stages.actionAttachment
-      },
-      overlay_timings: overlayTimingsArray,
-      slowest_overlays: overlayTimingsArray.slice(0, 5),
-      timestamp: this._performance.lastRenderTimestamp
-    };
-  }
-
-  /**
-   * ✅ NEW: Phase 5.3 - Get performance data for a specific overlay
-   * @param {string} overlayId - Overlay ID
-   * @returns {Object|null} Performance data for the overlay
-   */
-  getOverlayPerformance(overlayId) {
-    const timing = this._performance.overlayTimings.get(overlayId);
-    if (!timing) return null;
-
-    return {
-      overlay_id: overlayId,
-      type: timing.type,
-      duration_ms: timing.duration,
-      percentage_of_total: (timing.duration / this._performance.totalRenderTime * 100).toFixed(1)
-    };
-  }
-
-  /**
-   * ✅ NEW: Phase 5.3 - Get slowest overlays
-   * @param {number} count - Number of slowest overlays to return
-   * @returns {Array} Array of slowest overlay performance data
-   */
-  getSlowestOverlays(count = 5) {
-    return Array.from(this._performance.overlayTimings.entries())
-      .map(([id, data]) => ({
-        overlay_id: id,
-        type: data.type,
-        duration_ms: data.duration,
-        percentage_of_total: (data.duration / this._performance.totalRenderTime * 100).toFixed(1)
-      }))
-      .sort((a, b) => b.duration_ms - a.duration_ms)
-      .slice(0, count);
-  }
-
-  /**
-   * ✅ NEW: Phase 5.3 - Get performance by overlay type
-   * @returns {Object} Performance data grouped by overlay type
-   */
-  getPerformanceByType() {
-    const byType = {};
-
-    this._performance.overlayTimings.forEach((data, id) => {
-      const type = data.type;
-      if (!byType[type]) {
-        byType[type] = {
-          count: 0,
-          total_ms: 0,
-          average_ms: 0,
-          overlays: []
-        };
-      }
-
-      byType[type].count++;
-      byType[type].total_ms += data.duration;
-      byType[type].overlays.push({
-        id,
-        duration_ms: data.duration
-      });
-    });
-
-    // Calculate averages
-    Object.keys(byType).forEach(type => {
-      byType[type].average_ms = byType[type].total_ms / byType[type].count;
-    });
-
-    return byType;
-  }
-
-  /**
-   * ✅ NEW: Phase 5.3 - Check if any overlays exceed performance thresholds
-   * @returns {Object} Performance warnings
-   */
-  getPerformanceWarnings() {
-    const warnings = [];
-    const SLOW_OVERLAY_THRESHOLD = 50; // ms
-    const SLOW_TOTAL_THRESHOLD = 200; // ms
-
-    // Check total render time
-    if (this._performance.totalRenderTime > SLOW_TOTAL_THRESHOLD) {
-      warnings.push({
-        type: 'slow_total_render',
-        severity: 'warning',
-        message: `Total render time (${this._performance.totalRenderTime.toFixed(2)}ms) exceeds threshold (${SLOW_TOTAL_THRESHOLD}ms)`,
-        value: this._performance.totalRenderTime,
-        threshold: SLOW_TOTAL_THRESHOLD
-      });
-    }
-
-    // Check individual overlays
-    this._performance.overlayTimings.forEach((data, id) => {
-      if (data.duration > SLOW_OVERLAY_THRESHOLD) {
-        warnings.push({
-          type: 'slow_overlay',
-          severity: 'warning',
-          message: `Overlay '${id}' (${data.type}) took ${data.duration.toFixed(2)}ms to render`,
-          overlay_id: id,
-          overlay_type: data.type,
-          value: data.duration,
-          threshold: SLOW_OVERLAY_THRESHOLD
-        });
-      }
-    });
-
-    return {
-      has_warnings: warnings.length > 0,
-      count: warnings.length,
-      warnings: warnings.sort((a, b) => (b.value || 0) - (a.value || 0))
-    };
   }
 
 }

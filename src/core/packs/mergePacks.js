@@ -1,5 +1,4 @@
 import { computeCanonicalChecksum } from '../../utils/checksum.js';
-import { perfTime, perfTimeAsync, perfCount } from '../../utils/performance.js';
 import { loadBuiltinPacks } from './loadBuiltinPacks.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
@@ -228,16 +227,6 @@ async function loadExternalPacks(urls, options = {}) {
   } = options;
 
   const results = [];
-  const perfTracker = {
-    total_packs: urls.length,
-    successful: 0,
-    failed: 0,
-    retried: 0,
-    cached_hits: 0,
-    total_time_ms: 0
-  };
-
-  const startTime = performance.now();
 
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i];
@@ -250,31 +239,7 @@ async function loadExternalPacks(urls, options = {}) {
     });
 
     results.push(packResult);
-
-    // Update performance tracking
-    if (packResult.error) {
-      perfTracker.failed++;
-    } else {
-      perfTracker.successful++;
-    }
-
-    if (packResult.retryCount > 0) {
-      perfTracker.retried++;
-    }
-
-    if (packResult.cached) {
-      perfTracker.cached_hits++;
-    }
   }
-
-  perfTracker.total_time_ms = performance.now() - startTime;
-
-  // Store performance data for debugging - Node.js compatible
-  try {
-    const debugNamespace = (typeof window !== 'undefined') ? window : global;
-    debugNamespace.__msdDebug = debugNamespace.__msdDebug || {};
-    debugNamespace.__msdDebug._lastExternalPackPerf = perfTracker;
-  } catch (e) {}
 
   return results;
 }

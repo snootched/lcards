@@ -43,10 +43,6 @@
  *   const msdCard = document.querySelector('lcards-msd');
  *   msdCard._msdPipeline.coordinator.controlsRenderer._manualHassForwarding = false;
  *
- * Enable performance tracking:
- *   renderer._perfTracking.enabled = true;
- *   console.log(renderer.getPerformanceStats());
- *
  * View entity tracking:
  *   console.log(renderer._controlEntityMap);
  */
@@ -77,15 +73,6 @@ export class MsdControlsRenderer {
     // NEW: Entity tracking for optimized HASS updates
     // Maps control overlay ID to Set of entity IDs it uses
     this._controlEntityMap = new Map(); // overlayId -> Set<entityId>
-
-    // Performance tracking (optional, enabled via debug config)
-    this._perfTracking = {
-      enabled: false, // Set to true via debug config
-      updateCount: 0,
-      totalUpdateTime: 0,
-      entityChangeCount: 0,
-      controlUpdateCount: 0
-    };
 
     // DEBUGGING: Log when MsdControlsRenderer is created
     lcardsLog.debug('[MsdControlsRenderer] 🎮 Constructor called', {
@@ -200,43 +187,6 @@ export class MsdControlsRenderer {
     return affected;
   }
 
-  /**
-   * Get performance statistics for debugging
-   * Returns metrics about HASS update efficiency
-   * @returns {Object} Performance statistics or disabled message
-   */
-  getPerformanceStats() {
-    if (!this._perfTracking.enabled) {
-      return { message: 'Performance tracking not enabled' };
-    }
-
-    const avgUpdateTime = this._perfTracking.updateCount > 0
-      ? this._perfTracking.totalUpdateTime / this._perfTracking.updateCount
-      : 0;
-
-    const avgEntitiesChanged = this._perfTracking.updateCount > 0
-      ? this._perfTracking.entityChangeCount / this._perfTracking.updateCount
-      : 0;
-
-    const avgControlsUpdated = this._perfTracking.updateCount > 0
-      ? this._perfTracking.controlUpdateCount / this._perfTracking.updateCount
-      : 0;
-
-    const totalPossibleUpdates = this._perfTracking.updateCount * this.controlElements.size;
-    const efficiencyPercent = totalPossibleUpdates > 0
-      ? ((totalPossibleUpdates - this._perfTracking.controlUpdateCount) / totalPossibleUpdates * 100)
-      : 0;
-
-    return {
-      totalUpdates: this._perfTracking.updateCount,
-      avgUpdateTimeMs: avgUpdateTime.toFixed(2),
-      avgEntitiesChanged: avgEntitiesChanged.toFixed(1),
-      avgControlsUpdated: avgControlsUpdated.toFixed(1),
-      totalControls: this.controlElements.size,
-      efficiencyGain: `${efficiencyPercent.toFixed(1)}% reduction in updates`
-    };
-  }
-
   setHass(hass) {
     if (!hass || !hass.states) {
       lcardsLog.warn('[MsdControlsRenderer] Invalid HASS provided');
@@ -259,12 +209,6 @@ export class MsdControlsRenderer {
 
       // Detect which entities changed
       const changedEntities = this._detectEntityChanges(oldHass, hass);
-
-      // Track performance metrics
-      if (this._perfTracking.enabled) {
-        this._perfTracking.updateCount++;
-        this._perfTracking.entityChangeCount += changedEntities.size;
-      }
 
       if (changedEntities.size === 0) {
         lcardsLog.trace('[MsdControlsRenderer] No entity changes, skipping control updates');
@@ -299,7 +243,7 @@ export class MsdControlsRenderer {
   }
 
   /**
-   * Batch update controls with performance tracking
+   * Batch update controls
    * Applies HASS to a specific list of controls
    * @private
    * @param {Array} controls - Array of control objects to update
@@ -323,12 +267,6 @@ export class MsdControlsRenderer {
     });
 
     const duration = performance.now() - startTime;
-
-    // Track performance metrics
-    if (this._perfTracking.enabled) {
-      this._perfTracking.totalUpdateTime += duration;
-      this._perfTracking.controlUpdateCount += controls.length;
-    }
 
     lcardsLog.trace(`[MsdControlsRenderer] Batch update completed in ${duration.toFixed(2)}ms`, {
       controlsUpdated: controls.length

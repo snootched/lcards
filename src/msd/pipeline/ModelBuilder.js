@@ -1,6 +1,5 @@
 import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
 import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
-import { perfTime } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';
 
@@ -58,8 +57,7 @@ export class ModelBuilder {
 
 
   _assembleBaseOverlays() {
-    return perfTime('overlays.assemble', () => {
-      return this.cardModel.overlaysBase.map(o => {
+    return this.cardModel.overlaysBase.map(o => {
         // Start with overlay's own style (highest precedence)
         const baseStyle = o.style || {};
 
@@ -80,7 +78,6 @@ export class ModelBuilder {
 
         return resolvedOverlay;
       });
-    });
   }
 
   /**

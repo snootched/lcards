@@ -19,6 +19,9 @@ export class Canvas2DRenderer {
     this._animationId = null;
     this._lastFrameTime = performance.now();
     this._isRunning = false;
+    this._shouldReduceEffects = false;
+    this._frameSkipCounter = 0;
+    this._perfCheckHandler = null;
 
     lcardsLog.info('[Canvas2DRenderer] Initialized', {
       canvasWidth: canvas.width,
@@ -79,6 +82,14 @@ export class Canvas2DRenderer {
 
     this._isRunning = true;
     this._lastFrameTime = performance.now();
+
+    // Wire up PerformanceMonitor for adaptive quality
+    if (window.lcards?.core?.performanceMonitor) {
+      window.lcards.core.performanceMonitor.start();
+      this._perfCheckHandler = (e) => this._onPerfCheck(e.detail);
+      window.addEventListener('lcards:performance-check', this._perfCheckHandler);
+    }
+
     this._animate();
 
     lcardsLog.info('[Canvas2DRenderer] Animation started', {
@@ -100,7 +111,32 @@ export class Canvas2DRenderer {
       this._animationId = null;
     }
 
+    // Clean up PerformanceMonitor listener
+    if (this._perfCheckHandler) {
+      window.removeEventListener('lcards:performance-check', this._perfCheckHandler);
+      this._perfCheckHandler = null;
+    }
+    if (window.lcards?.core?.performanceMonitor) {
+      window.lcards.core.performanceMonitor.stop();
+    }
+
     lcardsLog.info('[Canvas2DRenderer] Animation stopped');
+  }
+
+  /**
+   * Handle performance check events from PerformanceMonitor
+   * Adapts rendering quality based on measured FPS
+   * @private
+   */
+  _onPerfCheck({ fps, shouldDisable3D, shouldReduceEffects }) {
+    this._shouldReduceEffects = shouldReduceEffects;
+
+    if (shouldDisable3D && this._isRunning) {
+      lcardsLog.warn(`[Canvas2DRenderer] FPS too low (${fps.toFixed(1)}fps), pausing animation`);
+      this.stop();
+    } else if (shouldReduceEffects) {
+      lcardsLog.debug(`[Canvas2DRenderer] Reduced quality mode (${fps.toFixed(1)}fps)`);
+    }
   }
 
   /**
@@ -110,6 +146,15 @@ export class Canvas2DRenderer {
   _animate() {
     if (!this._isRunning) {
       return;
+    }
+
+    // Adaptive quality: skip every other frame when FPS is low
+    if (this._shouldReduceEffects) {
+      this._frameSkipCounter++;
+      if (this._frameSkipCounter % 2 === 0) {
+        this._animationId = requestAnimationFrame(() => this._animate());
+        return;
+      }
     }
 
     const currentTime = performance.now();

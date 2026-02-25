@@ -1,4 +1,3 @@
-import { perfTime, perfTimeAsync, perfCount } from '../../utils/performance.js';
 import { computeObjectHash } from '../../utils/hashing.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
@@ -28,8 +27,7 @@ export class AnimationRegistry {
    * Get or create animation instance with intelligent reuse
    */
   getOrCreateInstance(definition, targets) {
-    return perfTime('animation.getInstance', () => {
-      const hash = this.computeInstanceHash(definition);
+    const hash = this.computeInstanceHash(definition);
 
       // Check cache first
       if (this.cache.has(hash)) {
@@ -38,7 +36,6 @@ export class AnimationRegistry {
         // Verify targets compatibility
         if (this.targetsCompatible(cached.targets, targets)) {
           this.recordCacheHit(hash);
-          perfCount('animation.instance.reuse', 1);
           this.perfStats.instancesReused++;
 
           return this.reuseInstance(cached, targets);
@@ -55,12 +52,10 @@ export class AnimationRegistry {
       // Cache the instance
       this.cacheInstance(hash, instance, definition);
 
-      perfCount('animation.instance.new', 1);
       this.perfStats.instancesCreated++;
       this.perfStats.cacheMisses++;
 
       return instance;
-    });
   }
 
   /**
@@ -249,8 +244,7 @@ export class AnimationRegistry {
    * Clean up least recently used cache entries
    */
   cleanupCache() {
-    perfTime('animation.cache.cleanup', () => {
-      const entries = Array.from(this.usageStats.entries());
+    const entries = Array.from(this.usageStats.entries());
 
       // Sort by last used time (oldest first)
       entries.sort(([, a], [, b]) => a.lastUsed - b.lastUsed);
@@ -264,8 +258,6 @@ export class AnimationRegistry {
       });
 
       this.perfStats.cleanupRuns++;
-      perfCount('animation.cache.cleanup', toRemove.length);
-    });
   }
 
   /**
@@ -355,8 +347,6 @@ export class AnimationRegistry {
       instancesReused: 0,
       cleanupRuns: 0
     };
-
-    perfCount('animation.cache.cleared', 1);
   }
 
   /**

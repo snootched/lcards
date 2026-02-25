@@ -1,4 +1,3 @@
-import { perfCount, perfTime } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getValidChannelTypes, WAYPOINT_CONFIG } from './routing-constants.js';
 
@@ -56,7 +55,6 @@ export class RouterCore {
         }
       }
     }
-    perfCount('routing.invalidate.events', 1);
   }
 
   setOverlays(overlays) {
@@ -87,7 +85,6 @@ export class RouterCore {
     // Invalidate grids & route cache referencing old obstacles
     this._gridCache.clear();
     this.invalidate('*');
-    perfCount('routing.obstacles.count', obs.length);
   }
 
   stats() {
@@ -167,7 +164,6 @@ export class RouterCore {
     ).toLowerCase();
     const allowedSmooth = ['none','chaikin'];
     if (!allowedSmooth.includes(smoothingMode)) {
-      try { perfCount('routing.smooth.mode.invalid', 1); } catch(_) {}
       smoothingMode = 'none';
     }
 
@@ -201,11 +197,9 @@ export class RouterCore {
       if (attachSide === 'left' || attachSide === 'right') {
         modeHintLast = 'yx'; // final horizontal
         hintSourceLast = 'attach_side';
-        try { perfCount('routing.hint.attach_side.horizontal',1); } catch(_){}
       } else if (attachSide === 'top' || attachSide === 'bottom') {
         modeHintLast = 'xy'; // final vertical
         hintSourceLast = 'attach_side';
-        try { perfCount('routing.hint.attach_side.vertical',1); } catch(_){}
       }
     }
     // Geometry-based first segment if not provided
@@ -253,7 +247,6 @@ export class RouterCore {
       const globalDefault = (this.config.default_mode || '').toLowerCase().trim();
       if (globalDefault && globalDefault !== 'auto') {
         modeFull = globalDefault;
-        perfCount('routing.mode.from_global_default', 1);
       }
     }
 
@@ -272,7 +265,6 @@ export class RouterCore {
           modeFull = 'smart';
           modeAutoUpgraded = true;
           autoUpgradeReason = 'channels_present';
-          perfCount('routing.mode.auto_upgrade.channels', 1);
           lcardsLog.debug(`[RouterCore] Auto-upgraded route '${overlay.id}' to smart mode (${channels.length} channel(s) configured)`);
         }
         // Upgrade to smart if obstacles exist
@@ -280,7 +272,6 @@ export class RouterCore {
           modeFull = 'smart';
           modeAutoUpgraded = true;
           autoUpgradeReason = 'obstacles_present';
-          perfCount('routing.mode.auto_upgrade.obstacles', 1);
           lcardsLog.debug(`[RouterCore] Auto-upgraded route '${overlay.id}' to smart mode (${this._obstacles.length} obstacle(s) detected)`);
         }
       }
@@ -331,14 +322,11 @@ export class RouterCore {
   }
 
   computePath(req) {
-    return perfTime('routing.compute.ms', () => {
-      const key = this._cacheKey(req);
+    const key = this._cacheKey(req);
       const cached = this._cache.get(key);
       if (cached) {
-        perfCount('routing.cache.hit', 1);
         return { ...cached, meta: { ...cached.meta, cache_hit: true } };
       }
-      perfCount('routing.cache.miss', 1);
       let result;
       const mode = req.modeFull;
       try {
@@ -351,15 +339,12 @@ export class RouterCore {
         if (mode === 'manual') {
           lcardsLog.debug(`[RouterCore] Using manual routing for '${req.id}' with ${req.waypoints?.length || 0} waypoints`);
           result = this._computeManual(req);
-          perfCount('routing.strategy.manual', 1);
         } else if (hasForceChannels && (mode === 'smart' || mode === 'grid')) {
           lcardsLog.debug(`[RouterCore] Using forced routing for '${req.id}'`);
           result = this._computeWaypoint(req);
-          perfCount('routing.strategy.forced', 1);
         } else if (mode === 'grid') {
           result = this._computeGrid(req);
         } else if (mode === 'smart') {
-          perfCount('routing.strategy.smart', 1);
           // Phase 1: base grid
             const gridBase = this._computeGrid(req, { smart: true });
           if (gridBase) {
@@ -370,7 +355,6 @@ export class RouterCore {
         lcardsLog.warn('[MSD v1] smart/grid router error; fallback to manhattan', e);
       }
       if (!result) {
-        if (mode === 'smart') perfCount('routing.strategy.smart', 1);
         result = this._computeManhattan(req);
       }
 
@@ -391,7 +375,6 @@ export class RouterCore {
         if (oldest) this._cache.delete(oldest);
       }
       return { ...result, meta: { ...result.meta, cache_hit: false } };
-    });
   }
 
   /**
@@ -452,7 +435,6 @@ export class RouterCore {
   }
 
   _computeGrid(req, flags={}) {
-    perfCount('routing.strategy.grid', 1);
     const vb = this.viewBox || [0,0,400,200];
     const width = vb[2];
     const height = vb[3];
@@ -649,7 +631,6 @@ export class RouterCore {
           pts = shapeRes.pts;
           channelInfo = this._channelDelta(pts, req); // recompute
           shapingMeta = shapeRes.meta;
-          perfCount('routing.channel.shape.accept', 1);
         } else if (shapeRes) {
           shapingMeta = shapeRes.meta;
         }
@@ -1222,7 +1203,6 @@ export class RouterCore {
         // Validate mode
         if (!['prefer', 'avoid', 'force'].includes(mode)) {
           lcardsLog.warn(`[RouterCore] Invalid channel mode '${c.mode}' for channel '${c.id}', defaulting to 'prefer'`);
-          perfCount('routing.channel.invalid_mode', 1);
           mode = 'prefer';
         }
 
@@ -1310,7 +1290,6 @@ export class RouterCore {
         if (chanInside === 0) {
           delta += this._channelForcePenalty;
           forcedOutside = true;
-          perfCount('routing.channel.force.missed', 1);
           lcardsLog.debug(`[RouterCore] Route '${req.id}' missed forced channel '${chan.id}'`);
         } else {
           // Reward for passing through
@@ -1319,8 +1298,6 @@ export class RouterCore {
       }
     }
 
-    if (delta !== 0) perfCount('routing.channel.applied', 1);
-    if (forcedOutside) perfCount('routing.channel.force.penalty', 1);
 
     return {
       delta,
@@ -1419,7 +1396,6 @@ export class RouterCore {
           channelInfo.coverage = newChan.coverage;
           channelInfo.delta = newChan.delta;
           channelInfo.forcedOutside = newChan.forcedOutside;
-          perfCount('routing.channel.shape.accept', 1);
         } else if (shapeRes) {
           shapingMeta = shapeRes.meta;
         }
@@ -1450,8 +1426,6 @@ export class RouterCore {
         ...(shapingMeta ? { shaping: shapingMeta } : {})
       };
     }
-    perfCount('routing.smart.refine.attempt', detoursTried);
-    perfCount('routing.smart.refine.accept', detoursAccepted);
     return { d, pts: bestPts, meta: baseMeta };
   }
 
@@ -1471,7 +1445,6 @@ export class RouterCore {
   }
 
   _shapeForChannels(req, pts, channelInfo, desiredCoverage) {
-    perfCount('routing.channel.shape.attempt', 1);
     const attemptsMax = this._channelShapingMaxAttempts;
     const span = this._channelShapingSpan;
     const minGain = this._channelMinCoverageGain;
@@ -1574,7 +1547,6 @@ export class RouterCore {
     if (forceMode && bestCoverage < 0.999) {
       downgraded = true;
       // mark but caller meta will keep mode=force + forcedOutside flag (HUD can show downgrade)
-      perfCount('routing.channel.shape.downgrade', 1);
     }
 
     return {
@@ -1594,7 +1566,6 @@ export class RouterCore {
   _applyCornerRounding(routeResult, radiusGlobal, routeId = null) {
     const pts = routeResult.pts;
     if (!Array.isArray(pts) || pts.length < 3) {
-      perfCount('routing.arc.none', 1);
       return null;
     }
     const arcMin = 1;
@@ -1765,10 +1736,8 @@ export class RouterCore {
     }
     // If no arcs applied, skip
     if (!arcCount) {
-      perfCount('routing.arc.none', 1);
       return null;
     }
-    perfCount('routing.arc.apply', 1);
     const newResult = {
       ...routeResult,
       d: parts.join(' '),
@@ -1816,7 +1785,6 @@ export class RouterCore {
         addedPoints: pts.length - routeResult.pts.length
       }
     };
-    perfCount('routing.smooth.apply',1);
     return { ...routeResult, d, pts, meta: newMeta };
   }
 }

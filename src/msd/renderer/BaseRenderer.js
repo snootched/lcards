@@ -55,7 +55,6 @@ export class BaseRenderer {
 
     // ✅ NEW: Provenance tracking
     this._defaultsAccessed = [];
-    this._renderStartTime = null;
     this._featuresUsed = new Set();
     this._styleResolutions = [];
   }
@@ -202,34 +201,6 @@ export class BaseRenderer {
   }
 
   /**
-   * Start render timing for performance tracking
-   *
-   * Call at the beginning of a render method to track rendering time.
-   *
-   * ✅ NEW: Performance tracking method
-   *
-   * @protected
-   */
-  _startRenderTiming() {
-    this._renderStartTime = performance.now();
-  }
-
-  /**
-   * Get render duration in milliseconds
-   *
-   * Returns the time elapsed since _startRenderTiming() was called.
-   *
-   * ✅ NEW: Performance tracking method
-   *
-   * @protected
-   * @returns {number} Render duration in milliseconds
-   */
-  _getRenderDuration() {
-    if (!this._renderStartTime) return 0;
-    return performance.now() - this._renderStartTime;
-  }
-
-  /**
    * Get renderer provenance for an overlay
    *
    * Collects all tracking data (defaults accessed, features used, render time,
@@ -255,8 +226,7 @@ export class BaseRenderer {
       theme_manager_source: this._getThemeManagerSource(),
       defaults_accessed: this._defaultsAccessed,
       features_used: Array.from(this._featuresUsed),
-      style_resolution: styleResolutionSummary, // ✅ NEW: Style resolution data
-      rendering_time_ms: this._getRenderDuration(),
+      style_resolution: styleResolutionSummary,
       timestamp: Date.now(),
       ...additionalData
     };
@@ -357,7 +327,6 @@ export class BaseRenderer {
   _resetTracking() {
     this._defaultsAccessed = [];
     this._featuresUsed = new Set();
-    this._renderStartTime = null;
     this._styleResolutions = [];
   }
 

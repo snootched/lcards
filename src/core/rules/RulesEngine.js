@@ -3,7 +3,7 @@
  * 🧠 Features dependency tracking, conditional evaluation, overlay patching, and comprehensive rule tracing
  */
 
-import { perfTime, perfCount } from '../../utils/performance.js';
+
 import { globalTraceBuffer } from './RuleTraceBuffer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
@@ -290,9 +290,6 @@ export class RulesEngine extends BaseService {
       }
     });
 
-    perfCount('rules.dirty.entities', changedEntityIds.length);
-    perfCount('rules.dirty.affected', affectedRules);
-
     return affectedRules;
   }
 
@@ -303,7 +300,6 @@ export class RulesEngine extends BaseService {
         this.dirtyRules.add(rule.id);
       }
     });
-    perfCount('rules.dirty.all', this.dirtyRules.size);
   }
 
   /**
@@ -315,8 +311,7 @@ export class RulesEngine extends BaseService {
    * @returns {Promise<Object>} Aggregated rule results
    */
   async evaluateDirty(context = {}) {
-    return perfTime('rules.evaluate', async () => {  // ✨ CHANGED: async
-      let { getEntity, overlays, entity } = context;  // ✨ CHANGED: Extract entity and overlays from context
+    let { getEntity, overlays, entity } = context;  // ✨ CHANGED: Extract entity and overlays from context
 
       // ENHANCED: Always prioritize original HASS states for rule evaluation
       // regardless of the context or provided getEntity function
@@ -465,10 +460,6 @@ export class RulesEngine extends BaseService {
       this.evalCounts.dirty += totalDirty;
       this.evalCounts.skipped += (this.rules.length - totalDirty);
 
-      perfCount('rules.eval.total', totalDirty);
-      perfCount('rules.eval.matched', results.length);
-      perfCount('rules.eval.skipped', this.rules.length - totalDirty);
-
       const aggregatedResult = this.aggregateResults(results);
 
       // DEBUG: Log what we're returning from evaluateDirty
@@ -481,7 +472,6 @@ export class RulesEngine extends BaseService {
       });
 
       return aggregatedResult;
-    });
   }
 
   /**
@@ -526,7 +516,6 @@ export class RulesEngine extends BaseService {
       });
     } else if (this._reEvaluationCallbacks.length > 0) {
       lcardsLog.trace('[RulesEngine] No dirty rules, skipping callback invocation (efficiency check)');
-      perfCount('rules.callbacks.skipped', 1);
     }
   }
 
@@ -782,7 +771,6 @@ export class RulesEngine extends BaseService {
       // Selector: all - Match all overlays
       if (selector === 'all') {
         matchedOverlays = allOverlays.filter(o => !excludeIds.has(o.id));
-        perfCount('rules.selector.all', 1);
       }
       // Selector: type:typename - Match overlays by type
       else if (selector.startsWith('type:')) {
@@ -790,7 +778,6 @@ export class RulesEngine extends BaseService {
         matchedOverlays = allOverlays.filter(o =>
           o.type === typeName && !excludeIds.has(o.id)
         );
-        perfCount('rules.selector.type', 1);
       }
       // Selector: tag:tagname - Match overlays by tag
       else if (selector.startsWith('tag:')) {
@@ -799,7 +786,6 @@ export class RulesEngine extends BaseService {
           const tags = o.tags || [];
           return tags.includes(tagName) && !excludeIds.has(o.id);
         });
-        perfCount('rules.selector.tag', 1);
       }
       // Selector: pattern:regex - Match overlays by ID pattern
       else if (selector.startsWith('pattern:')) {
@@ -809,7 +795,6 @@ export class RulesEngine extends BaseService {
           matchedOverlays = allOverlays.filter(o =>
             regex.test(o.id) && !excludeIds.has(o.id)
           );
-          perfCount('rules.selector.pattern', 1);
         } catch (e) {
           lcardsLog.warn(`[RulesEngine] Invalid regex pattern: ${pattern}`, e);
           continue;
@@ -826,7 +811,6 @@ export class RulesEngine extends BaseService {
         if (overlay && !excludeIds.has(overlay.id)) {
           matchedOverlays = [overlay];
         }
-        perfCount('rules.selector.direct', 1);
       }
 
       // Create/merge patches for matched overlays
@@ -864,9 +848,6 @@ export class RulesEngine extends BaseService {
     const evaluatedPatches = await this._evaluateTemplatesInPatches(patches);
 
     const resolutionTime = performance.now() - startTime;
-
-    perfCount('rules.selector.resolutions', 1);
-    perfCount('rules.selector.patches', evaluatedPatches.length);
 
     lcardsLog.trace('[RulesEngine] Selector resolution complete:', {
       selectors: Object.keys(ruleApply.overlays).filter(k => k !== 'exclude').length,
@@ -1122,7 +1103,6 @@ export class RulesEngine extends BaseService {
           }
         );
 
-        perfCount('rules.stopped', 1);
         return;
       }
 
@@ -1134,7 +1114,6 @@ export class RulesEngine extends BaseService {
       // Check for stop condition
       if (result.stopAfter) {
         shouldStop = true;
-        perfCount('rules.stop.triggered', 1);
 
         // Add stop trace
         this.traceBuffer.addTrace(
@@ -1582,7 +1561,6 @@ export class RulesEngine extends BaseService {
 
   clearTrace() {
     this.traceBuffer.clear();
-    perfCount('rules.trace.cleared', 1);
   }
 
   /**

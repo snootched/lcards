@@ -4,7 +4,6 @@ import { ModelBuilder } from './ModelBuilder.js';
 // UnifiedAPI and DebugInterface removed - legacy architecture
 // Use DOM queries to access cards: document.querySelector('lcards-msd')
 import { buildCardModel } from '../model/CardModel.js';
-import { perfGetAll } from '../../utils/performance.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 // ✅ CONSOLIDATED: Use Core ValidationService singleton instead of MSD-specific ValidationService
 import { applyBaseSvgFilters } from '../utils/BaseSvgFilters.js';
@@ -421,8 +420,7 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
     getEntity: () => null,
     getActiveProfiles: () => [],
     getAnchors: () => (mergedConfig.anchors || {}),
-    repairAnchorsFromMerged: () => false,
-    getPerf: () => ({})
+    repairAnchorsFromMerged: () => false
   };
 
   if (typeof window !== 'undefined') {
@@ -717,7 +715,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     getEntity: (id) => coordinator.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
-    getPerf: () => perfGetAll(),
 
     // Add debug API powered by DebugManager
     debug: {

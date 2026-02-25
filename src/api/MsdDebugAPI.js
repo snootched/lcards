@@ -324,10 +324,6 @@ export class MsdDebugAPI {
             desc: 'Core singleton access and debugging',
             methods: ['core()', 'singleton(manager)', 'singletons()']
           },
-          perf: {
-            desc: 'Performance profiling and analysis',
-            methods: ['summary()', 'slowestOverlays(n)', 'byRenderer()', 'byOverlay(id)', 'warnings()', 'timeline()', 'compare()']
-          },
           routing: {
             desc: 'Routing and resolution debugging',
             methods: ['inspect(guid)', 'trace(guid)', 'analyze(guid)', 'listActive()', 'testMatch()']
@@ -378,9 +374,6 @@ export class MsdDebugAPI {
           });
           console.log('\n%cUsage:', 'font-weight: bold; color: #ff9900;');
           console.log('  window.lcards.debug.msd.help("namespace") - Show methods in a namespace');
-          console.log('  window.lcards.debug.msd.usage("namespace") - Show usage examples');
-          console.log('\n%cExample:', 'font-weight: bold; color: #ff9900;');
-          console.log('  msd.help("perf")  // Show performance methods');
           return;
         }
 
@@ -429,15 +422,6 @@ export class MsdDebugAPI {
             '// Direct console access (alternative)',
             'window.lcards.core.getDebugInfo();',
             'window.lcards.debug.singletons.systemsManager.getDebugInfo();'
-          ],
-          perf: [
-            '// Get performance summary',
-            'const perf = msd.perf.summary();',
-            'console.log("Render time:", perf.total_render_time_ms, "ms");',
-            '',
-            '// Find slowest overlays',
-            'const slow = msd.perf.slowestOverlays(5);',
-            'slow.forEach(o => console.log(o.overlay_id, o.duration_ms + "ms"));'
           ],
           routing: [
             '// Inspect routing for a GUID',
@@ -555,8 +539,6 @@ export class MsdDebugAPI {
           console.log('\n%cQuick Start:', 'font-weight: bold; color: #ff9900;');
           console.log('  const msd = window.lcards.debug.msd;  // Shorthand');
           console.log('  msd.help();                             // List all namespaces');
-          console.log('  msd.help("perf");                       // Show perf methods');
-          console.log('  msd.usage("perf");                      // Show perf examples');
           console.log('\n%cAvailable namespaces:', 'font-weight: bold; color: #ff9900;');
           console.log('  ' + Object.keys(examples).join(', '));
           console.log('\n%cTip:%c Use msd.usage("namespace") for specific examples', 'font-weight: bold; color: #ff9900', 'color: inherit');
@@ -574,276 +556,6 @@ export class MsdDebugAPI {
         console.log(`\n%cFor method details:%c msd.help("${namespace}")`, 'font-weight: bold; color: #ff9900', 'color: inherit');
       },
 
-      // ==========================================
-      // PERFORMANCE INTROSPECTION
-      // ==========================================
-
-      perf: {
-        /**
-         * Get comprehensive performance summary from last render
-         *
-         * Returns detailed breakdown of render stages, overlay timings,
-         * and performance metrics.
-         *
-         * @returns {Object|null} Performance summary with stage breakdowns
-         *
-         * @example
-         * const perf = window.lcards.debug.msd.perf.summary();
-         * console.log('Total render time:', perf.total_render_time_ms, 'ms');
-         * console.log('Overlays:', perf.overlay_count);
-         * console.log('Slowest:', perf.slowest_overlays);
-         */
-        summary(cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            if (!coordinator?.renderer) {
-              lcardsLog.warn('[DebugAPI] Performance summary not available - no renderer');
-              return null;
-            }
-
-            // Access AdvancedRenderer's private performance method
-            return coordinator.renderer._getPerformanceSummary();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting performance summary:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get slowest overlays from last render
-         *
-         * Returns the N slowest rendering overlays with timing details.
-         *
-         * @param {number} [n=5] - Number of slowest overlays to return
-         * @returns {Array|null} Array of slowest overlay performance data
-         *
-         * @example
-         * const slowest = window.lcards.debug.msd.perf.slowestOverlays(10);
-         * slowest.forEach(ov => {
-         *   console.log(`${ov.overlay_id}: ${ov.duration_ms}ms`);
-         * });
-         */
-        slowestOverlays(n = 5, cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            if (!coordinator?.renderer || typeof coordinator.renderer.getSlowestOverlays !== 'function') {
-              lcardsLog.warn('[DebugAPI] Slowest overlays not available');
-              return null;
-            }
-
-            return coordinator.renderer.getSlowestOverlays(n);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting slowest overlays:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get performance breakdown by renderer/overlay type
-         *
-         * Groups performance data by overlay type (text, button, status_grid, etc.)
-         * showing count, total time, average time per type.
-         *
-         * @returns {Object|null} Performance data grouped by type
-         *
-         * @example
-         * const byType = window.lcards.debug.msd.perf.byRenderer();
-         * console.log('Status grids:', byType.status_grid);
-         * console.log('Text overlays:', byType.text);
-         */
-        byRenderer(cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            if (!coordinator?.renderer) {
-              lcardsLog.warn('[DebugAPI] Renderer performance not available');
-              return null;
-            }
-
-            // Get performance summary and group by overlay type
-            const summary = coordinator.renderer._getPerformanceSummary();
-            if (!summary || !summary.overlay_timings) {
-              return null;
-            }
-
-            const byType = {};
-            summary.overlay_timings.forEach(overlay => {
-              const type = overlay.type || 'unknown';
-              if (!byType[type]) {
-                byType[type] = {
-                  count: 0,
-                  total_ms: 0,
-                  avg_ms: 0,
-                  overlays: []
-                };
-              }
-              byType[type].count++;
-              byType[type].total_ms += overlay.duration_ms;
-              byType[type].overlays.push(overlay.overlay_id);
-            });
-
-            // Calculate averages
-            Object.values(byType).forEach(typeData => {
-              typeData.avg_ms = typeData.count > 0 ? typeData.total_ms / typeData.count : 0;
-            });
-
-            return byType;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting renderer performance:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get performance data for a specific overlay
-         *
-         * Returns detailed timing information for a single overlay.
-         *
-         * @param {string} overlayId - Overlay ID to get performance for
-         * @returns {Object|null} Performance data for the overlay
-         *
-         * @example
-         * const perf = window.lcards.debug.msd.perf.byOverlay('title_overlay');
-         * console.log('Duration:', perf.duration_ms, 'ms');
-         * console.log('Percentage:', perf.percentage_of_total, '%');
-         */
-        byOverlay(overlayId, cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            if (!coordinator?.renderer || typeof coordinator.renderer.getOverlayPerformance !== 'function') {
-              lcardsLog.warn('[DebugAPI] Overlay performance not available');
-              return null;
-            }
-
-            return coordinator.renderer.getOverlayPerformance(overlayId);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting overlay performance:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get performance warnings for slow overlays
-         *
-         * Identifies overlays that are rendering slower than recommended
-         * thresholds and provides warnings.
-         *
-         * @returns {Object|null} Performance warnings with details
-         *
-         * @example
-         * const warnings = window.lcards.debug.msd.perf.warnings();
-         * if (warnings.has_warnings) {
-         *   console.log('Warnings:', warnings.count);
-         *   warnings.warnings.forEach(w => console.warn(w.message));
-         * }
-         */
-        warnings() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg || typeof dbg.getPerformanceWarnings !== 'function') {
-              lcardsLog.warn('[DebugAPI] Performance warnings not available');
-              return null;
-            }
-
-            return dbg.getPerformanceWarnings();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting performance warnings:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get render timeline (stage-by-stage breakdown)
-         *
-         * Returns timing breakdown for each render stage:
-         * preparation, overlay rendering, DOM injection, action attachment.
-         *
-         * @returns {Object|null} Timeline of render stages
-         *
-         * @example
-         * const timeline = window.lcards.debug.msd.perf.timeline();
-         * console.log('Stages:', timeline.stages);
-         */
-        timeline() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg || typeof dbg.getRenderTimeline !== 'function') {
-              lcardsLog.warn('[DebugAPI] Render timeline not available');
-              return null;
-            }
-
-            return dbg.getRenderTimeline();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting render timeline:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Compare performance between renders (placeholder)
-         *
-         * @param {string} [baseline] - Baseline render identifier
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const comparison = window.lcards.debug.msd.perf.compare();
-         */
-        compare(baseline) {
-          lcardsLog.warn('[DebugAPI] perf.compare() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will enable A/B performance comparison between configs');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Compare render times between two configs',
-              'Identify performance regressions',
-              'A/B test optimization changes'
-            ]
-          };
-        }
-      },
-
-      /**
-       * Legacy performance getter for backward compatibility with HUD panels
-       *
-       * Provides a simplified performance object that wraps perf.summary()
-       * for use by HUD PerformancePanel and other legacy code.
-       *
-       * @returns {Object} Performance data with timers and counters
-       *
-       * @example
-       * const perf = window.lcards.debug.msd.getPerf();
-       * console.log('Timers:', perf.timers);
-       */
-      getPerf() {
-        try {
-          const summary = this.perf.summary();
-          if (!summary) {
-            return { timers: {}, counters: {} };
-          }
-
-          // Convert summary format to legacy format
-          const timers = {};
-          const counters = {};
-
-          // Map relevant summary data to timers/counters
-          if (summary.total_render_time_ms !== undefined) {
-            timers['total_render'] = {
-              total: summary.total_render_time_ms,
-              count: 1,
-              max: summary.total_render_time_ms
-            };
-          }
-
-          if (summary.overlay_count !== undefined) {
-            counters['overlay_count'] = summary.overlay_count;
-          }
-
-          return { timers, counters };
-        } catch (error) {
-          lcardsLog.error('[DebugAPI] Error in getPerf():', error);
-          return { timers: {}, counters: {} };
-        }
-      },
 
       // ==========================================
       // ROUTING INTROSPECTION

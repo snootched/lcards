@@ -1,4 +1,3 @@
-import { perfTime } from '../../utils/performance.js';
 import { computeObjectHash } from '../../utils/hashing.js';
 
 /**
@@ -15,8 +14,7 @@ export class TimelineDiffer {
    * Compute comprehensive diff between current and desired timelines
    */
   diffTimelines(current, desired) {
-    return perfTime('timeline.diff', () => {
-      const changes = {
+    const changes = {
         added: [],
         removed: [],
         modified: [],
@@ -67,7 +65,6 @@ export class TimelineDiffer {
       });
 
       return changes;
-    });
   }
 
   /**

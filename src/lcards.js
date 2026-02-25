@@ -108,6 +108,33 @@ async function initializeCustomCard() {
     // Add singleton reference to debug tier for unified API consistency
     window.lcards.debug.singletons = lcardsCore;
 
+    // === PERFORMANCE MONITOR DEBUG SHORTCUT ===
+    // window.lcards.perf.fps()       → current FPS
+    // window.lcards.perf.status()    → full status object
+    // window.lcards.perf.thresholds  → {disable3D, reduceEffects}
+    window.lcards.perf = {
+      fps() {
+        return window.lcards.core.performanceMonitor?.getFPS() ?? null;
+      },
+      status() {
+        const m = window.lcards.core.performanceMonitor;
+        if (!m) return { available: false };
+        const settled = m._startTime ? (performance.now() - m._startTime) >= m._settleMs : false;
+        return {
+          fps: m.currentFPS,
+          isMonitoring: m.isMonitoring,
+          settled,
+          settleMs: m._settleMs,
+          consecutiveLow: m._consecutiveLow,
+          lowRequiredCount: m._lowRequiredCount,
+          thresholds: { ...m.thresholds }
+        };
+      },
+      get thresholds() {
+        return window.lcards.core.performanceMonitor?.thresholds ?? null;
+      }
+    };
+
     lcardsLog.debug('[lcards.js] LCARdSCore singleton attached to window.lcards.core');
     lcardsLog.debug('[lcards.js] ✅ Singleton reference added to debug.singletons');
 
