@@ -220,12 +220,10 @@ export class LCARdSColorSectionV2 extends LitElement {
                 /* Fix dropdown clipping from overflow:hidden */
                 .editor-item-content {
                     position: relative;
-                    z-index: 10;
                 }
 
                 .editor-item-content lcards-color-picker {
                     position: relative;
-                    z-index: 100;
                 }
             `
         ];

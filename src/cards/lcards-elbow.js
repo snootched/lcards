@@ -67,6 +67,12 @@ import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { getElbowSchema } from './schemas/elbow-schema.js';
+import {
+    createCardElement,
+    applyHassToCard,
+    applyCardConfig,
+    isCardModAvailable
+} from '../utils/ha-card-factory.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-elbow-editor.js';
@@ -116,6 +122,13 @@ export class LCARdSElbow extends LCARdSButton {
 
                 .elbow-svg:hover {
                     opacity: 0.8;
+                }
+
+                /* Wrapper gives position:relative context for the absolute symbiont container */
+                .lcards-symbiont-wrapper {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
                 }
 
                 .lcards-symbiont-container {
@@ -1890,7 +1903,10 @@ export class LCARdSElbow extends LCARdSButton {
     // ──────────────────────────────────────────────────────────────
 
     /**
-     * Override _renderCard() to add symbiont container when enabled
+     * Override _renderCard() to add symbiont container when enabled.
+     *
+     * The wrapper div provides the position:relative context that the
+     * absolute-positioned symbiont container needs to anchor correctly.
      * @protected
      */
     _renderCard() {
@@ -1901,28 +1917,59 @@ export class LCARdSElbow extends LCARdSButton {
         }
 
         const pos = this.config.symbiont?.position || {};
-        const top = pos.top ?? 10;
-        const left = pos.left ?? 10;
-        const right = pos.right ?? 10;
-        const bottom = pos.bottom ?? 0;
 
+        // Compute base insets from elbow geometry so the container starts
+        // inside the bar borders (sidebar + top/bottom bar), not under them.
+        let baseTop    = 0;
+        let baseBottom = 0;
+        let baseLeft   = 0;
+        let baseRight  = 0;
+
+        const g = this._elbowGeometry;
+        if (g) {
+            const component = this._getElbowComponent(g.type);
+            const position  = component?.layout?.position || 'header';
+            const side      = component?.layout?.side     || 'left';
+            // For segmented elbows, the content area starts after the full bar stack:
+            // outer bars + gap + inner bars.  Simple elbows use direct values.
+            const hBar = g.inner
+                ? (g.outer.horizontal + g.gap + g.inner.horizontal)
+                : g.horizontal;
+            const vBar = g.inner
+                ? (g.outer.vertical   + g.gap + g.inner.vertical)
+                : g.vertical;
+
+            if (position === 'header') baseTop    = vBar;
+            else                       baseBottom = vBar;
+            if (side === 'left')       baseLeft   = hBar;
+            else                       baseRight  = hBar;
+        }
+
+        // User-configured padding is additional offset inside the content area
+        const top    = baseTop    + (pos.top    ?? 0);
+        const right  = baseRight  + (pos.right  ?? 0);
+        const bottom = baseBottom + (pos.bottom ?? 0);
+        const left   = baseLeft   + (pos.left   ?? 0);
+
+        // Use CSS inset shorthand: top right bottom left
         return html`
-            ${parentContent}
-            <div class="lcards-symbiont-container"
-                 id="lcards-symbiont-host"
-                 style="
-                     top: ${top}px;
-                     left: ${left}px;
-                     right: ${right}px;
-                     bottom: ${bottom}px;
-                 ">
+            <div class="lcards-symbiont-wrapper">
+                ${parentContent}
+                <div class="lcards-symbiont-container"
+                     id="lcards-symbiont-host"
+                     style="inset: ${top}px ${right}px ${bottom}px ${left}px;">
+                </div>
             </div>
         `;
     }
 
     /**
-     * Mount the symbiont (embedded) card
-     * Creates the child card element, applies config and HASS, then attaches to container
+     * Mount the symbiont (embedded) card.
+     *
+     * Uses the shared HACardFactory for 3-strategy element creation.
+     * HASS is applied BEFORE config (required order — same as MSD controls).
+     * Imprint injection uses a retry loop instead of a single RAF so lazy
+     * shadow roots (hui-* cards) are caught reliably.
      * @private
      */
     async _mountSymbiontCard() {
@@ -1934,190 +1981,45 @@ export class LCARdSElbow extends LCARdSButton {
             return;
         }
 
-        lcardsLog.debug('[LCARdSElbow] Mounting symbiont card', { type: symbConfig.card.type });
-
         const cardConfig = symbConfig.card;
-        const cardType = cardConfig.type;
-        const normalizedType = this._normalizeSymbiontCardType(cardType);
+        lcardsLog.debug('[LCARdSElbow] Mounting symbiont card', { type: cardConfig.type });
 
-        let cardElement = null;
-
-        // Strategy 1: Constructor via customElements.get
-        if (window.customElements && typeof window.customElements.get === 'function') {
-            try {
-                const CardClass = window.customElements.get(normalizedType);
-                if (CardClass) {
-                    cardElement = new CardClass();
-                    lcardsLog.debug('[LCARdSElbow] Symbiont: created via constructor:', normalizedType);
-                }
-            } catch (e) {
-                lcardsLog.debug('[LCARdSElbow] Symbiont: strategy 1 failed:', e.message);
-            }
-        }
-
-        // Strategy 2: document.createElement with upgrade wait
-        // Creating element detached before mounting — document.createElement is acceptable here
-        // per the same pattern used in MsdControlsRenderer._createHomeAssistantCard()
+        // Create element via shared factory (3-strategy with upgrade wait)
+        const cardElement = await createCardElement(cardConfig.type, 'symbiont');
         if (!cardElement) {
-            try {
-                cardElement = document.createElement(normalizedType);
-                await this._waitForSymbiontUpgrade(cardElement, 500);
-            } catch (e) {
-                lcardsLog.debug('[LCARdSElbow] Symbiont: strategy 2 failed:', e.message);
-                cardElement = null;
-            }
-        }
-
-        if (!cardElement) {
-            lcardsLog.warn('[LCARdSElbow] Symbiont: could not create card element for type:', cardType);
+            lcardsLog.warn('[LCARdSElbow] Symbiont: could not create card element for type:', cardConfig.type);
             return;
         }
 
-        // Apply config with retry
-        await this._applySymbiontConfig(cardElement, cardConfig);
-
-        // Assign HASS
+        // Apply HASS BEFORE config (required — same order as MSD controls)
         if (this.hass) {
-            this._applyHassToSymbiont(cardElement, this.hass);
+            applyHassToCard(cardElement, this.hass, 'symbiont-mount');
         }
+
+        // Apply config
+        await applyCardConfig(cardElement, cardConfig, 'symbiont');
 
         this._symbiotElement = cardElement;
         this._attachSymbiontToContainer();
 
-        // Inject imprint styles (uses requestAnimationFrame to wait for shadowRoot)
+        // Inject imprint with retry loop to handle lazy shadow roots
         if (symbConfig.imprint?.enabled !== false) {
-            requestAnimationFrame(() => {
-                this._injectSymbiontImprint(this._symbiotElement);
-            });
+            this._injectSymbiontImprintWithRetry();
         }
     }
 
     /**
-     * Normalize card type string to element name
-     * Strips 'custom:' prefix and maps HA built-in short names to 'hui-*' elements
-     * @param {string} cardType - Raw card type from config
-     * @returns {string} Normalized element name
-     * @private
-     */
-    _normalizeSymbiontCardType(cardType) {
-        if (!cardType) return null;
-
-        if (cardType.startsWith('custom:')) {
-            return cardType.slice(7);
-        }
-
-        const builtInMap = {
-            'entities': 'hui-entities-card',
-            'entity': 'hui-entity-card',
-            'glance': 'hui-glance-card',
-            'button': 'hui-button-card',
-            'light': 'hui-light-card',
-            'thermostat': 'hui-thermostat-card',
-            'gauge': 'hui-gauge-card',
-            'sensor': 'hui-sensor-card',
-            'history-graph': 'hui-history-graph-card',
-            'picture': 'hui-picture-card',
-            'picture-entity': 'hui-picture-entity-card',
-            'picture-glance': 'hui-picture-glance-card',
-            'markdown': 'hui-markdown-card',
-            'media-control': 'hui-media-control-card',
-            'conditional': 'hui-conditional-card',
-            'tile': 'hui-tile-card',
-            'area': 'hui-area-card',
-            'weather-forecast': 'hui-weather-forecast-card',
-            'grid': 'hui-grid-card',
-            'horizontal-stack': 'hui-horizontal-stack-card',
-            'vertical-stack': 'hui-vertical-stack-card',
-            'alarm-panel': 'hui-alarm-panel-card',
-            'shopping-list': 'hui-shopping-list-card',
-            'map': 'hui-map-card',
-            'logbook': 'hui-logbook-card',
-            'statistics-graph': 'hui-statistics-graph-card'
-        };
-
-        return builtInMap[cardType] || cardType;
-    }
-
-    /**
-     * Wait for custom element to be upgraded (setConfig to become available)
-     * @param {HTMLElement} element - Element to wait for
-     * @param {number} maxWait - Maximum wait in milliseconds
-     * @returns {Promise<HTMLElement>}
-     * @private
-     */
-    async _waitForSymbiontUpgrade(element, maxWait) {
-        const start = Date.now();
-        while (Date.now() - start < maxWait) {
-            if (typeof element.setConfig === 'function') return element;
-            if (element.updateComplete) {
-                try { await element.updateComplete; } catch (e) { /* ignore */ }
-                if (typeof element.setConfig === 'function') return element;
-            }
-            if (window.customElements?.upgrade) {
-                try { window.customElements.upgrade(element); } catch (e) { /* ignore */ }
-            }
-            await new Promise(r => setTimeout(r, 100));
-        }
-        return element;
-    }
-
-    /**
-     * Apply config to symbiont card with retry logic
-     * @param {HTMLElement} cardElement - The card element
-     * @param {Object} cardConfig - Card config to apply
-     * @returns {Promise<boolean>} True if successful
-     * @private
-     */
-    async _applySymbiontConfig(cardElement, cardConfig) {
-        for (let attempt = 0; attempt < 8; attempt++) {
-            if (typeof cardElement.setConfig === 'function') {
-                try {
-                    cardElement.setConfig(cardConfig);
-                    lcardsLog.debug('[LCARdSElbow] Symbiont: config applied on attempt', attempt + 1);
-                    return true;
-                } catch (e) {
-                    lcardsLog.warn('[LCARdSElbow] Symbiont: setConfig failed:', e.message);
-                    return false;
-                }
-            }
-            await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
-        }
-        lcardsLog.warn('[LCARdSElbow] Symbiont: setConfig not available after 8 attempts');
-        return false;
-    }
-
-    /**
-     * Apply HASS to symbiont card using multi-strategy approach
-     * @param {HTMLElement} cardElement - The symbiont card element
-     * @param {Object} hass - HASS object
-     * @private
-     */
-    _applyHassToSymbiont(cardElement, hass) {
-        if (!cardElement || !hass) return;
-        const oldHass = cardElement.hass;
-
-        if (cardElement.setHass && typeof cardElement.setHass === 'function') {
-            cardElement.setHass(hass);
-        } else {
-            cardElement.hass = hass;
-            cardElement._hass = hass;
-        }
-
-        if (typeof cardElement.requestUpdate === 'function') {
-            cardElement.requestUpdate('hass', oldHass);
-        }
-    }
-
-    /**
-     * Forward HASS to symbiont and re-inject imprint (state may have changed)
+     * Forward HASS to symbiont and re-inject imprint when state-based colors may change.
+     * Uses HACardFactory for consistent per-card-type HASS application.
      * @param {Object} hass - New HASS object
      * @private
      */
     _applySymbiontHass(hass) {
         if (!this._symbiotElement) return;
-        this._applyHassToSymbiont(this._symbiotElement, hass);
 
-        // Re-inject imprint on HASS update — colors may change with entity state
+        applyHassToCard(this._symbiotElement, hass, 'symbiont-hass');
+
+        // Re-inject imprint — entity state may have changed so resolved colors differ
         if (this.config?.symbiont?.imprint?.enabled !== false) {
             this._injectSymbiontImprint(this._symbiotElement);
         }
@@ -2155,40 +2057,75 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
-     * Inject imprint styles into symbiont card's shadowRoot
-     * Also sets CSS custom properties on the container as a fallback for light-DOM cards
-     * @param {HTMLElement} cardElement - The symbiont card element
+     * Schedule imprint injection with retry loop.
+     * Retries up to 12 times (100 ms apart) so shadow roots that initialise
+     * lazily (hui-* cards) are caught reliably instead of a single-RAF gamble.
+     * @private
+     */
+    _injectSymbiontImprintWithRetry(maxAttempts = 12, delayMs = 100) {
+        let attempts = 0;
+        const tryInject = () => {
+            // Abort if symbiont was unmounted while we were waiting
+            if (!this._symbiotElement) return;
+            if (this._injectSymbiontImprint(this._symbiotElement)) return;
+            if (++attempts < maxAttempts) setTimeout(tryInject, delayMs);
+        };
+        requestAnimationFrame(tryInject);
+    }
+
+    /**
+     * Inject imprint styles into symbiont card's shadowRoot.
+     *
+     * Returns true if injection succeeded (shadow root was available) or was
+     * skipped legitimately (no CSS, card-mod active, no change). Returns false
+     * only when the shadow root is not ready yet — the retry loop uses this.
+     *
+     * CSS selector targets both `ha-card` (most cards) and `:host` (cards that
+     * render directly on the host element) plus `hui-entities-card` for legacy
+     * compatibility.
+     *
+     * @param {HTMLElement} cardElement
+     * @returns {boolean} true = done, false = shadow root not ready yet
      * @private
      */
     _injectSymbiontImprint(cardElement) {
-        if (!cardElement) return;
+        if (!cardElement) return true;
 
-        const css = this._buildImprintStyle();
-        const customCss = this.config?.symbiont?.custom_style || '';
-        const fullCss = [css, customCss].filter(Boolean).join('\n\n');
-
-        // Skip DOM mutation if styles haven't changed (called on every HASS update)
-        if (fullCss === this._lastImprintCss) return;
-        this._lastImprintCss = fullCss;
-
-        if (!fullCss) return;
-
-        // Inject into shadow root
-        const shadowRoot = cardElement.shadowRoot;
-        if (shadowRoot) {
-            let styleEl = shadowRoot.querySelector('#lcards-symbiont-imprint');
-            if (!styleEl) {
-                styleEl = document.createElement('style');
-                styleEl.id = 'lcards-symbiont-imprint';
-                shadowRoot.appendChild(styleEl);
-            }
-            styleEl.textContent = fullCss;
+        // If the card config includes a card_mod block AND card-mod is loaded,
+        // let card-mod own the styling — don't compete with it.
+        const cardConfig = this.config?.symbiont?.card;
+        if (cardConfig?.card_mod && isCardModAvailable()) {
+            lcardsLog.debug('[LCARdSElbow] Symbiont: card_mod present and available — skipping native imprint');
+            return true;
         }
 
-        // Also set CSS custom properties on the container as fallback for light-DOM cards
+        const imprintCss   = this._buildImprintStyle();
+        const customCss    = this.config?.symbiont?.custom_style || '';
+        const fullCss      = [imprintCss, customCss].filter(Boolean).join('\n\n');
+
+        // Skip DOM mutation when styles haven't changed (called on every HASS update)
+        if (fullCss === this._lastImprintCss) return true;
+        this._lastImprintCss = fullCss;
+
+        if (!fullCss) return true;
+
+        // Inject into shadow root — return false if not ready yet
+        const shadowRoot = cardElement.shadowRoot;
+        if (!shadowRoot) return false;
+
+        let styleEl = shadowRoot.querySelector('#lcards-symbiont-imprint');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'lcards-symbiont-imprint';
+            shadowRoot.appendChild(styleEl);
+        }
+        styleEl.textContent = fullCss;
+
+        // Also propagate resolved colors as CSS custom-properties on the
+        // container element as a fallback for light-DOM / slotted cards.
         const container = this.renderRoot?.querySelector('#lcards-symbiont-host');
         if (container && this.config?.symbiont?.imprint) {
-            const imprint = this.config.symbiont.imprint;
+            const imprint    = this.config.symbiont.imprint;
             const buttonState = this._getButtonState();
             const actualState = this._entity?.state;
 
@@ -2212,6 +2149,8 @@ export class LCARdSElbow extends LCARdSButton {
                 if (tc) container.style.setProperty('--primary-text-color', tc);
             }
         }
+
+        return true;
     }
 
     /**
@@ -2268,7 +2207,10 @@ export class LCARdSElbow extends LCARdSButton {
 
         if (rules.length === 0) return '';
 
-        return `ha-card {\n${rules.join('\n')}\n}`;
+        // Target ha-card (standard cards), :host (cards that render on host),
+        // and hui-entities-card (legacy HA element used by entities card).
+        const selector = 'ha-card, hui-entities-card, :host';
+        return `${selector} {\n${rules.join('\n')}\n}`;
     }
 
     /**
@@ -2281,46 +2223,46 @@ export class LCARdSElbow extends LCARdSButton {
     _deriveSymbiontBorderRadius() {
         const borderRadius = this.config?.symbiont?.imprint?.border_radius;
 
-        if (!borderRadius || borderRadius.match_host !== false) {
-            // Auto-derive from elbow inner arc geometry
-            if (!this._elbowGeometry) return {};
+        // Resolve the inner arc radius from geometry for 'match' corners
+        const innerRadius = this._elbowGeometry?.innerRadius ||
+                            this._elbowGeometry?.inner?.innerRadius || 0;
 
-            // Simple geometry: { innerRadius } directly on the object
-            // Segmented geometry: { outer: {...}, inner: { innerRadius } }
-            const innerRadius = this._elbowGeometry.innerRadius ||
-                               this._elbowGeometry.inner?.innerRadius ||
-                               0;
+        /**
+         * Resolve a single corner value:
+         *   undefined / null → don't inject (null return)
+         *   'match'          → use elbow inner arc radius
+         *   number           → use as-is (px)
+         * Legacy: if borderRadius has match_host boolean, apply old behaviour.
+         */
+        const resolve = (val) => {
+            if (val === 'match') return innerRadius;
+            if (typeof val === 'number') return val;
+            return null; // don't inject
+        };
 
-            lcardsLog.debug('[LCARdSElbow] Symbiont border-radius: innerRadius resolved', {
-                innerRadius,
-                geometryKeys: Object.keys(this._elbowGeometry)
-            });
-
-            const component = this._getElbowComponent(this._elbowConfig?.type);
-            const position = component?.layout?.position || 'header';
-            const side = component?.layout?.side || 'left';
-
-            // Map the inner arc corner to the correct CSS border-radius property
-            // The "inner content corner" (where elbow meets open content area) gets innerRadius
-            if (position === 'header' && side === 'left') {
-                return { topLeft: null, topRight: null, bottomLeft: null, bottomRight: innerRadius };
-            } else if (position === 'header' && side === 'right') {
-                return { topLeft: null, topRight: null, bottomLeft: innerRadius, bottomRight: null };
-            } else if (position === 'footer' && side === 'left') {
-                return { topLeft: null, topRight: innerRadius, bottomLeft: null, bottomRight: null };
-            } else if (position === 'footer' && side === 'right') {
-                return { topLeft: innerRadius, topRight: null, bottomLeft: null, bottomRight: null };
+        // ── Legacy compat: match_host: true/false ────────────────────────────
+        if (!borderRadius || borderRadius.match_host !== undefined) {
+            if (!borderRadius || borderRadius.match_host !== false) {
+                // Old "match all" mode — auto-apply inner radius to the elbow corner only
+                if (!this._elbowGeometry) return {};
+                const component = this._getElbowComponent(this._elbowConfig?.type);
+                const position = component?.layout?.position || 'header';
+                const side     = component?.layout?.side     || 'left';
+                if (position === 'header' && side === 'left')  return { topLeft: innerRadius, topRight: null, bottomLeft: null, bottomRight: null };
+                if (position === 'header' && side === 'right') return { topLeft: null, topRight: innerRadius, bottomLeft: null, bottomRight: null };
+                if (position === 'footer' && side === 'left')  return { topLeft: null, topRight: null, bottomLeft: innerRadius, bottomRight: null };
+                if (position === 'footer' && side === 'right') return { topLeft: null, topRight: null, bottomLeft: null, bottomRight: innerRadius };
+                return {};
             }
-
-            return {};
+            // match_host: false → fall through to manual values below
         }
 
-        // Manual border radius values
+        // ── Per-corner mode: null | 'match' | number ─────────────────────────
         return {
-            topLeft: borderRadius.top_left ?? null,
-            topRight: borderRadius.top_right ?? null,
-            bottomLeft: borderRadius.bottom_left ?? null,
-            bottomRight: borderRadius.bottom_right ?? null
+            topLeft:     resolve(borderRadius?.top_left),
+            topRight:    resolve(borderRadius?.top_right),
+            bottomLeft:  resolve(borderRadius?.bottom_left),
+            bottomRight: resolve(borderRadius?.bottom_right),
         };
     }
 

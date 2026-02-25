@@ -15,6 +15,7 @@
  */
 
 import { html } from 'lit';
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
@@ -48,6 +49,41 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'elbow';
+        this._symbioCardPickerDialogRef = null;
+        this._symbioCardEditorDialogRef = null;
+        this._yamlDebounceTimer = null;
+        this._cssDebounceTimer = null;
+    }
+
+    /**
+     * Listen for card-picker-result events dispatched by the picker dialog.
+     * @override
+     */
+    connectedCallback() {
+        super.connectedCallback?.();
+        this._boundHandleCardPickerResult = this._handleSymbiontCardPickerResult.bind(this);
+        document.addEventListener('lcards-symbiont-card-picker-result', this._boundHandleCardPickerResult);
+    }
+
+    /**
+     * Clean up dialog and event listener.
+     * @override
+     */
+    disconnectedCallback() {
+        super.disconnectedCallback?.();
+        if (this._boundHandleCardPickerResult) {
+            document.removeEventListener('lcards-symbiont-card-picker-result', this._boundHandleCardPickerResult);
+        }
+        if (this._symbioCardPickerDialogRef) {
+            this._symbioCardPickerDialogRef.remove();
+            this._symbioCardPickerDialogRef = null;
+        }
+        if (this._symbioCardEditorDialogRef) {
+            this._symbioCardEditorDialogRef.remove();
+            this._symbioCardEditorDialogRef = null;
+        }
+        clearTimeout(this._yamlDebounceTimer);
+        clearTimeout(this._cssDebounceTimer);
     }
 
     static get styles() {
@@ -69,6 +105,210 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Effects', content: () => this._renderEffectsTab() },
             ...this._getUtilityTabs()
         ];
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Symbiont Card Picker
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Open hui-card-picker in a dialog so the user can select the symbiont
+     * card type without hand-editing YAML.
+     *
+     * Pattern mirrors lcards-msd-editor._handleCardPickerRequest().
+     * Result is returned via a document event 'lcards-symbiont-card-picker-result'
+     * to avoid issues with shadow-DOM event boundaries.
+     * @private
+     */
+    async _openSymbiontCardPicker() {
+        // hui-card-picker is loaded in the background by connectedCallback.
+        // If it still isn't available, bail with a helpful message rather than
+        // re-triggering ll-create-card (which would show HA's native Add-Card
+        // dialog visibly in the sidebar).
+        if (!customElements.get('hui-card-picker')) {
+            lcardsLog.warn('[ElbowEditor] hui-card-picker not loaded yet. Click "Add Card" on the dashboard once to prime it, then try again.');
+            // Show a transient notification via HA if possible
+            try {
+                const ha = document.querySelector('home-assistant');
+                if (ha?.showToast) {
+                    ha.showToast({ message: 'Card picker loading… please try again in a moment.', duration: 3000 });
+                } else {
+                    alert('Card picker not ready yet. Click "Add Card" on any dashboard view once to enable it, then try again.');
+                }
+            } catch (_) { /* ignore */ }
+            return;
+        }
+
+        // Close any already-open picker
+        if (this._symbioCardPickerDialogRef) {
+            this._symbioCardPickerDialogRef.remove();
+            this._symbioCardPickerDialogRef = null;
+        }
+
+        const dialog = document.createElement('ha-dialog');
+        dialog.heading = 'Select Symbiont Card Type';
+        dialog.scrimClickAction = 'close';
+        dialog.escapeKeyAction = 'close';
+
+        this._symbioCardPickerDialogRef = dialog;
+        document.body.appendChild(dialog);
+        dialog.open = true;
+
+        await dialog.updateComplete;
+
+        const picker = document.createElement('hui-card-picker');
+        // CRITICAL: set hass and lovelace BEFORE appending so firstUpdated has data
+        picker.hass = this.hass;
+        picker.lovelace = this._getSymbiontLovelace();
+        picker.style.cssText = 'padding: 24px; display: block;';
+        dialog.appendChild(picker);
+
+        await new Promise(r => setTimeout(r, 100));
+        picker.requestUpdate?.();
+        if (picker.updateComplete) await picker.updateComplete;
+
+        picker.addEventListener('config-changed', (e) => {
+            const selectedConfig = e.detail?.config;
+            lcardsLog.debug('[ElbowEditor] Symbiont card type selected:', selectedConfig?.type);
+
+            document.dispatchEvent(new CustomEvent('lcards-symbiont-card-picker-result', {
+                detail: { config: selectedConfig }
+            }));
+
+            dialog.close();
+        });
+
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+            if (this._symbioCardPickerDialogRef === dialog) {
+                this._symbioCardPickerDialogRef = null;
+            }
+        });
+    }
+
+    /**
+     * Handle card-picker result — update symbiont.card config.
+     * @param {CustomEvent} e
+     * @private
+     */
+    _handleSymbiontCardPickerResult(e) {
+        const config = e.detail?.config;
+        if (!config) return;
+        lcardsLog.debug('[ElbowEditor] Applying symbiont card config from picker:', config.type);
+        this._setConfigValue('symbiont.card', config);
+    }
+
+    /**
+     * Open hui-card-element-editor in a dialog to graphically configure the
+     * selected symbiont card. Pattern mirrors MSD studio's card editor modal.
+     * @private
+     */
+    async _openSymbiontCardEditor() {
+        const currentCard = this.config?.symbiont?.card;
+        if (!currentCard?.type) return;
+
+        if (!customElements.get('hui-card-element-editor')) {
+            lcardsLog.warn('[ElbowEditor] hui-card-element-editor not available yet');
+            return;
+        }
+
+        // Close any already-open editor
+        if (this._symbioCardEditorDialogRef) {
+            this._symbioCardEditorDialogRef.remove();
+            this._symbioCardEditorDialogRef = null;
+        }
+
+        const dialog = document.createElement('ha-dialog');
+        dialog.heading = `Edit: ${currentCard.type}`;
+        dialog.scrimClickAction = '';
+        dialog.escapeKeyAction = 'close';
+        this._symbioCardEditorDialogRef = dialog;
+
+        const container = document.createElement('div');
+        container.style.cssText = 'padding: 16px; min-height: 300px; min-width: 420px; box-sizing: border-box;';
+
+        const editor = document.createElement('hui-card-element-editor');
+        editor.hass = this.hass;
+        editor.lovelace = this._getSymbiontLovelace();
+        editor.value = JSON.parse(JSON.stringify(currentCard));
+
+        let tempConfig = JSON.parse(JSON.stringify(currentCard));
+
+        editor.addEventListener('config-changed', (e) => {
+            if (e.detail?.config && typeof e.detail.config === 'object' && e.detail.config.type) {
+                tempConfig = e.detail.config;
+            }
+        });
+        editor.addEventListener('value-changed', (e) => {
+            if (e.detail?.value && typeof e.detail.value === 'object' && e.detail.value.type) {
+                tempConfig = e.detail.value;
+            }
+        });
+
+        container.appendChild(editor);
+        dialog.appendChild(container);
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.slot = 'primaryAction';
+        actionsDiv.style.cssText = 'display:flex; gap:8px;';
+
+        const cancelButton = document.createElement('ha-button');
+        cancelButton.setAttribute('dialogAction', 'cancel');
+        cancelButton.textContent = 'Cancel';
+
+        const saveButton = document.createElement('ha-button');
+        saveButton.textContent = 'Save';
+        saveButton.addEventListener('click', () => {
+            if (tempConfig?.type) {
+                this._setConfigValue('symbiont.card', JSON.parse(JSON.stringify(tempConfig)));
+                lcardsLog.debug('[ElbowEditor] Symbiont card config saved from editor:', tempConfig.type);
+            }
+            dialog.close();
+        });
+
+        actionsDiv.appendChild(cancelButton);
+        actionsDiv.appendChild(saveButton);
+        dialog.appendChild(actionsDiv);
+
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+            if (this._symbioCardEditorDialogRef === dialog) {
+                this._symbioCardEditorDialogRef = null;
+            }
+        });
+
+        document.body.appendChild(dialog);
+        setTimeout(() => { dialog.open = true; }, 10);
+        lcardsLog.debug('[ElbowEditor] Opened symbiont card editor dialog for:', currentCard.type);
+    }
+
+    /**
+     * Get the lovelace config for hui-card-picker / hui-card-element-editor.
+     *
+     * IMPORTANT: hui-card-picker expects a plain LovelaceConfig object with `views`
+     * at the root — NOT the full lovelace wrapper (which has `config`, `saveConfig`, etc.).
+     * Pattern mirrors lcards-msd-editor._getLovelace() exactly.
+     * @returns {Object}
+     * @private
+     */
+    _getSymbiontLovelace() {
+        // Unwrap: if lovelace is the wrapper object, pull its .config; otherwise use it directly
+        let lovelaceConfig = this.lovelace?.config || this.lovelace || {};
+
+        // Ensure views exists
+        if (!lovelaceConfig.views) {
+            lovelaceConfig = { ...lovelaceConfig, views: [] };
+        }
+
+        // hui-card-picker needs at least one view to render
+        if (lovelaceConfig.views.length === 0) {
+            lovelaceConfig = {
+                ...lovelaceConfig,
+                views: [{ title: 'Home', path: 'home', cards: [] }]
+            };
+        }
+
+        return lovelaceConfig;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -863,14 +1103,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderSymbiontTab() {
-        const symbiont = this.config?.symbiont || {};
-        const enabled = symbiont.enabled || false;
-        const imprint = symbiont.imprint || {};
+        const symbiont      = this.config?.symbiont || {};
+        const enabled       = symbiont.enabled || false;
+        const imprint       = symbiont.imprint || {};
         const imprintEnabled = imprint.enabled !== false;
-        const borderRadius = imprint.border_radius || {};
-        const matchHost = borderRadius.match_host !== false;
+        const borderRadius  = imprint.border_radius || {};
 
-        // Serialize card config as YAML for the code editor
+        // Serialize current card config as YAML for the inline code editor
         const cardYaml = symbiont.card ? configToYaml(symbiont.card) : '';
 
         return html`
@@ -878,9 +1117,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <lcards-message type="info">
                     <strong>Symbiont Card</strong>
                     <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Embed any Home Assistant card inside the elbow's content area.
+                        Embed any Home Assistant card inside the elbow’s content area.
                         Enable <strong>Imprint</strong> to inject background color, text color, and font
-                        directly into the child card's shadow root — no card-mod required.
+                        directly into the child card’s shadow root — no card-mod required.
+                        If the embedded card config includes a <code>card_mod</code> block and
+                        card-mod is installed, LCARdS will defer to card-mod instead.
                     </p>
                 </lcards-message>
 
@@ -904,41 +1145,76 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                 ${enabled ? html`
 
-                    <!-- Embedded Card Config -->
+                    <!-- Embedded Card Selection -->
                     <lcards-form-section
                         header="Embedded Card"
-                        description="Configure the card to embed (YAML format)"
-                        icon="mdi:code-braces"
+                        description="Choose the card type and configure it"
+                        icon="mdi:card-multiple-outline"
                         ?expanded=${true}
                         ?outlined=${true}>
 
-                        <lcards-message type="info" message="Enter the card configuration in YAML (same as a Lovelace card config). Example: type: tile&#10;entity: light.kitchen">
-                        </lcards-message>
+                        ${symbiont.card ? html`
+                            <div style="display:flex; align-items:center; gap:8px; padding: 4px 0 8px;">
+                                <ha-icon icon="mdi:card-outline" style="color: var(--primary-color);"></ha-icon>
+                                <span style="font-weight:500;">${symbiont.card.type}</span>
+                            </div>
+                        ` : html`
+                            <lcards-message type="warning" message="No card selected. Use the button below to pick a card type.">
+                            </lcards-message>
+                        `}
 
-                        <ha-code-editor
-                            .hass=${this.hass}
-                            .value=${cardYaml}
-                            mode="yaml"
-                            autofocus
-                            @value-changed=${(e) => {
-                                try {
-                                    const parsed = yamlToConfig(e.detail.value);
-                                    if (parsed && typeof parsed === 'object') {
-                                        this._setConfigValue('symbiont.card', parsed);
-                                    }
-                                } catch (_err) {
-                                    // Ignore YAML parse errors while typing
-                                }
-                            }}>
-                        </ha-code-editor>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; padding-bottom:8px;">
+                            <ha-button @click=${() => this._openSymbiontCardPicker()}>
+                                <ha-icon icon="mdi:cards-playing-outline" slot="start"></ha-icon>
+                                ${symbiont.card ? 'Change Card Type' : 'Select Card Type'}
+                            </ha-button>
+                            ${symbiont.card ? html`
+                                <ha-button
+                                    .title=${'Open the card\'s own graphical editor'}
+                                    @click=${() => this._openSymbiontCardEditor()}>
+                                    <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
+                                    Edit Card
+                                </ha-button>
+                                <ha-button
+                                    .title=${'Clear selected card'}
+                                    @click=${() => this._setConfigValue('symbiont.card', undefined)}>
+                                    <ha-icon icon="mdi:close" slot="start"></ha-icon>
+                                    Remove Card
+                                </ha-button>
+                            ` : ''}
+                        </div>
+
+                        ${symbiont.card ? html`
+                            <lcards-message type="info" message="Edit the full card configuration as YAML below. The card type field must remain as-is or use the 'Change Card Type' button above.">
+                            </lcards-message>
+                            <ha-code-editor
+                                .hass=${this.hass}
+                                .value=${cardYaml}
+                                mode="yaml"
+                                @value-changed=${(e) => {
+                                    const raw = e.detail.value;
+                                    clearTimeout(this._yamlDebounceTimer);
+                                    this._yamlDebounceTimer = setTimeout(() => {
+                                        try {
+                                            const parsed = yamlToConfig(raw);
+                                            if (parsed && typeof parsed === 'object') {
+                                                this._setConfigValue('symbiont.card', parsed);
+                                            }
+                                        } catch (_err) {
+                                            // Ignore YAML parse errors while typing
+                                        }
+                                    }, 750);
+                                }}>
+                            </ha-code-editor>
+                        ` : ''}
                     </lcards-form-section>
 
                     <!-- Position / Padding -->
                     <lcards-form-section
                         header="Position"
-                        description="Padding inside the elbow content area (px)"
+                        description="Additional padding inside the elbow content area (px, on top of bar offsets)"
                         icon="mdi:move-resize"
-                        ?expanded=${true}
+                        ?expanded=${false}
                         ?outlined=${true}>
 
                         <lcards-padding-editor
@@ -946,14 +1222,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .config=${this.config}
                             path="symbiont.position"
                             label="Content Area Padding"
-                            helper="Distance from each edge of the elbow content area">
+                            helper="Extra inset from each edge of the elbow content area (the card already starts inside the elbow bars automatically)">
                         </lcards-padding-editor>
                     </lcards-form-section>
 
                     <!-- Imprint -->
                     <lcards-form-section
                         header="Imprint"
-                        description="Inject styles directly into the embedded card's shadow root"
+                        description="Inject styles directly into the embedded card&#39;s shadow root"
                         icon="mdi:palette-swatch"
                         ?expanded=${true}
                         ?outlined=${true}>
@@ -961,7 +1237,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Enable Imprint'}
-                            .helper=${'Inject background color, text color, and font into the embedded card (no card-mod required)'}
+                            .helper=${'Inject background color, text color, and font into the embedded card (no card-mod required). Automatically defers to card_mod if present in the card config and card-mod is installed.'}
                             .selector=${{ boolean: {} }}
                             .value=${imprintEnabled}
                             @value-changed=${(e) => this._setConfigValue('symbiont.imprint.enabled', e.detail.value)}>
@@ -1028,50 +1304,50 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             <!-- Border Radius -->
                             <lcards-form-section
                                 header="Border Radius"
-                                description="Corner radius applied to the embedded card"
+                                description="Per-corner radius injected into the embedded card"
                                 icon="mdi:rounded-corner"
                                 ?expanded=${false}
                                 ?outlined=${true}>
 
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Match Host Elbow Inner Radius'}
-                                    .helper=${'Automatically derive border radius from elbow inner arc geometry'}
-                                    .selector=${{ boolean: {} }}
-                                    .value=${matchHost}
-                                    @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.match_host', e.detail.value)}>
-                                </ha-selector>
+                                <lcards-message type="info" message="Each corner can be: Default (don't inject), Match (use elbow inner arc radius), or Custom (explicit px value).">
+                                </lcards-message>
 
-                                ${!matchHost ? html`
-                                    <ha-selector
-                                        .hass=${this.hass}
-                                        .label=${'Top Left (px)'}
-                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                                        .value=${borderRadius.top_left ?? 0}
-                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.top_left', e.detail.value)}>
-                                    </ha-selector>
-                                    <ha-selector
-                                        .hass=${this.hass}
-                                        .label=${'Top Right (px)'}
-                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                                        .value=${borderRadius.top_right ?? 0}
-                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.top_right', e.detail.value)}>
-                                    </ha-selector>
-                                    <ha-selector
-                                        .hass=${this.hass}
-                                        .label=${'Bottom Left (px)'}
-                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                                        .value=${borderRadius.bottom_left ?? 0}
-                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.bottom_left', e.detail.value)}>
-                                    </ha-selector>
-                                    <ha-selector
-                                        .hass=${this.hass}
-                                        .label=${'Bottom Right (px)'}
-                                        .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                                        .value=${borderRadius.bottom_right ?? 0}
-                                        @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.bottom_right', e.detail.value)}>
-                                    </ha-selector>
-                                ` : ''}
+                                ${(['top_left','top_right','bottom_left','bottom_right']).map(key => {
+                                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                    const raw   = borderRadius[key];
+                                    const mode  = raw === 'match' ? 'match' : (raw === null || raw === undefined) ? 'default' : 'custom';
+                                    const numVal = typeof raw === 'number' ? raw : 0;
+                                    return html`
+                                        <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--divider-color); overflow:hidden;">
+                                            <span style="flex:0 0 90px; font-size:13px; color:var(--secondary-text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</span>
+                                            <ha-selector
+                                                .hass=${this.hass}
+                                                .selector=${{ select: { mode: 'dropdown', options: [
+                                                    { value: 'default', label: 'Default (no inject)' },
+                                                    { value: 'match',   label: 'Match elbow arc' },
+                                                    { value: 'custom',  label: 'Custom (px)' }
+                                                ]}}}
+                                                .value=${mode}
+                                                style="flex:1; min-width:0;"
+                                                @value-changed=${(e) => {
+                                                    const m = e.detail.value;
+                                                    if (m === 'default') this._setConfigValue('symbiont.imprint.border_radius.' + key, undefined);
+                                                    else if (m === 'match') this._setConfigValue('symbiont.imprint.border_radius.' + key, 'match');
+                                                    else this._setConfigValue('symbiont.imprint.border_radius.' + key, numVal);
+                                                }}>
+                                            </ha-selector>
+                                            ${mode === 'custom' ? html`
+                                                <ha-selector
+                                                    .hass=${this.hass}
+                                                    .selector=${{ number: { min: 0, max: 200, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                                                    .value=${numVal}
+                                                    style="flex:0 0 110px;"
+                                                    @value-changed=${(e) => this._setConfigValue('symbiont.imprint.border_radius.' + key, e.detail.value)}>
+                                                </ha-selector>
+                                            ` : ''}
+                                        </div>
+                                    `;
+                                })}
                             </lcards-form-section>
 
                         ` : ''}
@@ -1085,14 +1361,19 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ?expanded=${false}
                         ?outlined=${true}>
 
-                        <lcards-message type="info" message="Raw CSS injected into the embedded card's shadow root after imprint styles. Works without card-mod.">
+                        <lcards-message type="info" message="Raw CSS injected into the embedded card&#39;s shadow root after imprint styles. Works without card-mod. If the card config includes a card_mod block and card-mod is installed, native injection is skipped automatically.">
                         </lcards-message>
 
                         <ha-code-editor
                             .hass=${this.hass}
                             .value=${symbiont.custom_style || ''}
-                            mode="css"
-                            @value-changed=${(e) => this._setConfigValue('symbiont.custom_style', e.detail.value || undefined)}>
+                            @value-changed=${(e) => {
+                                const raw = e.detail.value;
+                                clearTimeout(this._cssDebounceTimer);
+                                this._cssDebounceTimer = setTimeout(() => {
+                                    this._setConfigValue('symbiont.custom_style', raw || undefined);
+                                }, 750);
+                            }}>
                         </ha-code-editor>
                     </lcards-form-section>
 
@@ -1583,6 +1864,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             this._updateConfig({ background_animation: e.detail.value });
                         }}>
                     </lcards-background-animation-editor>
+
                 </lcards-form-section>
             </div>
         `;
