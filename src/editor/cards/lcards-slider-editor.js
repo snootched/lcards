@@ -296,6 +296,85 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Render preset selector filtered by the currently selected component.
+     *
+     * Uses the `compatibleComponents` metadata on each preset to determine which
+     * presets are valid for the current component selection:
+     * - No component selected → show presets with compatibleComponents: ['default']
+     * - component: 'shaped'   → show presets with compatibleComponents: ['shaped']
+     * - Presets without compatibleComponents are always shown (legacy / no restriction)
+     *
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderPresetSelector() {
+        const stylePresetManager = window.lcards?.core?.stylePresetManager;
+        if (!stylePresetManager) return html``;
+
+        const allPresets = stylePresetManager.getAvailablePresets('slider');
+        const currentComponent = this.config?.component || '';
+
+        // Filter presets by compatibility with the selected component
+        const filteredPresets = allPresets.filter(name => {
+            const presetData = stylePresetManager.getPreset('slider', name);
+            if (!presetData) return true;
+
+            const compatible = presetData.compatibleComponents;
+            if (!compatible) return true; // No restriction — always visible
+
+            if (!currentComponent) {
+                // No component selected: show 'default' compatible presets
+                return compatible.includes('default');
+            }
+
+            return compatible.includes(currentComponent);
+        });
+
+        if (filteredPresets.length === 0) {
+            return html`
+                <ha-textfield
+                    .label=${'Style Preset'}
+                    .value=${'No presets available for this component'}
+                    .disabled=${true}
+                    .helper=${'Change or clear the component to see presets'}
+                ></ha-textfield>
+            `;
+        }
+
+        const options = [
+            { value: '', label: '— None —' },
+            ...filteredPresets.map(name => ({
+                value: name,
+                label: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            }))
+        ];
+
+        const currentPreset = this.config?.preset || '';
+        const isIncompatible = currentPreset && !filteredPresets.includes(currentPreset);
+
+        const helperText = currentComponent
+            ? `Presets compatible with the '${currentComponent}' component`
+            : 'Quick styling — select a component first to narrow the list';
+
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Style Preset'}
+                .helper=${helperText}
+                .selector=${{ select: { mode: 'dropdown', options } }}
+                .value=${currentPreset}
+                @value-changed=${(e) => this._setConfigValue('preset', e.detail.value || undefined)}>
+            </ha-selector>
+            ${isIncompatible ? html`
+                <ha-alert alert-type="warning">
+                    Preset '${currentPreset}' is not compatible with component '${currentComponent}'.
+                    Choose a compatible preset or clear the component field.
+                </ha-alert>
+            ` : ''}
+        `;
+    }
+
+    /**
      * Render attribute selector dropdown
      * @returns {TemplateResult}
      * @private
@@ -431,10 +510,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         ]
                     },
                     {
-                        type: 'field',
-                        path: 'preset',
-                        label: 'Style Preset',
-                        helper: 'Quick styling (pills-basic, gauge-basic, etc.)'
+                        type: 'custom',
+                        render: () => this._renderPresetSelector()
                     },
                     ...(this.config.component ? [{
                         type: 'custom',

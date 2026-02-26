@@ -132,6 +132,7 @@ export const SLIDER_PRESETS = {
   'pills-basic': {
     extends: 'slider.base',
     description: 'Segmented pill slider',
+    compatibleComponents: ['default'],
 
     // Track configuration overrides (directly at root)
     track: {
@@ -170,6 +171,7 @@ export const SLIDER_PRESETS = {
   'pills-left-border': {
     extends: 'slider.pills-basic',
     description: 'Left border with pills slider. ',
+    compatibleComponents: ['default'],
 
     border: {
       top: {
@@ -190,6 +192,7 @@ export const SLIDER_PRESETS = {
   'gauge-basic': {
     extends: 'slider.base',
     description: 'Ruler-style gauge for displays and controls',
+    compatibleComponents: ['default'],
 
     // Track configuration overrides (directly at root)
     track: {
@@ -204,6 +207,7 @@ export const SLIDER_PRESETS = {
   'gauge-left-border': {
     extends: 'slider.gauge-basic',
     description: 'Left border with gauge slider.',
+    compatibleComponents: ['default'],
     border: {
       top: {
         enabled: true,
@@ -217,9 +221,6 @@ export const SLIDER_PRESETS = {
   },
 
   // =====================================
-  // PICARD PRESET - Picard-style vertical slider
-  // =====================================
-  // =====================================
   // SHAPED PRESETS — Generic clip-path fill
   // =====================================
 
@@ -230,6 +231,7 @@ export const SLIDER_PRESETS = {
   'lozenge-basic': {
     extends: 'slider.base',
     description: 'Pill-shaped lozenge slider with exterior text labels. Set track.orientation to switch between vertical and horizontal.',
+    compatibleComponents: ['shaped'],
 
     component: 'shaped',
 
@@ -267,9 +269,14 @@ export const SLIDER_PRESETS = {
 
   // -----------------------------------------------------------------------
 
+  // =====================================
+  // PICARD PRESET - Picard-style vertical slider
+  // =====================================
+
   'picard-gauge-vertical': {
     extends: 'slider.gauge-basic',
     description: 'Picard-style vertical slider',
+    compatibleComponents: ['picard'],
 
     // Track configuration overrides (directly at root)
     track: {
