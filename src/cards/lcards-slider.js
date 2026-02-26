@@ -779,6 +779,39 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Resolve a plain (non-state-based) color value through the full pipeline:
+     *   1. ThemeTokenResolver — handles `theme:*` tokens and computed functions
+     *      such as `lighten(...)`, `darken(...)`, `alpha(...)`, etc.
+     *   2. ColorUtils.resolveCssVariable — resolves any remaining `var(--x)` refs.
+     *
+     * Use this instead of bare `ColorUtils.resolveCssVariable()` whenever the
+     * value could come from user config (where computed tokens are valid).
+     *
+     * @param {string} rawValue  - Raw color string from config/preset
+     * @param {string} [fallback=''] - Returned when rawValue is falsy
+     * @returns {string} Resolved color
+     * @private
+     */
+    _resolveColorValue(rawValue, fallback = '') {
+        if (!rawValue) return fallback;
+        let value = rawValue;
+        // Step 1: computed tokens and theme: tokens
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        if (resolver) {
+            value = resolver.resolve(value, value);
+        }
+        // Step 2: CSS variable references.
+        // Only call resolveCssVariable for bare `var()` references. If the resolver
+        // already produced a CSS function like `color-mix()`, the browser handles it
+        // natively — calling resolveCssVariable would match the var() inside
+        // color-mix() and strip the surrounding function away, losing the effect.
+        if (typeof value === 'string' && value.trim().startsWith('var(')) {
+            return ColorUtils.resolveCssVariable(value) || fallback;
+        }
+        return value || fallback;
+    }
+
+    /**
      * Inject borders into an SVG element (works for both _componentSvg and component-based rendering)
      * @param {SVGElement} svgElement - The SVG element to inject borders into
      * @param {number} width - Container width
@@ -2408,10 +2441,10 @@ export class LCARdSSlider extends LCARdSButton {
             // Animation indicator
             animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0',
             // Shaped component: track background (the "empty" portion inside the shape)
-            trackBackground: ColorUtils.resolveCssVariable(
+            trackBackground: this._resolveColorValue(
                 this._sliderStyle?.shaped?.track?.background
-                    ?? this._sliderStyle?.track?.background
-                    ?? 'var(--lcards-black-medium, #12121c)'
+                    ?? this._sliderStyle?.track?.background,
+                'var(--lcards-black-medium, #12121c)'
             )
         };
 
@@ -2623,9 +2656,10 @@ export class LCARdSSlider extends LCARdSButton {
         const h = zoneSpec.height;
 
         // Fill colour: shaped-specific override → gauge active colour → default
-        const fillColor = ColorUtils.resolveCssVariable(
+        // Use _resolveColorValue so computed tokens (lighten/darken/alpha/theme:) work.
+        const fillColor = this._resolveColorValue(
             this._sliderStyle?.shaped?.fill?.color ||
-            this._sliderStyle?.gauge?.fill?.color?.active ||
+            this._sliderStyle?.gauge?.fill?.color?.active,
             '#93e1ff'
         );
 
@@ -2687,7 +2721,8 @@ export class LCARdSSlider extends LCARdSButton {
         ranges.forEach(range => {
             const rangeMin = range.min ?? displayMin;
             const rangeMax = range.max ?? displayMax;
-            const color    = range.color || '#888888';
+            // Resolve through full pipeline so computed tokens work in range colors too
+            const color    = this._resolveColorValue(range.color, '#888888');
             const opacity  = range.opacity ?? 1;
 
             const startPct = Math.max(0, (rangeMin - displayMin) / displayRange);
