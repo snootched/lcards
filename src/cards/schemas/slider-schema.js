@@ -268,11 +268,12 @@ export function getSliderSchema(options = {}) {
                             },
                             type: {
                                 type: 'string',
-                                enum: ['pills', 'gauge'],
-                                description: 'Track visual style (pills = segmented, gauge = ruler)',
+                                enum: ['pills', 'gauge', 'shaped'],
+                                description: 'Track visual style (pills = segmented, gauge = ruler, shaped = solid fill inside a clip-path shape)',
                                 enumDescriptions: [
                                     'Segmented pill style (interactive sliders)',
-                                    'Ruler gauge style (typically for display)'
+                                    'Ruler gauge style (typically for display)',
+                                    'Solid fill clipped to a shape boundary (use with component: shaped)'
                                 ]
                             },
                             height: {
@@ -823,6 +824,118 @@ export function getSliderSchema(options = {}) {
                         'x-ui-hints': {
                             label: 'Value Ranges',
                             helper: 'Define color-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
+                        }
+                    },
+
+                    // ====================================================================
+                    // SHAPED COMPONENT CONFIGURATION
+                    // ====================================================================
+
+                    shaped: {
+                        type: 'object',
+                        description: 'Shaped component configuration (used with component: shaped)',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: ['lozenge', 'rect', 'rounded', 'diamond', 'hexagon', 'polygon', 'path'],
+                                default: 'lozenge',
+                                description: 'Shape boundary for the clip path',
+                                'x-ui-hints': {
+                                    label: 'Shape Type',
+                                    helper: 'Geometry used to clip the slider fill'
+                                }
+                            },
+                            radius: {
+                                type: 'number',
+                                description: 'Corner radius in pixels — lozenge auto = min(w,h)/2, rounded default = 8',
+                                examples: [8, 20, 40],
+                                'x-ui-hints': {
+                                    label: 'Corner Radius',
+                                    helper: 'Override automatic corner radius (lozenge / rounded shapes)',
+                                    selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } }
+                                }
+                            },
+                            fill: {
+                                type: 'object',
+                                description: 'Value fill appearance (the “filled” portion of the shape)',
+                                properties: {
+                                    color: {
+                                        type: 'string',
+                                        description: 'Fill colour',
+                                        default: '#93e1ff',
+                                        examples: ['#93e1ff', 'theme:palette.moonlight', 'var(--lcards-blue-light)']
+                                    }
+                                }
+                            },
+                            label: {
+                                type: 'object',
+                                description: 'Label band sizes (pixels reserved outside the shape body for text fields)',
+                                properties: {
+                                    top: {
+                                        type: 'object',
+                                        description: 'Top band (vertical mode only)',
+                                        properties: { size: { type: 'number', default: 36, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                    },
+                                    bottom: {
+                                        type: 'object',
+                                        description: 'Bottom band (vertical mode only)',
+                                        properties: { size: { type: 'number', default: 28, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                    },
+                                    left: {
+                                        type: 'object',
+                                        description: 'Left band (horizontal mode only)',
+                                        properties: { size: { type: 'number', default: 60, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                    },
+                                    right: {
+                                        type: 'object',
+                                        description: 'Right band (horizontal mode only)',
+                                        properties: { size: { type: 'number', default: 60, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                    }
+                                }
+                            },
+                            track: {
+                                type: 'object',
+                                description: 'Shape track appearance',
+                                properties: {
+                                    background: {
+                                        type: 'string',
+                                        description: 'Shape interior background colour (the “empty” portion)',
+                                        default: 'theme:components.slider.track.background',
+                                        examples: ['#12121c', 'theme:components.slider.track.background', 'var(--lcards-black-medium)']
+                                    }
+                                }
+                            },
+                            polygon: {
+                                type: 'object',
+                                description: 'Polygon shape options (shape type: polygon)',
+                                properties: {
+                                    points: {
+                                        type: 'array',
+                                        description: 'Array of [xPct, yPct] pairs (0–1) defining polygon vertices relative to shape bounds',
+                                        items: {
+                                            type: 'array',
+                                            items: { type: 'number', minimum: 0, maximum: 1 },
+                                            minItems: 2,
+                                            maxItems: 2
+                                        }
+                                    }
+                                }
+                            },
+                            path: {
+                                type: 'object',
+                                description: 'Raw SVG path options (shape type: path)',
+                                properties: {
+                                    d: {
+                                        type: 'string',
+                                        description: 'SVG path d-attribute (absolute coordinates)'
+                                    },
+                                    translate: {
+                                        type: 'boolean',
+                                        default: false,
+                                        description: 'Wrap path in translate(bodyX, bodyY) so coordinates are relative to the shape body origin'
+                                    }
+                                }
+                            }
                         }
                     }
                 }

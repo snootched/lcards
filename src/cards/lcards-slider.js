@@ -519,10 +519,10 @@ export class LCARdSSlider extends LCARdSButton {
             this._domain = null;
         }
 
-        // Determine track visual style (pills vs gauge ruler)
+        // Determine track visual style (pills / gauge / shaped)
         // ✅ ONLY use track.type (never config.mode)
         const trackType = this._sliderStyle?.track?.type;
-        const validTypes = ['pills', 'gauge'];
+        const validTypes = ['pills', 'gauge', 'shaped'];
 
         if (trackType && validTypes.includes(trackType)) {
             this._mode = trackType;
@@ -530,6 +530,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Default based on domain (fallback if no preset or style.track.type)
             const interactiveDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
             this._mode = interactiveDomains.includes(this._domain) ? 'pills' : 'gauge';
+        }
+
+        // When the shaped component is active, always use shaped fill mode —
+        // pills and gauge don't make sense inside a clip-path shell.
+        const activeComponent = this.config.component || this._sliderStyle?.component;
+        if (activeComponent === 'shaped') {
+            this._mode = 'shaped';
         }
 
         // Update control config (handles locked state based on domain)
@@ -685,8 +692,9 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     async _loadSliderComponent() {
-        // Default to 'default' component if not specified
-        const componentName = this.config.component || 'default';
+        // Default to 'default' component if not specified.
+        // Also check style.component set by presets (e.g. lozenge-basic sets component: shaped).
+        const componentName = this.config.component || this._sliderStyle?.component || 'default';
 
         lcardsLog.debug(`[LCARdSSlider] Loading component: ${componentName}`);
 
@@ -2324,9 +2332,10 @@ export class LCARdSSlider extends LCARdSButton {
     _renderWithRenderer(width, height) {
         lcardsLog.debug(`[LCARdSSlider] _renderWithRenderer(${width}, ${height})`);
 
-        // Step 1: Calculate zones using component's helper
+        // Step 1: Calculate zones using component's helper.
+        // Pass full context so components like 'shaped' can read orientation and style config.
         const zones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height)
+            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
             : null;
 
         if (!zones) {
@@ -2397,7 +2406,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Solid bar (defaults to same as top border)
             solidBar: ColorUtils.resolveCssVariable(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0'
+            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0',
+            // Shaped component: track background (the "empty" portion inside the shape)
+            trackBackground: ColorUtils.resolveCssVariable(
+                this._sliderStyle?.shaped?.track?.background
+                    ?? this._sliderStyle?.track?.background
+                    ?? 'var(--lcards-black-medium, #12121c)'
+            )
         };
 
         lcardsLog.debug('[LCARdSSlider] Resolved colors using card logic:', colors);
@@ -2432,13 +2447,17 @@ export class LCARdSSlider extends LCARdSButton {
         const orientation = this._sliderStyle?.track?.orientation || 'vertical';
 
         let trackContent = '';
-        if (this._mode === 'pills') {
+        // Shaped component always uses shaped fill mode — ignore this._mode for it.
+        const effectiveMode = (componentName === 'shaped') ? 'shaped' : this._mode;
+        if (effectiveMode === 'pills') {
             trackContent = this._generatePillsContent(trackZone, orientation);
-        } else if (this._mode === 'gauge') {
+        } else if (effectiveMode === 'gauge') {
             // Pass skipProgressBar=true if component has a progress zone (render progress bar there instead)
             // Pass skipRanges=true ONLY for non-Default components (Picard renders ranges separately)
             const skipRangesInGauge = componentName !== 'default';
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, skipRangesInGauge);
+        } else if (effectiveMode === 'shaped') {
+            trackContent = this._generateShapedContent(trackZone, orientation);
         }
 
         // Step 6: Inject content into shell using shadow DOM queries
@@ -2479,7 +2498,9 @@ export class LCARdSSlider extends LCARdSButton {
         const finalSvg = serializer.serializeToString(shellElement);
 
         // Step 8: Render input overlay using control zone
-        const controlZone = zones.control;
+        // For shaped mode, use the raw _shaped bounds (never touched by Step 1.5 inset)
+        // so the overlay aligns exactly with the visible body.
+        const controlZone = (effectiveMode === 'shaped' && zones._shaped) ? zones._shaped : zones.control;
         const isVertical = orientation === 'vertical';
 
         // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
@@ -2571,6 +2592,136 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Use existing _generateGaugeSVG - pass skip flags
         return this._generateGaugeSVG(zoneSpec.width, zoneSpec.height, skipProgressBar, skipRanges);
+    }
+
+    /**
+     * Generate shaped fill content for the shaped component.
+     *
+     * Emits raw `<rect>` elements only — the component's `<clipPath>` enforces
+     * the shape boundary, so no rounding is applied here.
+     *
+     * Render order (bottom → top):
+     *   1. Optional range bands (rendered under the value fill)
+     *   2. Solid value fill rect (grows from one end based on progress)
+     *
+     * Fill direction matches the broader slider convention:
+     *   - invert_fill: false → fill rises from bottom (vertical) / left (horizontal)
+     *   - invert_fill: true  → fill falls from top  (vertical) / right (horizontal)
+     *
+     * @param {Object} zoneSpec   - Track zone spec from calculateZones()
+     * @param {string} orientation - 'horizontal' | 'vertical'
+     * @returns {string} SVG content injected into the track zone
+     * @private
+     */
+    _generateShapedContent(zoneSpec, orientation) {
+        const isVertical = orientation === 'vertical';
+        // Use absolute SVG coordinates — track-zone group has translate(0,0),
+        // so all rects must be positioned using zone's x/y directly.
+        const x = zoneSpec.x;
+        const y = zoneSpec.y;
+        const w = zoneSpec.width;
+        const h = zoneSpec.height;
+
+        // Fill colour: shaped-specific override → gauge active colour → default
+        const fillColor = ColorUtils.resolveCssVariable(
+            this._sliderStyle?.shaped?.fill?.color ||
+            this._sliderStyle?.gauge?.fill?.color?.active ||
+            '#93e1ff'
+        );
+
+        const progress = this._calculateValuePercent();
+
+        let svg = '';
+
+        // Range bands layered under the value fill
+        const ranges = this._sliderStyle?.ranges || [];
+        if (ranges.length > 0) {
+            svg += this._generateShapedRangeBands(zoneSpec, orientation, ranges);
+        }
+
+        // Value fill rect (absolute SVG coords)
+        if (isVertical) {
+            const fillH = h * progress;
+            const fillY = this._invertFill ? y : y + h - fillH;
+            svg += `<rect x="${x}" y="${fillY}" width="${w}" height="${fillH}" fill="${fillColor}" />`;
+        } else {
+            const fillW = w * progress;
+            const fillX = this._invertFill ? x + w - fillW : x;
+            svg += `<rect x="${fillX}" y="${y}" width="${fillW}" height="${h}" fill="${fillColor}" />`;
+        }
+
+        lcardsLog.debug('[LCARdSSlider] _generateShapedContent()', { zoneSpec, x, y, w, h, orientation, progress, fillColor });
+
+        return svg;
+    }
+
+    /**
+     * Generate range band rectangles for shaped fill mode.
+     *
+     * Bands are full-opacity background blocks rendered under the value fill.
+     * Band positions are mirrored when `_invertFill` is set so they always align
+     * with the fill direction (0% at the fill origin end).
+     *
+     * @param {Object} zoneSpec   - Track zone spec (zone-local coordinates)
+     * @param {string} orientation - 'horizontal' | 'vertical'
+     * @param {Array}  ranges      - Array of range objects {min, max, color, opacity}
+     * @returns {string} SVG `<rect>` elements for the range bands
+     * @private
+     */
+    _generateShapedRangeBands(zoneSpec, orientation, ranges) {
+        const isVertical = orientation === 'vertical';
+        // Absolute SVG coordinates — matches track-zone translate(0,0)
+        const x = zoneSpec.x;
+        const y = zoneSpec.y;
+        const w = zoneSpec.width;
+        const h = zoneSpec.height;
+
+        const displayMin   = this._displayConfig.min;
+        const displayMax   = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+
+        if (displayRange <= 0) return '';
+
+        let svg = '';
+
+        ranges.forEach(range => {
+            const rangeMin = range.min ?? displayMin;
+            const rangeMax = range.max ?? displayMax;
+            const color    = range.color || '#888888';
+            const opacity  = range.opacity ?? 1;
+
+            const startPct = Math.max(0, (rangeMin - displayMin) / displayRange);
+            const endPct   = Math.min(1, (rangeMax - displayMin) / displayRange);
+            const sizePct  = endPct - startPct;
+
+            if (sizePct <= 0) return;
+
+            if (isVertical) {
+                const bandH = h * sizePct;
+                if (this._invertFill) {
+                    // Fill from top → range 0% is at top
+                    const bandY = y + h * startPct;
+                    svg += `<rect x="${x}" y="${bandY}" width="${w}" height="${bandH}" fill="${color}" opacity="${opacity}" />`;
+                } else {
+                    // Fill from bottom → range 0% is at bottom
+                    const bandY = y + h * (1 - endPct);
+                    svg += `<rect x="${x}" y="${bandY}" width="${w}" height="${bandH}" fill="${color}" opacity="${opacity}" />`;
+                }
+            } else {
+                const bandW = w * sizePct;
+                if (this._invertFill) {
+                    // Fill from right → range 0% is at right
+                    const bandX = x + w * (1 - endPct);
+                    svg += `<rect x="${bandX}" y="${y}" width="${bandW}" height="${h}" fill="${color}" opacity="${opacity}" />`;
+                } else {
+                    // Fill from left → range 0% is at left
+                    const bandX = x + w * startPct;
+                    svg += `<rect x="${bandX}" y="${y}" width="${bandW}" height="${h}" fill="${color}" opacity="${opacity}" />`;
+                }
+            }
+        });
+
+        return svg;
     }
 
     /**

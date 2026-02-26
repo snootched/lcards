@@ -9,12 +9,15 @@
 | **default** | Simple slider with clean layout | Auto | Basic zones, border support |
 | **picard** | Star Trek LCARS styled slider | Vertical | State-aware borders, animations, decorative frame |
 | **demo** | Feature showcase (development) | Auto | All zones, all options, debug markers |
+| **shaped** | Generic clip-path fill slider | Auto | Exterior label bands, configurable shape (lozenge/rect/rounded/diamond/hexagon/polygon/path) |
 
 ## Component Files
 
 - [default.js](./default.js) - Base component implementation
 - [picard.js](./picard.js) - Styled LCARS component with animations
 - [demo.js](./demo.js) - Comprehensive demo showing all features
+- [shaped.js](./shaped.js) - Generic clip-path component (lozenge, diamond, hexagon, etc.)
+- [shapes.js](./shapes.js) - Shape clip-path builders used by shaped.js
 - [index.js](./index.js) - Component registry
 
 ## Creating New Components

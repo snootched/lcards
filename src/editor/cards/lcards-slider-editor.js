@@ -63,20 +63,28 @@ class SliderConfigState {
         return this.config.preset || null;
     }
 
-    // Track type: Visual rendering style (pills or gauge)
-    // Checks: explicit config → preset name → default
+    // Track type: Visual rendering style (pills, gauge, or shaped)
+    // Checks: explicit config → component name → preset name → default
     get trackType() {
         // 1. Explicit config wins
         if (this.config.style?.track?.type) {
             return this.config.style.track.type;
         }
 
-        // 2. Infer from preset name (gauge-* = gauge, otherwise pills)
-        if (this.preset) {
-            return this.preset.includes('gauge') ? 'gauge' : 'pills';
+        // 2. Shaped component always uses shaped fill mode
+        const component = this.config.component || this.config.style?.component;
+        if (component === 'shaped') {
+            return 'shaped';
         }
 
-        // 3. Default to pills
+        // 3. Infer from preset name (gauge-* = gauge, lozenge-* = shaped, otherwise pills)
+        if (this.preset) {
+            if (this.preset.includes('gauge'))   return 'gauge';
+            if (this.preset.includes('lozenge')) return 'shaped';
+            return 'pills';
+        }
+
+        // 4. Default to pills
         return 'pills';
     }
 
@@ -525,8 +533,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </lcards-slider-range-visualizer>
             </lcards-form-section>
 
-            <!-- Dynamic: Pills or Gauge Configuration with INLINE COLORS -->
-            ${trackType === 'pills' ? this._renderPillsConfiguration() : this._renderGaugeConfiguration()}
+            <!-- Dynamic: Pills, Gauge, or Shaped Configuration -->
+            ${trackType === 'pills'
+                ? this._renderPillsConfiguration()
+                : trackType === 'shaped'
+                    ? this._renderShapedConfiguration()
+                    : this._renderGaugeConfiguration()}
 
             <!-- Track Margins -->
             <lcards-form-section
@@ -1089,6 +1101,103 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?expanded=${false}
                     ?useColorPicker=${true}>
                 </lcards-color-section>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Shaped Configuration — shape type, fill colour, track background, and label band sizes.
+     * Used when the shaped component is active (e.g. lozenge-basic preset).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapedConfiguration() {
+        const orientation = this.config?.style?.track?.orientation || 'vertical';
+        const isVertical  = orientation === 'vertical';
+
+        return html`
+            <!-- Shape Type -->
+            <lcards-form-section
+                header="Shape"
+                description="Geometry used to clip the slider fill"
+                icon="mdi:shape"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${FormField.renderField(this, 'style.shaped.type', {
+                    label: 'Shape Type',
+                    helper: 'lozenge (pill), rect, rounded, diamond, hexagon, polygon, path'
+                })}
+
+                ${FormField.renderField(this, 'style.shaped.radius', {
+                    label: 'Corner Radius (px)',
+                    helper: 'Override auto radius — lozenge defaults to min(w,h)/2, rounded defaults to 8'
+                })}
+            </lcards-form-section>
+
+            <!-- Fill & Background Colors -->
+            <lcards-form-section
+                header="Colors"
+                description="Fill and background colours for the shape interior"
+                icon="mdi:water"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.shaped.fill.color"
+                    header="Fill Color"
+                    description="Color of the value fill (the filled portion)"
+                    ?singleColor=${true}
+                    ?expanded=${true}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+
+                <lcards-color-section
+                    .editor=${this}
+                    basePath="style.shaped.track.background"
+                    header="Background Color"
+                    description="Color of the empty (unfilled) interior of the shape"
+                    ?singleColor=${true}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+
+            <!-- Label Band Sizes -->
+            <lcards-form-section
+                header="Label Bands"
+                description="Pixels reserved outside the shape body for text fields"
+                icon="mdi:format-text-rotation-none"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${isVertical ? html`
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.shaped.label.top.size', {
+                            label: 'Top Band (px)',
+                            helper: 'Space above shape — typically for value label'
+                        })}
+                        ${FormField.renderField(this, 'style.shaped.label.bottom.size', {
+                            label: 'Bottom Band (px)',
+                            helper: 'Space below shape — typically for name label'
+                        })}
+                    </lcards-grid-layout>
+                ` : html`
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.shaped.label.left.size', {
+                            label: 'Left Band (px)',
+                            helper: 'Space to the left of the shape'
+                        })}
+                        ${FormField.renderField(this, 'style.shaped.label.right.size', {
+                            label: 'Right Band (px)',
+                            helper: 'Space to the right of the shape'
+                        })}
+                    </lcards-grid-layout>
+                `}
             </lcards-form-section>
         `;
     }

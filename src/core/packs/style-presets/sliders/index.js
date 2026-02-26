@@ -219,6 +219,54 @@ export const SLIDER_PRESETS = {
   // =====================================
   // PICARD PRESET - Picard-style vertical slider
   // =====================================
+  // =====================================
+  // SHAPED PRESETS — Generic clip-path fill
+  // =====================================
+
+  /**
+   * lozenge-basic: Vertical pill-shaped lozenge, fill rises from bottom.
+   * Use with: component: shaped  (set automatically by this preset).
+   */
+  'lozenge-basic': {
+    extends: 'slider.base',
+    description: 'Pill-shaped lozenge slider with exterior text labels. Set track.orientation to switch between vertical and horizontal.',
+
+    component: 'shaped',
+
+    track: {
+      type:        'shaped',
+      orientation: 'vertical',
+      invert_fill: false,   // fill rises from bottom (vertical) / left (horizontal)
+      margin:      0        // no margin — clip path handles the shape boundary
+    },
+
+    shaped: {
+      type: 'lozenge',
+      label: {
+        top:    { size: 36 },
+        bottom: { size: 28 },
+        left:   { size: 60 },
+        right:  { size: 60 }
+      },
+      track: {
+        background: 'theme:components.slider.track.background'
+      }
+    },
+
+    text: {
+      name: {
+        position: 'bottom-center',
+        show: true
+      },
+      state: {
+        position: 'top-center',
+        show: true
+      }
+    }
+  },
+
+  // -----------------------------------------------------------------------
+
   'picard-gauge-vertical': {
     extends: 'slider.gauge-basic',
     description: 'Picard-style vertical slider',

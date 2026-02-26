@@ -12,6 +12,7 @@
 import defaultComponent from './default.js';
 import picardComponent from './picard.js';
 import demoComponent from './demo.js';
+import shapedComponent from './shaped.js';
 
 /**
  * Slider component registry
@@ -32,7 +33,12 @@ export const sliderComponents = {
     'picard': picardComponent,
 
     // Demo component - comprehensive feature showcase (development/testing)
-    'demo': demoComponent
+    'demo': demoComponent,
+
+    // Shaped component - generic clip-path shell with exterior label bands
+    // Shape type (lozenge, rect, rounded, diamond, hexagon, polygon, path) is
+    // configured via style.shaped.type — defaults to lozenge.
+    'shaped': shapedComponent
 };
 
 /**
