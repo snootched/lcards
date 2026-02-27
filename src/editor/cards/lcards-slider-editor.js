@@ -1302,6 +1302,141 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Render the Corner Radius section for the Borders tab.
+     *
+     * Writes to style.border.radius — either a uniform number/string or a
+     * per-corner object {top_left, top_right, bottom_right, bottom_left}.
+     *
+     * Each field accepts a plain number, a px/rem string, or a CSS variable
+     * such as var(--ha-card-border-radius).
+     *
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderBorderRadiusSection() {
+        const currentRadius = this.config?.style?.border?.radius;
+        const isPerCorner = typeof currentRadius === 'object' && currentRadius !== null;
+
+        /** Convert any config value to a display string for ha-textfield */
+        const toStr = (v) => (v === undefined || v === null) ? '' : String(v);
+
+        /**
+         * Parse a text-field string to Number when it looks like a bare number,
+         * otherwise keep as string (CSS var / px / rem).  Returns undefined for
+         * empty strings so the key is removed from config.
+         */
+        const parseVal = (str) => {
+            if (!str || !str.trim()) return undefined;
+            const s = str.trim();
+            const n = parseFloat(s);
+            return (!isNaN(n) && String(n) === s) ? n : s;
+        };
+
+        const handleUniform = (e) => {
+            const parsed = parseVal(e.target.value);
+            this._setConfigValue('style.border.radius', parsed);
+        };
+
+        const handleCorner = (corner, e) => {
+            const parsed = parseVal(e.target.value);
+            const existing = this.config?.style?.border?.radius;
+            const obj = (typeof existing === 'object' && existing !== null)
+                ? { ...existing }
+                : { top_left: 0, top_right: 0, bottom_right: 0, bottom_left: 0 };
+            if (parsed === undefined) {
+                delete obj[corner];
+            } else {
+                obj[corner] = parsed;
+            }
+            this._setConfigValue('style.border.radius', obj);
+        };
+
+        const handleModeToggle = (e) => {
+            const wantPerCorner = e.detail.value;
+            if (wantPerCorner && !isPerCorner) {
+                // Convert current uniform value to per-corner object
+                const cur = currentRadius;
+                const n = (typeof cur === 'number') ? cur
+                        : (typeof cur === 'string' ? (parseFloat(cur) || 0) : 0);
+                this._setConfigValue('style.border.radius', {
+                    top_left: n, top_right: n,
+                    bottom_right: n, bottom_left: n
+                });
+            } else if (!wantPerCorner && isPerCorner) {
+                // Convert per-corner to a uniform average (or 0)
+                const vals = Object.values(currentRadius)
+                    .map(v => typeof v === 'number' ? v : (parseFloat(v) || 0))
+                    .filter(v => !isNaN(v));
+                const avg = vals.length
+                    ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+                    : 0;
+                this._setConfigValue('style.border.radius', avg || undefined);
+            }
+        };
+
+        return html`
+            <lcards-form-section
+                header="Corner Radius"
+                description="Round the card corners — clips all borders and content uniformly"
+                icon="mdi:rounded-corner"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message
+                    type="info"
+                    message="Clips the entire card with rounded corners via SVG. Supports pixel numbers (12), px/rem strings (12px), CSS variables (var(--ha-card-border-radius)), or per-corner control for LCARS end-cap styling (e.g. round only the free end of a left-bordered slider).">
+                </lcards-message>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${isPerCorner}
+                    .label=${'Per-Corner Radius'}
+                    @value-changed=${handleModeToggle}>
+                </ha-selector>
+
+                ${!isPerCorner ? html`
+                    <ha-textfield
+                        label="Radius"
+                        .value=${toStr(currentRadius)}
+                        helper="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
+                        helperPersistent
+                        @change=${handleUniform}>
+                    </ha-textfield>
+                ` : html`
+                    <lcards-grid-layout>
+                        <ha-textfield
+                            label="Top Left"
+                            .value=${toStr(currentRadius?.top_left)}
+                            helper="Number, px, rem, or CSS var"
+                            @change=${(e) => handleCorner('top_left', e)}>
+                        </ha-textfield>
+                        <ha-textfield
+                            label="Top Right"
+                            .value=${toStr(currentRadius?.top_right)}
+                            helper="Number, px, rem, or CSS var"
+                            @change=${(e) => handleCorner('top_right', e)}>
+                        </ha-textfield>
+                        <ha-textfield
+                            label="Bottom Left"
+                            .value=${toStr(currentRadius?.bottom_left)}
+                            helper="Number, px, rem, or CSS var"
+                            @change=${(e) => handleCorner('bottom_left', e)}>
+                        </ha-textfield>
+                        <ha-textfield
+                            label="Bottom Right"
+                            .value=${toStr(currentRadius?.bottom_right)}
+                            helper="Number, px, rem, or CSS var"
+                            @change=${(e) => handleCorner('bottom_right', e)}>
+                        </ha-textfield>
+                    </lcards-grid-layout>
+                `}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
      * Borders Tab - Border sizing and state-based colors
      * @returns {TemplateResult}
      * @private
@@ -1312,6 +1447,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 type="info"
                 message="Configure SVG border caps (left, top, right, bottom) with sizes and state-based colors.">
             </lcards-message>
+
+            <!-- Corner Radius -->
+            ${this._renderBorderRadiusSection()}
 
             <!-- Left Border -->
             <lcards-form-section
