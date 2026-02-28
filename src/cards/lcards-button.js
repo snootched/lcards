@@ -493,10 +493,19 @@ export class LCARdSButton extends LCARdSCard {
         });
 
         // ── 6. Build segment array and hand off to the SVG pipeline ───────────
+        // The 'default' key is a fallback template (mirrors _convertSegmentsObjectToArray):
+        // its properties are merged into every real segment, but it never becomes a segment
+        // itself (there is no SVG element with id="default").
+        const defaultSegCfg = effectiveSegments.default || {};
+        const realSegmentEntries = Object.entries(effectiveSegments).filter(([id]) => id !== 'default');
+        const mergedSegmentEntries = Object.keys(defaultSegCfg).length > 0
+            ? realSegmentEntries.map(([id, segCfg]) => [id, deepMergeImmutable(defaultSegCfg, segCfg)])
+            : realSegmentEntries;
+
         const svgConfig = {
             content: svgContent,
             enable_tokens: true,
-            segments: Object.entries(effectiveSegments).map(([id, segCfg]) => ({
+            segments: mergedSegmentEntries.map(([id, segCfg]) => ({
                 id,
                 selector: segCfg.selector || `#${id}`,
                 ...segCfg
@@ -1148,9 +1157,15 @@ export class LCARdSButton extends LCARdSCard {
 
                 // If scope exists but element is different (DOM was recreated), update the reference
                 if (existingScope && existingScope.element !== element) {
-                    lcardsLog.trace(`[LCARdSButton] Updating stale element reference for segment: ${segment.id}`);
+                    lcardsLog.debug(`[LCARdSButton] Stale element detected for segment: ${segment.id} — DOM was recreated (e.g. alert mode re-render)`);
 
-                    // Update element reference in scope
+                    // Stop any in-flight animations — they target the old detached element and
+                    // will never visually complete. This also clears runningInstances so
+                    // playAnimation can start fresh on the new element.
+                    animationManager.stopAnimations(scopeKey);
+
+                    // Update element reference in scope BEFORE playAnimation so it resolves
+                    // scopeData.element → new element (isConnected check will pass).
                     existingScope.element = element;
 
                     // Update scope's anime.js root element
@@ -1161,6 +1176,20 @@ export class LCARdSButton extends LCARdSCard {
                     // Update trigger manager's element reference
                     if (existingScope.triggerManager) {
                         existingScope.triggerManager.element = element;
+                    }
+
+                    // Re-fire on_load animations on the new element.
+                    // Persistent (loop: true) on_load animations must restart when the DOM
+                    // element is replaced — this is the common case when alert mode is
+                    // restored on page load and triggers a HASS-propagated re-render.
+                    const onLoadAnims = (segment.animations || []).filter(
+                        a => (a.trigger || 'on_load') === 'on_load'
+                    );
+                    if (onLoadAnims.length > 0) {
+                        lcardsLog.debug(`[LCARdSButton] Re-firing ${onLoadAnims.length} on_load animation(s) on refreshed element for segment: ${segment.id}`);
+                        onLoadAnims.forEach(animDef => {
+                            animationManager.playAnimation(scopeKey, animationManager.resolveAnimationDefinition(animDef));
+                        });
                     }
 
                     lcardsLog.trace(`[LCARdSButton] ✅ Updated element reference for segment: ${segment.id}`);
