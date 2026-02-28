@@ -4140,11 +4140,11 @@ export class LCARdSButton extends LCARdSCard {
         // Get preset defaults from text.default (preset)
         const presetTextDefaults = this._buttonStyle?.text?.default || {};
 
-        // Default positions for preset fields
+        // Last-resort positions for well-known fields when nothing else specifies one.
         // NOTE: Only specify position here. Anchor/baseline should come from named position calculation!
         const presetDefaults = {
-            label: { position: userDefaults.position || this._buttonStyle?.text?.default?.position || 'center' },
-            name: { position: 'top-left' },
+            label: { position: 'center' },
+            name:  { position: 'top-left' },
             state: { position: 'bottom-right' }
         };
 
@@ -4190,7 +4190,8 @@ export class LCARdSButton extends LCARdSCard {
             resolvedFields[fieldId] = {
                 id: fieldId,
                 content: content,
-                position: fieldConfig.position || presetFieldConfig.position || presetDefault.position || null,
+                // Priority: field config → preset field → user text.default → preset text.default → hardcoded named fallback
+                position: fieldConfig.position || presetFieldConfig.position || userDefaults.position || presetTextDefaults.position || presetDefault.position || null,
                 x: fieldConfig.x !== undefined ? fieldConfig.x : (presetFieldConfig.x !== undefined ? presetFieldConfig.x : null),
                 y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),
                 x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : (presetFieldConfig.x_percent !== undefined ? presetFieldConfig.x_percent : null),
@@ -5619,7 +5620,7 @@ export class LCARdSButton extends LCARdSCard {
                 action: 'toggle'
             },
             text: {
-                name: {
+                label: {
                     content: 'LCARdS Button',
                     show: true,
                 }

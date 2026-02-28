@@ -21,7 +21,7 @@ export const BUTTON_PRESETS = {
   // =====================================
   base: {
     // Layout dimensions
-    height: 'theme:components.button.layout.height.standard',
+    //height: 'theme:components.button.layout.height.standard',
     min_height: 'theme:components.button.layout.minHeight',
 
     // Visibility defaults
@@ -68,7 +68,13 @@ export const BUTTON_PRESETS = {
         position: 'top-right',
         content: "{entity.state}",
         show: false
-      }
+      },
+      label: {
+        // State-specific overrides (if any)
+        position: 'center',
+        content: "LCARdS Button",
+        show: false
+       }
     },
 
     // Border styling (nested structure)
@@ -585,16 +591,20 @@ export const BUTTON_PRESETS = {
           bottom: 4,    // Small offset down to visually center Antonio font (compensates for cap height)
           left: 15,
           right: 15
-        }
+        },
+        position: 'center'  // Center text within button area
       },
       label: {
-        show: true
+        show: true,
+        position: 'center'
       },
       state: {
-        show: false
+        show: false,
+        position: 'center'
       },
       name: {
-        show: false
+        show: false,
+        position: 'center'
       }
     },
 
@@ -616,6 +626,10 @@ export const BUTTON_PRESETS = {
           left: 32,  // Space from left edge of bar
           right: 15
         }
+      },
+      label: {
+        show: true,
+        position: 'left-center'
       }
     }
   },
@@ -634,6 +648,10 @@ export const BUTTON_PRESETS = {
           left: 15,
           right: 15
         }
+      },
+      label: {
+        show: true,
+        position: 'center'
       }
     }
   },
@@ -652,6 +670,10 @@ export const BUTTON_PRESETS = {
           left: 15,
           right: 32  // Space from right edge of bar
         }
+      },
+      label: {
+        show: true,
+        position: 'right-center'
       }
     }
   },
@@ -694,6 +716,10 @@ export const BUTTON_PRESETS = {
     text: {
       default: {
         position: 'center'
+      },
+      label: {
+        show: true,
+        position: 'center'
       }
     }
   },
@@ -715,6 +741,10 @@ export const BUTTON_PRESETS = {
     text: {
       default: {
         position: 'left-center'
+      },
+      label: {
+        show: true,
+        position: 'left-center'
       }
     }
   },
@@ -735,6 +765,10 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
+        position: 'right-center'
+      },
+      label: {
+        show: true,
         position: 'right-center'
       }
     }
