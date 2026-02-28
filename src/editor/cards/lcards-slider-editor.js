@@ -833,7 +833,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 header="Pills Settings"
                 description="Segment configuration and appearance"
                 icon="mdi:view-sequential"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
@@ -872,10 +872,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?useColorPicker=${true}>
                 </lcards-color-section>
 
-                ${FormField.renderField(this, 'style.track.segments.gradient.interpolated', {
-                    label: 'Interpolate Colors',
-                    helper: 'Blend colors smoothly across segments'
-                })}
             </lcards-form-section>
 
             <!-- Opacity Settings -->
@@ -914,7 +910,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 header="Progress Bar"
                 description="Current value indicator bar"
                 icon="mdi:progress-check"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
@@ -974,7 +970,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 header="Tick Marks & Scale"
                 description="Major and minor tick marks"
                 icon="mdi:ruler"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 
@@ -1456,7 +1452,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 header="Left Border"
                 description="Left border cap configuration"
                 icon="mdi:border-left"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 

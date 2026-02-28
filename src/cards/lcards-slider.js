@@ -1410,7 +1410,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Using concatenated string for efficiency instead of JSON.stringify
         const configHash = `${trackConfig?.count || 10}|${trackConfig?.gap || 4}|${trackConfig?.shape?.radius ?? 4}|` +
             `${trackConfig?.size?.height || 12}|${trackConfig?.gradient?.start || ''}|${trackConfig?.gradient?.end || ''}|` +
-            `${trackConfig?.gradient?.interpolated || false}|${orientation}|${width}|${height}|` +
+            `${orientation}|${width}|${height}|` +
             `${JSON.stringify(this._sliderStyle?.ranges || [])}`; // NEW: Include ranges
 
         // Check memoization cache
@@ -1440,9 +1440,8 @@ export class LCARdSSlider extends LCARdSButton {
     _generatePillsSVG(trackBounds, trackConfig, orientation = 'horizontal') {
         const gap = parseInt(trackConfig?.gap) || 4;
         const radius = trackConfig?.shape?.radius ?? 4;
-        const interpolated = trackConfig?.gradient?.interpolated ?? false;
-        let gradientStart = ColorUtils.resolveCssVariable(trackConfig?.gradient?.start || 'var(--error-color, var(--lcards-orange-dark, #cc2200))');
-        let gradientEnd = ColorUtils.resolveCssVariable(trackConfig?.gradient?.end || 'var(--success-color, var(--lcards-green-medium, #33cc99))');
+        let gradientStart = this._resolveColorValue(trackConfig?.gradient?.start || 'var(--error-color, var(--lcards-orange-dark, #cc2200))');
+        let gradientEnd = this._resolveColorValue(trackConfig?.gradient?.end || 'var(--success-color, var(--lcards-green-medium, #33cc99))');
 
         // Reverse gradient direction when fill is inverted
         if (this._invertFill) {
@@ -1485,7 +1484,7 @@ export class LCARdSSlider extends LCARdSButton {
                 // This ensures pills at exact boundaries (e.g., 66.6, 77.7, 88.8 in 66-100 range) are matched
                 const matchingRange = ranges.find(r => pillValue >= r.min && pillValue <= r.max);
                 if (matchingRange) {
-                    return ColorUtils.resolveCssVariable(matchingRange.color);
+                    return this._resolveColorValue(matchingRange.color);
                 }
             }
 
@@ -1668,14 +1667,14 @@ export class LCARdSSlider extends LCARdSButton {
         // Extract all config parameters
         return {
             type: indicatorConfig.type || 'line',
-            color: ColorUtils.resolveCssVariable(indicatorConfig.color || 'var(--lcars-white, #ffffff)'),
+            color: this._resolveColorValue(indicatorConfig.color || 'var(--lcars-white, #ffffff)'),
             width: indicatorConfig.size?.width || 4,
             height: indicatorConfig.size?.height || 25,
             rotation: indicatorConfig.rotation || 0,
             offsetX: indicatorConfig.offset?.x || 0,
             offsetY: indicatorConfig.offset?.y || 0,
             borderEnabled: indicatorConfig.border?.enabled !== false,
-            borderColor: ColorUtils.resolveCssVariable(indicatorConfig.border?.color || 'var(--lcars-black, #000000)'),
+            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'var(--lcars-black, #000000)'),
             borderWidth: indicatorConfig.border?.width || 1
         };
     }
@@ -1794,7 +1793,7 @@ export class LCARdSSlider extends LCARdSButton {
             ranges.forEach((rangeConfig, idx) => {
                 const rangeMin = rangeConfig.min;
                 const rangeMax = rangeConfig.max;
-                const rangeColor = ColorUtils.resolveCssVariable(rangeConfig.color);
+                const rangeColor = this._resolveColorValue(rangeConfig.color);
                 const rangeOpacity = rangeConfig.opacity ?? 0.3;
 
                 // Calculate range position as percentage of display range
@@ -1883,7 +1882,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Progress bar configuration
         const progressConfig = gaugeConfig?.progress_bar;
-        const progressColor = ColorUtils.resolveCssVariable(progressConfig?.color || 'var(--lcards-blue-light, #aaccff)');
+        const progressColor = this._resolveColorValue(progressConfig?.color || 'var(--lcards-blue-light, #aaccff)');
         const progressHeight = progressConfig?.height || 12;
         const progressRadius = progressConfig?.radius !== undefined ? progressConfig?.radius : 2;
 
@@ -2609,14 +2608,14 @@ export class LCARdSSlider extends LCARdSButton {
             borderLeft: this._resolveStateBorderColor(borderConfig?.left?.color),
             borderRight: this._resolveStateBorderColor(borderConfig?.right?.color),
             // Progress bar color
-            progressBar: ColorUtils.resolveCssVariable(this._sliderStyle?.gauge?.progress_bar?.color) || '#00EDED',
+            progressBar: this._resolveColorValue(this._sliderStyle?.gauge?.progress_bar?.color) || '#00EDED',
             // Range frame and borders
-            rangeBorder: ColorUtils.resolveCssVariable(this._sliderStyle?.range?.border?.color) || '#000000',
-            rangeFrame: ColorUtils.resolveCssVariable(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color) || '#000000',
+            rangeFrame: this._resolveColorValue(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
-            solidBar: ColorUtils.resolveCssVariable(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            solidBar: this._resolveColorValue(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: ColorUtils.resolveCssVariable(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0',
+            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color) || '#3AA5D0',
             // Shaped component: track background (the "empty" portion inside the shape)
             trackBackground: this._resolveColorValue(
                 this._sliderStyle?.shaped?.track?.background
@@ -2682,13 +2681,47 @@ export class LCARdSSlider extends LCARdSButton {
             trackZoneElement.innerHTML = trackContent;
         }
 
-        // Inject progress bar into progress zone if it exists
-        // The progress bar includes the value indicator (marks the end of the bar)
+        // Inject progress bar — only for components that declare a #progress-zone element.
+        //
+        // Two cases based on whether progress and track zones spatially overlap:
+        //
+        //   NON-OVERLAPPING (e.g. picard: progress strip at x≈100, track at x≈199)
+        //     → The progress zone is a dedicated separate bar. Always inject directly
+        //       into #progress-zone. z-order is irrelevant since they don't share pixels.
+        //
+        //   OVERLAPPING (e.g. default: both zones occupy full component bounds)
+        //     → The fill sits on top of or behind the gauge ticks depending on config:
+        //       No height set  → "background fill" mode: prepend to track-zone so
+        //                        gauge ticks render on top of the fill.
+        //       Height set     → "explicit bar" mode: inject into progress-zone which
+        //                        renders after track-zone, placing bar/indicator on top.
         const progressZoneElement = shellElement.querySelector('#progress-zone');
         if (progressZoneElement && progressZone && this._mode === 'gauge') {
             const progressBarContent = this._generateProgressBar(progressZone, orientation);
+
             if (progressBarContent) {
-                progressZoneElement.innerHTML = progressBarContent;
+                // Detect spatial overlap between progress and track zones
+                const zonesOverlap = trackZone &&
+                    progressZone.x < trackZone.x + trackZone.width &&
+                    progressZone.x + progressZone.width > trackZone.x &&
+                    progressZone.y < trackZone.y + trackZone.height &&
+                    progressZone.y + progressZone.height > trackZone.y;
+
+                if (!zonesOverlap) {
+                    // Separate dedicated zone (picard) — inject directly into its element
+                    progressZoneElement.innerHTML = progressBarContent;
+                } else {
+                    const hasExplicitBar = this._sliderStyle?.gauge?.progress_bar?.height != null;
+                    if (hasExplicitBar) {
+                        // Foreground: inject into progress-zone (renders after track-zone in SVG)
+                        progressZoneElement.innerHTML = progressBarContent;
+                    } else {
+                        // Background: prepend to track-zone so gauge ticks paint over the fill
+                        if (trackZoneElement) {
+                            trackZoneElement.innerHTML = progressBarContent + (trackZoneElement.innerHTML || '');
+                        }
+                    }
+                }
             }
         }
 
@@ -3026,7 +3059,7 @@ export class LCARdSSlider extends LCARdSButton {
         });
 
         // Get fill color (gauge active color or progress_bar color)
-        const fillColor = ColorUtils.resolveCssVariable(
+        const fillColor = this._resolveColorValue(
             progressBarConfig.color ||
             gaugeConfig?.fill?.color?.active ||
             '#93e1ff'

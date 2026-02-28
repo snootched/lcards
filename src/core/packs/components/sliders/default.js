@@ -62,7 +62,19 @@ export function render(context) {
   <!-- Background (transparent by default, can be styled via config) -->
   <rect width="${width}" height="${height}" fill="transparent"></rect>
 
-  <!-- Progress bar zone (overlapping with track) -->
+  <!-- Range indicators zone (overlapping with track) -->
+  <g id="range-zone" data-zone="range"
+     transform="translate(${zones.range.x}, ${zones.range.y})"
+     data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
+  </g>
+
+  <!-- Track zone (gauge or pills) — rendered before progress so indicator appears on top -->
+  <g id="track-zone" data-zone="track"
+     transform="translate(${zones.track.x}, ${zones.track.y})"
+     data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}">
+  </g>
+
+  <!-- Progress bar zone — rendered after track so value indicator overlays tick marks -->
   <g id="progress-zone" data-zone="progress"
      transform="translate(${zones.progress.x}, ${zones.progress.y})"
      data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">
@@ -74,18 +86,6 @@ export function render(context) {
         width="${zones.control.width}" height="${zones.control.height}"
         fill="none" stroke="none" pointer-events="all"
         data-bounds="${zones.control.x},${zones.control.y},${zones.control.width},${zones.control.height}" />
-
-  <!-- Range indicators zone (overlapping with track) -->
-  <g id="range-zone" data-zone="range"
-     transform="translate(${zones.range.x}, ${zones.range.y})"
-     data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
-  </g>
-
-  <!-- Track zone (gauge or pills) -->
-  <g id="track-zone" data-zone="track"
-     transform="translate(${zones.track.x}, ${zones.track.y})"
-     data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}">
-  </g>
 
   <!-- Text zone -->
   <g id="text-zone" data-zone="text"

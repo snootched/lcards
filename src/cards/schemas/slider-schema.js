@@ -447,11 +447,6 @@ export function getSliderSchema(options = {}) {
                                         type: 'object',
                                         description: 'Color gradient configuration',
                                         properties: {
-                                            interpolated: {
-                                                type: 'boolean',
-                                                default: true,
-                                                description: 'Interpolate colors between start and end'
-                                            },
                                             start: simpleColorSchema,
                                             end: simpleColorSchema
                                         }

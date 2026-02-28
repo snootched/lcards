@@ -155,7 +155,6 @@ export const SLIDER_PRESETS = {
           size: { width: 'theme:components.slider.pills.segment.width' },
           shape:    { radius: 'theme:components.slider.pills.radius' },
           gradient: {
-            interpolated: true,
             start: 'theme:components.slider.pills.gradient.start',
             end:   'theme:components.slider.pills.gradient.end'
           },
