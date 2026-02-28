@@ -2681,46 +2681,32 @@ export class LCARdSSlider extends LCARdSButton {
             trackZoneElement.innerHTML = trackContent;
         }
 
-        // Inject progress bar — only for components that declare a #progress-zone element.
+        // Inject progress bar into the appropriate zone.
         //
-        // Two cases based on whether progress and track zones spatially overlap:
+        // z-order is controlled by two named zone elements in the component SVG:
+        //   #progress-zone-bg  — declared BEFORE #track-zone  → renders behind gauge ticks
+        //   #progress-zone     — declared AFTER  #track-zone  → renders in front of gauge ticks
         //
-        //   NON-OVERLAPPING (e.g. picard: progress strip at x≈100, track at x≈199)
-        //     → The progress zone is a dedicated separate bar. Always inject directly
-        //       into #progress-zone. z-order is irrelevant since they don't share pixels.
+        // The target is selected by config: style.gauge.progress_bar.layer
+        //   'background' (default) → prefer #progress-zone-bg
+        //   'foreground'           → prefer #progress-zone
         //
-        //   OVERLAPPING (e.g. default: both zones occupy full component bounds)
-        //     → The fill sits on top of or behind the gauge ticks depending on config:
-        //       No height set  → "background fill" mode: prepend to track-zone so
-        //                        gauge ticks render on top of the fill.
-        //       Height set     → "explicit bar" mode: inject into progress-zone which
-        //                        renders after track-zone, placing bar/indicator on top.
-        const progressZoneElement = shellElement.querySelector('#progress-zone');
-        if (progressZoneElement && progressZone && this._mode === 'gauge') {
+        // Fallback: if the requested zone doesn't exist in the component's SVG, try the other.
+        // This means picard (which only declares #progress-zone) works correctly regardless of
+        // what layer the user configures — it simply uses the one zone it has.
+        if (progressZone && this._mode === 'gauge') {
             const progressBarContent = this._generateProgressBar(progressZone, orientation);
 
             if (progressBarContent) {
-                // Detect spatial overlap between progress and track zones
-                const zonesOverlap = trackZone &&
-                    progressZone.x < trackZone.x + trackZone.width &&
-                    progressZone.x + progressZone.width > trackZone.x &&
-                    progressZone.y < trackZone.y + trackZone.height &&
-                    progressZone.y + progressZone.height > trackZone.y;
+                const layer = this._sliderStyle?.gauge?.progress_bar?.layer ?? 'background';
+                const preferredId = layer === 'foreground' ? '#progress-zone' : '#progress-zone-bg';
+                const fallbackId  = layer === 'foreground' ? '#progress-zone-bg' : '#progress-zone';
+                const targetElement =
+                    shellElement.querySelector(preferredId) ||
+                    shellElement.querySelector(fallbackId);
 
-                if (!zonesOverlap) {
-                    // Separate dedicated zone (picard) — inject directly into its element
-                    progressZoneElement.innerHTML = progressBarContent;
-                } else {
-                    const hasExplicitBar = this._sliderStyle?.gauge?.progress_bar?.height != null;
-                    if (hasExplicitBar) {
-                        // Foreground: inject into progress-zone (renders after track-zone in SVG)
-                        progressZoneElement.innerHTML = progressBarContent;
-                    } else {
-                        // Background: prepend to track-zone so gauge ticks paint over the fill
-                        if (trackZoneElement) {
-                            trackZoneElement.innerHTML = progressBarContent + (trackZoneElement.innerHTML || '');
-                        }
-                    }
+                if (targetElement) {
+                    targetElement.innerHTML = progressBarContent;
                 }
             }
         }

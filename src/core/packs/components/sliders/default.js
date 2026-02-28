@@ -68,13 +68,19 @@ export function render(context) {
      data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
   </g>
 
-  <!-- Track zone (gauge or pills) — rendered before progress so indicator appears on top -->
+  <!-- Progress bar background zone — rendered before track so ticks paint over the fill -->
+  <g id="progress-zone-bg" data-zone="progress"
+     transform="translate(${zones.progress.x}, ${zones.progress.y})"
+     data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">
+  </g>
+
+  <!-- Track zone (gauge or pills) -->
   <g id="track-zone" data-zone="track"
      transform="translate(${zones.track.x}, ${zones.track.y})"
      data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}">
   </g>
 
-  <!-- Progress bar zone — rendered after track so value indicator overlays tick marks -->
+  <!-- Progress bar foreground zone — rendered after track so value indicator overlays tick marks -->
   <g id="progress-zone" data-zone="progress"
      transform="translate(${zones.progress.x}, ${zones.progress.y})"
      data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}">

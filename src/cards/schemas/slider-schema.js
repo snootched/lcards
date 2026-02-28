@@ -489,6 +489,24 @@ export function getSliderSchema(options = {}) {
                                 description: 'Progress indicator bar',
                                 properties: {
                                     color: stateColorSchema,
+                                    layer: {
+                                        type: 'string',
+                                        enum: ['background', 'foreground'],
+                                        default: 'background',
+                                        'x-ui-hints': {
+                                            selector: {
+                                                select: {
+                                                    mode: 'dropdown',
+                                                    options: [
+                                                        { value: 'background', label: 'Background (behind ticks)' },
+                                                        { value: 'foreground', label: 'Foreground (in front of ticks)' }
+                                                    ]
+                                                }
+                                            },
+                                            label: 'Layer',
+                                            helper: 'Whether the progress bar renders behind or in front of gauge tick marks'
+                                        }
+                                    },
                                     height: {
                                         oneOf: [
                                             { type: 'number', minimum: 1, maximum: 100 },

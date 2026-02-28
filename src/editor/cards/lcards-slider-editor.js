@@ -931,6 +931,17 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             { value: 'end', label: 'End' }
                         ]
                     })}
+
+                    ${FormField.renderField(this, 'style.gauge.progress_bar.layer', {
+                        label: 'Layer',
+                        helper: 'Render behind or in front of gauge tick marks',
+                        type: 'select',
+                        mode: 'dropdown',
+                        options: [
+                            { value: 'background', label: 'Background (behind ticks)' },
+                            { value: 'foreground', label: 'Foreground (in front of ticks)' }
+                        ]
+                    })}
                 </lcards-grid-layout>
 
                 <!-- Progress bar padding -->
