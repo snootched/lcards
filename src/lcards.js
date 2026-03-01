@@ -31,6 +31,7 @@ import { LCARdSChart } from './cards/lcards-chart.js';
 import { LCARdSSlider } from './cards/lcards-slider.js';
 import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 import { LCARdSMSDCard } from './cards/lcards-msd.js';
+import { LCARdSAlertOverlay } from './cards/lcards-alert-overlay.js';
 import { LCARdSConfigPanel } from './panels/lcards-config-panel.js';
 
 
@@ -186,6 +187,7 @@ initializeCustomCard()
         customElements.define('lcards-slider', LCARdSSlider);
         customElements.define('lcards-data-grid', LCARdSDataGrid);
         customElements.define('lcards-msd-card', LCARdSMSDCard);
+        customElements.define('lcards-alert-overlay', LCARdSAlertOverlay);
         //customElements.define('lcards-config-panel', LCARdSConfigPanel);
 
         lcardsLog.debug('[lcards.js] All custom elements registered after core initialization');
@@ -199,6 +201,7 @@ initializeCustomCard()
             if (LCARdSSlider.registerSchema) LCARdSSlider.registerSchema();
             if (LCARdSDataGrid.registerSchema) LCARdSDataGrid.registerSchema();
             if (LCARdSMSDCard.registerSchema) LCARdSMSDCard.registerSchema();
+            if (LCARdSAlertOverlay.registerSchema) LCARdSAlertOverlay.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
         } else {
@@ -253,6 +256,13 @@ const LCARdSCardClasses = [
         name: 'LCARdS MSD',
         preview: true,
         description: 'LCARdS Master Systems Display (MSD) card',
+        documentationURL: "https://cb-lcars.unimatrix01.ca",
+    },
+    {
+        type: 'lcards-alert-overlay',
+        name: 'LCARdS Alert Overlay',
+        preview: false,
+        description: 'Full-screen alert overlay that reacts to lcards_alert_mode with backdrop and content card',
         documentationURL: "https://cb-lcars.unimatrix01.ca",
     }
 ];

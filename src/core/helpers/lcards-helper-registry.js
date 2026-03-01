@@ -64,6 +64,24 @@ export const HELPER_REGISTRY = {
     icon: mdi:auto-mode`
   },
 
+  alert_message: {
+    entity_id: 'input_text.lcards_alert_message',
+    domain: 'input_text',
+    name: 'LCARdS Alert Message',
+    description: 'Optional custom message to display in the alert overlay content card',
+    icon: 'mdi:message-alert',
+    category: 'alert_system',
+    ws_create_params: {
+      max: 255,
+    },
+    default_value: '',
+    yaml_config: `input_text:
+  lcards_alert_message:
+    name: LCARdS Alert Message
+    max: 255
+    icon: mdi:message-alert`
+  },
+
   // ===== RED ALERT HSL =====
 
   alert_lab_red_hue: {
