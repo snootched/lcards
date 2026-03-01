@@ -1,9 +1,0 @@
-{
-  "name": "LCARdS",
-  "content_in_root": false,
-  "filename": "lcards.js",
-  "render_readme": true,
-  "domains": ["script", "sensor", "light", "switch", "binary_sensor"],
-  "homeassistant": "2024.1.0",
-  "iot_class": "Cloud Polling"
-}
