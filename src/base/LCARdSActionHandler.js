@@ -229,7 +229,7 @@ export class LCARdSActionHandler {
         let isHolding = false;
 
         // Tap action handler with double-tap coordination
-        if (actions.tap_action) {
+        if (actions.tap_action || actions.double_tap_action) {
             const tapHandler = async (event) => {
                 // Check if click target is a segment element (Phase 2 multi-action regions)
                 // Walk up the DOM tree to check for data-lcards-segment attribute
@@ -263,7 +263,7 @@ export class LCARdSActionHandler {
                         lastTapTime = now;
                         // Wait for potential second tap
                         setTimeout(async () => {
-                            if (tapCount === 1) {
+                            if (tapCount === 1 && actions.tap_action) {
                                 // Single tap confirmed
                                 lcardsLog.debug(`[LCARdSActionHandler] 🎯 Single tap action triggered`);
 
@@ -282,9 +282,21 @@ export class LCARdSActionHandler {
                             tapCount = 0;
                         }, 300);
                     } else if (tapCount === 2) {
-                        // Double tap detected - will be handled by double_tap_action handler
-                        lcardsLog.debug(`[LCARdSActionHandler] Double tap detected, deferring to double_tap_action`);
+                        // Double tap detected - execute immediately (dblclick is unreliable on touch devices)
+                        lcardsLog.debug(`[LCARdSActionHandler] 🎯 Double-tap action triggered`);
                         tapCount = 0;
+
+                        // Ensure animations are registered (late-binding if needed)
+                        await ensureAnimationsRegistered();
+
+                        // Trigger animation if registration completed
+                        const dtAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
+                        if (dtAnimationManager && elementId) {
+                            dtAnimationManager.triggerAnimations(elementId, 'on_double_tap');
+                        }
+
+                        playSound('card_double_tap');
+                        this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
                     }
                 } else {
                     // No double-tap action configured, execute immediately
@@ -367,35 +379,9 @@ export class LCARdSActionHandler {
             });
         }
 
-        // Double tap action handler
-        if (actions.double_tap_action) {
-            const doubleTapHandler = async (event) => {
-                event.stopPropagation();
-                event.preventDefault();
-
-                if (tapCount === 2) {
-                    lcardsLog.debug(`[LCARdSActionHandler] 🎯 Double-tap action triggered`);
-
-                    // Ensure animations are registered (late-binding if needed)
-                    await ensureAnimationsRegistered();
-
-                    // Trigger animation if registration completed
-                    const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
-                    if (currentAnimationManager && elementId) {
-                        currentAnimationManager.triggerAnimations(elementId, 'on_double_tap');
-                    }
-
-                    playSound('card_double_tap');
-                    this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
-                    tapCount = 0;
-                }
-            };
-
-            element.addEventListener('dblclick', doubleTapHandler, { capture: true });
-            cleanupFunctions.push(() => {
-                element.removeEventListener('dblclick', doubleTapHandler, { capture: true });
-            });
-        }
+        // Note: double_tap_action is handled directly inside the click handler above
+        // (dblclick event is not used - it fires after tapCount is already reset, and
+        //  doesn't work on touch devices at all)
 
         // Hover animation support (desktop only)
         if (elementId) {
