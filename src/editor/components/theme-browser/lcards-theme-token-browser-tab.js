@@ -13,7 +13,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
-import { ALERT_MODE_PALETTES, captureOriginalColors } from '../../../core/themes/paletteInjector.js';
+import { captureOriginalColors } from '../../../core/themes/paletteInjector.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import {
   transformColorToAlertMode,
@@ -3343,14 +3343,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * @returns {string} Transformed color
    */
   _getAlertModeColor(baseColor, varName, alertMode) {
-    // For --lcards-* variables, use pre-defined palettes
-    if (varName.startsWith('--lcards-')) {
-      const key = varName.replace('--lcards-', '');
-      const palette = ALERT_MODE_PALETTES[alertMode];
-      return palette?.[key] || baseColor;
-    }
-
-    // For --lcars-* variables, use HSL transformation
+    // All alert mode variables now use the unified HSL transform pipeline
     try {
       return transformColorToAlertMode(baseColor, alertMode);
     } catch (error) {

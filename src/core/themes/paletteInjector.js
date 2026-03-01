@@ -73,282 +73,6 @@ export const GREEN_ALERT_PALETTE = {
   'yellow-lightest': '#f5f5dc'
 };
 
-export const RED_ALERT_PALETTE = {
-  // Oranges
-  'orange-darkest': '#8b0000',
-  'orange-dark': '#a52a2a',
-  'orange-medium-dark': '#b22222',
-  'orange': '#dc143c',
-  'orange-medium': '#dc143c',  // Alias for base orange
-  'orange-medium-light': '#ff0000',
-  'orange-light': '#ff4500',
-  'orange-lightest': '#ff6347',
-
-  // Grays
-  'gray-darkest': '#8b0000',
-  'gray-dark': '#a52a2a',
-  'gray-medium-dark': '#b22222',
-  'gray': '#dc143c',
-  'gray-medium': '#dc143c',  // Alias for base gray
-  'gray-medium-light': '#ff0000',
-  'gray-light': '#ff4500',
-  'gray-lightest': '#ff7f50',
-  'moonlight': '#ff6347',
-
-  // Blues
-  'blue-darkest': '#cd5c5c',
-  'blue-dark': '#f08080',
-  'blue-medium-dark': '#e9967a',
-  'blue': '#fa8072',
-  'blue-medium': '#fa8072',  // Alias for base blue
-  'blue-medium-light': '#ffa07a',
-  'blue-light': '#ff6347',
-  'blue-lightest': '#ff4500',
-
-  // Greens
-  'green-darkest': '#dc143c',
-  'green-dark': '#b22222',
-  'green-medium-dark': '#a52a2a',
-  'green': '#8b0000',
-  'green-medium': '#8b0000',  // Alias for base green
-  'green-medium-light': '#ff0000',
-  'green-light': '#ff4500',
-  'green-lightest': '#ff6347',
-
-  // Yellows
-  'yellow-darkest': '#8b0000',
-  'yellow-dark': '#a52a2a',
-  'yellow-medium-dark': '#b22222',
-  'yellow': '#dc143c',
-  'yellow-medium': '#dc143c',  // Alias for base yellow
-  'yellow-medium-light': '#ff0000',
-  'yellow-light': '#ff4500',
-  'yellow-lightest': '#ff6347'
-};
-
-export const BLUE_ALERT_PALETTE = {
-  // Oranges
-  'orange-darkest': '#00008b',
-  'orange-dark': '#0000cd',
-  'orange-medium-dark': '#4169e1',
-  'orange': '#4682b4',
-  'orange-medium': '#4682b4',  // Alias for base orange
-  'orange-medium-light': '#5f9ea0',
-  'orange-light': '#87ceeb',
-  'orange-lightest': '#b0e0e6',
-
-  // Grays
-  'gray-darkest': '#1c1c3c',
-  'gray-dark': '#2a2a5a',
-  'gray-medium-dark': '#3a3a7a',
-  'gray': '#4a4a9a',
-  'gray-medium': '#4a4a9a',  // Alias for base gray
-  'gray-medium-light': '#5a5ab4',
-  'gray-light': '#6a6ad4',
-  'gray-lightest': '#7a7af4',
-  'moonlight': '#5a5ab4',
-
-  // Blues
-  'blue-darkest': '#00008b',
-  'blue-dark': '#0000cd',
-  'blue-medium-dark': '#4169e1',
-  'blue': '#4682b4',
-  'blue-medium': '#4682b4',  // Alias for base blue
-  'blue-medium-light': '#5f9ea0',
-  'blue-light': '#87ceeb',
-  'blue-lightest': '#b0e0e6',
-
-  // Greens
-  'green-darkest': '#1c1c3c',
-  'green-dark': '#2a2a5a',
-  'green-medium-dark': '#3a3a7a',
-  'green': '#4a4a9a',
-  'green-medium': '#4a4a9a',  // Alias for base green
-  'green-medium-light': '#5a5ab4',
-  'green-light': '#6a6ad4',
-  'green-lightest': '#7a7af4',
-
-  // Yellows
-  'yellow-darkest': '#1c1c3c',
-  'yellow-dark': '#2a2a5a',
-  'yellow-medium-dark': '#3a3a7a',
-  'yellow': '#4a4a9a',
-  'yellow-medium': '#4a4a9a',  // Alias for base yellow
-  'yellow-medium-light': '#5a5ab4',
-  'yellow-light': '#6a6ad4',
-  'yellow-lightest': '#7a7af4'
-};
-
-export const YELLOW_ALERT_PALETTE = {
-  // Oranges
-  'orange-darkest': '#8b4513',
-  'orange-dark': '#d2691e',
-  'orange-medium-dark': '#ff8c00',
-  'orange': '#ffa500',
-  'orange-medium': '#ffa500',  // Alias for base orange
-  'orange-medium-light': '#ffb84d',
-  'orange-light': '#ffd700',
-  'orange-lightest': '#ffec8b',
-
-  // Grays
-  'gray-darkest': '#4b4b00',
-  'gray-dark': '#6b6b00',
-  'gray-medium-dark': '#8b8b00',
-  'gray': '#abab00',
-  'gray-medium': '#abab00',  // Alias for base gray
-  'gray-medium-light': '#cbcb00',
-  'gray-light': '#ebeb00',
-  'gray-lightest': '#fbfb00',
-  'moonlight': '#cbcb00',
-
-  // Blues
-  'blue-darkest': '#4b4b00',
-  'blue-dark': '#6b6b00',
-  'blue-medium-dark': '#8b8b00',
-  'blue': '#abab00',
-  'blue-medium': '#abab00',  // Alias for base blue
-  'blue-medium-light': '#cbcb00',
-  'blue-light': '#ebeb00',
-  'blue-lightest': '#fbfb00',
-
-  // Greens
-  'green-darkest': '#4b4b00',
-  'green-dark': '#6b6b00',
-  'green-medium-dark': '#8b8b00',
-  'green': '#abab00',
-  'green-medium': '#abab00',  // Alias for base green
-  'green-medium-light': '#cbcb00',
-  'green-light': '#ebeb00',
-  'green-lightest': '#fbfb00',
-
-  // Yellows
-  'yellow-darkest': '#8b4513',
-  'yellow-dark': '#d2691e',
-  'yellow-medium-dark': '#ff8c00',
-  'yellow': '#ffa500',
-  'yellow-medium': '#ffa500',  // Alias for base yellow
-  'yellow-medium-light': '#ffb84d',
-  'yellow-light': '#ffd700',
-  'yellow-lightest': '#ffec8b'
-};
-
-export const GRAY_ALERT_PALETTE = {
-  // Oranges
-  'orange-darkest': '#2b2b2b',
-  'orange-dark': '#3b3b3b',
-  'orange-medium-dark': '#4b4b4b',
-  'orange': '#5b5b5b',
-  'orange-medium': '#5b5b5b',  // Alias for base orange
-  'orange-medium-light': '#6b6b6b',
-  'orange-light': '#7b7b7b',
-  'orange-lightest': '#8b8b8b',
-
-  // Grays
-  'gray-darkest': '#2b2b2b',
-  'gray-dark': '#3b3b3b',
-  'gray-medium-dark': '#4b4b4b',
-  'gray': '#5b5b5b',
-  'gray-medium': '#5b5b5b',  // Alias for base gray
-  'gray-medium-light': '#6b6b6b',
-  'gray-light': '#7b7b7b',
-  'gray-lightest': '#8b8b8b',
-  'moonlight': '#6b6b6b',
-
-  // Blues
-  'blue-darkest': '#2b2b2b',
-  'blue-dark': '#3b3b3b',
-  'blue-medium-dark': '#4b4b4b',
-  'blue': '#5b5b5b',
-  'blue-medium': '#5b5b5b',  // Alias for base blue
-  'blue-medium-light': '#6b6b6b',
-  'blue-light': '#7b7b7b',
-  'blue-lightest': '#8b8b8b',
-
-  // Greens
-  'green-darkest': '#2b2b2b',
-  'green-dark': '#3b3b3b',
-  'green-medium-dark': '#4b4b4b',
-  'green': '#5b5b5b',
-  'green-medium': '#5b5b5b',  // Alias for base green
-  'green-medium-light': '#6b6b6b',
-  'green-light': '#7b7b7b',
-  'green-lightest': '#8b8b8b',
-
-  // Yellows
-  'yellow-darkest': '#2b2b2b',
-  'yellow-dark': '#3b3b3b',
-  'yellow-medium-dark': '#4b4b4b',
-  'yellow': '#5b5b5b',
-  'yellow-medium': '#5b5b5b',  // Alias for base yellow
-  'yellow-medium-light': '#6b6b6b',
-  'yellow-light': '#7b7b7b',
-  'yellow-lightest': '#8b8b8b'
-};
-
-export const BLACK_ALERT_PALETTE = {
-  // Oranges
-  'orange-darkest': '#0d0d0d',
-  'orange-dark': '#1a1a1a',
-  'orange-medium-dark': '#333333',
-  'orange': '#4d4d4d',
-  'orange-medium': '#4d4d4d',  // Alias for base orange
-  'orange-medium-light': '#666666',
-  'orange-light': '#808080',
-  'orange-lightest': '#999999',
-
-  // Grays
-  'gray-darkest': '#0d0d0d',
-  'gray-dark': '#1a1a1a',
-  'gray-medium-dark': '#333333',
-  'gray': '#4d4d4d',
-  'gray-medium': '#4d4d4d',  // Alias for base gray
-  'gray-medium-light': '#666666',
-  'gray-light': '#808080',
-  'gray-lightest': '#999999',
-  'moonlight': '#666666',
-
-  // Blues
-  'blue-darkest': '#0d0d0d',
-  'blue-dark': '#1a1a1a',
-  'blue-medium-dark': '#333333',
-  'blue': '#4d4d4d',
-  'blue-medium': '#4d4d4d',  // Alias for base blue
-  'blue-medium-light': '#666666',
-  'blue-light': '#808080',
-  'blue-lightest': '#999999',
-
-  // Greens
-  'green-darkest': '#0d0d0d',
-  'green-dark': '#1a1a1a',
-  'green-medium-dark': '#333333',
-  'green': '#4d4d4d',
-  'green-medium': '#4d4d4d',  // Alias for base green
-  'green-medium-light': '#666666',
-  'green-light': '#808080',
-  'green-lightest': '#999999',
-
-  // Yellows
-  'yellow-darkest': '#0d0d0d',
-  'yellow-dark': '#1a1a1a',
-  'yellow-medium-dark': '#333333',
-  'yellow': '#4d4d4d',
-  'yellow-medium': '#4d4d4d',  // Alias for base yellow
-  'yellow-medium-light': '#666666',
-  'yellow-light': '#808080',
-  'yellow-lightest': '#999999'
-};
-
-/**
- * Map alert mode names to their palettes
- */
-export const ALERT_MODE_PALETTES = {
-  green_alert: GREEN_ALERT_PALETTE,
-  red_alert: RED_ALERT_PALETTE,
-  blue_alert: BLUE_ALERT_PALETTE,
-  yellow_alert: YELLOW_ALERT_PALETTE,
-  gray_alert: GRAY_ALERT_PALETTE,
-  black_alert: BLACK_ALERT_PALETTE
-};
 
 /**
  * Fix ha-select helper text color by copying from ha-textfield
@@ -546,14 +270,11 @@ export async function setAlertMode(mode, hass, rootElement = null) {
   const root = rootElement || document.documentElement;
 
   // Validate mode
-  const palette = ALERT_MODE_PALETTES[mode];
-  if (!palette) {
+  if (!ALERT_MODE_TRANSFORMS[mode]) {
     lcardsLog.warn(`[PaletteInjector] Unknown alert mode: ${mode}, using green_alert`);
     mode = 'green_alert';
   }
 
-  // Get the appropriate palette
-  const targetPalette = ALERT_MODE_PALETTES[mode];
 
   // Apply blur transition effect during mode switch
   const mainView = document.querySelector('home-assistant')?.shadowRoot?.querySelector('home-assistant-main');
@@ -573,7 +294,7 @@ export async function setAlertMode(mode, hass, rootElement = null) {
       originalLcarsColors = captureOriginalColors(root);
 
       // Restore LCARdS fallback palette variables (--lcards-*)
-      injectPalette(targetPalette, root);
+      injectPalette(GREEN_ALERT_PALETTE, root);
 
       lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
     } else {
@@ -581,8 +302,8 @@ export async function setAlertMode(mode, hass, rootElement = null) {
       // Colors are captured at theme init, so no need to reload here
       await transformAndApplyAlertMode(mode, root, originalLcarsColors);
 
-      // Inject alert mode palette for LCARdS variables (--lcards-*)
-      injectPalette(targetPalette, root);
+      // Transform LCARdS fallback variables (--lcards-*) from green_alert baseline
+      injectTransformedPalette(mode, root);
 
       lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
     }
@@ -646,4 +367,23 @@ async function transformAndApplyAlertMode(mode, root, originalColors) {
   });
 
   lcardsLog.info(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
+}
+
+/**
+ * Transform and inject LCARdS fallback variables (--lcards-*) for a given alert mode.
+ * Uses GREEN_ALERT_PALETTE as the baseline, applying the same HSL pipeline as --lcars-*.
+ * This replaces the legacy per-mode static palettes with dynamic HSL-based transforms.
+ *
+ * @param {string} mode - Alert mode
+ * @param {Element} root - Root element
+ * @private
+ */
+function injectTransformedPalette(mode, root) {
+  let injectedCount = 0;
+  Object.entries(GREEN_ALERT_PALETTE).forEach(([key, baseColor]) => {
+    const transformed = transformColorToAlertMode(baseColor, mode);
+    root.style.setProperty(`--lcards-${key}`, transformed);
+    injectedCount++;
+  });
+  lcardsLog.debug(`[PaletteInjector] Injected ${injectedCount} transformed --lcards-* vars for mode: ${mode}`);
 }

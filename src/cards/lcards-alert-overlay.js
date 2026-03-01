@@ -21,6 +21,18 @@ import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js'
 // Import editor component so getConfigElement() works (bundled together)
 import '../editor/cards/lcards-alert-overlay-editor.js';
 
+/**
+ * Module-level singleton guard.
+ * Only one LCARdSAlertOverlay may be active at a time.  If a second card is
+ * placed on the same dashboard, it suppresses itself and logs a warning rather
+ * than creating duplicate portals and conflicting subscriptions.
+ *
+ * The canonical truth is DOM-based: if a [data-lcards-alert-portal] node already
+ * exists on document.body (owned by another instance), new instances suppress
+ * themselves.  This is more reliable than a JS module variable because it is
+ * immune to reconnect-ordering edge cases caused by HA theme reloads.
+ */
+
 export class LCARdSAlertOverlay extends LitElement {
 
     // -------------------------------------------------------------------------
@@ -49,6 +61,7 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isActive         = false;
         this._activeCondition  = null;
         this._isDismissed      = false;
+        this._isSuppressed     = false;
         // Portal DOM elements (appended to document.body to escape any CSS filter
         // stacking context applied to home-assistant-main by paletteInjector).
         this._portalEl         = null;
@@ -91,6 +104,23 @@ export class LCARdSAlertOverlay extends LitElement {
     connectedCallback() {
         super.connectedCallback();
 
+        // Singleton guard — DOM-presence based.
+        // Check whether another instance already has a portal on document.body.
+        // Using the DOM node as truth is immune to JS-variable staleness caused
+        // by HA reconnecting card elements in unexpected orders (e.g. after a
+        // theme reload triggers a full panel re-render).
+        const existingPortal = document.querySelector('[data-lcards-alert-portal]');
+        if (existingPortal && existingPortal !== this._portalEl) {
+            lcardsLog.warn(
+                '[LCARdSAlertOverlay] Another instance is already active. ' +
+                'Remove duplicate lcards-alert-overlay cards from your dashboard. ' +
+                'This instance will be suppressed.'
+            );
+            this._isSuppressed = true;
+            return;
+        }
+        this._isSuppressed = false;
+
         // Create the portal element on document.body so the overlay is never a
         // descendant of home-assistant-main.  This is required because
         // paletteInjector.setAlertMode() temporarily applies `filter: blur()` to
@@ -98,7 +128,10 @@ export class LCARdSAlertOverlay extends LitElement {
         // position:fixed children — making them invisible behind the filter layer.
         this._createPortal();
 
-        // Subscribe to alert_mode changes via HelperManager
+        // Subscribe to alert_mode changes via HelperManager.
+        // Cancel any stale subscription first (guards against reconnect without disconnect).
+        this._alertUnsubscribe?.();
+        this._alertUnsubscribe = null;
         const helperManager = window.lcards?.core?.helperManager;
         if (helperManager) {
             this._alertUnsubscribe = helperManager.subscribeToHelper(
@@ -122,6 +155,11 @@ export class LCARdSAlertOverlay extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
+
+        if (this._isSuppressed) {
+            this._isSuppressed = false;
+            return;
+        }
         this._alertUnsubscribe?.();
         this._alertUnsubscribe = null;
         this._unmountContentCard();
@@ -157,6 +195,8 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _handleAlertModeChange(newMode) {
+        if (this._isSuppressed) return;
+
         // Never show the overlay while the dashboard is being edited — multiple
         // component instances would all activate, stacking overlays on top of the
         // card editor and making it impossible to interact with.
@@ -464,6 +504,8 @@ export class LCARdSAlertOverlay extends LitElement {
         return {
             type: 'custom:lcards-alert-overlay',
             dismiss_mode: 'dismiss',
+            height: '33%',
+            width: '50%',
             backdrop: {
                 blur:    '8px',
                 opacity: 0.6,

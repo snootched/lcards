@@ -400,3 +400,67 @@ export function transformAllLCARSVariables(lcarsVariables, alertMode) {
 
   return transformed;
 }
+
+/**
+ * Load alert mode transform parameters from persistent HA helper entities.
+ *
+ * Reads user-customized Alert Lab values stored in input_number.lcards_alert_lab_*
+ * helpers and applies them as runtime transform overrides. Should be called before
+ * each alert mode application so page-reload customizations are not lost.
+ *
+ * @param {Object} helperManager - The LCARdS HelperManager singleton (may be null/undefined)
+ */
+export function loadAlertTransformsFromHelpers(helperManager) {
+  if (!helperManager) return;
+
+  ['red', 'yellow', 'blue', 'gray', 'black'].forEach(mode => {
+    const hueKey = `alert_lab_${mode}_hue`;
+    if (!helperManager.helperExists(hueKey)) return;
+
+    const modeKey = `${mode}_alert`;
+    const hueStrengthKey = `alert_lab_${mode}_hue_strength`;
+
+    const hue = parseFloat(helperManager.getHelperValue(hueKey));
+    const hueStrength = helperManager.helperExists(hueStrengthKey)
+      ? parseFloat(helperManager.getHelperValue(hueStrengthKey)) : NaN;
+    const saturation = parseFloat(helperManager.getHelperValue(`alert_lab_${mode}_saturation`)) / 100;
+    const lightness = parseFloat(helperManager.getHelperValue(`alert_lab_${mode}_lightness`)) / 100;
+
+    if (!isNaN(hue)) setAlertModeTransformParameter(modeKey, 'hueShift', hue);
+    if (!isNaN(hueStrength)) setAlertModeTransformParameter(modeKey, 'hueStrength', hueStrength);
+    if (!isNaN(saturation)) setAlertModeTransformParameter(modeKey, 'saturationMultiplier', saturation);
+    if (!isNaN(lightness)) setAlertModeTransformParameter(modeKey, 'lightnessMultiplier', lightness);
+
+    if (['red', 'yellow', 'blue'].includes(mode)) {
+      const centerHueKey = `alert_lab_${mode}_center_hue`;
+      if (helperManager.helperExists(centerHueKey)) {
+        const centerHue = parseFloat(helperManager.getHelperValue(centerHueKey));
+        const range = parseFloat(helperManager.getHelperValue(`alert_lab_${mode}_range`));
+        const strength = parseFloat(helperManager.getHelperValue(`alert_lab_${mode}_strength`));
+        setAlertModeTransformParameter(modeKey, 'hueAnchor', {
+          ...(DEFAULT_ALERT_MODE_TRANSFORMS[modeKey]?.hueAnchor || {}),
+          ...(!isNaN(centerHue) && { centerHue }),
+          ...(!isNaN(range) && { range }),
+          ...(!isNaN(strength) && { strength }),
+        });
+      }
+    }
+
+    if (mode === 'black') {
+      const thresholdKey = 'alert_lab_black_threshold';
+      if (helperManager.helperExists(thresholdKey)) {
+        const threshold = parseFloat(helperManager.getHelperValue(thresholdKey));
+        const darkMultiplier = parseFloat(helperManager.getHelperValue('alert_lab_black_dark_multiplier'));
+        const lightMultiplier = parseFloat(helperManager.getHelperValue('alert_lab_black_light_multiplier'));
+        setAlertModeTransformParameter('black_alert', 'contrastEnhancement', {
+          enabled: true,
+          ...(!isNaN(threshold) && { threshold }),
+          ...(!isNaN(darkMultiplier) && { darkMultiplier }),
+          ...(!isNaN(lightMultiplier) && { lightMultiplier }),
+        });
+      }
+    }
+
+    lcardsLog.debug(`[AlertModeTransform] Loaded ${modeKey} transform parameters from helpers`);
+  });
+}

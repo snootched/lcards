@@ -18,6 +18,7 @@ import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from '.
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
 import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS, captureOriginalColors } from './paletteInjector.js';
+import { loadAlertTransformsFromHelpers } from './alertModeTransform.js';
 
 /**
  * Built-in filter presets for base SVG
@@ -612,6 +613,9 @@ export class ThemeManager extends BaseService {
       lcardsLog.error('[ThemeManager] Cannot set alert mode - HASS not available');
       return;
     }
+
+    // Load user-customized transform parameters from persistent HA helpers (before injection)
+    loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
 
     // Apply alert mode (injectAlertMode handles CSS variable updates and event dispatch)
     await injectAlertMode(mode, hass);
