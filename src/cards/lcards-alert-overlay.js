@@ -18,6 +18,9 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 
+// Import editor component so getConfigElement() works (bundled together)
+import '../editor/cards/lcards-alert-overlay-editor.js';
+
 export class LCARdSAlertOverlay extends LitElement {
 
     // -------------------------------------------------------------------------
@@ -46,6 +49,13 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isActive         = false;
         this._activeCondition  = null;
         this._isDismissed      = false;
+        // Portal DOM elements (appended to document.body to escape any CSS filter
+        // stacking context applied to home-assistant-main by paletteInjector).
+        this._portalEl         = null;
+        this._blurEl           = null;
+        this._tintEl           = null;
+        this._wrapperEl        = null;
+        this._contentContainer = null;
     }
 
     // -------------------------------------------------------------------------
@@ -81,6 +91,13 @@ export class LCARdSAlertOverlay extends LitElement {
     connectedCallback() {
         super.connectedCallback();
 
+        // Create the portal element on document.body so the overlay is never a
+        // descendant of home-assistant-main.  This is required because
+        // paletteInjector.setAlertMode() temporarily applies `filter: blur()` to
+        // that element, which creates a new CSS stacking context that traps all
+        // position:fixed children — making them invisible behind the filter layer.
+        this._createPortal();
+
         // Subscribe to alert_mode changes via HelperManager
         const helperManager = window.lcards?.core?.helperManager;
         if (helperManager) {
@@ -108,6 +125,7 @@ export class LCARdSAlertOverlay extends LitElement {
         this._alertUnsubscribe?.();
         this._alertUnsubscribe = null;
         this._unmountContentCard();
+        this._removePortal();
     }
 
     // -------------------------------------------------------------------------
@@ -192,10 +210,9 @@ export class LCARdSAlertOverlay extends LitElement {
 
         this._contentElement = el;
 
-        // Attach to content container inside the shadow root
-        const container = this.renderRoot?.querySelector('.alert-overlay-content-card');
-        if (container) {
-            container.appendChild(el);
+        // Attach to portal content container (on document.body, outside home-assistant-main)
+        if (this._contentContainer) {
+            this._contentContainer.appendChild(el);
         }
 
         this.requestUpdate();
@@ -206,6 +223,107 @@ export class LCARdSAlertOverlay extends LitElement {
             this._contentElement.remove();
             this._contentElement = null;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Portal management
+    // -------------------------------------------------------------------------
+
+    /**
+     * Create the overlay DOM structure directly on document.body.
+     * This ensures the overlay is never a descendant of home-assistant-main so
+     * it is unaffected by any CSS filter stacking context applied to that element.
+     */
+    _createPortal() {
+        if (this._portalEl) return;
+
+        // Root container
+        this._portalEl = document.createElement('div');
+        this._portalEl.setAttribute('data-lcards-alert-portal', '');
+        Object.assign(this._portalEl.style, {
+            position: 'fixed',
+            inset:    '0',
+            zIndex:   '9000',
+            display:  'none',
+        });
+
+        // Layer 1: backdrop-filter only — no opacity so blur runs at full strength.
+        // backdrop-filter creates its own stacking context, so explicit z-indexes are
+        // required on all three siblings to guarantee paint order.
+        this._blurEl = document.createElement('div');
+        Object.assign(this._blurEl.style, { position: 'absolute', inset: '0', zIndex: '1' });
+
+        // Layer 2: tint — background colour + opacity, no filter
+        this._tintEl = document.createElement('div');
+        Object.assign(this._tintEl.style, {
+            position: 'absolute', inset: '0', zIndex: '2', cursor: 'pointer',
+        });
+        this._tintEl.addEventListener('click', () => this._handleDismiss());
+
+        // Content wrapper (flex container for positioning) — z-index:3 ensures it always
+        // paints above the tint even when backdrop-filter disrupts implicit DOM ordering.
+        this._wrapperEl = document.createElement('div');
+        Object.assign(this._wrapperEl.style, {
+            position:      'absolute',
+            inset:         '0',
+            zIndex:        '3',
+            display:       'flex',
+            pointerEvents: 'none',
+        });
+
+        // Content card slot
+        this._contentContainer = document.createElement('div');
+        this._contentContainer.style.pointerEvents = 'auto';
+
+        this._wrapperEl.appendChild(this._contentContainer);
+        this._portalEl.appendChild(this._blurEl);
+        this._portalEl.appendChild(this._tintEl);
+        this._portalEl.appendChild(this._wrapperEl);
+        document.body.appendChild(this._portalEl);
+
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal container created on document.body');
+    }
+
+    _removePortal() {
+        this._portalEl?.remove();
+        this._portalEl         = null;
+        this._blurEl           = null;
+        this._tintEl           = null;
+        this._wrapperEl        = null;
+        this._contentContainer = null;
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal container removed');
+    }
+
+    /**
+     * Sync the portal element's visibility and inline styles with current state.
+     * Called from updated() so it runs after every reactive-property change.
+     */
+    _updatePortalStyles() {
+        if (!this._portalEl) return;
+
+        const visible = this._isActive && !this._isDismissed && !this._isInEditMode();
+        this._portalEl.style.display = visible ? '' : 'none';
+        if (!visible) return;
+
+        const backdrop = this._getEffectiveBackdrop();
+        const size     = this._getEffectiveSize();
+        const pos      = this._getEffectivePosition();
+
+        // Blur layer
+        this._blurEl.style.backdropFilter       = `blur(${backdrop.blur})`;
+        this._blurEl.style.webkitBackdropFilter = `blur(${backdrop.blur})`;
+
+        // Tint layer
+        this._tintEl.style.background = backdrop.color;
+        this._tintEl.style.opacity    = String(backdrop.opacity);
+
+        // Content wrapper layout
+        this._wrapperEl.style.alignItems     = pos.alignItems;
+        this._wrapperEl.style.justifyContent = pos.justifyContent;
+
+        // Content sizing
+        this._contentContainer.style.width  = size.width;
+        this._contentContainer.style.height = size.height;
     }
 
     // -------------------------------------------------------------------------
@@ -227,7 +345,7 @@ export class LCARdSAlertOverlay extends LitElement {
         return {
             type:      'custom:lcards-button',
             component: 'alert',
-            alert:     { preset: def.preset },
+            preset:    def.preset,
             text: {
                 alert_text: { content: def.alert_text },
                 sub_text:   { content: def.sub_text },
@@ -301,73 +419,25 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     // -------------------------------------------------------------------------
+    // Lifecycle — sync portal after every reactive-state change
+    // -------------------------------------------------------------------------
+
+    updated(changedProps) {
+        super.updated?.(changedProps);
+        this._updatePortalStyles();
+    }
+
+    // -------------------------------------------------------------------------
     // Render
     // -------------------------------------------------------------------------
 
     render() {
-        if (!this._isActive || this._isDismissed || this._isInEditMode()) {
-            return html``;
-        }
-
-        const backdrop = this._getEffectiveBackdrop();
-        const size     = this._getEffectiveSize();
-        const pos      = this._getEffectivePosition();
-
-        return html`
-            <div class="alert-overlay-host" style="position:fixed;inset:0;z-index:9000;">
-                <!--
-                    Backdrop is intentionally split into two layers so that backdrop-filter
-                    and opacity never appear on the same element.  When opacity < 1 is on
-                    the same element as backdrop-filter, CSS composites the blurred result
-                    at that opacity and lets the original unblurred content show through,
-                    effectively neutralising the blur regardless of the px value set.
-
-                    Layer 1 (blur) — backdrop-filter only, full opacity so the filter runs
-                                     at maximum strength.
-                    Layer 2 (tint) — background colour + opacity overlay, no filter.
-                -->
-                <div
-                    class="alert-overlay-blur"
-                    style="
-                        position:absolute;
-                        inset:0;
-                        backdrop-filter: blur(${backdrop.blur});
-                        -webkit-backdrop-filter: blur(${backdrop.blur});
-                    "
-                ></div>
-                <div
-                    class="alert-overlay-tint"
-                    @click=${this._handleDismiss}
-                    style="
-                        position:absolute;
-                        inset:0;
-                        background: ${backdrop.color};
-                        opacity: ${backdrop.opacity};
-                        cursor: pointer;
-                    "
-                ></div>
-                <div
-                    class="alert-overlay-content-wrapper"
-                    style="
-                        position:absolute;
-                        inset:0;
-                        display:flex;
-                        pointer-events:none;
-                        align-items:${pos.alignItems};
-                        justify-content:${pos.justifyContent};
-                    "
-                >
-                    <div
-                        class="alert-overlay-content-card"
-                        style="
-                            pointer-events:auto;
-                            width:${size.width};
-                            height:${size.height};
-                        "
-                    ></div>
-                </div>
-            </div>
-        `;
+        // The visible overlay lives in a portal on document.body (managed
+        // imperatively by _createPortal / _updatePortalStyles) so that it is
+        // never subject to the CSS filter stacking context that paletteInjector
+        // temporarily applies to home-assistant-main during palette transitions.
+        // This element itself has no visible DOM.
+        return html``;
     }
 
     // -------------------------------------------------------------------------
@@ -379,40 +449,6 @@ export class LCARdSAlertOverlay extends LitElement {
             :host {
                 display: contents;
             }
-
-            .alert-overlay-host {
-                position: fixed;
-                inset: 0;
-                z-index: 9000;
-            }
-
-            .alert-overlay-blur {
-                position: absolute;
-                inset: 0;
-            }
-
-            .alert-overlay-tint {
-                position: absolute;
-                inset: 0;
-                cursor: pointer;
-            }
-
-            .alert-overlay-backdrop {
-                position: absolute;
-                inset: 0;
-                cursor: pointer;
-            }
-
-            .alert-overlay-content-wrapper {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                pointer-events: none;
-            }
-
-            .alert-overlay-content-card {
-                pointer-events: auto;
-            }
         `;
     }
 
@@ -421,7 +457,6 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     static getConfigElement() {
-        // Editor stub — full editor implementation in Phase 2
         return document.createElement('lcards-alert-overlay-editor');
     }
 
@@ -440,7 +475,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
     static registerSchema() {
         window.lcards?.core?.configManager?.registerCardSchema(
-            'lcards-alert-overlay',
+            'alert-overlay',
             getAlertOverlaySchema(),
         );
     }
