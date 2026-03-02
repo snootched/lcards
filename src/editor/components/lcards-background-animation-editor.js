@@ -437,6 +437,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       `;
     }
 
+    // Cascade uses its own dedicated section
+    if (preset === 'cascade') {
+      return html`${this._renderCascadeSection(config, index)}`;
+    }
+
     // Grid presets use pattern/major-minor/scrolling/color sections
     return html`
       ${this._renderPatternSection(preset, config, index)}
@@ -615,6 +620,120 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     `;
   }
 
+  _renderCascadeSection(config, index) {
+    return html`
+      <!-- Grid Sizing -->
+      <lcards-form-section header="Grid" icon="mdi:grid" ?expanded=${true}>
+        <div class="param-grid">
+          <ha-textfield
+            type="number"
+            label="Rows (blank = auto)"
+            helper="Leave empty to fill card height automatically"
+            min="1"
+            max="50"
+            step="1"
+            .value=${config.num_rows ?? ''}
+            placeholder="auto"
+            @input=${(e) => this._updateEffectConfig(index, 'num_rows', e.target.value ? Number(e.target.value) : null)}
+          ></ha-textfield>
+          <ha-textfield
+            type="number"
+            label="Columns (blank = auto)"
+            helper="Leave empty to fill card width automatically"
+            min="1"
+            max="100"
+            step="1"
+            .value=${config.num_cols ?? ''}
+            placeholder="auto"
+            @input=${(e) => this._updateEffectConfig(index, 'num_cols', e.target.value ? Number(e.target.value) : null)}
+          ></ha-textfield>
+          ${this._renderField({ key: 'gap', label: 'Cell Gap (px)', type: 'number', min: 0, max: 20, step: 1, default: 4 }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <!-- Data Format -->
+      <lcards-form-section header="Data Format" icon="mdi:numeric" ?expanded=${true}>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ select: { mode: 'dropdown', options: [
+            { value: 'hex',   label: 'Hex (A3F1, 00FF)' },
+            { value: 'digit', label: 'Digit (0042, 1337)' },
+            { value: 'float', label: 'Float (42.17, 3.14)' },
+            { value: 'alpha', label: 'Alpha (AB, XY)' },
+            { value: 'mixed', label: 'Mixed (various)' }
+          ]}}}
+          .value=${config.format ?? 'hex'}
+          .label=${'Cell data format'}
+          @value-changed=${(e) => this._updateEffectConfig(index, 'format', e.detail.value)}
+        ></ha-selector>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ number: { min: 0, max: 60000, step: 500, mode: 'box' } }}
+          .value=${config.refresh_interval ?? 0}
+          .label=${'Refresh Interval (ms, 0 = static)'}
+          .helper=${'How often to regenerate random cell values. 0 = never refresh.'}
+          @value-changed=${(e) => this._updateEffectConfig(index, 'refresh_interval', e.detail.value)}
+        ></ha-selector>
+      </lcards-form-section>
+
+      <!-- Typography -->
+      <lcards-form-section header="Typography" icon="mdi:format-size" ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'font_size', label: 'Font Size (px)', type: 'number', min: 6, max: 48, step: 1, default: 10 }, config, index)}
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ text: {} }}
+            .value=${config.font_family ?? "'Antonio', monospace"}
+            .label=${'Font Family'}
+            .helper=${'CSS font-family string'}
+            @value-changed=${(e) => this._updateEffectConfig(index, 'font_family', e.detail.value)}
+          ></ha-selector>
+        </div>
+      </lcards-form-section>
+
+      <!-- Cascade Animation Timing -->
+      <lcards-form-section header="Cascade Timing" icon="mdi:timer-outline" ?expanded=${true}>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ select: { mode: 'dropdown', options: [
+            { value: 'default', label: 'Default (authentic LCARS rhythm)' },
+            { value: 'niagara', label: 'Niagara (smooth uniform waterfall)' },
+            { value: 'fast',    label: 'Fast (rapid cycling)' },
+            { value: 'custom',  label: 'Custom (manual per-row timing)' }
+          ]}}}
+          .value=${config.pattern ?? 'default'}
+          .label=${'Timing Pattern'}
+          @value-changed=${(e) => this._updateEffectConfig(index, 'pattern', e.detail.value)}
+        ></ha-selector>
+        ${(config.pattern ?? 'default') === 'custom' ? html`
+          <lcards-message type="info" .message=${'Custom timing requires a YAML-supplied "timing" array of { duration, delay } objects — one per row. Edit this card\'s YAML directly to set the timing property.'}></lcards-message>
+        ` : ''}
+        <div class="param-grid">
+          ${this._renderField({ key: 'speed_multiplier', label: 'Speed Multiplier (1.0 = normal)', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1.0, helper: '2.0 = twice as fast, 0.5 = half speed' }, config, index)}
+          ${this._renderField({ key: 'duration', label: 'Duration Override (ms, 0 = use pattern)', type: 'number', min: 0, max: 30000, step: 100, default: 0, helper: 'Overrides all row durations if > 0' }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <!-- Cascade Colors -->
+      <lcards-form-section header="Cascade Colors" icon="mdi:palette" ?expanded=${true}>
+        <lcards-color-list
+          .hass=${this.hass}
+          .colors=${[
+            config.colors?.start ?? '#99ccff',
+            config.colors?.text  ?? '#4466aa',
+            config.colors?.end   ?? '#aaccff'
+          ]}
+          .label=${'Cascade Colors [start, text, end]'}
+          .description=${'Three colors: animation start, mid/text, animation end'}
+          @colors-changed=${(e) => {
+            const [start, text, end] = e.detail.colors;
+            this._updateEffectConfig(index, 'colors', { start, text, end });
+          }}
+        ></lcards-color-list>
+      </lcards-form-section>
+    `;
+  }
+
   _renderColorSection(preset, config, index) {
     // Store current effect index for _setConfigValue callback
     this._currentEffectIndex = index;
@@ -757,7 +876,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'grid-hexagonal': 'mdi:hexagon-multiple',
       'grid-filled': 'mdi:grid',
       'starfield': 'mdi:star-circle',
-      'nebula': 'mdi:cloud'
+      'nebula': 'mdi:cloud',
+      'cascade': 'mdi:format-columns'
     };
     return icons[preset] || 'mdi:blur';
   }
@@ -850,6 +970,15 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           ...commonFields.scrolling
         ];
 
+      case 'cascade':
+        return [
+          { key: 'num_rows', label: 'Rows', type: 'number', min: 1, max: 50, step: 1, default: null },
+          { key: 'num_cols', label: 'Columns', type: 'number', min: 1, max: 100, step: 1, default: null },
+          { key: 'format', label: 'Format', type: 'select', options: ['hex', 'digit', 'float', 'alpha', 'mixed'], default: 'hex' },
+          { key: 'pattern', label: 'Pattern', type: 'select', options: ['default', 'niagara', 'fast', 'custom'], default: 'default' },
+          { key: 'speed_multiplier', label: 'Speed Multiplier', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1.0 }
+        ];
+
       default:
         return commonFields.styling;
     }
@@ -895,6 +1024,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     if (config.hex_radius) parts.push(`radius: ${config.hex_radius}px`);
     if (config.color) parts.push(`color: ${config.color}`);
     if (effect.zoom) parts.push(`zoom: ${effect.zoom.layers || 4} layers`);
+
+    if (preset === 'cascade') {
+      if (config.format) parts.push(`format: ${config.format}`);
+      if (config.pattern) parts.push(`pattern: ${config.pattern}`);
+    }
 
     return parts.join(' • ') || 'No configuration';
   }
@@ -1030,6 +1164,14 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       case 'nebula':
         return {
           seed: Math.floor(Math.random() * 1e9) // Generate unique seed
+        };
+
+      case 'cascade':
+        return {
+          format: 'hex',
+          pattern: 'default',
+          speed_multiplier: 1.0,
+          colors: { start: '#99ccff', text: '#4466aa', end: '#aaccff' }
         };
 
       default:

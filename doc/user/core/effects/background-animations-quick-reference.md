@@ -122,6 +122,38 @@
     seed: 1                  # Random seed
 ```
 
+### Cascade Preset
+
+```yaml
+- preset: cascade
+  config:
+    # Grid sizing (omit for auto)
+    num_rows: null           # null = auto-size from canvas height
+    num_cols: null           # null = auto-size from canvas width
+    gap: 4                   # px between cells
+
+    # Data
+    format: hex              # hex|digit|float|alpha|mixed
+    refresh_interval: 0      # ms (0 = static data)
+
+    # Typography
+    font_size: 10            # px
+    font_family: "'Antonio', monospace"
+
+    # Colours
+    colors:
+      start: "#99ccff"       # 0-75% hold
+      text:  "#4466aa"       # 80-90% hold
+      end:   "#aaccff"       # 90-100% fade
+
+    # Timing
+    pattern: default         # default|niagara|fast|custom
+    speed_multiplier: 1.0    # 2.0 = 2× faster
+    duration: null           # ms override (null = use pattern)
+
+    opacity: 1.0
+```
+
 ### Zoom Wrapper
 
 ```yaml

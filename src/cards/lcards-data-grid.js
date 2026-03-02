@@ -970,9 +970,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     const params = cascadeAnim.params || cascadeAnim; // Fallback to cascadeAnim for backwards compat
     const colors = params.colors || {};
     const rawColors = [
-      this.getThemeToken(colors.start || colors[0] || 'colors.grid.cascadeStart') || '#99ccff',
-      this.getThemeToken(colors.text || colors[1] || 'colors.grid.cascadeMid') || '#4466aa',
-      this.getThemeToken(colors.end || colors[2] || 'colors.grid.cascadeEnd') || '#aaccff'
+      this.getThemeToken(colors.start || colors[0] || 'colors.grid.cascadeStart') || 'var(--lcars-blue, #2266ff)',
+      this.getThemeToken(colors.text || colors[1] || 'colors.grid.cascadeMid') || 'var(--lcards-blue-darkest, #112244)',
+      this.getThemeToken(colors.end || colors[2] || 'colors.grid.cascadeEnd') || 'var(--lcars-moonlight, #e7f3f7)'
     ];
 
     // Normalize all colors to CSS var format for anime.js compatibility

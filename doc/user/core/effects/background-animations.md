@@ -510,6 +510,141 @@ Each nebula instance uses a seeded random number generator for reproducible clou
 
 ---
 
+### `cascade`
+
+LCARS data-waterfall colour-cycling background. Renders cascading rows of random data cells that cycle through three configurable colour stops, replicating the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
+
+**When to use:**
+- Backgrounds for elbow cards and symbiont combos without occupying the symbiont slot
+- Any card where the CB-LCARS cascade decoration is desired
+- Stacked behind grid or starfield effects for layered data-display aesthetics
+
+**Configuration:**
+
+```yaml
+preset: cascade
+config:
+  # Grid sizing (null = auto-size from canvas dimensions + font metrics)
+  num_rows: null           # Rows (omit for auto)
+  num_cols: null           # Columns (omit for auto)
+  gap: 4                   # Cell gap in pixels
+
+  # Data format
+  format: hex              # hex | digit | float | alpha | mixed
+  refresh_interval: 0      # ms between cell data refreshes (0 = static)
+
+  # Typography
+  font_size: 10            # Font size in pixels
+  font_family: "'Antonio', monospace"
+
+  # Colour cycling (start → text hold → end)
+  # Defaults match CB-LCARS: bright LCARS blue → dark navy snap → pale moonlight
+  colors:
+    start: "var(--lcars-blue, #2266ff)"       # Cycle start colour (bright dominant hold)
+    text:  "var(--lcards-blue-darkest, #112244)"  # Mid/text snap colour (dark navy)
+    end:   "var(--lcars-moonlight, #e7f3f7)"  # Cycle end colour (pale fade-out)
+
+  # Timing
+  pattern: default         # default | niagara | fast | custom
+  speed_multiplier: 1.0    # 2.0 = twice as fast, 0.5 = half speed
+  duration: null           # ms — override all row durations (null = use pattern)
+
+  opacity: 1.0             # Overall opacity (0-1)
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `num_rows` | number \| null | null | Number of rows. `null` = auto-derive from canvas height and font size. |
+| `num_cols` | number \| null | null | Number of columns. `null` = auto-derive from canvas width and font size. |
+| `gap` | number | 4 | Pixel gap between cells. |
+| `format` | string | `'hex'` | Cell data format: `hex`, `digit`, `float`, `alpha`, `mixed`. |
+| `refresh_interval` | number | 0 | Milliseconds between random data regeneration (0 = static). |
+| `font_size` | number | 10 | Font size in pixels. |
+| `font_family` | string | `"'Antonio', monospace"` | CSS font-family string. |
+| `colors.start` | string | `'var(--lcars-blue, #2266ff)'` | Colour at cycle start (hold phase, 0–75%). Supports CSS variables. |
+| `colors.text` | string | `'var(--lcards-blue-darkest, #112244)'` | Colour at mid-cycle snap (dark navy, 75–90%). Supports CSS variables. |
+| `colors.end` | string | `'var(--lcars-moonlight, #e7f3f7)'` | Colour at cycle end (90–100% fade). Supports CSS variables. |
+| `pattern` | string | `'default'` | Timing pattern: `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast` (rapid cycling), `custom` (user-supplied array). |
+| `timing` | array | — | Custom timing: array of `{ duration, delay }` objects (used when `pattern: custom`). |
+| `speed_multiplier` | number | 1.0 | Speed multiplier applied to all row durations (2.0 = twice as fast). |
+| `duration` | number \| null | null | Override all row durations in ms. Takes precedence over pattern and speed_multiplier when set. |
+| `opacity` | number | 1 | Overall effect opacity (0–1). Inherited from BaseEffect. |
+
+**Colour Cycle Keyframes:**
+
+The colour cycle for each row follows the CB-LCARS / data-grid keyframe structure:
+
+| Cycle position | Colour | Phase |
+|----------------|--------|-------|
+| 0%–75% | `colors.start` | Hold |
+| 75%–80% | `colors.start` → `colors.text` | Fast fade in |
+| 80%–90% | `colors.text` | Hold |
+| 90%–100% | `colors.text` → `colors.end` | Fast fade out (loops) |
+
+**Timing Patterns:**
+
+| Pattern | Duration | Delay | Description |
+|---------|----------|-------|-------------|
+| `default` | 2–4 s (varies per row) | 0.1–0.8 s | Authentic LCARS rhythm from CB-LCARS |
+| `niagara` | 2 s (all rows) | 0.1–0.8 s | Smooth uniform waterfall |
+| `fast` | 1 s (all rows) | 0–0.35 s | Rapid cycling |
+| `custom` | user-defined | user-defined | Supply `timing` array |
+
+**Example — Basic cascade background:**
+
+```yaml
+- preset: cascade
+  config:
+    format: hex
+    pattern: niagara
+    speed_multiplier: 1.2
+    colors:
+      start: "var(--lcars-blue-lightest)"
+      text: "var(--lcars-dark-blue)"
+      end: "var(--lcars-moonlight)"
+    opacity: 0.7
+```
+
+**Example — Cascade behind a grid:**
+
+```yaml
+- preset: cascade
+  config:
+    format: hex
+    pattern: default
+    colors:
+      start: "var(--lcars-blue, #2266ff)"
+      text: "var(--lcards-blue-darkest, #112244)"
+      end: "var(--lcars-moonlight, #e7f3f7)"
+    opacity: 0.5
+- preset: grid
+  config:
+    line_spacing: 40
+    color: "rgba(102, 204, 255, 0.15)"
+    scroll_speed_x: 5
+    scroll_speed_y: 5
+    opacity: 0.4
+```
+
+**Example — Fast cascade with data refresh:**
+
+```yaml
+- preset: cascade
+  config:
+    format: mixed
+    pattern: fast
+    speed_multiplier: 2.0
+    refresh_interval: 2000
+    font_size: 8
+    opacity: 0.6
+```
+
+> **💡 Tip:** Use `opacity: 0.4–0.7` for cascade backgrounds so card content remains readable. Combine with `grid` or `starfield` for layered depth effects.
+
+---
+
 ## 🔍 Zoom Wrapper
 
 The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion.

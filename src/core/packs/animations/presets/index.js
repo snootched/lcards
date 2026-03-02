@@ -643,7 +643,7 @@ registerAnimationPreset('cascade', (def) => {
  */
 registerAnimationPreset('cascade-color', (def) => {
   const p = def.params || def;
-  const colors = p.colors || ['#0783FF', '#0439A3', '#E7F3F7'];
+  const colors = p.colors || ['var(--lcars-blue, #2266ff)', 'var(--lcards-blue-darkest, #112244)', 'var(--lcars-moonlight, #e7f3f7)'];
   const duration = p.duration || 5000;
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
