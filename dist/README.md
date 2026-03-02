@@ -1,7 +1,17 @@
+> [!WARNING]
+> Greetings.
+>
+> If you have come across this repo feel free to have a look around!
+>
+> **But please note: this code is not yet complete and is not ready for general usage.**
+
+<br>
+
 # LCARdS
 *A STAR TREK FAN PRODUCTION*
-![LCARdS Banner](doc/img/lcards-banner.png)
+
 <!--
+![LCARdS Banner](doc/img/lcards-banner.png)
 IMAGE PLACEHOLDER: Hero banner
 Suggested: Animated MSD showing cards, lines, animations, and effects
 File: docs/assets/lcards-banner.gif
@@ -13,15 +23,6 @@ File: docs/assets/lcards-banner.gif
 [![GitHub release](https://img.shields.io/github/v/release/snootched/LCARdS?display_name=release&logo=startrek&color=37a6d1")](https://github.com/snootched/LCARdS/releases)
 [![License](https://img.shields.io/github/license/snootched/LCARdS?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1)](https://github.com/snootched/LCARdS/commits/main)
-
-<br>
-
-> [!WARNING]
-> Greetings.
->
-> If you have come across this repo feel free to have a look around!
->
-> **But please note: this code is not yet complete and is not ready for general usage.**
 
 <br>
 
@@ -48,10 +49,15 @@ LCARdS is the evolution of dedicated LCARS-inspired cards for Home Assistant.
 
 <br>
 
-## Feature Parity with CB-LCARS
+## Coming from CB-LCARS
 
 If coming from CB-LCARS, use this table to quickly see what the equivalent card/feature is in LCARdS.  Not all features and functions may be available yet, but will be added over time.
 
+> [!TIP]
+> You may run CB-LCARS and LCARdS together while transitioning over to LCARdS.  All new features and fixes will be made in LCARdS only going forward.
+
+<details>
+<summary><b>Feature Comparison</b></summary>
 
 ✅ Present | ❌ Not present | ⚠️ Partial
 
@@ -75,21 +81,34 @@ If coming from CB-LCARS, use this table to quickly see what the equivalent card/
 | Sounds | ❌ | ✅ | Customizable sounds enabled for many UI and Card event types (tap, double tap, hold, hover, sidebar expand/collapse, and more...) |
 | Alert Overlay | ❌ | ✅ <br>`lcards-alert-overlay` | New dashboard-level card that reacts to `input_select.lcards_alert_mode` and displays a full-screen configurable backdrop (blur + tint) with an embedded content card.  By default the ALERT button is overlaid and configured for the alert level triggered. |
 
+</details>
+
 <br>
 
 ## Installation
+
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=frontend)
 
 <details>
 <summary><b>Install from HACS</b></summary>
 
 <br>
 
-1. Open HACS in your Home Assistant instance
-2. Search for **LCARdS** and install
-3. Refresh your browser cache
-4. Add LCARdS cards from the dashboard editor
+There are no external dependencies or prerequisites for LCARdS - just use with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars) for the best experience.
+
+> :dizzy: tl;dr: Express Startup Sequence
+>
+> - _Clear All Moorings and Open Starbase Doors_
+>   - Open HACS in your Home Assistant instance
+> - _Thrusters Ahead, Take Us Out_
+>   - Search for **LCARdS**
+> - _Bring Warp Core Online, Engines to Full Power_
+>   - Install and hard-refresh to clear browser cache
+> - _Engage!_
+>
 
 </details>
+
 
 
 <details>
@@ -97,11 +116,20 @@ If coming from CB-LCARS, use this table to quickly see what the equivalent card/
 
 <br>
 
-The **LCARdS Config Panel** adds a dedicated sidebar entry in Home Assistant giving access to a dedicated area for managing alert modes, sounds, helpers, and more.
+The **LCARdS Config Panel** is a standalone sidebar entry in Home Assistant — a central hub for managing LCARdS settings and exploring content.  From here you can configure alert modes, sounds, helpers, and more.
 
-Add the following to your `configuration.yaml` and restart Home Assistant:
+| Tab | What it does |
+|-----|--------------|
+| **Helpers** | Create all required HA input helpers in one click (sound, alert, HA-LCARS sizing) |
+| **Theme Browser** | Browse all live theme tokens and CSS variables from LCARdS and HA-LCARS, as well as inspect any CSS variable |
+| **Sound** | Configure the active sound scheme and set per-event overrides |
+| **Pack Explorer** | Browse installed packs; view and inspect all available presets, themes, sounds, and more. |
+| **YAML Export** | Generate a full `configuration.yaml` snippet for all LCARdS helpers if you prefer to define them via YAML. |
 
-```yaml
+To enable the panel, add the following to `configuration.yaml` and restart Home Assistant:
+
+
+```yaml 
 panel_custom:
   - name: lcards-config-panel
     sidebar_title: LCARdS Config
@@ -110,13 +138,279 @@ panel_custom:
     module_url: /hacsfiles/lcards/lcards.js
 ```
 
-See [LCARdS Config Panel](doc/user/config-panel.md) for full documentation.
+See [LCARdS Config Panel](doc/user/config-panel.md) for details.
 
 </details>
 
 <br>
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=frontend)
+---
+
+## The Fleet
+
+
+<table>
+<tr>
+<td width="40%">
+
+### Button Card [`lcards-button`]
+
+Provides all standard LCARS buttons, plus advanced multi-segment/multi-function buttons.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- Built-in preset library: lozenge, bullet, capped, outline, pill, text, and more
+- **Component mode** — embed SVG components (D-pad, Alert, custom shapes) with individually configurable interactive `segments`
+- State-based styling with `default`, `active`, `inactive`, `unavailable`, and any custom state
+- Multiple independent text fields, each with full template, positioning, and rotation control
+- Canvas-based **background animations** (grid, starfield, nebula) — stackable layers with zoom and pan support
+- Rules Engine integration — styles can be hot-patched by global rules at runtime
+- **Ranges** — map entity value thresholds to named presets; components like the Alert button use this to change visual state automatically as values change
+
+</details>
+
+**[Button Documentation](doc/user/cards/button/README.md)**
+
+</td>
+<td width=60%>
+
+![Button Card Samples](doc/img/lcards-button.png)
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+
+### Elbow Card [`lcards-elbow`]
+
+Classic LCARS corner designs for authentic interface aesthetics.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- Builtin presets and positions like: `header-left`, `header-right`, `footer-left`, `footer-right`
+- **Simple** (single elbow) and **segmented** (Picard-style concentric double elbow) styles
+- Authentic LCARS arc geometry (`outer_curve: auto`) or diagonal-cut corners with configurable angle; angle can bind to `input_number.lcars_elbow_angle` helper for dashboard-wide control
+- Inherits the full `lcards-button` feature set: multi-text fields, actions, rules, animations, templates
+- **HA-LCARS theme helper binding** — `bar_width: theme` / `bar_height: theme` links elbow dimensions to `input_number.lcars_horizontal/vertical` helpers
+- Symbiont support — embed other HA cards inside the elbow area with native style imprinting
+
+</details>
+
+**[Elbow Documentation](doc/user/cards/elbow/README.md)**
+
+</td>
+<td width="60%">
+
+![Elbow Card Samples](docs/assets/card-elbow-samples.png)
+<!--
+IMAGE PLACEHOLDER: Elbow card varieties
+Show: Header-left, header-right, footer variants, simple and segmented styles
+File: docs/assets/card-elbow-samples.png
+-->
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+
+### Slider Card [`lcards-slider`]
+
+Interactive sliders for display of sensors, and control of entities.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- Built-in, fully customizable presets: **pills** (segmented bar) and **gauge** (ruler with tick marks) styles
+- Horizontal and vertical orientations; with independent value and fill inversion settings
+- Separate min/max for display range vs. control range
+- Domain auto-detection — slider is interactive for domains that support control.  For others like `sensor` will default to display-only (locked)
+- Advanced slider types like Picard Vertical and other shaped sliders (filling lozenge)
+
+</details>
+
+**[Slider Documentation](doc/user/cards/slider/README.md)**
+
+</td>
+<td width="60%">
+
+![Slider Card Samples](docs/assets/card-slider-samples.png)
+<!--
+IMAGE PLACEHOLDER: Slider/multimeter samples
+Show: Horizontal pills, vertical gauge, Picard style in 2-3 examples
+File: docs/assets/card-slider-samples.png
+-->
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+  
+### Data Grid Card [`lcards-data-grid`]
+
+LCARS data grids with configurable data modes and cascade animations.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- **Data mode** — display real entity states, attributes, or template values in each cell
+- **Decorative mode** — randomly generated cascading data for pure aesthetics (equivalent to CB-LCARS background animation)
+- LCARS-style **cascade animation** — row-by-row colour cycling with built-in speed presets (`default`, `niagara`, `fast`)
+- Cell value auto-detection: static text, entity IDs, Jinja2 templates, and DataSource references
+- CSS Grid layout — supports most CSS grid options: configure column count, column widths, row sizing, etc.
+- Hierarchical style cascading: grid → column → row → cell
+
+</details>
+
+**[Data Grid Documentation](doc/user/cards/data-grid/README.md)**
+
+</td>
+<td width="60%">
+
+![Data Grid Sample](docs/assets/card-data-grid-sample.gif)
+<!--
+IMAGE PLACEHOLDER: Data grid with cascade animation
+Show: Grid with cascade animation and entity data updates
+File: docs/assets/card-data-grid-sample.gif
+-->
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+  
+### Chart Card [`lcards-chart`]
+
+LCARdS integrated charting card powered by ApexCharts library.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- 15+ chart types via ApexCharts: line, area, bar, pie, scatter, heatmap, radar, and more
+- Three data config levels: single entity (`source`), multiple entities (`sources`), or LCARdS DataSources with processor buffers (`data_sources`)
+- DataSource integration gives access to buffered history, moving averages, min/max, rolling statistics aggregations, and other transformations
+- Multi-series with independent colours, stroke styles, and fill
+
+</details>
+
+**[Chart Documentation](doc/user/cards/chart/README.md)**
+
+</td>
+<td width="60%">
+
+![Chart Card Samples](docs/assets/card-chart-samples.png)
+<!--
+IMAGE PLACEHOLDER: Chart card examples
+Show: Line chart, area chart, bar chart with LCARS theming
+File: docs/assets/card-chart-samples.png
+-->
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+
+### MSD (Master Systems Display) Card [`lcards-msd`]
+
+Highly configurable canvas with multi-card and routing line support.
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- Embed any HA card or LCARdS card as a positioned **control overlay** within the MSD canvas
+- **Line overlays** — SVG lines with automatic smart routing between named anchor points; routes avoid obstacles and respect defined corridors
+- **Anchor system** — named connection points derived from the SVG and overlay edges; lines attach to anchors by name
+- Animate lines independently with rules
+- Fully configurable base SVG: built-in assets, local paths, or external URLs
+- **Studio Editor** — visual configuration dialog with live preview, drag-to-reposition overlays and anchors
+
+</details>
+
+**[MSD Documentation](doc/user/cards/msd/README.md)**
+
+</td>
+<td width="60%">
+
+![MSD Card Sample](docs/assets/card-msd-sample.gif)
+<!--
+IMAGE PLACEHOLDER: MSD card in action
+Show: Animated MSD with multiple blocks, dynamic lines, embedded animations
+File: docs/assets/card-msd-sample.gif
+-->
+
+![MSD Studio Editor](docs/assets/msd-studio-editor.png)
+<!--
+IMAGE PLACEHOLDER: MSD Studio editor
+Show: Studio editor open with config overlay, block diagram, provenance panel visible
+File: docs/assets/msd-studio-editor.png
+-->
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="40%">
+
+### Alert Overlay Card [`lcards-alert-overlay`]
+
+A small non-visible helper card to configure full-screen dashboard overlays that react to `input_select.lcards_alert_mode`  The core will activate the configured overlay(s) when the system enters an alert state (yellow | red | blue | gray | black).
+
+<details>
+<summary><b>Key Features</b></summary>
+
+- Activates automatically when `input_select.lcards_alert_mode` changes to any non-normal alert state
+- Full-screen **backdrop** with independent blur layer and tint layer — each independently configurable (colour, opacity, blur radius)
+- **Content card** — embed any HA or LCARdS card at a configurable position and size when the alert fires; built-in defaults for each alert condition if none is specified
+- **Per-condition overrides** — individual backdrop, content card, position, width, and height per alert condition
+- **Position control** — nine-point placement system (`center`, `top-left`, `bottom-right`, etc.)
+- **Dismiss mode** — tap the backdrop to dismiss; `reset` mode additionally resets `input_select.lcards_alert_mode` back to `green_alert`
+- **Portal rendering** — overlay is appended directly to `document.body`, ensuring it is never subject to the CSS stacking context or filter effects applied during theme/palette transitions
+
+</details>
+
+**[Alert Overlay Documentation](doc/user/cards/alert-overlay/README.md)**
+
+</td>
+<td width="60%">
+
+![Alert Overlay Sample](docs/assets/alert-overlay.gif)
+<!--
+IMAGE PLACEHOLDER
+-->
+
+</td>
+</tr>
+</table>
 
 <br>
 
@@ -125,77 +419,7 @@ See [LCARdS Config Panel](doc/user/config-panel.md) for full documentation.
 
 ### 🎯 Unified Architecture & Core Systems
 
-LCARdS is built on **Lit** web components and embeds **[Anime.js v4](https://animejs.com)** for animations and **[ApexCharts](https://apexcharts.com)** for charting.  Each LCARd shares a common set of core services that work behind the scenes — they don't need to implement any of this themselves:
-
-| Service | What it does |
-|---|---|
-| **Systems Manager** | Centralized entity state subscriptions; LCARdS register interest and receive smart push notifications — no duplicate subscriptions |
-| **DataSource Manager** | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
-| **Rules Engine** | Evaluate conditions and hot-patch LCARd styles at runtime; target any LCARd by tag, type, or ID |
-| **Theme Manager** | Token-based theming (colors, spacing, borders, and more); resolves theme tokens in any LCARd field |
-| **Alert Mode** | Coordinated alert states (green / red / yellow / blue / gray / black); drives visual colour palette shifts and trigger sounds; driven by HA helper that can be used in automations |
-| **Animation Manager** | Coordinates Anime.js v4 animations used by LCARdS; provides a built-in library of configurable presets, or provide your own animejs custom parameters |
-| **Sound Manager** | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides |
-| **Style Preset Manager** | Central registry of named style presets for buttons, sliders, elbows, and more; consumed from packs |
-| **Component Manager** | Registry of SVG component definitions (D-pad, Alert, custom shapes) used in button component mode |
-| **Asset Manager** | Loads and caches SVG and font assets for use across cards |
-| **Pack Manager** | Loads and distributes content from packs (themes, presets, animations, assets, etc.) to the appropriate managers at startup |
-| **Helper Manager** | Manages LCARdS and HA-LCARS `input_*` helper entities (alert mode selector, sound config, sizing helpers); auto-create any helper from LCARdS Config Panel |
-
-**Template Support** — any text field in any card supports four syntaxes:
-JavaScript `[[[return ...]]]`, LCARdS tokens `{entity.state}` / `{theme:colors.card.button}`, DataSource `{ds:sensor_name}`, and Jinja2 `{{states("sensor.temp")}}` (Jinja2 is evaluated by HA server).
-
----
-
-### 🚨 Alert Mode — Coordinated Dashboard-Wide States
-
-Alert mode is more than a color change — it shifts the entire dashboard UI together:
-- **Theme colors transform** — the whole HA UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen; all transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel
-- **Sound plays** — the Sound Manager fires the matching alert audio scheme automatically
-- **Alert Overlay activates** — the `lcards-alert-overlay` card reacts and displays its full-screen backdrop and content card for the triggered alert condition
-- **Rules-driven animations** — cards and MSD overlays can be configured to pulse, flash, or animate when a specific alert level is active; this is opt-in via the Rules Engine, not automatic
-- **HA helpers stay in sync** — the `input_select.lcards_alert_mode` helper always reflects the current state, so HA automations can both trigger and react to alert level changes
-
-Multiple modes available: `green` (normal), `red`, `yellow`, `blue`, `gray`, `black`.  Can be triggered from the Config Panel, a card action, a HA automation, or the browser console.
-
----
-
-### 🔗 Cross-Card Rules Engine
-
-Define rules once — apply them across many cards simultaneously.  Rules evaluate HA entity state conditions and hot-patch card styles at runtime without reloading:
-- Target cards by **type** (all buttons), **tag** (cards you label), or **ID** (a specific card)
-- **Patch any style property** — color, opacity, border, background, text — on any matching card
-- Changes are **instant and reactive** — as entity states change, styles update automatically
-- Example: turn all indicators tagged as *engineering* red when any *engineering* alarm fires.
-
----
-
-### 📊 DataSource Pipelines
-
-LCARdS DataSources give cards access to richer data than a plain entity state:
-- **Subscribe to any HA entity** and buffer its values over time
-- **Processing pipelines** — apply moving average, min/max normalization, aggregation, or custom transforms to the buffered data
-- **Reference in any field** via the `{ds:name}` template syntax — charts, labels, sliders, rules all consume the same source
-- **Shared across cards** — one DataSource can feed multiple cards, one subscription
-- Buffers stored in the browser session and clear on page refresh - recording in HA server not required.
-
----
-
-### 🎨 Visual Editors & Configuration Studios
-
-- Card editors are enhanced with immersive **Configuration Studios** — purpose-built visual environments for complex cards like MSD, Data Grid and Charts
-- **Live WYSIWYG** preview with instant feedback as you configure
-- **Schema-backed YAML** editing tab with inline auto-complete and validation for card configuration options
-- **Main Engineering tab** — per-card access to data sources, the rules browser, the theme token browser, and provenance tracking
-- **Provenance tracking** — inspect the effective runtime config and see which system (card config, preset, rules, etc) contributed each value
-
-----
-
-<br>
-
-## System Architecture
-
-LCARdS is built on a layered architecture that aims keeps cards simple.  The cards leverage the shared core for accessing powerful features:
+LCARdS is built on **Lit** web components and embeds **[Anime.js v4](https://animejs.com)** for animations and **[ApexCharts](https://apexcharts.com)** for charting.  Each LCARd shares a common set of core services that work behind the scenes — the cards do not need to implement any of this themselves:
 
 ```mermaid
 graph LR
@@ -263,243 +487,89 @@ graph LR
     style MSD fill:#e7442a,stroke:#ffb399,color:#fff
 ```
 
----
-
-## The Fleet
-
-
-### Button Card [`lcards-button`]
-
-![Button Card Samples](doc/img/lcards-button.png)
-
-Provides all standard LCARS buttons, plus advanced multi-segment/multi-function buttons.
-
 <details>
-<summary><b>Key Features</b></summary>
-
-- Built-in preset library: lozenge, bullet, capped, outline, pill, text, and more
-- **Component mode** — embed SVG components (D-pad, Alert, custom shapes) with individually configurable interactive `segments`
-- State-based styling with `default`, `active`, `inactive`, `unavailable`, and any custom state
-- Multiple independent text fields, each with full template, positioning, and rotation control
-- Canvas-based **background animations** (grid, starfield, nebula) — stackable layers with zoom and pan support
-- Rules Engine integration — styles can be hot-patched by global rules at runtime
-- **Ranges** — map entity value thresholds to named presets; components like the Alert button use this to change visual state automatically as values change
-
-**[Button Documentation](doc/user/cards/button/README.md)**
-
-</details>
-
----
-
-### Slider Card [`lcards-slider`]
-
-![Slider Card Samples](docs/assets/card-slider-samples.png)
-<!--
-IMAGE PLACEHOLDER: Slider/multimeter samples
-Show: Horizontal pills, vertical gauge, Picard style in 2-3 examples
-File: docs/assets/card-slider-samples.png
--->
-
-Interactive sliders for display of sensors, and control of entities.
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- Built-in, fully customizable presets: **pills** (segmented bar) and **gauge** (ruler with tick marks) styles
-- Horizontal and vertical orientations; with independent value and fill inversion settings
-- Separate min/max for display range vs. control range
-- Domain auto-detection — slider is interactive for domains that support control.  For others like `sensor` will default to display-only (locked)
-- Advanced slider types like Picard Vertical and other shaped sliders (filling lozenge)
-
-**[Slider Documentation](doc/user/cards/slider/README.md)**
-
-</details>
-
----
-
-### Elbow Card [`lcards-elbow`]
-
-![Elbow Card Samples](docs/assets/card-elbow-samples.png)
-<!--
-IMAGE PLACEHOLDER: Elbow card varieties
-Show: Header-left, header-right, footer variants, simple and segmented styles
-File: docs/assets/card-elbow-samples.png
--->
-
-Classic LCARS corner designs for authentic interface aesthetics.
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- Builtin presets and positions like: `header-left`, `header-right`, `footer-left`, `footer-right`
-- **Simple** (single elbow) and **segmented** (Picard-style concentric double elbow) styles
-- Authentic LCARS arc geometry (`outer_curve: auto`) or diagonal-cut corners with configurable angle; angle can bind to `input_number.lcars_elbow_angle` helper for dashboard-wide control
-- Inherits the full `lcards-button` feature set: multi-text fields, actions, rules, animations, templates
-- **HA-LCARS theme helper binding** — `bar_width: theme` / `bar_height: theme` links elbow dimensions to `input_number.lcars_horizontal/vertical` helpers
-- Symbiont support — embed other HA cards inside the elbow area with native style imprinting
-
-**[Elbow Documentation](doc/user/cards/elbow/README.md)**
-
-</details>
-
----
-
-### MSD (Master Systems Display) Card [`lcards-msd`]
-
-![MSD Card Sample](docs/assets/card-msd-sample.gif)
-<!--
-IMAGE PLACEHOLDER: MSD card in action
-Show: Animated MSD with multiple blocks, dynamic lines, embedded animations
-File: docs/assets/card-msd-sample.gif
--->
-
-![MSD Studio Editor](docs/assets/msd-studio-editor.png)
-<!--
-IMAGE PLACEHOLDER: MSD Studio editor
-Show: Studio editor open with config overlay, block diagram, provenance panel visible
-File: docs/assets/msd-studio-editor.png
--->
-
-Highly configurable canvas with multi-card and routing line support.
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- Embed any HA card or LCARdS card as a positioned **control overlay** within the MSD canvas
-- **Line overlays** — SVG lines with automatic smart routing between named anchor points; routes avoid obstacles and respect defined corridors
-- **Anchor system** — named connection points derived from the SVG and overlay edges; lines attach to anchors by name
-- Animate lines independently with rules
-- Fully configurable base SVG: built-in assets, local paths, or external URLs
-- **Studio Editor** — visual configuration dialog with live preview, drag-to-reposition overlays and anchors
-
-**[MSD Documentation](doc/user/cards/msd/README.md)**
-
-</details>
-
----
-
-### Chart Card [`lcards-chart`]
-
-![Chart Card Samples](docs/assets/card-chart-samples.png)
-<!--
-IMAGE PLACEHOLDER: Chart card examples
-Show: Line chart, area chart, bar chart with LCARS theming
-File: docs/assets/card-chart-samples.png
--->
-
-LCARdS integrated charting card powered by ApexCharts library.
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- 15+ chart types via ApexCharts: line, area, bar, pie, scatter, heatmap, radar, and more
-- Three data config levels: single entity (`source`), multiple entities (`sources`), or LCARdS DataSources with processor buffers (`data_sources`)
-- DataSource integration gives access to buffered history, moving averages, min/max, rolling statistics aggregations, and other transformations
-- Multi-series with independent colors, stroke styles, and fill
-
-**[Chart Documentation](doc/user/cards/chart/README.md)**
-
-</details>
-
----
-
-### Data Grid Card [`lcards-data-grid`]
-
-![Data Grid Sample](docs/assets/card-data-grid-sample.gif)
-<!--
-IMAGE PLACEHOLDER: Data grid with cascade animation
-Show: Grid with cascade animation and entity data updates
-File: docs/assets/card-data-grid-sample.gif
--->
-
-LCARS data grids with configurable data modes and cascade animations.
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- **Data mode** — display real entity states, attributes, or template values in each cell
-- **Decorative mode** — randomly generated cascading data for pure aesthetics (equivalent to CB-LCARS background animation)
-- LCARS-style **cascade animation** — row-by-row color cycling with built-in speed presets (`default`, `niagara`, `fast`)
-- Cell value auto-detection: static text, entity IDs, Jinja2 templates, and DataSource references
-- CSS Grid layout — supports most CSS grid options: configure column count, column widths, row sizing, etc.
-- Hierarchical style cascading: grid → column → row → cell
-
-**[Data Grid Documentation](doc/user/cards/data-grid/README.md)**
-
-</details>
-
----
-
-### Alert Overlay Card [`lcards-alert-overlay`]
-
-Full-screen dashboard overlay that reacts to `input_select.lcards_alert_mode` and activates when the system enters an alert state (red / yellow / blue / black / gray).
-
-<details>
-<summary><b>Key Features</b></summary>
-
-- Activates automatically when `input_select.lcards_alert_mode` changes to any non-normal alert state
-- Full-screen **backdrop** with independent blur layer and tint layer — each independently configurable (color, opacity, blur radius)
-- **Content card** — embed any HA or LCARdS card at a configurable position and size when the alert fires; built-in defaults for each alert condition if none is specified
-- **Per-condition overrides** — individual backdrop, content card, position, width, and height per alert condition
-- **Position control** — nine-point placement system (`center`, `top-left`, `bottom-right`, etc.)
-- **Dismiss mode** — tap the backdrop to dismiss; `reset` mode additionally resets `input_select.lcards_alert_mode` back to `green_alert`
-- **Portal rendering** — overlay is appended directly to `document.body`, ensuring it is never subject to the CSS stacking context or filter effects applied during theme/palette transitions
-
-**[Alert Overlay Documentation](doc/user/cards/alert-overlay/README.md)**
-
-</details>
+<summary><b>LCARdS Core Services</b></summary>
 
 <br>
 
----
-
-## LCARdS Config Panel
-
-The **LCARdS Config Panel** is a standalone sidebar entry in Home Assistant — a central hub for managing LCARdS settings outside of any individual card editor.
-
-> [!TIP]
-> See the [Installation](#installation) section above for the one-time `configuration.yaml` setup required to enable the sidebar panel.
-
-| Tab | What it does |
-|-----|--------------|
-| **Helpers** | Create all required HA input helpers in one click (sound, alert, HA-LCARS sizing) |
-| **Theme Browser** | Browse all live theme tokens and CSS variables from LCARdS and HA-LCARS |
-| **Sound** | Configure the active sound scheme and set per-event overrides |
-| **Pack Explorer** | Browse installed packs; view available presets, themes, and animations |
-| **YAML Export** | Generate a full `configuration.yaml` snippet for all LCARdS helpers |
-
-Alert mode (red/yellow alert) can also be triggered from the Config Panel — it coordinates animated responses across all registered cards simultaneously.
-
-**[Full Config Panel Documentation →](doc/user/config-panel.md)**
+These core services start on page load and become accessible for use by all LCARdS cards on the dashboard view.
+Interaction is behind the scenes, but all the core systems APIs are accessible via **`window.lcards.core.*`**
 
 <br>
 
+| Service | What it does |
+|---|---|
+| **Systems Manager** | Centralized entity state subscriptions; LCARdS register interest and receive smart push notifications — no duplicate subscriptions |
+| **DataSource Manager** | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
+| **Rules Engine** | Evaluate conditions and hot-patch LCARd styles at runtime; target any LCARd by tag, type, or ID |
+| **Theme Manager** | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any LCARd field |
+| **Alert Mode** | Coordinated alert states (green / red / yellow / blue / gray / black); drives visual colour palette shifts and trigger sounds; driven by HA helper that can be used in automations |
+| **Animation Manager** | Coordinates Anime.js v4 animations used by LCARdS; provides a built-in library of configurable presets, or provide your own animejs custom parameters |
+| **Sound Manager** | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides |
+| **Style Preset Manager** | Central registry of named style presets for buttons, sliders, elbows, and more; consumed from packs |
+| **Component Manager** | Registry of SVG component definitions (D-pad, Alert, custom shapes) used in button component mode |
+| **Asset Manager** | Loads and caches SVG and font assets for use across cards |
+| **Pack Manager** | Loads and distributes content from packs (themes, presets, animations, assets, etc.) to the appropriate managers at startup |
+| **Helper Manager** | Manages LCARdS and HA-LCARS `input_*` helper entities (alert mode selector, sound config, sizing helpers); auto-create any helper from LCARdS Config Panel |
+
+**Template Support** — any text field in any card supports four syntaxes:
+JavaScript `[[[return ...]]]`, LCARdS tokens `{entity.state}` / `{theme:colors.card.button}`, DataSource `{ds:sensor_name}`, and Jinja2 `{{states("sensor.temp")}}` (Jinja2 is evaluated by HA server).
+
+</details>
+
 ---
 
-## Card Editors and Configuration Studios
+### 🚨 Alert Mode — Coordinated Dashboard-Wide States
+
+Alert mode is more than a colour change — it shifts the entire dashboard UI together:
+- **Theme colours transform** — the whole HA UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen; all transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel
+- **Sound plays** — the Sound Manager fires the matching alert audio scheme automatically
+- **Alert Overlay activates** — the `lcards-alert-overlay` card reacts and displays its full-screen backdrop and content card for the triggered alert condition
+- **Rules-driven animations** — cards and MSD overlays can be configured to pulse, flash, or animate when a specific alert level is active; this is opt-in via the Rules Engine, not automatic
+- **HA helpers stay in sync** — the `input_select.lcards_alert_mode` helper always reflects the current state, so HA automations can both trigger and react to alert level changes
+
+Multiple modes available: `green` (normal), `red`, `yellow`, `blue`, `gray`, `black`.  Can be triggered from the Config Panel, a card action, a HA automation, or the browser console.
+
+---
+
+### 🔗 Cross-Card Rules Engine
+
+Define rules once — apply them across many cards simultaneously.  Rules evaluate HA entity state conditions and hot-patch card styles at runtime without reloading:
+- Target cards by **type** (all buttons), **tag** (cards you label), or **ID** (a specific card)
+- **Patch any style property** — colour, opacity, border, background, text — on any matching card
+- Changes are **instant and reactive** — as entity states change, styles update automatically
+- Example: turn all indicators tagged as *engineering* red when any *engineering* alarm fires.
+
+---
+
+### 📊 DataSource Pipelines
+
+LCARdS DataSources give cards access to richer data than a plain entity state:
+- **Subscribe to any HA entity** and buffer its values over time
+- **Processing pipelines** — apply moving average, min/max normalization, aggregation, or custom transforms to the buffered data
+- **Reference in any field** via the `{ds:name}` template syntax — charts, labels, sliders, rules all consume the same source
+- **Shared across cards** — one DataSource can feed multiple cards, one subscription
+- Buffers stored in the browser session and clear on page refresh - recording in HA server not required.
+
+---
+
+### 🎨 Card Editors & Configuration Studios
 
 The aim is for LCARdS to have as much UI-based configuration as it can - but also to be easy to learn and navigate.  Of course, YAML is always available - and UI-editors have a schema-enhanced YAML editing tab to help with validation and auto-complete.
 
-
-Above the standard HA editor - some cards feature a more immersive graphical environment — *Configuration Studio*. You can use these editors to quickly get set up and out of spacedock.
+- Card editors are enhanced with immersive **Configuration Studios** — purpose-built visual environments for complex cards like MSD, Data Grid and Charts
+- **Live WYSIWYG** preview with instant feedback as you configure
+- **Schema-backed YAML** editing tab with inline auto-complete and validation for card configuration options
+- **Main Engineering tab** — per-card access to data sources, the rules browser, the theme token browser, and provenance tracking
+- **Provenance tracking** — inspect the effective runtime config and see which system (card config, preset, rules, etc) contributed each value
 
 
 > [!TIP]
 > Look for the ***[Open Configuration Studio]*** launcher button in the card's main configuration tab.
 
-![Studio Editing Experience](docs/assets/studio-editing-ui.png)
-<!--
-IMAGE PLACEHOLDER: Studio editor showcase
-Show: MSD studio open
-File: docs/assets/studio-editing-ui.png
--->
-
-
-<br>
-
 ---
 
-## Main Engineering
+### Main Engineering
 
 ![Main Engineering Dialogs](docs/assets/main-engineering-dialogs.png)
 <!--
