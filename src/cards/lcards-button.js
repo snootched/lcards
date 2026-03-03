@@ -4016,8 +4016,12 @@ export class LCARdSButton extends LCARdSCard {
         const borderMarkup = this._processedSvg ? '' : this._renderIndividualBorderPaths(width, height, border);
 
         // Generate shape texture layer (SVG-native, injected between bg and border)
+        // When the button uses a complex per-corner path (bullet, capped, bar-label, etc.)
+        // normalizedPath is null, so we must supply the actual shape path for correct clipping.
+        const textureShapePath = normalizedPath
+            || (needsComplexPath ? this._generateComplexBorderPath(width, height, border, 0) : null);
         const textureMarkup = this._supportsShapeTexture()
-            ? this._generateTextureMarkup(width, height, border, normalizedPath)
+            ? this._generateTextureMarkup(width, height, border, textureShapePath)
             : '';
 
         // ViewBox no longer needs expansion for stroke overhang
