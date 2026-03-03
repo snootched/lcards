@@ -2,6 +2,10 @@
  * Background Animation Coordinator
  * Manages Canvas2D renderer and effect composition
  *
+ * Accepts two config forms:
+ * - Bare array: `[{ preset, config, zoom }, ...]`
+ * - Envelope object: `{ inset: { top, right, bottom, left } | 'auto', effects: [...] }`
+ *
  * @module core/packs/backgrounds/BackgroundAnimationRenderer
  */
 import { lcardsLog } from '../../../utils/lcards-logging.js';
@@ -13,12 +17,62 @@ import { ZoomEffect } from './effects/ZoomEffect.js';
  * Orchestrates background animation rendering using Canvas2D with modular effects
  */
 export class BackgroundAnimationRenderer {
+  /**
+   * @param {HTMLElement} container - Container element for the canvas
+   * @param {Array|Object} config - Bare effects array or envelope object `{ inset, effects }`
+   * @param {*} [cardInstance=null] - Card instance for theme token resolution
+   */
   constructor(container, config, cardInstance = null) {
     this.container = container;
     this.config = config;
     this.cardInstance = cardInstance; // Reference to card for theme token resolution
     this.renderer = null;
     this.canvas = null;
+    /** @type {{ top: number, right: number, bottom: number, left: number }} */
+    this.inset = { top: 0, right: 0, bottom: 0, left: 0 };
+    /** @type {Array} */
+    this.effectConfigs = [];
+    /** @type {Object|string|null} */
+    this._rawInset = null;
+  }
+
+  /**
+   * Resolve the config into `this.effectConfigs` and `this.inset`.
+   *
+   * Accepts:
+   * - Bare array `[{ preset, config, zoom }, ...]`
+   * - Envelope object `{ inset: {...} | 'auto', effects: [...] }`
+   *
+   * The `'auto'` sentinel is stored in `this._rawInset` and resolved later by
+   * the card via `updateInset()`.
+   *
+   * @private
+   */
+  _resolveConfig(config) {
+    if (Array.isArray(config)) {
+      this.inset = { top: 0, right: 0, bottom: 0, left: 0 };
+      this._rawInset = null;
+      this.effectConfigs = config;
+    } else if (config && typeof config === 'object' && 'effects' in config) {
+      this.effectConfigs = config.effects ?? [];
+      this._rawInset = config.inset ?? null;
+      // 'auto' is resolved later via updateInset(); default to zero until then
+      if (this._rawInset === 'auto' || !this._rawInset) {
+        this.inset = { top: 0, right: 0, bottom: 0, left: 0 };
+      } else {
+        this.inset = {
+          top:    this._rawInset.top    ?? 0,
+          right:  this._rawInset.right  ?? 0,
+          bottom: this._rawInset.bottom ?? 0,
+          left:   this._rawInset.left   ?? 0
+        };
+      }
+    } else {
+      // Fallback: treat as single-effect object
+      this.inset = { top: 0, right: 0, bottom: 0, left: 0 };
+      this._rawInset = null;
+      this.effectConfigs = config ? [config] : [];
+    }
   }
 
   /**
@@ -27,15 +81,20 @@ export class BackgroundAnimationRenderer {
    */
   init() {
     try {
+      // Resolve config into effectConfigs + inset
+      this._resolveConfig(this.config);
+
+      const inset = this.inset;
+
       // Create canvas element
       this.canvas = document.createElement('canvas');
-      this.canvas.width = this.container.offsetWidth || 400;
-      this.canvas.height = this.container.offsetHeight || 300;
+      this.canvas.width  = Math.max(1, (this.container.offsetWidth  || 400) - inset.left - inset.right);
+      this.canvas.height = Math.max(1, (this.container.offsetHeight || 300) - inset.top  - inset.bottom);
       this.canvas.style.position = 'absolute';
-      this.canvas.style.top = '0';
-      this.canvas.style.left = '0';
-      this.canvas.style.width = '100%';
-      this.canvas.style.height = '100%';
+      this.canvas.style.top    = `${inset.top}px`;
+      this.canvas.style.left   = `${inset.left}px`;
+      this.canvas.style.width  = `calc(100% - ${inset.left + inset.right}px)`;
+      this.canvas.style.height = `calc(100% - ${inset.top  + inset.bottom}px)`;
       this.canvas.style.pointerEvents = 'none';
 
       this.container.appendChild(this.canvas);
@@ -43,6 +102,7 @@ export class BackgroundAnimationRenderer {
       lcardsLog.debug('[BackgroundAnimation] Canvas created', {
         width: this.canvas.width,
         height: this.canvas.height,
+        inset,
         containerWidth: this.container.offsetWidth,
         containerHeight: this.container.offsetHeight
       });
@@ -69,6 +129,22 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
+   * Update the canvas inset and resize immediately.
+   * Safe to call with all-zero inset (no-op in practice).
+   *
+   * @param {{ top?: number, right?: number, bottom?: number, left?: number }} inset
+   */
+  updateInset(inset) {
+    this.inset = {
+      top:    inset.top    ?? 0,
+      right:  inset.right  ?? 0,
+      bottom: inset.bottom ?? 0,
+      left:   inset.left   ?? 0
+    };
+    this.handleResize();
+  }
+
+  /**
    * Load effects from preset or direct config
    * Supports both single effect and array of effects for stacking
    *
@@ -81,8 +157,8 @@ export class BackgroundAnimationRenderer {
    * @returns {boolean} True if at least one effect was loaded
    */
   _loadEffects() {
-    // Normalize config to array format
-    const effectConfigs = Array.isArray(this.config) ? this.config : [this.config];
+    // Use resolved effectConfigs (set by _resolveConfig)
+    const effectConfigs = Array.isArray(this.effectConfigs) ? this.effectConfigs : [this.effectConfigs];
 
     let loadedEffects = 0;
 
@@ -195,19 +271,25 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
-   * Handle window resize
+   * Handle container resize — accounts for current inset values.
    */
   handleResize() {
     if (!this.canvas || !this.renderer) {
       return;
     }
 
-    const width = this.container.offsetWidth || 400;
-    const height = this.container.offsetHeight || 300;
+    const inset  = this.inset;
+    const width  = Math.max(1, (this.container.offsetWidth  || 400) - inset.left - inset.right);
+    const height = Math.max(1, (this.container.offsetHeight || 300) - inset.top  - inset.bottom);
 
     this.renderer.resize(width, height);
 
-    lcardsLog.debug('[BackgroundAnimation] Resized', { width, height });
+    this.canvas.style.top    = `${inset.top}px`;
+    this.canvas.style.left   = `${inset.left}px`;
+    this.canvas.style.width  = `calc(100% - ${inset.left + inset.right}px)`;
+    this.canvas.style.height = `calc(100% - ${inset.top  + inset.bottom}px)`;
+
+    lcardsLog.debug('[BackgroundAnimation] Resized', { width, height, inset });
   }
 
   /**

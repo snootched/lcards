@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.03.04-bgcascade-alpha",
+  "version": "2026.03.03-bginset-alpha",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",

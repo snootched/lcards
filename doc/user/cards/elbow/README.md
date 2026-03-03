@@ -193,9 +193,55 @@ Then define a rule that patches `id: alert-cap` when the sensor is high.
 
 ---
 
+## Background Animation Inset
+
+Elbow cards support a canvas-level `inset` on `background_animation` so the animation fills only the open content area, not the LCARS bars.
+
+### Auto inset (recommended)
+
+Use `inset: auto` to let the card automatically derive the correct inset from its bar geometry:
+
+```yaml
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20
+background_animation:
+  inset: auto       # canvas sized to avoid the elbow bars
+  effects:
+    - preset: grid
+      config:
+        line_spacing: 40
+        color: "rgba(255, 153, 0, 0.3)"
+```
+
+### Manual inset
+
+You can also supply explicit pixel values if you need precise control:
+
+```yaml
+background_animation:
+  inset:
+    top: 20         # height of horizontal top bar
+    left: 90        # width of vertical left bar
+    right: 0
+    bottom: 0
+  effects:
+    - preset: starfield
+      config:
+        count: 150
+```
+
+> **Note**: `inset: auto` is computed from the resolved bar geometry at runtime and updates automatically when theme bar dimensions change via `input_number` helpers.
+
+---
+
 ## Related
 
 - [Button card](../button/README.md)
+- [Background Animations](../../core/effects/background-animations.md)
 - [Themes — HA-LCARS binding](../../core/themes/README.md)
 - [Rules Engine](../../core/rules/README.md)
 - [Animations](../../core/animations.md)

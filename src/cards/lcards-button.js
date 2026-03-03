@@ -5492,6 +5492,27 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
+     * Resolve background animation inset from raw config value.
+     * Base implementation: `'auto'` resolves to zero inset (no bars on button cards).
+     * Overridden by lcards-elbow to compute from bar geometry.
+     *
+     * @param {Object|string|null} rawInset - Raw inset value from config (`{ top, right, bottom, left }`, `'auto'`, or null)
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @protected
+     */
+    _resolveBackgroundAnimationInset(rawInset) {
+        if (!rawInset || rawInset === 'auto') {
+            return { top: 0, right: 0, bottom: 0, left: 0 };
+        }
+        return {
+            top:    rawInset.top    ?? 0,
+            right:  rawInset.right  ?? 0,
+            bottom: rawInset.bottom ?? 0,
+            left:   rawInset.left   ?? 0
+        };
+    }
+
+    /**
      * Initialize background animation renderer
      * @private
      */
@@ -5532,15 +5553,27 @@ export class LCARdSButton extends LCARdSCard {
             offsetHeight: backgroundLayer.offsetHeight
         });
 
+        // Resolve canvas inset from config.
+        // Explicit inset objects are applied by _resolveConfig() inside init() — only
+        // 'auto' insets need a post-init updateInset() call because their real value
+        // depends on card geometry that is only available after construction.
+        const bgConfig = this.config.background_animation;
+        const rawInset = (bgConfig && !Array.isArray(bgConfig)) ? bgConfig.inset ?? null : null;
+
         // Initialize renderer
         this._backgroundRenderer = new BackgroundAnimationRenderer(
             backgroundLayer,
-            this.config.background_animation,
+            bgConfig,
             this // Pass card instance for theme token resolution
         );
 
         const success = this._backgroundRenderer.init();
         if (success) {
+            // For 'auto' insets, resolve the actual geometry-based inset and apply it now.
+            // Explicit insets (objects or null) are already handled by _resolveConfig inside init().
+            if (rawInset === 'auto') {
+                this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset(rawInset));
+            }
             lcardsLog.info('[LCARdSButton] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSButton] Background animation initialization failed');

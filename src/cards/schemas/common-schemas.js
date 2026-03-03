@@ -1161,3 +1161,106 @@ export const soundsSchema = {
     },
     additionalProperties: false
 };
+
+// ============================================================================
+// BACKGROUND ANIMATION SCHEMA
+// ============================================================================
+
+/**
+ * Per-effect schema item for background_animation arrays
+ */
+const backgroundAnimationEffectSchema = {
+    type: 'object',
+    required: ['preset'],
+    properties: {
+        preset: {
+            type: 'string',
+            description: 'Background animation preset name (e.g. grid, starfield, cascade)'
+        },
+        config: {
+            type: 'object',
+            description: 'Preset-specific configuration options'
+        },
+        enabled: {
+            type: 'boolean',
+            description: 'Set to false to disable this effect without removing it',
+            default: true
+        },
+        zoom: {
+            type: 'object',
+            description: 'Optional zoom wrapper — creates layered depth effect',
+            properties: {
+                layers:          { type: 'number', minimum: 1, default: 4 },
+                scale_from:      { type: 'number', default: 0.5 },
+                scale_to:        { type: 'number', default: 2.0 },
+                duration:        { type: 'number', default: 15 },
+                opacity_fade_in: { type: 'number', default: 15 },
+                opacity_fade_out:{ type: 'number', default: 75 }
+            }
+        }
+    },
+    additionalProperties: false
+};
+
+/**
+ * Inset schema (numeric sides object)
+ */
+const backgroundAnimationInsetSchema = {
+    oneOf: [
+        {
+            type: 'string',
+            enum: ['auto'],
+            description: "Auto-compute inset from card geometry (elbow cards only)"
+        },
+        {
+            type: 'object',
+            description: 'Per-side pixel inset for the animation canvas',
+            properties: {
+                top:    { type: 'number', minimum: 0, default: 0 },
+                right:  { type: 'number', minimum: 0, default: 0 },
+                bottom: { type: 'number', minimum: 0, default: 0 },
+                left:   { type: 'number', minimum: 0, default: 0 }
+            },
+            additionalProperties: false
+        }
+    ]
+};
+
+/**
+ * Background animation schema — accepts bare array form or envelope object with canvas inset.
+ *
+ * Bare array (backward-compatible):
+ *   background_animation:
+ *     - preset: grid
+ *       config: { line_spacing: 40 }
+ *
+ * Envelope form (with canvas inset):
+ *   background_animation:
+ *     inset: { left: 90, bottom: 40 }   # or 'auto' for elbow cards
+ *     effects:
+ *       - preset: grid
+ *         config: { line_spacing: 40 }
+ */
+export const backgroundAnimationSchema = {
+    oneOf: [
+        {
+            type: 'array',
+            description: 'Background animation effects (bare array, no canvas inset)',
+            items: backgroundAnimationEffectSchema
+        },
+        {
+            type: 'object',
+            description: 'Background animation with canvas-level inset',
+            required: ['effects'],
+            properties: {
+                inset: backgroundAnimationInsetSchema,
+                effects: {
+                    type: 'array',
+                    description: 'Stack of background effects rendered in order (bottom → top)',
+                    items: backgroundAnimationEffectSchema
+                }
+            },
+            additionalProperties: false
+        }
+    ]
+};

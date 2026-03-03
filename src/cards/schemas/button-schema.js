@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -487,6 +487,12 @@ export function getButtonSchema(options = {}) {
                 type: 'array',
                 items: animationSchema
             },
+
+            // ============================================================================
+            // BACKGROUND ANIMATION
+            // ============================================================================
+
+            background_animation: backgroundAnimationSchema,
 
             // FILTERS
             // ============================================================================
