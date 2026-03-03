@@ -166,6 +166,18 @@ zoom:
   opacity_fade_out: 75       # 0-100%, default: 75
 ```
 
+### Canvas Inset
+
+```yaml
+inset:
+  top: 0                      # px, default: 0
+  right: 0                    # px, default: 0
+  bottom: 40                  # px, default: 0
+  left: 90                    # px, default: 0
+# Or use 'auto' on lcards-elbow cards:
+inset: auto
+```
+
 ---
 
 ## 🎨 Color Formats

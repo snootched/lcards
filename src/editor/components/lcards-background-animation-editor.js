@@ -215,6 +215,28 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         gap: 8px;
       }
 
+      .inset-section {
+        background: var(--secondary-background-color, #fafafa);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+      }
+
+      .inset-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .inset-title {
+        font-weight: 600;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       .param-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -414,6 +436,9 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       <!-- Zoom Wrapper -->
       ${this._renderZoomSection(effect, index)}
+
+      <!-- Canvas Inset -->
+      ${this._renderInsetSection(effect, index)}
     `;
   }
 
@@ -859,6 +884,66 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     `;
   }
 
+  _renderInsetSection(effect, index) {
+    const inset = effect.inset && typeof effect.inset === 'object' ? effect.inset : null;
+    const isEnabled = inset !== null;
+
+    return html`
+      <div class="inset-section">
+        <div class="inset-header">
+          <div class="inset-title">
+            <ha-icon icon="mdi:crop"></ha-icon>
+            <span>Canvas Inset</span>
+          </div>
+          <ha-switch
+            .checked=${isEnabled}
+            @change=${(e) => this._toggleInset(index, e.target.checked)}
+          ></ha-switch>
+        </div>
+
+        ${isEnabled ? html`
+          <div class="param-grid">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+              .value=${inset.top ?? 0}
+              .label=${'Top (px)'}
+              .helper=${'Inset from the top edge'}
+              @value-changed=${(e) => this._updateInsetConfig(index, 'top', e.detail.value)}
+            ></ha-selector>
+
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+              .value=${inset.right ?? 0}
+              .label=${'Right (px)'}
+              .helper=${'Inset from the right edge'}
+              @value-changed=${(e) => this._updateInsetConfig(index, 'right', e.detail.value)}
+            ></ha-selector>
+
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+              .value=${inset.bottom ?? 0}
+              .label=${'Bottom (px)'}
+              .helper=${'Inset from the bottom edge'}
+              @value-changed=${(e) => this._updateInsetConfig(index, 'bottom', e.detail.value)}
+            ></ha-selector>
+
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+              .value=${inset.left ?? 0}
+              .label=${'Left (px)'}
+              .helper=${'Inset from the left edge'}
+              @value-changed=${(e) => this._updateInsetConfig(index, 'left', e.detail.value)}
+            ></ha-selector>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
   // ====================
   // Preset Discovery
   // ====================
@@ -1036,6 +1121,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       if (config.pattern) parts.push(`pattern: ${config.pattern}`);
     }
 
+    if (effect.inset && typeof effect.inset === 'object') {
+      const i = effect.inset;
+      parts.push(`inset: T${i.top ?? 0} R${i.right ?? 0} B${i.bottom ?? 0} L${i.left ?? 0}`);
+    }
+
     return parts.join(' • ') || 'No configuration';
   }
 
@@ -1147,6 +1237,33 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       zoom: {
         ...updatedEffects[index].zoom,
         [key]: value
+      }
+    };
+    this._emitChange(updatedEffects);
+  }
+
+  _toggleInset(index, enabled) {
+    const updatedEffects = [...this.effects];
+    if (enabled) {
+      updatedEffects[index] = {
+        ...updatedEffects[index],
+        inset: { top: 0, right: 0, bottom: 0, left: 0 }
+      };
+    } else {
+      const updated = { ...updatedEffects[index] };
+      delete updated.inset;
+      updatedEffects[index] = updated;
+    }
+    this._emitChange(updatedEffects);
+  }
+
+  _updateInsetConfig(index, side, value) {
+    const updatedEffects = [...this.effects];
+    updatedEffects[index] = {
+      ...updatedEffects[index],
+      inset: {
+        ...(updatedEffects[index].inset || {}),
+        [side]: value
       }
     };
     this._emitChange(updatedEffects);

@@ -79,6 +79,7 @@ background_animation:
 | `preset` | string | ✅ | Preset name (see [Available Presets](#available-presets)) |
 | `config` | object | ✅ | Preset-specific configuration |
 | `zoom` | object | ❌ | Optional zoom wrapper configuration |
+| `inset` | object or `'auto'` | ❌ | Optional canvas inset. Shrinks the canvas away from card edges. Use `'auto'` on elbow cards to auto-frame inside the bar borders. |
 
 ---
 
@@ -642,6 +643,58 @@ The colour cycle for each row follows the CB-LCARS / data-grid keyframe structur
 ```
 
 > **💡 Tip:** Use `opacity: 0.4–0.7` for cascade backgrounds so card content remains readable. Combine with `grid` or `starfield` for layered depth effects.
+
+---
+
+## 📐 Canvas Inset
+
+The `inset` property shrinks the animation canvas away from the edges of the card container without affecting the effects themselves — all effect layers continue to fill the inset canvas.
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `top` | number | `0` | Pixels to inset from the top edge |
+| `right` | number | `0` | Pixels to inset from the right edge |
+| `bottom` | number | `0` | Pixels to inset from the bottom edge |
+| `left` | number | `0` | Pixels to inset from the left edge |
+
+### YAML Example
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      line_spacing: 40
+      color: "rgba(255, 153, 0, 0.3)"
+    inset:
+      top: 0
+      right: 0
+      bottom: 40    # leave space for a footer bar
+      left: 90      # leave space for a left sidebar
+```
+
+### Elbow Auto-Framing
+
+On `lcards-elbow` cards, set `inset: auto` to automatically compute and apply the correct inset values from the elbow bar geometry. The canvas will be framed precisely inside the LCARS bar borders.
+
+```yaml
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20
+background_animation:
+  - preset: cascade
+    config:
+      format: hex
+      pattern: default
+      opacity: 0.6
+    inset: auto   # canvas is automatically inset to sit inside the elbow bars
+```
+
+> **Note:** `inset: 'auto'` is silently ignored on non-elbow cards (resolved to all zeros).
 
 ---
 

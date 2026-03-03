@@ -19,6 +19,37 @@ export class BackgroundAnimationRenderer {
     this.cardInstance = cardInstance; // Reference to card for theme token resolution
     this.renderer = null;
     this.canvas = null;
+    this.inset = this._resolveInset(config);
+  }
+
+  /**
+   * Resolve inset from config.
+   * Reads `inset` from the first non-array item in the normalised config array,
+   * or from a root-level `inset` if config is a plain object.
+   * All sides default to 0.
+   * @param {Object|Array} config - Raw background_animation config
+   * @returns {{ top: number, right: number, bottom: number, left: number }}
+   * @private
+   */
+  _resolveInset(config) {
+    let raw = null;
+    if (Array.isArray(config)) {
+      const first = config.find(item => item && !Array.isArray(item));
+      raw = first?.inset ?? null;
+    } else if (config && typeof config === 'object') {
+      raw = config.inset ?? null;
+    }
+
+    if (!raw || typeof raw !== 'object') {
+      return { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+
+    return {
+      top:    Number(raw.top    ?? 0),
+      right:  Number(raw.right  ?? 0),
+      bottom: Number(raw.bottom ?? 0),
+      left:   Number(raw.left   ?? 0)
+    };
   }
 
   /**
@@ -27,15 +58,17 @@ export class BackgroundAnimationRenderer {
    */
   init() {
     try {
+      const inset = this.inset;
+
       // Create canvas element
       this.canvas = document.createElement('canvas');
-      this.canvas.width = this.container.offsetWidth || 400;
-      this.canvas.height = this.container.offsetHeight || 300;
+      this.canvas.width  = Math.max(1, (this.container.offsetWidth  || 400) - inset.left - inset.right);
+      this.canvas.height = Math.max(1, (this.container.offsetHeight || 300) - inset.top  - inset.bottom);
       this.canvas.style.position = 'absolute';
-      this.canvas.style.top = '0';
-      this.canvas.style.left = '0';
-      this.canvas.style.width = '100%';
-      this.canvas.style.height = '100%';
+      this.canvas.style.top    = `${inset.top}px`;
+      this.canvas.style.left   = `${inset.left}px`;
+      this.canvas.style.width  = `calc(100% - ${inset.left + inset.right}px)`;
+      this.canvas.style.height = `calc(100% - ${inset.top  + inset.bottom}px)`;
       this.canvas.style.pointerEvents = 'none';
 
       this.container.appendChild(this.canvas);
@@ -202,12 +235,34 @@ export class BackgroundAnimationRenderer {
       return;
     }
 
-    const width = this.container.offsetWidth || 400;
-    const height = this.container.offsetHeight || 300;
+    const width  = Math.max(1, (this.container.offsetWidth  || 400) - this.inset.left - this.inset.right);
+    const height = Math.max(1, (this.container.offsetHeight || 300) - this.inset.top  - this.inset.bottom);
 
     this.renderer.resize(width, height);
 
+    // Keep CSS position in sync with current inset
+    this.canvas.style.top    = `${this.inset.top}px`;
+    this.canvas.style.left   = `${this.inset.left}px`;
+    this.canvas.style.width  = `calc(100% - ${this.inset.left + this.inset.right}px)`;
+    this.canvas.style.height = `calc(100% - ${this.inset.top  + this.inset.bottom}px)`;
+
     lcardsLog.debug('[BackgroundAnimation] Resized', { width, height });
+  }
+
+  /**
+   * Update the canvas inset and re-apply dimensions.
+   * Used by cards that need to adjust the inset dynamically (e.g. elbow cards
+   * when bar geometry changes due to theme entity updates).
+   * @param {{ top: number, right: number, bottom: number, left: number }} inset
+   */
+  updateInset(inset) {
+    this.inset = {
+      top:    Number(inset.top    ?? 0),
+      right:  Number(inset.right  ?? 0),
+      bottom: Number(inset.bottom ?? 0),
+      left:   Number(inset.left   ?? 0)
+    };
+    this.handleResize();
   }
 
   /**

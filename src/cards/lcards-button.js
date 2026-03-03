@@ -5492,6 +5492,17 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
+     * Resolve 'auto' inset sentinel for a background_animation config item.
+     * Base implementation returns zeros (no inset). Subclasses may override.
+     * @param {Object} _effectConfig - Single background_animation array item
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @protected
+     */
+    _resolveBackgroundAnimationInset(_effectConfig) {
+        return { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+
+    /**
      * Initialize background animation renderer
      * @private
      */
@@ -5533,9 +5544,19 @@ export class LCARdSButton extends LCARdSCard {
         });
 
         // Initialize renderer
+        // Normalise to array and resolve any 'auto' inset sentinels
+        const rawConfig = this.config.background_animation;
+        const normalizedConfig = Array.isArray(rawConfig) ? rawConfig : [rawConfig];
+        const resolvedConfig = normalizedConfig.map(item => {
+            if (item && item.inset === 'auto') {
+                return { ...item, inset: this._resolveBackgroundAnimationInset(item) };
+            }
+            return item;
+        });
+
         this._backgroundRenderer = new BackgroundAnimationRenderer(
             backgroundLayer,
-            this.config.background_animation,
+            resolvedConfig,
             this // Pass card instance for theme token resolution
         );
 

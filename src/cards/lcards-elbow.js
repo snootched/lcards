@@ -767,8 +767,25 @@ export class LCARdSElbow extends LCARdSButton {
                 this._elbowGeometry = this._calculateSimpleElbowGeometry(this._elbowConfig);
             }
 
+            // Update background animation canvas inset if 'auto' inset was configured
+            if (this._backgroundRenderer && this._hasAutoInset()) {
+                this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset());
+            }
+
             this.requestUpdate();
         }
+    }
+
+    /**
+     * Check whether the background_animation config contained an 'auto' inset sentinel.
+     * @returns {boolean}
+     * @private
+     */
+    _hasAutoInset() {
+        const rawConfig = this.config?.background_animation;
+        if (!rawConfig) return false;
+        const items = Array.isArray(rawConfig) ? rawConfig : [rawConfig];
+        return items.some(item => item && item.inset === 'auto');
     }
 
     /**
@@ -779,6 +796,42 @@ export class LCARdSElbow extends LCARdSButton {
         // Elbow cards render their own SVG geometry, not button segments
         // Skip button's segment animation setup to avoid warnings
         return;
+    }
+
+    /**
+     * Override: resolve 'auto' inset from elbow bar geometry.
+     * Computes per-side insets matching the elbow bars so the animation
+     * canvas is "framed" inside the LCARS elbow treatment.
+     * Supports simple and segmented elbows, all orientations.
+     * @override
+     * @param {Object} _effectConfig - Single background_animation array item (unused)
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @protected
+     */
+    _resolveBackgroundAnimationInset(_effectConfig) {
+        const g = this._elbowGeometry;
+        if (!g) return { top: 0, right: 0, bottom: 0, left: 0 };
+
+        const component = this._getElbowComponent(g.type);
+        if (!component) return { top: 0, right: 0, bottom: 0, left: 0 };
+
+        const position = component.layout?.position || 'header';
+        const side     = component.layout?.side     || 'left';
+
+        const hBar = g.inner
+            ? (g.outer.horizontal + g.gap + g.inner.horizontal)
+            : (g.horizontal ?? 0);
+        const vBar = g.inner
+            ? (g.outer.vertical + g.gap + g.inner.vertical)
+            : (g.vertical ?? 0);
+
+        let top = 0, right = 0, bottom = 0, left = 0;
+        if (position === 'header') top    = vBar;
+        else                       bottom = vBar;
+        if (side === 'left')       left   = hBar;
+        else                       right  = hBar;
+
+        return { top, right, bottom, left };
     }
 
     /**
