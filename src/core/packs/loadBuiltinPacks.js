@@ -24,6 +24,7 @@ import { LCARDS_ELBOWS_PACK }    from './lcards-elbows-pack.js';
 import { registerBuiltinAnimationPresets } from './animations/index.js';
 import { CORE_FONTS_PACK } from './core-fonts-pack.js';
 import { CORE_PACK }       from './core-pack.js';
+import { LCARDS_TEXTURES_PACK }  from './lcards-textures-pack.js';
 
 // ──────────────────────────────────────────────────────────────
 // BUILTIN REGISTRY
@@ -42,6 +43,7 @@ const BUILTIN_REGISTRY = {
   lcards_sounds_default:   BUILTIN_SOUNDS_PACK,
   lcards_beeps:            LCARDS_BEEPS_PACK,
   lcards_alerts:           LCARDS_ALERTS_PACK,
+  lcards_textures:         LCARDS_TEXTURES_PACK,
 };
 
 /**
@@ -64,7 +66,8 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
     'lcards_sounds_default',
     'lcards_beeps',
     'lcards_alerts',
-    'lcards_elbows'
+    'lcards_elbows',
+    'lcards_textures'
   ];
 
   const packsToLoad = [...new Set([...requested, ...alwaysLoad])];

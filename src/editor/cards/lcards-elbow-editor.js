@@ -35,6 +35,7 @@ import '../components/editors/lcards-font-selector.js';
 // Import animation and filter components
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
+import '../components/lcards-shape-texture-editor.js';
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
 // Import datasource components
@@ -763,6 +764,36 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
+            </lcards-form-section>
+
+            ${this._renderShapeTextureSection()}
+        `;
+    }
+
+    /**
+     * Render the shape texture section for Elbow Design tab.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeTextureSection() {
+        return html`
+            <lcards-form-section
+                header="Shape Texture"
+                description="Apply an SVG texture or animation pattern inside the elbow shape"
+                icon="mdi:texture"
+                ?expanded=${!!this.config?.shape_texture?.preset}
+                ?outlined=${true}>
+                <lcards-shape-texture-editor
+                    .hass=${this.hass}
+                    .config=${this.config?.shape_texture ?? null}
+                    @texture-changed=${(e) => {
+                        if (e.detail.value) {
+                            this._setConfigValue('shape_texture', e.detail.value);
+                        } else {
+                            this._removeConfigPath('shape_texture');
+                        }
+                    }}>
+                </lcards-shape-texture-editor>
             </lcards-form-section>
         `;
     }

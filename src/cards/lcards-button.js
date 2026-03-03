@@ -63,6 +63,8 @@ import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
+import { SHAPE_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
+import { ShapeTextureRenderer } from '../core/packs/textures/ShapeTextureRenderer.js';
 
 // Import unified schema
 import { getButtonSchema } from './schemas/button-schema.js';
@@ -3760,6 +3762,126 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
+     * Returns true if the card is in a mode that supports shape_texture.
+     * Only standard preset mode is supported (no custom SVG, no components).
+     * @returns {boolean}
+     * @protected
+     */
+    _supportsShapeTexture() {
+        return !this._processedSvg && !this.config?.component && !this.config?.svg;
+    }
+
+    /**
+     * Returns a stable short ID for this card instance, used to scope SVG def IDs.
+     * @returns {string}
+     * @private
+     */
+    _getTextureInstanceId() {
+        if (!this._textureInstanceId) {
+            this._textureInstanceId = Math.random().toString(36).slice(2, 7);
+        }
+        return this._textureInstanceId;
+    }
+
+    /**
+     * Resolve shape_texture config for current card state.
+     * Resolves theme tokens on color, applies state-based opacity and speed.
+     * @returns {{ presetDef, resolvedConfig, opacity, blendMode }|null} null if disabled
+     * @private
+     */
+    _resolveShapeTextureConfig() {
+        const texConfig = this.config?.shape_texture;
+        if (!texConfig || !texConfig.preset) return null;
+        if (!this._supportsShapeTexture()) return null;
+
+        const presetDef = SHAPE_TEXTURE_PRESETS[texConfig.preset];
+        if (!presetDef) {
+            lcardsLog.warn(`[LCARdSButton] Unknown shape_texture preset: ${texConfig.preset}`);
+            return null;
+        }
+
+        const buttonState = this._buttonStyle?._currentState || this._getButtonState();
+        const actualEntityState = this._entity?.state;
+
+        // Merge user config with preset defaults
+        const rawConfig = { ...presetDef.defaults, ...(texConfig.config || {}) };
+
+        // Resolve theme tokens in color fields using the existing pattern
+        const themeManager = this._singletons?.themeManager;
+        let resolvedConfig = rawConfig;
+        if (themeManager) {
+            resolvedConfig = resolveThemeTokensRecursive(rawConfig, themeManager);
+        }
+
+        // Resolve state-based color on the 'color' field
+        if (resolvedConfig.color && typeof resolvedConfig.color === 'object') {
+            resolvedConfig = {
+                ...resolvedConfig,
+                color: resolveStateColor({
+                    actualState: actualEntityState,
+                    classifiedState: buttonState,
+                    colorConfig: resolvedConfig.color,
+                    fallback: 'rgba(255,255,255,0.2)'
+                }) || 'rgba(255,255,255,0.2)'
+            };
+        }
+
+        // Resolve state-based opacity
+        let opacity = texConfig.opacity ?? 0.3;
+        if (typeof opacity === 'object') {
+            opacity = resolveStateColor({
+                actualState: actualEntityState,
+                classifiedState: buttonState,
+                colorConfig: opacity,
+                fallback: 0.3
+            }) ?? 0.3;
+            opacity = parseFloat(opacity);
+        }
+
+        // Resolve state-based speed multiplier
+        let speed = texConfig.speed ?? null;
+        if (speed !== null && typeof speed === 'object') {
+            speed = resolveStateColor({
+                actualState: actualEntityState,
+                classifiedState: buttonState,
+                colorConfig: speed,
+                fallback: 1.0
+            }) ?? 1.0;
+            speed = parseFloat(speed);
+        }
+        if (speed !== null) {
+            if (resolvedConfig.scroll_speed_x !== undefined) resolvedConfig = { ...resolvedConfig, scroll_speed_x: resolvedConfig.scroll_speed_x * speed };
+            if (resolvedConfig.scroll_speed_y !== undefined) resolvedConfig = { ...resolvedConfig, scroll_speed_y: resolvedConfig.scroll_speed_y * speed };
+            if (resolvedConfig.speed !== undefined) resolvedConfig = { ...resolvedConfig, speed: resolvedConfig.speed * speed };
+        }
+
+        const blendMode = texConfig.mix_blend_mode || 'normal';
+
+        return { presetDef, resolvedConfig, opacity, blendMode };
+    }
+
+    /**
+     * Generate the SVG shape texture layer markup string.
+     * Returns empty string if texture is not configured or not supported.
+     * @param {number} width
+     * @param {number} height
+     * @param {Object} border - Resolved border config
+     * @param {string|null} shapePath - SVG path d= string for complex shapes, null for rect
+     * @returns {string} SVG markup string
+     * @private
+     */
+    _generateTextureMarkup(width, height, border, shapePath = null) {
+        const resolved = this._resolveShapeTextureConfig();
+        if (!resolved) return '';
+
+        const { presetDef, resolvedConfig, opacity, blendMode } = resolved;
+        const id = this._getTextureInstanceId();
+
+        const renderer = new ShapeTextureRenderer(presetDef, resolvedConfig, id);
+        return renderer.render(shapePath, width, height, border, blendMode, opacity);
+    }
+
+    /**
      * Generate SVG markup for a simple button
      * @param {number} width - SVG width
      * @param {number} height - SVG height
@@ -3893,6 +4015,11 @@ export class LCARdSButton extends LCARdSCard {
         // Note: Borders are rendered on top of SVG backgrounds when svg config is used
         const borderMarkup = this._processedSvg ? '' : this._renderIndividualBorderPaths(width, height, border);
 
+        // Generate shape texture layer (SVG-native, injected between bg and border)
+        const textureMarkup = this._supportsShapeTexture()
+            ? this._generateTextureMarkup(width, height, border, normalizedPath)
+            : '';
+
         // ViewBox no longer needs expansion for stroke overhang
         // Borders are now inset by strokeWidth/2, keeping them fully within natural dimensions
         // This replicates CSS border behavior where borders are drawn "inside" the box
@@ -3944,6 +4071,7 @@ export class LCARdSButton extends LCARdSCard {
                    class="button-group"
                    style="pointer-events: visiblePainted; cursor: pointer;">
                     ${backgroundMarkup}
+                    ${textureMarkup}
                     ${borderMarkup}
                     ${iconData.markup}
                     ${textMarkup}

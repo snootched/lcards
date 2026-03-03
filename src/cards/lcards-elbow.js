@@ -1636,6 +1636,9 @@ export class LCARdSElbow extends LCARdSButton {
             textMarkup = this._generateTextElements(processedFields);
         }
 
+        // Generate shape texture layer
+        const textureMarkup = this._generateTextureMarkup(width, height, {}, elbowPath);
+
         // Compose SVG
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -1650,6 +1653,7 @@ export class LCARdSElbow extends LCARdSButton {
                         fill="${backgroundColor}"
                         style="pointer-events: all;"
                     />
+                    ${textureMarkup}
                     ${iconData.markup}
                     ${textMarkup}
                 </g>

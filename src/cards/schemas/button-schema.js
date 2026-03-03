@@ -494,6 +494,47 @@ export function getButtonSchema(options = {}) {
 
             background_animation: backgroundAnimationSchema,
 
+            // ============================================================================
+            // SHAPE TEXTURE
+            // ============================================================================
+
+            shape_texture: {
+                type: 'object',
+                description: 'SVG-native texture/animation rendered inside the button shape boundary',
+                properties: {
+                    preset: {
+                        type: 'string',
+                        description: 'Texture preset name',
+                        enum: ['grid', 'diagonal', 'hexagonal', 'dots', 'fluid', 'solid']
+                    },
+                    opacity: {
+                        description: 'Texture opacity (0-1). Supports state-based object.',
+                        oneOf: [
+                            { type: 'number', minimum: 0, maximum: 1 },
+                            { '$ref': '#/$defs/stateColorSchema' }
+                        ]
+                    },
+                    speed: {
+                        description: 'Animation speed multiplier. Supports state-based object.',
+                        oneOf: [
+                            { type: 'number', minimum: 0 },
+                            { type: 'object' }
+                        ]
+                    },
+                    mix_blend_mode: {
+                        type: 'string',
+                        description: 'CSS mix-blend-mode for texture blending',
+                        enum: ['normal', 'multiply', 'screen', 'overlay', 'hard-light', 'soft-light', 'color-burn', 'color-dodge']
+                    },
+                    config: {
+                        type: 'object',
+                        description: 'Preset-specific configuration (color, line_spacing, hex_radius, etc.)',
+                        additionalProperties: true
+                    }
+                },
+                additionalProperties: false
+            },
+
             // FILTERS
             // ============================================================================
 
