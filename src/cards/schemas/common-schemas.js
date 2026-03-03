@@ -643,9 +643,9 @@ export const rulesSchema = {
                                     examples: ['pulse', 'flash', 'glow', 'alert_pulse']
                                 },
                                 duration: {
-                                    type: 'number',
+                                    type: ['number', 'object'],
                                     minimum: 0,
-                                    description: 'Animation duration in milliseconds'
+                                    description: 'Animation duration in milliseconds. Also accepts a map_range descriptor for entity-driven dynamic duration.'
                                 },
                                 loop: {
                                     type: 'boolean',
@@ -653,14 +653,26 @@ export const rulesSchema = {
                                     description: 'Loop animation (automatically stops when rule unmatches)'
                                 },
                                 delay: {
-                                    type: 'number',
+                                    type: ['number', 'object'],
                                     minimum: 0,
-                                    description: 'Delay before animation starts (milliseconds)'
+                                    description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor for entity-driven dynamic delay.'
                                 },
                                 easing: {
                                     type: 'string',
                                     description: 'Animation easing function',
                                     examples: ['easeInOutQuad', 'linear', 'easeOutElastic']
+                                },
+                                params: {
+                                    type: 'object',
+                                    description: 'Preset-specific parameters. Values may be static or use map_range to proportionally interpolate from an entity value.',
+                                    additionalProperties: true,
+                                    examples: [
+                                        { speed: 2, color: '#00ff88' },
+                                        {
+                                            speed: { map_range: { entity: 'sensor.grid_power', input: [0, 5000], output: [8, 0.5], clamp: true } },
+                                            color: { map_range: { entity: 'sensor.grid_power', input: [0, 5000], output: ['#00ff88', '#ff4400'], clamp: true } }
+                                        }
+                                    ]
                                 }
                             },
                             required: ['preset'],

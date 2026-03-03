@@ -358,3 +358,135 @@ animations:
 - [Datasource Buffers](./datasource-buffers.md) - Datasource structure reference
 - [Animation System Overview](../subsystems/animation-system.md) - Complete animation architecture
 - [RulesEngine Reference](../subsystems/rules-engine.md) - Rule condition syntax
+
+## Reactive Animation Parameters (`map_range`)
+
+Animation parameter values can be **proportionally mapped** from a live entity value using a `map_range` descriptor. This allows continuously reactive animations — for example, making marching ants move faster as power flow increases, or shifting a line color from green to red as a temperature rises.
+
+### Numeric Parameter Mapping
+
+Map a numeric entity value to a numeric animation parameter:
+
+```yaml
+rules:
+  - id: power_flow_reactive
+    when:
+      entity: sensor.grid_power
+      above: 0
+    apply:
+      animations:
+        - tag: power_line
+          preset: march
+          loop: true
+          params:
+            speed:
+              map_range:
+                entity: sensor.grid_power
+                input: [0, 5000]     # entity value range (watts)
+                output: [8, 0.5]     # animation speed range (seconds — lower = faster)
+                clamp: true          # optional, default: true
+```
+
+When `sensor.grid_power` is `0W`, `speed` resolves to `8` (slow). When it reaches `5000W`, `speed` resolves to `0.5` (fast). Values are linearly interpolated.
+
+### Color Interpolation
+
+Map a numeric entity value to a hex color string:
+
+```yaml
+rules:
+  - id: temp_color_reactive
+    when:
+      entity: sensor.cpu_temp
+      above: 0
+    apply:
+      animations:
+        - tag: temp_line
+          preset: march
+          loop: true
+          params:
+            color:
+              map_range:
+                entity: sensor.cpu_temp
+                input: [20, 90]              # temperature range (°C)
+                output: ['#00ff88', '#ff4400']  # green → red
+                clamp: true
+```
+
+Only 6-digit hex colors (`#rrggbb`) are supported for color interpolation.
+
+### Combining Multiple Mapped Params
+
+Multiple params can be mapped simultaneously:
+
+```yaml
+params:
+  speed:
+    map_range:
+      entity: sensor.grid_power
+      input: [0, 5000]
+      output: [8, 0.5]
+  color:
+    map_range:
+      entity: sensor.grid_power
+      input: [0, 5000]
+      output: ['#00ff88', '#ff4400']
+```
+
+### Top-Level Field Mapping
+
+`duration` and `delay` also accept `map_range` descriptors:
+
+```yaml
+- tag: my_overlay
+  preset: pulse
+  duration:
+    map_range:
+      entity: sensor.cpu_load
+      input: [0, 100]
+      output: [2000, 300]
+  loop: true
+```
+
+### `map_range` Descriptor Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `entity` | ✅ | Home Assistant entity ID to read value from |
+| `input` | ✅ | `[inMin, inMax]` — input value range |
+| `output` | ✅ | `[outMin, outMax]` — numeric or `['#hex', '#hex']` for colors |
+| `attribute` | ❌ | Entity attribute to use instead of `state` |
+| `clamp` | ❌ | Clamp output to range bounds (default: `true`) |
+
+### Relationship to `map_range_cond`
+
+`map_range_cond` is the **condition-side** sibling — it maps a value and then tests the result (returns `true`/`false`). The `map_range` descriptor used in params is the **output-side** equivalent — it maps a value and **returns** it as the param.
+
+Both use the same underlying `linearMap` utility. See [RulesEngine Reference](../subsystems/rules-engine.md) for `map_range_cond` condition syntax.
+
+### Step-Based Alternative
+
+For simpler cases with 2–3 discrete states, multiple rules with `above`/`below` conditions are often clearer and require no new syntax:
+
+```yaml
+rules:
+  - id: power_low
+    when: { entity: sensor.grid_power, below: 1000 }
+    apply:
+      animations:
+        - tag: power_line
+          preset: march
+          loop: true
+          params: { speed: 8, color: '#00ff88' }
+
+  - id: power_high
+    when: { entity: sensor.grid_power, above: 1000 }
+    apply:
+      animations:
+        - tag: power_line
+          preset: march
+          loop: true
+          params: { speed: 0.8, color: '#ff4400' }
+```
+
+Use `map_range` when smooth/continuous mapping is preferred over discrete thresholds.
