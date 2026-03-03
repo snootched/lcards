@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -548,6 +548,12 @@ export function getElbowSchema(options = {}) {
                 description: 'Visual animations triggered by user interactions or entity state changes',
                 items: animationSchema
             },
+
+            // ============================================================================
+            // BACKGROUND ANIMATION
+            // ============================================================================
+
+            background_animation: backgroundAnimationSchema,
 
             filters: {
                 type: 'array',

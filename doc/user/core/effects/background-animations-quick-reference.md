@@ -4,6 +4,41 @@
 
 ---
 
+## 📋 Schema Forms
+
+### Bare array (backward-compatible)
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      line_spacing: 40
+```
+
+### Envelope form (with canvas inset)
+
+```yaml
+background_animation:
+  inset:
+    top: 0
+    right: 0
+    bottom: 40
+    left: 90
+  effects:
+    - preset: grid
+      config:
+        line_spacing: 40
+
+# OR — auto-inset on elbow cards:
+background_animation:
+  inset: auto
+  effects:
+    - preset: cascade
+      config: {}
+```
+
+---
+
 ## 📋 Complete Parameter Reference
 
 ### Grid Preset

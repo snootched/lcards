@@ -767,6 +767,12 @@ export class LCARdSElbow extends LCARdSButton {
                 this._elbowGeometry = this._calculateSimpleElbowGeometry(this._elbowConfig);
             }
 
+            // Update background animation inset when geometry changes (for 'auto' inset)
+            const bgConfig = this.config?.background_animation;
+            if (this._backgroundRenderer && bgConfig && !Array.isArray(bgConfig) && bgConfig.inset === 'auto') {
+                this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset('auto'));
+            }
+
             this.requestUpdate();
         }
     }
@@ -779,6 +785,44 @@ export class LCARdSElbow extends LCARdSButton {
         // Elbow cards render their own SVG geometry, not button segments
         // Skip button's segment animation setup to avoid warnings
         return;
+    }
+
+    /**
+     * Resolve background animation inset for elbow cards.
+     * `'auto'` computes the correct inset from elbow bar geometry,
+     * framing the canvas inside the LCARS bars.
+     *
+     * @param {Object|string|null} rawInset - Raw inset value from config
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @protected
+     */
+    _resolveBackgroundAnimationInset(rawInset) {
+        if (rawInset !== 'auto') {
+            return super._resolveBackgroundAnimationInset(rawInset);
+        }
+
+        // Compute from elbow geometry (mirrors symbiont container inset logic)
+        const g = this._elbowGeometry;
+        if (!g) return { top: 0, right: 0, bottom: 0, left: 0 };
+
+        const position = this._elbowConfig?.type?.includes('footer') ? 'footer' : 'header';
+        const side     = this._elbowConfig?.type?.includes('right')  ? 'right'  : 'left';
+
+        const hBar = g.inner
+            ? (g.outer.horizontal + (g.gap ?? 0) + g.inner.horizontal)
+            : (g.horizontal ?? 0);
+        const vBar = g.inner
+            ? (g.outer.vertical   + (g.gap ?? 0) + g.inner.vertical)
+            : (g.vertical   ?? 0);
+
+        const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+        if (position === 'header') inset.top    = vBar;
+        else                       inset.bottom = vBar;
+        if (side === 'left')       inset.left   = hBar;
+        else                       inset.right  = hBar;
+
+        lcardsLog.debug('[LCARdSElbow] Resolved background animation inset from geometry', inset);
+        return inset;
     }
 
     /**

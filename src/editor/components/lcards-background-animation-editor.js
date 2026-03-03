@@ -8,12 +8,13 @@
  * - Optional zoom wrapper per effect
  * - Dynamic form generation based on selected preset
  * - Preset discovery from BACKGROUND_PRESETS registry
+ * - Canvas-level inset configuration (envelope form)
  *
  * Usage:
  * ```html
  * <lcards-background-animation-editor
  *   .hass=${this.hass}
- *   .effects=${config.background_animation}
+ *   .config=${config.background_animation}
  *   @effects-changed=${(e) => this._handleEffectsChanged(e.detail.value)}
  * ></lcards-background-animation-editor>
  * ```
@@ -32,10 +33,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
-      effects: { type: Array },
+      config: { type: Object },
       _expandedIndex: { type: Number },
       _draggedIndex: { type: Number },
-      _expandedEffects: { type: Object }
+      _expandedEffects: { type: Object },
+      _insetEnabled: { type: Boolean, state: true }
     };
   }
 
@@ -262,11 +264,25 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   constructor() {
     super();
-    this.effects = [];
+    this.config = null;
     this._expandedIndex = null;
     this._draggedIndex = null;
     this._expandedEffects = {};
     this._currentEffectIndex = null; // Track current effect for color section
+    this._insetEnabled = false;
+  }
+
+  /**
+   * Normalize the incoming `config` value (bare array or envelope) into a
+   * consistent internal form: `{ inset: null|Object|'auto', effects: Array }`.
+   *
+   * @returns {{ inset: null|Object|string, effects: Array }}
+   */
+  get _normalizedConfig() {
+    const c = this.config;
+    if (!c) return { inset: null, effects: [] };
+    if (Array.isArray(c)) return { inset: null, effects: c };
+    return { inset: c.inset ?? null, effects: c.effects ?? [] };
   }
 
   /**
@@ -280,18 +296,83 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   }
 
   render() {
+    const { effects } = this._normalizedConfig;
     return html`
       <div class="effects-container">
         ${this._renderInfoBanner()}
+        ${this._renderCanvasSettings()}
 
         <ha-button @click=${this._addEffect} class="add-button">
           <ha-icon icon="mdi:plus" slot="start"></ha-icon>
           Add Background Effect
         </ha-button>
 
-        ${this.effects.length === 0 ? this._renderEmptyState() : ''}
-        ${this.effects.map((effect, index) => this._renderEffectItem(effect, index))}
+        ${effects.length === 0 ? this._renderEmptyState() : ''}
+        ${effects.map((effect, index) => this._renderEffectItem(effect, index))}
       </div>
+    `;
+  }
+
+  /**
+   * Render the canvas-level "Canvas Settings" section with inset controls.
+   * @private
+   */
+  _renderCanvasSettings() {
+    const { inset } = this._normalizedConfig;
+    const insetEnabled = this._insetEnabled || (inset !== null && inset !== undefined);
+    const isAuto = inset === 'auto';
+    const insetObj = (inset && typeof inset === 'object') ? inset : { top: 0, right: 0, bottom: 0, left: 0 };
+
+    return html`
+      <lcards-form-section label="Canvas Settings" .collapsible=${true} .collapsed=${!insetEnabled}>
+        <div class="section">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <ha-switch
+              .checked=${insetEnabled}
+              @change=${(e) => {
+                this._insetEnabled = e.target.checked;
+                if (!e.target.checked) {
+                  this._emitChange(this._normalizedConfig.effects, null);
+                } else {
+                  this._emitChange(this._normalizedConfig.effects, isAuto ? 'auto' : { top: 0, right: 0, bottom: 0, left: 0 });
+                }
+              }}
+            ></ha-switch>
+            <span>Enable canvas inset</span>
+          </div>
+          ${insetEnabled ? html`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <ha-switch
+                .checked=${isAuto}
+                @change=${(e) => {
+                  if (e.target.checked) {
+                    this._emitChange(this._normalizedConfig.effects, 'auto');
+                  } else {
+                    this._emitChange(this._normalizedConfig.effects, { top: 0, right: 0, bottom: 0, left: 0 });
+                  }
+                }}
+              ></ha-switch>
+              <span>Auto (elbow cards)</span>
+            </div>
+            ${!isAuto ? html`
+              ${['top', 'right', 'bottom', 'left'].map(side => html`
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <span style="width:50px;text-transform:capitalize;">${side}</span>
+                  <input
+                    type="range" min="0" max="500" step="1"
+                    .value=${String(insetObj[side] ?? 0)}
+                    @input=${(e) => {
+                      const updated = { ...insetObj, [side]: Number(e.target.value) };
+                      this._emitChange(this._normalizedConfig.effects, updated);
+                    }}
+                  />
+                  <span style="min-width:36px;">${insetObj[side] ?? 0}px</span>
+                </div>
+              `)}
+            ` : ''}
+          ` : ''}
+        </div>
+      </lcards-form-section>
     `;
   }
 
@@ -1056,30 +1137,33 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       config: {}
     };
 
-    const updatedEffects = [...this.effects, newEffect];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects, newEffect];
     this._expandedEffects = {
       ...this._expandedEffects,
       [updatedEffects.length - 1]: true
     };
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _duplicateEffect(e, index) {
     e.stopPropagation();
-    const duplicated = JSON.parse(JSON.stringify(this.effects[index]));
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const duplicated = JSON.parse(JSON.stringify(effects[index]));
+    const updatedEffects = [...effects];
     updatedEffects.splice(index + 1, 0, duplicated);
 
     this._expandedEffects = {
       ...this._expandedEffects,
       [index + 1]: true
     };
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _deleteEffect(e, index) {
     e.stopPropagation();
-    const updatedEffects = this.effects.filter((_, i) => i !== index);
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = effects.filter((_, i) => i !== index);
 
     // Update expanded state
     const newExpanded = {};
@@ -1093,11 +1177,12 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     });
     this._expandedEffects = newExpanded;
 
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _updateEffect(index, key, value) {
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects];
     updatedEffects[index] = {
       ...updatedEffects[index],
       [key]: value
@@ -1108,11 +1193,12 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       updatedEffects[index].config = this._getDefaultConfig(value);
     }
 
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _updateEffectConfig(index, key, value) {
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects];
     updatedEffects[index] = {
       ...updatedEffects[index],
       config: {
@@ -1120,11 +1206,12 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         [key]: value
       }
     };
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _toggleZoom(index, enabled) {
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects];
     if (enabled) {
       updatedEffects[index].zoom = {
         layers: 4,
@@ -1137,11 +1224,12 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     } else {
       delete updatedEffects[index].zoom;
     }
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _updateZoomConfig(index, key, value) {
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects];
     updatedEffects[index] = {
       ...updatedEffects[index],
       zoom: {
@@ -1149,7 +1237,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         [key]: value
       }
     };
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   _getDefaultConfig(preset) {
@@ -1223,7 +1311,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     }
 
     // Reorder effects
-    const updatedEffects = [...this.effects];
+    const { effects, inset } = this._normalizedConfig;
+    const updatedEffects = [...effects];
     const [draggedItem] = updatedEffects.splice(dragIndex, 1);
     updatedEffects.splice(dropIndex, 0, draggedItem);
 
@@ -1252,17 +1341,28 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       item.classList.remove('drag-over');
     });
 
-    this._emitChange(updatedEffects);
+    this._emitChange(updatedEffects, inset);
   }
 
   // ====================
   // Event Emission
   // ====================
 
-  _emitChange(effects) {
-    lcardsLog.debug('[BackgroundAnimationEditor] Effects changed', effects);
+  /**
+   * Emit the `effects-changed` event.
+   * Emits the envelope form `{ inset, effects }` when inset is set,
+   * or the bare array when inset is null/undefined.
+   *
+   * @param {Array} effects - Updated effects array
+   * @param {Object|string|null} inset - Canvas inset value (null = no inset / bare array form)
+   */
+  _emitChange(effects, inset) {
+    const value = (inset !== null && inset !== undefined)
+      ? { inset, effects }
+      : effects; // bare array — no inset configured
+    lcardsLog.debug('[BackgroundAnimationEditor] Effects changed', value);
     this.dispatchEvent(new CustomEvent('effects-changed', {
-      detail: { value: effects },
+      detail: { value },
       bubbles: true,
       composed: true
     }));

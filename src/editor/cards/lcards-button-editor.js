@@ -1773,7 +1773,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                     <lcards-background-animation-editor
                         .hass=${this.hass}
-                        .effects=${this.config.background_animation || []}
+                        .config=${this.config.background_animation ?? []}
                         @effects-changed=${(e) => {
                             this._updateConfig({ background_animation: e.detail.value });
                         }}>

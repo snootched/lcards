@@ -61,7 +61,11 @@ background_animation:
 
 ## 📋 Schema Structure
 
-Background animations use an **array-based schema** where effects are rendered in order (first effect = bottom layer):
+Background animations support two equivalent forms. Both can be used with the same presets.
+
+### Bare array (backward-compatible default)
+
+Effects are rendered in order (first effect = bottom layer):
 
 ```yaml
 background_animation:
@@ -72,7 +76,57 @@ background_animation:
       # Optional zoom wrapper
 ```
 
-### Top-Level Properties
+### Envelope form (with canvas inset)
+
+Use when you need to constrain the animation canvas to a sub-area of the card:
+
+```yaml
+background_animation:
+  inset:            # Canvas-level inset (optional) — all sides default to 0
+    top: 0
+    right: 0
+    bottom: 40      # e.g. leave space for a footer bar
+    left: 90        # e.g. leave space for a left sidebar
+  effects:
+    - preset: grid
+      config:
+        line_spacing: 40
+    - preset: starfield
+      config:
+        count: 150
+```
+
+### Elbow auto-framing
+
+On elbow cards, set `inset: auto` to let the card compute the correct inset from its bar geometry automatically:
+
+```yaml
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20
+background_animation:
+  inset: auto       # canvas inset auto-derived from elbow bar geometry
+  effects:
+    - preset: cascade
+      config: {}
+```
+
+### Canvas Inset
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `inset` | object \| `'auto'` | Canvas-level offset applied to all effects. `'auto'` is only meaningful on elbow cards; on other card types it resolves to all-zero. |
+| `inset.top` | number | Pixels to inset from top (default: 0) |
+| `inset.right` | number | Pixels to inset from right (default: 0) |
+| `inset.bottom` | number | Pixels to inset from bottom (default: 0) |
+| `inset.left` | number | Pixels to inset from left (default: 0) |
+
+The canvas minimum dimension is clamped to 1 px.
+
+### Effect-level Properties
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
