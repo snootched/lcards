@@ -5553,10 +5553,12 @@ export class LCARdSButton extends LCARdSCard {
             offsetHeight: backgroundLayer.offsetHeight
         });
 
-        // Resolve canvas inset from config
+        // Resolve canvas inset from config.
+        // Explicit inset objects are applied by _resolveConfig() inside init() — only
+        // 'auto' insets need a post-init updateInset() call because their real value
+        // depends on card geometry that is only available after construction.
         const bgConfig = this.config.background_animation;
         const rawInset = (bgConfig && !Array.isArray(bgConfig)) ? bgConfig.inset ?? null : null;
-        const resolvedInset = this._resolveBackgroundAnimationInset(rawInset);
 
         // Initialize renderer
         this._backgroundRenderer = new BackgroundAnimationRenderer(
@@ -5567,7 +5569,11 @@ export class LCARdSButton extends LCARdSCard {
 
         const success = this._backgroundRenderer.init();
         if (success) {
-            this._backgroundRenderer.updateInset(resolvedInset);
+            // For 'auto' insets, resolve the actual geometry-based inset and apply it now.
+            // Explicit insets (objects or null) are already handled by _resolveConfig inside init().
+            if (rawInset === 'auto') {
+                this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset(rawInset));
+            }
             lcardsLog.info('[LCARdSButton] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSButton] Background animation initialization failed');
