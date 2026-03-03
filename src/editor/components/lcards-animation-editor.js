@@ -967,7 +967,11 @@ export class LCARdSAnimationEditor extends LitElement {
         break;
 
       case 'cascade-color':
-        const colors = params.colors ?? ['#0783FF', '#0439A3', '#E7F3F7'];
+        const colors = params.colors ?? [
+          'var(--lcards-blue-light, #93e1ff)',
+          'var(--lcards-blue-darkest, #002241)',
+          'var(--lcards-moonlight, #dfe1e8)'
+        ];
         specificParams = html`
           <div class="param-grid">
             <div class="param-full">

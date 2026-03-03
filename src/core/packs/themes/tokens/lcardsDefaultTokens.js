@@ -131,6 +131,15 @@ export const lcardsDefaultTokens = {
       yellow: 'var(--lcars-alert-yellow)', // Caution/Warning
       gray: 'var(--lcards-gray)',       // Standby/Inactive
       black: 'var(--lcards-blue-lightest)'        // System Critical
+    },
+
+    // Data-grid cascade animation colours
+    // Shared by both the anime.js cascade-color preset and the canvas CascadeEffect.
+    // Override in card config (animations[].params.colors) or via a custom theme.
+    grid: {
+      cascadeStart: 'var(--lcards-blue-light, #93e1ff)',          // Bright dominant hold colour
+      cascadeMid:   'var(--lcards-blue-darkest, #002241)', // Dark snap-to colour
+      cascadeEnd:   'var(--lcards-moonlight, #dfe1e8)'      // Pale fade-out colour
     }
   },
 

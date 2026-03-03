@@ -45,9 +45,9 @@ export class CascadeEffect extends BaseEffect {
    *
    * Colour cycling:
    * @param {Object} [config.colors] - Colour configuration
-   * @param {string} [config.colors.start='var(--lcars-blue, #2266ff)'] - Animation start colour (bright dominant hold colour)
-   * @param {string} [config.colors.text='var(--lcards-blue-darkest, #112244)'] - Mid/text colour (dark snap-to colour)
-   * @param {string} [config.colors.end='var(--lcars-moonlight, #e7f3f7)'] - Animation end colour (pale fade-out colour)
+   * @param {string} [config.colors.start='var(--lcards-blue-light, #93e1ff)'] - Animation start colour (bright dominant hold colour)
+   * @param {string} [config.colors.text='var(--lcards-blue-darkest, #002241)'] - Mid/text colour (dark snap-to colour)
+   * @param {string} [config.colors.end='var(--lcards-moonlight, #dfe1e8)'] - Animation end colour (pale fade-out colour)
    *
    * Timing:
    * @param {string} [config.pattern='default'] - Timing pattern: 'default'|'niagara'|'fast'|'custom'
@@ -76,9 +76,9 @@ export class CascadeEffect extends BaseEffect {
 
     // Colour config (raw values; resolved in draw())
     // Defaults match CB-LCARS cascade: bright blue (hold) → dark navy (snap) → pale moonlight (end)
-    this.colorStart = config.colors?.start ?? 'var(--lcars-blue, #2266ff)';
-    this.colorText  = config.colors?.text  ?? 'var(--lcards-blue-darkest, #112244)';
-    this.colorEnd   = config.colors?.end   ?? 'var(--lcars-moonlight, #e7f3f7)';
+    this.colorStart = config.colors?.start ?? 'var(--lcards-blue-light, #93e1ff)';
+    this.colorText  = config.colors?.text  ?? 'var(--lcards-blue-darkest, #002241)';
+    this.colorEnd   = config.colors?.end   ?? 'var(--lcards-moonlight, #dfe1e8)';
 
     // Timing
     this.pattern         = config.pattern         ?? 'default';
@@ -300,68 +300,6 @@ export class CascadeEffect extends BaseEffect {
   // ============================================================================
 
   /**
-   * Parse a hex/rgb/rgba colour string into an [r, g, b] array.
-   * Returns null if the string cannot be parsed.
-   *
-   * @private
-   * @param {string} color - CSS colour string (hex or rgb/rgba)
-   * @returns {number[]|null}
-   */
-  _parseColor(color) {
-    if (!color) return null;
-
-    // rgba(r, g, b, a) or rgb(r, g, b)
-    const rgbMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (rgbMatch) {
-      return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
-    }
-
-    // #rrggbb or #rgb
-    if (color.startsWith('#')) {
-      const hex = color.slice(1);
-      if (hex.length === 3) {
-        return [
-          parseInt(hex[0] + hex[0], 16),
-          parseInt(hex[1] + hex[1], 16),
-          parseInt(hex[2] + hex[2], 16)
-        ];
-      }
-      if (hex.length >= 6) {
-        return [
-          parseInt(hex.slice(0, 2), 16),
-          parseInt(hex.slice(2, 4), 16),
-          parseInt(hex.slice(4, 6), 16)
-        ];
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Linear interpolation between two scalar values
-   * @private
-   */
-  _lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
-
-  /**
-   * Interpolate between two [r, g, b] tuples
-   * @private
-   * @param {number[]} c1
-   * @param {number[]} c2
-   * @param {number} t - 0..1
-   * @returns {string} CSS rgb() string
-   */
-  _lerpColor(c1, c2, t) {
-    const r = Math.round(this._lerp(c1[0], c2[0], t));
-    const g = Math.round(this._lerp(c1[1], c2[1], t));
-    const b = Math.round(this._lerp(c1[2], c2[2], t));
-    return `rgb(${r},${g},${b})`;
-  }
-
-  /**
    * Compute the current colour for a row at normalised cycle position t (0..1).
    *
    * Keyframe structure (matches CB-LCARS / data-grid cascade):
@@ -371,37 +309,35 @@ export class CascadeEffect extends BaseEffect {
    *   80%–90%: colorText   (hold — dark navy)
    *   90%–100%: colorText → colorEnd  (fade to pale moonlight, loops back to colorStart)
    *
-   * Falls back to returning the start colour string if the colours cannot be
-   * parsed (e.g., CSS variable not yet resolved).
+   * Delegates colour mixing to ColorUtils.mix() so there is a single
+   * implementation of colour interpolation across the codebase.
+   * Falls back to the start colour string if colours are not yet resolved.
    *
    * @private
    * @param {number} t - Normalised cycle position 0..1
    * @returns {string} CSS colour string
    */
   _interpolateColor(t) {
-    const cStart = this._parseColor(this._resolvedStart);
-    const cText  = this._parseColor(this._resolvedText);
-    const cEnd   = this._parseColor(this._resolvedEnd);
-
-    // Fallback: if colours can't be parsed just return start colour string
-    if (!cStart || !cText || !cEnd) {
+    // Fallback: if colours aren't resolved yet return start colour
+    if (!this._resolvedStart || !this._resolvedText || !this._resolvedEnd) {
       return this._resolvedStart || '#2266ff';
     }
 
     if (t < 0.75) {
       // 0%–75%: hold colorStart
-      return this._lerpColor(cStart, cStart, 0);
+      return this._resolvedStart;
     } else if (t < 0.80) {
       // 75%–80%: colorStart → colorText  (fast transition)
+      // ColorUtils.mix(c1, c2, weight) — weight=1 means 100% c1, weight=0 means 100% c2
       const localT = (t - 0.75) / 0.05;
-      return this._lerpColor(cStart, cText, localT);
+      return ColorUtils.mix(this._resolvedStart, this._resolvedText, 1 - localT);
     } else if (t < 0.90) {
       // 80%–90%: hold colorText
-      return this._lerpColor(cText, cText, 0);
+      return this._resolvedText;
     } else {
       // 90%–100%: colorText → colorEnd
       const localT = (t - 0.90) / 0.10;
-      return this._lerpColor(cText, cEnd, localT);
+      return ColorUtils.mix(this._resolvedText, this._resolvedEnd, 1 - localT);
     }
   }
 
@@ -450,9 +386,9 @@ export class CascadeEffect extends BaseEffect {
     this._resolvedEnd   = ColorUtils.resolveCssVariable(this.colorEnd);
 
     // Early-exit if colours are not yet parseable (e.g., DOM not ready for CSS var resolution)
-    if (!this._parseColor(this._resolvedStart) ||
-        !this._parseColor(this._resolvedText)  ||
-        !this._parseColor(this._resolvedEnd)) {
+    if (!ColorUtils.parseColor(this._resolvedStart) ||
+        !ColorUtils.parseColor(this._resolvedText)  ||
+        !ColorUtils.parseColor(this._resolvedEnd)) {
       return;
     }
 

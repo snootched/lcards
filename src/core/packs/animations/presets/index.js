@@ -643,7 +643,15 @@ registerAnimationPreset('cascade', (def) => {
  */
 registerAnimationPreset('cascade-color', (def) => {
   const p = def.params || def;
-  const colors = p.colors || ['var(--lcars-blue, #2266ff)', 'var(--lcards-blue-darkest, #112244)', 'var(--lcars-moonlight, #e7f3f7)'];
+  // Resolve default colours from theme tokens so all cascade implementations share
+  // the same source of truth (colors.grid.cascadeStart/Mid/End in lcardsDefaultTokens).
+  const _tm = window.lcards?.core?.themeManager;
+  const _resolveToken = (path, fallback) => (_tm?.getToken?.(path)) || fallback;
+  const colors = Array.isArray(p.colors) ? p.colors : [
+    _resolveToken('colors.grid.cascadeStart', 'var(--lcards-blue-light, #93e1ff)'),
+    _resolveToken('colors.grid.cascadeMid',   'var(--lcards-blue-darkest, #002241)'),
+    _resolveToken('colors.grid.cascadeEnd',   'var(--lcards-moonlight, #dfe1e8)'),
+  ];
   const duration = p.duration || 5000;
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;

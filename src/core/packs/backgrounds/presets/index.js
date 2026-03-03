@@ -281,9 +281,9 @@ export const BACKGROUND_PRESETS = {
         duration:         config.duration        ?? null,
         speedMultiplier:  config.speed_multiplier ?? 1.0,
         colors: {
-          start: config.colors?.start ?? resolveToken('colors.grid.cascadeStart', 'var(--lcars-blue, #2266ff)'),
-          text:  config.colors?.text  ?? resolveToken('colors.grid.cascadeMid',   'var(--lcards-blue-darkest, #112244)'),
-          end:   config.colors?.end   ?? resolveToken('colors.grid.cascadeEnd',   'var(--lcars-moonlight, #e7f3f7)')
+          start: config.colors?.start ?? resolveToken('colors.grid.cascadeStart', 'var(--lcards-blue-light, #93e1ff)'),
+          text:  config.colors?.text  ?? resolveToken('colors.grid.cascadeMid',   'var(--lcards-blue-darkest, #002241)'),
+          end:   config.colors?.end   ?? resolveToken('colors.grid.cascadeEnd',   'var(--lcards-moonlight, #dfe1e8)')
         },
         fontSize:        config.font_size    ?? resolveToken('components.backgroundAnimation.cascade.font.size', 10),
         fontFamily:      config.font_family  ?? resolveToken('components.backgroundAnimation.cascade.font.family', "'Antonio', monospace"),

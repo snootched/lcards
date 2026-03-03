@@ -716,20 +716,26 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       <!-- Cascade Colors -->
       <lcards-form-section header="Cascade Colors" icon="mdi:palette" ?expanded=${true}>
-        <lcards-color-list
-          .hass=${this.hass}
-          .colors=${[
-            config.colors?.start ?? '#99ccff',
-            config.colors?.text  ?? '#4466aa',
-            config.colors?.end   ?? '#aaccff'
-          ]}
-          .label=${'Cascade Colors [start, text, end]'}
-          .description=${'Three colors: animation start, mid/text, animation end'}
-          @colors-changed=${(e) => {
-            const [start, text, end] = e.detail.colors;
-            this._updateEffectConfig(index, 'colors', { start, text, end });
-          }}
-        ></lcards-color-list>
+        ${[
+          { key: 'start', label: 'Start Color',         helper: 'Bright hold color (dominant, ~75% of cycle)',  def: 'var(--lcards-blue-light, #93e1ff)' },
+          { key: 'text',  label: 'Middle / Text Color',  helper: 'Dark snap-to color (~10% of cycle)',           def: 'var(--lcards-blue-darkest, #002241)' },
+          { key: 'end',   label: 'End Color',            helper: 'Pale fade-out color (~10% of cycle)',          def: 'var(--lcards-moonlight, #dfe1e8)' }
+        ].map(slot => html`
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
+            <lcards-color-picker
+              .hass=${this.hass}
+              .value=${config.colors?.[slot.key] ?? slot.def}
+              .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+              ?showPreview=${true}
+              @value-changed=${(e) => {
+                const updated = { ...(config.colors ?? {}), [slot.key]: e.detail.value };
+                this._updateEffectConfig(index, 'colors', updated);
+              }}>
+            </lcards-color-picker>
+            <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">${slot.helper}</div>
+          </div>
+        `)}
       </lcards-form-section>
     `;
   }
@@ -1168,10 +1174,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       case 'cascade':
         return {
-          format: 'hex',
+          format: 'mixed',
           pattern: 'default',
-          speed_multiplier: 1.0,
-          colors: { start: '#99ccff', text: '#4466aa', end: '#aaccff' }
+          font_size: 24,
+          gap: 12
         };
 
       default:

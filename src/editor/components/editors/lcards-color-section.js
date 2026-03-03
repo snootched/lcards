@@ -284,7 +284,7 @@ export class LCARdSColorSection extends LitElement {
                     </div>
                     <lcards-color-picker
                         .hass=${this.editor?.hass}
-                        .value=${this._getValueAtPath(colorPath.path) || ''}
+                        .value=${this._getValueAtPath(colorPath.path) || colorPath.defaultValue || ''}
                         ?showPreview=${this.showPreview}
                         .variablePrefixes=${this.variablePrefixes}
                         ?allowMatchLight=${this.entityId ? this.entityId.startsWith('light.') : (this.editor?._isLightEntity ?? false)}

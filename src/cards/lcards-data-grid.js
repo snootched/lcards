@@ -128,6 +128,7 @@ import { escapeHtml } from '../utils/StringUtils.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
+import { ColorUtils } from '../core/themes/ColorUtils.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-data-grid-editor.js';
@@ -938,45 +939,31 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
-    // Helper to normalize colors for anime.js compatibility
-    // anime.js v4 cannot interpolate between CSS vars and hex colors - they must be same format
-    // Additionally, anime.js has issues with CSS var fallbacks in looping animations
-    const normalizeColor = (colorValue) => {
-      if (!colorValue) return null;
-
-      // If it's already a CSS variable, check if it has a fallback
-      if (typeof colorValue === 'string' && colorValue.startsWith('var(')) {
-        // Strip fallback values from CSS variables for anime.js compatibility
-        // Convert: var(--name, fallback) -> var(--name)
-        const match = colorValue.match(/^var\((--[^,)]+)/);
-        if (match) {
-          return `var(${match[1]})`;
-        }
-        return colorValue;
-      }
-
-      // If it's a hex color, wrap it in a CSS var format for consistency
-      // This allows anime.js to handle all colors uniformly
-      if (typeof colorValue === 'string' && colorValue.startsWith('#')) {
-        return `var(--dummy, ${colorValue})`;
-      }
-
-      // Named colors or other formats - wrap them too
-      return `var(--dummy, ${colorValue})`;
-    };
+    // Resolve colors for anime.js: CSS vars must be converted to concrete values
+    // (hex/rgb) before being passed to keyframes — anime.js cannot interpolate
+    // between unresolved CSS variables.
+    // ColorUtils.resolveCssVariable handles var(--name, fallback), nested vars,
+    // and returns the fallback default if the property is not defined.
+    const resolveColorForAnime = (colorValue) =>
+      colorValue ? ColorUtils.resolveCssVariable(colorValue, null) : null;
 
     // Get cascade colors from config or theme
     // Standard format: cascadeAnim.params contains the preset parameters
     const params = cascadeAnim.params || cascadeAnim; // Fallback to cascadeAnim for backwards compat
     const colors = params.colors || {};
     const rawColors = [
-      this.getThemeToken(colors.start || colors[0] || 'colors.grid.cascadeStart') || 'var(--lcars-blue, #2266ff)',
-      this.getThemeToken(colors.text || colors[1] || 'colors.grid.cascadeMid') || 'var(--lcards-blue-darkest, #112244)',
-      this.getThemeToken(colors.end || colors[2] || 'colors.grid.cascadeEnd') || 'var(--lcars-moonlight, #e7f3f7)'
+      this.getThemeToken(colors.start || colors[0] || 'colors.grid.cascadeStart') || 'var(--lcards-blue-light, #93e1ff)',
+      this.getThemeToken(colors.text || colors[1] || 'colors.grid.cascadeMid') || 'var(--lcards-blue-darkest, #002241)',
+      this.getThemeToken(colors.end || colors[2] || 'colors.grid.cascadeEnd') || 'var(--lcards-moonlight, #dfe1e8)'
     ];
 
-    // Normalize all colors to CSS var format for anime.js compatibility
-    const cascadeColors = rawColors.map(normalizeColor);
+    // Resolve all colors to concrete values for anime.js
+    const cascadeColors = rawColors.map(resolveColorForAnime).filter(Boolean);
+
+    if (cascadeColors.length < 3) {
+      lcardsLog.warn('[LCARdSDataGrid] cascade-color requires 3 resolved colours — got', cascadeColors.length, '. Check CSS variable definitions or set explicit colors in card config.');
+      return;
+    }
 
     // Get timing pattern (default, niagara, fast, custom)
     const pattern = params.pattern || 'default';
@@ -1014,7 +1001,10 @@ export class LCARdSDataGrid extends LCARdSCard {
       rowAnimations.push({
         trigger: 'on_load',
         preset: 'cascade-color',
-        targets: targetSelector,
+        // Use `target` (singular) so playAnimation uses querySelectorAll, matching
+        // all cells in the row.  The `targets` (plural) branch uses querySelector
+        // (singular) which would only capture the first cell.
+        target: targetSelector,
         params: {
           colors: cascadeColors,
           duration: finalDuration,
@@ -1043,9 +1033,19 @@ export class LCARdSDataGrid extends LCARdSCard {
         return;
       }
 
+      // Use batchShouldFire so all row animations share the same fire-decision.
+      // Without this, the first registerAnimation call sets onLoadFired=true and
+      // every subsequent row is silently skipped.
+      const batchShouldFire = !scopeData.onLoadFired;
+
       // Register each row animation
       for (const animDef of rowAnimations) {
-        await animationManager.registerAnimation(overlayId, animDef);
+        await animationManager.registerAnimation(overlayId, animDef, { batchShouldFire });
+      }
+
+      // Mark on_load as fired after the full batch, mirroring onOverlayRendered behaviour.
+      if (batchShouldFire) {
+        scopeData.onLoadFired = true;
       }
 
       lcardsLog.debug(`[LCARdSDataGrid] Cascade animation setup complete`, {
@@ -1689,7 +1689,9 @@ export class LCARdSDataGrid extends LCARdSCard {
 
                 // Exclude color from inline styles if cascade animation is active
                 // (inline color styles block anime.js color animations)
-                const hasCascadeAnimation = this.config.animation?.type === 'cascade';
+                // Check both current format (animations[].preset) and legacy format (animation.type)
+                const hasCascadeAnimation = this.config.animation?.type === 'cascade' ||
+                  (this.config.animations || []).some(a => a.preset === 'cascade-color');
                 const cellCss = this._styleToCSS(cellStyle, { excludeColor: hasCascadeAnimation });
 
                 // Get alignment (default to right for cascade grid)
