@@ -7551,7 +7551,7 @@
                     .value=${e}
                     .label=${"Enable Shape Texture"}
                     .helper=${"Render an SVG texture pattern inside the button shape"}
-                    @value-changed=${e=>{e.detail.value?this._emit({preset:"grid",opacity:.3}):this._emit(null)}}
+                    @value-changed=${e=>{if(e.detail.value){const e=qn.grid.defaults;this._emit({preset:"grid",opacity:.3,config:{...e}})}else this._emit(null)}}
                 ></ha-selector>
             </div>
 
