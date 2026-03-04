@@ -126,37 +126,40 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
     // ─── Validation ────────────────────────────────────────────────────────────
 
-    _validateId() {
-        if (!this._ruleId || !this._ruleId.trim()) {
-            this._errors = { ...this._errors, id: 'Rule ID is required' };
-            return false;
-        }
-        if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(this._ruleId)) {
-            this._errors = { ...this._errors, id: 'ID must start with a letter or _, then letters/digits/_ or -' };
-            return false;
-        }
-        // Uniqueness check only in add mode
-        if (this.mode === 'add') {
+    /**
+     * Validate the rule ID field, updating this._errors.id and returning validity.
+     * @param {boolean} [silent=false] - If true, don't update this._errors (for pre-check)
+     * @returns {boolean} Whether the ID is valid
+     */
+    _validateId(silent = false) {
+        const id = this._ruleId ? this._ruleId.trim() : '';
+        let error = null;
+
+        if (!id) {
+            error = 'Rule ID is required';
+        } else if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(id)) {
+            error = 'ID must start with a letter or _, then letters/digits/_ or -';
+        } else if (this.mode === 'add') {
             const existing = this.editor?.config?.rules || [];
-            if (existing.some(r => r.id === this._ruleId)) {
-                this._errors = { ...this._errors, id: `A rule with id "${this._ruleId}" already exists` };
-                return false;
+            if (existing.some(r => r.id === id)) {
+                error = `A rule with id "${id}" already exists`;
             }
         }
-        const next = { ...this._errors };
-        delete next.id;
-        this._errors = next;
-        return true;
+
+        if (!silent) {
+            if (error) {
+                this._errors = { ...this._errors, id: error };
+            } else {
+                const next = { ...this._errors };
+                delete next.id;
+                this._errors = next;
+            }
+        }
+        return error === null;
     }
 
     _isValid() {
-        if (!this._ruleId || !this._ruleId.trim()) return false;
-        if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(this._ruleId)) return false;
-        if (this.mode === 'add') {
-            const existing = this.editor?.config?.rules || [];
-            if (existing.some(r => r.id === this._ruleId)) return false;
-        }
-        return true;
+        return this._validateId(true);
     }
 
     // ─── Handlers ──────────────────────────────────────────────────────────────

@@ -199,27 +199,172 @@ export class LCARdSConditionGroupEditor extends LitElement {
         }
         if (val.all) {
             this._operator = 'all';
-            this._conditions = Array.isArray(val.all) ? [...val.all] : [];
+            this._conditions = Array.isArray(val.all) ? val.all.map(c => this._deserializeCondition(c)) : [];
         } else if (val.any) {
             this._operator = 'any';
-            this._conditions = Array.isArray(val.any) ? [...val.any] : [];
+            this._conditions = Array.isArray(val.any) ? val.any.map(c => this._deserializeCondition(c)) : [];
         } else {
             // Single condition object
             this._operator = 'single';
-            this._conditions = [val];
+            this._conditions = [this._deserializeCondition(val)];
+        }
+    }
+
+    /**
+     * Convert a RulesEngine schema condition to the editor's internal format.
+     * Internal format uses `_type` for tracking plus UI-friendly field names.
+     * @param {Object} cond - Schema-format condition
+     * @returns {Object} Editor-format condition
+     */
+    _deserializeCondition(cond) {
+        if (!cond || typeof cond !== 'object') return { _type: 'entity', entity: '' };
+
+        if (cond.all) return { _type: 'all', all: cond.all };
+        if (cond.any) return { _type: 'any', any: cond.any };
+        if (cond.not !== undefined) return { _type: 'not', not: cond.not };
+
+        // entity_attr (has attribute key)
+        if ((cond.entity_attr !== undefined || (cond.entity !== undefined && cond.attribute !== undefined))) {
+            const op = this._detectOperator(cond);
+            return { _type: 'entity_attr', entity: cond.entity_attr || cond.entity || '', attribute: cond.attribute || '', operator: op.key, value: op.value };
+        }
+        if (cond.entity !== undefined) {
+            const op = this._detectOperator(cond);
+            return { _type: 'entity', entity: cond.entity || '', operator: op.key, value: op.value };
+        }
+
+        // Template conditions
+        if (cond.condition !== undefined) {
+            const cs = String(cond.condition);
+            if (cs.includes('[[[') && cs.includes(']]]')) {
+                return { _type: 'javascript', template: cs.slice(3, -3).trim() };
+            }
+            return { _type: 'jinja2', template: cs };
+        }
+        if (cond.jinja2 !== undefined) return { _type: 'jinja2', template: cond.jinja2 };
+        if (cond.javascript !== undefined) return { _type: 'javascript', template: cond.javascript };
+
+        if (cond.time_between !== undefined) {
+            const parts = String(cond.time_between).split('-');
+            return { _type: 'time_between', after: parts[0] || '', before: parts[1] || '' };
+        }
+        if (cond.weekday_in !== undefined) return { _type: 'weekday_in', weekdays: cond.weekday_in || [] };
+        if (cond.sun_elevation !== undefined) {
+            const se = cond.sun_elevation || {};
+            return { _type: 'sun_elevation', above: se.above, below: se.below };
+        }
+        if (cond.perf_metric !== undefined) {
+            const pm = cond.perf_metric || {};
+            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below };
+        }
+        if (cond.flag !== undefined) {
+            const f = cond.flag || {};
+            return { _type: 'flag', flag: f.debugFlagName || '', is: f.is !== undefined ? f.is : true };
+        }
+        if (cond.random_chance !== undefined) return { _type: 'random_chance', probability: cond.random_chance };
+        if (cond.map_range_cond !== undefined) {
+            const m = cond.map_range_cond || {};
+            return { _type: 'map_range_cond', entity: m.entity || '', input_min: m.input?.[0] ?? 0, input_max: m.input?.[1] ?? 100, output_min: m.output?.[0] ?? 0, output_max: m.output?.[1] ?? 100 };
+        }
+
+        // Already has _type (editor format coming back from nested group)
+        if (cond._type) return cond;
+
+        return { _type: 'entity', entity: '', operator: 'equals', value: '' };
+    }
+
+    /**
+     * Detect comparison operator from a schema condition object.
+     * @param {Object} cond - Schema-format condition
+     * @returns {{ key: string, value: * }} Operator name and its value
+     */
+    _detectOperator(cond) {
+        for (const op of ['equals', 'not_equals', 'above', 'below', 'in', 'not_in', 'regex']) {
+            if (cond[op] !== undefined) return { key: op, value: cond[op] };
+        }
+        // 'state' is an alias for 'equals'
+        if (cond.state !== undefined) return { key: 'equals', value: cond.state };
+        return { key: 'equals', value: '' };
+    }
+
+    /**
+     * Convert an editor-format condition to the RulesEngine schema format.
+     * Strips the `_type` tracking field and maps UI fields to schema fields.
+     * @param {Object} cond - Editor-format condition
+     * @returns {Object} Schema-format condition
+     */
+    _serializeCondition(cond) {
+        const type = cond._type || this._getConditionType(cond);
+
+        switch (type) {
+            case 'entity': {
+                const op = cond.operator || 'equals';
+                const val = cond.value !== undefined ? cond.value : '';
+                return { entity: cond.entity || '', [op]: val };
+            }
+            case 'entity_attr': {
+                const op = cond.operator || 'equals';
+                const val = cond.value !== undefined ? cond.value : '';
+                return { entity_attr: cond.entity || '', attribute: cond.attribute || '', [op]: val };
+            }
+            case 'jinja2':
+                return { condition: cond.template || '' };
+            case 'javascript':
+                return { condition: `[[[ ${(cond.template || '').trim()} ]]]` };
+            case 'time_between':
+                return { time_between: `${cond.after || '00:00'}-${cond.before || '23:59'}` };
+            case 'weekday_in':
+                return { weekday_in: cond.weekdays || [] };
+            case 'sun_elevation': {
+                const s = {};
+                if (cond.above !== undefined && cond.above !== '') s.above = Number(cond.above);
+                if (cond.below !== undefined && cond.below !== '') s.below = Number(cond.below);
+                return { sun_elevation: s };
+            }
+            case 'perf_metric': {
+                const p = { key: cond.metric || '' };
+                if (cond.above !== undefined && cond.above !== '') p.above = Number(cond.above);
+                if (cond.below !== undefined && cond.below !== '') p.below = Number(cond.below);
+                return { perf_metric: p };
+            }
+            case 'flag':
+                return { flag: { debugFlagName: cond.flag || '', is: cond.is !== undefined ? cond.is : true } };
+            case 'random_chance':
+                return { random_chance: cond.probability !== undefined ? Number(cond.probability) : 0.5 };
+            case 'map_range_cond': {
+                const m = {
+                    entity: cond.entity || '',
+                    input: [cond.input_min ?? 0, cond.input_max ?? 100],
+                    output: [cond.output_min ?? 0, cond.output_max ?? 100]
+                };
+                return { map_range_cond: m };
+            }
+            case 'all':
+                // Store nested schema values as-is (already schema-format from child editor events)
+                return { all: (cond.all || []) };
+            case 'any':
+                return { any: (cond.any || []) };
+            case 'not':
+                return { not: cond.not !== undefined ? cond.not : {} };
+            default: {
+                // Strip _type and return remaining fields
+                const { _type, ...rest } = cond;
+                return rest;
+            }
         }
     }
 
     /** Build the `when` object from internal state and fire value-changed */
     _emit() {
+        const serialized = this._conditions.map(c => this._serializeCondition(c));
         let result;
         if (this._operator === 'all') {
-            result = { all: [...this._conditions] };
+            result = serialized.length > 0 ? { all: serialized } : null;
         } else if (this._operator === 'any') {
-            result = { any: [...this._conditions] };
+            result = serialized.length > 0 ? { any: serialized } : null;
         } else {
             // single
-            result = this._conditions.length > 0 ? this._conditions[0] : null;
+            result = serialized.length > 0 ? serialized[0] : null;
         }
         this.dispatchEvent(new CustomEvent('value-changed', {
             detail: { value: result },
