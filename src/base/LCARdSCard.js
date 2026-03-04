@@ -736,6 +736,15 @@ export class LCARdSCard extends LCARdSNativeCard {
     async _onConnected() {
         super._onConnected();
 
+        // Re-establish ResizeObserver + window listener if auto-sizing was enabled
+        // but the observer was cleaned up during a previous disconnect.
+        // (Lit's firstUpdated only fires once, so _setupAutoSizing won't be called
+        // again automatically when HA reconnects a card after view navigation.)
+        if (this._autoSizingEnabled && !this._resizeObserver) {
+            lcardsLog.debug(`[LCARdSCard] Re-establishing auto-sizing after reconnect: ${this._getDisplayId()}`);
+            this._setupAutoSizing(this._autoSizingCallback ?? null);
+        }
+
         // Initialize singleton access
         this._initializeSingletons();
 
@@ -820,10 +829,18 @@ export class LCARdSCard extends LCARdSNativeCard {
      * }
      */
     _setupAutoSizing(onResize = null) {
-        // Clean up existing observer if any
+        // Clean up existing observer and window handler if any
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
         }
+        if (this._windowResizeHandler) {
+            window.removeEventListener('resize', this._windowResizeHandler);
+            this._windowResizeHandler = null;
+        }
+
+        // Persist callback reference so it can be restored on reconnect
+        this._autoSizingCallback = onResize;
+        this._autoSizingEnabled = true;
 
         this._resizeObserver = new ResizeObserver(entries => {
             if (entries.length === 0) return;
@@ -853,6 +870,51 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Observe this element (the custom element itself)
         // The web component should fill its container via CSS (width: 100%, height: 100%)
         this._resizeObserver.observe(this);
+
+        // FALLBACK: window 'resize' listener
+        //
+        // ResizeObserver observes the shadow-host's contentRect. In certain
+        // layout scenarios — notably when the parent uses a JavaScript-driven
+        // grid system (e.g. custom:grid-layout) that resizes children via
+        // inline styles, or when the browser opens/closes DevTools causing a
+        // viewport change — the contentRect change may not propagate back to
+        // the shadow-host element, so ResizeObserver silently misses the event.
+        //
+        // This fallback listens to the native window 'resize' event (which
+        // always fires on a viewport change) and directly measures the
+        // element via getBoundingClientRect() to detect any dimension change.
+        let _resizeDebounceTimer = null;
+        this._windowResizeHandler = () => {
+            clearTimeout(_resizeDebounceTimer);
+            _resizeDebounceTimer = setTimeout(() => {
+                if (!this.isConnected) return;
+
+                const rect = this.getBoundingClientRect();
+                // Skip if element has no size yet (hidden / not yet painted)
+                if (!rect || (rect.width === 0 && rect.height === 0)) return;
+
+                // Round to 1 decimal to absorb sub-pixel jitter while still
+                // detecting real layout shifts (matches browser rounding behaviour).
+                const w = Math.round(rect.width * 10) / 10;
+                const h = Math.round(rect.height * 10) / 10;
+
+                const cw = this._containerSize ? Math.round(this._containerSize.width * 10) / 10 : null;
+                const ch = this._containerSize ? Math.round(this._containerSize.height * 10) / 10 : null;
+
+                if (cw === null || w !== cw || h !== ch) {
+                    this._containerSize = { width: w, height: h };
+
+                    lcardsLog.trace(`[LCARdSCard] window.resize: container now ${w}x${h} for ${this._getDisplayId()}`);
+
+                    if (this._autoSizingCallback && typeof this._autoSizingCallback === 'function') {
+                        this._autoSizingCallback(w, h);
+                    } else {
+                        this.requestUpdate();
+                    }
+                }
+            }, 100);
+        };
+        window.addEventListener('resize', this._windowResizeHandler);
 
         lcardsLog.trace(`[LCARdSCard] Auto-sizing enabled for ${this._getDisplayId()}`, {
             element: this.tagName,
@@ -2744,6 +2806,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
             this._resizeObserver = null;
+        }
+
+        // --- Window resize fallback handler ---
+        if (this._windowResizeHandler) {
+            window.removeEventListener('resize', this._windowResizeHandler);
+            this._windowResizeHandler = null;
         }
 
         // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---
