@@ -32,7 +32,8 @@ export class LCARdSRulesDashboard extends LitElement {
             _previewRule: { type: Object, state: true },
             _editDialogOpen: { type: Boolean, state: true },
             _editingRule: { type: Object, state: true },
-            _editMode: { type: String, state: true }
+            _editMode: { type: String, state: true },
+            _confirmDeleteRule: { type: Object, state: true }
         };
     }
 
@@ -47,6 +48,7 @@ export class LCARdSRulesDashboard extends LitElement {
         this._editDialogOpen = false;
         this._editingRule = null;
         this._editMode = 'add';
+        this._confirmDeleteRule = null;
     }
 
     static get styles() {
@@ -429,19 +431,42 @@ export class LCARdSRulesDashboard extends LitElement {
      * @param {Object} rule - Rule to edit
      */
     _handleEditRule(rule) {
-        this._editingRule = { ...rule };
+        // Deep clone so nested objects (e.g. `when`) cannot be mutated in place.
+        // Use structuredClone for correctness (same pattern as LCARdSBaseEditor.setConfig).
+        this._editingRule = (typeof globalThis.structuredClone === 'function')
+            ? globalThis.structuredClone(rule)
+            : JSON.parse(JSON.stringify(rule));
         this._editMode = 'edit';
         this._editDialogOpen = true;
     }
 
     /**
-     * Delete an owned rule from the card config
+     * Request deletion of an owned rule (shows confirmation dialog)
      * @param {Object} rule - Rule to delete
      */
     _handleDeleteRule(rule) {
+        this._confirmDeleteRule = rule;
+    }
+
+    /**
+     * Confirm and execute deletion of the pending rule
+     * @private
+     */
+    _confirmDelete() {
+        if (!this._confirmDeleteRule) return;
+        const rule = this._confirmDeleteRule;
+        this._confirmDeleteRule = null;
         const currentRules = this.editor?.config?.rules || [];
         const updatedRules = currentRules.filter(r => r.id !== rule.id);
         this._applyRulesChange(updatedRules);
+    }
+
+    /**
+     * Cancel the pending delete
+     * @private
+     */
+    _cancelDelete() {
+        this._confirmDeleteRule = null;
     }
 
     /**
@@ -524,7 +549,7 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
-
+     * Sort rules by column
      * @param {String} column - Column to sort by
      * @private
      */
@@ -1241,6 +1266,7 @@ rules:
 
             ${this._renderPreviewDialog()}
             ${this._renderEditDialog()}
+            ${this._renderConfirmDeleteDialog()}
         `;
     }
 
@@ -1260,6 +1286,41 @@ rules:
                 @save=${this._handleRuleSave}
                 @cancel=${this._handleRuleDialogClose}>
             </lcards-rule-editor-dialog>
+        `;
+    }
+
+    /**
+     * Render the delete confirmation dialog
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderConfirmDeleteDialog() {
+        if (!this._confirmDeleteRule) return html``;
+        const rule = this._confirmDeleteRule;
+        return html`
+            <ha-dialog
+                .open=${true}
+                @closed=${this._cancelDelete}
+                .heading=${'Delete Rule?'}>
+                <div style="padding: 8px 0;">
+                    <p>Are you sure you want to delete rule <strong>${rule.id}</strong>?</p>
+                    <p style="color: var(--secondary-text-color, #666); font-size: 13px;">This action cannot be undone.</p>
+                </div>
+                <ha-button
+                    slot="secondaryAction"
+                    appearance="plain"
+                    @click=${this._cancelDelete}>
+                    Cancel
+                </ha-button>
+                <ha-button
+                    slot="primaryAction"
+                    variant="brand"
+                    appearance="accent"
+                    style="--mdc-theme-primary: var(--error-color, #f44336);"
+                    @click=${this._confirmDelete}>
+                    Delete
+                </ha-button>
+            </ha-dialog>
         `;
     }
 }

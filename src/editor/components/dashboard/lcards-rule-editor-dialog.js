@@ -15,7 +15,6 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { fireEvent } from 'custom-card-helpers';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../shared/lcards-dialog.js';
 import '../shared/lcards-form-section.js';
@@ -37,7 +36,8 @@ export class LCARdSRuleEditorDialog extends LitElement {
             _stop:     { type: Boolean, state: true },
             _when:     { type: Object, state: true },
             _apply:    { type: Object, state: true },
-            _errors:   { type: Object, state: true }
+            _errors:   { type: Object, state: true },
+            _applyWarning: { type: Boolean, state: true }
         };
     }
 
@@ -72,15 +72,16 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
             .identity-grid {
                 display: grid;
-                grid-template-columns: 1fr auto;
+                grid-template-columns: 1fr 1fr;
                 gap: 12px;
                 align-items: start;
             }
 
             .identity-right {
                 display: grid;
-                grid-template-columns: 120px 120px;
+                grid-template-columns: 1fr 1fr 1fr;
                 gap: 12px;
+                align-items: start;
             }
 
             .error-text {
@@ -99,6 +100,9 @@ export class LCARdSRuleEditorDialog extends LitElement {
                 lcards-dialog {
                     --mdc-dialog-min-width: 95vw;
                 }
+                .identity-grid {
+                    grid-template-columns: 1fr;
+                }
                 .identity-right {
                     grid-template-columns: 1fr;
                 }
@@ -116,6 +120,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
         this._when     = r.when     || null;
         this._apply    = r.apply    || {};
         this._errors   = {};
+        this._applyWarning = false;
     }
 
     willUpdate(changedProps) {
@@ -166,7 +171,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
     _handleSave() {
         if (!this._validateId()) return;
-        if (!this._isValid()) return;
 
         const ruleRaw = {
             id:       this._ruleId.trim(),
@@ -178,10 +182,23 @@ export class LCARdSRuleEditorDialog extends LitElement {
             apply:    this._apply || {}
         };
 
-        // Build clean rule object without undefined values
+        // Build clean rule object — preserve false/0 values but drop undefined
         const rule = Object.fromEntries(
             Object.entries(ruleRaw).filter(([, v]) => v !== undefined)
         );
+
+        // Warn (but don't block) if apply is effectively empty
+        const hasApplyContent = rule.apply && (
+            Object.keys(rule.apply.overlays || {}).length > 0 ||
+            (rule.apply.tags && rule.apply.tags.length > 0) ||
+            (rule.apply.animations && rule.apply.animations.length > 0) ||
+            (rule.apply.profiles_add && rule.apply.profiles_add.length > 0) ||
+            (rule.apply.profiles_remove && rule.apply.profiles_remove.length > 0)
+        );
+        if (!hasApplyContent) {
+            lcardsLog.warn('[RuleEditorDialog] Saving rule with empty apply section — rule will fire but do nothing:', rule.id);
+            this._applyWarning = true;
+        }
 
         lcardsLog.debug('[RuleEditorDialog] Saving rule:', rule.id);
 
@@ -190,6 +207,9 @@ export class LCARdSRuleEditorDialog extends LitElement {
             bubbles: true,
             composed: true
         }));
+
+        // Self-close so the dialog hides immediately even before the parent updates
+        this.open = false;
     }
 
     _handleCancel() {
@@ -251,58 +271,64 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ?expanded=${true}
                     ?outlined=${false}>
 
-                    <!-- ID -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Rule ID *'}
-                        .helper=${'Unique identifier: letters, digits, _ or - (must start with letter or _)'}
-                        .selector=${{ text: {} }}
-                        .value=${this._ruleId}
-                        .disabled=${this.mode === 'edit'}
-                        @value-changed=${(e) => {
-                            this._ruleId = e.detail.value;
-                            this._validateId();
-                        }}>
-                    </ha-selector>
-                    ${this._errors.id ? html`<div class="error-text">${this._errors.id}</div>` : ''}
+                    <!-- ID + Name row -->
+                    <div class="identity-grid">
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Rule ID *'}
+                                .helper=${'Unique identifier: letters, digits, _ or - (must start with letter or _)'}
+                                .selector=${{ text: {} }}
+                                .value=${this._ruleId}
+                                .disabled=${this.mode === 'edit'}
+                                @value-changed=${(e) => {
+                                    this._ruleId = e.detail.value;
+                                    this._validateId();
+                                }}>
+                            </ha-selector>
+                            ${this._errors.id ? html`<div class="error-text">${this._errors.id}</div>` : ''}
+                        </div>
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Name (optional)'}
+                                .helper=${'Human-readable label for this rule'}
+                                .selector=${{ text: {} }}
+                                .value=${this._ruleName}
+                                @value-changed=${(e) => this._ruleName = e.detail.value}>
+                            </ha-selector>
+                        </div>
+                    </div>
 
-                    <!-- Name -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Name (optional)'}
-                        .helper=${'Human-readable label for this rule'}
-                        .selector=${{ text: {} }}
-                        .value=${this._ruleName}
-                        @value-changed=${(e) => this._ruleName = e.detail.value}>
-                    </ha-selector>
+                    <!-- Priority + Enabled + Stop row -->
+                    <div class="identity-right">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Priority'}
+                            .helper=${'Higher values execute first (0–1000)'}
+                            .selector=${{ number: { min: 0, max: 1000, mode: 'box' } }}
+                            .value=${this._priority}
+                            @value-changed=${(e) => this._priority = e.detail.value}>
+                        </ha-selector>
 
-                    <!-- Priority + Enabled + Stop -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Priority'}
-                        .helper=${'Higher values execute first (0–1000)'}
-                        .selector=${{ number: { min: 0, max: 1000, mode: 'box' } }}
-                        .value=${this._priority}
-                        @value-changed=${(e) => this._priority = e.detail.value}>
-                    </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Enabled'}
+                            .helper=${'Disable to temporarily skip this rule'}
+                            .selector=${{ boolean: {} }}
+                            .value=${this._enabled}
+                            @value-changed=${(e) => this._enabled = e.detail.value}>
+                        </ha-selector>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Enabled'}
-                        .helper=${'Disable to temporarily skip this rule'}
-                        .selector=${{ boolean: {} }}
-                        .value=${this._enabled}
-                        @value-changed=${(e) => this._enabled = e.detail.value}>
-                    </ha-selector>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Stop Processing'}
-                        .helper=${'When true, lower-priority rules will not be evaluated after this one matches'}
-                        .selector=${{ boolean: {} }}
-                        .value=${this._stop}
-                        @value-changed=${(e) => this._stop = e.detail.value}>
-                    </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Stop Processing'}
+                            .helper=${'When true, lower-priority rules will not be evaluated after this one matches'}
+                            .selector=${{ boolean: {} }}
+                            .value=${this._stop}
+                            @value-changed=${(e) => this._stop = e.detail.value}>
+                        </ha-selector>
+                    </div>
                 </lcards-form-section>
 
                 <!-- Conditions (when) -->
@@ -328,11 +354,21 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ?expanded=${true}
                     ?outlined=${false}>
 
+                    ${this._applyWarning ? html`
+                        <ha-alert alert-type="warning">
+                            The Apply section is empty — this rule will fire but do nothing.
+                            Add at least one overlay target or tag target.
+                        </ha-alert>
+                    ` : ''}
+
                     <lcards-rule-apply-editor
                         .hass=${this.hass}
                         .editor=${this.editor}
                         .value=${this._apply}
-                        @value-changed=${(e) => this._apply = e.detail.value}>
+                        @value-changed=${(e) => {
+                            this._apply = e.detail.value;
+                            this._applyWarning = false;
+                        }}>
                     </lcards-rule-apply-editor>
                 </lcards-form-section>
 

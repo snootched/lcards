@@ -305,7 +305,8 @@ export class LCARdSConditionGroupEditor extends LitElement {
             case 'entity_attr': {
                 const op = cond.operator || 'equals';
                 const val = cond.value !== undefined ? cond.value : '';
-                return { entity_attr: cond.entity || '', attribute: cond.attribute || '', [op]: val };
+                // Schema uses 'entity' (not 'entity_attr') plus 'attribute' key
+                return { entity: cond.entity || '', attribute: cond.attribute || '', [op]: val };
             }
             case 'jinja2':
                 return { condition: cond.template || '' };

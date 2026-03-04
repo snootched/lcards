@@ -8050,7 +8050,7 @@
                 display: block;
                 width: 100%;
             }
-        `}willUpdate(e){e.has("value")&&this._parseValue(this.value)}_parseValue(e){if(!e||"object"!=typeof e||0===Object.keys(e).length)return this._operator="single",void(this._conditions=[]);e.all?(this._operator="all",this._conditions=Array.isArray(e.all)?e.all.map(e=>this._deserializeCondition(e)):[]):e.any?(this._operator="any",this._conditions=Array.isArray(e.any)?e.any.map(e=>this._deserializeCondition(e)):[]):(this._operator="single",this._conditions=[this._deserializeCondition(e)])}_deserializeCondition(e){if(!e||"object"!=typeof e)return{_type:"entity",entity:""};if(e.all)return{_type:"all",all:e.all};if(e.any)return{_type:"any",any:e.any};if(void 0!==e.not)return{_type:"not",not:e.not};if(void 0!==e.entity_attr||void 0!==e.entity&&void 0!==e.attribute){const t=this._detectOperator(e);return{_type:"entity_attr",entity:e.entity_attr||e.entity||"",attribute:e.attribute||"",operator:t.key,value:t.value}}if(void 0!==e.entity){const t=this._detectOperator(e);return{_type:"entity",entity:e.entity||"",operator:t.key,value:t.value}}if(void 0!==e.condition){const t=String(e.condition);return t.includes("[[[")&&t.includes("]]]")?{_type:"javascript",template:t.slice(3,-3).trim()}:{_type:"jinja2",template:t}}if(void 0!==e.jinja2)return{_type:"jinja2",template:e.jinja2};if(void 0!==e.javascript)return{_type:"javascript",template:e.javascript};if(void 0!==e.time_between){const t=String(e.time_between).split("-");return{_type:"time_between",after:t[0]||"",before:t[1]||""}}if(void 0!==e.weekday_in)return{_type:"weekday_in",weekdays:e.weekday_in||[]};if(void 0!==e.sun_elevation){const t=e.sun_elevation||{};return{_type:"sun_elevation",above:t.above,below:t.below}}if(void 0!==e.perf_metric){const t=e.perf_metric||{};return{_type:"perf_metric",metric:t.key||"",above:t.above,below:t.below}}if(void 0!==e.flag){const t=e.flag||{};return{_type:"flag",flag:t.debugFlagName||"",is:void 0===t.is||t.is}}if(void 0!==e.random_chance)return{_type:"random_chance",probability:e.random_chance};if(void 0!==e.map_range_cond){const t=e.map_range_cond||{};return{_type:"map_range_cond",entity:t.entity||"",input_min:t.input?.[0]??0,input_max:t.input?.[1]??100,output_min:t.output?.[0]??0,output_max:t.output?.[1]??100}}return e._type?e:{_type:"entity",entity:"",operator:"equals",value:""}}_detectOperator(e){for(const t of["equals","not_equals","above","below","in","not_in","regex"])if(void 0!==e[t])return{key:t,value:e[t]};return void 0!==e.state?{key:"equals",value:e.state}:{key:"equals",value:""}}_serializeCondition(e){switch(e._type||this._getConditionType(e)){case"entity":{const t=e.operator||"equals",i=void 0!==e.value?e.value:"";return{entity:e.entity||"",[t]:i}}case"entity_attr":{const t=e.operator||"equals",i=void 0!==e.value?e.value:"";return{entity_attr:e.entity||"",attribute:e.attribute||"",[t]:i}}case"jinja2":return{condition:e.template||""};case"javascript":return{condition:`[[[ ${(e.template||"").trim()} ]]]`};case"time_between":return{time_between:`${e.after||"00:00"}-${e.before||"23:59"}`};case"weekday_in":return{weekday_in:e.weekdays||[]};case"sun_elevation":{const t={};return void 0!==e.above&&""!==e.above&&(t.above=Number(e.above)),void 0!==e.below&&""!==e.below&&(t.below=Number(e.below)),{sun_elevation:t}}case"perf_metric":{const t={key:e.metric||""};return void 0!==e.above&&""!==e.above&&(t.above=Number(e.above)),void 0!==e.below&&""!==e.below&&(t.below=Number(e.below)),{perf_metric:t}}case"flag":return{flag:{debugFlagName:e.flag||"",is:void 0===e.is||e.is}};case"random_chance":return{random_chance:void 0!==e.probability?Number(e.probability):.5};case"map_range_cond":return{map_range_cond:{entity:e.entity||"",input:[e.input_min??0,e.input_max??100],output:[e.output_min??0,e.output_max??100]}};case"all":return{all:e.all||[]};case"any":return{any:e.any||[]};case"not":return{not:void 0!==e.not?e.not:{}};default:{const{_type:t,...i}=e;return i}}}_emit(){const e=this._conditions.map(e=>this._serializeCondition(e));let t;t="all"===this._operator?e.length>0?{all:e}:null:"any"===this._operator?e.length>0?{any:e}:null:e.length>0?e[0]:null,this.dispatchEvent(new CustomEvent("value-changed",{detail:{value:t},bubbles:!0,composed:!0}))}_handleOperatorChange(e){const t=e.detail.value;t!==this._operator&&("single"===t&&this._conditions.length>1&&(this._conditions=[this._conditions[0]]),this._operator=t,this._emit())}_handleAddCondition(){const e={_type:"entity",entity:""};"single"===this._operator&&0===this._conditions.length?this._conditions=[e]:"single"===this._operator?(this._operator="all",this._conditions=[...this._conditions,e]):this._conditions=[...this._conditions,e],this._emit()}_handleDeleteCondition(e){const t=[...this._conditions];t.splice(e,1),this._conditions=t,this._emit()}_handleConditionTypeChange(e,t){const i=[...this._conditions];i[e]={_type:t},this._conditions=i,this._emit()}_handleConditionFieldChange(e,t,i){const r=[...this._conditions];r[e]={...r[e],[t]:i},this._conditions=r,this._emit()}_handleNestedGroupChange(e,t){const i=[...this._conditions],r=i[e]._type||"all",a=t.detail.value;i[e]="not"===r?{_type:"not",not:a}:{_type:r,...a||{}},this._conditions=i,this._emit()}_getConditionType(e){return e?e._type?e._type:e.all?"all":e.any?"any":e.not?"not":void 0!==e.entity&&void 0!==e.attribute?"entity_attr":void 0!==e.entity?"entity":void 0!==e.template&&"javascript"===e.template_type?"javascript":void 0!==e.template?"jinja2":void 0!==e.time_range||void 0!==e.after?"time_between":void 0!==e.weekdays?"weekday_in":void 0!==e.sun_elevation||void 0!==e.sun?"sun_elevation":void 0!==e.metric?"perf_metric":void 0!==e.flag?"flag":void 0!==e.probability?"random_chance":void 0!==e.datasource?"map_range_cond":"entity":"entity"}render(){return nn`
+        `}willUpdate(e){e.has("value")&&this._parseValue(this.value)}_parseValue(e){if(!e||"object"!=typeof e||0===Object.keys(e).length)return this._operator="single",void(this._conditions=[]);e.all?(this._operator="all",this._conditions=Array.isArray(e.all)?e.all.map(e=>this._deserializeCondition(e)):[]):e.any?(this._operator="any",this._conditions=Array.isArray(e.any)?e.any.map(e=>this._deserializeCondition(e)):[]):(this._operator="single",this._conditions=[this._deserializeCondition(e)])}_deserializeCondition(e){if(!e||"object"!=typeof e)return{_type:"entity",entity:""};if(e.all)return{_type:"all",all:e.all};if(e.any)return{_type:"any",any:e.any};if(void 0!==e.not)return{_type:"not",not:e.not};if(void 0!==e.entity_attr||void 0!==e.entity&&void 0!==e.attribute){const t=this._detectOperator(e);return{_type:"entity_attr",entity:e.entity_attr||e.entity||"",attribute:e.attribute||"",operator:t.key,value:t.value}}if(void 0!==e.entity){const t=this._detectOperator(e);return{_type:"entity",entity:e.entity||"",operator:t.key,value:t.value}}if(void 0!==e.condition){const t=String(e.condition);return t.includes("[[[")&&t.includes("]]]")?{_type:"javascript",template:t.slice(3,-3).trim()}:{_type:"jinja2",template:t}}if(void 0!==e.jinja2)return{_type:"jinja2",template:e.jinja2};if(void 0!==e.javascript)return{_type:"javascript",template:e.javascript};if(void 0!==e.time_between){const t=String(e.time_between).split("-");return{_type:"time_between",after:t[0]||"",before:t[1]||""}}if(void 0!==e.weekday_in)return{_type:"weekday_in",weekdays:e.weekday_in||[]};if(void 0!==e.sun_elevation){const t=e.sun_elevation||{};return{_type:"sun_elevation",above:t.above,below:t.below}}if(void 0!==e.perf_metric){const t=e.perf_metric||{};return{_type:"perf_metric",metric:t.key||"",above:t.above,below:t.below}}if(void 0!==e.flag){const t=e.flag||{};return{_type:"flag",flag:t.debugFlagName||"",is:void 0===t.is||t.is}}if(void 0!==e.random_chance)return{_type:"random_chance",probability:e.random_chance};if(void 0!==e.map_range_cond){const t=e.map_range_cond||{};return{_type:"map_range_cond",entity:t.entity||"",input_min:t.input?.[0]??0,input_max:t.input?.[1]??100,output_min:t.output?.[0]??0,output_max:t.output?.[1]??100}}return e._type?e:{_type:"entity",entity:"",operator:"equals",value:""}}_detectOperator(e){for(const t of["equals","not_equals","above","below","in","not_in","regex"])if(void 0!==e[t])return{key:t,value:e[t]};return void 0!==e.state?{key:"equals",value:e.state}:{key:"equals",value:""}}_serializeCondition(e){switch(e._type||this._getConditionType(e)){case"entity":{const t=e.operator||"equals",i=void 0!==e.value?e.value:"";return{entity:e.entity||"",[t]:i}}case"entity_attr":{const t=e.operator||"equals",i=void 0!==e.value?e.value:"";return{entity:e.entity||"",attribute:e.attribute||"",[t]:i}}case"jinja2":return{condition:e.template||""};case"javascript":return{condition:`[[[ ${(e.template||"").trim()} ]]]`};case"time_between":return{time_between:`${e.after||"00:00"}-${e.before||"23:59"}`};case"weekday_in":return{weekday_in:e.weekdays||[]};case"sun_elevation":{const t={};return void 0!==e.above&&""!==e.above&&(t.above=Number(e.above)),void 0!==e.below&&""!==e.below&&(t.below=Number(e.below)),{sun_elevation:t}}case"perf_metric":{const t={key:e.metric||""};return void 0!==e.above&&""!==e.above&&(t.above=Number(e.above)),void 0!==e.below&&""!==e.below&&(t.below=Number(e.below)),{perf_metric:t}}case"flag":return{flag:{debugFlagName:e.flag||"",is:void 0===e.is||e.is}};case"random_chance":return{random_chance:void 0!==e.probability?Number(e.probability):.5};case"map_range_cond":return{map_range_cond:{entity:e.entity||"",input:[e.input_min??0,e.input_max??100],output:[e.output_min??0,e.output_max??100]}};case"all":return{all:e.all||[]};case"any":return{any:e.any||[]};case"not":return{not:void 0!==e.not?e.not:{}};default:{const{_type:t,...i}=e;return i}}}_emit(){const e=this._conditions.map(e=>this._serializeCondition(e));let t;t="all"===this._operator?e.length>0?{all:e}:null:"any"===this._operator?e.length>0?{any:e}:null:e.length>0?e[0]:null,this.dispatchEvent(new CustomEvent("value-changed",{detail:{value:t},bubbles:!0,composed:!0}))}_handleOperatorChange(e){const t=e.detail.value;t!==this._operator&&("single"===t&&this._conditions.length>1&&(this._conditions=[this._conditions[0]]),this._operator=t,this._emit())}_handleAddCondition(){const e={_type:"entity",entity:""};"single"===this._operator&&0===this._conditions.length?this._conditions=[e]:"single"===this._operator?(this._operator="all",this._conditions=[...this._conditions,e]):this._conditions=[...this._conditions,e],this._emit()}_handleDeleteCondition(e){const t=[...this._conditions];t.splice(e,1),this._conditions=t,this._emit()}_handleConditionTypeChange(e,t){const i=[...this._conditions];i[e]={_type:t},this._conditions=i,this._emit()}_handleConditionFieldChange(e,t,i){const r=[...this._conditions];r[e]={...r[e],[t]:i},this._conditions=r,this._emit()}_handleNestedGroupChange(e,t){const i=[...this._conditions],r=i[e]._type||"all",a=t.detail.value;i[e]="not"===r?{_type:"not",not:a}:{_type:r,...a||{}},this._conditions=i,this._emit()}_getConditionType(e){return e?e._type?e._type:e.all?"all":e.any?"any":e.not?"not":void 0!==e.entity&&void 0!==e.attribute?"entity_attr":void 0!==e.entity?"entity":void 0!==e.template&&"javascript"===e.template_type?"javascript":void 0!==e.template?"jinja2":void 0!==e.time_range||void 0!==e.after?"time_between":void 0!==e.weekdays?"weekday_in":void 0!==e.sun_elevation||void 0!==e.sun?"sun_elevation":void 0!==e.metric?"perf_metric":void 0!==e.flag?"flag":void 0!==e.probability?"random_chance":void 0!==e.datasource?"map_range_cond":"entity":"entity"}render(){return nn`
             <div>
                 <div class="group-header">
                     <ha-selector
@@ -8419,7 +8419,7 @@
             ha-button {
                 margin-top: 4px;
             }
-        `}willUpdate(e){e.has("value")&&this._syncFromValue()}_syncFromValue(){const e=this.value||{};e.overlays&&"object"==typeof e.overlays?this._overlayTargets=Object.keys(e.overlays):this._overlayTargets=[],this._tags=e.tags||[];try{this._yamlText=(0,_l.configToYaml)(e),this._yamlError=""}catch(e){this._yamlError=String(e)}}_getAvailableOverlays(){try{return window.lcards?.core?.rulesManager?.getAllTargetableOverlays()||window.lcards?.core?.systemsManager?.getAllTargetableOverlays()||[]}catch(e){return[]}}_getAvailableTags(){try{return window.lcards?.core?.rulesManager?.getAllTags()||window.lcards?.core?.systemsManager?.getAllTags()||[]}catch(e){return[]}}_emit(e){this.value=e,this._syncFromValue(),this.dispatchEvent(new CustomEvent("value-changed",{detail:{value:e},bubbles:!0,composed:!0}))}_getOverlayConfig(e){return(this.value?.overlays||{})[e]||{}}_setOverlayPatch(e,t,i){const r={...this.value||{}},a={...r.overlays||{}},s=this._deepSetPath({...a[e]||{}},t,i);a[e]=s,this._emit({...r,overlays:a})}_deepSetPath(e,t,i){const r=t.split(".");if(1===r.length)return{...e,[r[0]]:i};const a=r[0],s=r.slice(1).join(".");return{...e,[a]:this._deepSetPath(e[a]||{},s,i)}}_deepGetPath(e,t){const i=t.split(".");let r=e;for(const e of i){if(!r||"object"!=typeof r)return;r=r[e]}return r}_handleAddOverlay(){if(!this._newOverlayId||!this._newOverlayId.trim())return;const e=this._newOverlayId.trim();if(this._overlayTargets.includes(e))return;const t={...this.value||{}},i={...t.overlays||{},[e]:{}};this._newOverlayId="",this._addOverlayPending=!1,this._emit({...t,overlays:i})}_handleRemoveOverlay(e){const t={...this.value||{}},i={...t.overlays||{}};delete i[e],this._emit({...t,overlays:i})}_handleTagsChange(e){const t=e.detail.value,i={...this.value||{}};t&&0!==t.length?i.tags=t:delete i.tags,this._emit(i)}_handleYamlChange(e){const t=e.target.value;this._yamlText=t;try{const e=(0,_l.T)(t);this._yamlError="",this._emit(e||{})}catch(e){this._yamlError=`YAML error: ${e.message}`}}render(){this._getAvailableOverlays();const e=this._getAvailableTags();return nn`
+        `}willUpdate(e){e.has("value")&&this._syncFromValue()}_syncFromValue(){const e=this.value||{};e.overlays&&"object"==typeof e.overlays?this._overlayTargets=Object.keys(e.overlays):this._overlayTargets=[],this._tags=e.tags||[];try{this._yamlText=(0,_l.configToYaml)(e),this._yamlError=""}catch(e){this._yamlError=String(e)}}_getAvailableOverlays(){try{return window.lcards?.core?.systemsManager?.getAllTargetableOverlays()||[]}catch(e){return[]}}_getAvailableTags(){try{return window.lcards?.core?.systemsManager?.getAllTags()||[]}catch(e){return[]}}_emit(e){this.value=e,this.dispatchEvent(new CustomEvent("value-changed",{detail:{value:e},bubbles:!0,composed:!0}))}_getOverlayConfig(e){return(this.value?.overlays||{})[e]||{}}_setOverlayPatch(e,t,i){const r={...this.value||{}},a={...r.overlays||{}},s=this._deepSetPath({...a[e]||{}},t,i);a[e]=s,this._emit({...r,overlays:a})}_deepSetPath(e,t,i){const r=t.split(".");if(1===r.length)return{...e,[r[0]]:i};const a=r[0],s=r.slice(1).join(".");return{...e,[a]:this._deepSetPath(e[a]||{},s,i)}}_deepGetPath(e,t){const i=t.split(".");let r=e;for(const e of i){if(!r||"object"!=typeof r)return;r=r[e]}return r}_handleAddOverlay(){if(!this._newOverlayId||!this._newOverlayId.trim())return;const e=this._newOverlayId.trim();if(this._overlayTargets.includes(e))return;const t={...this.value||{}},i={...t.overlays||{},[e]:{}};this._newOverlayId="",this._addOverlayPending=!1,this._emit({...t,overlays:i})}_buildOverlayOptions(e){if(!e||0===e.length)return[];const t={};for(const i of e){const e=i.sourceCardId||"unknown";t[e]||(t[e]=[]),t[e].push(i)}const i=[];for(const[e,r]of Object.entries(t)){i.push({value:`__group_${e}`,label:`── ${e} ──`,disabled:!0});for(const e of r){const t=e.tags?.length?`  [${e.tags.join(", ")}]`:"";i.push({value:e.id,label:`${e.id}${t}`})}}return i}_handleRemoveOverlay(e){const t={...this.value||{}},i={...t.overlays||{}};delete i[e],this._emit({...t,overlays:i})}_handleTagsChange(e){const t=e.detail.value,i={...this.value||{}};t&&0!==t.length?i.tags=t:delete i.tags,this._emit(i)}_handleYamlChange(e){const t=e.target.value;this._yamlText=t;try{const e=(0,_l.T)(t);this._yamlError="",this._emit(e||{})}catch(e){this._yamlError=`YAML error: ${e.message}`}}render(){const e=this._getAvailableOverlays(),t=this._getAvailableTags();return nn`
             <div>
                 <!-- Overlay Targets Section -->
                 <lcards-form-section
@@ -8436,16 +8436,29 @@
 
                     ${this._addOverlayPending?nn`
                         <div class="add-overlay-row">
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${"Overlay ID"}
-                                .selector=${{text:{}}}
-                                .value=${this._newOverlayId}
-                                @value-changed=${e=>this._newOverlayId=e.detail.value}>
-                            </ha-selector>
+                            ${e.length>0?nn`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${"Select Overlay"}
+                                    .helper=${"Choose from live overlays or type a custom ID below"}
+                                    .selector=${{select:{mode:"dropdown",custom_value:!0,options:this._buildOverlayOptions(e)}}}
+                                    .value=${this._newOverlayId}
+                                    @value-changed=${e=>this._newOverlayId=e.detail.value}>
+                                </ha-selector>
+                            `:nn`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${"Overlay ID"}
+                                    .helper=${"No live overlays found — type an overlay ID manually"}
+                                    .selector=${{text:{}}}
+                                    .value=${this._newOverlayId}
+                                    @value-changed=${e=>this._newOverlayId=e.detail.value}>
+                                </ha-selector>
+                            `}
                             <ha-button
                                 variant="brand"
                                 appearance="accent"
+                                ?disabled=${!this._newOverlayId||(this._overlayTargets?.includes(this._newOverlayId.trim())??!1)}
                                 @click=${this._handleAddOverlay}>
                                 Add
                             </ha-button>
@@ -8475,7 +8488,7 @@
                     <ha-selector
                         .hass=${this.hass}
                         .label=${"Tags"}
-                        .selector=${{select:{multiple:!0,custom_value:!0,options:e.map(e=>"string"==typeof e?{value:e,label:e}:e)}}}
+                        .selector=${{select:{multiple:!0,custom_value:!0,options:t.map(e=>"string"==typeof e?{value:e,label:e}:e)}}}
                         .value=${this._tags}
                         @value-changed=${this._handleTagsChange}>
                     </ha-selector>
@@ -8493,8 +8506,7 @@
                     <textarea
                         class="yaml-area"
                         .value=${this._yamlText}
-                        @change=${this._handleYamlChange}
-                        @blur=${this._handleYamlChange}
+                        @input=${this._handleYamlChange}
                         spellcheck="false"
                         placeholder="overlays:\n  my_overlay:\n    style:\n      card:\n        color:\n          background:\n            active: 'var(--lcars-green)'">
                     </textarea>
@@ -8538,7 +8550,7 @@
                     </ha-selector>
                 </div>
             </div>
-        `}}),customElements.define("lcards-rule-editor-dialog",class extends An{static get properties(){return{hass:{type:Object},mode:{type:String},rule:{type:Object},open:{type:Boolean},editor:{type:Object},_ruleId:{type:String,state:!0},_ruleName:{type:String,state:!0},_priority:{type:Number,state:!0},_enabled:{type:Boolean,state:!0},_stop:{type:Boolean,state:!0},_when:{type:Object,state:!0},_apply:{type:Object,state:!0},_errors:{type:Object,state:!0}}}constructor(){super(),this.mode="add",this.open=!1,this.rule=null,this._resetForm()}static get styles(){return _o`
+        `}}),customElements.define("lcards-rule-editor-dialog",class extends An{static get properties(){return{hass:{type:Object},mode:{type:String},rule:{type:Object},open:{type:Boolean},editor:{type:Object},_ruleId:{type:String,state:!0},_ruleName:{type:String,state:!0},_priority:{type:Number,state:!0},_enabled:{type:Boolean,state:!0},_stop:{type:Boolean,state:!0},_when:{type:Object,state:!0},_apply:{type:Object,state:!0},_errors:{type:Object,state:!0},_applyWarning:{type:Boolean,state:!0}}}constructor(){super(),this.mode="add",this.open=!1,this.rule=null,this._resetForm()}static get styles(){return _o`
             :host { display: block; }
 
             lcards-dialog {
@@ -8560,15 +8572,16 @@
 
             .identity-grid {
                 display: grid;
-                grid-template-columns: 1fr auto;
+                grid-template-columns: 1fr 1fr;
                 gap: 12px;
                 align-items: start;
             }
 
             .identity-right {
                 display: grid;
-                grid-template-columns: 120px 120px;
+                grid-template-columns: 1fr 1fr 1fr;
                 gap: 12px;
+                align-items: start;
             }
 
             .error-text {
@@ -8587,11 +8600,14 @@
                 lcards-dialog {
                     --mdc-dialog-min-width: 95vw;
                 }
+                .identity-grid {
+                    grid-template-columns: 1fr;
+                }
                 .identity-right {
                     grid-template-columns: 1fr;
                 }
             }
-        `}_resetForm(){const e=this.rule||{};this._ruleId=e.id||"",this._ruleName=e.name||"",this._priority=void 0!==e.priority?e.priority:0,this._enabled=!1!==e.enabled,this._stop=!0===e.stop,this._when=e.when||null,this._apply=e.apply||{},this._errors={}}willUpdate(e){e.has("open")&&this.open&&this._resetForm()}_validateId(e=!1){const t=this._ruleId?this._ruleId.trim():"";let i=null;if(t?/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(t)?"add"===this.mode&&(this.editor?.config?.rules||[]).some(e=>e.id===t)&&(i=`A rule with id "${t}" already exists`):i="ID must start with a letter or _, then letters/digits/_ or -":i="Rule ID is required",!e)if(i)this._errors={...this._errors,id:i};else{const e={...this._errors};delete e.id,this._errors=e}return null===i}_isValid(){return this._validateId(!0)}_handleSave(){if(!this._validateId())return;if(!this._isValid())return;const e={id:this._ruleId.trim(),name:this._ruleName||void 0,priority:this._priority,enabled:this._enabled,stop:this._stop,when:this._when||void 0,apply:this._apply||{}},t=Object.fromEntries(Object.entries(e).filter(([,e])=>void 0!==e));s.OC.debug("[RuleEditorDialog] Saving rule:",t.id),this.dispatchEvent(new CustomEvent("save",{detail:{rule:t},bubbles:!0,composed:!0}))}_handleCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_ignoreKeydown(e){e.stopPropagation()}render(){return this.open?nn`
+        `}_resetForm(){const e=this.rule||{};this._ruleId=e.id||"",this._ruleName=e.name||"",this._priority=void 0!==e.priority?e.priority:0,this._enabled=!1!==e.enabled,this._stop=!0===e.stop,this._when=e.when||null,this._apply=e.apply||{},this._errors={},this._applyWarning=!1}willUpdate(e){e.has("open")&&this.open&&this._resetForm()}_validateId(e=!1){const t=this._ruleId?this._ruleId.trim():"";let i=null;if(t?/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(t)?"add"===this.mode&&(this.editor?.config?.rules||[]).some(e=>e.id===t)&&(i=`A rule with id "${t}" already exists`):i="ID must start with a letter or _, then letters/digits/_ or -":i="Rule ID is required",!e)if(i)this._errors={...this._errors,id:i};else{const e={...this._errors};delete e.id,this._errors=e}return null===i}_isValid(){return this._validateId(!0)}_handleSave(){if(!this._validateId())return;const e={id:this._ruleId.trim(),name:this._ruleName||void 0,priority:this._priority,enabled:this._enabled,stop:this._stop,when:this._when||void 0,apply:this._apply||{}},t=Object.fromEntries(Object.entries(e).filter(([,e])=>void 0!==e));t.apply&&(Object.keys(t.apply.overlays||{}).length>0||t.apply.tags&&t.apply.tags.length>0||t.apply.animations&&t.apply.animations.length>0||t.apply.profiles_add&&t.apply.profiles_add.length>0||t.apply.profiles_remove&&t.apply.profiles_remove.length>0)||(s.OC.warn("[RuleEditorDialog] Saving rule with empty apply section — rule will fire but do nothing:",t.id),this._applyWarning=!0),s.OC.debug("[RuleEditorDialog] Saving rule:",t.id),this.dispatchEvent(new CustomEvent("save",{detail:{rule:t},bubbles:!0,composed:!0})),this.open=!1}_handleCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_ignoreKeydown(e){e.stopPropagation()}render(){return this.open?nn`
             <lcards-dialog
                 .open=${this.open}
                 scrimClickAction=""
@@ -8630,55 +8646,61 @@
                     ?expanded=${!0}
                     ?outlined=${!1}>
 
-                    <!-- ID -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${"Rule ID *"}
-                        .helper=${"Unique identifier: letters, digits, _ or - (must start with letter or _)"}
-                        .selector=${{text:{}}}
-                        .value=${this._ruleId}
-                        .disabled=${"edit"===this.mode}
-                        @value-changed=${e=>{this._ruleId=e.detail.value,this._validateId()}}>
-                    </ha-selector>
-                    ${this._errors.id?nn`<div class="error-text">${this._errors.id}</div>`:""}
+                    <!-- ID + Name row -->
+                    <div class="identity-grid">
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${"Rule ID *"}
+                                .helper=${"Unique identifier: letters, digits, _ or - (must start with letter or _)"}
+                                .selector=${{text:{}}}
+                                .value=${this._ruleId}
+                                .disabled=${"edit"===this.mode}
+                                @value-changed=${e=>{this._ruleId=e.detail.value,this._validateId()}}>
+                            </ha-selector>
+                            ${this._errors.id?nn`<div class="error-text">${this._errors.id}</div>`:""}
+                        </div>
+                        <div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${"Name (optional)"}
+                                .helper=${"Human-readable label for this rule"}
+                                .selector=${{text:{}}}
+                                .value=${this._ruleName}
+                                @value-changed=${e=>this._ruleName=e.detail.value}>
+                            </ha-selector>
+                        </div>
+                    </div>
 
-                    <!-- Name -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${"Name (optional)"}
-                        .helper=${"Human-readable label for this rule"}
-                        .selector=${{text:{}}}
-                        .value=${this._ruleName}
-                        @value-changed=${e=>this._ruleName=e.detail.value}>
-                    </ha-selector>
+                    <!-- Priority + Enabled + Stop row -->
+                    <div class="identity-right">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${"Priority"}
+                            .helper=${"Higher values execute first (0–1000)"}
+                            .selector=${{number:{min:0,max:1e3,mode:"box"}}}
+                            .value=${this._priority}
+                            @value-changed=${e=>this._priority=e.detail.value}>
+                        </ha-selector>
 
-                    <!-- Priority + Enabled + Stop -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${"Priority"}
-                        .helper=${"Higher values execute first (0–1000)"}
-                        .selector=${{number:{min:0,max:1e3,mode:"box"}}}
-                        .value=${this._priority}
-                        @value-changed=${e=>this._priority=e.detail.value}>
-                    </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${"Enabled"}
+                            .helper=${"Disable to temporarily skip this rule"}
+                            .selector=${{boolean:{}}}
+                            .value=${this._enabled}
+                            @value-changed=${e=>this._enabled=e.detail.value}>
+                        </ha-selector>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${"Enabled"}
-                        .helper=${"Disable to temporarily skip this rule"}
-                        .selector=${{boolean:{}}}
-                        .value=${this._enabled}
-                        @value-changed=${e=>this._enabled=e.detail.value}>
-                    </ha-selector>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${"Stop Processing"}
-                        .helper=${"When true, lower-priority rules will not be evaluated after this one matches"}
-                        .selector=${{boolean:{}}}
-                        .value=${this._stop}
-                        @value-changed=${e=>this._stop=e.detail.value}>
-                    </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${"Stop Processing"}
+                            .helper=${"When true, lower-priority rules will not be evaluated after this one matches"}
+                            .selector=${{boolean:{}}}
+                            .value=${this._stop}
+                            @value-changed=${e=>this._stop=e.detail.value}>
+                        </ha-selector>
+                    </div>
                 </lcards-form-section>
 
                 <!-- Conditions (when) -->
@@ -8704,16 +8726,23 @@
                     ?expanded=${!0}
                     ?outlined=${!1}>
 
+                    ${this._applyWarning?nn`
+                        <ha-alert alert-type="warning">
+                            The Apply section is empty — this rule will fire but do nothing.
+                            Add at least one overlay target or tag target.
+                        </ha-alert>
+                    `:""}
+
                     <lcards-rule-apply-editor
                         .hass=${this.hass}
                         .editor=${this.editor}
                         .value=${this._apply}
-                        @value-changed=${e=>this._apply=e.detail.value}>
+                        @value-changed=${e=>{this._apply=e.detail.value,this._applyWarning=!1}}>
                     </lcards-rule-apply-editor>
                 </lcards-form-section>
 
             </div>
-        `}}),customElements.define("lcards-rules-dashboard",class extends An{static get properties(){return{editor:{type:Object},cardId:{type:String},hass:{type:Object},_rules:{type:Array,state:!0},_sortColumn:{type:String,state:!0},_sortDirection:{type:String,state:!0},_previewDialogOpen:{type:Boolean,state:!0},_previewRule:{type:Object,state:!0},_editDialogOpen:{type:Boolean,state:!0},_editingRule:{type:Object,state:!0},_editMode:{type:String,state:!0}}}constructor(){super(),this._rules=[],this._sortColumn="id",this._sortDirection="asc",this.cardId="",this._previewDialogOpen=!1,this._previewRule=null,this._editDialogOpen=!1,this._editingRule=null,this._editMode="add"}static get styles(){return _o`
+        `}}),customElements.define("lcards-rules-dashboard",class extends An{static get properties(){return{editor:{type:Object},cardId:{type:String},hass:{type:Object},_rules:{type:Array,state:!0},_sortColumn:{type:String,state:!0},_sortDirection:{type:String,state:!0},_previewDialogOpen:{type:Boolean,state:!0},_previewRule:{type:Object,state:!0},_editDialogOpen:{type:Boolean,state:!0},_editingRule:{type:Object,state:!0},_editMode:{type:String,state:!0},_confirmDeleteRule:{type:Object,state:!0}}}constructor(){super(),this._rules=[],this._sortColumn="id",this._sortDirection="asc",this.cardId="",this._previewDialogOpen=!1,this._previewRule=null,this._editDialogOpen=!1,this._editingRule=null,this._editMode="add",this._confirmDeleteRule=null}static get styles(){return _o`
             :host {
                 display: block;
                 padding: 16px 0;
@@ -9007,7 +9036,7 @@
                 background: none;
                 padding: 0;
             }
-        `}connectedCallback(){super.connectedCallback(),this._loadRules()}_loadRules(){const e=window.lcards?.core?.rulesManager;e&&"function"==typeof e.getAllRules?(this._rules=e.getAllRules()||[],s.OC.debug("[RulesDashboard] Loaded rules:",this._rules.length)):(s.OC.warn("⚠️ [RulesDashboard] RulesManager not available or getAllRules not implemented"),this._rules=[])}_isTargetingCard(e,t){return!(!e||!t)&&(e.target===t||e.cardId===t||(!(!Array.isArray(e.target)||!e.target.includes(t))||(!e.tags||!Array.isArray(e.tags))&&!!(e.apply&&e.apply.overlays&&Object.keys(e.apply.overlays).includes(t))))}_isOwnedRule(e){return(this.editor?.config?.rules||[]).some(t=>t.id===e.id)}_handleAddRule(){this._editingRule=null,this._editMode="add",this._editDialogOpen=!0}_handleEditRule(e){this._editingRule={...e},this._editMode="edit",this._editDialogOpen=!0}_handleDeleteRule(e){const t=(this.editor?.config?.rules||[]).filter(t=>t.id!==e.id);this._applyRulesChange(t)}_handleToggleRule(e){const t=(this.editor?.config?.rules||[]).map(t=>t.id===e.id?{...t,enabled:!(!1!==t.enabled)}:t);this._applyRulesChange(t)}_handleMoveUp(e){const t=[...this.editor?.config?.rules||[]],i=t.findIndex(t=>t.id===e.id);i<=0||([t[i-1],t[i]]=[t[i],t[i-1]],this._applyRulesChange(t))}_handleMoveDown(e){const t=[...this.editor?.config?.rules||[]],i=t.findIndex(t=>t.id===e.id);i<0||i>=t.length-1||([t[i],t[i+1]]=[t[i+1],t[i]],this._applyRulesChange(t))}_handleRuleSave(e){const t=e.detail.rule,i=[...this.editor?.config?.rules||[]];if("add"===this._editMode)i.push(t);else{const e=i.findIndex(e=>e.id===t.id);e>=0?i[e]=t:i.push(t)}this._applyRulesChange(i),this._editDialogOpen=!1,this._editingRule=null}_handleRuleDialogClose(){this._editDialogOpen=!1,this._editingRule=null}_applyRulesChange(e){this.editor&&(this.editor.config={...this.editor.config,rules:e},vl(this.editor,"config-changed",{config:this.editor.config}),this._loadRules(),this.requestUpdate())}_handleSort(e){this._sortColumn===e?this._sortDirection="asc"===this._sortDirection?"desc":"asc":(this._sortColumn=e,this._sortDirection="asc"),this.requestUpdate()}_getSortedRules(e){const t=[...e],i=this._sortColumn,r=this._sortDirection;return t.sort((e,t)=>{let a,s;switch(i){case"id":a=e.id||"",s=t.id||"";break;case"type":a=e.type||"overlay",s=t.type||"overlay";break;case"priority":a=e.priority||0,s=t.priority||0;break;case"enabled":a=!1!==e.enabled?1:0,s=!1!==t.enabled?1:0;break;case"target":a=this._getRuleTargets(e),s=this._getRuleTargets(t);break;case"source":a=this._getSourceCard(e),s=this._getSourceCard(t);break;case"actions":a=this._getActionsCount(e),s=this._getActionsCount(t);break;default:return 0}return a<s?"asc"===r?-1:1:a>s?"asc"===r?1:-1:0}),t}_getConditionSummary(e){const t=e.when||e.conditions;if(!t)return"No conditions";const i=t.all?"all":t.any?"any":t.not?"not":null;if(i){const e=t[i],r=Array.isArray(e)?e.length:0;return`${i.toUpperCase()} (${r} condition${1!==r?"s":""})`}if(t.entity){let e=`entity: ${t.entity}`;return t.state&&(e+=`, state: ${t.state}`),void 0!==t.above&&(e+=`, above: ${t.above}`),void 0!==t.below&&(e+=`, below: ${t.below}`),e}return"Custom condition"}_getRuleTargets(e){if(e.target)return Array.isArray(e.target)?e.target.join(", "):e.target;if(e.apply&&e.apply.overlays){const t=Object.keys(e.apply.overlays);if(t.length>0)return t.join(", ")}return"Global"}_getActionsCount(e){if(e.actions&&Array.isArray(e.actions))return e.actions.length;if(e.apply){let t=0;return e.apply.overlays&&(t+=Object.keys(e.apply.overlays).length),e.apply.profiles_add&&(t+=e.apply.profiles_add.length),e.apply.profiles_remove&&(t+=e.apply.profiles_remove.length),e.apply.animations&&(t+=e.apply.animations.length),e.apply.base_svg&&(t+=1),t}return 0}_getSourceCard(e){if(e._sourceCardId)return e._sourceCardId;const t=this._getRuleTargets(e);return t&&"Global"!==t?t.split(", ")[0]:"Unknown"}_getSourceCardType(e){return e._sourceCardType||"unknown"}_handleCopyYAML(e){try{const t=this._ruleToYAML(e);navigator.clipboard.writeText(t).then(()=>{s.OC.info("[RulesDashboard] Copied rule YAML to clipboard:",e.id)}).catch(e=>{s.OC.error("❌ [RulesDashboard] Failed to copy to clipboard:",e)})}catch(e){s.OC.error("❌ [RulesDashboard] Error copying rule YAML:",e)}}_ruleToYAML(e){const t=e=>"  ".repeat(e);let i="";if(i+=`- id: ${e.id||"unnamed"}\n`,void 0!==e.priority&&0!==e.priority&&(i+=`${t(1)}priority: ${e.priority}\n`),!1===e.enabled&&(i+=`${t(1)}enabled: false\n`),!0===e.stop&&(i+=`${t(1)}stop: true\n`),e.when&&(i+=`${t(1)}when:\n`,i+=this._conditionsToYAML(e.when,2)),e.apply&&(i+=`${t(1)}apply:\n`,e.apply.overlays)){i+=`${t(2)}overlays:\n`;for(const[r,a]of Object.entries(e.apply.overlays))i+=`${t(3)}${r}:\n`,i+=this._objectToYAML(a,4)}return i}_conditionsToYAML(e,t){const i=e=>"  ".repeat(e);let r="";if(e.all||e.any||e.not){const a=e.all?"all":e.any?"any":"not";r+=`${i(t)}${a}:\n`;const s=e[a];Array.isArray(s)&&s.forEach(e=>{r+=`${i(t+1)}- `,e.entity&&(r+=`entity: ${e.entity}\n`,void 0!==e.state&&(r+=`${i(t+2)}state: "${e.state}"\n`))})}else e.entity&&(r+=`${i(t)}entity: ${e.entity}\n`,void 0!==e.state&&(r+=`${i(t)}state: "${e.state}"\n`));return r}_objectToYAML(e,t){const i=e=>"  ".repeat(e);let r="";for(const[a,s]of Object.entries(e))null!=s&&("object"!=typeof s||Array.isArray(s)?Array.isArray(s)?(r+=`${i(t)}${a}:\n`,s.forEach(e=>{"object"==typeof e?(r+=`${i(t+1)}-\n`,r+=this._objectToYAML(e,t+2)):r+=`${i(t+1)}- ${e}\n`})):r+=`${i(t)}${a}: ${"string"==typeof s?`"${s}"`:s}\n`:(r+=`${i(t)}${a}:\n`,r+=this._objectToYAML(s,t+1)));return r}_handlePreview(e){s.OC.trace("[RulesDashboard] Preview rule:",e.id),this._previewRule=e,this._previewDialogOpen=!0}_closePreviewDialog(){this._previewDialogOpen=!1,this._previewRule=null}_renderRulesTable(e,t=!1){const i=this._getSortedRules(e);return nn`
+        `}connectedCallback(){super.connectedCallback(),this._loadRules()}_loadRules(){const e=window.lcards?.core?.rulesManager;e&&"function"==typeof e.getAllRules?(this._rules=e.getAllRules()||[],s.OC.debug("[RulesDashboard] Loaded rules:",this._rules.length)):(s.OC.warn("⚠️ [RulesDashboard] RulesManager not available or getAllRules not implemented"),this._rules=[])}_isTargetingCard(e,t){return!(!e||!t)&&(e.target===t||e.cardId===t||(!(!Array.isArray(e.target)||!e.target.includes(t))||(!e.tags||!Array.isArray(e.tags))&&!!(e.apply&&e.apply.overlays&&Object.keys(e.apply.overlays).includes(t))))}_isOwnedRule(e){return(this.editor?.config?.rules||[]).some(t=>t.id===e.id)}_handleAddRule(){this._editingRule=null,this._editMode="add",this._editDialogOpen=!0}_handleEditRule(e){this._editingRule="function"==typeof globalThis.structuredClone?globalThis.structuredClone(e):JSON.parse(JSON.stringify(e)),this._editMode="edit",this._editDialogOpen=!0}_handleDeleteRule(e){this._confirmDeleteRule=e}_confirmDelete(){if(!this._confirmDeleteRule)return;const e=this._confirmDeleteRule;this._confirmDeleteRule=null;const t=(this.editor?.config?.rules||[]).filter(t=>t.id!==e.id);this._applyRulesChange(t)}_cancelDelete(){this._confirmDeleteRule=null}_handleToggleRule(e){const t=(this.editor?.config?.rules||[]).map(t=>t.id===e.id?{...t,enabled:!(!1!==t.enabled)}:t);this._applyRulesChange(t)}_handleMoveUp(e){const t=[...this.editor?.config?.rules||[]],i=t.findIndex(t=>t.id===e.id);i<=0||([t[i-1],t[i]]=[t[i],t[i-1]],this._applyRulesChange(t))}_handleMoveDown(e){const t=[...this.editor?.config?.rules||[]],i=t.findIndex(t=>t.id===e.id);i<0||i>=t.length-1||([t[i],t[i+1]]=[t[i+1],t[i]],this._applyRulesChange(t))}_handleRuleSave(e){const t=e.detail.rule,i=[...this.editor?.config?.rules||[]];if("add"===this._editMode)i.push(t);else{const e=i.findIndex(e=>e.id===t.id);e>=0?i[e]=t:i.push(t)}this._applyRulesChange(i),this._editDialogOpen=!1,this._editingRule=null}_handleRuleDialogClose(){this._editDialogOpen=!1,this._editingRule=null}_applyRulesChange(e){this.editor&&(this.editor.config={...this.editor.config,rules:e},vl(this.editor,"config-changed",{config:this.editor.config}),this._loadRules(),this.requestUpdate())}_handleSort(e){this._sortColumn===e?this._sortDirection="asc"===this._sortDirection?"desc":"asc":(this._sortColumn=e,this._sortDirection="asc"),this.requestUpdate()}_getSortedRules(e){const t=[...e],i=this._sortColumn,r=this._sortDirection;return t.sort((e,t)=>{let a,s;switch(i){case"id":a=e.id||"",s=t.id||"";break;case"type":a=e.type||"overlay",s=t.type||"overlay";break;case"priority":a=e.priority||0,s=t.priority||0;break;case"enabled":a=!1!==e.enabled?1:0,s=!1!==t.enabled?1:0;break;case"target":a=this._getRuleTargets(e),s=this._getRuleTargets(t);break;case"source":a=this._getSourceCard(e),s=this._getSourceCard(t);break;case"actions":a=this._getActionsCount(e),s=this._getActionsCount(t);break;default:return 0}return a<s?"asc"===r?-1:1:a>s?"asc"===r?1:-1:0}),t}_getConditionSummary(e){const t=e.when||e.conditions;if(!t)return"No conditions";const i=t.all?"all":t.any?"any":t.not?"not":null;if(i){const e=t[i],r=Array.isArray(e)?e.length:0;return`${i.toUpperCase()} (${r} condition${1!==r?"s":""})`}if(t.entity){let e=`entity: ${t.entity}`;return t.state&&(e+=`, state: ${t.state}`),void 0!==t.above&&(e+=`, above: ${t.above}`),void 0!==t.below&&(e+=`, below: ${t.below}`),e}return"Custom condition"}_getRuleTargets(e){if(e.target)return Array.isArray(e.target)?e.target.join(", "):e.target;if(e.apply&&e.apply.overlays){const t=Object.keys(e.apply.overlays);if(t.length>0)return t.join(", ")}return"Global"}_getActionsCount(e){if(e.actions&&Array.isArray(e.actions))return e.actions.length;if(e.apply){let t=0;return e.apply.overlays&&(t+=Object.keys(e.apply.overlays).length),e.apply.profiles_add&&(t+=e.apply.profiles_add.length),e.apply.profiles_remove&&(t+=e.apply.profiles_remove.length),e.apply.animations&&(t+=e.apply.animations.length),e.apply.base_svg&&(t+=1),t}return 0}_getSourceCard(e){if(e._sourceCardId)return e._sourceCardId;const t=this._getRuleTargets(e);return t&&"Global"!==t?t.split(", ")[0]:"Unknown"}_getSourceCardType(e){return e._sourceCardType||"unknown"}_handleCopyYAML(e){try{const t=this._ruleToYAML(e);navigator.clipboard.writeText(t).then(()=>{s.OC.info("[RulesDashboard] Copied rule YAML to clipboard:",e.id)}).catch(e=>{s.OC.error("❌ [RulesDashboard] Failed to copy to clipboard:",e)})}catch(e){s.OC.error("❌ [RulesDashboard] Error copying rule YAML:",e)}}_ruleToYAML(e){const t=e=>"  ".repeat(e);let i="";if(i+=`- id: ${e.id||"unnamed"}\n`,void 0!==e.priority&&0!==e.priority&&(i+=`${t(1)}priority: ${e.priority}\n`),!1===e.enabled&&(i+=`${t(1)}enabled: false\n`),!0===e.stop&&(i+=`${t(1)}stop: true\n`),e.when&&(i+=`${t(1)}when:\n`,i+=this._conditionsToYAML(e.when,2)),e.apply&&(i+=`${t(1)}apply:\n`,e.apply.overlays)){i+=`${t(2)}overlays:\n`;for(const[r,a]of Object.entries(e.apply.overlays))i+=`${t(3)}${r}:\n`,i+=this._objectToYAML(a,4)}return i}_conditionsToYAML(e,t){const i=e=>"  ".repeat(e);let r="";if(e.all||e.any||e.not){const a=e.all?"all":e.any?"any":"not";r+=`${i(t)}${a}:\n`;const s=e[a];Array.isArray(s)&&s.forEach(e=>{r+=`${i(t+1)}- `,e.entity&&(r+=`entity: ${e.entity}\n`,void 0!==e.state&&(r+=`${i(t+2)}state: "${e.state}"\n`))})}else e.entity&&(r+=`${i(t)}entity: ${e.entity}\n`,void 0!==e.state&&(r+=`${i(t)}state: "${e.state}"\n`));return r}_objectToYAML(e,t){const i=e=>"  ".repeat(e);let r="";for(const[a,s]of Object.entries(e))null!=s&&("object"!=typeof s||Array.isArray(s)?Array.isArray(s)?(r+=`${i(t)}${a}:\n`,s.forEach(e=>{"object"==typeof e?(r+=`${i(t+1)}-\n`,r+=this._objectToYAML(e,t+2)):r+=`${i(t+1)}- ${e}\n`})):r+=`${i(t)}${a}: ${"string"==typeof s?`"${s}"`:s}\n`:(r+=`${i(t)}${a}:\n`,r+=this._objectToYAML(s,t+1)));return r}_handlePreview(e){s.OC.trace("[RulesDashboard] Preview rule:",e.id),this._previewRule=e,this._previewDialogOpen=!0}_closePreviewDialog(){this._previewDialogOpen=!1,this._previewRule=null}_renderRulesTable(e,t=!1){const i=this._getSortedRules(e);return nn`
             <div class="table-wrapper">
                 <table class="rules-table">
                     <thead>
@@ -9335,6 +9364,7 @@ rules:
 
             ${this._renderPreviewDialog()}
             ${this._renderEditDialog()}
+            ${this._renderConfirmDeleteDialog()}
         `}_renderEditDialog(){return nn`
             <lcards-rule-editor-dialog
                 .hass=${this.hass}
@@ -9345,6 +9375,30 @@ rules:
                 @save=${this._handleRuleSave}
                 @cancel=${this._handleRuleDialogClose}>
             </lcards-rule-editor-dialog>
+        `}_renderConfirmDeleteDialog(){if(!this._confirmDeleteRule)return nn``;const e=this._confirmDeleteRule;return nn`
+            <ha-dialog
+                .open=${!0}
+                @closed=${this._cancelDelete}
+                .heading=${"Delete Rule?"}>
+                <div style="padding: 8px 0;">
+                    <p>Are you sure you want to delete rule <strong>${e.id}</strong>?</p>
+                    <p style="color: var(--secondary-text-color, #666); font-size: 13px;">This action cannot be undone.</p>
+                </div>
+                <ha-button
+                    slot="secondaryAction"
+                    appearance="plain"
+                    @click=${this._cancelDelete}>
+                    Cancel
+                </ha-button>
+                <ha-button
+                    slot="primaryAction"
+                    variant="brand"
+                    appearance="accent"
+                    style="--mdc-theme-primary: var(--error-color, #f44336);"
+                    @click=${this._confirmDelete}>
+                    Delete
+                </ha-button>
+            </ha-dialog>
         `}});const TS=(e,t)=>{const i=e._$AN;if(void 0===i)return!1;for(const e of i)e._$AO?.(t,!1),TS(e,t);return!0},ES=e=>{let t,i;do{if(void 0===(t=e._$AM))break;i=t._$AN,i.delete(e),e=t}while(0===i?.size)},PS=e=>{for(let t;t=e._$AM;e=t){let i=t._$AN;if(void 0===i)t._$AN=i=new Set;else if(i.has(e))break;i.add(e),LS(t)}};function RS(e){void 0!==this._$AN?(ES(this),this._$AM=e,PS(this)):this._$AM=e}function DS(e,t=!1,i=0){const r=this._$AH,a=this._$AN;if(void 0!==a&&0!==a.size)if(t)if(Array.isArray(r))for(let e=i;e<r.length;e++)TS(r[e],!1),ES(r[e]);else null!=r&&(TS(r,!1),ES(r));else TS(this,e)}const LS=e=>{2==e.type&&(e._$AP??=DS,e._$AQ??=RS)};class FS extends Tn{constructor(){super(...arguments),this._$AN=void 0}_$AT(e,t,i){super._$AT(e,t,i),PS(this),this.isConnected=e._$AU}_$AO(e,t=!0){e!==this.isConnected&&(this.isConnected=e,e?this.reconnected?.():this.disconnected?.()),t&&(TS(this,e),ES(this))}setValue(e){if((()=>void 0===this._$Ct.strings)())this._$Ct._$AI(e,this);else{const t=[...this._$Ct._$AH];t[this._$Ci]=e,this._$Ct._$AI(t,this,0)}}disconnected(){}reconnected(){}}const zS=()=>new IS;class IS{}const NS=new WeakMap,BS=Mn(class extends FS{render(e){return dn}update(e,[t]){const i=t!==this.G;return i&&void 0!==this.G&&this.rt(void 0),(i||this.lt!==this.ct)&&(this.G=t,this.ht=e.options?.host,this.rt(this.ct=e.element)),dn}rt(e){if(this.isConnected||(e=void 0),"function"==typeof this.G){const t=this.ht??globalThis;let i=NS.get(t);void 0===i&&(i=new WeakMap,NS.set(t,i)),void 0!==i.get(this.G)&&this.G.call(this.ht,void 0),i.set(this.G,e),void 0!==e&&this.G.call(this.ht,e)}else this.G.value=e}get lt(){return"function"==typeof this.G?NS.get(this.ht??globalThis)?.get(this.G):this.G?.value}disconnected(){this.lt===this.ct&&this.rt(void 0)}reconnected(){this.rt(this.ct)}});customElements.define("lcards-card-datasources-list",class extends An{static get properties(){return{editor:{type:Object},config:{type:Object},hass:{type:Object},_expandedSources:{state:!0}}}constructor(){super(),this._expandedSources=new Set}static get styles(){return _o`
       :host {
         display: block;

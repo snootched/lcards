@@ -18,6 +18,9 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import '../shared/lcards-form-section.js';
 
+/** Prefix used for non-selectable group header entries in the overlay dropdown */
+const OVERLAY_GROUP_PREFIX = '__group_';
+
 export class LCARdSRuleApplyEditor extends LitElement {
     static get properties() {
         return {
@@ -204,10 +207,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     _getAvailableOverlays() {
         try {
-            // Try rulesManager first, fall back to systemsManager, then empty array
-            return window.lcards?.core?.rulesManager?.getAllTargetableOverlays()
-                || window.lcards?.core?.systemsManager?.getAllTargetableOverlays()
-                || [];
+            return window.lcards?.core?.systemsManager?.getAllTargetableOverlays() || [];
         } catch (e) {
             return [];
         }
@@ -215,9 +215,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     _getAvailableTags() {
         try {
-            return window.lcards?.core?.rulesManager?.getAllTags()
-                || window.lcards?.core?.systemsManager?.getAllTags()
-                || [];
+            return window.lcards?.core?.systemsManager?.getAllTags() || [];
         } catch (e) {
             return [];
         }
@@ -225,7 +223,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     _emit(newValue) {
         this.value = newValue;
-        this._syncFromValue();
+        // Note: _syncFromValue() is called via willUpdate when .value changes — do NOT call it here too
         this.dispatchEvent(new CustomEvent('value-changed', {
             detail: { value: newValue },
             bubbles: true,
@@ -280,6 +278,36 @@ export class LCARdSRuleApplyEditor extends LitElement {
         this._emit({ ...current, overlays });
     }
 
+    /**
+     * Build grouped overlay options for the dropdown picker.
+     * Groups overlays by sourceCardId.
+     * @param {Array} overlays - Array of overlay metadata from systemsManager
+     * @returns {Array} Array of { value, label } options
+     * @private
+     */
+    _buildOverlayOptions(overlays) {
+        if (!overlays || overlays.length === 0) return [];
+
+        // Group by sourceCardId
+        const grouped = {};
+        for (const overlay of overlays) {
+            const src = overlay.sourceCardId || 'unknown';
+            if (!grouped[src]) grouped[src] = [];
+            grouped[src].push(overlay);
+        }
+
+        // Flatten to options list with group labels as disabled separators
+        const options = [];
+        for (const [srcId, items] of Object.entries(grouped)) {
+            options.push({ value: `${OVERLAY_GROUP_PREFIX}${srcId}`, label: `── ${srcId} ──`, disabled: true });
+            for (const ov of items) {
+                const tags = ov.tags?.length ? `  [${ov.tags.join(', ')}]` : '';
+                options.push({ value: ov.id, label: `${ov.id}${tags}` });
+            }
+        }
+        return options;
+    }
+
     _handleRemoveOverlay(overlayId) {
         const current = { ...(this.value || {}) };
         const overlays = { ...(current.overlays || {}) };
@@ -331,16 +359,33 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
                     ${this._addOverlayPending ? html`
                         <div class="add-overlay-row">
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Overlay ID'}
-                                .selector=${{ text: {} }}
-                                .value=${this._newOverlayId}
-                                @value-changed=${(e) => this._newOverlayId = e.detail.value}>
-                            </ha-selector>
+                            ${availableOverlays.length > 0 ? html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Select Overlay'}
+                                    .helper=${'Choose from live overlays or type a custom ID below'}
+                                    .selector=${{ select: {
+                                        mode: 'dropdown',
+                                        custom_value: true,
+                                        options: this._buildOverlayOptions(availableOverlays)
+                                    } }}
+                                    .value=${this._newOverlayId}
+                                    @value-changed=${(e) => this._newOverlayId = e.detail.value}>
+                                </ha-selector>
+                            ` : html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .label=${'Overlay ID'}
+                                    .helper=${'No live overlays found — type an overlay ID manually'}
+                                    .selector=${{ text: {} }}
+                                    .value=${this._newOverlayId}
+                                    @value-changed=${(e) => this._newOverlayId = e.detail.value}>
+                                </ha-selector>
+                            `}
                             <ha-button
                                 variant="brand"
                                 appearance="accent"
+                                ?disabled=${!this._newOverlayId || (this._overlayTargets?.includes(this._newOverlayId.trim()) ?? false)}
                                 @click=${this._handleAddOverlay}>
                                 Add
                             </ha-button>
@@ -392,8 +437,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
                     <textarea
                         class="yaml-area"
                         .value=${this._yamlText}
-                        @change=${this._handleYamlChange}
-                        @blur=${this._handleYamlChange}
+                        @input=${this._handleYamlChange}
                         spellcheck="false"
                         placeholder="overlays:\n  my_overlay:\n    style:\n      card:\n        color:\n          background:\n            active: 'var(--lcars-green)'">
                     </textarea>
