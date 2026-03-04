@@ -13,9 +13,11 @@
  */
 
 import { LitElement, html, css } from 'lit';
+import { fireEvent } from 'custom-card-helpers';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-form-section.js';
+import './lcards-rule-editor-dialog.js';
 
 export class LCARdSRulesDashboard extends LitElement {
     static get properties() {
@@ -27,7 +29,10 @@ export class LCARdSRulesDashboard extends LitElement {
             _sortColumn: { type: String, state: true },
             _sortDirection: { type: String, state: true }, // 'asc' | 'desc'
             _previewDialogOpen: { type: Boolean, state: true },
-            _previewRule: { type: Object, state: true }
+            _previewRule: { type: Object, state: true },
+            _editDialogOpen: { type: Boolean, state: true },
+            _editingRule: { type: Object, state: true },
+            _editMode: { type: String, state: true }
         };
     }
 
@@ -39,6 +44,9 @@ export class LCARdSRulesDashboard extends LitElement {
         this.cardId = '';
         this._previewDialogOpen = false;
         this._previewRule = null;
+        this._editDialogOpen = false;
+        this._editingRule = null;
+        this._editMode = 'add';
     }
 
     static get styles() {
@@ -398,7 +406,125 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
-     * Sort rules by column
+     * Check if a rule is owned by (defined in) this card's config
+     * @param {Object} rule - Rule object
+     * @returns {Boolean}
+     */
+    _isOwnedRule(rule) {
+        const myRules = this.editor?.config?.rules || [];
+        return myRules.some(r => r.id === rule.id);
+    }
+
+    // ─── Rule Edit Handlers ──────────────────────────────────────────────────
+
+    /** Open dialog to add a new rule */
+    _handleAddRule() {
+        this._editingRule = null;
+        this._editMode = 'add';
+        this._editDialogOpen = true;
+    }
+
+    /**
+     * Open dialog to edit an owned rule
+     * @param {Object} rule - Rule to edit
+     */
+    _handleEditRule(rule) {
+        this._editingRule = { ...rule };
+        this._editMode = 'edit';
+        this._editDialogOpen = true;
+    }
+
+    /**
+     * Delete an owned rule from the card config
+     * @param {Object} rule - Rule to delete
+     */
+    _handleDeleteRule(rule) {
+        const currentRules = this.editor?.config?.rules || [];
+        const updatedRules = currentRules.filter(r => r.id !== rule.id);
+        this._applyRulesChange(updatedRules);
+    }
+
+    /**
+     * Toggle enabled state of an owned rule
+     * @param {Object} rule - Rule to toggle
+     */
+    _handleToggleRule(rule) {
+        const currentRules = this.editor?.config?.rules || [];
+        const updatedRules = currentRules.map(r =>
+            r.id === rule.id ? { ...r, enabled: !(r.enabled !== false) } : r
+        );
+        this._applyRulesChange(updatedRules);
+    }
+
+    /**
+     * Move an owned rule one position up (higher priority index)
+     * @param {Object} rule - Rule to move
+     */
+    _handleMoveUp(rule) {
+        const currentRules = [...(this.editor?.config?.rules || [])];
+        const idx = currentRules.findIndex(r => r.id === rule.id);
+        if (idx <= 0) return;
+        [currentRules[idx - 1], currentRules[idx]] = [currentRules[idx], currentRules[idx - 1]];
+        this._applyRulesChange(currentRules);
+    }
+
+    /**
+     * Move an owned rule one position down (lower priority index)
+     * @param {Object} rule - Rule to move
+     */
+    _handleMoveDown(rule) {
+        const currentRules = [...(this.editor?.config?.rules || [])];
+        const idx = currentRules.findIndex(r => r.id === rule.id);
+        if (idx < 0 || idx >= currentRules.length - 1) return;
+        [currentRules[idx], currentRules[idx + 1]] = [currentRules[idx + 1], currentRules[idx]];
+        this._applyRulesChange(currentRules);
+    }
+
+    /**
+     * Handle save event from the rule editor dialog
+     * @param {CustomEvent} event
+     */
+    _handleRuleSave(event) {
+        const savedRule = event.detail.rule;
+        const currentRules = [...(this.editor?.config?.rules || [])];
+
+        if (this._editMode === 'add') {
+            currentRules.push(savedRule);
+        } else {
+            const idx = currentRules.findIndex(r => r.id === savedRule.id);
+            if (idx >= 0) {
+                currentRules[idx] = savedRule;
+            } else {
+                currentRules.push(savedRule);
+            }
+        }
+
+        this._applyRulesChange(currentRules);
+        this._editDialogOpen = false;
+        this._editingRule = null;
+    }
+
+    /** Close the rule editor dialog */
+    _handleRuleDialogClose() {
+        this._editDialogOpen = false;
+        this._editingRule = null;
+    }
+
+    /**
+     * Apply rules array change to editor config and fire config-changed
+     * @param {Array} updatedRules
+     * @private
+     */
+    _applyRulesChange(updatedRules) {
+        if (!this.editor) return;
+        this.editor.config = { ...this.editor.config, rules: updatedRules };
+        fireEvent(this.editor, 'config-changed', { config: this.editor.config });
+        this._loadRules();
+        this.requestUpdate();
+    }
+
+    /**
+
      * @param {String} column - Column to sort by
      * @private
      */
@@ -867,6 +993,39 @@ export class LCARdSRulesDashboard extends LitElement {
                                                 title="Copy rule YAML to clipboard">
                                                 <ha-icon icon="mdi:content-copy"></ha-icon>
                                             </button>
+                                            ${this._isOwnedRule(rule) ? html`
+                                                <button
+                                                    class="action-button"
+                                                    @click=${() => this._handleEditRule(rule)}
+                                                    title="Edit rule">
+                                                    <ha-icon icon="mdi:pencil"></ha-icon>
+                                                </button>
+                                                <button
+                                                    class="action-button"
+                                                    @click=${() => this._handleToggleRule(rule)}
+                                                    title="${rule.enabled !== false ? 'Disable rule' : 'Enable rule'}">
+                                                    <ha-icon icon="${rule.enabled !== false ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'}"></ha-icon>
+                                                </button>
+                                                <button
+                                                    class="action-button"
+                                                    @click=${() => this._handleMoveUp(rule)}
+                                                    title="Move up">
+                                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
+                                                </button>
+                                                <button
+                                                    class="action-button"
+                                                    @click=${() => this._handleMoveDown(rule)}
+                                                    title="Move down">
+                                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
+                                                </button>
+                                                <button
+                                                    class="action-button"
+                                                    style="color: var(--error-color, #f44336);"
+                                                    @click=${() => this._handleDeleteRule(rule)}
+                                                    title="Delete rule">
+                                                    <ha-icon icon="mdi:delete"></ha-icon>
+                                                </button>
+                                            ` : ''}
                                         </div>
                                     </td>
                                 </tr>
@@ -976,12 +1135,30 @@ export class LCARdSRulesDashboard extends LitElement {
                         icon="mdi:target"
                         ?expanded=${true}>
                         ${this._renderRulesTable(myRules, true)}
+                        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+                            <ha-button
+                                variant="brand"
+                                appearance="accent"
+                                @click=${this._handleAddRule}>
+                                <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                                Add Rule
+                            </ha-button>
+                        </div>
                     </lcards-form-section>
                 ` : html`
                     <lcards-message
                         type="info"
-                        message="No rules currently target this card. Add rules in your YAML configuration to enable dynamic behavior.">
+                        message="No rules currently target this card.">
                     </lcards-message>
+                    <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+                        <ha-button
+                            variant="brand"
+                            appearance="accent"
+                            @click=${this._handleAddRule}>
+                            <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
+                            Add Rule
+                        </ha-button>
+                    </div>
                 `}
 
                 <!-- All Rules in System -->
@@ -1055,14 +1232,34 @@ rules:
 
                         <h4>Editing Rules</h4>
                         <p>
-                            This dashboard is <strong>read-only</strong>. To add, edit, or remove rules,
-                            edit your card's YAML configuration directly.
+                            Use the <strong>Add Rule</strong> button to create rules visually,
+                            or edit your card's YAML configuration directly.
                         </p>
                     </div>
                 </lcards-form-section>
             </div>
 
             ${this._renderPreviewDialog()}
+            ${this._renderEditDialog()}
+        `;
+    }
+
+    /**
+     * Render the rule editor dialog
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderEditDialog() {
+        return html`
+            <lcards-rule-editor-dialog
+                .hass=${this.hass}
+                .mode=${this._editMode}
+                .rule=${this._editingRule}
+                .open=${this._editDialogOpen}
+                .editor=${this.editor}
+                @save=${this._handleRuleSave}
+                @cancel=${this._handleRuleDialogClose}>
+            </lcards-rule-editor-dialog>
         `;
     }
 }
