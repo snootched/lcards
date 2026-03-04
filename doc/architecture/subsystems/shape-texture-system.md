@@ -235,18 +235,22 @@ All `<defs>` IDs include a per-instance unique suffix (e.g., `stex-clip-abc12`, 
 
 ### Color Pipeline
 
-Colors in `shape_texture` config travel through a three-stage resolution pipeline before reaching the SVG renderer:
+Colors in `shape_texture` config travel through a four-stage resolution pipeline before reaching the SVG renderer:
 
 ```
-User config value (theme token / CSS var / rgba / hex / state map)
+User config value (JS template / token / theme token / CSS var / rgba / hex / state map)
     │
-    ▼  resolveThemeTokensRecursive()   (in _resolveShapeTextureConfig)
+    ▼  Stage 0 — Template evaluation (in _resolveShapeTextureConfig)
+    │  Evaluates [[[JS]]] and {token} templates in all config string values
+    │  fill_pct also supports { default: N, template: "[[[...]]]" } object form
+    │
+    ▼  Stage 1 — resolveThemeTokensRecursive()   (in _resolveShapeTextureConfig)
     │  Resolves {theme:…} tokens → CSS variable or concrete value
     │
-    ▼  ColorUtils.resolveCssVariable() (per color field, same function)
+    ▼  Stage 2 — ColorUtils.resolveCssVariable() (per color field, same function)
     │  Resolves var(--…) CSS variables → concrete color strings
     │
-    ▼  createDefs(id, cfg, ctx)
+    ▼  Stage 3 — createDefs(id, cfg, ctx)
        SVG feFlood flood-color="…" / fill="…" attribute
        Browser HTML parser resolves any remaining CSS natively
 ```
@@ -280,6 +284,70 @@ The old `feTile + feOffset` approach failed because browsers clip `feTile` outpu
   <animateTransform …/>    <!-- seamless scroll -->
 </pattern>
 ```
+
+### Template Support
+
+All `config` string values support synchronous JS templates (`[[[…]]]`) and `{token}` substitution, evaluated at render time via `LCARdSCardTemplateEvaluator`. No async Jinja2 is supported here (this runs synchronously on every render).
+
+The `fill_pct` field additionally supports two template syntaxes:
+
+```yaml
+# Form 1 — direct string template (evaluated as a numeric value)
+shape_texture:
+  preset: level
+  config:
+    fill_pct: "[[[return entity.attributes.battery_level ?? 0]]]"
+
+# Form 2 — object with template key and fallback default
+shape_texture:
+  preset: level
+  config:
+    fill_pct:
+      default: 0
+      template: "[[[return entity.attributes.battery_level ?? 0]]]"
+```
+
+In Form 2, `default` is used if the template evaluation fails or returns a non-numeric result.
+
+Any other config string field can use the same template syntax:
+
+```yaml
+shape_texture:
+  preset: grid
+  config:
+    color: "[[[return entity.state === 'on' ? 'rgba(0,200,100,0.7)' : 'rgba(200,0,0,0.5)']]]"
+    scroll_speed_x: "{entity.attributes.speed_override}"
+```
+
+State-based object maps (`active`/`inactive`/`default` keys) remain supported for `color`, `opacity`, and `speed` as before.
+
+---
+
+### Rules Engine Integration
+
+The Rules Engine can patch `shape_texture` via `apply.overlays`. Standard template strings in patch values are evaluated automatically. For continuous numeric mapping, `fill_pct` (and any other numeric config field) also supports `map_range` descriptors, resolved by `_evaluateTemplatesInPatches` before the patch reaches the card:
+
+```yaml
+rules:
+  - id: tank_level
+    when:
+      entity: sensor.tank_level
+      above: -1
+    apply:
+      overlays:
+        my-tank-button:
+          shape_texture:
+            config:
+              fill_pct:
+                map_range:
+                  entity: sensor.tank_level
+                  input: [0, 100]
+                  output: [0, 100]
+```
+
+Because `_resolveShapeTextureConfig()` reads directly from `this.config` at every render (no result is cached), rule patches that modify `shape_texture` via `_applyRulePatches()` are automatically reflected on the next render cycle without any extra invalidation step.
+
+---
 
 ### Key Files
 

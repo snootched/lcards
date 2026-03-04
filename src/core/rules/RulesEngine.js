@@ -941,6 +941,24 @@ export class RulesEngine extends BaseService {
             lcardsLog.error(`[RulesEngine] Template evaluation failed for ${patch.id}.${key}:`, error);
             evaluatedPatch[key] = value;
           }
+        } else if (key === 'shape_texture' && value && typeof value === 'object' && value.config && typeof value.config === 'object') {
+          // Resolve map_range descriptors in shape_texture.config (e.g. fill_pct: { map_range: {...} })
+          // Mirrors how _resolveAnimCommandParams handles animation params.
+          const hass = this._systemsManager?.getHass();
+          const resolvedTexConfig = {};
+          for (const [cfgKey, cfgVal] of Object.entries(value.config)) {
+            if (cfgVal && typeof cfgVal === 'object' && cfgVal.map_range) {
+              const resolved = this._resolveAnimParam(cfgVal, hass);
+              resolvedTexConfig[cfgKey] = resolved !== undefined ? resolved : cfgVal;
+              lcardsLog.trace(`[RulesEngine] Resolved map_range in patch ${patch.id}.shape_texture.config.${cfgKey}:`, {
+                descriptor: cfgVal,
+                resolved: resolvedTexConfig[cfgKey]
+              });
+            } else {
+              resolvedTexConfig[cfgKey] = cfgVal;
+            }
+          }
+          evaluatedPatch[key] = { ...value, config: resolvedTexConfig };
         }
       }
 
