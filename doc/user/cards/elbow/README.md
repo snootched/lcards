@@ -34,6 +34,8 @@ elbow:
 | `hold_action` | object | Hold action |
 | `double_tap_action` | object | Double-tap action |
 | `animations` | list | Card animations |
+| `background_animation` | list | Canvas background animations |
+| `shape_texture` | object | SVG texture inside the elbow shape fill |
 
 ---
 
@@ -238,10 +240,19 @@ background_animation:
 
 ---
 
+## Shape Texture
+
+Elbow cards support the same `shape_texture` feature as button cards — an SVG-native texture or animation clipped to the elbow shape fill (simple and segmented styles). Configuration is identical.
+
+See [Button card — Shape Texture](../button/README.md#shape-texture) for the full preset reference and examples.
+
+---
+
 ## Related
 
 - [Button card](../button/README.md)
 - [Background Animations](../../core/effects/background-animations.md)
+- [Shape Texture System](../../architecture/subsystems/shape-texture-system.md)
 - [Themes — HA-LCARS binding](../../core/themes/README.md)
 - [Rules Engine](../../core/rules/README.md)
 - [Animations](../../core/animations.md)

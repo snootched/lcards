@@ -277,6 +277,82 @@ background_animation:
 
 ---
 
+## Shape Texture
+
+`shape_texture` renders an SVG-native texture or animation **inside** the button shape fill — clipped to the shape boundary. Available in **preset mode only** (not component or custom SVG modes). Elbow cards also support this feature.
+
+```yaml
+shape_texture:
+  preset: fluid           # See preset list below
+  opacity: 0.4            # 0–1, or state-based map
+  mix_blend_mode: screen  # CSS mix-blend-mode (screen, overlay, multiply, …)
+  speed: 1.0              # Global speed multiplier; 0 = static
+  config: {}              # Preset-specific parameters (see below)
+```
+
+### Available Presets
+
+| Preset | Description | Key Config |
+|---|---|---|
+| `grid` | Scrolling orthogonal grid lines | `line_spacing`, `pattern` (both/horizontal/vertical) |
+| `diagonal` | Scrolling diagonal hatching | `line_spacing` |
+| `hexagonal` | Scrolling hexagonal grid | `hex_radius` |
+| `dots` | Scrolling dot grid | `dot_radius`, `spacing` |
+| `fluid` | Organic swirling fractalNoise — blobs drift and evolve | `base_frequency`, `num_octaves` |
+| `plasma` | Dual-colour turbulence wash (`color_a` + `color_b` screen blend) | `color_a`, `color_b`, `base_frequency` |
+| `shimmer` | Directional light-sweep | `angle`, `highlight_width`, `speed` |
+| `flow` | Directional streaming currents with displacement warp | `wave_scale`, `scroll_speed_x` |
+| `level` | Fill bar (bottom→top or left→right) with optional wave | `fill_pct`, `direction`, `wave_height` |
+| `pulse` | Breathing radial glow — attention/alert indicator | `radius`, `min_size`, `speed` |
+| `scanlines` | CRT-style scan-line darkening overlay | `line_spacing`, `direction` |
+
+All color fields (`color`, `color_a`, `color_b`) accept: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or a state-based map.
+
+All `scroll_speed_x` / `scroll_speed_y` values accept **negative** numbers to reverse direction.
+
+### State-based examples
+
+```yaml
+# Pulse alert indicator that activates on entity state
+shape_texture:
+  preset: pulse
+  opacity:
+    inactive: 0.1
+    active: 0.9
+    default: 0.3
+  config:
+    color: "var(--lcars-alert-red)"
+    speed: 2.0
+```
+
+```yaml
+# Grid that freezes when the button is active
+shape_texture:
+  preset: grid
+  speed:
+    default: 1.0
+    active: 0.0
+  opacity: 0.25
+  config:
+    color: "rgba(255,153,0,0.4)"
+```
+
+```yaml
+# Level bar tracking battery level
+shape_texture:
+  preset: level
+  config:
+    color: "rgba(0,220,120,0.75)"
+    fill_pct:
+      template: "[[[return entity.attributes.battery_level ?? 0]]]"
+    wave_height: 3
+    edge_glow: true
+```
+
+For full parameter reference see [Shape Texture System](../../architecture/subsystems/shape-texture-system.md).
+
+---
+
 ## Examples
 
 ### Status label with template
@@ -323,4 +399,5 @@ tap_action:
 - [Rules Engine](../../core/rules/README.md)
 - [Animations](../../core/animations.md)
 - [Background Animations](../../core/effects/background-animations.md)
+- [Shape Texture System](../../architecture/subsystems/shape-texture-system.md)
 - [Elbow card](../elbow/README.md)

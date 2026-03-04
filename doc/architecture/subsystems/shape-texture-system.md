@@ -25,10 +25,10 @@ type: custom:lcards-button
 preset: lozenge
 entity: light.bedroom
 shape_texture:
-  preset: grid           # grid | diagonal | hexagonal | dots | fluid | solid
-  opacity: 0.3           # 0-1 or state-based object
-  speed: 1.0             # speed multiplier (0 = static), or state-based object
-  mix_blend_mode: normal # CSS mix-blend-mode (normal | multiply | screen | overlay | ...)
+  preset: grid           # See Preset Reference for all options
+  opacity: 0.3           # 0–1, or state-based object
+  speed: 1.0             # Global speed multiplier (0 = static), or state-based object
+  mix_blend_mode: normal # CSS mix-blend-mode (normal | multiply | screen | overlay | …)
   config:                # Preset-specific parameters
     color: "rgba(255,255,255,0.4)"
     line_spacing: 40
@@ -41,13 +41,14 @@ shape_texture:
 
 ```yaml
 shape_texture:
-  preset: solid
+  preset: pulse
   opacity:
-    active: 0.6
-    inactive: 0.1
-    default: 0.3
+    active: 0.8
+    inactive: 0.15
+    default: 0.35
   config:
     color: "var(--lcars-alert-red)"
+    speed: 1.5
 ```
 
 ### State-based speed example (animated → static on active)
@@ -61,19 +62,33 @@ shape_texture:
   opacity: 0.25
 ```
 
+### State-based fill level example
+
+```yaml
+shape_texture:
+  preset: level
+  config:
+    color: "rgba(0,220,120,0.75)"
+    fill_pct:
+      default: 0
+      template: "[[[return entity.attributes.battery_level ?? 0]]]"
+```
+
 ## Preset Reference
+
+All 11 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps — the color pipeline resolves all formats before they reach the SVG renderer (see [Color Pipeline](#color-pipeline)).
 
 ### `grid`
 
-Scrolling grid lines.
+Scrolling orthogonal grid lines.
 
 | Config key | Default | Description |
 |---|---|---|
 | `color` | `rgba(255,255,255,0.3)` | Line color |
 | `line_width` | `1` | Stroke width in px |
 | `line_spacing` | `40` | Grid cell size in px |
-| `scroll_speed_x` | `20` | Horizontal scroll speed (px/s) |
-| `scroll_speed_y` | `0` | Vertical scroll speed (px/s) |
+| `scroll_speed_x` | `20` | Horizontal scroll speed px/s (negative = reverse) |
+| `scroll_speed_y` | `0` | Vertical scroll speed px/s |
 | `pattern` | `'both'` | `'both'` \| `'horizontal'` \| `'vertical'` |
 
 ### `diagonal`
@@ -85,20 +100,20 @@ Scrolling diagonal hatching.
 | `color` | `rgba(255,255,255,0.3)` | Line color |
 | `line_width` | `1` | Stroke width in px |
 | `line_spacing` | `40` | Tile size in px |
-| `scroll_speed_x` | `20` | Horizontal scroll speed (px/s) |
-| `scroll_speed_y` | `20` | Vertical scroll speed (px/s) |
+| `scroll_speed_x` | `20` | Horizontal scroll speed px/s |
+| `scroll_speed_y` | `20` | Vertical scroll speed px/s |
 
 ### `hexagonal`
 
-Scrolling hexagonal grid.
+Scrolling hexagonal grid (pointy-top orientation).
 
 | Config key | Default | Description |
 |---|---|---|
 | `color` | `rgba(255,255,255,0.3)` | Stroke color |
 | `line_width` | `1` | Stroke width |
 | `hex_radius` | `20` | Hex cell radius in px |
-| `scroll_speed_x` | `15` | Horizontal scroll speed (px/s) |
-| `scroll_speed_y` | `0` | Vertical scroll speed (px/s) |
+| `scroll_speed_x` | `15` | Horizontal scroll speed px/s |
+| `scroll_speed_y` | `0` | Vertical scroll speed px/s |
 
 ### `dots`
 
@@ -109,27 +124,96 @@ Scrolling dot grid.
 | `color` | `rgba(255,255,255,0.4)` | Dot fill color |
 | `dot_radius` | `2` | Dot radius in px |
 | `spacing` | `20` | Grid cell size in px |
-| `scroll_speed_x` | `15` | Horizontal scroll speed (px/s) |
-| `scroll_speed_y` | `0` | Vertical scroll speed (px/s) |
+| `scroll_speed_x` | `15` | Horizontal scroll speed px/s |
+| `scroll_speed_y` | `0` | Vertical scroll speed px/s |
 
 ### `fluid`
 
-Turbulence-based organic fluid effect using SVG `feTurbulence`.
+Organic swirling noise effect. Large fractalNoise blobs drift diagonally while the noise continuously evolves via SMIL `<animate baseFrequency>`. The ±5 % baseFrequency variation is imperceptible as a size change but causes the blob patterns to genuinely morph over time — no scroll seams or repeating loops.
 
 | Config key | Default | Description |
 |---|---|---|
-| `color` | `rgba(100,180,255,0.5)` | Color tint applied via `feColorMatrix` |
-| `base_frequency` | `0.015` | Turbulence base frequency (lower = larger blobs) |
-| `num_octaves` | `3` | Turbulence octaves (higher = more detail) |
-| `speed` | `0.5` | Animation speed (0 = static) |
+| `color` | `rgba(100,180,255,0.8)` | Blob color |
+| `base_frequency` | `0.010` | Turbulence base frequency (lower = larger blobs) |
+| `num_octaves` | `4` | Turbulence octaves (higher = more detail) |
+| `scroll_speed_x` | `7` | Diagonal scroll x component px/s |
+| `scroll_speed_y` | `10` | Diagonal scroll y component px/s |
 
-### `solid`
+### `plasma`
 
-Static solid fill — useful for state-reactive opacity with no animation overhead.
+Dual-colour fractalNoise wash — two colours (`color_a`/`color_b`) are screen-blended using opposing turbulence channel masks. Creates a vivid energy/plasma look.
 
 | Config key | Default | Description |
 |---|---|---|
-| `color` | `rgba(255,255,255,0.15)` | Fill color |
+| `color_a` | `rgba(80,0,255,0.9)` | First colour |
+| `color_b` | `rgba(255,40,120,0.9)` | Second colour |
+| `base_frequency` | `0.012` | Turbulence base frequency |
+| `num_octaves` | `2` | Turbulence octaves |
+| `scroll_speed_x` | `8` | Horizontal scroll speed px/s |
+| `scroll_speed_y` | `5` | Vertical scroll speed px/s |
+
+### `shimmer`
+
+A directional light-sweep gradient that continuously traverses the shape. The angle parameter controls sweep direction; the highlight sweeps from off-left to off-right over a 3× tile width to avoid visible wrap.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(255,255,255,0.55)` | Highlight color |
+| `highlight_width` | `0.35` | Highlight band width as a fraction of tile width (0–1) |
+| `speed` | `2.5` | Sweep speed in px/s |
+| `angle` | `30` | Sweep angle in degrees |
+
+### `flow`
+
+Directional streaming currents. Horizontally-elongated turbulence streaks (baseFrequency x:y ratio ~6:1) are warped by a second static displacement layer, then scrolled at high speed. The warp turbulence is deliberately static — no baseFrequency animation — so there are no visible jump discontinuities.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(0,200,255,0.7)` | Streak color |
+| `base_frequency` | `0.012` | Turbulence base frequency for streaks |
+| `wave_scale` | `8` | Displacement map scale (warp amplitude) |
+| `scroll_speed_x` | `50` | Horizontal scroll speed px/s (high = fast current) |
+| `scroll_speed_y` | `0` | Vertical scroll speed px/s |
+
+### `level`
+
+Animated level-indicator fill bar that rises from the bottom (or fills from the left). The fill level is set via `fill_pct` (0–100), which can be a template so it tracks an entity attribute. An optional animating cubic-Bezier wave runs along the leading edge.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(0,200,100,0.7)` | Fill color |
+| `fill_pct` | `50` | Fill percentage 0–100; supports templates |
+| `direction` | `'up'` | `'up'` (bottom→top) \| `'right'` (left→right) |
+| `edge_glow` | `true` | Thin white highlight on leading edge |
+| `wave_height` | `4` | Wave amplitude in px (0 = flat edge) |
+| `wave_speed` | `20` | Wave scroll speed in px/s |
+| `wave_count` | `4` | Number of wave crests across the shape width |
+
+`direction: 'right'` does not support waves — the leading edge is always flat.
+
+### `pulse`
+
+Breathing radial glow for attention / alert indicators. A `radialGradient` ellipse expands and contracts; `opacity` also animates to create a punchy in/out effect.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(255,80,0,0.8)` | Glow center color (fades to transparent at edge) |
+| `speed` | `1.2` | Breathe cycles per second |
+| `radius` | `0.7` | Maximum glow radius as a fraction of shape diagonal |
+| `min_size` | `0.15` | Minimum glow size as a fraction of max radius |
+
+### `scanlines`
+
+Classic CRT-style scan-line overlay. Works as a darkening (or lightening) overlay on top of any shape fill color.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(0,0,0,0.25)` | Line color |
+| `line_spacing` | `4` | Distance between lines in px |
+| `line_width` | `1.5` | Line stroke width in px |
+| `direction` | `'horizontal'` | `'horizontal'` \| `'vertical'` |
+| `scroll_speed_y` | `0` | Vertical scroll speed px/s (horizontal direction) |
+| `scroll_speed_x` | `0` | Horizontal scroll speed px/s (vertical direction) |
 
 ## Architecture
 
@@ -139,7 +223,7 @@ The texture layer is injected between `backgroundMarkup` and `borderMarkup`:
 
 ```
 ${backgroundMarkup}    ← shape fill (rect/path)
-${textureMarkup}       ← <defs> + clipped texture rect/path  ← NEW
+${textureMarkup}       ← <defs> + clipped texture rect/path
 ${borderMarkup}        ← borders
 ${iconData.markup}     ← icon
 ${textMarkup}          ← text
@@ -149,11 +233,59 @@ ${textMarkup}          ← text
 
 All `<defs>` IDs include a per-instance unique suffix (e.g., `stex-clip-abc12`, `stex-pattern-abc12`) generated by `_getTextureInstanceId()`. This prevents collisions when multiple cards exist on the same dashboard.
 
+### Color Pipeline
+
+Colors in `shape_texture` config travel through a three-stage resolution pipeline before reaching the SVG renderer:
+
+```
+User config value (theme token / CSS var / rgba / hex / state map)
+    │
+    ▼  resolveThemeTokensRecursive()   (in _resolveShapeTextureConfig)
+    │  Resolves {theme:…} tokens → CSS variable or concrete value
+    │
+    ▼  ColorUtils.resolveCssVariable() (per color field, same function)
+    │  Resolves var(--…) CSS variables → concrete color strings
+    │
+    ▼  createDefs(id, cfg, ctx)
+       SVG feFlood flood-color="…" / fill="…" attribute
+       Browser HTML parser resolves any remaining CSS natively
+```
+
+All turbulence and glow presets (`fluid`, `plasma`, `flow`) use `feFlood flood-color` + `feComposite operator="in"` rather than `feColorMatrix` RGB extraction. This means any color format the SVG parser understands (including CSS custom properties that have been resolved to a concrete value by the time they reach the attribute) works correctly — no manual `rgb()` decomposition.
+
+Fill-bar presets (`level`, `pulse`) use the color directly as an SVG `fill` / `stop-color` attribute, with the same benefit.
+
+### `_turbPattern` Helper
+
+All turbulence-based presets (`fluid`, `plasma`, `flow`) use the shared `_turbPattern(id, turbPrim, colorPrim, W, H, sx, sy)` helper. The key insight is:
+
+```
+<filter> applied to a <rect> INSIDE a <pattern>
+    evaluates in the pattern tile's LOCAL coordinate system
+    → every tile produces identical output
+    → animating patternTransform translate is always seam-free
+```
+
+The old `feTile + feOffset` approach failed because browsers clip `feTile` output to the filter region. The inner-filter-in-pattern approach produces a true infinite repeat.
+
+`_turbPattern` emits:
+
+```svg
+<filter id="stex-inner-{id}" filterUnits="userSpaceOnUse" …>
+  {turbPrim}          <!-- feTurbulence; result must be "turb" -->
+  {colorPrim}         <!-- colour/composite stages -->
+</filter>
+<pattern id="stex-pattern-{id}" …>
+  <rect filter="url(#stex-inner-{id})" …/>
+  <animateTransform …/>    <!-- seamless scroll -->
+</pattern>
+```
+
 ### Key Files
 
 | File | Role |
 |---|---|
-| `src/core/packs/textures/presets/index.js` | `SHAPE_TEXTURE_PRESETS` registry |
+| `src/core/packs/textures/presets/index.js` | `SHAPE_TEXTURE_PRESETS` registry; `_turbPattern` helper |
 | `src/core/packs/textures/ShapeTextureRenderer.js` | SVG string generator |
 | `src/core/packs/textures/index.js` | Re-exports |
 | `src/core/packs/lcards-textures-pack.js` | Pack metadata |
@@ -179,21 +311,27 @@ export const MY_PRESETS = {
 
         /**
          * Return SVG <defs> inner markup (no <defs> wrapper).
-         * Use `id` as a suffix for all element IDs.
-         * @param {string} id - Unique suffix
-         * @param {Object} cfg - Merged resolved config
+         * Use `id` as a unique suffix for ALL element IDs to avoid collisions.
+         *
+         * @param {string} id   - Unique per-card suffix
+         * @param {Object} cfg  - Resolved config (tokens/state already resolved, colors concrete)
+         * @param {Object} ctx  - Shape context: { width: number, height: number }
+         *                        May be undefined for compat with old callers; default defensively.
          * @returns {string} SVG defs inner markup
          */
-        createDefs(id, cfg) {
+        createDefs(id, cfg, ctx) {
+            const W       = ctx?.width  ?? 200;
+            const H       = ctx?.height ?? 60;
             const spacing = cfg.spacing ?? 30;
-            const color = cfg.color ?? 'rgba(255,100,0,0.3)';
-            const sx = cfg.scroll_speed_x ?? 15;
+            const color   = cfg.color    ?? 'rgba(255,100,0,0.3)';
+            const sx      = cfg.scroll_speed_x ?? 15;
 
             let animate = '';
             if (sx !== 0) {
                 const dur = (spacing / Math.abs(sx)).toFixed(2);
+                const toX = sx > 0 ? spacing : -spacing;
                 animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${spacing} 0"
+                    from="0 0" to="${toX} 0"
                     dur="${dur}s" repeatCount="indefinite"/>`;
             }
 
@@ -206,10 +344,8 @@ export const MY_PRESETS = {
         /**
          * Return the fill reference used on the texture element.
          * For pattern-based presets: `url(#stex-pattern-${id})`
-         * For filter-based presets: `url(#stex-filter-${id})`
-         * For solid presets: return the color directly
          * @param {string} id
-         * @param {Object} cfg - Resolved config (needed for 'solid' pattern)
+         * @param {Object} cfg
          * @returns {string}
          */
         getFillRef(id) {
@@ -219,4 +355,13 @@ export const MY_PRESETS = {
 };
 ```
 
-To consume presets directly in render methods, import `SHAPE_TEXTURE_PRESETS` and look up by key. To register additional presets, merge your object into `SHAPE_TEXTURE_PRESETS` before cards render (e.g., in your pack's init function).
+**Color handling rule**: Use `cfg.color` (or `cfg.color_a` / `cfg.color_b`) directly in SVG attributes (`fill`, `stroke`, `flood-color`, `stop-color`). Do **not** extract RGB components manually — the pipeline guarantees the value is a concrete color string by the time `createDefs` is called.
+
+**Turbulence presets**: Use the `_turbPattern` helper (not exported, for built-in presets only). Pack authors should implement the inner-filter-in-pattern approach manually or build on `<pattern>` primitives directly.
+
+To register additional presets, merge your object into `SHAPE_TEXTURE_PRESETS` before cards render (e.g., in your pack's init function):
+
+```js
+import { SHAPE_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
+Object.assign(SHAPE_TEXTURE_PRESETS, MY_PRESETS);
+```
