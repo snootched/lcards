@@ -338,13 +338,37 @@ shape_texture:
 ```
 
 ```yaml
-# Level bar tracking battery level
+# Level bar tracking battery level — three supported forms:
+
+# Form 1: direct string template (evaluated as a numeric value)
+shape_texture:
+  preset: level
+  config:
+    color: "rgba(0,220,120,0.75)"
+    fill_pct: "[[[return entity.attributes.battery_level ?? 0]]]"
+    wave_height: 3
+    edge_glow: true
+
+# Form 2: object with template key (evaluates template, falls back to default on failure)
 shape_texture:
   preset: level
   config:
     color: "rgba(0,220,120,0.75)"
     fill_pct:
+      default: 0
       template: "[[[return entity.attributes.battery_level ?? 0]]]"
+    wave_height: 3
+    edge_glow: true
+
+# Form 3: state-based object (active/inactive/default — no template evaluation)
+shape_texture:
+  preset: level
+  config:
+    color: "rgba(0,220,120,0.75)"
+    fill_pct:
+      active: 80
+      inactive: 10
+      default: 50
     wave_height: 3
     edge_glow: true
 ```

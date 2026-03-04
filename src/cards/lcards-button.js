@@ -59,6 +59,8 @@ import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
+import { TemplateDetector } from '../core/templates/TemplateDetector.js';
+import { LCARdSCardTemplateEvaluator } from '../core/templates/LCARdSCardTemplateEvaluator.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
@@ -2198,6 +2200,10 @@ export class LCARdSButton extends LCARdSCard {
 
         // Re-resolve button style to merge new rule patches
         this._resolveButtonStyleSync();
+        // Note: shape_texture re-renders automatically because _resolveShapeTextureConfig() reads
+        // directly from this.config at render time (no caching). The deep-merge in _applyRulePatches
+        // propagates shape_texture patches into this.config before this hook fires, so the next
+        // render will pick up any shape_texture changes (including rules-applied fill_pct/color/etc.).
     }
 
     /**
@@ -3822,6 +3828,31 @@ export class LCARdSButton extends LCARdSCard {
             }
         }
 
+        // Template evaluation pass: evaluate JS/token templates in all config string values.
+        // Uses synchronous evaluation only (JS + tokens) since this runs on every render.
+        // This enables e.g. color: "[[[return entity.state === 'on' ? 'green' : 'red']]]"
+        const evalContext = {
+            entity: this._entity,
+            config: this.config,
+            hass: this.hass,
+            variables: this.config?.variables || {},
+        };
+        const templateEvaluator = new LCARdSCardTemplateEvaluator(evalContext);
+        const evaluatedConfig = {};
+        for (const [key, val] of Object.entries(resolvedConfig)) {
+            if (typeof val === 'string' && (TemplateDetector.hasJavaScript(val) || TemplateDetector.hasTokens(val))) {
+                try {
+                    evaluatedConfig[key] = templateEvaluator.evaluate(val);
+                } catch (e) {
+                    lcardsLog.warn(`[LCARdSButton] Template evaluation failed for config.${key}:`, e);
+                    evaluatedConfig[key] = val;
+                }
+            } else {
+                evaluatedConfig[key] = val;
+            }
+        }
+        resolvedConfig = evaluatedConfig;
+
         // Resolve state-based color on the 'color' field
         if (resolvedConfig.color && typeof resolvedConfig.color === 'object') {
             resolvedConfig = {
@@ -3864,16 +3895,46 @@ export class LCARdSButton extends LCARdSCard {
             if (resolvedConfig.speed !== undefined) resolvedConfig = { ...resolvedConfig, speed: resolvedConfig.speed * speed };
         }
 
-        // Resolve state-based fill_pct for the 'level' preset
-        if (resolvedConfig.fill_pct !== undefined && typeof resolvedConfig.fill_pct === 'object') {
-            const raw = resolveStateColor({
-                actualState: actualEntityState,
-                classifiedState: buttonState,
-                colorConfig: resolvedConfig.fill_pct,
-                fallback: 50
-            }) ?? 50;
-            resolvedConfig = { ...resolvedConfig, fill_pct: parseFloat(raw) };
-        } else if (texConfig.preset === 'level' && this._entity) {
+        // Resolve fill_pct for the 'level' preset.
+        // Supports three forms:
+        //   1. Direct string template: fill_pct: "[[[return entity.attributes.battery_level ?? 0]]]"
+        //      → evaluated by the template pass above; arrives here as a numeric string or number.
+        //   2. Object with template key: fill_pct: { default: 0, template: "[[[...]]]" }
+        //      → evaluate the template string; fall back to .default if evaluation fails/NaN.
+        //   3. State-based object (no template key): fill_pct: { active: 80, inactive: 10 }
+        //      → resolved by resolveStateColor() as before.
+        if (resolvedConfig.fill_pct !== undefined && resolvedConfig.fill_pct !== null && typeof resolvedConfig.fill_pct === 'object') {
+            const fpObj = resolvedConfig.fill_pct;
+            if (fpObj.template !== undefined && (TemplateDetector.hasJavaScript(fpObj.template) || TemplateDetector.hasTokens(fpObj.template))) {
+                // Form 2: object with template key — evaluate the template, fall back to default
+                let evaluated = fpObj.default ?? 50;
+                try {
+                    const raw = templateEvaluator.evaluate(fpObj.template);
+                    const num = parseFloat(raw);
+                    evaluated = Number.isFinite(num) ? num : (fpObj.default ?? 50);
+                } catch (e) {
+                    lcardsLog.warn('[LCARdSButton] fill_pct template evaluation failed, using default:', e);
+                }
+                resolvedConfig = { ...resolvedConfig, fill_pct: evaluated };
+            } else {
+                // Form 3: state-based object (active/inactive/default keys)
+                const raw = resolveStateColor({
+                    actualState: actualEntityState,
+                    classifiedState: buttonState,
+                    colorConfig: fpObj,
+                    fallback: 50
+                }) ?? 50;
+                resolvedConfig = { ...resolvedConfig, fill_pct: parseFloat(raw) };
+            }
+        } else if (typeof resolvedConfig.fill_pct === 'string') {
+            // Form 1 was a string template — evaluated above, ensure it's numeric
+            const num = parseFloat(resolvedConfig.fill_pct);
+            if (Number.isFinite(num)) {
+                resolvedConfig = { ...resolvedConfig, fill_pct: num };
+            }
+        }
+
+        if (texConfig.preset === 'level' && this._entity) {
             // Auto-derive fill_pct from numeric entity state (e.g. a light brightness 0-255 or sensor 0-100)
             const autoFill = resolvedConfig.fill_pct;
             if (autoFill === undefined || autoFill === null) {
