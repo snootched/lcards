@@ -16,8 +16,14 @@
 
 // ─── Shared animation helper ──────────────────────────────────────────────────
 /**
- * Build a seamless patternTransform translate animation string.
+ * Build a seamless patternTransform translate animation string with wall-clock phase sync.
+ *
+ * Uses Date.now() to pre-wind the `from` value so that when the SVG is re-injected
+ * by Lit on re-render, the animation appears to continue from where it was rather
+ * than snapping back to position 0.
+ *
  * Returns '' when both speeds are zero.
+ *
  * @param {number} sx - scroll_speed_x (px/s)
  * @param {number} sy - scroll_speed_y (px/s)
  * @param {number} tileW - pattern tile width (animation loops every tileW px in X)
@@ -28,19 +34,29 @@ function _scrollAnim(sx, sy, tileW, tileH) {
     const absX = Math.abs(sx);
     const absY = Math.abs(sy);
     if (absX === 0 && absY === 0) return '';
+
     let dur, toX, toY;
     if (absX !== 0) {
-        dur   = (tileW / absX).toFixed(2);
-        toX   = sx > 0 ? tileW : -tileW;
-        toY   = sy !== 0 ? +(sy * parseFloat(dur)).toFixed(2) : 0;
+        dur = tileW / absX;
+        toX = sx > 0 ? tileW : -tileW;
+        toY = sy !== 0 ? sy * dur : 0;
     } else {
-        dur   = (tileH / absY).toFixed(2);
-        toY   = sy > 0 ? tileH : -tileH;
-        toX   = 0;
+        dur = tileH / absY;
+        toY = sy > 0 ? tileH : -tileH;
+        toX = 0;
     }
+
+    // Phase offset: pre-wind the animation to where it would be at the current wall-clock time.
+    // This prevents the visible snap-back-to-zero when the SVG is re-injected on Lit re-render.
+    const phase = (Date.now() / 1000) % dur;
+    const fromX = -(toX * phase / dur);
+    const fromY = -(toY * phase / dur);
+    const endX  = fromX + toX;
+    const endY  = fromY + toY;
+
     return `<animateTransform attributeName="patternTransform" type="translate"
-            from="0 0" to="${toX} ${toY}"
-            dur="${dur}s" repeatCount="indefinite"/>`;
+            from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}"
+            dur="${dur.toFixed(2)}s" repeatCount="indefinite"/>`;
 }
 
 /**
@@ -123,14 +139,19 @@ export const SHAPE_TEXTURE_PRESETS = {
 
             let animate = '';
             if (sx !== 0 || sy !== 0) {
-                const durX = sx !== 0 ? (spacing / Math.abs(sx)).toFixed(2) : null;
-                const durY = sy !== 0 ? (spacing / Math.abs(sy)).toFixed(2) : null;
+                const durX = sx !== 0 ? spacing / Math.abs(sx) : null;
+                const durY = sy !== 0 ? spacing / Math.abs(sy) : null;
                 const dur = durX ?? durY;
                 const toX = sx !== 0 ? spacing : 0;
                 const toY = sy !== 0 ? spacing : 0;
+                const phase = (Date.now() / 1000) % dur;
+                const fromX = -(toX * phase / dur);
+                const fromY = -(toY * phase / dur);
+                const endX  = fromX + toX;
+                const endY  = fromY + toY;
                 animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX} ${toY}"
-                    dur="${dur}s" repeatCount="indefinite"/>`;
+                    from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}"
+                    dur="${dur.toFixed(2)}s" repeatCount="indefinite"/>`;
             }
 
             return `<pattern id="stex-pattern-${id}" x="0" y="0" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse">
@@ -176,10 +197,15 @@ export const SHAPE_TEXTURE_PRESETS = {
                 const toY = sy !== 0 ? spacing : 0;
                 const dist = Math.sqrt(toX * toX + toY * toY);
                 const speed = Math.sqrt(sx * sx + sy * sy) || 1;
-                const dur = (dist / speed).toFixed(2);
+                const dur = dist / speed;
+                const phase = (Date.now() / 1000) % dur;
+                const fromX = -(toX * phase / dur);
+                const fromY = -(toY * phase / dur);
+                const endX  = fromX + toX;
+                const endY  = fromY + toY;
                 animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX} ${toY}"
-                    dur="${dur}s" repeatCount="indefinite"/>`;
+                    from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}"
+                    dur="${dur.toFixed(2)}s" repeatCount="indefinite"/>`;
             }
 
             return `<pattern id="stex-pattern-${id}" x="0" y="0" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse">
@@ -240,10 +266,15 @@ export const SHAPE_TEXTURE_PRESETS = {
                 const toY = sy !== 0 ? tileH : 0;
                 const dist = Math.sqrt(toX * toX + toY * toY);
                 const speed = Math.sqrt(sx * sx + sy * sy) || 1;
-                const dur = (dist / speed).toFixed(2);
+                const dur = dist / speed;
+                const phase = (Date.now() / 1000) % dur;
+                const fromX = -(toX * phase / dur);
+                const fromY = -(toY * phase / dur);
+                const endX  = fromX + toX;
+                const endY  = fromY + toY;
                 animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX.toFixed(3)} ${toY.toFixed(3)}"
-                    dur="${dur}s" repeatCount="indefinite"/>`;
+                    from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}"
+                    dur="${dur.toFixed(2)}s" repeatCount="indefinite"/>`;
             }
 
             return `<pattern id="stex-pattern-${id}" x="0" y="0" width="${tileW.toFixed(3)}" height="${tileH.toFixed(3)}" patternUnits="userSpaceOnUse">
@@ -284,10 +315,15 @@ export const SHAPE_TEXTURE_PRESETS = {
                 const toY = sy !== 0 ? spacing : 0;
                 const dist = Math.sqrt(toX * toX + toY * toY);
                 const speed = Math.sqrt(sx * sx + sy * sy) || 1;
-                const dur = (dist / speed).toFixed(2);
+                const dur = dist / speed;
+                const phase = (Date.now() / 1000) % dur;
+                const fromX = -(toX * phase / dur);
+                const fromY = -(toY * phase / dur);
+                const endX  = fromX + toX;
+                const endY  = fromY + toY;
                 animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX} ${toY}"
-                    dur="${dur}s" repeatCount="indefinite"/>`;
+                    from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}"
+                    dur="${dur.toFixed(2)}s" repeatCount="indefinite"/>`;
             }
 
             return `<pattern id="stex-pattern-${id}" x="0" y="0" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse">
@@ -315,7 +351,8 @@ export const SHAPE_TEXTURE_PRESETS = {
             base_frequency: 0.010,
             num_octaves: 4,
             scroll_speed_x: 7,
-            scroll_speed_y: 10
+            scroll_speed_y: 10,
+            evolution_speed: 0    // 0 = backward-compatible frozen tile
         },
         createDefs(id, cfg, ctx) {
             const W          = ctx?.width  ?? 200;
@@ -326,18 +363,24 @@ export const SHAPE_TEXTURE_PRESETS = {
             const sy         = cfg.scroll_speed_y ?? 10;
             const color      = cfg.color          ?? 'rgba(100,180,255,0.8)';
 
-            // ±5% frequency range — barely perceptible blob-size breathe, no lattice
-            // restructuring, so the blobs gently evolve without any visible jump.
-            const bfLo = (bf * 0.95).toFixed(5);
-            const bfHi = (bf * 1.05).toFixed(5);
+            // evolution_speed: 0 = no evolution (default), 1.0 = fast swirl.
+            // bfRange linearly interpolates between ±5% (barely perceptible) and ±25% (fast churn).
+            const evo = Math.max(0, Math.min(1, cfg.evolution_speed ?? 0));
+            const bfRange = bf * (0.05 + evo * 0.20);  // 5% at evo=0, 25% at evo=1
+            const bfLo = (bf - bfRange).toFixed(5);
+            const bfHi = (bf + bfRange).toFixed(5);
+            // Duration: 25s at evo→0 (very slow), 5s at evo=1 (fast). Floor at 1s for safety.
+            const evoDur = evo > 0 ? Math.max(1, 25 - evo * 20).toFixed(1) : null;
+
+            // Only emit the <animate> when evolution is active
+            const evoAnim = evoDur ? `<animate attributeName="baseFrequency"
+                    values="${bf};${bfHi};${bf};${bfLo};${bf}"
+                    dur="${evoDur}s" calcMode="spline"
+                    keySplines="0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1"
+                    repeatCount="indefinite"/>` : '';
 
             const turbPrim = `<feTurbulence type="fractalNoise" baseFrequency="${bf}" numOctaves="${numOctaves}"
-                seed="42" stitchTiles="stitch" result="turb">
-                <animate attributeName="baseFrequency"
-                    values="${bf};${bfHi};${bf};${bfLo};${bf}"
-                    dur="20s" calcMode="spline"
-                    keySplines="0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1"
-                    repeatCount="indefinite"/>
+                seed="42" stitchTiles="stitch" result="turb">${evoAnim ? '\n                ' + evoAnim + '\n            ' : ''}
             </feTurbulence>`;
             // Use feFlood so ANY color format (CSS var, hex, rgba, theme token) works natively —
             // no manual RGB extraction needed.
@@ -367,7 +410,8 @@ export const SHAPE_TEXTURE_PRESETS = {
             base_frequency: 0.012,
             num_octaves: 2,
             scroll_speed_x: 8,
-            scroll_speed_y: 5
+            scroll_speed_y: 5,
+            evolution_speed: 0    // 0 = backward-compatible frozen tile
         },
         createDefs(id, cfg, ctx) {
             const W          = ctx?.width  ?? 200;
@@ -379,9 +423,29 @@ export const SHAPE_TEXTURE_PRESETS = {
             const ca         = cfg.color_a        ?? 'rgba(80,0,255,0.9)';
             const cb         = cfg.color_b        ?? 'rgba(255,40,120,0.9)';
 
+            // evolution_speed: 0 = no evolution (default), 1.0 = fast plasma churn.
+            // X and Y frequency channels evolve at slightly different rates for an independent look.
+            const evo = Math.max(0, Math.min(1, cfg.evolution_speed ?? 0));
+            const bfY = bf * 0.7;
+            const bfRange = bf * (0.05 + evo * 0.20);  // 5% at evo=0, 25% at evo=1
+            const bfLo  = (bf - bfRange).toFixed(5);
+            const bfHi  = (bf + bfRange).toFixed(5);
+            const bfYLo = (bfY - bfRange * 0.7).toFixed(5);
+            const bfYHi = (bfY + bfRange * 0.7).toFixed(5);
+            // Duration: 30s at evo→0 (slow), 8s at evo=1 (fast). Floor at 1s for safety.
+            const evoDur = evo > 0 ? Math.max(1, 30 - evo * 22).toFixed(1) : null;
+
+            // Build baseFrequency values with both X and Y components evolving
+            const evoAnim = evoDur ? `<animate attributeName="baseFrequency"
+                    values="${bf} ${bfY.toFixed(5)};${bfHi} ${bfYHi};${bf} ${bfY.toFixed(5)};${bfLo} ${bfYLo};${bf} ${bfY.toFixed(5)}"
+                    dur="${evoDur}s" calcMode="spline"
+                    keySplines="0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1"
+                    repeatCount="indefinite"/>` : '';
+
             const turbPrim = `<feTurbulence type="fractalNoise"
-                baseFrequency="${bf} ${(bf * 0.7).toFixed(4)}"
-                numOctaves="${numOctaves}" seed="7" stitchTiles="stitch" result="turb"/>`;
+                baseFrequency="${bf} ${bfY.toFixed(4)}"
+                numOctaves="${numOctaves}" seed="7" stitchTiles="stitch" result="turb">${evoAnim ? '\n                ' + evoAnim + '\n            ' : ''}
+            </feTurbulence>`;
             // Use feFlood+feComposite for each colour so CSS vars / theme tokens work natively.
             // The turbulence R channel drives the split: bright → color_a, dark → color_b.
             const colorPrim = `<feColorMatrix in="turb" type="matrix"
@@ -419,26 +483,36 @@ export const SHAPE_TEXTURE_PRESETS = {
             const cosa = Math.cos(rad);
             const sina = Math.sin(rad);
 
-            // Tile large enough that the highlight band never wraps within one button width
+            // Tile large enough that the highlight band never wraps within one button width.
+            // Use diagonal of bounding box so the tile covers elbow shapes fully in any direction.
             const tileW = W * 3;
-            const tileH = H;
+            const tileH = Math.ceil(Math.sqrt(W * W + H * H));
             const cx    = tileW / 2;
             const cy    = tileH / 2;
 
-            // Gradient endpoints: run along the angle direction, centered in the tile
+            // Gradient endpoints: run along the angle direction, centered in the tile.
+            // Use tileH for the Y component so gradient geometry is consistent with the taller tile.
             const gx1 = (cx - cosa * tileW / 2).toFixed(2);
-            const gy1 = (cy - sina * tileW / 2).toFixed(2);
+            const gy1 = (cy - sina * tileH / 2).toFixed(2);
             const gx2 = (cx + cosa * tileW / 2).toFixed(2);
-            const gy2 = (cy + sina * tileW / 2).toFixed(2);
+            const gy2 = (cy + sina * tileH / 2).toFixed(2);
 
-            // Animation sweeps the tile in the gradient direction
-            const toX  = (cosa * tileW).toFixed(2);
-            const toY  = (sina * tileW).toFixed(2);
-            const dur  = spd > 0 ? (tileW / spd).toFixed(2) : null;
-            const animEl = dur
-                ? `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX} ${toY}" dur="${dur}s" repeatCount="indefinite"/>`
-                : '';
+            // Animation sweeps the tile in the gradient direction.
+            // toY uses tileH for consistency with the updated gradient geometry.
+            const toXNum = cosa * tileW;
+            const toYNum = sina * tileH;
+            const durNum = spd > 0 ? tileW / spd : null;
+
+            let animEl = '';
+            if (durNum) {
+                const phase = (Date.now() / 1000) % durNum;
+                const fromX = -(toXNum * phase / durNum);
+                const fromY = -(toYNum * phase / durNum);
+                const endX  = fromX + toXNum;
+                const endY  = fromY + toYNum;
+                animEl = `<animateTransform attributeName="patternTransform" type="translate"
+                    from="${fromX.toFixed(3)} ${fromY.toFixed(3)}" to="${endX.toFixed(3)} ${endY.toFixed(3)}" dur="${durNum.toFixed(2)}s" repeatCount="indefinite"/>`;
+            }
 
             const gid = `stex-sg-${id}`;
             const g0 = (0.0).toFixed(3);
@@ -470,13 +544,14 @@ export const SHAPE_TEXTURE_PRESETS = {
      */
     'flow': {
         name: 'Flow',
-        description: 'Directional streaming currents — elongated streaks scrolling horizontally with mild static warp',
+        description: 'Directional streaming currents — elongated streaks with evolving displacement warp',
         defaults: {
             color: 'rgba(0,200,255,0.7)',
             base_frequency: 0.012,
             wave_scale: 8,
             scroll_speed_x: 50,
-            scroll_speed_y: 0
+            scroll_speed_y: 0,
+            evolution_speed: 0    // 0 = backward-compatible static warp
         },
         createDefs(id, cfg, ctx) {
             const W     = ctx?.width  ?? 200;
@@ -491,9 +566,32 @@ export const SHAPE_TEXTURE_PRESETS = {
             const bfX = bf.toFixed(5);
             const bfY = (bf / 6).toFixed(5);
 
-            // Static warp turbulence — no baseFrequency animation so there is no jump.
-            // The spatial displacement is fixed; only the scroll animation moves.
+            // Warp turbulence base frequency
             const wf = (bf * 0.5).toFixed(5);
+
+            // evolution_speed: 0 = static warp (default), 1.0 = turbulent flow.
+            // scaleMin: scale reduced by up to 60% at max evo → gentle low point in undulation.
+            // scaleMax: scale increased by up to 80% at max evo → turbulent peak in undulation.
+            const evo = Math.max(0, Math.min(1, cfg.evolution_speed ?? 0));
+            const scaleMin = Math.max(1, scale * (1 - evo * 0.6));   // 60% reduction → gentle undulation
+            const scaleMax = scale * (1 + evo * 0.8);                // 80% increase → turbulent peaks
+            // Duration: 12s at evo→0 (slow), 4s at evo=1 (fast). Floor at 1s for safety.
+            const evoDur = evo > 0 ? Math.max(1, 12 - evo * 8).toFixed(1) : null;
+
+            // Animate displacement scale when evolution is active (undulating current)
+            const scaleAnim = evoDur ? `<animate attributeName="scale"
+                    values="${scale};${scaleMax.toFixed(1)};${scale};${scaleMin.toFixed(1)};${scale}"
+                    dur="${evoDur}s" calcMode="spline"
+                    keySplines="0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1"
+                    repeatCount="indefinite"/>` : '';
+
+            // Optionally evolve warp baseFrequency (longer cycle so it feels independent)
+            const wfNum = parseFloat(wf);
+            const warpEvoAnim = evoDur ? `<animate attributeName="baseFrequency"
+                    values="${wf};${(wfNum * 1.3).toFixed(5)};${wf};${(wfNum * 0.7).toFixed(5)};${wf}"
+                    dur="25s" calcMode="spline"
+                    keySplines="0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1; 0.45 0 0.55 1"
+                    repeatCount="indefinite"/>` : '';
 
             // All primitives in one block; feDisplacementMap is the final output.
             // feFlood+feComposite for color so CSS vars / theme tokens work natively.
@@ -508,9 +606,11 @@ export const SHAPE_TEXTURE_PRESETS = {
                 <feFlood flood-color="${color}" flood-opacity="1" result="flood"/>
                 <feComposite in="flood" in2="mask" operator="in" result="colored"/>
                 <feTurbulence type="fractalNoise" baseFrequency="${wf}" numOctaves="2"
-                    seed="77" stitchTiles="stitch" result="warp"/>
+                    seed="77" stitchTiles="stitch" result="warp">${warpEvoAnim ? '\n                    ' + warpEvoAnim + '\n                ' : ''}
+                </feTurbulence>
                 <feDisplacementMap in="colored" in2="warp"
-                    scale="${scale}" xChannelSelector="R" yChannelSelector="G"/>`;
+                    scale="${scale}" xChannelSelector="R" yChannelSelector="G">${scaleAnim ? '\n                    ' + scaleAnim + '\n                ' : ''}
+                </feDisplacementMap>`;
 
             return _turbPattern(id, allPrim, '', W, H, sx, sy);
         },
@@ -589,12 +689,16 @@ export const SHAPE_TEXTURE_PRESETS = {
                 L 0 ${H}
                 Z`;
 
-            const dur = Math.abs(waveSpeed) > 0 ? (wl / Math.abs(waveSpeed)).toFixed(2) : null;
-            const toX = waveSpeed >= 0 ? wl.toFixed(2) : (-wl).toFixed(2);
-            const waveAnim = dur
-                ? `<animateTransform attributeName="patternTransform" type="translate"
-                        from="0 0" to="${toX} 0" dur="${dur}s" repeatCount="indefinite"/>`
-                : '';
+            const durNum = Math.abs(waveSpeed) > 0 ? wl / Math.abs(waveSpeed) : null;
+            const toXNum = waveSpeed >= 0 ? wl : -wl;
+            let waveAnim = '';
+            if (durNum) {
+                const phase = (Date.now() / 1000) % durNum;
+                const fromX = -(toXNum * phase / durNum);
+                const endX  = fromX + toXNum;
+                waveAnim = `<animateTransform attributeName="patternTransform" type="translate"
+                        from="${fromX.toFixed(3)} 0" to="${endX.toFixed(3)} 0" dur="${durNum.toFixed(2)}s" repeatCount="indefinite"/>`;
+            }
 
             const glowOpacity = glow ? '0.45' : '0';
             const glowPath = `M 0 ${fy}

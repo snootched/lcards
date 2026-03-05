@@ -39,6 +39,9 @@ const ANIMATED_PRESETS = new Set(['grid', 'diagonal', 'hexagonal', 'dots', 'flui
 // Presets that use turbulence (their own speed param rather than scroll_speed_x/y)
 const TURBULENCE_PRESETS = new Set(['fluid', 'plasma', 'flow']);
 
+// Evolution speed threshold above which a GPU cost warning is shown
+const EVOLUTION_GPU_WARNING_THRESHOLD = 0.7;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export class LCARdSShapeTextureEditor extends LitElement {
@@ -350,7 +353,19 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Scroll Speed Y (px/s)'}
                         .helper=${'Negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_y', e.detail.value)}
-                    ></ha-selector></div>`;
+                    ></ha-selector></div>
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
+                        .value=${cfg.evolution_speed ?? defaults.evolution_speed ?? 0}
+                        .label=${'Evolution Speed'}
+                        .helper=${'0 = frozen tile scrolling · 0.3 = gentle morphing · 1.0 = fast swirl (GPU intensive)'}
+                        @value-changed=${(e) => this._updatePresetConfig('evolution_speed', e.detail.value)}
+                    ></ha-selector></div>
+                    ${(cfg.evolution_speed ?? 0) > EVOLUTION_GPU_WARNING_THRESHOLD ? html`
+                        <div class="blend-hint" style="border-color: #ff9800;">
+                            ⚠️ High evolution speed may be GPU intensive on low-power hardware (Raspberry Pi).
+                        </div>
+                    ` : ''}`;
 
             case 'plasma':
                 return html`
@@ -367,7 +382,19 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Scroll Speed Y (px/s)'}
                         .helper=${'Negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_y', e.detail.value)}
-                    ></ha-selector></div>`;
+                    ></ha-selector></div>
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
+                        .value=${cfg.evolution_speed ?? defaults.evolution_speed ?? 0}
+                        .label=${'Evolution Speed'}
+                        .helper=${'0 = frozen tile scrolling · 0.3 = gentle colour wash morph · 1.0 = fast plasma churn (GPU intensive)'}
+                        @value-changed=${(e) => this._updatePresetConfig('evolution_speed', e.detail.value)}
+                    ></ha-selector></div>
+                    ${(cfg.evolution_speed ?? 0) > EVOLUTION_GPU_WARNING_THRESHOLD ? html`
+                        <div class="blend-hint" style="border-color: #ff9800;">
+                            ⚠️ High evolution speed may be GPU intensive on low-power hardware (Raspberry Pi).
+                        </div>
+                    ` : ''}`;
 
             case 'flow':
                 return html`
@@ -384,7 +411,19 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Flow Speed Y (px/s)'}
                         .helper=${'Vertical stream speed · negative = reverse · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_y', e.detail.value)}
-                    ></ha-selector></div>`;
+                    ></ha-selector></div>
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
+                        .value=${cfg.evolution_speed ?? defaults.evolution_speed ?? 0}
+                        .label=${'Evolution Speed'}
+                        .helper=${'0 = steady current (static warp) · 0.3 = gently undulating · 1.0 = turbulent flow (GPU intensive)'}
+                        @value-changed=${(e) => this._updatePresetConfig('evolution_speed', e.detail.value)}
+                    ></ha-selector></div>
+                    ${(cfg.evolution_speed ?? 0) > EVOLUTION_GPU_WARNING_THRESHOLD ? html`
+                        <div class="blend-hint" style="border-color: #ff9800;">
+                            ⚠️ High evolution speed may be GPU intensive on low-power hardware (Raspberry Pi).
+                        </div>
+                    ` : ''}`;
 
             case 'shimmer':
                 return html`
