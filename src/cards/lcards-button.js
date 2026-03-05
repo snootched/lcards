@@ -4004,12 +4004,11 @@ export class LCARdSButton extends LCARdSCard {
             this._destroyCanvasTexture();
             return;
         }
-        const hostEl = this.renderRoot?.querySelector('.button-container') ?? this.renderRoot;
-        if (!hostEl) return;
 
-        const svgEl  = this.renderRoot?.querySelector('svg');
-        const width  = svgEl?.clientWidth  || hostEl.clientWidth  || 200;
-        const height = svgEl?.clientHeight || hostEl.clientHeight || 60;
+        // Guard: require the .button-container element — do NOT fall back to renderRoot
+        // (issue #2: falling back to renderRoot appends canvas to shadow root, breaking layout)
+        const hostEl = this.renderRoot?.querySelector('.button-container');
+        if (!hostEl) return;
 
         const resolved = this._resolveShapeTextureConfig();
         if (!resolved) { this._destroyCanvasTexture(); return; }
@@ -4018,16 +4017,29 @@ export class LCARdSButton extends LCARdSCard {
         const shapePath = this._currentShapePath ?? null;
         const border    = this._resolvedBorder   ?? null;
 
+        // Build the fully-resolved config object that CanvasTextureRenderer receives.
+        // Passing resolved values here means the renderer always sees concrete color
+        // strings, not raw theme tokens (issue #9).
+        const rendererConfig = {
+            ...texConfig,
+            preset:         texConfig.preset,
+            config:         resolvedConfig,
+            opacity,
+            mix_blend_mode: blendMode,
+        };
+
+        // Detect preset change — must tear down and reinit so the correct effect
+        // class is instantiated (issue #1: hot-update on a different effect class is a no-op).
+        if (this._canvasTextureRenderer &&
+            this._canvasTextureRenderer.getPreset() !== texConfig.preset) {
+            this._destroyCanvasTexture();
+        }
+
         if (!this._canvasTextureRenderer) {
-            this._canvasTextureRenderer = new CanvasTextureRenderer(hostEl, texConfig, this._getTextureInstanceId());
-            this._canvasTextureRenderer.init(width, height, shapePath, border);
+            this._canvasTextureRenderer = new CanvasTextureRenderer(hostEl, this._getTextureInstanceId());
+            this._canvasTextureRenderer.init(rendererConfig, shapePath, border);
         } else {
-            this._canvasTextureRenderer.update({
-                ...texConfig,
-                config:        resolvedConfig,
-                opacity,
-                mix_blend_mode: blendMode,
-            });
+            this._canvasTextureRenderer.update(rendererConfig);
         }
     }
 

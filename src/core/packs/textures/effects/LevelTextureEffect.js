@@ -39,7 +39,9 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
     update(dt, w, h) {
         super.update(dt, w, h);
-        this._waveOffset += this._waveSpeed * this.speed * (dt / 1000);
+        // Accumulate directly in radians so the wave phase advances at wave_speed rad/s.
+        // wave_speed=20 gives ~3 full cycles per second at default settings.
+        this._waveOffset += this._waveSpeed * this.speed * (dt / 1000) * (Math.PI / 180);
     }
 
     _draw(ctx, w, h) {
@@ -65,7 +67,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
             // Wave top edge
             const amplitude = this._waveHeight;
             const freq      = (Math.PI * 2 * this._waveCount) / w;
-            const offset    = this._waveOffset * (Math.PI / 180);
+            const offset    = this._waveOffset; // already in radians
 
             ctx.moveTo(0, h);
             ctx.lineTo(0, fillY + amplitude * Math.sin(offset));
@@ -100,7 +102,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
         if (this._waveHeight > 0 && fillW < w) {
             const amplitude = this._waveHeight;
             const freq      = (Math.PI * 2 * this._waveCount) / h;
-            const offset    = this._waveOffset * (Math.PI / 180);
+            const offset    = this._waveOffset; // already in radians
 
             ctx.moveTo(0, 0);
             ctx.lineTo(fillW + amplitude * Math.sin(offset), 0);

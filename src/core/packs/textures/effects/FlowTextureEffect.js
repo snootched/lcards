@@ -50,7 +50,8 @@ export class FlowTextureEffect extends BaseTextureEffect {
         const streakHeight = h / this._streakCount;
 
         for (let i = 0; i < this._streakCount; i++) {
-            const baseY = i * streakHeight + this._offsetY % streakHeight;
+            // Use positive modulo to handle negative scroll_speed_y correctly
+            const baseY = i * streakHeight + ((this._offsetY % streakHeight) + streakHeight) % streakHeight;
 
             // Sine-wave Y displacement
             const phase = this._streakPhases[i] + this._offsetX * this._frequency * Math.PI;

@@ -5,6 +5,12 @@
  * Uses Canvas2DRenderer for the RAF loop and BaseTextureEffect subclasses for
  * per-preset rendering.  Replaces the SVG/SMIL ShapeTextureRenderer.
  *
+ * Size tracking is handled via ResizeObserver — the canvas is created immediately
+ * but remains at 1×1 until the first ResizeObserver callback fires, ensuring
+ * correct pixel dimensions even when clientWidth/clientHeight are zero at
+ * first paint (issue #3).  Subsequent resize events are also handled automatically,
+ * keeping the clip path in sync with the element's layout (issue #4).
+ *
  * @module core/packs/textures/CanvasTextureRenderer
  */
 
@@ -16,103 +22,118 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  * CanvasTextureRenderer
  *
  * Lifecycle:
- *   new CanvasTextureRenderer(hostEl, config, instanceId)
- *   renderer.init(width, height, shapePath, border)  — creates canvas, starts RAF
- *   renderer.update(config)                          — hot-update effect props
- *   renderer.resize(width, height, shapePath, border)— resize + re-clip
- *   renderer.destroy()                              — stops RAF, removes canvas
+ *   new CanvasTextureRenderer(hostEl, instanceId)
+ *   renderer.init(resolvedConfig, shapePath, border)  — creates canvas, starts RAF
+ *   renderer.update(resolvedConfig)                   — hot-update effect props
+ *   renderer.destroy()                               — stops RAF, removes canvas
  */
 export class CanvasTextureRenderer {
     /**
      * @param {HTMLElement} hostEl     - Container element (position:relative) to append canvas into
-     * @param {Object}      config     - shape_texture config object from card config
      * @param {string}      instanceId - Stable short ID (for debug logging)
      */
-    constructor(hostEl, config, instanceId) {
-        this._hostEl     = hostEl;
-        this._config     = config;
-        this._id         = instanceId;
-        this._canvas     = null;
-        this._renderer   = null;
-        this._effect     = null;
-        this._clipPath   = null;
+    constructor(hostEl, instanceId) {
+        this._hostEl        = hostEl;
+        this._id            = instanceId;
+        this._canvas        = null;
+        this._renderer      = null;
+        this._effect        = null;
+        this._clipPath      = null;
+        this._shapePath     = null;
+        this._border        = null;
+        this._resolvedCfg   = null;
+        this._resizeObserver = null;
     }
 
     /**
-     * Create the canvas element, build the clip path, instantiate the effect and start RAF.
+     * Create the canvas element, start the ResizeObserver and RAF loop.
      *
-     * @param {number}      width     - Canvas width in pixels
-     * @param {number}      height    - Canvas height in pixels
-     * @param {string|null} shapePath - SVG path d= string for clip, or null for full rect
-     * @param {Object|null} border    - Border config { topLeft, topRight, … } for rounded rect clip
+     * Receives the *already-resolved* config object (theme tokens, templates
+     * and state-based values all resolved by the caller) so that the effect
+     * sees concrete color strings on the very first frame (issue #9).
+     *
+     * @param {Object}      resolvedConfig - Fully resolved shape_texture config
+     * @param {string|null} shapePath      - SVG path d= string for clip, or null for rect
+     * @param {Object|null} border         - Border config { topLeft, topRight, … }
      */
-    init(width, height, shapePath, border) {
+    init(resolvedConfig, shapePath, border) {
         if (this._canvas) {
-            lcardsLog.warn(`[CanvasTextureRenderer:${this._id}] init() called but canvas already exists — use resize() instead`);
+            lcardsLog.warn(`[CanvasTextureRenderer:${this._id}] init() called but canvas already exists`);
             return;
         }
 
-        const preset = this._config?.preset;
+        const preset = resolvedConfig?.preset;
         const presetDef = CANVAS_TEXTURE_PRESETS[preset];
         if (!presetDef) {
             lcardsLog.warn(`[CanvasTextureRenderer:${this._id}] Unknown preset '${preset}', skipping init`);
             return;
         }
 
-        // Create canvas
-        const canvas = document.createElement('canvas');
-        canvas.width  = Math.max(1, Math.round(width));
-        canvas.height = Math.max(1, Math.round(height));
-        canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+        // Store for ResizeObserver callbacks and future updates
+        this._resolvedCfg = resolvedConfig;
+        this._shapePath   = shapePath ?? null;
+        this._border      = border    ?? null;
 
-        const blendMode = this._config?.mix_blend_mode || 'normal';
-        canvas.style.mixBlendMode = blendMode;
+        // Create canvas (1×1 — will be resized by ResizeObserver on first callback)
+        const canvas = document.createElement('canvas');
+        canvas.width  = 1;
+        canvas.height = 1;
+        canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+        canvas.style.mixBlendMode = resolvedConfig?.mix_blend_mode || 'normal';
 
         this._hostEl.appendChild(canvas);
         this._canvas = canvas;
 
-        // Build clip path
-        this._clipPath = _buildClipPath(shapePath, border, width, height);
+        // Build initial clip path (1×1 placeholder; updated by ResizeObserver)
+        this._clipPath = _buildClipPath(shapePath, border, 1, 1);
 
-        // Merge preset defaults with user config
-        const resolvedConfig = {
+        // Instantiate effect with resolved config
+        const effectConfig = {
             ...presetDef.defaults,
-            ...(this._config?.config || {}),
-            opacity:   this._config?.opacity  ?? 1,
+            ...(resolvedConfig?.config || {}),
+            opacity:   resolvedConfig?.opacity ?? 1,
             _clipPath: this._clipPath,
         };
-
-        // Instantiate effect
-        this._effect = new presetDef.effectClass(resolvedConfig);
+        this._effect = new presetDef.effectClass(effectConfig);
 
         // Set up Canvas2DRenderer
         this._renderer = new Canvas2DRenderer(canvas);
         this._renderer.addEffect(this._effect);
         this._renderer.start();
 
-        lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Initialized`, { preset, width, height });
+        // ResizeObserver: handles both zero-size-at-first-paint (#3) and
+        // subsequent layout changes (#4).  The first callback fires after layout
+        // and provides the correct pixel dimensions.
+        this._resizeObserver = new ResizeObserver(entries => {
+            const rect = entries[0].contentRect;
+            if (rect.width > 0 && rect.height > 0) {
+                this._resizeCanvas(rect.width, rect.height);
+            }
+        });
+        this._resizeObserver.observe(this._hostEl);
+
+        lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Initialized`, { preset });
     }
 
     /**
      * Hot-update effect properties without teardown/restart.
-     * Call this after config changes (e.g. fill_pct driven by entity state).
+     * Receives the *already-resolved* config object.
      *
-     * @param {Object} newConfig - Full or partial shape_texture config
+     * @param {Object} resolvedConfig - Fully resolved shape_texture config
      */
-    update(newConfig) {
+    update(resolvedConfig) {
         if (!this._effect) return;
 
-        this._config = newConfig;
+        this._resolvedCfg = resolvedConfig;
 
         const mergedConfig = {
-            ...(newConfig?.config || {}),
-            opacity:   newConfig?.opacity ?? 1,
+            ...(resolvedConfig?.config || {}),
+            opacity:   resolvedConfig?.opacity ?? 1,
             _clipPath: this._clipPath,
         };
 
-        const blendMode = newConfig?.mix_blend_mode || 'normal';
         if (this._canvas) {
-            this._canvas.style.mixBlendMode = blendMode;
+            this._canvas.style.mixBlendMode = resolvedConfig?.mix_blend_mode || 'normal';
         }
 
         if (typeof this._effect.updateConfig === 'function') {
@@ -121,33 +142,22 @@ export class CanvasTextureRenderer {
     }
 
     /**
-     * Resize the canvas and rebuild the clip path.
-     * Called when the card container dimensions change.
-     *
-     * @param {number}      width
-     * @param {number}      height
-     * @param {string|null} shapePath
-     * @param {Object|null} border
+     * Returns the preset key currently active on this renderer.
+     * Used by the card to detect preset changes without accessing private fields.
+     * @returns {string|null}
      */
-    resize(width, height, shapePath, border) {
-        if (!this._canvas) return;
-
-        this._renderer.resize(Math.max(1, Math.round(width)), Math.max(1, Math.round(height)));
-
-        this._clipPath = _buildClipPath(shapePath, border, width, height);
-        if (this._effect) {
-            if (typeof this._effect.updateConfig === 'function') {
-                this._effect.updateConfig({ _clipPath: this._clipPath });
-            } else {
-                this._effect._clipPath = this._clipPath;
-            }
-        }
+    getPreset() {
+        return this._resolvedCfg?.preset ?? null;
     }
 
     /**
-     * Stop RAF and remove the canvas from the DOM.
+     * Stop RAF, disconnect ResizeObserver, and remove the canvas from the DOM.
      */
     destroy() {
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
         if (this._renderer) {
             this._renderer.destroy();
             this._renderer = null;
@@ -155,10 +165,43 @@ export class CanvasTextureRenderer {
         if (this._canvas && this._canvas.parentNode) {
             this._canvas.parentNode.removeChild(this._canvas);
         }
-        this._canvas   = null;
-        this._effect   = null;
-        this._clipPath = null;
+        this._canvas     = null;
+        this._effect     = null;
+        this._clipPath   = null;
+        this._shapePath  = null;
+        this._border     = null;
+        this._resolvedCfg = null;
         lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Destroyed`);
+    }
+
+    // ─── Private ──────────────────────────────────────────────────────────────
+
+    /**
+     * Resize the canvas pixel buffer and rebuild the clip path.
+     * Called by ResizeObserver whenever the host element's size changes.
+     * @param {number} w
+     * @param {number} h
+     * @private
+     */
+    _resizeCanvas(w, h) {
+        const rw = Math.max(1, Math.round(w));
+        const rh = Math.max(1, Math.round(h));
+
+        if (this._renderer) {
+            this._renderer.resize(rw, rh);
+        }
+
+        this._clipPath = _buildClipPath(this._shapePath, this._border, rw, rh);
+
+        if (this._effect) {
+            if (typeof this._effect.updateConfig === 'function') {
+                this._effect.updateConfig({ _clipPath: this._clipPath });
+            } else {
+                this._effect._clipPath = this._clipPath;
+            }
+        }
+
+        lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Resized`, { w: rw, h: rh });
     }
 }
 

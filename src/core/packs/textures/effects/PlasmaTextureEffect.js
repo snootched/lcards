@@ -46,6 +46,10 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
             speed:        config.speed ?? 1,
             opacity:      1,
         });
+        // Cached offscreen canvas for plasma compositing — avoids per-frame allocation
+        this._offscreen    = null;
+        this._offscreenW   = 0;
+        this._offscreenH   = 0;
     }
 
     update(dt, w, h) {
@@ -57,11 +61,32 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
     }
 
     _draw(ctx, w, h) {
-        this._nebulaA.draw(ctx, w, h);
-        const prev = ctx.globalCompositeOperation;
-        ctx.globalCompositeOperation = 'screen';
-        this._nebulaB.draw(ctx, w, h);
-        ctx.globalCompositeOperation = prev;
+        // Both nebulae must be composited together on an offscreen canvas before
+        // being drawn to the clipped context.  Setting globalCompositeOperation
+        // inside _draw() would be reset by BaseTextureEffect's save()/restore()
+        // wrapper between the two nebula draw calls (issue #6).
+        //
+        // Re-use a cached offscreen canvas; only recreate when dimensions change
+        // to avoid per-frame canvas allocation overhead.
+        if (!this._offscreen || this._offscreenW !== w || this._offscreenH !== h) {
+            this._offscreen  = document.createElement('canvas');
+            this._offscreenW = w;
+            this._offscreenH = h;
+        }
+        this._offscreen.width  = w;
+        this._offscreen.height = h;
+        const offCtx = this._offscreen.getContext('2d');
+
+        // Draw first nebula normally
+        this._nebulaA.draw(offCtx, w, h);
+
+        // Draw second nebula using screen blend on the offscreen context
+        offCtx.globalCompositeOperation = 'screen';
+        this._nebulaB.draw(offCtx, w, h);
+        offCtx.globalCompositeOperation = 'source-over';
+
+        // Blit the composited result to the main (clipped) context
+        ctx.drawImage(this._offscreen, 0, 0);
     }
 
     updateConfig(cfg) {
