@@ -174,7 +174,17 @@ export class RulesEngine extends BaseService {
     // Update cached entity list for performance
     if (this.hassUnsubscribe) {
       const ruleEntities = Array.from(this.dependencyIndex?.entityToRules.keys() || [])
-        .filter(entityId => !entityId.includes('.'));
+        .filter(entityId => {
+          // Keep HA entity IDs (contain exactly one dot: domain.entity)
+          // Filter out DataSource references (multi-part dot paths whose root is a known DataSource)
+          if (entityId.includes('.')) {
+            const sourceName = entityId.split('.')[0];
+            if (this.dataSourceManager?.getSource(sourceName)) {
+              return false; // Known DataSource reference — skip
+            }
+          }
+          return true; // HA entity ID or unrecognised reference — keep
+        });
       this._hassEntities = new Set(ruleEntities);
 
       lcardsLog.debug(`[RulesEngine] Updated monitored entities: ${ruleEntities.length} entities`);

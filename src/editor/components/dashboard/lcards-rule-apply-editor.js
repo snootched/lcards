@@ -1,9 +1,13 @@
 /**
  * LCARdS Rule Apply Editor
  *
- * Visual editor for the `apply` section of a rule.
- * Supports overlay targets with quick-patches and tag-based targeting,
- * plus an advanced YAML fallback.
+ * Pure-YAML editor for the `apply` section of a rule.
+ *
+ * The overlay patch schema is too wide and per-card-type to be expressed as form
+ * fields, so we expose the full `apply` object as a YAML editor and provide a
+ * read-only reference panel listing all currently-discoverable overlay targets
+ * (via window.lcards.core.systemsManager) so users can look up IDs and selectors
+ * without leaving the editor.
  *
  * @element lcards-rule-apply-editor
  * @fires value-changed - When apply object changes (detail: { value: applyObject })
@@ -18,36 +22,28 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import '../shared/lcards-form-section.js';
 
-/** Prefix used for non-selectable group header entries in the overlay dropdown */
-const OVERLAY_GROUP_PREFIX = '__group_';
+/** MDI path for content-copy icon */
+const MDI_COPY = 'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z';
 
 export class LCARdSRuleApplyEditor extends LitElement {
     static get properties() {
         return {
-            value:               { type: Object },
-            hass:                { type: Object },
-            editor:              { type: Object },
-            _overlayTargets:     { type: Array, state: true },
-            _tags:               { type: Array, state: true },
-            _yamlText:           { type: String, state: true },
-            _yamlError:          { type: String, state: true },
-            _yamlExpanded:       { type: Boolean, state: true },
-            _addOverlayPending:  { type: Boolean, state: true },
-            _newOverlayId:       { type: String, state: true },
-            _yamlFromUser:       { type: Boolean, state: true }
+            value:           { type: Object },
+            hass:            { type: Object },
+            editor:          { type: Object },
+            _yamlText:       { type: String,  state: true },
+            _yamlError:      { type: String,  state: true },
+            _refExpanded:    { type: Boolean, state: true },
+            _yamlFromUser:   { type: Boolean, state: true }
         };
     }
 
     constructor() {
         super();
         this.value = {};
-        this._overlayTargets = [];
-        this._tags = [];
         this._yamlText = '';
         this._yamlError = '';
-        this._yamlExpanded = false;
-        this._addOverlayPending = false;
-        this._newOverlayId = '';
+        this._refExpanded = false;
         this._yamlFromUser = false;
         this._yamlTimer = null;
     }
@@ -56,86 +52,113 @@ export class LCARdSRuleApplyEditor extends LitElement {
         return css`
             :host { display: block; }
 
-            .overlay-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                margin-bottom: 8px;
-            }
-
-            .overlay-item {
-                background: var(--secondary-background-color, rgba(0,0,0,0.05));
-                border: 1px solid var(--divider-color, #e0e0e0);
-                border-radius: 8px;
-                overflow: hidden;
-            }
-
-            .overlay-item-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 8px 12px;
-                background: var(--card-background-color, #fff);
-                border-bottom: 1px solid var(--divider-color, #e0e0e0);
-            }
-
-            .overlay-id {
-                font-family: monospace;
-                font-weight: 600;
-                font-size: 13px;
-            }
-
-            .overlay-item-content {
-                padding: 8px 12px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .quick-patches-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-            }
-
-            .add-overlay-row {
-                display: flex;
-                gap: 8px;
-                align-items: flex-end;
-                margin-top: 4px;
-            }
-
-            .add-overlay-row ha-selector {
-                flex: 1;
-                margin-bottom: 0;
-            }
-
-            .add-overlay-full {
-                display: block;
-                width: 100%;
-                margin-top: 4px;
-            }
-
-            ha-selector {
-                display: block;
-                margin-bottom: 8px;
-            }
-
             .yaml-error {
                 color: var(--error-color, #f44336);
                 font-size: 12px;
                 margin-top: 4px;
             }
 
-            .section-gap {
-                margin-bottom: 12px;
+            /* Reference panel — matches rules-table style */
+            .table-wrapper {
+                overflow-x: auto;
+                margin: 0 -12px;
+                padding: 0 12px;
             }
 
-            ha-button {
-                margin-top: 4px;
+            .ref-table {
+                min-width: 100%;
+                width: max-content;
+                border-collapse: collapse;
+                background: var(--card-background-color, #fff);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            .ref-table thead th {
+                background: var(--secondary-background-color, #f5f5f5);
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border-bottom: 2px solid var(--divider-color, #e0e0e0);
+                white-space: nowrap;
+            }
+
+            .ref-table tbody tr:hover {
+                background: var(--secondary-background-color, #f5f5f5);
+            }
+
+            .ref-table td {
+                padding: 12px;
+                border-bottom: 1px solid var(--divider-color, #e0e0e0);
+                white-space: nowrap;
+            }
+
+            .ref-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .ref-id {
+                font-family: monospace;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .ref-type { color: var(--secondary-text-color); }
+
+            .ref-tags {
+                color: var(--secondary-text-color);
+                font-size: 13px;
+            }
+
+            .ref-source {
+                color: var(--secondary-text-color);
+                font-size: 13px;
+            }
+
+            .copy-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                border-radius: 4px;
+                color: var(--secondary-text-color);
+                opacity: 0.5;
+                transition: opacity 0.15s;
+            }
+            .copy-btn:hover { opacity: 1; }
+
+            .ref-empty {
+                color: var(--secondary-text-color);
+                font-style: italic;
+                padding: 12px;
+            }
+
+            .selectors-info {
+                margin-top: 8px;
+                padding: 8px 10px;
+                background: var(--secondary-background-color, rgba(0,0,0,0.03));
+                border-radius: 6px;
+                font-size: 11px;
+                color: var(--secondary-text-color);
+                line-height: 1.6;
+            }
+
+            .selectors-info code {
+                font-family: monospace;
+                background: var(--card-background-color, #fff);
+                padding: 1px 3px;
+                border-radius: 3px;
             }
         `;
     }
+
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     willUpdate(changedProps) {
         if (changedProps.has('value')) {
@@ -144,26 +167,19 @@ export class LCARdSRuleApplyEditor extends LitElement {
     }
 
     _syncFromValue() {
-        const v = this.value || {};
-        // Build overlay targets list from apply.overlays
-        if (v.overlays && typeof v.overlays === 'object') {
-            this._overlayTargets = Object.keys(v.overlays);
-        } else {
-            this._overlayTargets = [];
-        }
-        this._tags = v.tags || [];
-        // Sync YAML — skip if user is currently editing the YAML panel to avoid cursor reset
-        if (!this._yamlFromUser) {
-            try {
-                this._yamlText = configToYaml(v);
-                this._yamlError = '';
-            } catch (err) {
-                this._yamlError = String(err);
-            }
+        // Skip resync while the user is actively typing YAML to avoid cursor jumps
+        if (this._yamlFromUser) return;
+        try {
+            this._yamlText = configToYaml(this.value || {});
+            this._yamlError = '';
+        } catch (err) {
+            this._yamlError = String(err);
         }
     }
 
-    _getAvailableOverlays() {
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    _getDiscoverableOverlays() {
         try {
             return window.lcards?.core?.systemsManager?.getAllTargetableOverlays() || [];
         } catch (e) {
@@ -171,17 +187,8 @@ export class LCARdSRuleApplyEditor extends LitElement {
         }
     }
 
-    _getAvailableTags() {
-        try {
-            return window.lcards?.core?.systemsManager?.getAllTags() || [];
-        } catch (e) {
-            return [];
-        }
-    }
-
     _emit(newValue) {
         this.value = newValue;
-        // Note: _syncFromValue() is called via willUpdate when .value changes — do NOT call it here too
         this.dispatchEvent(new CustomEvent('value-changed', {
             detail: { value: newValue },
             bubbles: true,
@@ -189,107 +196,11 @@ export class LCARdSRuleApplyEditor extends LitElement {
         }));
     }
 
-    _getOverlayConfig(overlayId) {
-        return (this.value?.overlays || {})[overlayId] || {};
-    }
-
-    _setOverlayPatch(overlayId, patchPath, patchValue) {
-        const current = { ...(this.value || {}) };
-        const overlays = { ...(current.overlays || {}) };
-        // Deep set path in overlay config
-        const overlay = this._deepSetPath({ ...(overlays[overlayId] || {}) }, patchPath, patchValue);
-        overlays[overlayId] = overlay;
-        this._emit({ ...current, overlays });
-    }
-
-    _deepSetPath(obj, path, value) {
-        const parts = path.split('.');
-        if (parts.length === 1) {
-            return { ...obj, [parts[0]]: value };
-        }
-        const key = parts[0];
-        const rest = parts.slice(1).join('.');
-        return {
-            ...obj,
-            [key]: this._deepSetPath(obj[key] || {}, rest, value)
-        };
-    }
-
-    _deepGetPath(obj, path) {
-        const parts = path.split('.');
-        let cur = obj;
-        for (const p of parts) {
-            if (!cur || typeof cur !== 'object') return undefined;
-            cur = cur[p];
-        }
-        return cur;
-    }
-
-    _handleAddOverlay() {
-        if (!this._newOverlayId || !this._newOverlayId.trim()) return;
-        const id = this._newOverlayId.trim();
-        // Reject group-header sentinel values that may be selected from the dropdown
-        if (id.startsWith(OVERLAY_GROUP_PREFIX)) return;
-        if (this._overlayTargets?.includes(id)) return;
-        const current = { ...(this.value || {}) };
-        const overlays = { ...(current.overlays || {}), [id]: {} };
-        this._newOverlayId = '';
-        this._addOverlayPending = false;
-        this._emit({ ...current, overlays });
-    }
-
-    /**
-     * Build grouped overlay options for the dropdown picker.
-     * Groups overlays by sourceCardId.
-     * @param {Array} overlays - Array of overlay metadata from systemsManager
-     * @returns {Array} Array of { value, label } options
-     * @private
-     */
-    _buildOverlayOptions(overlays) {
-        if (!overlays || overlays.length === 0) return [];
-
-        // Group by sourceCardId
-        const grouped = {};
-        for (const overlay of overlays) {
-            const src = overlay.sourceCardId || 'unknown';
-            if (!grouped[src]) grouped[src] = [];
-            grouped[src].push(overlay);
-        }
-
-        // Flatten to options list with group labels as disabled separators
-        const options = [];
-        for (const [srcId, items] of Object.entries(grouped)) {
-            options.push({ value: `${OVERLAY_GROUP_PREFIX}${srcId}`, label: `── ${srcId} ──`, disabled: true });
-            for (const ov of items) {
-                const tags = ov.tags?.length ? `  [${ov.tags.join(', ')}]` : '';
-                options.push({ value: ov.id, label: `${ov.id}${tags}` });
-            }
-        }
-        return options;
-    }
-
-    _handleRemoveOverlay(overlayId) {
-        const current = { ...(this.value || {}) };
-        const overlays = { ...(current.overlays || {}) };
-        delete overlays[overlayId];
-        this._emit({ ...current, overlays });
-    }
-
-    _handleTagsChange(e) {
-        const tags = e.detail.value;
-        const current = { ...(this.value || {}) };
-        if (!tags || tags.length === 0) {
-            delete current.tags;
-        } else {
-            current.tags = tags;
-        }
-        this._emit(current);
-    }
+    // ─── Handlers ────────────────────────────────────────────────────────────
 
     _handleYamlChange(e) {
         const text = e.detail.value;
         this._yamlText = text;
-        // Flag that the change came from the user — prevents _syncFromValue from resetting the editor
         this._yamlFromUser = true;
         clearTimeout(this._yamlTimer);
         this._yamlTimer = setTimeout(() => {
@@ -304,103 +215,25 @@ export class LCARdSRuleApplyEditor extends LitElement {
         }, 750);
     }
 
-    render() {
-        const availableOverlays = this._getAvailableOverlays();
-        const availableTags = this._getAvailableTags();
+    _copyToClipboard(text) {
+        navigator.clipboard?.writeText(text).catch(() => {
+            lcardsLog.warn('[LCARdSRuleApplyEditor] clipboard copy failed');
+        });
+    }
 
+    // ─── Render ──────────────────────────────────────────────────────────────
+
+    render() {
         return html`
             <div @value-changed=${(e) => e.stopPropagation()}>
-                <!-- Overlay Targets Section -->
+
+                <!-- YAML editor — always expanded, always the primary UI -->
                 <lcards-form-section
-                    class="section-gap"
-                    header="Overlay Targets"
-                    description="Target specific overlays and apply patches to them"
-                    icon="mdi:layers"
+                    header="Apply (YAML)"
+                    description="Define overlay patches, animations, profiles and base SVG changes"
+                    icon="mdi:code-braces"
                     ?expanded=${true}
                     ?outlined=${false}>
-
-                    <div class="overlay-list">
-                        ${this._overlayTargets.map(overlayId => this._renderOverlayItem(overlayId))}
-                    </div>
-
-                    ${this._addOverlayPending ? html`
-                        <div class="add-overlay-row">
-                            ${availableOverlays.length > 0 ? html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Select Overlay'}
-                                    .helper=${'Choose from live overlays or type a custom ID below'}
-                                    .selector=${{ select: {
-                                        mode: 'dropdown',
-                                        custom_value: true,
-                                        options: this._buildOverlayOptions(availableOverlays)
-                                    } }}
-                                    .value=${this._newOverlayId}
-                                    @value-changed=${(e) => this._newOverlayId = e.detail.value}>
-                                </ha-selector>
-                            ` : html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Overlay ID'}
-                                    .helper=${'No live overlays found — type an overlay ID manually'}
-                                    .selector=${{ text: {} }}
-                                    .value=${this._newOverlayId}
-                                    @value-changed=${(e) => this._newOverlayId = e.detail.value}>
-                                </ha-selector>
-                            `}
-                            <ha-button
-                                variant="brand"
-                                appearance="accent"
-                                ?disabled=${!this._newOverlayId || (this._overlayTargets?.includes(this._newOverlayId.trim()) ?? false)}
-                                @click=${this._handleAddOverlay}>
-                                Add
-                            </ha-button>
-                            <ha-button
-                                appearance="plain"
-                                @click=${() => { this._addOverlayPending = false; this._newOverlayId = ''; }}>
-                                Cancel
-                            </ha-button>
-                        </div>
-                    ` : html`
-                        <ha-button
-                            class="add-overlay-full"
-                            @click=${() => this._addOverlayPending = true}>
-                            <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                            Add Overlay Target
-                        </ha-button>
-                    `}
-                </lcards-form-section>
-
-                <!-- Tags Section -->
-                <lcards-form-section
-                    class="section-gap"
-                    header="Tag Targeting"
-                    description="Apply patches to all overlays with these tags"
-                    icon="mdi:tag-multiple"
-                    ?expanded=${false}
-                    ?outlined=${false}>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Tags'}
-                        .selector=${{ select: {
-                            multiple: true,
-                            custom_value: true,
-                            options: availableTags.map(t => typeof t === 'string' ? { value: t, label: t } : t)
-                        } }}
-                        .value=${this._tags}
-                        @value-changed=${this._handleTagsChange}>
-                    </ha-selector>
-                </lcards-form-section>
-
-                <!-- Advanced YAML Section -->
-                <lcards-form-section
-                    header="Advanced YAML"
-                    description="Directly edit the full apply object as YAML"
-                    icon="mdi:code-braces"
-                    ?expanded=${this._yamlExpanded}
-                    ?outlined=${false}
-                    @expanded-changed=${(e) => this._yamlExpanded = e.detail.expanded}>
 
                     <ha-code-editor
                         .hass=${this.hass}
@@ -408,60 +241,83 @@ export class LCARdSRuleApplyEditor extends LitElement {
                         mode="yaml"
                         @value-changed=${this._handleYamlChange}>
                     </ha-code-editor>
-                    ${this._yamlError ? html`<div class="yaml-error">${this._yamlError}</div>` : ''}
+                    ${this._yamlError
+                        ? html`<div class="yaml-error">${this._yamlError}</div>`
+                        : ''}
                 </lcards-form-section>
+
+                <!-- Discoverable overlay reference — collapsed by default -->
+                <lcards-form-section
+                    header="Overlay Reference"
+                    description="Live overlay IDs and tags discoverable from registered cards"
+                    icon="mdi:layers-search"
+                    ?expanded=${this._refExpanded}
+                    ?outlined=${false}
+                    @expanded-changed=${(e) => this._refExpanded = e.detail.expanded}>
+
+                    ${this._renderOverlayReference()}
+                </lcards-form-section>
+
             </div>
         `;
     }
 
-    _renderOverlayItem(overlayId) {
-        const overlayConfig = this._getOverlayConfig(overlayId);
-        const bgColor = this._deepGetPath(overlayConfig, 'style.card.color.background.active') || '';
-        const opacity = this._deepGetPath(overlayConfig, 'style.opacity') ?? '';
-        const labelText = this._deepGetPath(overlayConfig, 'text.label') || '';
+    _renderOverlayReference() {
+        const overlays = this._getDiscoverableOverlays();
+
+        if (overlays.length === 0) {
+            return html`
+                <div class="ref-empty">
+                    No overlay targets discovered yet. Open a card in the Lovelace editor that
+                    uses LCARdS overlays to populate this list.
+                </div>
+            `;
+        }
 
         return html`
-            <div class="overlay-item">
-                <div class="overlay-item-header">
-                    <span class="overlay-id">${overlayId}</span>
-                    <ha-icon-button
-                        .label=${'Remove overlay target'}
-                        .path=${'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z'}
-                        style="color: var(--error-color, #f44336);"
-                        @click=${() => this._handleRemoveOverlay(overlayId)}>
-                    </ha-icon-button>
-                </div>
-                <div class="overlay-item-content">
-                    <div class="quick-patches-grid">
-                        <!-- Background color -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Background Color'}
-                            .selector=${{ text: {} }}
-                            .value=${bgColor}
-                            @value-changed=${(e) => this._setOverlayPatch(overlayId, 'style.card.color.background.active', e.detail.value)}>
-                        </ha-selector>
-                        <!-- Opacity -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Opacity (0–1)'}
-                            .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-                            .value=${opacity !== '' ? Number(opacity) : 1}
-                            @value-changed=${(e) => this._setOverlayPatch(overlayId, 'style.opacity', e.detail.value)}>
-                        </ha-selector>
-                    </div>
-                    <!-- Label text -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Label Text'}
-                        .selector=${{ text: {} }}
-                        .value=${labelText}
-                        @value-changed=${(e) => this._setOverlayPatch(overlayId, 'text.label', e.detail.value)}>
-                    </ha-selector>
-                </div>
+            <div class="table-wrapper"><table class="ref-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Tags</th>
+                        <th>Source card</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${overlays.map(ov => html`
+                        <tr>
+                            <td class="ref-id">${ov.id}</td>
+                            <td class="ref-type">${ov.type || '—'}</td>
+                            <td class="ref-tags">${ov.tags?.length ? ov.tags.join(', ') : '—'}</td>
+                            <td class="ref-source">${ov.sourceCardId || '—'}</td>
+                            <td>
+                                <button
+                                    class="copy-btn"
+                                    title="Copy ID to clipboard"
+                                    @click=${() => this._copyToClipboard(ov.id)}>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="${MDI_COPY}"/>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    `)}
+                </tbody>
+            </table></div>
+
+            <div class="selectors-info">
+                <strong>Bulk selectors:</strong>
+                <code>all</code> — every overlay ·
+                <code>type:&lt;typename&gt;</code> ·
+                <code>tag:&lt;tagname&gt;</code> ·
+                <code>pattern:&lt;regex&gt;</code> ·
+                <code>exclude: [id, …]</code>
             </div>
         `;
     }
 }
 
 customElements.define('lcards-rule-apply-editor', LCARdSRuleApplyEditor);
+

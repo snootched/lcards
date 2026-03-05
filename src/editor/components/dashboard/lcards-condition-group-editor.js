@@ -28,13 +28,9 @@ const CONDITION_TYPES = [
         { value: 'weekday_in',     label: 'Weekday' },
         { value: 'sun_elevation',  label: 'Sun Elevation' }
     ]},
-    { category: 'System', items: [
-        { value: 'perf_metric',    label: 'Performance Metric' },
-        { value: 'flag',           label: 'Debug Flag' },
+    { category: 'Advanced', items: [
+        { value: 'map_range_cond', label: 'Map Range' },
         { value: 'random_chance',  label: 'Random Chance' }
-    ]},
-    { category: 'DataSource', items: [
-        { value: 'map_range_cond', label: 'Map Range Condition' }
     ]},
     { category: 'Logic', items: [
         { value: 'all', label: 'ALL (AND sub-group)' },
@@ -697,8 +693,21 @@ export class LCARdSConditionGroupEditor extends LitElement {
         }
     }
 
+    /**
+     * Build attribute options for the given entity from live HASS state.
+     * Returns an empty array when the entity is unknown (text fallback will be shown).
+     * @param {string} entityId
+     * @returns {Array<{value:string, label:string}>}
+     */
+    _getAttributeOptions(entityId) {
+        if (!entityId || !this.hass?.states?.[entityId]) return [];
+        return Object.keys(this.hass.states[entityId].attributes || {})
+            .map(a => ({ value: a, label: a }));
+    }
+
     _renderEntityFields(cond, index, showAttr) {
         const set = (field, val) => this._handleConditionFieldChange(index, field, val);
+        const attrOptions = showAttr ? this._getAttributeOptions(cond.entity) : [];
         return html`
             <ha-selector
                 .hass=${this.hass}
@@ -708,13 +717,25 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 @value-changed=${(e) => set('entity', e.detail.value)}>
             </ha-selector>
             ${showAttr ? html`
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Attribute'}
-                    .selector=${{ text: {} }}
-                    .value=${cond.attribute || ''}
-                    @value-changed=${(e) => set('attribute', e.detail.value)}>
-                </ha-selector>
+                ${attrOptions.length > 0
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Attribute'}
+                            .selector=${{ select: { mode: 'dropdown', custom_value: true, options: attrOptions } }}
+                            .value=${cond.attribute || ''}
+                            @value-changed=${(e) => set('attribute', e.detail.value)}>
+                        </ha-selector>`
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Attribute'}
+                            .helper=${'Select an entity first to see available attributes'}
+                            .selector=${{ text: {} }}
+                            .value=${cond.attribute || ''}
+                            @value-changed=${(e) => set('attribute', e.detail.value)}>
+                        </ha-selector>`
+                }
             ` : ''}
             <ha-selector
                 .hass=${this.hass}

@@ -1992,27 +1992,47 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
-     * Handle first update - setup initial state
-     * @private
+     * Returns the overlay type string used when registering with the RulesEngine.
+     * Subclasses (e.g. LCARdSElbow) override this to report their own type
+     * so a single registration call in _handleFirstUpdate picks up the right type.
+     * @returns {string}
+     * @protected
      */
-    _handleFirstUpdate(changedProperties) {
-        // Register this button with RulesEngine for dynamic styling
-        const tags = ['button'];
+    _getOverlayType() {
+        return 'button';
+    }
+
+    /**
+     * Returns the initial overlay tags used when registering with the RulesEngine.
+     * Subclasses override this to add type-specific tags.
+     * @returns {string[]}
+     * @protected
+     */
+    _getOverlayTags() {
+        const tags = [this._getOverlayType()];
         if (this.config.preset) {
             tags.push(this.config.preset);
         }
         if (this._entity) {
             tags.push('entity-based');
         }
-
-        // Merge custom tags from config for bulk rule targeting
         if (this.config.tags && Array.isArray(this.config.tags)) {
             tags.push(...this.config.tags);
         }
+        return tags;
+    }
 
-        // ALWAYS use card GUID for overlay registration (consistent ID space)
-        // User can still set config.id for custom identification if needed
-        const overlayId = this.config.id || this._cardGuid;
+    /**
+     * Handle first update - setup initial state
+     * @private
+     */
+    _handleFirstUpdate(changedProperties) {
+        // Register this card (or subclass) with RulesEngine for dynamic styling.
+        // Type and tags come from virtual methods so subclasses (elbow, etc.) are
+        // registered correctly even though super._handleFirstUpdate() runs first.
+        const overlayType = this._getOverlayType();
+        const tags       = this._getOverlayTags();
+        const overlayId  = this.config.id || this._cardGuid;
 
         lcardsLog.debug(`[LCARdSButton] Registering overlay with ID: ${overlayId}`, {
             hasConfigId: !!this.config.id,
@@ -2021,10 +2041,11 @@ export class LCARdSButton extends LCARdSCard {
             entity: this.config.entity,
             cardGuid: this._cardGuid,
             finalOverlayId: overlayId,
-            tags: tags
+            overlayType,
+            tags
         });
 
-        this._registerOverlayForRules(overlayId, 'button', tags);
+        this._registerOverlayForRules(overlayId, overlayType, tags);
 
         // Setup actions after DOM is ready
         this.updateComplete.then(() => {

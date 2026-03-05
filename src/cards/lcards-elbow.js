@@ -533,11 +533,13 @@ export class LCARdSElbow extends LCARdSButton {
      * First update lifecycle hook - register as elbow type and subscribe to theme entities
      * @protected
      */
-    _handleFirstUpdate(changedProps) {
-        // CRITICAL: Call parent implementation first to enable auto-sizing and background animations
-        super._handleFirstUpdate(changedProps);
+    /** @override */
+    _getOverlayType() {
+        return 'elbow';
+    }
 
-        // Register this elbow with RulesEngine with 'elbow' type
+    /** @override */
+    _getOverlayTags() {
         const tags = ['elbow'];
         if (this.config.preset) {
             tags.push(this.config.preset);
@@ -545,16 +547,17 @@ export class LCARdSElbow extends LCARdSButton {
         if (this._entity) {
             tags.push('entity-based');
         }
-
-        // Merge custom tags from config for bulk rule targeting
         if (this.config.tags && Array.isArray(this.config.tags)) {
             tags.push(...this.config.tags);
         }
+        return tags;
+    }
 
-        // Use card GUID for overlay registration
-        const overlayId = this.config.id || this._cardGuid;
-
-        this._registerOverlayForRules(overlayId, 'elbow', tags);
+    _handleFirstUpdate(changedProps) {
+        // CRITICAL: Call parent implementation first to enable auto-sizing and background animations.
+        // Registration now uses _getOverlayType()/_getOverlayTags() so the correct 'elbow' type
+        // is registered by the parent call — no second registration needed here.
+        super._handleFirstUpdate(changedProps);
 
         // Subscribe to theme input_number entities if configured to use them
         this._subscribeToThemeEntities();

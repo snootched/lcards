@@ -189,6 +189,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._overlayTags = [];           // Tags for rule targeting
         this._rulesCallbackIndex = null;  // Callback index from RulesEngine (SINGLE callback)
         this._lastRulePatches = null;     // Cache of last applied patches
+        this._baseConfig = null;          // Snapshot of config before first patch (for revert)
         this._overlayRegistered = false;  // Track if overlay is registered
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
@@ -238,6 +239,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // CRITICAL: setConfig MUST be synchronous for Home Assistant!
         // Store raw config immediately, then process asynchronously
+
+        // Reset patch snapshot so next rule cycle gets a fresh base
+        this._baseConfig = null;
 
         lcardsLog.trace(`[LCARdSCard] setConfig called`, {
             hasId: !!config.id,
@@ -1225,7 +1229,14 @@ export class LCARdSCard extends LCARdSNativeCard {
             // No patches for this overlay - clear cached patches if any existed
             if (this._lastRulePatches !== null) {
                 this._lastRulePatches = null;
-                lcardsLog.debug(`[LCARdSCard] Cleared rule patches for ${this._overlayId}`);
+
+                // Restore base config snapshot so rule-applied changes are fully reverted
+                if (this._baseConfig) {
+                    this.config = JSON.parse(JSON.stringify(this._baseConfig));
+                    this._baseConfig = null;
+                }
+
+                lcardsLog.debug(`[LCARdSCard] Cleared rule patches and restored base config for ${this._overlayId}`);
 
                 // Call subclass hook to handle style resolution after patch clearing
                 if (typeof this._onRulePatchesChanged === 'function') {
@@ -1253,6 +1264,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (!patchesChanged) {
             lcardsLog.trace(`[LCARdSCard] Rule patches unchanged for ${this._overlayId}`);
             return;
+        }
+
+        // Snapshot base config before the very first patch so we can revert cleanly
+        if (this._lastRulePatches === null) {
+            this._baseConfig = JSON.parse(JSON.stringify(this.config));
         }
 
         // Cache patches for style resolution
@@ -1336,9 +1352,10 @@ export class LCARdSCard extends LCARdSNativeCard {
             trackPatchesRecursive(mergedPatch, this.config);
         }
 
-        // Deep merge patches into config (for non-style properties like text, dpad, etc.)
-        // This ensures rules can patch any config property, not just style
-        this.config = deepMerge({ ...this.config }, this._lastRulePatches);
+        // Deep merge patches onto the base config snapshot (not the already-patched config).
+        // Using _baseConfig as the source ensures each patch cycle always starts from the
+        // original values — merging onto an already-patched config would accumulate stale state.
+        this.config = deepMerge(JSON.parse(JSON.stringify(this._baseConfig)), this._lastRulePatches);
 
         // Call subclass hook to handle card-specific updates after patch changes
         // Subclasses can use this to clear caches, reprocess templates, etc.
