@@ -72,22 +72,18 @@ export class FlowTextureEffect extends BaseTextureEffect {
             const y1 = baseY + waveY + streakHeight * 0.4;
             const x  = (this._offsetX % w);
 
-            // Horizontal gradient streak
+            // Horizontal gradient streak — spans 3× the canvas width so the visible
+            // portion is always the solid central region (no hard edge artifacts).
+            // vGrad was previously created here but was dead code: fillStyle was set
+            // to `grad` (not `vGrad`), so it was allocating 8 gradient objects per
+            // frame without effect.  Removed.
             const grad = ctx.createLinearGradient(x - w, 0, x + w * 2, 0);
-            grad.addColorStop(0,    'rgba(0,0,0,0)');
-            grad.addColorStop(0.3,  this._color);
-            grad.addColorStop(0.5,  this._color);
-            grad.addColorStop(0.7,  this._color);
-            grad.addColorStop(1,    'rgba(0,0,0,0)');
+            grad.addColorStop(0,   'rgba(0,0,0,0)');
+            grad.addColorStop(0.3, this._color);
+            grad.addColorStop(0.5, this._color);
+            grad.addColorStop(0.7, this._color);
+            grad.addColorStop(1,   'rgba(0,0,0,0)');
 
-            // Vertical gradient to fade top/bottom of streak
-            const vGrad = ctx.createLinearGradient(0, y0, 0, y1);
-            vGrad.addColorStop(0,   'rgba(0,0,0,0)');
-            vGrad.addColorStop(0.3, this._color);
-            vGrad.addColorStop(0.7, this._color);
-            vGrad.addColorStop(1,   'rgba(0,0,0,0)');
-
-            // Fill streak using horizontal gradient combined with vertical shape
             ctx.save();
             ctx.beginPath();
             ctx.rect(0, Math.max(0, y0), w, Math.min(h, y1 - y0));

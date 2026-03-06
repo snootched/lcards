@@ -88,26 +88,81 @@ export class FluidTextureEffect extends BaseTextureEffect {
 
     update(dt, w, h) {
         super.update(dt, w, h);
+        // dt is in milliseconds — convert to seconds for px/s speed values
+        const dt_s = dt / 1000;
         const s = this.speed;
-        this._offsetX += this._speedX * s * dt;
-        this._offsetY += this._speedY * s * dt;
+        this._offsetX += this._speedX * s * dt_s;
+        this._offsetY += this._speedY * s * dt_s;
     }
 
-    _draw(ctx, w, h) {
-        const { r, g, b, a: baseAlpha } = this._color;
-        const freq    = this._freq;
-        const octaves = this._octaves;
-        const ox      = this._offsetX;
-        const oy      = this._offsetY;
+    /**
+     * Ensure the offscreen canvas and ImageData buffer match the current canvas size.
+     * Reallocates only when dimensions change.
+     * @param {number} w
+     * @param {number} h
+     * @private
+     */
+    _ensureBuffer(w, h) {
+        if (this._bufW === w && this._bufH === h) return;
+        this._bufW = w;
+        this._bufH = h;
+        this._offCanvas        = document.createElement('canvas');
+        this._offCanvas.width  = w;
+        this._offCanvas.height = h;
+        this._offCtx   = this._offCanvas.getContext('2d');
+        this._imgData  = this._offCtx.createImageData(w, h);
+    }
 
-        for (let y = 0; y < h; y += CELL) {
-            for (let x = 0; x < w; x += CELL) {
-                const n     = _fbm(x * freq + ox * freq, y * freq + oy * freq, octaves);
-                const alpha = ((n + 1) * 0.5) * baseAlpha;
-                ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
-                ctx.fillRect(x, y, CELL, CELL);
+    /**
+     * Render the noise field to an ImageData buffer and blit to the clipped main ctx.
+     *
+     * Instead of N×M individual `fillStyle` string assignments + `fillRect` calls
+     * (which cause massive GC pressure from per-cell string allocations and force
+     * the canvas engine to parse a color string on every cell), we:
+     *   1. Write RGBA integer bytes directly into a pre-allocated Uint8ClampedArray.
+     *   2. Flush the buffer to an offscreen canvas via a single `putImageData` call.
+     *   3. Composite the offscreen canvas onto the clipped main ctx via `drawImage`.
+     *      (`putImageData` ignores the clip path; `drawImage` respects it — this is why
+     *      the two-step offscreen approach is required.)
+     */
+    _draw(ctx, w, h) {
+        const iw = w | 0;
+        const ih = h | 0;
+        if (iw < 1 || ih < 1) return;
+
+        this._ensureBuffer(iw, ih);
+
+        const data  = this._imgData.data;
+        const { r, g, b, a: baseAlpha } = this._color;
+        // Pre-apply freq to offsets so the inner loop only multiplies cx/cy by freq
+        const freq  = this._freq;
+        const oct   = this._octaves;
+        const ox    = this._offsetX * freq;
+        const oy    = this._offsetY * freq;
+        const a255  = baseAlpha * 255;
+
+        for (let cy = 0; cy < ih; cy += CELL) {
+            const yEnd   = Math.min(cy + CELL, ih);
+            const noiseY = cy * freq + oy;
+            for (let cx = 0; cx < iw; cx += CELL) {
+                const n    = _fbm(cx * freq + ox, noiseY, oct);
+                // Fast integer round; Uint8ClampedArray clamps to [0,255] automatically
+                const aInt = ((n + 1) * 0.5 * a255 + 0.5) | 0;
+                const xEnd = Math.min(cx + CELL, iw);
+                for (let py = cy; py < yEnd; py++) {
+                    let i = (py * iw + cx) << 2;
+                    for (let px = cx; px < xEnd; px++, i += 4) {
+                        data[i    ] = r;
+                        data[i + 1] = g;
+                        data[i + 2] = b;
+                        data[i + 3] = aInt;
+                    }
+                }
             }
         }
+
+        this._offCtx.putImageData(this._imgData, 0, 0);
+        ctx.drawImage(this._offCanvas, 0, 0);
     }
 
     updateConfig(cfg) {
