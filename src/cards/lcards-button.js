@@ -4050,7 +4050,10 @@ export class LCARdSButton extends LCARdSCard {
             this._canvasTextureRenderer = new CanvasTextureRenderer(hostEl, this._getTextureInstanceId());
             this._canvasTextureRenderer.init(rendererConfig, shapePath, border);
         } else {
-            this._canvasTextureRenderer.update(rendererConfig);
+            // Pass the current shapePath and border so the renderer keeps its stored
+            // clip geometry in sync across renders (e.g. after layout-driven resizes
+            // that produce a new absolute-pixel SVG path from _generateTextureMarkup).
+            this._canvasTextureRenderer.update(rendererConfig, shapePath, border);
         }
     }
 

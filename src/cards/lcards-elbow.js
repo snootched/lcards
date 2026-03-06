@@ -857,15 +857,22 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
-     * Returns the elbow container element as the host for the canvas texture overlay.
-     * Overrides LCARdSButton._getTextureHostEl() to target `.elbow-container`
-     * instead of `.button-container`.
+     * Returns the container element as the host for the canvas texture overlay.
      *
+     * The elbow card renders its SVG inside the button's `.button-container` wrapper
+     * (inherited from `_renderButtonContent()`), which already has
+     * `position: relative; width: 100%; height: 100%` — exactly what the absolutely-
+     * positioned canvas overlay requires.  There is no separate `.elbow-container`
+     * element created by any Lit template, so targeting it always returns null and
+     * silently skips canvas creation.  We therefore target `.button-container`
+     * directly, matching the parent class default.
+     *
+     * @override
      * @returns {HTMLElement|null}
      * @protected
      */
     _getTextureHostEl() {
-        return this.renderRoot?.querySelector('.elbow-container') ?? null;
+        return this.renderRoot?.querySelector('.button-container') ?? null;
     }
 
     /**

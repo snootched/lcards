@@ -96,8 +96,13 @@ export class CanvasTextureRenderer {
         };
         this._effect = new presetDef.effectClass(effectConfig);
 
-        // Set up Canvas2DRenderer
-        this._renderer = new Canvas2DRenderer(canvas);
+        // Set up Canvas2DRenderer.
+        // monitorPerformance: false — canvas 2D texture effects are lightweight and
+        // must not be paused by the WebGL/3D performance threshold.  The shared
+        // PerformanceMonitor was designed for expensive 3D backgrounds, not these
+        // simple per-card overlays.  Multiple texture renderers running concurrently
+        // would also race on the non-refcounted stop() if monitoring were enabled.
+        this._renderer = new Canvas2DRenderer(canvas, { monitorPerformance: false });
         this._renderer.addEffect(this._effect);
         this._renderer.start();
 
@@ -119,17 +124,54 @@ export class CanvasTextureRenderer {
      * Hot-update effect properties without teardown/restart.
      * Receives the *already-resolved* config object.
      *
-     * @param {Object} resolvedConfig - Fully resolved shape_texture config
+     * Optionally accepts an updated {shapePath} and/or {border} so that the stored
+     * clip geometry stays in sync across renders (e.g. when the card resizes and
+     * _generateTextureMarkup() produces a new absolute-pixel SVG path).  When
+     * either changes the clip Path2D is rebuilt immediately at the current canvas
+     * pixel size and pushed to the effect so the very next frame is correct.
+     *
+     * _clipPath is NOT included in the standard mergedConfig push — it is managed
+     * exclusively by _resizeCanvas() (via ResizeObserver) and by the shape-change
+     * path here.  This prevents a stale clip from being pushed back to the effect
+     * when the card re-renders before the renderer's own ResizeObserver fires.
+     *
+     * @param {Object}      resolvedConfig - Fully resolved shape_texture config
+     * @param {string|null} [shapePath]    - Updated SVG path d= string, or null
+     * @param {Object|null} [border]       - Updated border config, or null
      */
-    update(resolvedConfig) {
+    update(resolvedConfig, shapePath = null, border = null) {
         if (!this._effect) return;
 
         this._resolvedCfg = resolvedConfig;
 
+        // Detect shape/border changes and rebuild the clip Path2D immediately
+        // so the next frame clips to the correct (possibly resized) geometry.
+        let clipChanged = false;
+        if (shapePath !== null && shapePath !== this._shapePath) {
+            this._shapePath = shapePath;
+            clipChanged = true;
+        }
+        if (border !== null && border !== this._border) {
+            this._border = border;
+            clipChanged = true;
+        }
+        if (clipChanged && this._canvas) {
+            this._clipPath = _buildClipPath(
+                this._shapePath,
+                this._border,
+                this._canvas.width,
+                this._canvas.height
+            );
+        }
+
+        // Build effect config — include _clipPath only when it was just rebuilt
+        // (shape changed).  For normal hot-updates the effect's clip is managed
+        // solely by _resizeCanvas(); pushing the current value here would risk
+        // restoring a stale path between observer firings.
         const mergedConfig = {
             ...(resolvedConfig?.config || {}),
-            opacity:   resolvedConfig?.opacity ?? 1,
-            _clipPath: this._clipPath,
+            opacity: resolvedConfig?.opacity ?? 1,
+            ...(clipChanged ? { _clipPath: this._clipPath } : {}),
         };
 
         if (this._canvas) {

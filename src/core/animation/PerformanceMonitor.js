@@ -14,6 +14,7 @@ export class AnimationPerformanceMonitor {
     this._settleMs = 3000;       // Ignore readings for first 3s (startup jank)
     this._consecutiveLow = 0;   // Consecutive checks below disable3D threshold
     this._lowRequiredCount = 3; // Require 3 consecutive low-FPS checks before triggering disable
+    this._refCount = 0;          // Number of active subscribers (Canvas2DRenderer instances)
     this.thresholds = {
       disable3D: 20,      // Disable WebGL if FPS < 20
       reduceEffects: 40   // Reduce particle count if FPS < 40
@@ -21,10 +22,14 @@ export class AnimationPerformanceMonitor {
   }
 
   /**
-   * Start monitoring performance
+   * Register a subscriber and start the measurement loop if not already running.
+   * Safe to call multiple times from different Canvas2DRenderer instances — the
+   * internal loop starts only once and stops only when all subscribers have
+   * called stop().
    */
   start() {
-    if (this.isMonitoring) return;
+    this._refCount++;
+    if (this.isMonitoring) return; // loop already running
     this.isMonitoring = true;
     this._startTime = performance.now();
     this._consecutiveLow = 0;
@@ -32,9 +37,13 @@ export class AnimationPerformanceMonitor {
   }
 
   /**
-   * Stop monitoring performance
+   * Unregister a subscriber.  The measurement loop is stopped only when the
+   * last subscriber calls stop(), preventing one renderer from silently killing
+   * monitoring for all other active renderers.
    */
   stop() {
+    this._refCount = Math.max(0, this._refCount - 1);
+    if (this._refCount > 0) return; // other subscribers still active
     this.isMonitoring = false;
   }
 

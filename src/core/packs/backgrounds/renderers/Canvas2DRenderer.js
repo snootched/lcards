@@ -10,9 +10,14 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
  */
 export class Canvas2DRenderer {
   /**
-   * @param {HTMLCanvasElement} canvas - Canvas element to render to
+   * @param {HTMLCanvasElement} canvas  - Canvas element to render to
+   * @param {Object}            options
+   * @param {boolean}           [options.monitorPerformance=true]
+   *   Set to false to opt out of the shared PerformanceMonitor.  Use this for
+   *   lightweight Canvas2D effects (e.g. shape textures) that should never be
+   *   paused by the WebGL/3D performance threshold.
    */
-  constructor(canvas) {
+  constructor(canvas, options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.effects = []; // Array of BaseEffect instances
@@ -22,6 +27,7 @@ export class Canvas2DRenderer {
     this._shouldReduceEffects = false;
     this._frameSkipCounter = 0;
     this._perfCheckHandler = null;
+    this._monitorPerformance = options.monitorPerformance !== false; // default true
 
     lcardsLog.info('[Canvas2DRenderer] Initialized', {
       canvasWidth: canvas.width,
@@ -83,8 +89,8 @@ export class Canvas2DRenderer {
     this._isRunning = true;
     this._lastFrameTime = performance.now();
 
-    // Wire up PerformanceMonitor for adaptive quality
-    if (window.lcards?.core?.performanceMonitor) {
+    // Wire up PerformanceMonitor for adaptive quality (opt-out via constructor option)
+    if (this._monitorPerformance && window.lcards?.core?.performanceMonitor) {
       window.lcards.core.performanceMonitor.start();
       this._perfCheckHandler = (e) => this._onPerfCheck(e.detail);
       window.addEventListener('lcards:performance-check', this._perfCheckHandler);
@@ -116,7 +122,7 @@ export class Canvas2DRenderer {
       window.removeEventListener('lcards:performance-check', this._perfCheckHandler);
       this._perfCheckHandler = null;
     }
-    if (window.lcards?.core?.performanceMonitor) {
+    if (this._monitorPerformance && window.lcards?.core?.performanceMonitor) {
       window.lcards.core.performanceMonitor.stop();
     }
 
