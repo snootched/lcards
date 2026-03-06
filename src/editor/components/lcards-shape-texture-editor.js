@@ -169,8 +169,8 @@ export class LCARdSShapeTextureEditor extends LitElement {
                 <!-- ══ APPEARANCE ════════════════════════════════ -->
                 <lcards-form-section header="Appearance" ?expanded=${true}>
 
-                    <!-- Color (not shown for presets with two colors like plasma) -->
-                    ${presetDef && !['plasma'].includes(preset) ? html`
+                    <!-- Color (not shown for presets that manage their own colors) -->
+                    ${presetDef && !['plasma', 'level'].includes(preset) ? html`
                         <div class="row">
                             <lcards-color-picker
                                 .hass=${this.hass}
@@ -194,6 +194,31 @@ export class LCARdSShapeTextureEditor extends LitElement {
                                 .value=${presetConfig.color_b ?? defaults.color_b ?? 'rgba(255,40,120,0.9)'}
                                 @value-changed=${(e) => this._updatePresetConfig('color_b', e.detail.value)}
                             ></lcards-color-picker>
+                        </div>
+                    ` : ''}
+
+                    <!-- Level fill + gradient colors -->
+                    ${preset === 'level' ? html`
+                        <div class="row">
+                            <lcards-color-picker .hass=${this.hass} .label=${'Fill Colour'}
+                                .value=${presetConfig.color_a ?? presetConfig.color ?? defaults.color_a ?? 'rgba(0,200,100,0.7)'}
+                                @value-changed=${(e) => this._updatePresetConfig('color_a', e.detail.value)}
+                            ></lcards-color-picker>
+                        </div>
+                        <div class="row">
+                            <lcards-color-picker .hass=${this.hass} .label=${'Edge Tint (optional gradient)'}
+                                .value=${presetConfig.color_b ?? defaults.color_b ?? ''}
+                                @value-changed=${(e) => this._updatePresetConfig('color_b', e.detail.value || null)}
+                            ></lcards-color-picker>
+                        </div>
+                        <div class="row">
+                            <ha-selector .hass=${this.hass}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
+                                .value=${presetConfig.gradient_crossover ?? defaults.gradient_crossover ?? 80}
+                                .label=${'Gradient Crossover (%)'}
+                                .helper=${'How far from the wave the colour blend starts · only active when Edge Tint is set'}
+                                @value-changed=${(e) => this._updatePresetConfig('gradient_crossover', e.detail.value)}
+                            ></ha-selector>
                         </div>
                     ` : ''}
 
@@ -367,6 +392,23 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Scroll Speed Y (px/s)'}
                         .helper=${'Negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_y', e.detail.value)}
+                    ></ha-selector></div>`;
+
+            case 'level':
+                return html`
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: -120, max: 120, step: 1, mode: 'slider' } }}
+                        .value=${cfg.wave_speed ?? defaults.wave_speed ?? 20}
+                        .label=${'Wave 1 Speed (deg/s)'}
+                        .helper=${'Phase rate · negative = reverse direction'}
+                        @value-changed=${(e) => this._updatePresetConfig('wave_speed', e.detail.value)}
+                    ></ha-selector></div>
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: -120, max: 120, step: 1, mode: 'slider' } }}
+                        .value=${cfg.wave2_speed ?? defaults.wave2_speed ?? -15}
+                        .label=${'Wave 2 Speed (deg/s)'}
+                        .helper=${'Opposite sign to Wave 1 creates interference patterns · ignored when Wave 2 Height = 0'}
+                        @value-changed=${(e) => this._updatePresetConfig('wave2_speed', e.detail.value)}
                     ></ha-selector></div>`;
 
             case 'flow':
@@ -573,7 +615,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
                         .value=${cfg.fill_pct ?? defaults.fill_pct ?? 50}
                         .label=${'Fill Level (%)'}
-                        .helper=${'0 = empty · 100 = full. Use a state-based object to drive from entity state.'}
+                        .helper=${'0 = empty · 100 = full · supports state-based values via rules engine'}
                         @value-changed=${(e) => this._updatePresetConfig('fill_pct', e.detail.value)}
                     ></ha-selector></div>
                     <div class="row"><ha-selector .hass=${this.hass}
@@ -585,27 +627,82 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Fill Direction'}
                         @value-changed=${(e) => this._updatePresetConfig('direction', e.detail.value)}
                     ></ha-selector></div>
-                    <div class="row"><ha-selector .hass=${this.hass}
-                        .selector=${{ number: { min: 0, max: 20, step: 0.5, mode: 'slider' } }}
-                        .value=${cfg.wave_height ?? defaults.wave_height ?? 4}
-                        .label=${'Wave Height (px)'}
-                        .helper=${'0 = flat edge · higher = taller wave crest'}
-                        @value-changed=${(e) => this._updatePresetConfig('wave_height', e.detail.value)}
-                    ></ha-selector></div>
-                    <div class="row"><ha-selector .hass=${this.hass}
-                        .selector=${{ number: { min: 1, max: 12, step: 1, mode: 'slider' } }}
-                        .value=${cfg.wave_count ?? defaults.wave_count ?? 4}
-                        .label=${'Wave Count'}
-                        .helper=${'Number of wave cycles across the button width'}
-                        @value-changed=${(e) => this._updatePresetConfig('wave_count', e.detail.value)}
-                    ></ha-selector></div>
-                    <div class="row"><ha-selector .hass=${this.hass}
-                        .selector=${{ number: { min: -80, max: 80, step: 1, mode: 'slider' } }}
-                        .value=${cfg.wave_speed ?? defaults.wave_speed ?? 20}
-                        .label=${'Wave Speed (px/s)'}
-                        .helper=${'Speed of wave animation · negative = reverse'}
-                        @value-changed=${(e) => this._updatePresetConfig('wave_speed', e.detail.value)}
-                    ></ha-selector></div>`;
+
+                    <lcards-form-section header="Primary Wave" ?expanded=${true} .nested=${true}>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 20, step: 0.5, mode: 'slider' } }}
+                            .value=${cfg.wave_height ?? defaults.wave_height ?? 4}
+                            .label=${'Height (px)'}
+                            .helper=${'0 = flat fill edge'}
+                            @value-changed=${(e) => this._updatePresetConfig('wave_height', e.detail.value)}
+                        ></ha-selector></div>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 1, max: 16, step: 1, mode: 'slider' } }}
+                            .value=${cfg.wave_count ?? defaults.wave_count ?? 4}
+                            .label=${'Count'}
+                            .helper=${'Sine cycles across the button width'}
+                            @value-changed=${(e) => this._updatePresetConfig('wave_count', e.detail.value)}
+                        ></ha-selector></div>
+                    </lcards-form-section>
+
+                    <lcards-form-section header="Secondary Wave" ?expanded=${false} .nested=${true}>
+                        <div class="row" style="font-size:12px;color:var(--secondary-text-color);padding-bottom:8px;line-height:1.5">
+                            Adds a second harmonic to the <em>same</em> fill surface — not a separate layer or colour.
+                            Set Height to 0 to disable.
+                        </div>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 12, step: 0.5, mode: 'slider' } }}
+                            .value=${cfg.wave2_height ?? defaults.wave2_height ?? 0}
+                            .label=${'Height (px)'}
+                            .helper=${'0 = disabled'}
+                            @value-changed=${(e) => this._updatePresetConfig('wave2_height', e.detail.value)}
+                        ></ha-selector></div>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 1, max: 20, step: 1, mode: 'slider' } }}
+                            .value=${cfg.wave2_count ?? defaults.wave2_count ?? 5}
+                            .label=${'Count'}
+                            @value-changed=${(e) => this._updatePresetConfig('wave2_count', e.detail.value)}
+                        ></ha-selector></div>
+                    </lcards-form-section>
+
+                    <lcards-form-section header="Sloshing" ?expanded=${false} .nested=${true}>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
+                            .value=${cfg.slosh_amount ?? defaults.slosh_amount ?? 0}
+                            .label=${'Amount'}
+                            .helper=${'0 = disabled · fluid tilts side-to-side as if in a vessel'}
+                            @value-changed=${(e) => this._updatePresetConfig('slosh_amount', e.detail.value)}
+                        ></ha-selector></div>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 0.5, max: 10, step: 0.5, mode: 'slider' } }}
+                            .value=${cfg.slosh_period ?? defaults.slosh_period ?? 3}
+                            .label=${'Period (s)'}
+                            .helper=${'Seconds per complete slosh cycle'}
+                            @value-changed=${(e) => this._updatePresetConfig('slosh_period', e.detail.value)}
+                        ></ha-selector></div>
+                    </lcards-form-section>
+
+                    <lcards-form-section header="Edge Glow" ?expanded=${false} .nested=${true}>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ boolean: {} }}
+                            .value=${cfg.edge_glow ?? defaults.edge_glow ?? true}
+                            .label=${'Enable'}
+                            @value-changed=${(e) => this._updatePresetConfig('edge_glow', e.detail.value)}
+                        ></ha-selector></div>
+                        <div class="row">
+                            <lcards-color-picker .hass=${this.hass} .label=${'Glow Colour'}
+                                .value=${cfg.edge_glow_color ?? defaults.edge_glow_color ?? 'rgba(255,255,255,0.7)'}
+                                @value-changed=${(e) => this._updatePresetConfig('edge_glow_color', e.detail.value)}
+                            ></lcards-color-picker>
+                        </div>
+                        <div class="row"><ha-selector .hass=${this.hass}
+                            .selector=${{ number: { min: 1, max: 24, step: 0.5, mode: 'slider' } }}
+                            .value=${cfg.edge_glow_width ?? defaults.edge_glow_width ?? 6}
+                            .label=${'Glow Width (px)'}
+                            .helper=${'Bloom spread radius · colour alpha controls intensity'}
+                            @value-changed=${(e) => this._updatePresetConfig('edge_glow_width', e.detail.value)}
+                        ></ha-selector></div>
+                    </lcards-form-section>`;
 
             case 'scanlines':
                 return html`

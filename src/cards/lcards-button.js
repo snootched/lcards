@@ -3846,7 +3846,10 @@ export class LCARdSButton extends LCARdSCard {
 
         // Resolve any remaining CSS variables (var(--name)) in color fields so presets
         // always receive a concrete color string — consistent with ColorUtils usage elsewhere.
-        const colorKeys = ['color', 'color_a', 'color_b'];
+        // edge_glow_color must be included here: Canvas2D cannot resolve CSS variables
+        // (unlike CSS), so strokeStyle/shadowColor assignments silently fail when given a
+        // var(--token) string, leaving the default white glow regardless of the user's pick.
+        const colorKeys = ['color', 'color_a', 'color_b', 'edge_glow_color'];
         for (const key of colorKeys) {
             if (resolvedConfig[key] && typeof resolvedConfig[key] === 'string') {
                 resolvedConfig = { ...resolvedConfig, [key]: ColorUtils.resolveCssVariable(resolvedConfig[key], resolvedConfig[key]) };
