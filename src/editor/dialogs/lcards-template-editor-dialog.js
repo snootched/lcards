@@ -1,5 +1,5 @@
 /**
- * LCARdS Template Editor Dialog
+ * @fileoverview LCARdS Template Editor Dialog
  *
  * Modal dialog for editing template mode rows in the data-grid card.
  * Allows users to configure multi-row grids with per-cell templates and hierarchical styling.

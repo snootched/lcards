@@ -1,5 +1,5 @@
 /**
- * LCARdS DataSource Picker Dialog
+ * @fileoverview LCARdS DataSource Picker Dialog
  *
  * Modal dialog for selecting existing DataSources or creating new ones from entities.
  * Supports two modes: Browse (list existing) and Create (entity picker).
@@ -47,7 +47,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
     this._dataSourceName = '';
     this._searchFilter = '';
     this._isCreating = false;
-    
+
     lcardsLog.debug('[LCARdSDataSourcePickerDialog] Constructor called');
   }
 
@@ -361,8 +361,8 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
         <div class="empty-state">
           <div class="empty-state-icon">📊</div>
           <div class="empty-state-text">
-            ${this._dataSources.length === 0 
-              ? 'No DataSources available' 
+            ${this._dataSources.length === 0
+              ? 'No DataSources available'
               : 'No DataSources match your search'}
           </div>
           <div class="empty-state-hint">
@@ -541,11 +541,11 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
    */
   _generateDataSourceName(entityId) {
     if (!entityId) return '';
-    
+
     // Extract object_id from entity_id (e.g., sensor.temperature -> temperature)
     const parts = entityId.split('.');
     const baseName = parts[1] || parts[0] || 'datasource';
-    
+
     // Add timestamp suffix for uniqueness
     const timestamp = Date.now();
     return `${baseName}_ds_${timestamp}`;
@@ -565,7 +565,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
    */
   _formatDateTime(dateStr) {
     if (!dateStr) return 'N/A';
-    
+
     try {
       const date = new Date(dateStr);
       return date.toLocaleString();
@@ -664,7 +664,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
         lcardsLog.error('[LCARdSDataSourcePickerDialog] Failed to create DataSource');
         return;
       }
-      
+
       lcardsLog.info('[LCARdSDataSourcePickerDialog] Created new DataSource:', sourceId);
     }
 

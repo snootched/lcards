@@ -1,5 +1,5 @@
 /**
- * LCARdS Template Evaluation Tab
+ * @fileoverview LCARdS Template Evaluation Tab
  *
  * Displays all templates and tokens found in card config with live evaluation results.
  * Helps users discover, debug, and utilize templates across all supported syntaxes:

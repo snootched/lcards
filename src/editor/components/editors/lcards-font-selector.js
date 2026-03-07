@@ -1,5 +1,5 @@
 /**
- * LCARdS Font Selector Component
+ * @fileoverview LCARdS Font Selector Component
  *
  * Specialized selector for font-family properties with:
  * - Categorized dropdown (Core, Standard, Alien)

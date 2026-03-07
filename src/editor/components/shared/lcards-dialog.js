@@ -1,5 +1,5 @@
 /**
- * LCARdS Dialog Wrapper
+ * @fileoverview LCARdS Dialog Wrapper
  *
  * A wrapper around ha-dialog that automatically handles the 'closed' event
  * from child components like ha-select to prevent premature dialog closure.

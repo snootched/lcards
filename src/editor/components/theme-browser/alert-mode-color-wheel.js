@@ -1,5 +1,5 @@
 /**
- * Alert Mode Color Wheel Visualization
+ * @fileoverview Alert Mode Color Wheel Visualization
  *
  * Interactive SVG visualization showing HSL color transformations for alert modes.
  * Displays original colors, transformed colors, hue shift targets, and anchor ranges.

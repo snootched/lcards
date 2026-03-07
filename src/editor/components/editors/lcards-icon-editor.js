@@ -1,5 +1,5 @@
 /**
- * LCARdS Icon Editor (Simplified)
+ * @fileoverview LCARdS Icon Editor
  *
  * Manages icon configuration with separate icon (string) and icon_style (object) properties.
  * - show_icon: top-level boolean

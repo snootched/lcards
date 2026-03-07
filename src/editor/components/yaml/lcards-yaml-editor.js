@@ -1,5 +1,5 @@
 /**
- * LCARdS YAML Editor with Schema Support
+ * @fileoverview LCARdS YAML Editor with Schema Support
  *
  * CodeMirror 6-based YAML editor featuring:
  * - Schema-based autocomplete (property names, enum values)

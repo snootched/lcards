@@ -1,5 +1,5 @@
 /**
- * LCARdS Padding Editor
+ * @fileoverview LCARdS Padding Editor
  *
  * Compact visual padding editor with 4 inputs arranged in T/R/B/L pattern.
  * Shows inputs in a cross layout around a center square representing the content.

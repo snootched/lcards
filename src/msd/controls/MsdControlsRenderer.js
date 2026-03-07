@@ -60,7 +60,7 @@ export class MsdControlsRenderer {
     this._isRendering = false;
     this._lastSignature = null;
 
-    // ⚠️ FEATURE FLAG: Manual HASS Forwarding (v1.17.0+)
+    // ⚠️ FEATURE FLAG: Manual HASS Forwarding
     // Default: true (required for foreignObject-embedded cards)
     // Cards in SVG foreignObjects are isolated from HA's component tree
     // and need explicit HASS forwarding to receive state updates
@@ -386,7 +386,6 @@ export class MsdControlsRenderer {
 
 
   async renderControls(controlOverlays, resolvedModel) {
-    // ADDED: More comprehensive safety checks
     if (this._isRendering) {
       lcardsLog.debug('[MsdControlsRenderer] renderControls skipped (in progress)');
       return;
@@ -397,19 +396,17 @@ export class MsdControlsRenderer {
       return;
     }
 
-    // ADDED: Validate resolved model
     if (!resolvedModel) {
       lcardsLog.error('[MsdControlsRenderer] No resolved model provided');
       return;
     }
 
-    // ADDED: Validate DOM environment
     if (typeof document === 'undefined') {
       lcardsLog.error('[MsdControlsRenderer] Document not available');
       return;
     }
 
-    // ✅ NEW: Check if already rendered with same config to avoid duplicate creation
+    // Check if already rendered with same config to avoid duplicate creation
     // Generate signature from sorted overlay IDs to detect duplicate configurations
     const signature = controlOverlays.map(o => o.id).sort().join('|');
 
@@ -467,7 +464,6 @@ export class MsdControlsRenderer {
       this.controlElements.clear();
       this._controlEntityMap.clear(); // Also clear entity tracking
 
-      // ADDED: Render controls with individual error handling
       for (const overlay of controlOverlays) {
         try {
           await this.renderControlOverlay(overlay, resolvedModel);
@@ -550,7 +546,6 @@ export class MsdControlsRenderer {
       overlayKeys: Object.keys(overlay)
     });
 
-    // ADDED: Wrap in try-catch to prevent one failing card from blocking others
     try {
       const controlElement = await this.createControlElement(overlay);
       if (!controlElement) {
@@ -640,7 +635,7 @@ export class MsdControlsRenderer {
     return null;
   }
 
-  // ADDED: Build the final config object passed to setConfig
+  // Build the final config object passed to setConfig
   /* TO BE REMOVED - no longer needed
   buildCardConfig(cardObj) {
     if (!cardObj) return null;
@@ -767,7 +762,7 @@ export class MsdControlsRenderer {
       }
     }
 
-    // ENHANCED: Additional update strategies for different card types
+    // Additional update strategies for different card types
     if (cardElement.tagName) {
       const tagName = cardElement.tagName.toLowerCase();
       const isCustomButtonCard = tagName.includes('cb-lcars') ||
@@ -936,7 +931,7 @@ export class MsdControlsRenderer {
           cardElement.setConfig(config);
           cardElement._config = config;
 
-          // ADDED: Verify the config was applied correctly (triggers_update is custom-button-card specific)
+          // Verify the config was applied correctly (triggers_update is custom-button-card specific)
           if (cardElement._config && cardElement._config.triggers_update) {
             lcardsLog.debug(`[MsdControls] ✅ Config applied with triggers_update:${cardElement._config.triggers_update} for:`, overlayId);
           } else {

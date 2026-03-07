@@ -1,3 +1,12 @@
+/**
+ * @fileoverview MsdCardCoordinator — orchestrates the MSD sub-systems for a single card instance.
+ *
+ * Wires together ThemeManager, DataSourceManager, RouterCore, AdvancedRenderer,
+ * MsdControlsRenderer, AnimationManager, and DebugManager.  Acts as the single
+ * source of truth for the HASS object within the MSD pipeline and propagates
+ * updates to each sub-system in the correct order.
+ */
+
 import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { DataSourceManager } from '../../core/data-sources/DataSourceManager.js';
@@ -30,16 +39,16 @@ export class MsdCardCoordinator extends BaseService {
     this.debugManager = new DebugManager();
     this._renderTimeout = null;
     this._reRenderCallback = null;
-    this._queuedReRender = false; // ADDED: Flag for queued renders
+    this._queuedReRender = false; // Flag for queued renders
     this._debugControlsRendering = false;
     this.mergedConfig = null; // Store for entity change handler
 
-    // PHASE 1: Single source of truth for HASS (old properties removed in Step 3C)
+    // Single source of truth for HASS
     this._hass = null;
 
     this.styleResolver = null;
 
-    // ADDED: Render progress tracking with automatic queue execution
+    // Render progress tracking with automatic queue execution
     this._internalRenderInProgress = false;
     Object.defineProperty(this, '_renderInProgress', {
       get() {
@@ -68,7 +77,7 @@ export class MsdCardCoordinator extends BaseService {
       }
     });
 
-    // DEPRECATED: Overlay renderer registry removed (v1.16.22+)
+    // DEPRECATED: Overlay renderer registry has been removed
     // Old pattern: Custom overlay renderer classes (ButtonOverlay, ApexChartsOverlayRenderer, etc.)
     // New pattern: Unified card overlays (LCARdS cards, HA cards) handle their own lifecycle
     // No registry needed - all overlays use MsdControlsRenderer for embedding
@@ -85,7 +94,7 @@ export class MsdCardCoordinator extends BaseService {
 
     // Store config and HASS context immediately
     this.mergedConfig = mergedConfig;
-    this._hass = hass; // PHASE 1: Use single source
+    this._hass = hass;
 
     // Use shared core ThemeManager singleton (real MSD class)
     lcardsLog.trace('[MsdCardCoordinator] 🔗 Using shared core ThemeManager singleton');
@@ -94,7 +103,7 @@ export class MsdCardCoordinator extends BaseService {
     }
     this.themeManager = lcardsCore.themeManager;
 
-    // PHASE 1: Theme system already initialized by core - just verify
+    // Theme system already initialized by core - just verify
     lcardsLog.trace('[MsdCardCoordinator] 🎨 Initializing theme system');
 
     const activeTheme = this.themeManager.getActiveTheme();
@@ -113,7 +122,7 @@ export class MsdCardCoordinator extends BaseService {
       window.lcards.debug.msd.themeProvenance = mergedConfig.__provenance?.theme;
     }
 
-    // PHASE 2: Initialize other critical systems that overlays might need
+    // Initialize other critical systems that overlays might need
     lcardsLog.trace('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
 
     // Initialize debug manager early with config
@@ -169,7 +178,7 @@ export class MsdCardCoordinator extends BaseService {
     this.renderer = new AdvancedRenderer(mountEl, this.router, this); // Pass 'this' as systemsManager
     this.controlsRenderer = new MsdControlsRenderer(this.renderer);
 
-    // ADDED: Set HASS context on controls renderer immediately if available
+    // Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {
       lcardsLog.trace('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
@@ -204,7 +213,7 @@ export class MsdCardCoordinator extends BaseService {
   // ============================================================================
   // REMOVED METHOD: _createEntityChangeHandler() - 293 lines removed
   // ============================================================================
-  // This complex handler was removed in Phase 1 Step 3B of the architecture refactor.
+  // This complex handler was removed and replaced by the simpler pattern below.
   //
   // What it did:
   // - Created a closure that handled entity changes with setTimeout delays (10ms, 25ms)
@@ -213,7 +222,7 @@ export class MsdCardCoordinator extends BaseService {
   // - Used setTimeout hacks to sequence operations
   //
   // Replaced by:
-  // - ingestHassV2() for full HASS updates
+  // - ingestHass() for full HASS updates
   // - DataSource subscriptions for real-time entity updates (primary path)
   // - RulesEngine.ingestHass() for rule evaluation
   //
@@ -228,17 +237,15 @@ export class MsdCardCoordinator extends BaseService {
   // ============================================================================
   // REMOVED METHODS: setOriginalHass(), getCurrentHass(), getOriginalHass()
   // ============================================================================
-  // These methods were removed in Phase 1 Step 3B of the architecture refactor.
+  // These methods held multiple HASS copies which caused state sync issues.
   //
   // setOriginalHass(hass) - Set original HASS copy
   // getCurrentHass() - Get working HASS copy
   // getOriginalHass() - Get pristine HASS copy
   //
   // Replaced by:
-  // - ingestHassV2(hass) - Single entry point for HASS updates
-  // - getHassV2() - Single source getter
-  //
-  // Reason for removal: Multiple HASS copies caused state synchronization issues
+  // - ingestHass(hass) - Single entry point for HASS updates
+  // - getHass() - Single source getter
   // ============================================================================
   // REMOVED: _instrumentRulesEngine - RulesEngine now managed by core singleton
   // Performance tracking should be added to core rulesManager if needed globally
@@ -246,13 +253,12 @@ export class MsdCardCoordinator extends BaseService {
   async _initializeDataSources(hass, mergedConfig) {
     this.dataSourceManager = null;
 
-    // ENHANCED: Better logging and error handling
     if (!hass) {
       lcardsLog.warn('[MsdCardCoordinator] No HASS provided - DataSourceManager will not be initialized');
       return;
     }
 
-    // PHASE 1: Pre-register entity change listener BEFORE creating data sources
+    // Pre-register entity change listener BEFORE creating data sources
     // This ensures the listener is ready when data source subscriptions are set up
     this._entityChangeListenerRegistered = false;
 
@@ -282,14 +288,14 @@ export class MsdCardCoordinator extends BaseService {
     lcardsLog.trace('[MsdCardCoordinator] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
 
     try {
-      // ✅ Use shared core DataSourceManager singleton (real MSD class)
+      // Use shared core DataSourceManager singleton
       lcardsLog.trace('[MsdCardCoordinator] 🔗 Using shared core DataSourceManager singleton');
       if (!lcardsCore.dataSourceManager) {
         throw new Error('lcardsCore.dataSourceManager is null - core not initialized?');
       }
       this.dataSourceManager = lcardsCore.dataSourceManager;
 
-      // PHASE 1: Register entity change listener BEFORE initializing data sources
+      // Register entity change listener BEFORE initializing data sources
       // This ensures subscriptions created during initialization can trigger the listener
       this.dataSourceManager.addEntityChangeListener((changedIds) => {
         // CRITICAL: Sync our HASS with DataSourceManager's updated HASS
@@ -309,7 +315,7 @@ export class MsdCardCoordinator extends BaseService {
       const sourceCount = await this.dataSourceManager.initializeFromConfig(allDataSources);
       lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
 
-      // ADDED: Verify entities are available
+      // Verify entities are available
       const entityIds = this.dataSourceManager.listIds();
       lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager entities available:', entityIds);
 
@@ -409,7 +415,7 @@ export class MsdCardCoordinator extends BaseService {
    * @param {Element} mountEl - The shadowRoot/mount element
    */
   async renderDebugAndControls(resolvedModel, mountEl = null) {
-    // ADDED: Early exit if already rendering
+    // Early exit if already rendering
     if (this._debugControlsRendering) {
       lcardsLog.debug('[MsdCardCoordinator] renderDebugAndControls already in progress, skipping');
       return;
@@ -428,7 +434,7 @@ export class MsdCardCoordinator extends BaseService {
         hasOverlays: !!resolvedModel?.overlays
       });
 
-      // ADDED: Validate resolved model
+      // Validate resolved model
       if (!resolvedModel || !resolvedModel.overlays) {
         lcardsLog.warn('[MsdCardCoordinator] Invalid resolved model for renderDebugAndControls');
         return;
@@ -437,7 +443,7 @@ export class MsdCardCoordinator extends BaseService {
       // Render debug visualizations with error boundary
       if (this.debugManager.isAnyEnabled()) {
         try {
-          // ✅ FIX: Resolve anchor names to coordinates for debug renderer
+          // Resolve anchor names to coordinates for debug renderer
           // Debug renderer expects position: [x, y] but overlays have position: 'anchor_name'
           const resolvedOverlays = resolvedModel.overlays.map(overlay => {
             if (overlay.position && typeof overlay.position === 'string') {
@@ -486,7 +492,7 @@ export class MsdCardCoordinator extends BaseService {
       }
 
       // FIXED: Render control overlays with comprehensive error handling
-      // NOTE: Control overlays are now rendered by AdvancedRenderer during Phase 2a
+      // NOTE: Control overlays are now rendered by AdvancedRenderer.
       // This prevents duplicate rendering. We only keep debug visualization here.
       const controlOverlays = resolvedModel.overlays.filter(o => o.type === 'control');
       if (controlOverlays.length > 0) {
@@ -573,7 +579,7 @@ export class MsdCardCoordinator extends BaseService {
       return;
     }
 
-    // PHASE 1: Update single source of truth
+    // Update single source of truth
     this._hass = hass;
 
     lcardsLog.debug('[MsdCardCoordinator] Updated _hass with fresh data');
@@ -613,7 +619,7 @@ export class MsdCardCoordinator extends BaseService {
   // ============================================================================
   // REMOVED METHOD: setupDirectHassSubscription() - ~200 lines removed
   // ============================================================================
-  // This method was removed in Phase 1 Step 3B of the architecture refactor.
+  // This method was removed and replaced by the simpler pattern below.
   //
   // What it did:
   // - Set up WebSocket subscription to state_changed events
@@ -625,8 +631,6 @@ export class MsdCardCoordinator extends BaseService {
   // - DataSource subscriptions handle real-time entity updates (primary path)
   // - ingestHass() handles full HASS refreshes (initialization, reconnection)
   // - Single source of truth in _hass property
-  //
-  // Reason for removal: Duplicate update path, manual HASS management, state sync issues
   // ============================================================================
 
   /**
@@ -638,7 +642,7 @@ export class MsdCardCoordinator extends BaseService {
   // Entity change tracking and dirty marking handled by core RulesEngine._handleRuleEntityChange()
 
   // ============================================================================
-  // INCREMENTAL UPDATE SYSTEM (Phase 1)
+  // INCREMENTAL UPDATE SYSTEM
   // ============================================================================
 
 
@@ -787,21 +791,18 @@ export class MsdCardCoordinator extends BaseService {
    */
 
   // REMOVED METHOD: _updateTextOverlaysForDataSourceChanges
-  // This method was deprecated and is no longer needed since text overlays
-  // have been replaced by LCARdS cards.
-  // Deleted in Phase 0 of architecture refactor.
+  // Deprecated: text overlays have been replaced by LCARdS cards.
 
   // REMOVED METHOD: _findDataSourceForEntity
-  // This was only used by _updateTextOverlaysForDataSourceChanges.
-  // Deleted in Phase 0 of architecture refactor.
+  // Was only used by _updateTextOverlaysForDataSourceChanges.
 
   // ============================================================================
-  // PHASE 1: HASS Management Methods (Completed - Phase 3D renamed V2 methods)
+  // HASS Management Methods
   // ============================================================================
 
   /**
-   * Ingest fresh HASS and propagate to all systems in correct order
-   * Single source of truth for HASS (renamed from ingestHassV2 in Phase 3D)
+   * Ingest fresh HASS and propagate to all systems in correct order.
+   * Single source of truth for HASS within the MSD pipeline.
    * @param {Object} hass - Home Assistant state object
    */
   ingestHass(hass) {
@@ -823,9 +824,8 @@ export class MsdCardCoordinator extends BaseService {
   }
 
   /**
-   * Propagate HASS to subsystems in correct order
+   * Propagate HASS to subsystems in correct order.
    * ORDER MATTERS: DataSourceManager → RulesEngine → Controls
-   * (renamed from _propagateHassToSystemsV2 in Phase 3D)
    * @private
    */
   _propagateHassToSystems(hass) {
@@ -857,8 +857,7 @@ export class MsdCardCoordinator extends BaseService {
   }
 
   /**
-   * Get current HASS (single source of truth)
-   * (renamed from getHassV2 in Phase 3D)
+   * Get current HASS (single source of truth).
    * @returns {Object} Current Home Assistant state
    */
   getHass() {

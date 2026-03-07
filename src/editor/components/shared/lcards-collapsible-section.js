@@ -1,5 +1,5 @@
 /**
- * LCARdS Collapsible Section Component
+ * @fileoverview LCARdS Collapsible Section Component
  *
  * A reusable collapsible section component with consistent styling across the editor.
  * Features:

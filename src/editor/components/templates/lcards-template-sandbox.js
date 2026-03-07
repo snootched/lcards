@@ -1,5 +1,5 @@
 /**
- * LCARdS Template Sandbox
+ * @fileoverview LCARdS Template Sandbox
  *
  * Interactive modal for testing templates in isolation with:
  * - Live DataSource integration with real-time subscriptions
@@ -2045,7 +2045,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       // Get theme and datasource manager
       const themeManager = window.lcards?.core?.themeManager;
 
-      // ✅ Use wrapper manager with mock fallback
+      // Use wrapper manager with mock fallback
       // The real manager always exists, but may have zero sources in editor
       const dataSourceManager = this._getDataSourceManagerWithMocks();
 

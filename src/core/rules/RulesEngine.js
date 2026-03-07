@@ -1834,8 +1834,8 @@ export function applyOverlayPatches(overlays, patches) {
 
   const patchMap = new Map(patches.map(patch => [patch.id, patch]));
 
-  // Removed: applyStatusGridCellPatch - status_grid overlay type was removed in v1.16.22
-  // Removed: apexChartUpdates - apexchart overlay type was removed in v1.16.22
+  // Removed: applyStatusGridCellPatch - status_grid overlay type is no longer supported
+  // Removed: apexChartUpdates - apexchart overlay type is no longer supported
 
   const patchedOverlays = overlays.map(overlay => {
     const patch = patchMap.get(overlay.id);

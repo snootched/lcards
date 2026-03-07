@@ -1,5 +1,5 @@
 /**
- * LCARdS Datasource Editor Components
+ * @fileoverview LCARdS Datasource Editor Components
  *
  * Exports all datasource editor components for easy importing
  */

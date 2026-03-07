@@ -1,5 +1,5 @@
 /**
- * Global Datasources Panel
+ * @fileoverview Global Datasources Panel
  *
  * Read-only display of all datasources in the DataSourceManager singleton.
  * Shows: which cards use each source, auto-created vs configured, live stats.

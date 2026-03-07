@@ -1,5 +1,5 @@
 /**
- * Studio Dialog Shared Styles
+ * @fileoverview Studio Dialog Shared Styles
  *
  * Patterns for full-screen studio dialogs with config/preview panels.
  * Extracted from MSD Studio for reuse in Chart/Data Grid studios.

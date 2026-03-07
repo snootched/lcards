@@ -1,6 +1,7 @@
 /**
- * Wrapper component for hui-card-picker
- * Provides the DOM structure that hui-card-picker expects (shadowRoot with #content div)
+ * @fileoverview Wrapper component for hui-card-picker.
+ *
+ * Provides the DOM structure that hui-card-picker expects (shadowRoot with #content div).
  */
 import { LitElement, html, css } from 'lit';
 

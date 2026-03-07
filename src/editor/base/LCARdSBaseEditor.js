@@ -1,5 +1,5 @@
 /**
- * LCARdS Base Editor
+ * @fileoverview LCARdS Base Editor
  *
  * Base class for all LCARdS card editors. Handles tab management, config state,
  * YAML coordination, and Home Assistant integration.

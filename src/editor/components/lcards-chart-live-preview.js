@@ -1,15 +1,15 @@
 /**
- * LCARdS Chart Live Preview
- * 
+ * @fileoverview LCARdS Chart Live Preview
+ *
  * Renders a live preview of the chart card with current configuration.
  * Updates automatically when config changes (debounced 300ms).
- * 
+ *
  * @element lcards-chart-live-preview
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} config - Current chart card configuration
  * @property {Boolean} showRefreshButton - Show manual refresh button (default: true)
- * 
+ *
  * @example
  * <lcards-chart-live-preview
  *   .hass=${this.hass}
@@ -277,7 +277,7 @@ export class LCARdSChartLivePreview extends LitElement {
      */
     _renderPreviewCard() {
         const previewConfig = this._getPreviewConfig();
-        
+
         if (!previewConfig) {
             return this._renderEmptyState();
         }

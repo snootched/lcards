@@ -1,5 +1,5 @@
 /**
- * Editor Widget Styles
+ * @fileoverview Editor Widget Styles
  *
  * Patterns for list-based editors (animation, filter, multi-text).
  * Collapsible items with drag-and-drop support.

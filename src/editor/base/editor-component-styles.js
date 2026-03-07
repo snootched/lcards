@@ -1,13 +1,13 @@
 /**
- * Shared Editor Component Styles
- * 
+ * @fileoverview Shared Editor Component Styles
+ *
  * Common patterns for buttons, cards, sections, and layouts.
  * Extracted from MSD Studio, Theme Browser, and Data Grid editors.
- * 
+ *
  * Usage:
  * ```javascript
  * import { editorComponentStyles } from '../base/editor-component-styles.js';
- * 
+ *
  * static get styles() {
  *     return [editorStyles, editorComponentStyles];
  * }

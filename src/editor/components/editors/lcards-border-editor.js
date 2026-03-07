@@ -1,5 +1,5 @@
 /**
- * LCARdS Border Editor
+ * @fileoverview LCARdS Border Editor
  *
  * Configure border width/color per side and radius per corner.
  * Supports unified mode (all sides/corners same) and per-side/corner mode.

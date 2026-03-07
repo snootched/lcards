@@ -1,5 +1,5 @@
 /**
- * LCARdS Button Editor
+ * @fileoverview LCARdS Button Editor
  *
  * Visual editor for LCARdS Button card using declarative configuration.
  * Simplified from 617 lines to ~150 lines using the base editor's _renderFromConfig() method.

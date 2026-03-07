@@ -1,5 +1,5 @@
 /**
- * LCARdS Color Section v2
+ * @fileoverview LCARdS Color Section v2
  *
  * Modern list-based color section editor with freeform state support.
  * Matches the UI pattern of animation/filter editors with collapsible items.
@@ -44,13 +44,13 @@ export class LCARdSColorSectionV2 extends LitElement {
             // re-renders when the entity changes (object-ref editor prop won't trigger it).
             entityId: { type: String },
 
-            // NEW: Suggested states for quick-add
+            // Suggested states for quick-add
             suggestedStates: { type: Array },
 
-            // NEW: Allow custom state names
+            // Allow custom state names
             allowCustomStates: { type: Boolean },
 
-            // NEW: Show color preview bar
+            // Show color preview bar
             showPreview: { type: Boolean },
 
             // CSS variable prefixes to scan

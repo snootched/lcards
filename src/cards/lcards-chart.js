@@ -782,7 +782,7 @@ export class LCARdSChart extends LCARdSCard {
                     this._chartData.some(s => s.data && Array.isArray(s.data) && s.data.length > 0);
 
     // Use ApexChartsAdapter.generateOptions() for full feature parity with MSD
-    // This gives us all 50+ style properties (v1.18.0+ nested structure):
+    // This gives us all 50+ style properties (nested structure):
     // - colors.series, colors.stroke, colors.fill, colors.marker.*
     // - colors.grid, grid.show, grid.opacity, grid.row_colors, grid.column_colors
     // - colors.axis.x, colors.axis.y, colors.axis.border, colors.axis.ticks

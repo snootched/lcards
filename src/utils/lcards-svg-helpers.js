@@ -1,4 +1,13 @@
-// --- SVG Helpers ---
+/**
+ * @fileoverview SVG element generation helpers.
+ *
+ * Utility functions for building SVG markup strings: lines, rectangles,
+ * clipping paths, gradient definitions, and other primitives used by the
+ * LCARdS rendering pipeline.
+ *
+ * @module utils/lcards-svg-helpers
+ */
+
 import { lcardsLog } from './lcards-logging.js';
 
 /**

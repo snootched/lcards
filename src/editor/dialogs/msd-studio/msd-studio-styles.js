@@ -1,5 +1,5 @@
 /**
- * MSD Studio Dialog Styles
+ * @fileoverview MSD Studio Dialog Styles
  *
  * CSS styles for the MSD Studio dialog interface.
  *

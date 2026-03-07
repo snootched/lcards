@@ -1,5 +1,5 @@
 /**
- * LCARdS Pack Explorer Dialog
+ * @fileoverview LCARdS Pack Explorer Dialog
  *
  * Professional modal dialog for browsing and inspecting all loaded packs.
  * Now uses the reusable lcards-pack-explorer-tab component.

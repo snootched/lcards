@@ -1,3 +1,13 @@
+/**
+ * @fileoverview File fetch and YAML parsing utilities.
+ *
+ * Helpers for fetching remote YAML files, parsing them via js-yaml, and
+ * exposing a `window.jsyaml` shim for legacy callers that expect the library
+ * on the global scope.
+ *
+ * @module utils/lcards-fileutils
+ */
+
 import { lcardsLog } from './lcards-logging.js';
 import jsyaml from 'js-yaml';
 

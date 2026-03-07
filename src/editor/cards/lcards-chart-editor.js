@@ -1,5 +1,5 @@
 /**
- * LCARdS Chart Editor
+ * @fileoverview LCARdS Chart Editor
  *
  * Visual configuration editor for chart cards with 1-tab structure.
  * Supports 16 chart types with comprehensive styling and data visualization features.

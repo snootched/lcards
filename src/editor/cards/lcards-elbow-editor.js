@@ -1,5 +1,5 @@
 /**
- * LCARdS Elbow Editor
+ * @fileoverview LCARdS Elbow Editor
  *
  * Visual editor for LCARdS Elbow card with specialized UI for elbow geometry configuration.
  * Elbow cards extend lcards-button with LCARS elbow/corner treatments featuring 4 positions

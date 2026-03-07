@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Deep merge utilities.
+ *
+ * `deepMerge` mutates the target object (preserving original behaviour).
+ * `immutableDeepMerge` returns a new object, leaving both inputs untouched.
+ *
+ * @module utils/deepMerge
+ */
+
 export function isPlain(o) {
   return o && typeof o === 'object' && !Array.isArray(o);
 }

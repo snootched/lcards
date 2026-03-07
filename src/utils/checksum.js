@@ -1,6 +1,10 @@
 /**
- * Canonical checksum generation for MSD configurations
- * Uses Web Crypto API for browser compatibility
+ * @fileoverview Canonical checksum generation for MSD configurations.
+ *
+ * Uses the Web Crypto API (SHA-256) to produce a deterministic hex digest of
+ * a configuration object, stripping internal meta-fields before hashing.
+ *
+ * @module utils/checksum
  */
 
 export async function computeCanonicalChecksum(obj) {

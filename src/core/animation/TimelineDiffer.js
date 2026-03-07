@@ -1,8 +1,25 @@
 import { computeObjectHash } from '../../utils/hashing.js';
 
 /**
- * Timeline diffing system for efficient animation updates
- * Detects structural vs parameter changes for smart updates
+ * @fileoverview Structural diff engine for animation timeline collections.
+ *
+ * Compares a currently-running set of timelines against a desired set and
+ * classifies every change as either *structural* (requires full recreation)
+ * or *parametric* (can be applied in-place without re-building the timeline).
+ *
+ * Used by the MSD rendering pipeline to minimise unnecessary animation
+ * teardown/rebuild cycles.
+ *
+ * @example
+ * const differ = new TimelineDiffer();
+ * const diff   = differ.diffTimelines(currentTimelines, desiredTimelines);
+ * const { strategy } = differ.getUpdateStrategy(diff);
+ * // strategy: 'none' | 'update_parameters' | 'recreate'
+ */
+
+/**
+ * Detects structural vs parameter changes between two timeline arrays
+ * to drive smart animation update decisions.
  */
 export class TimelineDiffer {
   constructor() {
@@ -11,7 +28,12 @@ export class TimelineDiffer {
   }
 
   /**
-   * Compute comprehensive diff between current and desired timelines
+   * Compute a comprehensive diff between the current running timelines
+   * and a desired target set.
+   *
+   * @param {Array<Object>} current  Currently active timeline descriptors.
+   * @param {Array<Object>} desired  Target timeline descriptors from config.
+   * @returns {{ added: Array, removed: Array, modified: Array, unchanged: Array, structuralChange: boolean, parameterChanges: Array }}
    */
   diffTimelines(current, desired) {
     const changes = {
@@ -68,7 +90,11 @@ export class TimelineDiffer {
   }
 
   /**
-   * Analyze specific changes between two timeline versions
+   * Analyse what changed between two versions of the same timeline.
+   *
+   * @param {Object} existing Currently running timeline descriptor.
+   * @param {Object} desired  Desired timeline descriptor.
+   * @returns {{ changed: boolean, structural: boolean, parameterChanges: Array }}
    */
   analyzeTimelineChange(existing, desired) {
     const result = {
@@ -101,7 +127,11 @@ export class TimelineDiffer {
   }
 
   /**
-   * Compare timeline global properties
+   * Compare the `globals` object of two timelines.
+   *
+   * @param {Object} existingGlobals
+   * @param {Object} desiredGlobals
+   * @returns {{ changed: boolean, structural: boolean, changes: Array }}
    */
   compareGlobals(existingGlobals, desiredGlobals) {
     const existing = existingGlobals || {};
@@ -143,7 +173,11 @@ export class TimelineDiffer {
   }
 
   /**
-   * Compare timeline steps arrays
+   * Compare the `steps` arrays of two timelines.
+   *
+   * @param {Array<Object>} existingSteps
+   * @param {Array<Object>} desiredSteps
+   * @returns {{ changed: boolean, structural: boolean, changes: Array }}
    */
   compareSteps(existingSteps, desiredSteps) {
     const result = {
@@ -184,7 +218,12 @@ export class TimelineDiffer {
   }
 
   /**
-   * Compare individual timeline steps
+   * Compare a single step at a given index.
+   *
+   * @param {Object} existingStep
+   * @param {Object} desiredStep
+   * @param {number} stepIndex  Position in the steps array (used in change records).
+   * @returns {{ changed: boolean, structural: boolean, changes: Array }}
    */
   compareStep(existingStep, desiredStep, stepIndex) {
     const result = {
@@ -234,7 +273,12 @@ export class TimelineDiffer {
   }
 
   /**
-   * Compare parameter objects for changes
+   * Recursively compare two parameter objects and return a flat list of changes.
+   *
+   * @param {Object} existing
+   * @param {Object} desired
+   * @param {string} path  Dot-notation path prefix used in change records.
+   * @returns {Array<{ type: 'parameter', property: string, from: *, to: *, structural: false }>}
    */
   compareParameters(existing, desired, path) {
     const changes = [];
@@ -265,7 +309,11 @@ export class TimelineDiffer {
   }
 
   /**
-   * Check if timeline collection has any structural changes
+   * Return `true` if the diff contains any change that requires full timeline
+   * recreation (additions, removals, or structural modifications).
+   *
+   * @param {Object} timelinesDiff  Result of {@link diffTimelines}.
+   * @returns {boolean}
    */
   hasStructuralChanges(timelinesDiff) {
     return timelinesDiff.structuralChange ||
@@ -275,7 +323,10 @@ export class TimelineDiffer {
   }
 
   /**
-   * Get optimized update strategy based on diff
+   * Derive an update strategy from a diff result.
+   *
+   * @param {Object} timelinesDiff  Result of {@link diffTimelines}.
+   * @returns {{ strategy: 'none'|'update_parameters'|'recreate', reason: string, [details]: Object }}
    */
   getUpdateStrategy(timelinesDiff) {
     if (!timelinesDiff.added.length && !timelinesDiff.removed.length && !timelinesDiff.modified.length) {
@@ -306,7 +357,13 @@ export class TimelineDiffer {
   }
 
   /**
-   * Export diff analysis for debugging
+   * Serialise a diff result for debugging.
+   *
+   * @param {Object}  diff
+   * @param {Object}  [options={}]
+   * @param {boolean} [options.includeDetails=false]  Include per-item breakdown.
+   * @param {'json'|*} [options.format]  Pass `'json'` to return a JSON string.
+   * @returns {Object|string}
    */
   exportDiff(diff, options = {}) {
     const summary = {

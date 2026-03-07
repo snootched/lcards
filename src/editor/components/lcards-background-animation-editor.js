@@ -1,6 +1,5 @@
 /**
- * lcards-background-animation-editor.js
- * Background animation configuration editor component
+ * @fileoverview Background animation configuration editor component.
  *
  * Features:
  * - Preset-based effect configuration

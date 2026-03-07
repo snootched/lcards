@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Animation helper utilities for LCARdS cards.
+ *
+ * Wrappers and utilities for anime.js v4 (via `window.lcards.anim`): target
+ * resolution, preset application, timeline building, easing resolution, and
+ * CSS variable interpolation.
+ *
+ * @module utils/lcards-anim-helpers
+ */
+
 import { lcardsLog } from './lcards-logging.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -720,7 +730,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           continue;
         }
 
-        // ✨ NEW: Process special animation markers (_timeline, _stagger, _radial)
+        // Process special animation markers (_timeline, _stagger, _radial)
         const markerResult = _processAnimationMarkers(params, element, scope);
 
         // If timeline marker was processed, track the timeline instance and skip anime() call
@@ -966,7 +976,7 @@ export async function createTimelines(
 
 /**
  * Applies one or more animation presets to the anime.js params object.
- * DEPRECATED: Legacy function - all presets now from pack system
+ * @deprecated All presets now come from the pack system. Use {@link getAnimationPreset} instead.
  */
 export function applyPresets(types, params, element, options) {
   lcardsLog.warn('[applyPresets] Legacy function called - use pack-based presets instead');

@@ -1,5 +1,5 @@
 /**
- * LCARdS Unified Segment Editor
+ * @fileoverview LCARdS Unified Segment Editor
  *
  * Handles both pre-defined (dpad) and custom (svg) segments using consistent object-based schema.
  * Both modes now use keyed objects with 'default' inheritance pattern.

@@ -1,5 +1,5 @@
 /**
- * LCARdS Data Grid Configuration Studio V4
+ * @fileoverview LCARdS Data Grid Configuration Studio V4
  *
  * 2-mode architecture:
  * - Decorative Mode: Auto-generated random LCARS data

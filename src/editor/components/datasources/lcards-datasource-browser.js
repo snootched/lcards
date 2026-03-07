@@ -1,5 +1,5 @@
 /**
- * LCARdS DataSource Browser
+ * @fileoverview LCARdS DataSource Browser
  *
  * Professional modal dialog for browsing and inspecting all datasources
  * (card-local and global) with hierarchical tree view and live detail pane.

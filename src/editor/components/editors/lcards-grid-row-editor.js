@@ -1,5 +1,5 @@
 /**
- * LCARdS Grid Row Editor
+ * @fileoverview LCARdS Grid Row Editor
  *
  * Context-aware overlay editor for data grid rows.
  * Appears when user clicks a row in WYSIWYG preview mode.

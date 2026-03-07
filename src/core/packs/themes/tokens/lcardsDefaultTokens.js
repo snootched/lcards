@@ -1,5 +1,5 @@
 /**
- * @fileoverview LCARS Classic Theme Tokens (Refactored v1.15.0+)
+ * @fileoverview LCARS Classic Theme Tokens
  *
  * Minimal, component-driven token schema with HA-LCARS integration and CB-LCARS fallbacks.
  *

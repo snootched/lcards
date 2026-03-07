@@ -1,9 +1,13 @@
 /**
- * LCARdS MSD Card - Native Implementation
+ * @fileoverview LCARdS Master Systems Display (MSD) Card.
  *
- * Master Systems Display card implementation using native LCARdS architecture.
- * Replaces the button-card-based wrapper with direct LitElement implementation
- * while preserving all existing MSD functionality and template patterns.
+ * Full-canvas SVG overlay card using the LCARdS MSD pipeline. Supports
+ * arbitrary overlays (buttons, sliders, charts, elbows, HA cards) anchored
+ * to SVG coordinate points, with routing lines, animation timelines,
+ * DataSource bindings, and a visual drag-drop editor (MSD Studio).
+ *
+ * Extends {@link LCARdSCard} for singleton access, template evaluation,
+ * rules-engine integration, and provenance tracking.
  */
 
 import { html, css } from 'lit';
@@ -18,15 +22,13 @@ import { getMsdSchema } from './schemas/msd-schema.js';
 import '../editor/cards/lcards-msd-editor.js';
 
 /**
- * Native MSD Card implementation
+ * LCARdS MSD Card
  *
  * Key features:
- * - Extends LCARdSCard for unified architecture (v1.17.0+)
- * - Full MSD pipeline integration
+ * - Full MSD pipeline integration (pipeline, routing, rendering)
+ * - SVG-anchored overlay system with drag-drop studio editor
  * - Template pattern compatibility
- * - SVG loading and caching
- * - Controls and overlay rendering
- * - HASS update management
+ * - HASS update management with selective re-render
  * - Provenance tracking via inherited _provenanceTracker
  * - Theme token resolution via inherited helpers
  */
@@ -600,7 +602,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Override HASS setter to prevent automatic re-renders
      * MSD system manages its own HASS updates internally
      *
-     * NOTE: With automatic HASS propagation (v1.17.0+), embedded control cards
+     * NOTE: With automatic HASS propagation, embedded control cards
      * receive HASS updates via Home Assistant's component tree:
      * - LCARdS cards: Via their own hass setters + singleton integration
      * - Standard HA cards (hui-*): Via HA's automatic parent-child propagation
@@ -1013,7 +1015,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             throw new Error('MSD configuration is required');
         }
 
-        // Version field is no longer required (deprecated in v1.22+)
+        // Version field is no longer required
         // If present, it will generate a warning via ValidationService
     }
 

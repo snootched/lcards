@@ -1,5 +1,5 @@
 /**
- * LCARdS MSD Live Preview
+ * @fileoverview LCARdS MSD Live Preview
  *
  * Renders a live preview of the MSD card with current configuration.
  * Updates automatically when config changes (debounced 300ms).

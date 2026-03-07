@@ -1,3 +1,14 @@
+/**
+ * @fileoverview LCARdS logging facade.
+ *
+ * Provides a single `lcardsLog` object with `error / warn / info / debug / trace`
+ * methods gated by a global log level. The level is configurable at runtime via
+ * `lcardsSetGlobalLogLevel()`, or from the HA developer console via
+ * `window.lcards.setGlobalLogLevel('debug')`.
+ *
+ * @module utils/lcards-logging
+ */
+
 import * as LCARdS from '../lcards-vars.js';
 
 let lcardsGlobalLogLevel = 'info';

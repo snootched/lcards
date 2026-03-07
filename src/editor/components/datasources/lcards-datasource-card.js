@@ -1,5 +1,5 @@
 /**
- * LCARdS DataSource Card
+ * @fileoverview LCARdS DataSource Card
  *
  * Reusable component for displaying DataSource information in browse lists.
  * Shows name, entity, current value, history count, and last update time.
@@ -123,10 +123,10 @@ export class LCARdSDataSourceCard extends LitElement {
     const ds = this.dataSource;
 
     return html`
-      <div 
+      <div
         class="datasource-card ${this.selected ? 'selected' : ''}"
         @click=${this._handleClick}>
-        
+
         <div class="header">
           <span class="icon">📊</span>
           <span class="name">${ds.name || ds.id || 'Unnamed DataSource'}</span>
@@ -180,19 +180,19 @@ export class LCARdSDataSourceCard extends LitElement {
    */
   _formatTime(timestamp) {
     if (!timestamp) return 'N/A';
-    
+
     try {
       const date = new Date(timestamp);
       if (isNaN(date.getTime())) {
         return 'Invalid date';
       }
-      
+
       const now = new Date();
       const diffMs = now - date;
       const diffSec = Math.floor(diffMs / 1000);
       const diffMin = Math.floor(diffSec / 60);
       const diffHr = Math.floor(diffMin / 60);
-      
+
       // Show relative time for recent updates
       if (diffSec < 60) {
         return `${diffSec}s ago`;

@@ -1,5 +1,5 @@
 /**
- * LCARdS Datasource Editor Tab
+ * @fileoverview LCARdS Datasource Editor Tab
  *
  * Main container for datasource editing with ribbon navigation.
  * Manages sub-tab state and coordinates between card-local and global views.

@@ -1,5 +1,5 @@
 /**
- * LCARdS DataSource Studio Dialog
+ * @fileoverview LCARdS DataSource Studio Dialog
  *
  * Modern tabbed dialog for creating/editing DataSource configurations.
  * Replaces old lcards-datasource-dialog with modern patterns.

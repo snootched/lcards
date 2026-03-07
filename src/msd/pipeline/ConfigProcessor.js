@@ -1,9 +1,19 @@
+/**
+ * @fileoverview ConfigProcessor — validates and enriches MSD card configs.
+ *
+ * Responsibilities:
+ * - Extracts SVG metadata (viewBox, anchors) from raw SVG content before validation.
+ * - Passes the enriched config through CoreConfigManager for schema validation.
+ * - Merges anchor sources (SVG-extracted vs. user-defined) with correct precedence.
+ * - Returns a flat MSD config, validation issues, and provenance for the pipeline.
+ */
+
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnchorProcessor } from './AnchorProcessor.js';
 
 /**
- * Process and validate MSD config using CoreConfigManager
- * NOW HANDLES: anchor extraction, viewBox resolution, complete config building
+ * Process and validate MSD config using CoreConfigManager.
+ * Handles anchor extraction, viewBox resolution, and complete config building.
  *
  * @param {Object} userMsdConfig - User MSD configuration
  * @param {string} svgContent - SVG content string (for anchor extraction)
@@ -18,7 +28,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
 
   lcardsLog.trace('[ConfigProcessor] Processing config with SVG extraction');
 
-  // ✅ NEW: Extract SVG metadata BEFORE config processing
+  // Extract SVG metadata BEFORE config processing
   let viewBox = null;
   let anchors = {};
 
@@ -53,8 +63,8 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     lcardsLog.trace('[ConfigProcessor] base_svg: "none" - using explicit viewBox:', viewBox);
   }
 
-  // ✅ CRITICAL: Merge extracted metadata into config BEFORE validation
-  // This ensures anchors/viewBox flow through merge pipeline with provenance
+  // Merge extracted metadata into config BEFORE validation
+  // This ensures anchors/viewBox flow through the merge pipeline with provenance
   const enhancedConfig = {
     ...userMsdConfig,
     view_box: viewBox || userMsdConfig.view_box || [0, 0, 1920, 1080],
@@ -80,10 +90,10 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   const mergedConfig = fullConfig.msd || fullConfig; // Extract msd property or use full config if already flat
   const provenance = result.provenance;
 
-  // ✅ FIX: Merge top-level anchors (extracted from SVG) with nested anchors (user-defined)
+  // Merge top-level anchors (extracted from SVG) with nested anchors (user-defined).
   // CoreConfigManager places extracted anchors at fullConfig.anchors (top-level)
-  // but user-defined anchors are at fullConfig.msd.anchors (nested)
-  // User anchors should override extracted anchors with same name
+  // but user-defined anchors are at fullConfig.msd.anchors (nested).
+  // User anchors override extracted anchors with the same name.
   if (fullConfig.anchors && Object.keys(fullConfig.anchors).length > 0) {
     mergedConfig.anchors = {
       ...fullConfig.anchors,           // Extracted anchors (base layer)

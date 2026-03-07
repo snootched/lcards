@@ -11,7 +11,7 @@ import { AttachmentPointManager } from './AttachmentPointManager.js';
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
-// Phase 3: Instance-based overlay architecture (COMPLETE)
+// Instance-based overlay architecture
 import { OverlayBase } from '../overlays/OverlayBase.js';
 import { LineOverlay } from '../overlays/LineOverlay.js';
 
@@ -30,15 +30,14 @@ export class AdvancedRenderer {
     this.overlayElementCache = new Map(); // overlayId -> DOM element
     this._lineDeps = new Map(); // targetOverlayId -> Set(lineOverlayId)
 
-    // Phase 3: Cache for instance-based overlay renderers
-    // Maps overlay.id -> OverlayBase instance
+    // Cache for instance-based overlay renderers
     this.overlayRenderers = new Map();
 
   }
 
   /**
-   * Render the complete MSD with all overlays
-   * ✅ ENHANCED: Phase 5.3 - Now includes detailed performance tracking
+   * Render the complete MSD with all overlays.
+   * Includes detailed per-overlay performance and provenance tracking.
    *
    * @param {Object} resolvedModel - Complete model with overlays and anchors
    * @returns {Promise<Object>} {svgMarkup, overlayCount, errors, provenance}
@@ -85,7 +84,7 @@ export class AdvancedRenderer {
       }
     };
 
-    // Phase 1: render overlays that others may depend on (currently empty)
+    // Pass 1: render overlays that others may depend on (currently empty)
     const earlyTypes = new Set([]);
     let svgMarkupAccum = '';
     let processedCount = 0;
@@ -110,7 +109,7 @@ export class AdvancedRenderer {
           // New structure - extract markup
           svgMarkupAccum += result;
 
-          // ✅ NEW: Collect provenance if available (Phase 5.3)
+          // Collect provenance if available
           if (result.provenance) {
             provenance.overlays[ov.id] = result.provenance;
 
@@ -139,7 +138,7 @@ export class AdvancedRenderer {
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase1 render failed for overlay ${ov.id}:`, e);
 
-        // ✅ NEW: Track failed overlay (Phase 5.3)
+        // Track failed overlay
         provenance.overlays[ov.id] = {
           renderer: 'AdvancedRenderer',
           overlay_id: ov.id,
@@ -149,16 +148,16 @@ export class AdvancedRenderer {
       }
     });
 
-    // Inject Phase 1 DOM
+    // Inject pass-1 DOM
     overlayGroup.innerHTML = svgMarkupAccum;
 
     this._cacheElementsFrom(overlayGroup);
 
-    // CRITICAL: Populate attachment points from Phase 1 overlays BEFORE Phase 2
-    // This ensures line overlays have correct attachment points on initial render
+    // Populate attachment points from initial pass BEFORE subsequent passes.
+    // This ensures line overlays have correct attachment points on initial render.
     this._populateInitialAttachmentPoints(overlays, anchors);
 
-    // Build virtual anchors from Phase 1 overlays for line anchoring
+    // Build virtual anchors for line anchoring
     // These are base anchors without gaps - lines will overwrite with gap-applied versions
     this._buildVirtualAnchorsFromAllOverlays(overlays);
 
@@ -167,7 +166,7 @@ export class AdvancedRenderer {
     this.attachmentManager.setAnchorsFromObject(anchors);
     this._buildDynamicOverlayAnchors(overlays);
 
-    // Phase 2a: render non-line overlays (cards, etc.) that lines may attach to
+    // Pass 2a: render non-line overlays (cards, etc.) that lines may attach to
     overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line').forEach(ov => {
       try {
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
@@ -216,17 +215,17 @@ export class AdvancedRenderer {
       }
     });
 
-    // Cache Phase 2a elements and populate attachment points for cards
+    // Cache pass-2a elements and populate attachment points for cards
     this._cacheElementsFrom(overlayGroup);
     this._populateInitialAttachmentPoints(overlays, anchors);
 
-    // Rebuild virtual anchors now that we have Phase 2a overlays (cards, etc.)
+    // Rebuild virtual anchors now that we have pass-2a overlays (cards, etc.)
     // IMPORTANT: This must run BEFORE _buildDynamicOverlayAnchors so that
     // gap-applied anchors don't get overwritten by non-gap anchors
     this._buildVirtualAnchorsFromAllOverlays(overlays);
 
-    // CRITICAL: Rebuild dynamic overlay anchors now that Phase 2a overlays have attachment points
-    // This runs AFTER _buildVirtualAnchorsFromAllOverlays so gaps are preserved
+    // Rebuild dynamic overlay anchors now that pass-2a overlays have attachment points.
+    // This runs AFTER _buildVirtualAnchorsFromAllOverlays so gaps are preserved.
     this._buildDynamicOverlayAnchors(overlays);
 
     // CRITICAL: Wait for cards to fully position and register attachment points
@@ -239,7 +238,7 @@ export class AdvancedRenderer {
       attachmentPointCount: this.attachmentManager?._attachmentPoints?.size || 0
     });
 
-    // Phase 2b: render line overlays (now ALL targets exist with attachment points)
+    // Pass 2b: render line overlays (now ALL targets exist with attachment points)
     overlays.filter(o => o.type === 'line').forEach(ov => {
       try {
         const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
@@ -258,7 +257,7 @@ export class AdvancedRenderer {
         } else if (result && result.markup) {
           markup = result.markup;
 
-          // ✅ NEW: Collect provenance if available (Phase 5.3)
+          // Collect provenance if available
           if (result.provenance) {
             provenance.overlays[ov.id] = result.provenance;
 
@@ -319,7 +318,7 @@ export class AdvancedRenderer {
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2b render failed for overlay ${ov.id}:`, e);
 
-        // ✅ NEW: Track failed overlay (Phase 5.3)
+        // Track failed overlay
         provenance.overlays[ov.id] = {
           renderer: 'AdvancedRenderer',
           overlay_id: ov.id,
@@ -346,7 +345,7 @@ export class AdvancedRenderer {
       errors: overlays.length - processedCount
     });
 
-    // ✅ NEW: Store provenance in config (Phase 5.3)
+    // Store provenance in config
     const config = window.lcards.debug.msd?.pipelineInstance?.config;
     if (config && config.__provenance) {
       config.__provenance.advanced_renderer = provenance;
@@ -827,10 +826,9 @@ export class AdvancedRenderer {
 
 
   /**
-   * Render individual overlay using appropriate renderer
-   *
-   * ✅ ENHANCED: Phase 3A+ - Now supports both instance-based (OverlayBase) and static renderers
-   * ✅ ENHANCED: Now collects and stores renderer provenance for debugging
+   * Render individual overlay using appropriate renderer.
+   * Supports both instance-based (OverlayBase) and static renderers.
+   * Collects and stores renderer provenance for debugging.
    *
    * @private
    */
@@ -840,7 +838,7 @@ export class AdvancedRenderer {
 
       let result;
 
-      // Phase 3A+: Try to get instance-based renderer first
+      // Try to get instance-based renderer first
       const renderer = this._getRendererForOverlay(overlay);
 
       if (renderer instanceof OverlayBase) {
@@ -875,7 +873,7 @@ export class AdvancedRenderer {
         result = this._renderCardOverlayViaMsdControls(overlay, anchors, viewBox, svgContainer);
       }
 
-      // ✅ NEW: Store renderer provenance after successful render
+      // Store renderer provenance after successful render
       if (result && typeof result === 'object' && result.provenance) {
         this._storeRendererProvenance(overlay.id, result.provenance);
       } else if (result && typeof result === 'string' && result !== '') {
@@ -889,7 +887,7 @@ export class AdvancedRenderer {
     } catch (error) {
       lcardsLog.error(`[AdvancedRenderer] ❌ Error rendering overlay ${overlay.id}:`, error);
 
-      // ✅ NEW: Track failed render
+      // Track failed render
       this._storeFailedRendererProvenance(overlay.id, overlay.type, error);
 
       return this.renderFallbackOverlay(overlay);
@@ -944,8 +942,6 @@ export class AdvancedRenderer {
   /**
    * Store renderer provenance in config
    *
-   * ✅ NEW: Provenance storage method
-   *
    * @private
    * @param {string} overlayId - Overlay ID
    * @param {Object} provenance - Renderer provenance data
@@ -970,8 +966,6 @@ export class AdvancedRenderer {
 
   /**
    * Store basic renderer provenance for legacy renderers that only return strings
-   *
-   * ✅ NEW: Basic provenance tracking for legacy renderers
    *
    * @private
    * @param {string} overlayId - Overlay ID
@@ -1004,8 +998,6 @@ export class AdvancedRenderer {
 
   /**
    * Store failed render provenance
-   *
-   * ✅ NEW: Track rendering failures for debugging
    *
    * @private
    * @param {string} overlayId - Overlay ID
@@ -1218,7 +1210,7 @@ export class AdvancedRenderer {
 
       // Re-render the overlay (generate new markup)
       try {
-        // ✅ CRITICAL: For line overlays, update overlayAttachmentPoints map on instance first
+        // For line overlays, update overlayAttachmentPoints map on instance first
         if (overlay.type === 'line') {
           const renderer = this._getRendererForOverlay(overlay);
           if (renderer) {

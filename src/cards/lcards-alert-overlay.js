@@ -1,5 +1,5 @@
 /**
- * LCARdS Alert Overlay Card
+ * @fileoverview LCARdS Alert Overlay Card (`lcards-alert-overlay`).
  *
  * A screen-wide, per-dashboard overlay that reacts to
  * `input_select.lcards_alert_mode` and displays a full-screen backdrop
@@ -9,6 +9,9 @@
  * Dismisses and hides itself when the mode returns to `green_alert` or
  * `default`.  Uses the same `helperManager.subscribeToHelper('alert_mode', …)`
  * hook as SoundManager and ThemeManager — no new plumbing required.
+ *
+ * Only one instance may be active per dashboard; duplicate instances
+ * suppress themselves and log a warning.
  *
  * @extends LitElement
  */

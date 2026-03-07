@@ -1,5 +1,5 @@
 /**
- * LCARdS Icon Area Picker
+ * @fileoverview LCARdS Icon Area Picker
  *
  * Graphical picker for selecting icon area position (top, bottom, left, right, none).
  * Shows a visual representation with a center square representing the text area

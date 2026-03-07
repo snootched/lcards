@@ -1,5 +1,5 @@
 /**
- * Template Examples Library
+ * @fileoverview Template Examples Library
  *
  * Pre-configured template examples for the Template Sandbox.
  * Each example demonstrates a specific template type with realistic use cases.

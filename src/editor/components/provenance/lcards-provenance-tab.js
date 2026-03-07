@@ -1,5 +1,5 @@
 /**
- * LCARdS Provenance Inspector Tab
+ * @fileoverview LCARdS Provenance Inspector Tab
  *
  * Displays comprehensive provenance information for card configuration:
  * - Config Tree: Hierarchical view of all fields grouped by layer
@@ -3708,7 +3708,7 @@ export class LCARdSProvenanceTab extends LitElement {
             lcardsLog.debug('[ProvenanceTab] Sample token:', sampleTokenKey, '=', this._provenance.theme_tokens[sampleTokenKey]);
           }
 
-          // NEW: Log all fields that use theme tokens
+          // Log all fields that use theme tokens
           lcardsLog.info('[ProvenanceTab] 🎨 Fields using theme tokens:');
           for (const [tokenPath, tokenData] of Object.entries(this._provenance.theme_tokens)) {
             if (tokenData.used_by_fields && tokenData.used_by_fields.length > 0) {

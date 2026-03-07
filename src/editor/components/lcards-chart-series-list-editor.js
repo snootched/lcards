@@ -1,6 +1,5 @@
 /**
- * lcards-chart-series-list-editor.js
- * Chart series management component - SIMPLIFIED (no mode toggle)
+ * @fileoverview Chart series management editor.
  *
  * Features:
  * - Unified DataSource approach (all series are DataSources with series_N names)

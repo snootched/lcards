@@ -1,5 +1,5 @@
 /**
- * LCARdS Message Component
+ * @fileoverview LCARdS Message Component
  *
  * Display informational messages, warnings, or errors in the editor.
  * Wraps ha-alert for consistency with legacy formbuilder.

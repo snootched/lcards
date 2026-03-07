@@ -1,5 +1,5 @@
 /**
- * LCARdS Pack Explorer Tab Component
+ * @fileoverview LCARdS Pack Explorer Tab Component
  *
  * Reusable component for browsing and inspecting loaded packs.
  * Can be used standalone in a dialog or embedded in the config panel.

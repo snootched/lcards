@@ -1,5 +1,5 @@
 /**
- * LCARdS Rule Apply Editor
+ * @fileoverview LCARdS Rule Apply Editor
  *
  * Pure-YAML editor for the `apply` section of a rule.
  *

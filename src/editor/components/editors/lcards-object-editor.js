@@ -1,5 +1,5 @@
 /**
- * LCARdS Object Editor
+ * @fileoverview LCARdS Object Editor
  *
  * Generic object property editor that solves the "padding problem" and other
  * object-based configurations. Renders N properties in a grid layout with

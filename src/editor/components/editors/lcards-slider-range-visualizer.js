@@ -1,5 +1,5 @@
 /**
- * LCARdS Slider Range Visualizer
+ * @fileoverview LCARdS Slider Range Visualizer
  *
  * Interactive visual component for configuring slider ranges and direction.
  * Shows relationship between display range (visual scale) and control range (settable values).

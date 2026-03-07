@@ -1,5 +1,5 @@
 /**
- * LCARdS Position Picker
+ * @fileoverview LCARdS Position Picker
  *
  * Graphical 3x3 grid picker for selecting text/icon positions.
  * Shows a visual representation where users can click to select position.

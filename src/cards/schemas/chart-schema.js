@@ -1,5 +1,5 @@
 /**
- * Chart Card Schema - Nested Structure (v1.18.0+)
+ * Chart Card Schema - Nested Structure
  *
  * ⚠️ BREAKING CHANGE: Complete rewrite with nested property groups.
  * No backward compatibility with flat snake_case properties.
@@ -367,7 +367,7 @@ export function getChartSchema(options = {}) {
             },
 
             // ====================================================================
-            // NESTED STYLE CONFIGURATION (v1.18.0+)
+            // NESTED STYLE CONFIGURATION
             // ====================================================================
 
             style: {

@@ -1,11 +1,18 @@
+/**
+ * @fileoverview PipelineCore — top-level entry point for the MSD rendering pipeline.
+ *
+ * Orchestrates config processing, card model building, MsdCardCoordinator
+ * initialisation, animation setup, and the initial render.  Also exposes the
+ * pipeline API object that the card component stores on `_msdPipeline`.
+ */
+
 import { processAndValidateConfig } from './ConfigProcessor.js';
 import { MsdCardCoordinator } from './MsdCardCoordinator.js';
 import { ModelBuilder } from './ModelBuilder.js';
-// UnifiedAPI and DebugInterface removed - legacy architecture
 // Use DOM queries to access cards: document.querySelector('lcards-msd')
 import { buildCardModel } from '../model/CardModel.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-// ✅ CONSOLIDATED: Use Core ValidationService singleton instead of MSD-specific ValidationService
+// Use Core ValidationService singleton instead of MSD-specific ValidationService
 import { applyBaseSvgFilters } from '../utils/BaseSvgFilters.js';
 import { lcardsCore } from '../../core/lcards-core.js';
 
@@ -26,7 +33,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     cardGuid
   });
 
-  // ✅ NEW: Preserve full config before extraction (deep clone to ensure immutability)
+  // Preserve full config before extraction (deep clone to ensure immutability)
   const fullUserConfig = structuredClone(userMsdConfig);  // Store full config with __provenance
 
   // Configuration processing and pack merging WITH anchor extraction
@@ -121,7 +128,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Coordinator references it directly (no validation needed)
   lcardsLog.trace('[PipelineCore] Theme system ready');
 
-  // ✅ REMOVED: Redundant overlay validation pass
+  // Redundant overlay validation pass removed.
   // Validation already happened in ConfigProcessor via CoreConfigManager.processConfig()
   // Results are in mergedConfig.__issues from the main validation pass
   // No need to validate overlays again here - it's redundant and causes false positives
@@ -149,11 +156,11 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     throw new Error(`Systems completion failed: ${error.message}`);
   }
 
-  // ✅ NEW: Initialize AnimationManager with overlays to register animations
+  // Initialize AnimationManager with overlays to register animations
   if (coordinator.animationManager && mergedConfig.overlays) {
     lcardsLog.trace('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
     try {
-      // ⚠️ CRITICAL: Set mountEl explicitly so AnimationManager can find overlay elements
+      // Set mountEl explicitly so AnimationManager can find overlay elements
       coordinator.animationManager.mountEl = mountEl;
 
       await coordinator.animationManager.initialize(mergedConfig.overlays, {
@@ -231,7 +238,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
       lcardsLog.trace(`[PipelineCore] 🎨 Starting AdvancedRenderer.render() - overlays: ${resolvedModel.overlays.length}`);
 
-      // ADDED: Defensive rendering with error boundary
+      // Defensive rendering with error boundary
       let renderResult;
       try {
         renderResult = await coordinator.renderer.render(resolvedModel);
@@ -269,8 +276,8 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       }
 
       lcardsLog.trace('[PipelineCore] Starting renderDebugAndControls()...');
-      // CHANGED: Make debug and controls rendering more defensive
-      // NOTE: Controls are now rendered by AdvancedRenderer in Phase 2a
+      // Make debug and controls rendering more defensive.
+      // NOTE: Controls are now rendered by AdvancedRenderer.
       // This only handles debug visualization overlays (anchors, bounding boxes, etc.)
       try {
         await coordinator.renderDebugAndControls(resolvedModel, mountEl);
@@ -407,9 +414,9 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
     enabled: false,
     errors: issues.errors,
     warnings: issues.warnings,
-    html: errorHtml, // ADDED: HTML content for rendering
+    html: errorHtml,
 
-    // ✅ FIX: Return full config with provenance
+    // Return full config with provenance
     config: fullUserConfig,
     msdConfig: mergedConfig,
 

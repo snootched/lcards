@@ -1,5 +1,5 @@
 /**
- * LCARdS Filter Editor Component
+ * @fileoverview LCARdS Filter Editor Component
  *
  * Reusable visual editor for CSS and SVG filter configuration.
  * Supports stackable filters with add/remove/reorder capabilities.
@@ -8,8 +8,8 @@
  * - List-based UI (similar to animation editor)
  * - Add/duplicate/delete/reorder filters
  * - Dynamic parameter forms per filter type
- * - CSS filters (Phase 1): blur, brightness, contrast, saturate, hue-rotate, grayscale, sepia, invert, opacity, drop-shadow
- * - SVG filters (Phase 2 - future): feGaussianBlur, feColorMatrix, feBlend, etc.
+ * - CSS filters: blur, brightness, contrast, saturate, hue-rotate, grayscale, sepia, invert, opacity, drop-shadow
+ * - SVG filters (future): feGaussianBlur, feColorMatrix, feBlend, etc.
  *
  * Usage:
  * ```html

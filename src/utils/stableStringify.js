@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Deterministic JSON serialisation.
+ *
+ * Produces key-sorted, cycle-safe JSON strings suitable for hashing and
+ * checksum computation where output stability across equivalent objects
+ * is required.
+ *
+ * @module utils/stableStringify
+ */
+
 export function stableStringify(value) {
   const seen = new WeakSet();
   function walk(v) {

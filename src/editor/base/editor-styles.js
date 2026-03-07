@@ -1,5 +1,5 @@
 /**
- * Shared Editor Styles
+ * @fileoverview Shared Editor Styles
  *
  * Common CSS styles for LCARdS editors.
  */

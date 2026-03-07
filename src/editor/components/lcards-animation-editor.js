@@ -1,6 +1,5 @@
 /**
- * lcards-animation-editor.js
- * Advanced animation configuration editor component
+ * @fileoverview Advanced animation configuration editor component.
  *
  * Features:
  * - Comprehensive preset parameter editing (all documented options)
@@ -2392,7 +2391,7 @@ export class LCARdSAnimationEditor extends LitElement {
     this._workingAnimations = [...this.animations, newAnimation];
     this._expandedIndex = this.animations.length - 1;
 
-    console.log('[AnimationEditor] ✅ Animation added', {
+    lcardsLog.debug('[AnimationEditor] Animation added', {
       newCount: this.animations.length,
       newExpandedIndex: this._expandedIndex,
       newAnimation

@@ -1,5 +1,5 @@
 /**
- * LCARdS Condition Group Editor
+ * @fileoverview LCARdS Condition Group Editor
  *
  * Visual editor for a `when` condition object matching the RulesEngine schema.
  * Supports nested ALL/ANY/NOT groups and all condition types.

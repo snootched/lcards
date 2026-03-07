@@ -1,5 +1,5 @@
 /**
- * LCARdS Style Hierarchy Diagram Component
+ * @fileoverview LCARdS Style Hierarchy Diagram Component
  *
  * Visual SVG diagram showing style precedence for Data Grid cards
  *

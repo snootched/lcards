@@ -1,8 +1,20 @@
+/**
+ * @fileoverview CardModel — converts a merged MSD config into a structured card model.
+ *
+ * Resolves the `base_svg` source, resolves filter presets, resolves the viewBox,
+ * and normalises the overlay list into a consistent shape for the rendering pipeline.
+ */
+
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
+/**
+ * Build a card model from a merged MSD config.
+ *
+ * @param {Object} mergedConfig - Merged and validated MSD configuration
+ * @returns {Promise<Object>} Card model with viewBox, anchors, baseSvgContent, and overlaysBase
+ */
 export async function buildCardModel(mergedConfig) {
-    // Phase A: implement viewBox:auto + SVG anchor extraction + percent resolution.
-    // Extract actual viewBox from SVG content instead of hardcoding
+    // Resolve viewBox: prefer value extracted from SVG, fall back to explicit config, then default
     let viewBox = [0, 0, 400, 200]; // fallback only
 
     lcardsLog.trace('[CardModel] Initial viewBox (fallback):', viewBox);
@@ -94,7 +106,7 @@ export async function buildCardModel(mergedConfig) {
         baseOverlay.template = o.template;
       }
 
-      // Preserve animation_preset reference if present (for Phase 3)
+      // Preserve animation_preset reference if present
       if (o.animation_preset && typeof o.animation_preset === 'string') {
         baseOverlay.animation_preset = o.animation_preset;
       }

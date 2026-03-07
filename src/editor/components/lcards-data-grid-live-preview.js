@@ -1,15 +1,15 @@
 /**
- * LCARdS Data Grid Live Preview
- * 
+ * @fileoverview LCARdS Data Grid Live Preview
+ *
  * Renders a live preview of the data-grid card with current configuration.
  * Updates automatically when config changes (debounced 300ms).
- * 
+ *
  * @element lcards-data-grid-live-preview
- * 
+ *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} config - Current data-grid card configuration
  * @property {Boolean} showRefreshButton - Show manual refresh button (default: true)
- * 
+ *
  * @example
  * <lcards-data-grid-live-preview
  *   .hass=${this.hass}
@@ -303,7 +303,7 @@ export class LCARdSDataGridLivePreview extends LitElement {
      */
     _renderPreviewCard() {
         const previewConfig = this._getPreviewConfig();
-        
+
         if (!previewConfig) {
             return this._renderEmptyState();
         }

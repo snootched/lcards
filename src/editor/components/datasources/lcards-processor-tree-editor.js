@@ -1,5 +1,5 @@
 /**
- * LCARdS Processor Tree Editor
+ * @fileoverview LCARdS Processor Tree Editor
  *
  * Professional split-pane tree editor for processor pipelines.
  * Left pane: Collapsible dependency tree

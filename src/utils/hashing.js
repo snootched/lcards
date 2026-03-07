@@ -1,6 +1,11 @@
 /**
- * Object hashing utilities for semantic comparison
- * Used by animation registry and other caching systems
+ * @fileoverview Object hashing utilities for semantic comparison.
+ *
+ * Produces deterministic string hashes from arbitrary objects after
+ * normalisation (key sorting, undefined stripping). Used by the animation
+ * registry and other caching systems that need stable cache keys.
+ *
+ * @module utils/hashing
  */
 
 /**

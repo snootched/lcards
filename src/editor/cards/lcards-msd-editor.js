@@ -1,5 +1,5 @@
 /**
- * LCARdS MSD Editor
+ * @fileoverview LCARdS MSD Editor
  *
  * Visual configuration editor for MSD (Master Systems Display) cards.
  * Minimal launcher editor that opens full-screen studio for all configuration.

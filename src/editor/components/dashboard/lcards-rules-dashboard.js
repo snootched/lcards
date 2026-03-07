@@ -1,5 +1,5 @@
 /**
- * LCARdS Rules Dashboard
+ * @fileoverview LCARdS Rules Dashboard
  *
  * Display-only overview of rules in the system.
  * Shows all rules registered in the rules engine with highlighting

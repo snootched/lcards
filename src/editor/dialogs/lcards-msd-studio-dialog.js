@@ -1,23 +1,23 @@
 /**
- * LCARdS MSD Configuration Studio
+ * @fileoverview LCARdS MSD Configuration Studio
  *
  * Full-screen immersive editor for configuring MSD (Master Systems Display) cards.
- * Phase 1: Foundation with mode system, 6-tab structure, and live preview.
+ * Provides a 6-tab structure with live preview and an interactive mode system.
  *
  * Tab Structure:
- * 1. Base SVG - SVG source, viewBox, filters (Phase 2)
- * 2. Anchors - Named anchor management (Phase 2)
- * 3. Controls - Control overlay list with card editor (Phase 3)
- * 4. Lines - Line overlay list with routing config (Phase 4)
- * 5. Channels - Routing channel management (Phase 5)
- * 6. Debug - Debug visualization settings (Phase 6)
+ * 1. Base SVG - SVG source, viewBox, filters
+ * 2. Anchors - Named anchor management
+ * 3. Controls - Control overlay list with card editor
+ * 4. Lines - Line overlay list with routing config
+ * 5. Channels - Routing channel management
+ * 6. Debug - Debug visualization settings
  *
  * Mode System:
  * - View: Default mode for navigation
- * - Place Anchor: Click to place named anchors (Phase 2)
- * - Place Control: Click to place control overlays (Phase 3)
- * - Connect Line: Click source → target workflow (Phase 4)
- * - Draw Channel: Draw routing channel rectangles (Phase 5)
+ * - Place Anchor: Click to place named anchors
+ * - Place Control: Click to place control overlays
+ * - Connect Line: Click source → target workflow
+ * - Draw Channel: Draw routing channel rectangles
  *
  * @element lcards-msd-studio-dialog
  * @fires config-changed - When configuration is saved (detail: { config })
@@ -47,7 +47,7 @@ import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { select } from 'd3-selection';
 
-// Phase 1 Modularization: Extracted utilities
+// Extracted utilities
 import { getPreviewCoordinatesFromMouseEvent, snapToGrid } from './msd-studio/msd-coordinate-utils.js';
 import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide } from './msd-studio/msd-anchor-utils.js';
 import { msdStudioStyles } from './msd-studio/msd-studio-styles.js';
@@ -127,13 +127,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormObstacle: { type: Boolean, state: true },
             _controlFormCard: { type: Object, state: true },
             _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
-            // Lines Tab Properties (Phase 4 - Fixed to use correct schema)
+            // Lines Tab Properties
             _showLineForm: { type: Boolean, state: true },
             _editingLineId: { type: String, state: true },
             _lineFormData: { type: Object, state: true }, // Complete line form data with correct schema
             _lineFormActiveSubtab: { type: String, state: true }, // 'connection' or 'style'
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
-            // Channels Tab Properties (Phase 5)
+            // Channels Tab Properties
             _editingChannelId: { type: String, state: true },
             _channelFormData: { type: Object, state: true },
             // Drag State (for interactive control dragging)
@@ -248,7 +248,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
 
-        // Lines Tab State (Phase 4)
+        // Lines Tab State
         this._showLineForm = false;
         this._editingLineId = null;
         this._waypointEditingLineId = null;
@@ -271,7 +271,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._lineFormActiveSubtab = 'basic';
         this._connectLineState = { source: null, tempLineElement: null };
 
-        // Channels Tab State (Phase 5)
+        // Channels Tab State
         this._editingChannelId = null;
         this._channelFormData = {
             id: '',
@@ -407,7 +407,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }, 50);
 
-        // Add keyboard event listener (Phase 7)
+        // Add keyboard event listener
         this._boundKeyDownHandler = this._handleKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyDownHandler);
 
@@ -448,7 +448,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._cardPickerManager?.cleanup();
         this._editorLauncher?.cleanup();
 
-        // Remove keyboard event listener (Phase 7)
+        // Remove keyboard event listener
         if (this._boundKeyDownHandler) {
             document.removeEventListener('keydown', this._boundKeyDownHandler);
         }
@@ -857,7 +857,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle save button click (Phase 7 enhanced with validation)
+     * Handle save button click.
      * @private
      */
     _handleSave() {
@@ -885,7 +885,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle cancel button click (Phase 7 enhanced with confirmation)
+     * Handle cancel button click.
      * @private
      */
     _handleCancel() {
@@ -916,7 +916,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle reset button click (Phase 7 enhanced with confirmation)
+     * Handle reset button click.
      * @private
      */
     _handleReset() {
@@ -1647,7 +1647,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Base SVG tab (Phase 2)
+     * Render Base SVG tab.
      * @returns {TemplateResult}
      * @private
      */
@@ -1797,7 +1797,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Anchors tab (Phase 2)
+     * Render Anchors tab.
      * @returns {TemplateResult}
      * @private
      */
@@ -2520,7 +2520,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle place control click (Phase 3)
+     * Handle place control click.
      * @param {MouseEvent} event - Click event
      * @private
      */
@@ -3826,7 +3826,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle draw channel click (Phase 5)
+     * Handle draw channel click.
      * @param {MouseEvent} event - Click event
      * @private
      */
@@ -6571,7 +6571,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render draw channel overlay (Phase 5)
+     * Render draw channel overlay.
      * Shows temporary rectangle while drawing
      * @returns {TemplateResult}
      * @private
@@ -6635,7 +6635,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             highlighted_anchor: this._highlightedAnchor  // Pass highlighted anchor for pulse animation
         };
 
-        // Force bounding boxes when Controls tab is active (Phase 3)
+        // Force bounding boxes when Controls tab is active.
         if (this._activeTab === TABS.CONTROLS) {
             settings.bounding_boxes = true;
         }
@@ -6659,7 +6659,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Controls tab (Phase 3 placeholder)
+     * Render Controls tab.
      * @returns {TemplateResult}
      * @private
      */
@@ -6989,7 +6989,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Highlight control in preview (Phase 3)
+     * Highlight control in preview.
      * @param {Object} control - Control to highlight
      * @private
      */
@@ -7018,7 +7018,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Delete control (Phase 3)
+     * Delete control.
      * @param {Object} control - Control to delete
      * @private
      */
@@ -7107,7 +7107,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render control form dialog (Phase 3)
+     * Render control form dialog.
      * @returns {TemplateResult}
      * @private
      */
@@ -8473,7 +8473,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Lines tab (Phase 4)
+     * Render Lines tab.
      * @returns {TemplateResult}
      * @private
      */
@@ -8683,7 +8683,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Channels tab (Phase 5)
+     * Render Channels tab.
      * @returns {TemplateResult}
      * @private
      */
@@ -9388,7 +9388,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     // ============================
-    // Channels Tab Methods (Phase 5)
+    // Channels Tab Methods
     // ============================
 
     /**
@@ -9701,12 +9701,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render Debug tab (Phase 6)
+     * Render Debug tab.
      * @returns {TemplateResult}
      * @private
      */
     // ============================
-    // Lines Tab Methods (Phase 4)
+    // Lines Tab Methods
     // ============================
 
     /**
@@ -10194,7 +10194,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render line form dialog (Phase 4 - Fixed schema)
+     * Render line form dialog.
      * @returns {TemplateResult}
      * @private
      */
@@ -11609,11 +11609,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     // ============================
-    // Phase 7: Keyboard Shortcuts & Validation
+    // Keyboard Shortcuts & Validation
     // ============================
 
     /**
-     * Handle keyboard shortcuts (Phase 7)
+     * Handle keyboard shortcuts.
      * @param {KeyboardEvent} e - Keyboard event
      * @private
      */
@@ -11722,7 +11722,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Validate current configuration (Phase 7)
+     * Validate current configuration.
      * @returns {Array} Array of validation error objects
      * @private
      */
@@ -11801,7 +11801,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Get validation error count (Phase 7)
+     * Get validation error count.
      * @returns {number}
      * @private
      */
@@ -11812,7 +11812,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
 
     /**
-     * Show validation errors dialog (Phase 7)
+     * Show validation errors dialog.
      * @private
      */
     async _showValidationErrors() {
@@ -11828,7 +11828,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Show success toast (Phase 7)
+     * Show success toast.
      * @param {string} message - Success message
      * @private
      */
@@ -11856,7 +11856,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Confirm destructive action (Phase 7)
+     * Confirm destructive action.
      * @param {string} message - Confirmation message
      * @returns {boolean}
      * @private
@@ -12092,13 +12092,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <!-- Anchor Form Dialog (outside main dialog, always available) -->
             ${this._showAnchorForm ? this._renderAnchorFormDialog() : ''}
 
-            <!-- Control Form Dialog (Phase 3) -->
+            <!-- Control Form Dialog -->
             ${this._showControlForm ? this._renderControlFormDialog() : ''}
 
-            <!-- Line Form Dialog (Phase 4) -->
+            <!-- Line Form Dialog -->
             ${this._showLineForm ? this._renderLineFormDialog() : ''}
 
-            <!-- Channel Form Dialog (Phase 5) -->
+            <!-- Channel Form Dialog -->
             ${this._editingChannelId !== null ? this._renderChannelFormDialog() : ''}
         `;
     }

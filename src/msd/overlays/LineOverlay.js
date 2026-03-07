@@ -1,8 +1,6 @@
 /**
  * LineOverlay.js
- * Instance-based line overlay with lifecycle management
- *
- * Phase 3B Step 5: Migration from shared LineOverlayRenderer
+ * Instance-based line overlay with lifecycle management.
  *
  * Architecture:
  * - Extends OverlayBase for lifecycle management

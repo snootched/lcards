@@ -1,5 +1,5 @@
 /**
- * LCARdS Chart Configuration Studio
+ * @fileoverview LCARdS Chart Configuration Studio
  *
  * Full-screen immersive editor for configuring chart cards.
  * Phase 1: Foundation with 10-tab structure and live preview.

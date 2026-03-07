@@ -1,8 +1,8 @@
 /**
- * LCARdS Multi-Text Editor V2
+ * @fileoverview LCARdS Multi-Text Editor V2
  *
  * Redesigned text field manager with list-based UI matching animation/filter editors.
- * Features collapsible fields with drag-and-drop reordering (Phase 2).
+ * Features collapsible fields with drag-and-drop reordering.
  *
  * Structure:
  * - text.default: Default styling for all fields (font_size, color, position, etc.)

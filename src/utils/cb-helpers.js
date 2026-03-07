@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Lovelace / Home Assistant UI traversal helpers.
+ *
+ * Provides `getLovelace()` for walking the HA shadow-DOM tree to reach the
+ * active Lovelace panel instance.
+ *
+ * @module utils/cb-helpers
+ */
+
 export function getLovelace() {
     let root = document.querySelector('home-assistant');
     root = root && root.shadowRoot;

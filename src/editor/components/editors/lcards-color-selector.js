@@ -1,5 +1,5 @@
 /**
- * LCARdS Color Selector
+ * @fileoverview LCARdS Color Selector
  *
  * Color picker component with LCARS palette presets and custom color input.
  * Supports both palette colors (token references) and custom hex/rgb values.

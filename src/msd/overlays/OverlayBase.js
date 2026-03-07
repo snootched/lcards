@@ -14,8 +14,6 @@
  * - Default value handling
  * - Provenance tracking
  *
- * Phase 3: Instance-based Overlay Runtime API
- *
  * @module msd/overlays/OverlayBase
  */
 

@@ -1,3 +1,11 @@
+/**
+ * @fileoverview MSD module entry point.
+ *
+ * Re-exports the public pipeline API and wires up the
+ * `window.lcards.cards.msd.*` production namespace and
+ * `window.lcards.debug.msd.*` debug namespace.
+ */
+
 import { initMsdPipeline as initMsdPipelineCore } from './pipeline/PipelineCore.js';
 import { processMsdConfig } from './pipeline/ConfigProcessor.js';
 import { buildCardModel } from './model/CardModel.js';
@@ -11,7 +19,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
 /**
  * MSD Production Namespace & Debug Interface Setup
  *
- * ARCHITECTURE CHANGE:
+ * Namespace layout:
  * - Production APIs: window.lcards.cards.msd.*
  * - Debug tools: window.lcards.debug.msd.*
  *

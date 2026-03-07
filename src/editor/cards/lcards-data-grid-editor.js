@@ -1,5 +1,5 @@
 /**
- * LCARdS Data Grid Editor
+ * @fileoverview LCARdS Data Grid Editor
  *
  * Visual configuration editor for data grid cards with 1-tab structure.
  * Supports 3 data modes: random (decorative), template (manual), datasource (real-time).

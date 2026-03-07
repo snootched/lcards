@@ -1,5 +1,5 @@
 /**
- * LCARdS Rule Editor Dialog
+ * @fileoverview LCARdS Rule Editor Dialog
  *
  * Modal dialog for creating or editing a single rule configuration.
  *

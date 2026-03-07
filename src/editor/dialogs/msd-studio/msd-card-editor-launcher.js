@@ -1,5 +1,5 @@
 /**
- * MSD Card Editor Launcher
+ * @fileoverview MSD Card Editor Launcher
  *
  * Manages native HA card editor dialog creation and lifecycle.
  * Handles picture-elements, actions-card, and nested card scenarios.

@@ -1,6 +1,7 @@
 /**
- * YAML Utilities for Editor
- * Uses js-yaml (already in project) instead of yaml package
+ * @fileoverview YAML utilities for the visual editor.
+ *
+ * Wraps js-yaml for YAML/object serialisation (`configToYaml` / `yamlToConfig`).
  */
 
 import yaml from 'js-yaml';

@@ -2444,7 +2444,7 @@ export class LCARdSElbow extends LCARdSButton {
             positionEnum
         });
 
-        // Register JSON schema for validation (v1.24.0+)
+        // Register JSON schema for validation
         configManager.registerCardSchema('elbow', elbowSchema, { version: '1.24.0' });
 
         lcardsLog.debug('[LCARdSElbow] Schema registered with CoreConfigManager');

@@ -1,6 +1,5 @@
 /**
- * lcards-shape-texture-editor.js
- * Shape texture configuration editor component
+ * @fileoverview Shape texture configuration editor component.
  *
  * Provides UI for configuring SVG-native shape texture presets on
  * button and elbow cards.

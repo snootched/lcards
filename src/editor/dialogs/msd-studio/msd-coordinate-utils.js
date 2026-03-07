@@ -1,5 +1,5 @@
 /**
- * MSD Studio - Coordinate Utilities
+ * @fileoverview MSD Studio — Coordinate Utilities
  *
  * Pure functions for coordinate conversion between screen pixels and ViewBox coordinates.
  * Extracted from lcards-msd-studio-dialog.js with zero changes to logic.

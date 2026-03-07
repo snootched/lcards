@@ -1,5 +1,5 @@
 /**
- * LCARdS Alert Overlay Editor
+ * @fileoverview LCARdS Alert Overlay Editor
  *
  * Visual editor for custom:lcards-alert-overlay.
  *

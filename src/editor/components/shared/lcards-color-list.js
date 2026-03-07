@@ -1,6 +1,5 @@
 /**
- * lcards-color-list.js
- * Multi-color array editor using collapsible sections
+ * @fileoverview Multi-color array editor using collapsible sections.
  *
  * Features:
  * - Manages array of colors with collapsible sections (like series/filter editors)

@@ -1,5 +1,5 @@
 /**
- * LCARdS Form Section
+ * @fileoverview LCARdS Form Section
  *
  * Collapsible section component for organizing form fields into logical groups.
  * Uses Home Assistant's ha-expansion-panel component.

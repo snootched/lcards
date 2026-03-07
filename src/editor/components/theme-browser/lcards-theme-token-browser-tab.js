@@ -1,5 +1,5 @@
 /**
- * LCARdS Theme Token Browser Tab
+ * @fileoverview LCARdS Theme Token Browser Tab
  *
  * Browse and search the full active theme's token tree, cross-reference usage,
  * and enable quick copy/insertion with proper LCARdS token syntax.

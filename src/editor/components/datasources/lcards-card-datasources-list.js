@@ -1,8 +1,8 @@
 /**
- * Card Datasources List
+ * @fileoverview Card Datasources List
  *
  * Displays datasources configured on this card in expandable list format.
- * Read-only in Phase 1, CRUD operations added in Phase 2.
+ * Supports read-only display and full CRUD operations.
  *
  * @element lcards-card-datasources-list
  * @property {Object} editor - Parent editor instance
@@ -179,7 +179,7 @@ export class LCARdSCardDataSourcesList extends LitElement {
               </div>
             ` : ''}
 
-            <!-- Phase 2: Edit and Remove Actions -->
+            <!-- Edit and Remove Actions -->
             <div class="action-buttons">
               <ha-button
                 @click=${() => this._handleInspect(name)}>

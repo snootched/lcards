@@ -1,25 +1,27 @@
 /**
- * LCARdS Native Card Base Class
+ * @fileoverview LCARdS Native Card Base Class
  *
- * Native LitElement-based card implementation that replaces the custom-button-card dependency.
- * Provides all the infrastructure needed for LCARdS cards while maintaining compatibility
- * with existing template patterns and MSD initialization flows.
+ * Native LitElement base implementation for all LCARdS cards.
+ * Provides Home Assistant card interface compliance, shadow DOM management,
+ * GUID-based identity, preview-mode detection, font loading, and the
+ * protected lifecycle hook pattern consumed by {@link LCARdSCard}.
  */
 
 import { LitElement, html, css, unsafeCSS } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
- * Base class for all LCARdS native cards
+ * Base class for all LCARdS native cards.
+ *
+ * @extends LitElement
  *
  * Features:
- * - Native LitElement architecture (no button-card dependency)
- * - Home Assistant card interface compliance
- * - Template pattern support (GUID, preview mode, mount resolution)
- * - Integrated action handling via custom-card-helpers
- * - MSD initialization flow compatibility
- * - Error handling and validation
- * - Font loading and resource management
+ * - Native LitElement architecture with shadow DOM
+ * - Home Assistant card interface compliance (`setConfig`, `hass` setter, `getCardSize`)
+ * - Per-instance GUID for template and rules targeting
+ * - Preview-mode detection (suppresses heavy work in the editor picker)
+ * - Lazy mount resolution and font loading
+ * - Error boundary: config errors render a visible error state instead of throwing
  */
 export class LCARdSNativeCard extends LitElement {
 
@@ -399,21 +401,24 @@ export class LCARdSNativeCard extends LitElement {
     // ============================================================================
 
     /**
-     * Get card GUID for template compatibility
+     * Return the per-instance GUID used for template, rules, and logging identity.
+     * @returns {string}
      */
     getCardGuid() {
         return this._cardGuid;
     }
 
     /**
-     * Check if in preview mode
+     * Return `true` when the card is running inside the HA editor card-picker preview.
+     * @returns {boolean}
      */
     isPreviewMode() {
         return this._isPreviewMode;
     }
 
     /**
-     * Check if mount is resolved
+     * Return `true` once the shadow DOM has been attached and `firstUpdated` has fired.
+     * @returns {boolean}
      */
     isMountResolved() {
         return this._mountResolved;

@@ -1,3 +1,11 @@
+/**
+ * @fileoverview ModelBuilder — assembles the resolved overlay model for an MSD card.
+ *
+ * Takes a merged config and CardModel, applies theme token resolution, wires up
+ * DataSource subscriptions for overlays with `triggers_update`, and returns a
+ * fully-resolved model ready for AdvancedRenderer.
+ */
+
 import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
 import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -128,12 +136,10 @@ export class ModelBuilder {
 
 
   // REMOVED METHOD: _subscribeOverlaysToDataSources
-  // This method subscribed sparkline/ribbon/historybar overlays which are no longer supported.
-  // Deleted in Phase 0 of architecture refactor.
+  // Subscribed sparkline/ribbon/historybar overlays which are no longer supported.
 
   // REMOVED METHOD: _monitorPendingSubscriptions
-  // This was only used by _subscribeOverlaysToDataSources.
-  // Deleted in Phase 0 of architecture refactor.
+  // Was only used by _subscribeOverlaysToDataSources.
 
 
   // REMOVED: _applyRules() - rules now evaluated by core rulesManager singleton
@@ -227,7 +233,7 @@ export class ModelBuilder {
         return;
       }
 
-      // ✅ CRITICAL: Check if already subscribed
+      // Check if already subscribed
       if (!this._overlayUnsubscribers) {
         this._overlayUnsubscribers = new Map();
       }

@@ -1,5 +1,5 @@
 /**
- * LCARdS Color Picker
+ * @fileoverview LCARdS Color Picker
  *
  * Unified color picker component combining:
  * - CSS variable dropdown (dynamically scanned from document)

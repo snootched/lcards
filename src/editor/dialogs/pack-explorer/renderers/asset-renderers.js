@@ -1,5 +1,5 @@
 /**
- * Asset Renderers for Pack Explorer
+ * @fileoverview Asset Renderers for Pack Explorer
  *
  * Provides preview rendering for different asset types:
  * - Themes: Color swatches and token previews

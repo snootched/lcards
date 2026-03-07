@@ -1,5 +1,5 @@
 /**
- * LCARdS Datasource Add/Edit Dialog
+ * @fileoverview LCARdS Datasource Add/Edit Dialog
  *
  * Modal dialog for creating or editing datasource configurations.
  * Uses ha-dialog with form validation and real-time entity checking.

@@ -1,5 +1,5 @@
 /**
- * LCARdS Grid Layout
+ * @fileoverview LCARdS Grid Layout
  *
  * Two-column responsive grid layout for form fields.
  * Automatically stacks to single column on mobile devices.
@@ -25,7 +25,7 @@ export class LCARdSGridLayout extends LitElement {
     constructor() {
         super();
         this.columns = 2;
-        this.gap = '12px'; /* Changed from 8px to 12px per Phase 2 requirements */
+        this.gap = '12px';
     }
 
     static get styles() {

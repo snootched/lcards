@@ -1,5 +1,5 @@
 /**
- * LCARdS Slider Editor
+ * @fileoverview LCARdS Slider Editor
  *
  * Visual configuration editor for slider cards.
  * 5-tab structure with utility tabs from base class.

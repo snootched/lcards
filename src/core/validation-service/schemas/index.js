@@ -48,7 +48,7 @@ export function registerAllSchemas(schemaRegistry) {
   // - LCARdSElbow.registerSchema()
   // - LCARdSMSDCard.registerSchema() ← MSD now self-registers
 
-  // Note: button, text, apexchart, status_grid overlay schemas removed (v1.16.22+)
+  // Note: button, text, apexchart, status_grid overlay schemas are no longer registered
   // These overlay types are deprecated - use LCARdS cards instead:
   // - button/text → custom:lcards-button
   // - apexchart → custom:lcards-chart

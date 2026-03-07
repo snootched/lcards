@@ -1,5 +1,5 @@
 /**
- * LCARdS Unified Processor Editor
+ * @fileoverview LCARdS Unified Processor Editor
  *
  * Modal dialog for adding/editing processors in the unified processing pipeline.
  * Replaces separate transformation/aggregation dialogs with single unified interface.

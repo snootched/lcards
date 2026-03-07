@@ -3,10 +3,14 @@ import { loadBuiltinPacks } from './loadBuiltinPacks.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
- * Single consolidated merge algorithm - COMPLETE REPLACEMENT
- * Removes all legacy dual merge logic per Milestone 1.1
+ * @fileoverview Pack merge pipeline.
  *
- * ENHANCED: Now tracks comprehensive provenance including theme system
+ * Loads builtin packs, optional external packs, and the user config layer in
+ * priority order, then deep-merges them into a single resolved config object.
+ * Tracks provenance for every merged property to aid debugging.
+ *
+ * Public API:
+ *   mergePacks(userConfig) → Promise<MergedConfig>
  */
 export async function mergePacks(userConfig) {
   return await perfTimeAsync('merge.total', async () => {
@@ -433,7 +437,7 @@ export { externalPackCache };
 async function processLayer(merged, layer) {
   const collections = ['overlays', 'rules', 'animations', 'timelines'];
 
-  // ✅ ADDED: Warn about deprecated pack fields
+  // Warn about deprecated pack fields
   if (layer.type === 'builtin' || layer.type === 'external' || layer.type === 'user') {
     const deprecatedFields = ['palettes', 'profiles'];
     const foundDeprecated = deprecatedFields.filter(field => layer.data[field]);

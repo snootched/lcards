@@ -1,5 +1,5 @@
 /**
- * MSD Studio - Anchor & Position Utilities
+ * @fileoverview MSD Studio — Anchor & Position Utilities
  *
  * Pure functions for anchor resolution and position calculations.
  * Extracted from lcards-msd-studio-dialog.js with zero changes to logic.

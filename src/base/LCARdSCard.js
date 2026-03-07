@@ -1,25 +1,19 @@
 /**
- * LCARdS Card Foundation
+ * @fileoverview LCARdS Card Foundation — go-forward base class for all single-purpose cards.
  *
- * Minimal base class for single-purpose cards that leverage
- * singleton architecture without MSD complexity.
+ * Extends {@link LCARdSNativeCard} with the full LCARdS feature set:
+ * singleton access, template evaluation (JS / token / DataSource / Jinja2),
+ * the rules engine, action handling, style-preset resolution, provenance
+ * tracking, and entity/DataSource subscriptions.
  *
  * Philosophy:
  * - Card controls everything explicitly
- * - No auto-subscriptions or magic behavior
+ * - No auto-subscriptions or magic behaviour
  * - Helpers available when needed
  * - Clear, predictable lifecycle
  *
- * Use Cases:
- * - Simple buttons with actions
- * - Status displays
- * - Labels with templates
- * - Single-entity cards
- *
- * NOT for:
- * - Multi-overlay displays (use LCARdSMSDCard)
- * - Complex routing/navigation
- * - Multi-entity grids
+ * Use this base for: buttons, labels, sliders, charts, elbows, data-grids.
+ * Use {@link LCARdSMSDCard} for multi-overlay SVG displays.
  */
 
 import { html, css } from 'lit';
@@ -208,10 +202,9 @@ export class LCARdSCard extends LCARdSNativeCard {
     connectedCallback() {
         super.connectedCallback();
 
-        // CRITICAL FIX: Set --ha-card-border-width globally if not already set
-        // This prevents infinite resize loops in the card picker when theme is not loaded
-        // The theme normally sets this, but without it, HA's card infrastructure
-        // causes layout instability due to undefined border width calculations
+        // Guard against HA layout instability: if the theme CSS has not yet set
+        // --ha-card-border-width, HA's card infrastructure can enter an infinite
+        // resize loop in the card picker. Default it to 0px until the theme loads.
         if (!getComputedStyle(document.documentElement).getPropertyValue('--ha-card-border-width').trim()) {
             document.documentElement.style.setProperty('--ha-card-border-width', '0px');
             lcardsLog.debug('[LCARdSCard] Set global --ha-card-border-width to prevent resize loops');
@@ -645,7 +638,12 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
-     * Called when HASS changes
+     * Called when HASS changes.
+     * Updates the cached entity reference, propagates the new HASS object to all
+     * registered singletons, and schedules a template re-evaluation if needed.
+     *
+     * @param {Object} newHass - Incoming Home Assistant object.
+     * @param {Object} oldHass - Previous Home Assistant object.
      * @protected
      */
     async _onHassChanged(newHass, oldHass) {
@@ -1374,9 +1372,9 @@ export class LCARdSCard extends LCARdSNativeCard {
      * override any matching properties from the config style. This method should be
      * called as the final step in your style resolution logic.
      *
-     * **IMPORTANT:** As of v1.26+, this now performs a DEEP MERGE of the entire
-     * patch config, not just the `style` property. This allows rules to patch any
-     * config property including `text.*`, `dpad.*`, `icon.*`, etc.
+     * **IMPORTANT:** This performs a DEEP MERGE of the entire patch config, not
+     * just the `style` property. This allows rules to patch any config property
+     * including `text.*`, `dpad.*`, `icon.*`, etc.
      *
      * **Style Resolution Priority (low to high):**
      * 1. Preset styles

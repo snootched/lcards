@@ -1,5 +1,5 @@
 /**
- * LCARdS Color Section
+ * @fileoverview LCARdS Color Section
  *
  * Specialized section component for organizing state-based color configurations.
  * Intelligently handles both simple string colors and state-based object colors
@@ -33,8 +33,8 @@ export class LCARdSColorSection extends LitElement {
             variablePrefixes: { type: Array }, // CSS variable prefixes to scan
             showPreview: { type: Boolean },    // Show color preview
             useColorPicker: { type: Boolean }, // Use enhanced color picker vs basic form-field
-            singleColor: { type: Boolean },    // NEW: Treat as single color (not state-based)
-            colorPaths: { type: Array },       // NEW: Array of {path, label, helper} for multiple single colors
+            singleColor: { type: Boolean },    // Treat as single color (not state-based)
+            colorPaths: { type: Array },       // Array of {path, label, helper} for multiple single colors
             // Explicit entity ID — passing this as a string prop ensures the component
             // re-renders when the entity changes (object-ref editor prop won't trigger it).
             entityId: { type: String }

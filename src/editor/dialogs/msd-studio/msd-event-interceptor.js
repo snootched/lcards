@@ -1,5 +1,5 @@
 /**
- * MSD Event Interceptor
+ * @fileoverview MSD Event Interceptor
  *
  * Handles complex event interception for MSD Studio.
  * Prevents unwanted event propagation while preserving nested editor functionality.

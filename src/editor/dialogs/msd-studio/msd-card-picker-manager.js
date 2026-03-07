@@ -1,5 +1,5 @@
 /**
- * MSD Card Picker Manager
+ * @fileoverview MSD Card Picker Manager
  *
  * Manages hui-card-picker component loading and initialization.
  *

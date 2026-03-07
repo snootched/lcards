@@ -53,7 +53,7 @@ export class BaseRenderer {
     this.container = null;
     this.viewBox = null;
 
-    // ✅ NEW: Provenance tracking
+    // Provenance tracking
     this._defaultsAccessed = [];
     this._featuresUsed = new Set();
     this._styleResolutions = [];
@@ -111,8 +111,7 @@ export class BaseRenderer {
    * Resolves component-specific default values from the active theme.
    * Converts dot-notation paths to ThemeManager format and resolves
    * token references automatically.
-   *
-   * ✅ ENHANCED: Now tracks default access for provenance
+   * Now tracks default access for provenance.
    *
    * @protected
    * @param {string} path - Dot-notation path (e.g., 'statusGrid.textPadding')
@@ -131,7 +130,6 @@ export class BaseRenderer {
     const themeManager = this._resolveThemeManager();
 
     if (!themeManager || !themeManager.initialized) {
-      // ✅ Track fallback usage
       this._trackDefaultAccess(path, fallback, 'fallback', 'no_theme_manager');
       return fallback;
     }
@@ -146,7 +144,6 @@ export class BaseRenderer {
       const value = themeManager.getDefault(componentType, property, fallback);
       const finalValue = value !== null ? value : fallback;
 
-      // ✅ Track the access with source
       const source = value !== null ? 'theme' : 'fallback';
       const reason = value !== null ? 'resolved' : 'not_in_theme';
       this._trackDefaultAccess(path, finalValue, source, reason);
@@ -154,7 +151,6 @@ export class BaseRenderer {
       return finalValue;
     } catch (error) {
       this._logWarn(`Error resolving theme default for ${path}:`, error);
-      // ✅ Track error case
       this._trackDefaultAccess(path, fallback, 'fallback', 'error');
       return fallback;
     }
@@ -166,8 +162,6 @@ export class BaseRenderer {
    * Records each time a default value is accessed, including the path,
    * resolved value, source, and reason. This data is used to populate
    * the renderer provenance in __provenance.renderers.
-   *
-   * ✅ NEW: Provenance tracking method
    *
    * @private
    * @param {string} path - Default value path
@@ -191,8 +185,6 @@ export class BaseRenderer {
    * Records renderer features used during rendering (e.g., 'preset',
    * 'theme_defaults', 'token_resolution', 'brackets', 'glow', etc.)
    *
-   * ✅ NEW: Feature tracking method
-   *
    * @protected
    * @param {string} feature - Feature name
    */
@@ -206,8 +198,7 @@ export class BaseRenderer {
    * Collects all tracking data (defaults accessed, features used, render time,
    * style resolutions) and returns a provenance object suitable for storage
    * in __provenance.renderers.
-   *
-   * ✅ ENHANCED: Now includes style resolution summary (Phase 5.2B)
+   * Now includes style resolution summary.
    *
    * @protected
    * @param {string} overlayId - Overlay ID
@@ -215,7 +206,7 @@ export class BaseRenderer {
    * @returns {Object} Renderer provenance object
    */
   _getRendererProvenance(overlayId, additionalData = {}) {
-    // ✅ NEW: Summarize style resolutions by source
+    // Summarize style resolutions by source
     const styleResolutionSummary = this._summarizeStyleResolutions();
 
     return {
@@ -237,8 +228,6 @@ export class BaseRenderer {
    *
    * Aggregates style resolution data for provenance reporting.
    * Groups resolutions by source type and provides detailed property list.
-   *
-   * ✅ NEW: Phase 5.2B - Style resolution summary
    *
    * @private
    * @returns {Object} Style resolution summary
@@ -283,8 +272,6 @@ export class BaseRenderer {
    *
    * Determines where the ThemeManager instance came from for debugging.
    *
-   * ✅ NEW: Source tracking method
-   *
    * @private
    * @returns {string|null} Source name
    */
@@ -319,8 +306,6 @@ export class BaseRenderer {
    *
    * Clears all tracking data to prepare for a new render operation.
    * Should be called at the start of each render.
-   *
-   * ✅ NEW: Tracking reset method
    *
    * @protected
    */
@@ -464,7 +449,6 @@ export class BaseRenderer {
 
   /**
    * Check if a value is a token reference
-   * ✅ NEW: Phase 6 - Token reference detection
    *
    * @private
    * @param {*} value - Value to check
@@ -478,7 +462,6 @@ export class BaseRenderer {
 
   /**
    * Manually resolve a token (fallback when StyleResolver not available)
-   * ✅ NEW: Phase 6 - Manual token resolution fallback
    *
    * @private
    * @param {string} tokenPath - Token path to resolve
@@ -521,8 +504,6 @@ export class BaseRenderer {
    *
    * Records each style property resolution including the source
    * (explicit, token, fallback) and the actual value used.
-   *
-   * ✅ NEW: Phase 5.2B - Style resolution tracking
    *
    * @private
    * @param {string} property - Property name being resolved

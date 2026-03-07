@@ -1,5 +1,5 @@
 /**
- * LCARdS Multi-Action Editor
+ * @fileoverview LCARdS Multi-Action Editor
  *
  * Unified view for tap, hold, and double-tap actions.
  * Provides a single interface for configuring all three action types

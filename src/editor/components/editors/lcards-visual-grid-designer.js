@@ -1,5 +1,5 @@
 /**
- * LCARdS Visual Grid Designer
+ * @fileoverview LCARdS Visual Grid Designer
  *
  * Dual-mode grid designer for configuring CSS Grid layouts.
  * Supports visual designer (interactive controls) and CSS text editor modes.

@@ -1,9 +1,18 @@
-// Extract anchor points from SVG content
+/**
+ * @fileoverview SVG anchor-point extraction helpers.
+ *
+ * Locates named anchor elements (circle and text nodes with IDs) inside inline
+ * SVG content and returns their coordinates for use by overlay positioning
+ * logic.
+ *
+ * @module utils/lcards-anchor-helpers
+ */
+
 import { lcardsLog } from './lcards-logging.js';
 
 /**
  * Find anchor points in SVG content by parsing circle and text elements with IDs
- * 
+ *
  * @param {string} svgContent - SVG markup as string
  * @returns {Object<string, [number, number]>} Map of anchor ID to [x, y] coordinates
  */
@@ -86,7 +95,7 @@ export function getSvgViewBox(svgContent) {
 
 /**
  * Calculate aspect ratio from viewBox
- * 
+ *
  * @param {[number, number, number, number]} viewBox - ViewBox array [minX, minY, width, height]
  * @returns {number} Aspect ratio (width/height)
  */

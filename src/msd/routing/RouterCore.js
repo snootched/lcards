@@ -1,11 +1,20 @@
+/**
+ * @fileoverview RouterCore — path-routing engine for MSD line overlays.
+ *
+ * Computes SVG paths between anchor points using Manhattan, smart (A\*), or
+ * waypoint-guided routing.  Results are cached by a content-addressable key
+ * and invalidated when config or obstacles change.
+ */
+
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getValidChannelTypes, WAYPOINT_CONFIG } from './routing-constants.js';
 
 /**
- * M5.1 RouterCore
- * - Manhattan basic routing
- * - Caching
- * - Placeholders for obstacles & channels
+ * Path-routing engine for MSD line overlays.
+ *
+ * Supports Manhattan basic routing, A\*-based smart routing through obstacles
+ * and channels, and waypoint-guided routing.  Routes are cached in an LRU map
+ * keyed on anchor positions, mode, and obstacle version.
  */
 export class RouterCore {
   constructor(routingConfig, anchors, viewBox) {
@@ -33,7 +42,6 @@ export class RouterCore {
 
     this._channelForcePenalty = Number(this.config.channel_force_penalty || 800);
     this._channelAvoidMultiplier = Number(this.config.channel_avoid_multiplier || 1.0);
-    // NEW (M5.4 shaping config)
     this._channelTargetCoverage = Number(this.config.channel_target_coverage ?? 0.6);
     this._channelShapingMaxAttempts = Number(this.config.channel_shaping_max_attempts ?? 12);
     this._channelShapingSpan = Number(this.config.channel_shaping_span ?? 32);
@@ -345,7 +353,7 @@ export class RouterCore {
         } else if (mode === 'grid') {
           result = this._computeGrid(req);
         } else if (mode === 'smart') {
-          // Phase 1: base grid
+          // Compute base grid, then refine with A* for smart routing
             const gridBase = this._computeGrid(req, { smart: true });
           if (gridBase) {
             result = this._refineSmart(req, gridBase);
@@ -362,7 +370,7 @@ export class RouterCore {
         const arcApplied = this._applyCornerRounding(result, req.cornerRadius, req.id);
         if (arcApplied) result = arcApplied;
       }
-      // NEW (M5.6) apply smoothing AFTER arcs (arcs preserved, path rebuilt as polyline if smoothing >0)
+      // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
         const smoothApplied = this._applySmoothing(result, req);
         if (smoothApplied) result = smoothApplied;
@@ -598,7 +606,7 @@ export class RouterCore {
       }
     }
 
-    // NEW (M5.2 fix): If compression produced a single diagonal segment, insert a Manhattan elbow.
+    // If compression produced a single diagonal segment, insert a Manhattan elbow.
     if (pts.length === 2) {
       const [sx, sy] = pts[0];
       const [tx, ty] = pts[1];
