@@ -310,7 +310,7 @@ Grid with cell background fills in addition to line strokes.
 **When to use:**
 - Solid cell backgrounds
 - Checkerboard patterns
-- Color-blocked grids
+- Colour-blocked grids
 
 **Configuration:**
 
@@ -342,7 +342,7 @@ config:
 
 ### `starfield`
 
-Scrolling starfield with parallax layers and multi-color support.
+Scrolling starfield with parallax layers and multi-colour support.
 
 **When to use:**
 - Space/sci-fi backgrounds
@@ -406,7 +406,7 @@ Each starfield instance uses a seeded random number generator for reproducible p
     scroll_speed_x: 40
 ```
 
-**Example - Multi-Color Starfield:**
+**Example - Multi-Colour Starfield:**
 
 ```yaml
 - preset: starfield
@@ -456,7 +456,7 @@ Layered nebula clouds with Perlin noise turbulence and organic movement.
 **When to use:**
 - Space/sci-fi atmospheric backgrounds
 - Organic, flowing visual effects
-- Colorful cosmic backgrounds
+- Colourful cosmic backgrounds
 
 **Configuration:**
 
@@ -505,7 +505,7 @@ Nebula clouds use 2D Perlin noise to create organic, flowing patterns:
 
 **Seeded Random:**
 
-Each nebula instance uses a seeded random number generator for reproducible cloud patterns. This ensures consistent placement and colors across sessions with the same seed.
+Each nebula instance uses a seeded random number generator for reproducible cloud patterns. This ensures consistent placement and colours across sessions with the same seed.
 
 **Example - Simple Nebula:**
 
@@ -518,7 +518,7 @@ Each nebula instance uses a seeded random number generator for reproducible clou
     scroll_speed_y: 10
 ```
 
-**Example - Multi-Color Cosmic Nebula:**
+**Example - Multi-Colour Cosmic Nebula:**
 
 ```yaml
 - preset: nebula
@@ -785,7 +785,7 @@ Multiple effects can be stacked by providing an array. Effects render in order (
 
 1. **Order matters**: First effect in array renders first (bottom)
 2. **Independent configuration**: Each effect has its own config and optional zoom
-3. **Alpha blending**: Use RGBA colors with alpha < 1.0 for transparency
+3. **Alpha blending**: Use RGBA colours with alpha < 1.0 for transparency
 4. **Performance**: More effects = higher CPU usage, test on target hardware
 
 ### Example: Layered Grid + Hexagons
@@ -832,9 +832,9 @@ background_animation:
 
 ---
 
-## 🎨 Color Configuration
+## 🎨 Colour Configuration
 
-All color parameters support multiple formats:
+All colour parameters support multiple formats:
 
 ### RGBA (Recommended)
 
@@ -848,13 +848,13 @@ color: "rgba(255, 153, 102, 0.4)"  # Orange at 40% opacity
 color: "{theme:palette.moonlight}"
 ```
 
-### Hex Colors
+### Hex Colours
 
 ```yaml
 color: "#FF9966"
 ```
 
-### Named Colors
+### Named Colours
 
 ```yaml
 color: "orange"
@@ -1030,11 +1030,11 @@ background_animation:
 - **Grid spacing**: Use consistent `line_spacing` across effects
 - **Major line intervals**: Use values that divide evenly into canvas dimensions
 
-### Colors Not Resolving
+### Colours Not Resolving
 
 - **Theme tokens**: Verify token exists in current theme
 - **RGBA format**: Use quotes around RGBA strings
-- **Hex colors**: Include `#` prefix
+- **Hex colours**: Include `#` prefix
 
 ---
 

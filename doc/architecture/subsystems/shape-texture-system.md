@@ -204,7 +204,7 @@ Breathing radial glow for attention / alert indicators. A `radialGradient` ellip
 
 ### `scanlines`
 
-Classic CRT-style scan-line overlay. Works as a darkening (or lightening) overlay on top of any shape fill color.
+Classic CRT-style scan-line overlay. Works as a darkening (or lightening) overlay on top of any shape fill colour.
 
 | Config key | Default | Description |
 |---|---|---|

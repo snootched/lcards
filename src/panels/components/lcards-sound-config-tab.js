@@ -16,6 +16,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../../editor/components/shared/lcards-form-section.js';
+import '../../editor/components/shared/lcards-message.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -420,10 +421,10 @@ export class LCARdSSoundConfigTab extends LitElement {
 
           ${this._eventTypes.length > 0 ? html`
             <div class="overrides-header-row">
-              <span class="overrides-note">
-                <ha-icon icon="mdi:monitor"></ha-icon>
-                Overrides are stored in this browser only — configure each device separately.
-              </span>
+              <lcards-message
+                type="info"
+                message="Overrides are stored in this browser only — configure each device separately."
+              ></lcards-message>
               ${Object.keys(this._overrides).length > 0 ? html`
                 <ha-button @click=${this._resetOverrides} class="reset-overrides-btn">
                   <ha-icon slot="start" icon="mdi:restore"></ha-icon>
@@ -682,33 +683,12 @@ export class LCARdSSoundConfigTab extends LitElement {
     .event-label {
       white-space: nowrap;
     }
-    ha-icon-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    ha-icon-button ha-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
     .overrides-header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
       padding: 0 4px 8px;
-    }
-    .overrides-note {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.82em;
-      color: var(--secondary-text-color);
-    }
-    .overrides-note ha-icon {
-      --mdc-icon-size: 14px;
-      flex-shrink: 0;
     }
     .reset-overrides-btn {
       --mdc-theme-primary: var(--warning-color, #ff9800);

@@ -41,7 +41,7 @@ export function getChartSchema(options = {}) {
     const colorArraySchema = {
         type: 'array',
         items: simpleColorSchema,
-        description: 'Array of color values for multiple series',
+        description: 'Array of colour values for multiple series',
         examples: [['#FF9900', '#99CCFF', '#FFCC00']]
     };
 
@@ -381,10 +381,10 @@ export function getChartSchema(options = {}) {
 
                     colors: {
                         type: 'object',
-                        description: 'Complete color configuration for all chart elements',
+                        description: 'Complete colour configuration for all chart elements',
                         'x-ui-hints': {
-                            label: 'Colors',
-                            helper: 'Configure colors for all chart elements',
+                            label: 'Colours',
+                            helper: 'Configure colours for all chart elements',
                             collapsible: true,
                             defaultCollapsed: false
                         },
@@ -398,10 +398,10 @@ export function getChartSchema(options = {}) {
 
                             marker: {
                                 type: 'object',
-                                description: 'Marker colors',
+                                description: 'Marker colours',
                                 'x-ui-hints': {
-                                    label: 'Marker Colors',
-                                    helper: 'Configure fill and stroke colors for data point markers',
+                                    label: 'Marker Colours',
+                                    helper: 'Configure fill and stroke colours for data point markers',
                                     collapsible: true,
                                     defaultCollapsed: true
                                 },
@@ -413,10 +413,10 @@ export function getChartSchema(options = {}) {
 
                             axis: {
                                 type: 'object',
-                                description: 'Axis colors',
+                                description: 'Axis colours',
                                 'x-ui-hints': {
-                                    label: 'Axis Colors',
-                                    helper: 'Configure colors for x-axis, y-axis, borders, and tick marks',
+                                    label: 'Axis Colours',
+                                    helper: 'Configure colours for x-axis, y-axis, borders, and tick marks',
                                     collapsible: true,
                                     defaultCollapsed: true
                                 },
@@ -430,10 +430,10 @@ export function getChartSchema(options = {}) {
 
                             legend: {
                                 type: 'object',
-                                description: 'Legend colors',
+                                description: 'Legend colours',
                                 'x-ui-hints': {
-                                    label: 'Legend Colors',
-                                    helper: 'Configure default legend text color and per-series item colors',
+                                    label: 'Legend Colours',
+                                    helper: 'Configure default legend text colour and per-series item colours',
                                     collapsible: true,
                                     defaultCollapsed: true
                                 },
@@ -761,7 +761,7 @@ export function getChartSchema(options = {}) {
                         description: 'Grid line configuration',
                         'x-ui-hints': {
                             label: 'Grid',
-                            helper: 'Configure grid lines and colors',
+                            helper: 'Configure grid lines and colours',
                             collapsible: true,
                             defaultCollapsed: true
                         },

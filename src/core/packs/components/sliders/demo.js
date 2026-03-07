@@ -385,7 +385,7 @@ export const metadata = {
             description: 'Show zone boundary markers',
             'x-ui-hints': {
                 label: 'Show Zone Markers',
-                helper: 'Display colored outlines for all zones (development only, default: false)',
+                helper: 'Display coloured outlines for all zones (development only, default: false)',
                 selector: { boolean: {} }
             }
         },
@@ -459,10 +459,10 @@ export const metadata = {
             key: 'decoration_color',
             type: 'color',
             default: '#66ccff',
-            description: 'Color of decorative elements',
+            description: 'Colour of decorative elements',
             'x-ui-hints': {
-                label: 'Decoration Color',
-                helper: 'Color for corner decorations and animations (default: #66ccff)',
+                label: 'Decoration Colour',
+                helper: 'Colour for corner decorations and animations (default: #66ccff)',
                 format: 'color-lcards'     // Use LCARdS color picker
             }
         },
@@ -498,7 +498,7 @@ export const metadata = {
             description: 'Show labels on range indicators',
             'x-ui-hints': {
                 label: 'Show Range Labels',
-                helper: 'Display labels on colored range segments (default: true)',
+                helper: 'Display labels on coloured range segments (default: true)',
                 selector: { boolean: {} }
             }
         }

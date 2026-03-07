@@ -2,7 +2,7 @@
 
 `custom:lcards-elbow`
 
-The Elbow card creates the iconic LCARS corner/cap shapes — the L-shaped colored bars that frame sections of an LCARS interface. Extends the button card so it inherits text, actions, rules, animations, and templates.
+The Elbow card creates the iconic LCARS corner/cap shapes — the L-shaped coloured bars that frame sections of an LCARS interface. Extends the button card so it inherits text, actions, rules, animations, and templates.
 
 ---
 
@@ -177,7 +177,7 @@ elbow:
 
 ### State-reactive elbow
 
-Changes color when a sensor is above threshold (using [Rules Engine](../../core/rules/README.md)):
+Changes colour when a sensor is above threshold (using [Rules Engine](../../core/rules/README.md)):
 
 ```yaml
 type: custom:lcards-elbow

@@ -1,6 +1,6 @@
 # Themes
 
-LCARdS uses a token-based theme system. Instead of hardcoding colors, you reference named tokens that the active theme resolves. Switching themes updates the whole dashboard.
+LCARdS uses a token-based theme system. Instead of hardcoding colours, you reference named tokens that the active theme resolves. Switching themes updates the whole dashboard.
 
 ---
 
@@ -18,7 +18,7 @@ Themes are provided by content packs. See the [Config Panel](../../config-panel.
 
 ## Using Theme Tokens
 
-Reference a token anywhere a color or size is expected using `{theme:token.path}`:
+Reference a token anywhere a colour or size is expected using `{theme:token.path}`:
 
 ```yaml
 style:
@@ -45,7 +45,7 @@ Tokens are organized into namespaces. Browse all available tokens in the [Config
 
 ### `palette.*`
 
-Raw color values that define the theme's color set.
+Raw colour values that define the theme's colour set.
 
 | Token (examples) | Purpose |
 |-----------------|---------|
@@ -57,7 +57,7 @@ Raw color values that define the theme's color set.
 
 ### `color.ui.*`
 
-Semantic colors that map to UI roles. Prefer these over raw palette tokens when possible.
+Semantic colours that map to UI roles. Prefer these over raw palette tokens when possible.
 
 | Token | Purpose |
 |-------|---------|
@@ -81,7 +81,7 @@ style:
 
 ## CSS Variables
 
-LCARdS themes also expose standard HA CSS variables. You can use these in color fields:
+LCARdS themes also expose standard HA CSS variables. You can use these in colour fields:
 
 ```yaml
 style:

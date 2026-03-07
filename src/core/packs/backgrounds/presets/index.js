@@ -146,7 +146,7 @@ export const BACKGROUND_PRESETS = {
    */
   'grid-filled': {
     name: 'Filled Grid',
-    description: 'Grid with colored cell backgrounds',
+    description: 'Grid with coloured cell backgrounds',
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-filled] Creating filled grid effect');
@@ -264,11 +264,11 @@ export const BACKGROUND_PRESETS = {
   },
 
   /**
-   * LCARS waterfall color-cycling data grid (decorative)
+   * LCARS waterfall colour-cycling data grid (decorative)
    */
   'cascade': {
     name: 'Data Cascade',
-    description: 'LCARS waterfall color-cycling data grid (decorative)',
+    description: 'LCARS waterfall colour-cycling data grid (decorative)',
 
     createEffects(config = {}, cardInstance = null) {
       lcardsLog.debug('[Preset:cascade] Creating cascade effect');

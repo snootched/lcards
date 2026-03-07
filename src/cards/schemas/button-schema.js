@@ -141,8 +141,8 @@ export function getButtonSchema(options = {}) {
             },
 
             icon_area_background: {
-                title: 'Icon Area Background Color',
-                description: 'Background color for the icon area (supports state-based colors)',
+                title: 'Icon Area Background Colour',
+                description: 'Background colour for the icon area (supports state-based colours)',
                 default: 'transparent',
                 $comment: 'Icon area background is independent of main card background. Useful for creating visual separation.',
                 ...stateColorSchema
@@ -200,7 +200,7 @@ export function getButtonSchema(options = {}) {
                     color: {
                         type: 'string',
                         pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|rgb\\(|rgba\\(|var\\(--)',
-                        description: 'Divider color',
+                        description: 'Divider colour',
                         examples: ['#FF9900', 'rgba(255, 153, 0, 0.5)']
                     }
                 }
@@ -759,16 +759,16 @@ export function getButtonSchema(options = {}) {
                     //   alert.color.bars  → bars.style.stroke
                     color: {
                         type: 'object',
-                        description: 'Color shorthand — overrides the active preset\'s colors',
+                        description: 'Colour shorthand — overrides the active preset\'s colours',
                         properties: {
                             shape: {
                                 type: 'string',
-                                description: 'Fill color for the shield shape',
+                                description: 'Fill colour for the shield shape',
                                 examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
                             },
                             bars: {
                                 type: 'string',
-                                description: 'Stroke color for the bar lines',
+                                description: 'Stroke colour for the bar lines',
                                 examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
                             }
                         }
@@ -974,7 +974,7 @@ export function getButtonSchema(options = {}) {
                         },
                         color: {
                             type: 'object',
-                            description: 'Transient segment color overrides applied while this range is active',
+                            description: 'Transient segment colour overrides applied while this range is active',
                             properties: {
                                 shape: { type: 'string', description: 'Override fill for the shape segment' },
                                 bars:  { type: 'string', description: 'Override stroke for the bars segment' }

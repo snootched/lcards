@@ -28,7 +28,7 @@ The `input_select.lcards_alert_mode` helper entity must exist in Home Assistant.
 type: custom:lcards-alert-overlay
 ```
 
-The built-in defaults display an LCARS shield symbol styled for the active condition with appropriate colors and animations.
+The built-in defaults display an LCARS shield symbol styled for the active condition with appropriate colours and animations.
 
 ---
 

@@ -608,7 +608,7 @@ export class LCARdSColorPicker extends LitElement {
                             { value: 'alpha', label: 'Transparency' },
                             { value: 'saturate', label: 'Saturate' },
                             { value: 'desaturate', label: 'Desaturate' },
-                            { value: 'mix', label: 'Mix Colors' }
+                            { value: 'mix', label: 'Mix Colours' }
                         ]}}}
                         .value=${this._selectedFunction}
                         .disabled=${this.disabled}

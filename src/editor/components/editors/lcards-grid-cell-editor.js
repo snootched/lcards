@@ -246,17 +246,17 @@ export class LCARdSGridCellEditor extends LitElement {
                     </summary>
 
                     <ha-textfield
-                        label="Text Color"
+                        label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
-                        helper="CSS color value">
+                        helper="CSS colour value">
                     </ha-textfield>
 
                     <ha-textfield
-                        label="Background Color"
+                        label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
-                        helper="CSS color value"
+                        helper="CSS colour value"
                         style="margin-top: 8px;">
                     </ha-textfield>
 

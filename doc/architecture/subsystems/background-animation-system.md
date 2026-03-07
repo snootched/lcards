@@ -372,9 +372,9 @@ for (let x = -patternWidth; x < width + patternWidth; x += patternWidth) {
 }
 ```
 
-### Fill Color Support
+### Fill Colour Support
 
-Fill color renders cell backgrounds before line strokes:
+Fill colour renders cell backgrounds before line strokes:
 
 ```javascript
 if (fillColor) {
@@ -407,7 +407,7 @@ for (const effect of this._effects) {
 
 ### Alpha Blending
 
-Effects should use RGBA colors with alpha < 1.0 for transparency:
+Effects should use RGBA colours with alpha < 1.0 for transparency:
 
 ```javascript
 color: "rgba(255, 153, 102, 0.3)"  // 30% opacity

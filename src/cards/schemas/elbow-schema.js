@@ -330,7 +330,7 @@ export function getElbowSchema(options = {}) {
                             },
                             color: {
                                 ...stateColorSchema,
-                                description: 'Segment color (string or state-based object)',
+                                description: 'Segment colour (string or state-based object)',
                                 examples: [
                                     '#FF9900',
                                     'theme:palette.moonlight',
@@ -406,7 +406,7 @@ export function getElbowSchema(options = {}) {
                                         type: 'string',
                                         format: 'entity',
                                         pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-                                        description: 'Entity ID for state-based color (format: domain.object_id)',
+                                        description: 'Entity ID for state-based colour (format: domain.object_id)',
                                         examples: ['light.outer_frame', 'switch.outer_power']
                                     },
                                     bar_width: {
@@ -463,7 +463,7 @@ export function getElbowSchema(options = {}) {
                                         type: 'string',
                                         format: 'entity',
                                         pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-                                        description: 'Entity ID for state-based color (format: domain.object_id)',
+                                        description: 'Entity ID for state-based colour (format: domain.object_id)',
                                         examples: ['light.inner_zone', 'switch.inner_power']
                                     },
                                     bar_width: {
@@ -506,13 +506,13 @@ export function getElbowSchema(options = {}) {
 
                     colors: {
                         type: 'object',
-                        description: 'Legacy color override (use segment.color or segments.*.color instead)',
+                        description: 'Legacy colour override (use segment.color or segments.*.color instead)',
                         deprecated: true,
                         properties: {
                             background: {
                                 type: 'string',
                                 pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                                description: 'Background color override (deprecated - use segment.color instead)'
+                                description: 'Background colour override (deprecated - use segment.color instead)'
                             }
                         }
                     }
@@ -635,14 +635,14 @@ export function getElbowSchema(options = {}) {
                             enabled: { type: 'boolean', default: true },
                             background: {
                                 ...stateColorSchema,
-                                description: 'Background color to inject into embedded card. Null = do not imprint.'
+                                description: 'Background colour to inject into embedded card. Null = do not imprint.'
                             },
                             text: {
                                 type: 'object',
                                 properties: {
                                     color: {
                                         ...stateColorSchema,
-                                        description: 'Text color to inject into embedded card. Null = do not imprint.'
+                                        description: 'Text colour to inject into embedded card. Null = do not imprint.'
                                     },
                                     font_size: {
                                         type: 'string',

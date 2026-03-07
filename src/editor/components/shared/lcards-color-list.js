@@ -30,7 +30,7 @@ export class LCARdSColorList extends LitElement {
   constructor() {
     super();
     this.colors = [];
-    this.label = 'Colors';
+    this.label = 'Colours';
     this.description = '';
     this.disabled = false;
     this._expandedItems = {}; // Track which items are expanded

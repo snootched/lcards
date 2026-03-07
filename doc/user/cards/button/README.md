@@ -306,7 +306,7 @@ shape_texture:
 | `pulse` | Breathing radial glow — attention/alert indicator | `radius`, `min_size`, `speed` |
 | `scanlines` | CRT-style scan-line darkening overlay | `line_spacing`, `direction` |
 
-All color fields (`color`, `color_a`, `color_b`) accept: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or a state-based map.
+All colour fields (`color`, `color_a`, `color_b`) accept: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or a state-based map.
 
 All `scroll_speed_x` / `scroll_speed_y` values accept **negative** numbers to reverse direction.
 

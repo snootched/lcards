@@ -45,7 +45,7 @@ export class LCARdSColorSection extends LitElement {
         super();
         this.editor = null;
         this.basePath = '';
-        this.header = 'Colors';
+        this.header = 'Colours';
         this.description = '';
         this.states = ['default', 'active', 'hover', 'disabled'];
         this.expanded = false;
@@ -266,7 +266,7 @@ export class LCARdSColorSection extends LitElement {
         }
 
         return FormField.renderField(this.editor, this.basePath, {
-            label: 'Color'
+            label: 'Colour'
         });
     }
 

@@ -232,14 +232,14 @@ config:
 
 ---
 
-## 🎨 Color Formats
+## 🎨 Colour Formats
 
 | Format | Example | Notes |
 |--------|---------|-------|
 | RGBA | `"rgba(255, 153, 102, 0.4)"` | Recommended (alpha control) |
 | Hex | `"#FF9966"` | No transparency |
 | Named | `"orange"` | Limited palette |
-| Theme Token | `"{theme:palette.moonlight}"` | Dynamic theme colors |
+| Theme Token | `"{theme:palette.moonlight}"` | Dynamic theme colours |
 
 ---
 
@@ -377,7 +377,7 @@ background_animation:
 | Animation not visible | Check alpha > 0, verify canvas has width/height |
 | Pattern seams visible | Use proper spacing values, check hex_radius |
 | Poor performance | Reduce layers, increase spacing, fewer effects |
-| Colors not resolving | Use quotes for RGBA, verify theme tokens exist |
+| Colours not resolving | Use quotes for RGBA, verify theme tokens exist |
 | Zoom too subtle | Increase scale_to, reduce scale_from |
 | Zoom too choppy | Increase layers (4-5), adjust duration |
 

@@ -445,7 +445,7 @@ export function getSliderSchema(options = {}) {
                                     },
                                     gradient: {
                                         type: 'object',
-                                        description: 'Color gradient configuration',
+                                        description: 'Colour gradient configuration',
                                         properties: {
                                             start: simpleColorSchema,
                                             end: simpleColorSchema
@@ -836,7 +836,7 @@ export function getSliderSchema(options = {}) {
 
                     ranges: {
                         type: 'array',
-                        description: 'Color-coded value ranges for visual context (backgrounds in gauge mode, gradient overrides in pills mode)',
+                        description: 'Colour-coded value ranges for visual context (backgrounds in gauge mode, gradient overrides in pills mode)',
                         items: {
                             type: 'object',
                             properties: {
@@ -853,7 +853,7 @@ export function getSliderSchema(options = {}) {
                                 color: {
                                     type: 'string',
                                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                                    description: 'Range background color (hex, rgba, theme token, or CSS variable)',
+                                    description: 'Range background colour (hex, rgba, theme token, or CSS variable)',
                                     examples: ['var(--error-color)', '#ff0000', 'rgba(255,0,0,0.3)', 'theme:palette.danger']
                                 },
                                 label: {
@@ -880,7 +880,7 @@ export function getSliderSchema(options = {}) {
                         ],
                         'x-ui-hints': {
                             label: 'Value Ranges',
-                            helper: 'Define color-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
+                            helper: 'Define colour-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
                         }
                     },
 

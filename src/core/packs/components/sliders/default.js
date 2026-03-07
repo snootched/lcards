@@ -112,7 +112,7 @@ export function getMetadata() {
         pack: 'lcards_sliders',
         id: 'default',
         name: 'Default',
-        description: 'Simple rectangular slider with state-aware colors and overlapping zones',
+        description: 'Simple rectangular slider with state-aware colours and overlapping zones',
         orientation: 'auto',  // Adapts to style.track.orientation
         supportsOrientation: ['horizontal', 'vertical'],
         defaultOrientation: 'horizontal',
@@ -128,7 +128,7 @@ export function getMetadata() {
             style: {
                 border: {
                     color: {
-                        description: 'Border color (state-aware: object with state keys or single color)',
+                        description: 'Border colour (state-aware: object with state keys or single colour)',
                         type: ['string', 'object']
                     },
                     width: {
@@ -144,7 +144,7 @@ export function getMetadata() {
                 },
                 background: {
                     color: {
-                        description: 'Background color (state-aware: object with state keys or single color)',
+                        description: 'Background colour (state-aware: object with state keys or single colour)',
                         type: ['string', 'object']
                     }
                 }

@@ -749,8 +749,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             </lcards-form-section>
 
             <lcards-form-section
-                header="Elbow Colors"
-                description="State-based colors for the elbow"
+                header="Elbow Colours"
+                description="State-based colours for the elbow"
                 icon="mdi:palette"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -759,8 +759,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="elbow.segment.color"
-                    header="Segment Colors"
-                    description="Elbow segment color for each state - supports custom states"
+                    header="Segment Colours"
+                    description="Elbow segment colour for each state - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -845,7 +845,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Outer Segment (Frame)"
-                description="Outer elbow dimensions and color"
+                description="Outer elbow dimensions and colour"
                 icon="mdi:vector-square"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -854,8 +854,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="elbow.segments.outer_segment.color"
-                    header="Outer Segment Color"
-                    description="Color states for outer frame segment - supports custom states like 'heat', 'cool', etc."
+                    header="Outer Segment Colour"
+                    description="Colour states for outer frame segment - supports custom states like 'heat', 'cool', etc."
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -977,7 +977,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Inner Segment (Content Area)"
-                description="Inner elbow dimensions and color"
+                description="Inner elbow dimensions and colour"
                 icon="mdi:vector-square-open"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -986,8 +986,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="elbow.segments.inner_segment.color"
-                    header="Inner Segment Color"
-                    description="Color states for inner content segment - supports custom states like 'heat', 'cool', etc."
+                    header="Inner Segment Colour"
+                    description="Colour states for inner content segment - supports custom states like 'heat', 'cool', etc."
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -995,7 +995,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Inner Segment (Content Area)"
-                description="Inner elbow dimensions and color"
+                description="Inner elbow dimensions and colour"
                 icon="mdi:vector-square-open"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1282,8 +1282,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                             <!-- Background Color -->
                             <lcards-form-section
-                                header="Background Color"
-                                description="Background color injected into the embedded card (state-aware)"
+                                header="Background Colour"
+                                description="Background colour injected into the embedded card (state-aware)"
                                 icon="mdi:format-color-fill"
                                 ?expanded=${false}
                                 ?outlined=${true}>
@@ -1293,7 +1293,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.background"
                                     header="Background"
-                                    description="Background color for each state — null = transparent (do not imprint)"
+                                    description="Background colour for each state — null = transparent (do not imprint)"
                                     .suggestedStates=${['default', 'active', 'inactive']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>
@@ -1303,7 +1303,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             <!-- Text -->
                             <lcards-form-section
                                 header="Text"
-                                description="Text color, font size, and font family"
+                                description="Text colour, font size, and font family"
                                 icon="mdi:format-text"
                                 ?expanded=${false}
                                 ?outlined=${true}>
@@ -1312,8 +1312,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .editor=${this}
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.text.color"
-                                    header="Text Color"
-                                    description="Text color for each state — null = do not imprint"
+                                    header="Text Colour"
+                                    description="Text colour for each state — null = do not imprint"
                                     .suggestedStates=${['default', 'active', 'inactive']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>

@@ -48,7 +48,7 @@ Helpers are `input_boolean`, `input_number`, and `input_select` entities that st
 Browse all available theme tokens for the active theme.
 
 Use this to:
-- Find the exact token name for a color or size value
+- Find the exact token name for a colour or size value
 - Preview token values before using them in card YAML
 - See which tokens are available across all built-in themes
 

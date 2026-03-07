@@ -66,7 +66,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         super();
         this.editor = null;
         this.basePath = '';
-        this.header = 'Colors';
+        this.header = 'Colours';
         this.description = '';
         this.expanded = false;
         this.allowMatchLight = false;

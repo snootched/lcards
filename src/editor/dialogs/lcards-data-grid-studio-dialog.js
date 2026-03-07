@@ -1438,11 +1438,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
             <lcards-color-section
                 .editor=${this}
-                header="Colors"
-                description="Default colors for all cells"
+                header="Colours"
+                description="Default colours for all cells"
                 .colorPaths=${[
-                    { path: 'style.color', label: 'Text Color', helper: 'Cell text color' },
-                    { path: 'style.background', label: 'Background Color', helper: 'Cell background' }
+                    { path: 'style.color', label: 'Text Colour', helper: 'Cell text colour' },
+                    { path: 'style.background', label: 'Background Colour', helper: 'Cell background' }
                 ]}
                 ?expanded=${false}
                 ?useColorPicker=${true}>
@@ -1464,10 +1464,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </ha-textfield>
 
                     <ha-textfield
-                        label="Border Color"
+                        label="Border Colour"
                         .value=${this._workingConfig.style?.border_color || ''}
                         @input=${(e) => this._updateConfig('style.border_color', e.target.value)}
-                        helper="Border color">
+                        helper="Border colour">
                     </ha-textfield>
                 </lcards-grid-layout>
 
@@ -1627,11 +1627,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
             <lcards-color-section
                 .editor=${this}
-                header="Colors"
-                description="Default colors for all cells"
+                header="Colours"
+                description="Default colours for all cells"
                 .colorPaths=${[
-                    { path: 'style.color', label: 'Text Color', helper: 'Cell text color' },
-                    { path: 'style.background', label: 'Background Color', helper: 'Cell background' }
+                    { path: 'style.color', label: 'Text Colour', helper: 'Cell text colour' },
+                    { path: 'style.background', label: 'Background Colour', helper: 'Cell background' }
                 ]}
                 ?expanded=${true}
                 ?useColorPicker=${true}>

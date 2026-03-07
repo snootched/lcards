@@ -1774,7 +1774,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       'ha-core': { title: 'Home Assistant Core Theme', vars: [] },
       'material': { title: 'Material Design Components (MDC)', vars: [] },
       'ha-specific': { title: 'HA-Specific Variables', vars: [] },
-      'states': { title: 'Entity State Colors', vars: [] },
+      'states': { title: 'Entity State Colours', vars: [] },
       'card-mod': { title: 'Card-Mod Variables', vars: [] },
       'lcars': { title: 'HA-LCARS Theme', vars: [] },
       'lcards': { title: 'LCARdS Injected', vars: [] },
@@ -2093,7 +2093,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // Key LCARS colors to show in preview - organized in 3 groups (4x3 grid)
     const colorGroups = [
       {
-        title: 'UI Colors',
+        title: 'UI Colours',
         colors: [
           { name: 'Primary', cssVar: '--lcars-ui-primary' },
           { name: 'Secondary', cssVar: '--lcars-ui-secondary' },
@@ -2102,7 +2102,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         ]
       },
       {
-        title: 'Card Colors',
+        title: 'Card Colours',
         colors: [
           { name: 'Top', cssVar: '--lcars-card-top-color' },
           { name: 'Mid-Left', cssVar: '--lcars-card-mid-left-color' },
@@ -2111,7 +2111,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         ]
       },
       {
-        title: 'State & Alert Colors',
+        title: 'State & Alert Colours',
         colors: [
           { name: 'Success', cssVar: '--success-color' },
           { name: 'Warning', cssVar: '--warning-color' },

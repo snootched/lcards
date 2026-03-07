@@ -31,7 +31,7 @@ Features shared across all cards.
 | [Rules Engine](core/rules/README.md) | Conditional styling applied across cards based on entity state |
 | [DataSources](core/datasources/README.md) | Entity subscriptions, history, and processing pipelines |
 | [Templates](core/templates/README.md) | Dynamic content: JS, Jinja2, token, and DataSource templates |
-| [Themes](core/themes/README.md) | Built-in themes and token-based color/sizing system |
+| [Themes](core/themes/README.md) | Built-in themes and token-based colour/sizing system |
 
 ---
 
@@ -54,4 +54,4 @@ tap_action:
   action: toggle
 ```
 
-All cards support [templates](core/templates/README.md), [state-based colors](core/themes/README.md), [rules](core/rules/README.md), and [animations](core/animations.md).
+All cards support [templates](core/templates/README.md), [state-based colours](core/themes/README.md), [rules](core/rules/README.md), and [animations](core/animations.md).

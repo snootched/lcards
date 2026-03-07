@@ -866,7 +866,7 @@ export const HELPER_REGISTRY = {
     entity_id: 'input_number.lcards_alert_lab_black_dark_multiplier',
     domain: 'input_number',
     name: 'Alert Lab Black Dark Multiplier',
-    description: 'Dark color multiplier for black alert contrast (0-2)',
+    description: 'Dark colour multiplier for black alert contrast (0-2)',
     icon: 'mdi:contrast-box',
     category: 'alert_system',
     ws_create_params: {
@@ -890,7 +890,7 @@ export const HELPER_REGISTRY = {
     entity_id: 'input_number.lcards_alert_lab_black_light_multiplier',
     domain: 'input_number',
     name: 'Alert Lab Black Light Multiplier',
-    description: 'Light color multiplier for black alert contrast (0-2)',
+    description: 'Light colour multiplier for black alert contrast (0-2)',
     icon: 'mdi:contrast-box',
     category: 'alert_system',
     ws_create_params: {

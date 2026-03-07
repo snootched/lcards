@@ -44,7 +44,7 @@ Once restarted, you should see **"LCARdS Config"** in your Home Assistant sideba
 
 After installation, the panel provides three tabs:
    - **Helpers**: View, create, and edit helpers
-   - **Alert Lab**: Color customization for alert modes
+   - **Alert Lab**: Colour customization for alert modes
    - **YAML Export**: Copy YAML for manual setup
 
 ## Helper Categories
@@ -108,14 +108,14 @@ input_number:
 
 ## Using the Alert Lab
 
-The Alert Lab provides an interactive interface for customizing alert mode colors.
+The Alert Lab provides an interactive interface for customizing alert mode colours.
 
 ### Workflow
 
 1. Open the Theme Browser (any card editor → Theme tab → "Browse Theme Tokens")
 2. Switch to the **Alert Mode Lab** view
 3. Select an alert mode (Red, Yellow, Blue, or White)
-4. Adjust HSL sliders to customize colors
+4. Adjust HSL sliders to customize colours
 5. Enable "Auto-apply changes" to see live preview
 6. Click **"Save to Helpers"** to persist your changes
 
@@ -123,7 +123,7 @@ The Alert Lab provides an interactive interface for customizing alert mode color
 
 Each alert mode has three adjustable parameters:
 
-- **Hue Shift** (0-360°): Target hue for color transformation
+- **Hue Shift** (0-360°): Target hue for colour transformation
 - **Hue Strength** (0-1): Intensity of hue shift
 - **Saturation** (0-3×): Saturation multiplier
 - **Lightness** (0-2×): Lightness multiplier
@@ -193,7 +193,7 @@ automation:
           entity_id: input_select.lcards_alert_mode
         data:
           option: blue_alert
-  
+
   - alias: "Normal Mode at Dawn"
     trigger:
       - platform: sun

@@ -2,7 +2,7 @@
 
 `custom:lcards-data-grid`
 
-A grid of cells displaying real entity data, templates, or decorative auto-generated data — with cascade color animations for that authentic LCARS data display look.
+A grid of cells displaying real entity data, templates, or decorative auto-generated data — with cascade colour animations for that authentic LCARS data display look.
 
 ---
 
@@ -129,7 +129,7 @@ grid:
 
 ## Cascade Animation
 
-The cascade effect cycles colors through each row in sequence, creating a waterfall effect.
+The cascade effect cycles colours through each row in sequence, creating a waterfall effect.
 
 ```yaml
 animation:

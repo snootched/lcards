@@ -95,7 +95,7 @@ text:
 Templates are evaluated in most string-valued config properties:
 
 - `text.*.content` — label text
-- `style.*.color.*` — color values (when referencing theme tokens)
+- `style.*.color.*` — colour values (when referencing theme tokens)
 - `tap_action.service_data.*` — action parameters
 - `icon` — icon name
 
@@ -124,9 +124,9 @@ flowchart LR
 
 ---
 
-## State-Based Colors
+## State-Based Colours
 
-Colors support state variants without templates. This is the recommended approach for color changes on entity state:
+Colours support state variants without templates. This is the recommended approach for colour changes on entity state:
 
 ```yaml
 style:

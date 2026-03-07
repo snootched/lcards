@@ -635,13 +635,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       </lcards-form-section>
 
       <lcards-form-section
-        header="Color"
+        header="Colour"
         icon="mdi:palette"
         ?expanded=${true}>
         <lcards-color-list
           .hass=${this.hass}
           .colors=${config.colors || (config.color ? [config.color] : [])}
-          .label=${'Star Colors'}
+          .label=${'Star Colours'}
           .description=${'Stars will randomly use one of these colors'}
           @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
         ></lcards-color-list>
@@ -677,13 +677,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       </lcards-form-section>
 
       <lcards-form-section
-        header="Color"
+        header="Colour"
         icon="mdi:palette"
         ?expanded=${true}>
         <lcards-color-list
           .hass=${this.hass}
           .colors=${config.colors || (config.color ? [config.color] : [])}
-          .label=${'Cloud Colors'}
+          .label=${'Cloud Colours'}
           .description=${'Clouds will randomly use one of these colors'}
           @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
         ></lcards-color-list>
@@ -797,11 +797,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       </lcards-form-section>
 
       <!-- Cascade Colors -->
-      <lcards-form-section header="Cascade Colors" icon="mdi:palette" ?expanded=${true}>
+      <lcards-form-section header="Cascade Colours" icon="mdi:palette" ?expanded=${true}>
         ${[
-          { key: 'start', label: 'Start Color',         helper: 'Bright hold color (dominant, ~75% of cycle)',  def: 'var(--lcards-blue-light, #93e1ff)' },
-          { key: 'text',  label: 'Middle / Text Color',  helper: 'Dark snap-to color (~10% of cycle)',           def: 'var(--lcards-blue-darkest, #002241)' },
-          { key: 'end',   label: 'End Color',            helper: 'Pale fade-out color (~10% of cycle)',          def: 'var(--lcards-moonlight, #dfe1e8)' }
+          { key: 'start', label: 'Start Colour',         helper: 'Bright hold colour (dominant, ~75% of cycle)',  def: 'var(--lcards-blue-light, #93e1ff)' },
+          { key: 'text',  label: 'Middle / Text Colour',  helper: 'Dark snap-to colour (~10% of cycle)',           def: 'var(--lcards-blue-darkest, #002241)' },
+          { key: 'end',   label: 'End Colour',            helper: 'Pale fade-out colour (~10% of cycle)',          def: 'var(--lcards-moonlight, #dfe1e8)' }
         ].map(slot => html`
           <div style="margin-bottom: 12px;">
             <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
@@ -826,20 +826,20 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // Store current effect index for _setConfigValue callback
     this._currentEffectIndex = index;
 
-    const colorPaths = [{ path: 'color', label: 'Line Color', helper: 'Main line color (RGBA recommended)' }];
+    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour (RGBA recommended)' }];
 
     if (preset === 'grid' || preset === 'grid-hexagonal') {
-      colorPaths.push({ path: 'color_major', label: 'Major Line Color', helper: 'Leave empty to use same as main color' });
+      colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
     }
 
     if (preset === 'grid-filled') {
-      colorPaths.push({ path: 'fill_color', label: 'Fill Color', helper: 'Cell background fill color' });
+      colorPaths.push({ path: 'fill_color', label: 'Fill Colour', helper: 'Cell background fill colour' });
     }
 
     return html`
       <lcards-color-section
         .editor=${this}
-        header="Colors"
+        header="Colours"
         .colorPaths=${colorPaths}
         .getConfigValue=${(path) => config[path] || ''}
         ?expanded=${true}
@@ -1184,7 +1184,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         { key: 'scroll_speed_y', label: 'Scroll Speed Y (px/s)', type: 'number', min: -200, max: 200, step: 5, default: 20 }
       ],
       styling: [
-        { key: 'color', label: 'Color', type: 'color', default: 'rgba(255, 153, 102, 0.3)', fullWidth: true },
+        { key: 'color', label: 'Colour', type: 'color', default: 'rgba(255, 153, 102, 0.3)', fullWidth: true },
         { key: 'show_border_lines', label: 'Show Border Lines', type: 'boolean', default: true }
       ]
     };
@@ -1197,7 +1197,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'major_row_interval', label: 'Major Row Interval (0=off)', type: 'number', min: 0, max: 20, step: 1, default: 0 },
           { key: 'major_col_interval', label: 'Major Col Interval (0=off)', type: 'number', min: 0, max: 20, step: 1, default: 0 },
           { key: 'line_width_major', label: 'Major Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 },
-          { key: 'color_major', label: 'Major Line Color', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as color' },
+          { key: 'color_major', label: 'Major Line Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as colour' },
           { key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' },
           ...commonFields.scrolling,
           ...commonFields.styling
@@ -1218,7 +1218,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'line_width_major', label: 'Major Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 },
           { key: 'major_row_interval', label: 'Major Row Interval (0=off)', type: 'number', min: 0, max: 10, step: 1, default: 0 },
           { key: 'major_col_interval', label: 'Major Col Interval (0=off)', type: 'number', min: 0, max: 10, step: 1, default: 0 },
-          { key: 'color_major', label: 'Major Hex Color', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as color' },
+          { key: 'color_major', label: 'Major Hex Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as colour' },
           ...commonFields.scrolling,
           ...commonFields.styling
         ];
@@ -1227,7 +1227,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         return [
           { key: 'line_spacing', label: 'Cell Size (px)', type: 'number', min: 10, max: 200, step: 5, default: 50 },
           { key: 'line_width', label: 'Border Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 },
-          { key: 'fill_color', label: 'Fill Color', type: 'color', default: 'rgba(255, 153, 102, 0.1)', fullWidth: true },
+          { key: 'fill_color', label: 'Fill Colour', type: 'color', default: 'rgba(255, 153, 102, 0.1)', fullWidth: true },
           { key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' },
           ...commonFields.scrolling,
           ...commonFields.styling
@@ -1241,7 +1241,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'max_radius', label: 'Max Star Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 },
           { key: 'min_opacity', label: 'Min Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 },
           { key: 'max_opacity', label: 'Max Star Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 1.0 },
-          { key: 'color', label: 'Star Color', type: 'color', default: '#ffffff', fullWidth: true },
+          { key: 'color', label: 'Star Colour', type: 'color', default: '#ffffff', fullWidth: true },
           { key: 'parallax_layers', label: 'Parallax Layers', type: 'number', min: 1, max: 5, step: 1, default: 3, helper: 'More layers = more depth' },
           { key: 'depth_factor', label: 'Depth Factor', type: 'number', min: 0, max: 1, step: 0.1, default: 0.5, helper: 'Speed variation between layers' },
           ...commonFields.scrolling
@@ -1255,7 +1255,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'max_radius', label: 'Max Cloud Radius', type: 'number', min: 0.1, max: 1, step: 0.05, default: 0.4, helper: 'Fraction of canvas size (0-1)' },
           { key: 'min_opacity', label: 'Min Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 },
           { key: 'max_opacity', label: 'Max Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.8 },
-          { key: 'color', label: 'Cloud Color', type: 'color', default: '#FF00FF', fullWidth: true },
+          { key: 'color', label: 'Cloud Colour', type: 'color', default: '#FF00FF', fullWidth: true },
           { key: 'turbulence', label: 'Turbulence Intensity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.5, helper: 'How much clouds distort (0=none, 1=max)' },
           { key: 'noise_scale', label: 'Noise Scale', type: 'number', min: 0.001, max: 0.01, step: 0.001, default: 0.003, helper: 'Smaller = larger noise features' },
           ...commonFields.scrolling

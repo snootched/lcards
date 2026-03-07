@@ -927,8 +927,8 @@ export class LCARdSBaseEditor extends LitElement {
                 .editor=${this}
                 .config=${this.config}
                 basePath="${basePath}"
-                header="Text Colors"
-                description="State-based text colors"
+                header="Text Colours"
+                description="State-based text colours"
                 .states=${states}
                 ?expanded=${false}>
             </lcards-color-section>
@@ -1160,8 +1160,8 @@ export class LCARdSBaseEditor extends LitElement {
                     .editor=${this}
                     .config=${this.config}
                     basePath="icon_style.color"
-                    header="Icon Colors"
-                    description="State-based icon colors"
+                    header="Icon Colours"
+                    description="State-based icon colours"
                     .states=${['default', 'active', 'inactive', 'unavailable']}
                     ?expanded=${false}>
                 </lcards-color-section>
@@ -1172,7 +1172,7 @@ export class LCARdSBaseEditor extends LitElement {
                     .config=${this.config}
                     basePath="icon_area_background"
                     header="Icon Area Background"
-                    description="State-based icon area background colors"
+                    description="State-based icon area background colours"
                     .states=${['default', 'active', 'inactive', 'unavailable']}
                     ?expanded=${false}>
                 </lcards-color-section>

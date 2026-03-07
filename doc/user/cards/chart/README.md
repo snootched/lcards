@@ -121,7 +121,7 @@ See [DataSources](../../core/datasources/README.md) for full processing options.
 
 ---
 
-## Colors and Styling
+## Colours and Styling
 
 ```yaml
 colors:

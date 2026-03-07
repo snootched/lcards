@@ -651,7 +651,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         return html`
             <lcards-form-section
-                header="Color-Coded Ranges"
+                header="Colour-Coded Ranges"
                 description="Define visual zones for context (cold/comfort/hot, low/normal/high)"
                 icon="mdi:palette"
                 ?expanded=${false}
@@ -751,8 +751,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             .editor=${this}
                             .entityId=${this.config?.entity || ''}
                             basePath="${basePath}.color"
-                            header="Range Color"
-                            description="Background color for this range"
+                            header="Range Colour"
+                            description="Background colour for this range"
                             ?singleColor=${true}
                             ?expanded=${true}
                             ?useColorPicker=${true}>
@@ -864,11 +864,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-color-section
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
-                    header="Gradient Colors"
-                    description="Start and end colors for pill gradient"
+                    header="Gradient Colours"
+                    description="Start and end colours for pill gradient"
                     .colorPaths=${[
-                        { path: 'style.track.segments.gradient.start', label: 'Gradient Start', helper: 'Color at minimum value (left/bottom)' },
-                        { path: 'style.track.segments.gradient.end', label: 'Gradient End', helper: 'Color at maximum value (right/top)' }
+                        { path: 'style.track.segments.gradient.start', label: 'Gradient Start', helper: 'Colour at minimum value (left/bottom)' },
+                        { path: 'style.track.segments.gradient.end', label: 'Gradient End', helper: 'Colour at maximum value (right/top)' }
                     ]}
                     ?expanded=${false}
                     ?useColorPicker=${true}>
@@ -971,8 +971,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.gauge.progress_bar.color"
-                    header="Progress Bar Color"
-                    description="Color of the filled progress bar"
+                    header="Progress Bar Colour"
+                    description="Colour of the filled progress bar"
                     ?singleColor=${true}
                     ?expanded=${false}
                     ?useColorPicker=${true}>
@@ -1050,8 +1050,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.gauge.scale.tick_marks.major.color"
-                    header="Major Tick Colors"
-                    description="State-based colors for major tick marks - supports custom states"
+                    header="Major Tick Colours"
+                    description="State-based colours for major tick marks - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1061,8 +1061,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.gauge.scale.tick_marks.minor.color"
-                    header="Minor Tick Colors"
-                    description="State-based colors for minor tick marks - supports custom states"
+                    header="Minor Tick Colours"
+                    description="State-based colours for minor tick marks - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1108,8 +1108,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         .editor=${this}
                         .entityId=${this.config?.entity || ''}
                         basePath="style.gauge.scale.labels.color"
-                        header="Label Colors"
-                        description="State-based colors for scale numeric labels - supports custom states"
+                        header="Label Colours"
+                        description="State-based colours for scale numeric labels - supports custom states"
                         .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                         ?allowCustomStates=${true}
                         ?expanded=${false}>
@@ -1175,18 +1175,18 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-color-section
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
-                    header="Indicator Colors"
-                    description="Colors for value indicator marker"
+                    header="Indicator Colours"
+                    description="Colours for value indicator marker"
                     .colorPaths=${[
                         {
                             path: 'style.gauge.indicator.color',
-                            label: 'Indicator Color',
-                            helper: 'Color of value indicator'
+                            label: 'Indicator Colour',
+                            helper: 'Colour of value indicator'
                         },
                         {
                             path: 'style.gauge.indicator.border.color',
-                            label: 'Border Color',
-                            helper: 'Color of indicator border'
+                            label: 'Border Colour',
+                            helper: 'Colour of indicator border'
                         }
                     ]}
                     ?expanded=${false}
@@ -1229,7 +1229,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
             <!-- Fill & Background Colors -->
             <lcards-form-section
-                header="Colors"
+                header="Colours"
                 description="Fill and background colours for the shape interior"
                 icon="mdi:water"
                 ?expanded=${false}
@@ -1240,8 +1240,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.shaped.fill.color"
-                    header="Fill Color"
-                    description="Color of the value fill (the filled portion)"
+                    header="Fill Colour"
+                    description="Colour of the value fill (the filled portion)"
                     ?singleColor=${true}
                     ?expanded=${true}
                     ?useColorPicker=${true}>
@@ -1251,8 +1251,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.shaped.track.background"
-                    header="Background Color"
-                    description="Color of the empty (unfilled) interior of the shape"
+                    header="Background Colour"
+                    description="Colour of the empty (unfilled) interior of the shape"
                     ?singleColor=${true}
                     ?expanded=${false}
                     ?useColorPicker=${true}>
@@ -1492,8 +1492,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.border.left.color"
-                    header="Left Border Colors"
-                    description="State-based colors for left border - supports custom states"
+                    header="Left Border Colours"
+                    description="State-based colours for left border - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1525,8 +1525,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.border.top.color"
-                    header="Top Border Colors"
-                    description="State-based colors for top border - supports custom states"
+                    header="Top Border Colours"
+                    description="State-based colours for top border - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1558,8 +1558,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.border.right.color"
-                    header="Right Border Colors"
-                    description="State-based colors for right border - supports custom states"
+                    header="Right Border Colours"
+                    description="State-based colours for right border - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1591,8 +1591,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.border.bottom.color"
-                    header="Bottom Border Colors"
-                    description="State-based colors for bottom border - supports custom states"
+                    header="Bottom Border Colours"
+                    description="State-based colours for bottom border - supports custom states"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>

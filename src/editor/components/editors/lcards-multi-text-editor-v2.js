@@ -282,8 +282,8 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 .editor=${this.editor}
                 .config=${this.editor.config}
                 basePath="text.default.color"
-                header="Text Colors"
-                description="Default text colors for different states"
+                header="Text Colours"
+                description="Default text colours for different states"
                 .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                 ?allowCustomStates=${true}
                 ?expanded=${false}>
@@ -470,8 +470,8 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 .editor=${this.editor}
                 .config=${this.editor.config}
                 basePath="text.${fieldName}.color"
-                header="Field Colors"
-                description="Override default color settings"
+                header="Field Colours"
+                description="Override default colour settings"
                 .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                 ?allowCustomStates=${true}
                 ?expanded=${false}>

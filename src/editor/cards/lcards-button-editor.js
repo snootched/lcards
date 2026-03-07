@@ -594,7 +594,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             {
                 type: 'section',
                 header: 'Card Background',
-                description: 'Background colors by state',
+                description: 'Background colours by state',
                 icon: 'mdi:format-color-fill',
                 expanded: false,
                 outlined: true,
@@ -605,8 +605,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             <lcards-color-section-v2
                                 .editor=${this}
                                 basePath="style.card.color.background"
-                                header="Background Colors"
-                                description="Card background color for each state - supports custom states like 'idle', 'buffering', etc."
+                                header="Background Colours"
+                                description="Card background colour for each state - supports custom states like 'idle', 'buffering', etc."
                                 .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
                                 ?allowCustomStates=${true}
                                 ?expanded=${false}>
@@ -1347,8 +1347,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
         return html`
             <lcards-form-section
-                header="Alert Colors"
-                description="Override preset colors for the shield shape and animated bars."
+                header="Alert Colours"
+                description="Override preset colours for the shield shape and animated bars."
                 icon="mdi:palette"
                 ?expanded=${hasColor}
                 ?outlined=${true}
@@ -1425,7 +1425,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         return html`
             <lcards-form-section
                 header="Custom Presets"
-                description="Define new alert presets or override built-in preset colors."
+                description="Define new alert presets or override built-in preset colours."
                 icon="mdi:palette-swatch"
                 ?expanded=${presetNames.length > 0}
                 ?outlined=${true}

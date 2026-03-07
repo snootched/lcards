@@ -331,7 +331,7 @@ export class LCARdSBorderEditor extends LitElement {
             <lcards-color-section-v2
                 .editor=${this.editor}
                 basePath="${this.path}.color"
-                header="Border Colors"
+                header="Border Colours"
                 .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
                 ?allowCustomStates=${true}
                 ?expanded=${false}>

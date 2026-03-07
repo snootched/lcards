@@ -361,7 +361,7 @@ animations:
 
 ## Reactive Animation Parameters (`map_range`)
 
-Animation parameter values can be **proportionally mapped** from a live entity value using a `map_range` descriptor. This allows continuously reactive animations — for example, making marching ants move faster as power flow increases, or shifting a line color from green to red as a temperature rises.
+Animation parameter values can be **proportionally mapped** from a live entity value using a `map_range` descriptor. This allows continuously reactive animations — for example, making marching ants move faster as power flow increases, or shifting a line colour from green to red as a temperature rises.
 
 ### Numeric Parameter Mapping
 
@@ -389,9 +389,9 @@ rules:
 
 When `sensor.grid_power` is `0W`, `speed` resolves to `8` (slow). When it reaches `5000W`, `speed` resolves to `0.5` (fast). Values are linearly interpolated.
 
-### Color Interpolation
+### Colour Interpolation
 
-Map a numeric entity value to a hex color string:
+Map a numeric entity value to a hex colour string:
 
 ```yaml
 rules:
@@ -413,7 +413,7 @@ rules:
                 clamp: true
 ```
 
-Only 6-digit hex colors (`#rrggbb`) are supported for color interpolation.
+Only 6-digit hex colours (`#rrggbb`) are supported for colour interpolation.
 
 ### Combining Multiple Mapped Params
 

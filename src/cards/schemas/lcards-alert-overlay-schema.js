@@ -41,7 +41,7 @@ export const alertOverlaySchema = {
                 },
                 color: {
                     type: 'string',
-                    description: 'Backdrop background color (CSS color value)',
+                    description: 'Backdrop background colour (CSS colour value)',
                     default: 'rgba(0,0,0,0.5)',
                     examples: ['rgba(0,0,0,0.5)', 'rgba(180,0,0,0.4)'],
                 },
