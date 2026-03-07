@@ -1310,18 +1310,36 @@ export class LCARdSElbow extends LCARdSButton {
                 field.align = side === 'left' ? 'left' : 'right';
             }
 
-            // Auto-adjust padding based on elbow position
-            if (field.padding_left === undefined && side === 'left') {
-                field.padding_left = horizontalPadding;
+            // Auto-adjust padding based on elbow position.
+            // Use nested padding object format — same as _resolveTextConfiguration reads.
+            // Only set a side when the user hasn't already specified it.
+            if (side === 'left') {
+                if (field.padding === undefined) {
+                    field.padding = { left: horizontalPadding };
+                } else if (typeof field.padding === 'object' && field.padding !== null && field.padding.left === undefined) {
+                    field.padding.left = horizontalPadding;
+                }
             }
-            if (field.padding_right === undefined && side === 'right') {
-                field.padding_right = horizontalPadding;
+            if (side === 'right') {
+                if (field.padding === undefined) {
+                    field.padding = { right: horizontalPadding };
+                } else if (typeof field.padding === 'object' && field.padding !== null && field.padding.right === undefined) {
+                    field.padding.right = horizontalPadding;
+                }
             }
-            if (field.padding_top === undefined && position === 'header') {
-                field.padding_top = verticalPadding;
+            if (position === 'header') {
+                if (field.padding === undefined) {
+                    field.padding = { top: verticalPadding };
+                } else if (typeof field.padding === 'object' && field.padding !== null && field.padding.top === undefined) {
+                    field.padding.top = verticalPadding;
+                }
             }
-            if (field.padding_bottom === undefined && position === 'footer') {
-                field.padding_bottom = verticalPadding;
+            if (position === 'footer') {
+                if (field.padding === undefined) {
+                    field.padding = { bottom: verticalPadding };
+                } else if (typeof field.padding === 'object' && field.padding !== null && field.padding.bottom === undefined) {
+                    field.padding.bottom = verticalPadding;
+                }
             }
         });
 
@@ -1935,13 +1953,25 @@ export class LCARdSElbow extends LCARdSButton {
             const isCenterY = !originalField.position || originalField.position === 'center' ||
                              (originalField.position?.includes('center') && !isTopAligned && !isBottomAligned);
 
+            // Extract padding from the resolved original field config.
+            // processed.padding is never set by _processTextFields — we must read from originalField.
+            const rawPadding = originalField.padding;
+            const fieldPad = typeof rawPadding === 'number'
+                ? { left: rawPadding, right: rawPadding, top: rawPadding, bottom: rawPadding }
+                : {
+                    left:   rawPadding?.left   ?? 10,
+                    right:  rawPadding?.right  ?? 10,
+                    top:    rawPadding?.top    ?? 10,
+                    bottom: rawPadding?.bottom ?? 10
+                };
+
             // Adjust horizontal position based on content area
             if (side === 'left') {
                 // Content area is on the right of vertical bar
                 if (isLeftAligned) {
-                    processed.x = contentArea.x + (processed.padding?.left || 10);
+                    processed.x = contentArea.x + fieldPad.left;
                 } else if (isRightAligned) {
-                    processed.x = width - (processed.padding?.right || 10);
+                    processed.x = width - fieldPad.right;
                 } else if (isCenterX) {
                     // Center within content area
                     processed.x = contentArea.x + (contentArea.width / 2);
@@ -1949,9 +1979,9 @@ export class LCARdSElbow extends LCARdSButton {
             } else {
                 // Content area is on the left of vertical bar (side === 'right')
                 if (isLeftAligned) {
-                    processed.x = (processed.padding?.left || 10);
+                    processed.x = fieldPad.left;
                 } else if (isRightAligned) {
-                    processed.x = contentArea.width - (processed.padding?.right || 10);
+                    processed.x = contentArea.width - fieldPad.right;
                 } else if (isCenterX) {
                     // Center within content area
                     processed.x = contentArea.width / 2;
