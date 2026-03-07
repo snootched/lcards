@@ -4596,10 +4596,30 @@ export class LCARdSButton extends LCARdSCard {
                 y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),
                 x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : (presetFieldConfig.x_percent !== undefined ? presetFieldConfig.x_percent : null),
                 y_percent: fieldConfig.y_percent !== undefined ? fieldConfig.y_percent : (presetFieldConfig.y_percent !== undefined ? presetFieldConfig.y_percent : null),
-                padding: fieldConfig.padding !== undefined ? fieldConfig.padding :
-                        (userDefaults.padding !== undefined ? userDefaults.padding :
-                        (presetFieldConfig.padding !== undefined ? presetFieldConfig.padding :
-                        (presetTextDefaults.padding !== undefined ? presetTextDefaults.padding : 8))),
+                // Padding is merged per-key (not first-wins) so a partial field-level
+                // override like { top:0, bottom:0 } still inherits left/right from
+                // text.default.  A number source means uniform padding on all sides.
+                // Priority lowest → highest: presetTextDefaults → presetField → userDefault → fieldConfig
+                padding: (() => {
+                    const normPad = (p) => {
+                        if (p === undefined || p === null) return null;
+                        if (typeof p === 'number') return { top: p, right: p, bottom: p, left: p };
+                        if (typeof p === 'object') return p;
+                        return null;
+                    };
+                    const sources = [
+                        normPad(presetTextDefaults.padding),
+                        normPad(presetFieldConfig.padding),
+                        normPad(userDefaults.padding),
+                        normPad(fieldConfig.padding)
+                    ].filter(Boolean);
+                    if (sources.length === 0) return 8; // hardcoded fallback
+                    // Strip undefined keys so they don't clobber lower-priority values
+                    const stripped = sources.map(s =>
+                        Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined))
+                    );
+                    return Object.assign({}, ...stripped);
+                })(),
                 font_size: fieldConfig.font_size || fieldConfig.size || userDefaults.font_size || presetFieldConfig.font_size || presetFieldConfig.size || this._buttonStyle?.text?.default?.font_size || 14,
                 color: fieldConfig.color || userDefaults.color || presetFieldConfig.color || presetTextDefaults.color || null, // null means use default
                 font_weight: fieldConfig.font_weight || userDefaults.font_weight || presetFieldConfig.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
@@ -4901,6 +4921,8 @@ export class LCARdSButton extends LCARdSCard {
                 // Use field's anchor/baseline if specified, otherwise use position's default
                 anchor = field.anchor || pos.anchor;
                 baseline = field.baseline || pos.baseline;
+                // NOTE: padding is already incorporated into x/y by _calculateNamedPosition.
+                // Do NOT apply the nudge block below for named positions — that would double-apply it.
             }
             // Priority 4: Default center position
             else {
@@ -4909,26 +4931,24 @@ export class LCARdSButton extends LCARdSCard {
                 y = top + (textAreaBounds.height / 2);
                 anchor = 'middle';
                 baseline = 'central';
-            }
 
-            // Apply padding offset for visual adjustment (e.g., to nudge centered text)
-            // Padding is directional: positive values push text away from that edge
-            if (field.padding) {
-                const padding = typeof field.padding === 'number'
-                    ? { top: field.padding, right: field.padding, bottom: field.padding, left: field.padding }
-                    : field.padding;
+                // Apply padding offset as a nudge from the center point.
+                // Only applies here (Priority 4) — named positions already factor padding in via
+                // _calculateNamedPosition, and explicit coordinates need no auto-adjustment.
+                if (field.padding) {
+                    const padding = typeof field.padding === 'number'
+                        ? { top: field.padding, right: field.padding, bottom: field.padding, left: field.padding }
+                        : field.padding;
 
-                // For vertically centered text (baseline: 'middle'), apply vertical padding offset
-                // This includes 'center', 'left-center', and 'right-center' positions
-                if (baseline === 'middle' || baseline === 'central') {
+                    // Vertical nudge: push away from top/bottom edges
                     y += (padding.bottom || 0) - (padding.top || 0);
-                }
 
-                // For horizontally positioned text, apply horizontal padding
-                if (anchor === 'start') {
-                    x += (padding.left || 0);
-                } else if (anchor === 'end') {
-                    x -= (padding.right || 0);
+                    // Horizontal nudge only when anchor overrides to start/end
+                    if (anchor === 'start') {
+                        x += (padding.left || 0);
+                    } else if (anchor === 'end') {
+                        x -= (padding.right || 0);
+                    }
                 }
             }
 
