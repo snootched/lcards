@@ -539,9 +539,13 @@ export class LCARdSHelperManager extends BaseService {
    * Uses the documented `input_select.set_options` HA service rather than
    * the undocumented WebSocket API for reliability across HA versions.
    *
+   * HA's set_options resets the current value to the first option, so we
+   * capture the current value first and restore it afterwards if it still
+   * exists in the new options list.
+   *
    * @param {string} key - Helper registry key (e.g., 'sound_scheme')
    * @param {string[]} options - New options list
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>}
    */
   async updateSelectOptions(key, options) {
     if (!this.hass) return false;
@@ -557,12 +561,29 @@ export class LCARdSHelperManager extends BaseService {
       return false;
     }
 
+    // Capture current value before set_options resets it
+    const currentValue = this.hass.states?.[definition.entity_id]?.state;
+
     try {
       await this.hass.callService('input_select', 'set_options', {
         entity_id: definition.entity_id,
         options: options
       });
       lcardsLog.debug(`[HelperManager] Updated ${key} options:`, options);
+
+      // Restore previous selection if it is still a valid option
+      if (currentValue && options.includes(currentValue)) {
+        try {
+          await this.hass.callService('input_select', 'select_option', {
+            entity_id: definition.entity_id,
+            option: currentValue
+          });
+          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${currentValue}`);
+        } catch (restoreErr) {
+          lcardsLog.warn(`[HelperManager] Failed to restore ${key} selection:`, restoreErr.message);
+        }
+      }
+
       return true;
     } catch (e) {
       lcardsLog.warn(`[HelperManager] Failed to update ${key} options:`, e.message);
