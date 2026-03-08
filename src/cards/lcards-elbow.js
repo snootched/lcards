@@ -183,7 +183,9 @@ export class LCARdSElbow extends LCARdSButton {
             this._elbowConfig = this._validateElbowConfig(config.elbow);
 
             // Calculate geometry based on style
-            if (this._elbowConfig.style === 'segmented') {
+            if (this._elbowConfig.type === 'frame') {
+                this._elbowGeometry = this._calculateFrameGeometry(this._elbowConfig);
+            } else if (this._elbowConfig.style === 'segmented') {
                 this._elbowGeometry = this._calculateSegmentedGeometry(this._elbowConfig);
             } else {
                 this._elbowGeometry = this._calculateSimpleElbowGeometry(this._elbowConfig);
@@ -356,18 +358,17 @@ export class LCARdSElbow extends LCARdSButton {
                 lcardsLog.debug(`[LCARdSElbow] Using component-specific tokens: ${componentTokenPath}`);
             } else {
                 // Fall back to position-specific tokens
-                const positionTokenPath = position === 'footer'
-                    ? 'components.elbow.footer.background'
-                    : 'components.elbow.header.background';
+                // frame uses 'header' tokens as the nearest semantic match
+                const positionForToken = (position === 'footer') ? 'footer' : 'header';
+                const positionTokenPath = `components.elbow.${positionForToken}.background`;
                 tokenBase = `theme:${positionTokenPath}`;
                 lcardsLog.debug(`[LCARdSElbow] Falling back to position tokens: ${positionTokenPath}`);
             }
         } else {
             // No theme manager - use position-based tokens as fallback
             lcardsLog.warn('[LCARdSElbow] No theme manager available, using position-based tokens');
-            const positionTokenPath = position === 'footer'
-                ? 'components.elbow.footer.background'
-                : 'components.elbow.header.background';
+            const positionForToken = (position === 'footer') ? 'footer' : 'header';
+            const positionTokenPath = `components.elbow.${positionForToken}.background`;
             tokenBase = `theme:${positionTokenPath}`;
         }
 
@@ -414,6 +415,15 @@ export class LCARdSElbow extends LCARdSButton {
                 ...colorDefaults,
                 ...existingInnerColors
             };
+        }
+
+        // For frame mode, also set inner frame segment color (segmented frames)
+        if (this._elbowConfig.type === 'frame' && this._elbowConfig.style === 'segmented'
+            && this._elbowConfig.frame?.segments?.inner) {
+            const innerFrame = this._elbowConfig.frame.segments.inner;
+            if (!innerFrame.color) {
+                innerFrame.color = { ...colorDefaults };
+            }
         }
 
         lcardsLog.debug(`[LCARdSElbow] Set elbow segment color defaults:`, {
@@ -764,8 +774,10 @@ export class LCARdSElbow extends LCARdSButton {
         if (dimensionsChanged) {
             lcardsLog.debug(`[LCARdSElbow] Recalculating geometry due to theme entity changes`);
 
-            // Recalculate based on style
-            if (this._elbowConfig.style === 'segmented') {
+            // Recalculate based on type/style
+            if (this._elbowConfig.type === 'frame') {
+                this._elbowGeometry = this._calculateFrameGeometry(this._elbowConfig);
+            } else if (this._elbowConfig.style === 'segmented') {
                 this._elbowGeometry = this._calculateSegmentedGeometry(this._elbowConfig);
             } else {
                 this._elbowGeometry = this._calculateSimpleElbowGeometry(this._elbowConfig);
@@ -809,6 +821,26 @@ export class LCARdSElbow extends LCARdSButton {
         const g = this._elbowGeometry;
         if (!g) return { top: 0, right: 0, bottom: 0, left: 0 };
 
+        // ── Frame type: all 4 sides contribute ────────────────────────────────
+        if (g.type === 'frame') {
+            const sides = g.inner
+                ? {
+                    top:    (g.sides.top.enabled    ? g.sides.top.thickness    : 0) + (g.gap ?? 0) + (g.inner.sides.top.enabled    ? g.inner.sides.top.thickness    : 0),
+                    bottom: (g.sides.bottom.enabled ? g.sides.bottom.thickness : 0) + (g.gap ?? 0) + (g.inner.sides.bottom.enabled ? g.inner.sides.bottom.thickness : 0),
+                    left:   (g.sides.left.enabled   ? g.sides.left.thickness   : 0) + (g.gap ?? 0) + (g.inner.sides.left.enabled   ? g.inner.sides.left.thickness   : 0),
+                    right:  (g.sides.right.enabled  ? g.sides.right.thickness  : 0) + (g.gap ?? 0) + (g.inner.sides.right.enabled  ? g.inner.sides.right.thickness  : 0)
+                  }
+                : {
+                    top:    g.sides.top.enabled    ? g.sides.top.thickness    : 0,
+                    bottom: g.sides.bottom.enabled ? g.sides.bottom.thickness : 0,
+                    left:   g.sides.left.enabled   ? g.sides.left.thickness   : 0,
+                    right:  g.sides.right.enabled  ? g.sides.right.thickness  : 0
+                  };
+            lcardsLog.debug('[LCARdSElbow] Resolved background animation inset (frame)', sides);
+            return sides;
+        }
+
+        // ── Standard elbow (L-shaped) ─────────────────────────────────────────
         const position = this._elbowConfig?.type?.includes('footer') ? 'footer' : 'header';
         const side     = this._elbowConfig?.type?.includes('right')  ? 'right'  : 'left';
 
@@ -956,6 +988,121 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.warn(`[LCARdSElbow] Invalid style "${elbowConfig.style}" for type "${type}". Valid styles: ${validStyles.join(', ')}. Defaulting to "${validStyles[0]}"`);
         }
 
+        // ── Frame type: entirely different config structure ───────────────────────
+        if (type === 'frame') {
+            const fc = elbowConfig.frame || {};
+
+            // Shorthand defaults (all sides / all corners)
+            const defBW = this._parseUnit(fc.bar_width  ?? 90);        // left/right default
+            const defBH = this._parseUnit(fc.bar_height ?? defBW);     // top/bottom default
+            const defOC = this._parseUnit(fc.outer_curve ?? Math.round(defBW / 2));
+            const defIC = this._parseUnit(fc.inner_curve ?? Math.round(defOC / 2));
+
+            const parseSide = (key) => {
+                const raw = fc[key] || {};
+                // 'top'/'bottom' default to bar_height; 'left'/'right' default to bar_width
+                const defaultT = (key === 'top' || key === 'bottom') ? defBH : defBW;
+                const thickness =
+                    raw.bar_width  !== undefined ? this._parseUnit(raw.bar_width) :
+                    raw.bar_height !== undefined ? this._parseUnit(raw.bar_height) :
+                    raw.thickness  !== undefined ? this._parseUnit(raw.thickness)  :
+                    defaultT;
+                return {
+                    thickness,
+                    enabled: raw.enabled !== false,
+                    color: raw.color ?? null
+                };
+            };
+
+            const parseCorner = (ck) => {
+                const c = fc.corners?.[ck] || {};
+                return {
+                    outer: c.outer_curve !== undefined ? this._parseUnit(c.outer_curve) : defOC,
+                    inner: c.inner_curve !== undefined ? this._parseUnit(c.inner_curve) : defIC
+                };
+            };
+
+            const frameConfig = {
+                sides: {
+                    top:    parseSide('top'),
+                    bottom: parseSide('bottom'),
+                    left:   parseSide('left'),
+                    right:  parseSide('right')
+                },
+                corners: {
+                    top_left:     parseCorner('top_left'),
+                    top_right:    parseCorner('top_right'),
+                    bottom_left:  parseCorner('bottom_left'),
+                    bottom_right: parseCorner('bottom_right')
+                },
+                color: fc.color ?? null
+            };
+
+            // Segmented (double-ring) mode: frame.segments.inner_frame
+            if (style === 'segmented') {
+                const seg     = fc.segments    || {};
+                const innerFc = seg.inner_frame || {};
+                const gap     = this._parseUnit(seg.gap ?? 4);
+
+                const iDefBW = this._parseUnit(innerFc.bar_width  ?? 28);
+                const iDefBH = this._parseUnit(innerFc.bar_height ?? iDefBW);
+                const iDefOC = this._parseUnit(innerFc.outer_curve ?? Math.round(iDefBW / 2));
+                const iDefIC = this._parseUnit(innerFc.inner_curve ?? Math.round(iDefOC / 2));
+
+                const parseInnerSide = (key) => {
+                    const raw = innerFc[key] || {};
+                    const defaultT = (key === 'top' || key === 'bottom') ? iDefBH : iDefBW;
+                    const thickness =
+                        raw.bar_width  !== undefined ? this._parseUnit(raw.bar_width) :
+                        raw.bar_height !== undefined ? this._parseUnit(raw.bar_height) :
+                        raw.thickness  !== undefined ? this._parseUnit(raw.thickness)  :
+                        defaultT;
+                    return { thickness, enabled: raw.enabled !== false, color: raw.color ?? null };
+                };
+
+                const parseInnerCorner = (ck) => {
+                    const c = innerFc.corners?.[ck] || {};
+                    return {
+                        outer: c.outer_curve !== undefined ? this._parseUnit(c.outer_curve) : iDefOC,
+                        inner: c.inner_curve !== undefined ? this._parseUnit(c.inner_curve) : iDefIC
+                    };
+                };
+
+                frameConfig.segments = {
+                    gap,
+                    inner: {
+                        sides: {
+                            top:    parseInnerSide('top'),
+                            bottom: parseInnerSide('bottom'),
+                            left:   parseInnerSide('left'),
+                            right:  parseInnerSide('right')
+                        },
+                        corners: {
+                            top_left:     parseInnerCorner('top_left'),
+                            top_right:    parseInnerCorner('top_right'),
+                            bottom_left:  parseInnerCorner('bottom_left'),
+                            bottom_right: parseInnerCorner('bottom_right')
+                        },
+                        color: innerFc.color ?? null
+                    }
+                };
+            }
+
+            return {
+                type,
+                style,
+                // Preserve user-authored segment block so elbow.segment.color survives
+                // into _initializeElbowDefaultColors (which reads existingSegmentColors from it).
+                // Shallow-clone so _initializeElbowDefaultColors can write .color onto it
+                // (HA config objects are frozen/non-extensible).
+                segment:  elbowConfig.segment ? { ...elbowConfig.segment } : null,
+                segments: null,
+                frame: frameConfig,
+                colors: elbowConfig.colors || {}
+            };
+        }
+
+        // ── Standard elbow (non-frame) ────────────────────────────────────────────
         // Parse segment configuration
         let segmentConfig;
 
@@ -1270,6 +1417,34 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Calculate frame geometry from a validated frame config.
+     * Simply lifts the already-parsed `config.frame` data into the `_elbowGeometry`
+     * shape so all geometry consumers can read it via `g.type === 'frame'`.
+     * @param {Object} config - Validated elbow config (type === 'frame')
+     * @returns {Object} Frame geometry object
+     * @private
+     */
+    _calculateFrameGeometry(config) {
+        const fc = config.frame;
+        if (!fc) return null;
+
+        const geom = {
+            type:    'frame',
+            sides:   fc.sides,
+            corners: fc.corners,
+            color:   fc.color
+        };
+
+        // Segmented (double-ring) — mirrors _calculateSegmentedGeometry's .outer/.inner/.gap
+        if (config.style === 'segmented' && fc.segments) {
+            geom.inner = fc.segments.inner;
+            geom.gap   = fc.segments.gap;
+        }
+
+        return geom;
+    }
+
+    /**
      * Adjust text positioning based on elbow type
      * Auto-configure padding and alignment for optimal LCARS aesthetics
      * @private
@@ -1287,6 +1462,52 @@ export class LCARdSElbow extends LCARdSButton {
         // Initialize text config if needed
         if (!config.text) config.text = {};
 
+        // ── Frame type: auto-pad all active sides individually ─────────────────
+        if (this._elbowConfig.type === 'frame') {
+            const g = this._elbowGeometry;
+            if (!g || g.type !== 'frame') return;
+
+            const sidePad = (sideKey) => {
+                const s = g.sides[sideKey];
+                if (!s?.enabled) return 0;
+                const thickness = s.thickness;
+                if (g.inner) {
+                    // Segmented: outer + gap + inner thickness, plus breathing room
+                    const inner = g.inner.sides[sideKey];
+                    return thickness + (g.gap ?? 0) + (inner?.enabled ? inner.thickness : 0) + 10;
+                }
+                return thickness + 10;
+            };
+
+            const padTop    = sidePad('top');
+            const padBottom = sidePad('bottom');
+            const padLeft   = sidePad('left');
+            const padRight  = sidePad('right');
+
+            Object.keys(config.text).forEach(fieldId => {
+                const field = config.text[fieldId];
+                if (!field) return;
+
+                const autoSet = (padKey, padVal) => {
+                    if (padVal <= 0) return;
+                    if (field.padding === undefined) {
+                        field.padding = { [padKey]: padVal };
+                    } else if (typeof field.padding === 'object' && field.padding !== null && field.padding[padKey] === undefined) {
+                        field.padding[padKey] = padVal;
+                    }
+                };
+
+                autoSet('top',    padTop);
+                autoSet('bottom', padBottom);
+                autoSet('left',   padLeft);
+                autoSet('right',  padRight);
+            });
+
+            lcardsLog.trace(`[LCARdSElbow] Auto-adjusted text padding for frame`);
+            return;
+        }
+
+        // ── Standard elbow (L-shaped) ──────────────────────────────────────────
         // Calculate padding to clear elbow bars
         let horizontalPadding, verticalPadding;
 
@@ -1638,6 +1859,11 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _generateButtonSVG(width, height, config) {
+        // Route to frame rendering if type is 'frame'
+        if (this._elbowConfig?.type === 'frame') {
+            return this._generateFrameSVG(width, height, config);
+        }
+
         // Route to segmented rendering if style is 'segmented'
         if (this._elbowConfig?.style === 'segmented') {
             return this._generateSegmentedElbowSVG(width, height, config);
@@ -1830,6 +2056,215 @@ export class LCARdSElbow extends LCARdSButton {
         return svgString;
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // Frame rendering — rectangular ring (2–4 sided border)
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Build a rounded-rectangle SVG path segment.
+     *
+     * @param {number} x1  - Left edge
+     * @param {number} y1  - Top edge
+     * @param {number} x2  - Right edge
+     * @param {number} y2  - Bottom edge
+     * @param {number} tlR - Top-left corner radius
+     * @param {number} trR - Top-right corner radius
+     * @param {number} brR - Bottom-right corner radius
+     * @param {number} blR - Bottom-left corner radius
+     * @param {boolean} clockwise - true = CW (solid fill), false = CCW (hole)
+     * @returns {string} SVG path data fragment (no leading M/Z required from caller)
+     * @private
+     */
+    /**
+     * Draw a CW rounded-rectangle path (sweep=1 arcs).
+     * Used for the outer boundary of a frame ring.
+     * @private
+     */
+    _roundedRectPath(x1, y1, x2, y2, tlR, trR, brR, blR) {
+        const w = x2 - x1, h = y2 - y1;
+        if (w <= 0 || h <= 0) return '';
+        const mx = w / 2, my = h / 2;
+        const c = (r) => Math.max(0, Math.min(Math.abs(r), mx, my));
+        const tl = c(tlR), tr = c(trR), br = c(brR), bl = c(blR);
+        const a = (r, nx, ny) => r > 0 ? `A ${r} ${r} 0 0 1 ${nx} ${ny}` : `L ${nx} ${ny}`;
+        return [
+            `M ${x1 + tl} ${y1}`,
+            `L ${x2 - tr} ${y1}`, a(tr, x2, y1 + tr),
+            `L ${x2} ${y2 - br}`, a(br, x2 - br, y2),
+            `L ${x1 + bl} ${y2}`, a(bl, x1, y2 - bl),
+            `L ${x1} ${y1 + tl}`, a(tl, x1 + tl, y1),
+            `Z`
+        ].join(' ');
+    }
+
+    /**
+     * Build the filled path for one frame ring.
+     *
+     * Two closed CW sub-paths combined with fill-rule="evenodd":
+     *   1. Outer boundary — CW rounded rect.
+     *   2. Inner boundary — also CW, tracing the inner edge of the bar material.
+     *
+     * Even-odd fill: a point inside both sub-paths = 2 crossings (even → hole).
+     * A point inside only the outer = 1 crossing (odd → filled bar material).
+     *
+     * Inner corner radii are only applied when BOTH adjacent sides are enabled.
+     * Open-side corners always use r=0 (sharp 90° butt end). This keeps every
+     * coordinate strictly within the valid inner bounding box.
+     *
+     * @param {number} ox1,oy1,ox2,oy2 - outer bounding box
+     * @param {Object} sides    - { top, bottom, left, right } each { thickness, enabled }
+     * @param {Object} corners  - { top_left, top_right, bottom_right, bottom_left }
+     *                            each { outer: number, inner: number }
+     * @returns {string} SVG `d` value  (use with fill-rule="evenodd")
+     * @private
+     */
+    _generateFrameRingPath(ox1, oy1, ox2, oy2, sides, corners) {
+        const tT = sides.top.enabled    ? sides.top.thickness    : 0;
+        const tB = sides.bottom.enabled ? sides.bottom.thickness : 0;
+        const tL = sides.left.enabled   ? sides.left.thickness   : 0;
+        const tR = sides.right.enabled  ? sides.right.thickness  : 0;
+
+        const ix1 = ox1 + tL, iy1 = oy1 + tT;
+        const ix2 = ox2 - tR, iy2 = oy2 - tB;
+
+        const C  = corners;
+        const ow = ox2 - ox1, oh = oy2 - oy1;
+        const iw = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+
+        const clamp = (r, ...maxes) => Math.max(0, Math.min(Math.abs(r), ...maxes));
+
+        // Outer corner radii
+        const oTL = clamp(C.top_left.outer,     ow/2, oh/2);
+        const oTR = clamp(C.top_right.outer,    ow/2, oh/2);
+        const oBR = clamp(C.bottom_right.outer, ow/2, oh/2);
+        const oBL = clamp(C.bottom_left.outer,  ow/2, oh/2);
+
+        // Inner corner radii (raw — applied only when both adjacent sides are enabled)
+        const iTL = clamp(C.top_left.inner,     iw/2, ih/2);
+        const iTR = clamp(C.top_right.inner,    iw/2, ih/2);
+        const iBR = clamp(C.bottom_right.inner, iw/2, ih/2);
+        const iBL = clamp(C.bottom_left.inner,  iw/2, ih/2);
+
+        const topOn = sides.top.enabled, botOn = sides.bottom.enabled;
+        const lefOn = sides.left.enabled, rigOn = sides.right.enabled;
+
+        // Outer sub-path: standard CW rounded rect
+        const outerPath = this._roundedRectPath(ox1, oy1, ox2, oy2, oTL, oTR, oBR, oBL);
+
+        // Inner sub-path: CW rounded rect.
+        // Open corners (either adjacent side disabled) get r=0 → sharp 90° butt ends.
+        // This guarantees all coordinates stay within [ix1,ix2] × [iy1,iy2].
+        const rTL = (topOn && lefOn) ? iTL : 0;
+        const rTR = (topOn && rigOn) ? iTR : 0;
+        const rBR = (botOn && rigOn) ? iBR : 0;
+        const rBL = (botOn && lefOn) ? iBL : 0;
+
+        const innerPath = this._roundedRectPath(ix1, iy1, ix2, iy2, rTL, rTR, rBR, rBL);
+
+        return `${outerPath} ${innerPath}`;
+    }
+
+    /**
+     * Generate frame SVG (type: 'frame').
+     * Simple mode = single ring. Segmented mode = two concentric rings with a gap.
+     * @param {number} width  - SVG width
+     * @param {number} height - SVG height
+     * @param {Object} config - Button configuration
+     * @returns {string} SVG markup string
+     * @private
+     */
+    _generateFrameSVG(width, height, config) {
+        const g = this._elbowGeometry;
+        if (!g || g.type !== 'frame') {
+            return super._generateButtonSVG(width, height, config);
+        }
+
+        // Outer ring color (uses same segment.color resolution as simple elbows)
+        const outerColor = this._getElbowColor();
+
+        // Build outer ring path
+        const outerRingPath = this._generateFrameRingPath(0, 0, width, height, g.sides, g.corners);
+
+        // Build inner ring path (segmented mode)
+        let innerRingPath = '';
+        let innerColor = '';
+        if (g.inner) {
+            const gap = g.gap ?? 0;
+            // Inner ring's outer boundary is inset by outer ring thickness + gap on each active side
+            const oT = g.sides.top.enabled    ? g.sides.top.thickness    : 0;
+            const oB = g.sides.bottom.enabled ? g.sides.bottom.thickness : 0;
+            const oL = g.sides.left.enabled   ? g.sides.left.thickness   : 0;
+            const oR = g.sides.right.enabled  ? g.sides.right.thickness  : 0;
+
+            const ix1 = oL + gap;
+            const iy1 = oT + gap;
+            const ix2 = width  - oR - gap;
+            const iy2 = height - oB - gap;
+
+            innerRingPath = this._generateFrameRingPath(ix1, iy1, ix2, iy2, g.inner.sides, g.inner.corners);
+            // Inner ring gets its color from frame.segments.inner.color, falling back to outer color
+            // Use state-aware resolution so a state-map at frame.segments.inner_frame.color works
+            innerColor = g.inner.color
+                ? this._getElbowColor('inner-frame', { color: g.inner.color })
+                : outerColor;
+        }
+
+        // Text and icon processing
+        let iconData = { markup: '', widthUsed: 0 };
+        if (this._processedIcon) {
+            const iconArea = this._processedIcon?.area || 'none';
+            iconData = iconArea !== 'none'
+                ? this._generateAreaBasedIconMarkup(this._processedIcon, width, height)
+                : this._generateFlexibleIconMarkup(this._processedIcon, width, height);
+        }
+
+        const iconOnly = this._processedIcon?.iconOnly && this._processedIcon?.show;
+        let textMarkup = '';
+        if (!iconOnly) {
+            const textFields = this._resolveTextConfiguration();
+            const textFieldsArray = Object.values(textFields);
+            const processedFields = this._processTextFieldsForElbow(textFieldsArray, width, height);
+            textMarkup = this._generateTextElements(processedFields);
+        }
+
+        const textureMarkup = this._generateTextureMarkup(width, height, {}, outerRingPath);
+
+        const svgString = `
+            <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"
+                 xmlns="http://www.w3.org/2000/svg">
+                <g data-button-id="frame"
+                   data-overlay-id="button"
+                   class="elbow-group frame-elbow"
+                   style="pointer-events: visiblePainted; cursor: pointer;">
+                    <!-- Outer frame ring -->
+                    <path
+                        class="elbow-bg button-clickable"
+                        data-overlay-id="frame-outer"
+                        d="${outerRingPath}"
+                        fill="${outerColor}"
+                        fill-rule="evenodd"
+                        style="pointer-events: all;"
+                    />
+                    ${g.inner ? `
+                    <!-- Inner frame ring (segmented) -->
+                    <path
+                        class="elbow-frame-inner button-clickable"
+                        data-overlay-id="frame-inner"
+                        d="${innerRingPath}"
+                        fill="${innerColor}"
+                        fill-rule="evenodd"
+                        style="pointer-events: all;"
+                    />` : ''}
+                    ${textureMarkup}
+                    ${iconData.markup}
+                    ${textMarkup}
+                </g>
+            </svg>
+        `.trim();
+
+        return svgString;
+    }
+
     /**
      * Generate a single segment path for segmented elbows
      * Wrapper around _generateElbowPath with segment-specific dimensions
@@ -1906,6 +2341,60 @@ export class LCARdSElbow extends LCARdSButton {
             height: height
         };
 
+        // ── Frame type: 4-sided content area ──────────────────────────────────
+        if (g.type === 'frame') {
+            const frameInset = (sideKey, inner) => {
+                const s = g.sides[sideKey];
+                if (!s?.enabled) return 0;
+                if (inner && g.inner) {
+                    const is = g.inner.sides[sideKey];
+                    return s.thickness + (g.gap ?? 0) + (is?.enabled ? is.thickness : 0);
+                }
+                return s.thickness;
+            };
+            const fL = frameInset('left');
+            const fT = frameInset('top');
+            const fR = frameInset('right');
+            const fB = frameInset('bottom');
+            contentArea = { x: fL, y: fT, width: width - fL - fR, height: height - fT - fB };
+
+            return processedFields.map(field => {
+                const processed = { ...field };
+                const originalField = textFieldsObject[field.id];
+                if (!originalField) return processed;
+
+                const hasExplicitCoords = (originalField.x !== null && originalField.x !== undefined)
+                                       && (originalField.y !== null && originalField.y !== undefined);
+                const hasPercentCoords  = (originalField.x_percent !== null && originalField.x_percent !== undefined)
+                                       && (originalField.y_percent !== null && originalField.y_percent !== undefined);
+                if (hasExplicitCoords || hasPercentCoords) return processed;
+
+                const isLeftAligned   = originalField.position?.includes('left')   || originalField.align === 'left';
+                const isRightAligned  = originalField.position?.includes('right')  || originalField.align === 'right';
+                const isTopAligned    = originalField.position?.includes('top');
+                const isBottomAligned = originalField.position?.includes('bottom');
+                const isCenterX = !isLeftAligned && !isRightAligned;
+                const isCenterY = !isTopAligned && !isBottomAligned;
+
+                const rawPadding = originalField.padding;
+                const fp = typeof rawPadding === 'number'
+                    ? { left: rawPadding, right: rawPadding, top: rawPadding, bottom: rawPadding }
+                    : { left: rawPadding?.left ?? 10, right: rawPadding?.right ?? 10,
+                        top: rawPadding?.top  ?? 10, bottom: rawPadding?.bottom ?? 10 };
+
+                if (isLeftAligned)      processed.x = contentArea.x + fp.left;
+                else if (isRightAligned) processed.x = contentArea.x + contentArea.width - fp.right;
+                else if (isCenterX)      processed.x = contentArea.x + contentArea.width / 2;
+
+                if (isTopAligned)        processed.y = contentArea.y + fp.top;
+                else if (isBottomAligned) processed.y = contentArea.y + contentArea.height - fp.bottom;
+                else if (isCenterY)      processed.y = contentArea.y + contentArea.height / 2;
+
+                return processed;
+            });
+        }
+
+        // ── Standard elbow (L-shaped) ─────────────────────────────────────────
         // Adjust content area based on elbow position
         if (position === 'header') {
             // Horizontal bar at top
@@ -2052,22 +2541,43 @@ export class LCARdSElbow extends LCARdSButton {
 
         const g = this._elbowGeometry;
         if (g) {
-            const component = this._getElbowComponent(g.type);
-            const position  = component?.layout?.position || 'header';
-            const side      = component?.layout?.side     || 'left';
-            // For segmented elbows, the content area starts after the full bar stack:
-            // outer bars + gap + inner bars.  Simple elbows use direct values.
-            const hBar = g.inner
-                ? (g.outer.horizontal + g.gap + g.inner.horizontal)
-                : g.horizontal;
-            const vBar = g.inner
-                ? (g.outer.vertical   + g.gap + g.inner.vertical)
-                : g.vertical;
+            if (g.type === 'frame') {
+                // Frame: all 4 sides contribute to the inset
+                const activeSides = g.inner
+                    ? {
+                        top:    (g.sides.top.enabled    ? g.sides.top.thickness    : 0) + (g.gap ?? 0) + (g.inner.sides.top.enabled    ? g.inner.sides.top.thickness    : 0),
+                        bottom: (g.sides.bottom.enabled ? g.sides.bottom.thickness : 0) + (g.gap ?? 0) + (g.inner.sides.bottom.enabled ? g.inner.sides.bottom.thickness : 0),
+                        left:   (g.sides.left.enabled   ? g.sides.left.thickness   : 0) + (g.gap ?? 0) + (g.inner.sides.left.enabled   ? g.inner.sides.left.thickness   : 0),
+                        right:  (g.sides.right.enabled  ? g.sides.right.thickness  : 0) + (g.gap ?? 0) + (g.inner.sides.right.enabled  ? g.inner.sides.right.thickness  : 0)
+                      }
+                    : {
+                        top:    g.sides.top.enabled    ? g.sides.top.thickness    : 0,
+                        bottom: g.sides.bottom.enabled ? g.sides.bottom.thickness : 0,
+                        left:   g.sides.left.enabled   ? g.sides.left.thickness   : 0,
+                        right:  g.sides.right.enabled  ? g.sides.right.thickness  : 0
+                      };
+                baseTop    = activeSides.top;
+                baseBottom = activeSides.bottom;
+                baseLeft   = activeSides.left;
+                baseRight  = activeSides.right;
+            } else {
+                const component = this._getElbowComponent(g.type);
+                const position  = component?.layout?.position || 'header';
+                const side      = component?.layout?.side     || 'left';
+                // For segmented elbows, the content area starts after the full bar stack:
+                // outer bars + gap + inner bars.  Simple elbows use direct values.
+                const hBar = g.inner
+                    ? (g.outer.horizontal + g.gap + g.inner.horizontal)
+                    : g.horizontal;
+                const vBar = g.inner
+                    ? (g.outer.vertical   + g.gap + g.inner.vertical)
+                    : g.vertical;
 
-            if (position === 'header') baseTop    = vBar;
-            else                       baseBottom = vBar;
-            if (side === 'left')       baseLeft   = hBar;
-            else                       baseRight  = hBar;
+                if (position === 'header') baseTop    = vBar;
+                else                       baseBottom = vBar;
+                if (side === 'left')       baseLeft   = hBar;
+                else                       baseRight  = hBar;
+            }
         }
 
         // User-configured padding is additional offset inside the content area

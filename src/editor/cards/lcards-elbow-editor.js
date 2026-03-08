@@ -431,13 +431,275 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderElbowDesignTab() {
+        const elbowType  = this.config.elbow?.type  || 'header-left';
         const elbowStyle = this._getElbowStyle();
+
+        if (elbowType === 'frame') {
+            return this._renderFrameDesign();
+        }
 
         if (elbowStyle === 'segmented') {
             return this._renderSegmentedDesign();
         } else {
             return this._renderSimpleDesign();
         }
+    }
+
+    /**
+     * Render frame design section — per-side widths, per-corner curves, segmented ring
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderFrameDesign() {
+        const frame = this.config.elbow?.frame || {};
+        const elbowStyle = this._getElbowStyle();
+        const isSegmented = elbowStyle === 'segmented';
+
+        // Shorthand defaults (mirrors _validateElbowConfig logic)
+        const defBW = frame.bar_width  ?? 90;
+        const defBH = frame.bar_height ?? defBW;
+        const defOC = frame.outer_curve ?? Math.round(defBW / 2);
+        const defIC = frame.inner_curve ?? Math.round(defOC / 2);
+
+        const sideThickness = (key) => {
+            const s = frame[key] || {};
+            const rawVal = s.bar_width ?? s.bar_height ?? s.thickness;
+            if (rawVal !== undefined) return rawVal;
+            return (key === 'top' || key === 'bottom') ? defBH : defBW;
+        };
+        const sideEnabled = (key) => (frame[key] || {}).enabled !== false;
+
+        // Segmented inner frame
+        const innerFc   = frame.segments?.inner_frame || {};
+        const iDefBW    = innerFc.bar_width  ?? 28;
+        const iDefBH    = innerFc.bar_height ?? iDefBW;
+        const iDefOC    = innerFc.outer_curve ?? Math.round(iDefBW / 2);
+        const iDefIC    = innerFc.inner_curve ?? Math.round(iDefOC / 2);
+        const segGap    = frame.segments?.gap ?? 4;
+
+        const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? defOC;
+        const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? defIC;
+
+        const renderSideRow = (key, label) => html`
+            <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0;">
+                <ha-selector
+                    style="flex: 0 0 140px;"
+                    .hass=${this.hass}
+                    .label=${label}
+                    .selector=${{ boolean: {} }}
+                    .value=${sideEnabled(key)}
+                    @value-changed=${(e) => this._setConfigValue(`elbow.frame.${key}.enabled`, e.detail.value)}>
+                </ha-selector>
+                ${sideEnabled(key) ? html`
+                    <ha-selector
+                        style="flex: 1;"
+                        .hass=${this.hass}
+                        .label=${'Thickness (px)'}
+                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                        .value=${sideThickness(key)}
+                        @value-changed=${(e) => {
+                            const k = (key === 'top' || key === 'bottom') ? 'bar_height' : 'bar_width';
+                            this._setConfigValue(`elbow.frame.${key}.${k}`, e.detail.value);
+                        }}>
+                    </ha-selector>
+                ` : ''}
+            </div>
+        `;
+
+        const renderCornerRow = (ck, label) => {
+            const isOpenCorner = (ck.includes('right') && !sideEnabled('right'))
+                              || (ck.includes('left')  && !sideEnabled('left'))
+                              || (ck.includes('top')   && !sideEnabled('top'))
+                              || (ck.includes('bottom') && !sideEnabled('bottom'));
+            const outerLabel = isOpenCorner ? 'End cap outer (px)' : 'Outer curve (px)';
+            const innerLabel = isOpenCorner ? 'End cap inner (px)' : 'Inner curve (px)';
+            return html`
+                <div style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
+                    <span style="flex: 0 0 130px; font-size: 13px; color: var(--secondary-text-color);">${label}</span>
+                    <ha-selector
+                        style="flex: 1;"
+                        .hass=${this.hass}
+                        .label=${outerLabel}
+                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                        .value=${cornerOuter(ck)}
+                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.outer_curve`, e.detail.value)}>
+                    </ha-selector>
+                    <ha-selector
+                        style="flex: 1;"
+                        .hass=${this.hass}
+                        .label=${innerLabel}
+                        .helper=${'Rounded curve on the inner corner of the bar; only applied when both adjacent sides are enabled'}
+                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                        .value=${cornerInner(ck)}
+                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.inner_curve`, e.detail.value)}>
+                    </ha-selector>
+                </div>
+            `;
+        };
+
+        return html`
+            <lcards-message
+                type="info"
+                message="Frame type draws a rectangular border (ring) around the card. Each side can be independently enabled/disabled and sized. Open sides get rounded end-caps via the corner curves.">
+            </lcards-message>
+
+            <!-- Shorthand defaults -->
+            <lcards-form-section
+                header="Default Dimensions"
+                description="Shorthand values applied to all sides/corners unless individually overridden below"
+                icon="mdi:border-all"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                <ha-selector .hass=${this.hass}
+                    .label=${'Default Side Width (left/right)'}
+                    .helper=${'Applied to left and right bars unless overridden'}
+                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                    .value=${defBW}
+                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_width', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector .hass=${this.hass}
+                    .label=${'Default Side Height (top/bottom)'}
+                    .helper=${'Applied to top and bottom bars unless overridden'}
+                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                    .value=${defBH}
+                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_height', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector .hass=${this.hass}
+                    .label=${'Default Outer Corner Curve'}
+                    .helper=${'Outer corner/end-cap arc radius — applied to all 4 corners unless overridden'}
+                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                    .value=${defOC}
+                    @value-changed=${(e) => this._setConfigValue('elbow.frame.outer_curve', e.detail.value)}>
+                </ha-selector>
+
+                <ha-selector .hass=${this.hass}
+                    .label=${'Default Inner Corner Curve'}
+                    .helper=${'Default inner corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
+                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                    .value=${defIC}
+                    @value-changed=${(e) => this._setConfigValue('elbow.frame.inner_curve', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
+
+            <!-- Per-side control -->
+            <lcards-form-section
+                header="Per-Side Control"
+                description="Enable or disable each side and override its thickness. Disabled sides create open ends with rounded end-caps."
+                icon="mdi:border-style"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                ${renderSideRow('top',    'Top bar')}
+                ${renderSideRow('bottom', 'Bottom bar')}
+                ${renderSideRow('left',   'Left bar')}
+                ${renderSideRow('right',  'Right bar')}
+            </lcards-form-section>
+
+            <!-- Per-corner curves -->
+            <lcards-form-section
+                header="Per-Corner Curves"
+                description="Override outer and inner arc radii per corner. When an adjacent side is disabled, these become end-cap arcs."
+                icon="mdi:vector-curve"
+                ?expanded=${false}
+                ?outlined=${true}>
+
+                ${renderCornerRow('top_left',     'Top-left')}
+                ${renderCornerRow('top_right',    'Top-right')}
+                ${renderCornerRow('bottom_left',  'Bottom-left')}
+                ${renderCornerRow('bottom_right', 'Bottom-right')}
+            </lcards-form-section>
+
+            <!-- Segmented (double ring) -->
+            ${isSegmented ? html`
+                <lcards-form-section
+                    header="Inner Ring (Segmented)"
+                    description="Configure the inner frame ring dimensions. The inner ring is inset from the outer ring by the gap."
+                    icon="mdi:border-inside"
+                    ?expanded=${true}
+                    ?outlined=${true}>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Gap between rings (px)'}
+                        .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
+                        .value=${segGap}
+                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.gap', e.detail.value)}>
+                    </ha-selector>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner ring width (left/right)'}
+                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${iDefBW}
+                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_width', e.detail.value)}>
+                    </ha-selector>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner ring height (top/bottom)'}
+                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${iDefBH}
+                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_height', e.detail.value)}>
+                    </ha-selector>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner ring outer curve'}
+                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${iDefOC}
+                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.outer_curve', e.detail.value)}>
+                    </ha-selector>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner ring inner curve'}
+                        .helper=${'Inner ring corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
+                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${iDefIC}
+                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.inner_curve', e.detail.value)}>
+                    </ha-selector>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Inner Ring Colours"
+                    description="State-based colours for the inner (secondary) frame ring"
+                    icon="mdi:palette-outline"
+                    ?expanded=${false}
+                    ?outlined=${true}>
+
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="elbow.frame.segments.inner_frame.color"
+                        header="Inner Ring Colours"
+                        description="Inner ring colour per entity state"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+            ` : ''}
+
+            <!-- Frame colour -->
+            <lcards-form-section
+                header="Frame Colours"
+                description="State-based colours for the frame ring"
+                icon="mdi:palette"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="elbow.segment.color"
+                    header="Frame Colours"
+                    description="Frame colour per entity state"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'hover', 'pressed']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
+
+            ${this._renderShapeTextureSection()}
+        `;
     }
 
     /**

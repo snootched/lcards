@@ -774,6 +774,41 @@ export const elbowComponents = {
             description: 'Bottom-right with configurable diagonal cut (0° = square, 45° = diagonal)',
             version: '1.0.0'
         }
+    },
+
+    // ============================================================================
+    // FRAME VARIANTS - Full border around content area
+    // ============================================================================
+
+    /**
+     * The 'frame' type draws a rectangular ring (2–4 sided border) around the card.
+     * Per-side widths, per-corner outer/inner curves, optional open sides, and
+     * segmented (double-ring) support are all handled in LCARdSElbow._generateFrameSVG().
+     * This component entry supplies registry metadata and layout hints only —
+     * actual path generation is NOT delegated to pathGenerator here.
+     */
+    'frame': {
+        orientation: 'frame',
+        features: ['simple', 'segmented'],
+        layout: {
+            position: 'frame',
+            side: 'frame'
+        },
+
+        /**
+         * Frame paths are generated entirely inside LCARdSElbow._generateFrameSVG().
+         * This stub exists so the component registry can return valid feature/layout
+         * metadata for type 'frame'.
+         */
+        pathGenerator: (_config) => '',
+
+        metadata: {
+            type: 'elbow',
+            pack: 'core',
+            name: 'Frame',
+            description: 'Full rectangular frame (2–4 sided border with per-side widths and per-corner curves)',
+            version: '1.0.0'
+        }
     }
 };
 
