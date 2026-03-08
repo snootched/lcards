@@ -662,10 +662,34 @@ export function getElbowSchema(options = {}) {
                                         default: true,
                                         description: 'Derive border radius from elbow inner arc geometry'
                                     },
-                                    top_left: { type: 'number', description: 'Top-left border radius (px)' },
-                                    top_right: { type: 'number', description: 'Top-right border radius (px)' },
-                                    bottom_left: { type: 'number', description: 'Bottom-left border radius (px)' },
-                                    bottom_right: { type: 'number', description: 'Bottom-right border radius (px)' }
+                                    top_left: {
+                                        oneOf: [
+                                            { type: 'number', description: 'Top-left border radius (px)' },
+                                            { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
+                                        ],
+                                        description: "Top-left border radius — number (px) or 'match' to mirror elbow inner arc"
+                                    },
+                                    top_right: {
+                                        oneOf: [
+                                            { type: 'number', description: 'Top-right border radius (px)' },
+                                            { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
+                                        ],
+                                        description: "Top-right border radius — number (px) or 'match' to mirror elbow inner arc"
+                                    },
+                                    bottom_left: {
+                                        oneOf: [
+                                            { type: 'number', description: 'Bottom-left border radius (px)' },
+                                            { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
+                                        ],
+                                        description: "Bottom-left border radius — number (px) or 'match' to mirror elbow inner arc"
+                                    },
+                                    bottom_right: {
+                                        oneOf: [
+                                            { type: 'number', description: 'Bottom-right border radius (px)' },
+                                            { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
+                                        ],
+                                        description: "Bottom-right border radius — number (px) or 'match' to mirror elbow inner arc"
+                                    }
                                 }
                             }
                         }

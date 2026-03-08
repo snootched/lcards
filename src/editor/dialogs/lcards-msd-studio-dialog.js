@@ -8871,9 +8871,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-select
                                 label="Smoothing Mode"
                                 .value=${routing.smoothing_mode ?? 'none'}
-                                @change=${(e) => this._updateRoutingConfig('smoothing_mode', e.target.value)}>
-                                <mwc-list-item value="none">None</mwc-list-item>
-                                <mwc-list-item value="chaikin">Chaikin</mwc-list-item>
+                                @selected=${(e) => this._updateRoutingConfig('smoothing_mode', e.detail?.value ?? e.target?.value)}>
+                                <ha-dropdown-item .value=${'none'}>None</ha-dropdown-item>
+                                <ha-dropdown-item .value=${'chaikin'}>Chaikin</ha-dropdown-item>
                             </ha-select>
                             <ha-textfield
                                 label="Iterations"

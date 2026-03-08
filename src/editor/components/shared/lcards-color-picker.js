@@ -141,7 +141,7 @@ export class LCARdSColorPicker extends LitElement {
                 background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
             }
 
-            mwc-list-item {
+            ha-dropdown-item {
                 --mdc-list-item-graphic-margin: 8px;
             }
 
@@ -736,23 +736,23 @@ export class LCARdSColorPicker extends LitElement {
 
         // Default option
         items.push(html`
-            <mwc-list-item value="">-- Select Variable --</mwc-list-item>
+            <ha-dropdown-item .value=${''}>-- Select Variable --</ha-dropdown-item>
         `);
 
         // Transparent option with checkered pattern
         items.push(html`
-            <mwc-list-item value="transparent">
+            <ha-dropdown-item .value=${'transparent'}>
                 <span class="color-swatch transparent"></span>
                 Transparent
-            </mwc-list-item>
+            </ha-dropdown-item>
         `);
 
         // Match Light option (if enabled)
         if (this.allowMatchLight) {
             items.push(html`
-                <mwc-list-item value="match-light">
+                <ha-dropdown-item .value=${'match-light'}>
                     💡 Match Light Colour
-                </mwc-list-item>
+                </ha-dropdown-item>
             `);
         }
 
@@ -760,13 +760,13 @@ export class LCARdSColorPicker extends LitElement {
         this._cssVariables.forEach(variable => {
             const computedColor = this._computeColor(variable.value);
             items.push(html`
-                <mwc-list-item value="${variable.value}">
+                <ha-dropdown-item .value=${variable.value}>
                     <span
                         class="color-swatch"
                         style="background-color: ${computedColor};">
                     </span>
                     ${variable.label}
-                </mwc-list-item>
+                </ha-dropdown-item>
             `);
         });
 
@@ -827,7 +827,8 @@ export class LCARdSColorPicker extends LitElement {
     _handleDropdownChange(ev) {
         if (this.disabled) return;
 
-        const newValue = ev.target.value;
+        // ha-select fires 'selected' with detail.value (HA 2026.2+ ha-dropdown migration)
+        const newValue = ev.detail?.value ?? ev.target?.value;
         if (newValue) {
             this._emitChange(newValue);
         }
@@ -1069,7 +1070,7 @@ export class LCARdSColorPicker extends LitElement {
      */
     _onBaseColorChange(ev) {
         ev.stopPropagation();
-        const newValue = ev.target.value;
+        const newValue = ev.detail?.value ?? ev.target?.value;
         if (newValue !== undefined && newValue !== this._baseColor) {
             this._baseColor = newValue;
             this.requestUpdate();
@@ -1083,7 +1084,7 @@ export class LCARdSColorPicker extends LitElement {
      */
     _onBaseColor2Change(ev) {
         ev.stopPropagation();
-        const newValue = ev.target.value;
+        const newValue = ev.detail?.value ?? ev.target?.value;
         if (newValue !== undefined && newValue !== this._baseColor2) {
             this._baseColor2 = newValue;
             this.requestUpdate();

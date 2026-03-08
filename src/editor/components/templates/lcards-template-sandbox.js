@@ -1837,7 +1837,7 @@ export class LCARdSTemplateSandbox extends LitElement {
   // Event Handlers
 
   _handleTemplateInput(e) {
-    this._templateInput = e.target.value;
+    this._templateInput = e.detail?.value ?? e.target?.value ?? '';
   }
 
   _handleEntityPickerChange(e) {
