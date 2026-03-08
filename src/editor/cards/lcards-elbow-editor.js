@@ -50,10 +50,105 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'elbow';
+        this._cardElement = null;
         this._symbioCardPickerDialogRef = null;
         this._symbioCardEditorDialogRef = null;
         this._yamlDebounceTimer = null;
         this._cssDebounceTimer = null;
+    }
+
+    /**
+     * Called after first render — find the live card preview element
+     * @override
+     */
+    firstUpdated() {
+        super.firstUpdated?.();
+        this._tryFindCardElement();
+    }
+
+    /**
+     * Retry finding the card element across animation frames
+     * @private
+     */
+    _tryFindCardElement() {
+        let attempts = 0;
+        const maxAttempts = 10;
+        const tryFind = () => {
+            attempts++;
+            this._findCardElement();
+            if (!this._cardElement && attempts < maxAttempts) {
+                requestAnimationFrame(tryFind);
+            }
+        };
+        requestAnimationFrame(tryFind);
+    }
+
+    /**
+     * Locate the live card preview element by traversing the HA editor DOM.
+     *
+     * DOM structure in HA card editor:
+     *   hui-dialog-edit-card > ha-dialog (shadow) > .content
+     *     ├─ .element-editor  ← this editor lives here
+     *     └─ .element-preview ← card preview lives here
+     * @private
+     */
+    _findCardElement() {
+        const cardType = `lcards-${this.cardType}`;
+
+        if (this._cardElement?.isConnected) return;
+
+        let card = null;
+
+        const wrapper = this.closest('.wrapper');
+        if (wrapper) {
+            const shadowRoot = wrapper.getRootNode();
+            if (shadowRoot && shadowRoot !== document) {
+                const shadowHost = shadowRoot.host;
+                if (shadowHost) {
+                    const editorContainer = shadowHost.parentElement;
+                    if (editorContainer) {
+                        const content = editorContainer.parentElement;
+                        if (content) {
+                            const preview = content.querySelector('.element-preview');
+                            if (preview) {
+                                const searchInShadows = (root, depth = 0) => {
+                                    if (depth > 5) return null;
+                                    const found = root.querySelector(cardType);
+                                    if (found) return found;
+                                    const elements = root.querySelectorAll('*');
+                                    for (const el of elements) {
+                                        if (el.shadowRoot) {
+                                            const inShadow = searchInShadows(el.shadowRoot, depth + 1);
+                                            if (inShadow) return inShadow;
+                                        }
+                                    }
+                                    return null;
+                                };
+                                card = preview.querySelector(cardType) || searchInShadows(preview);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: global search
+        if (!card) {
+            card = document.querySelector(cardType);
+            if (!card) {
+                for (const el of document.querySelectorAll('*')) {
+                    if (el.shadowRoot) {
+                        card = el.shadowRoot.querySelector(cardType);
+                        if (card) break;
+                    }
+                }
+            }
+        }
+
+        if (card && card !== this._cardElement) {
+            this._cardElement = card;
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -2127,6 +2222,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <lcards-animation-editor
                         .hass=${this.hass}
                         .animations=${this.config.animations || []}
+                        .cardElement=${this._cardElement}
                         @animations-changed=${(e) => {
                             this._updateConfig({ animations: e.detail.value });
                         }}>

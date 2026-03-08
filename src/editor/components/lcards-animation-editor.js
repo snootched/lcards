@@ -2715,11 +2715,11 @@ export class LCARdSAnimationEditor extends LitElement {
 
     try {
       // Discover all elements with ID attributes OR data-* id attributes
-      const elementsWithId = root.querySelectorAll('[id], [data-button-id], [data-overlay-id], [data-segment-id]');
+      const elementsWithId = root.querySelectorAll('[id], [data-button-id], [data-overlay-id], [data-segment-id], [data-lcards-segment]');
 
       elementsWithId.forEach(el => {
-        // Priority: id > data-button-id > data-overlay-id > data-segment-id
-        const id = el.id || el.getAttribute('data-button-id') || el.getAttribute('data-overlay-id') || el.getAttribute('data-segment-id');
+        // Priority: id > data-button-id > data-overlay-id > data-segment-id > data-lcards-segment
+        const id = el.id || el.getAttribute('data-button-id') || el.getAttribute('data-overlay-id') || el.getAttribute('data-segment-id') || el.getAttribute('data-lcards-segment');
         const tagName = el.tagName.toLowerCase();
 
         // Safely get class names (handle SVG elements where className is SVGAnimatedString)
@@ -2739,6 +2739,22 @@ export class LCARdSAnimationEditor extends LitElement {
             label: `#${id} <${tagName}>${classes || ''}`
           });
         }
+      });
+
+      // Discover text field elements (SVG <text> and background <rect> with data-field-id)
+      const textFieldElements = root.querySelectorAll('[data-field-id]');
+      const seenFieldIds = new Set();
+      textFieldElements.forEach(el => {
+        const fieldId = el.getAttribute('data-field-id');
+        if (!fieldId || seenFieldIds.has(fieldId)) return;
+        seenFieldIds.add(fieldId);
+        const tagName = el.tagName.toLowerCase();
+        const isBackground = fieldId.endsWith('-bg');
+        const prefix = isBackground ? 'text-bg' : 'text';
+        options.push({
+          value: `[data-field-id="${fieldId}"]`,
+          label: `[${prefix}] ${fieldId} <${tagName}>`
+        });
       });
 
       // Also scan for elements with CSS classes for more flexibility
