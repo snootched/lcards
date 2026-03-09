@@ -285,6 +285,9 @@ export class LCARdSSlider extends LCARdSButton {
         this._memoizedGauge = null;
         this._memoizedGaugeConfig = null;
 
+        // Resolved numeric values for value-based (marker) range entries
+        this._resolvedMarkerValues = [];
+
         // Control configuration (derived from config + entity)
         this._controlConfig = {
             min: 0,
@@ -447,6 +450,9 @@ export class LCARdSSlider extends LCARdSButton {
 
             // Update control config if entity attributes changed
             this._updateControlConfig();
+
+            // Re-resolve marker values since entity attributes may have changed
+            this._resolveMarkerValues();
         }
     }
 
@@ -684,6 +690,97 @@ export class LCARdSSlider extends LCARdSButton {
                 }
             });
         }
+
+        // Resolve marker values now that _sliderStyle is set
+        this._resolveMarkerValues();
+    }
+
+    /**
+     * Resolve a range marker `value` template to a numeric position.
+     * Supports: static numbers, {entity.state}, {entity.attributes.xxx},
+     * {states.entity_id.state}, {states.entity_id.attributes.xxx}, [[[JS]]] templates.
+     * @param {*} template - Template string or static number
+     * @returns {number|null} Resolved numeric value, or null if unresolvable
+     * @private
+     */
+    _resolveMarkerValue(template) {
+        if (template === null || template === undefined) return null;
+        if (typeof template === 'number') return isNaN(template) ? null : template;
+
+        const str = String(template).trim();
+
+        // Try parsing as a plain numeric string
+        const parsed = parseFloat(str);
+        if (!isNaN(parsed) && str === String(parsed)) return parsed;
+
+        // Token template: {token.path}
+        const tokenMatch = str.match(/^\{([^}]+)\}$/);
+        if (tokenMatch) {
+            const token = tokenMatch[1];
+
+            // {entity.state}
+            if (token === 'entity.state') {
+                const v = parseFloat(this._entity?.state);
+                return isNaN(v) ? null : v;
+            }
+
+            // {entity.attributes.xxx}
+            const attrMatch = token.match(/^entity\.attributes\.(.+)$/);
+            if (attrMatch) {
+                const v = parseFloat(this._entity?.attributes?.[attrMatch[1]]);
+                return isNaN(v) ? null : v;
+            }
+
+            // {states.entity_id.state}
+            const statesStateMatch = token.match(/^states\.(.+)\.state$/);
+            if (statesStateMatch) {
+                const v = parseFloat(this.hass?.states?.[statesStateMatch[1]]?.state);
+                return isNaN(v) ? null : v;
+            }
+
+            // {states.entity_id.attributes.xxx}
+            const statesAttrMatch = token.match(/^states\.(.+)\.attributes\.(.+)$/);
+            if (statesAttrMatch) {
+                const v = parseFloat(this.hass?.states?.[statesAttrMatch[1]]?.attributes?.[statesAttrMatch[2]]);
+                return isNaN(v) ? null : v;
+            }
+        }
+
+        // JS template: [[[return expression]]]
+        if (str.startsWith('[[[') && str.endsWith(']]]')) {
+            if (!this.hass) return null; // hass not yet available; will re-resolve on first hass update
+            const jsBody = str.slice(3, -3).trim();
+            try {
+                // eslint-disable-next-line no-new-func
+                const fn = new Function('hass', 'entity', 'states', jsBody);
+                const result = fn(this.hass, this._entity, this.hass.states);
+                const v = parseFloat(result);
+                return isNaN(v) ? null : v;
+            } catch (e) {
+                lcardsLog.warn(`[LCARdSSlider] Marker value JS template error:`, e);
+                return null;
+            }
+        }
+
+        lcardsLog.debug(`[LCARdSSlider] Could not resolve marker value template:`, template);
+        return null;
+    }
+
+    /**
+     * Resolve all value-based (marker) range entries to numeric positions.
+     * Stores a parallel array to style.ranges in this._resolvedMarkerValues.
+     * Null entries correspond to band ranges (min/max) or unresolvable templates.
+     * Called from _resolveSliderStyleSync() and _handleHassUpdate().
+     * @private
+     */
+    _resolveMarkerValues() {
+        const ranges = this._sliderStyle?.ranges || [];
+        this._resolvedMarkerValues = ranges.map((range, idx) => {
+            if (!('value' in range)) return null; // Band range, not a marker
+            const resolved = this._resolveMarkerValue(range.value);
+            lcardsLog.trace(`[LCARdSSlider] Marker range[${idx}] resolved: ${JSON.stringify(range.value)} → ${resolved}`);
+            return resolved;
+        });
     }
 
 
@@ -1411,7 +1508,8 @@ export class LCARdSSlider extends LCARdSButton {
         const configHash = `${trackConfig?.count || 10}|${trackConfig?.gap || 4}|${trackConfig?.shape?.radius ?? 4}|` +
             `${trackConfig?.size?.height || 12}|${trackConfig?.gradient?.start || ''}|${trackConfig?.gradient?.end || ''}|` +
             `${orientation}|${width}|${height}|` +
-            `${JSON.stringify(this._sliderStyle?.ranges || [])}`; // NEW: Include ranges
+            `${JSON.stringify(this._sliderStyle?.ranges || [])}|` +
+            `${JSON.stringify(this._resolvedMarkerValues)}`; // Include resolved marker values for reactivity
 
         // Check memoization cache
         if (this._memoizedTrack && this._memoizedTrackConfig === configHash) {
@@ -1578,6 +1676,25 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
+        // ====================================================================
+        // Build marker pill map: pillIndex → { color, strokeEnabled, strokeWidth }
+        // Computed after count is determined so each marker maps to its nearest pill.
+        // ====================================================================
+        const markerPillMap = new Map();
+        (this._sliderStyle?.ranges || []).forEach((range, idx) => {
+            if (!('value' in range)) return; // Band range, skip
+            const resolvedValue = this._resolvedMarkerValues[idx];
+            if (resolvedValue === null || resolvedValue === undefined) return;
+            const valuePercent = displayRange > 0 ? (resolvedValue - displayMin) / displayRange : 0;
+            const pillIdx = Math.max(0, Math.min(count - 1, Math.round(valuePercent * (count - 1))));
+            const pillStyle = range.pill_style || {};
+            markerPillMap.set(pillIdx, {
+                color: this._resolveColorValue(range.color || 'var(--lcars-white, #ffffff)'),
+                strokeEnabled: pillStyle.stroke !== false, // default true
+                strokeWidth: pillStyle.stroke_width ?? 2
+            });
+        });
+
         // Calculate pill dimensions
         let pills = '';
         let defs = '<defs>';
@@ -1595,6 +1712,11 @@ export class LCARdSSlider extends LCARdSButton {
                 // NEW: Use range color if defined, else gradient
                 const color = getPillColor(i, count);
 
+                const markerInfoV = markerPillMap.get(i);
+                const markerAttrsV = markerInfoV
+                    ? ` data-marker-color="${markerInfoV.color}" data-marker-stroke="${markerInfoV.strokeEnabled ? markerInfoV.strokeWidth : 0}"`
+                    : '';
+
                 pills += `
                     <rect
                         id="pill-${i}"
@@ -1607,7 +1729,7 @@ export class LCARdSSlider extends LCARdSButton {
                         ry="${radius}"
                         fill="${color}"
                         opacity="${unfilledOpacity}"
-                        data-pill-index="${i}" />
+                        data-pill-index="${i}"${markerAttrsV} />
                 `;
             }
         } else {
@@ -1627,6 +1749,11 @@ export class LCARdSSlider extends LCARdSButton {
                 // NEW: Use range color if defined, else gradient
                 const color = getPillColor(i, count);
 
+                const markerInfoH = markerPillMap.get(i);
+                const markerAttrsH = markerInfoH
+                    ? ` data-marker-color="${markerInfoH.color}" data-marker-stroke="${markerInfoH.strokeEnabled ? markerInfoH.strokeWidth : 0}"`
+                    : '';
+
                 pills += `
                     <rect
                         id="pill-${i}"
@@ -1639,7 +1766,7 @@ export class LCARdSSlider extends LCARdSButton {
                         ry="${radius}"
                         fill="${color}"
                         opacity="${unfilledOpacity}"
-                        data-pill-index="${i}" />
+                        data-pill-index="${i}"${markerAttrsH} />
                 `;
             }
         }
@@ -1791,6 +1918,7 @@ export class LCARdSSlider extends LCARdSButton {
             lcardsLog.debug(`[LCARdSSlider] Rendering ${ranges.length} range backgrounds in gauge track`);
 
             ranges.forEach((rangeConfig, idx) => {
+                if ('value' in rangeConfig) return; // Marker ranges are handled separately
                 const rangeMin = rangeConfig.min;
                 const rangeMax = rangeConfig.max;
                 const rangeColor = this._resolveColorValue(rangeConfig.color);
@@ -2219,6 +2347,21 @@ export class LCARdSSlider extends LCARdSButton {
                 opacity = unfilledOpacity;
             }
             pill.setAttribute('opacity', opacity);
+        });
+
+        // Apply marker pill styling: full opacity, marker colour, outline stroke.
+        // Runs after the opacity loop so markers always override fill/opacity
+        // regardless of where they fall in the filled or unfilled zone.
+        pills.forEach((pill) => {
+            const markerColor = pill.getAttribute('data-marker-color');
+            if (!markerColor) return;
+            const strokeWidth = parseFloat(pill.getAttribute('data-marker-stroke') || '0');
+            pill.setAttribute('opacity', '1');
+            pill.setAttribute('fill', markerColor);
+            if (strokeWidth > 0) {
+                pill.setAttribute('stroke', markerColor);
+                pill.setAttribute('stroke-width', String(strokeWidth));
+            }
         });
     }
 
@@ -2661,10 +2804,10 @@ export class LCARdSSlider extends LCARdSButton {
         if (effectiveMode === 'pills') {
             trackContent = this._generatePillsContent(trackZone, orientation);
         } else if (effectiveMode === 'gauge') {
-            // Pass skipProgressBar=true if component has a progress zone (render progress bar there instead)
-            // Pass skipRanges=true ONLY for non-Default components (Picard renders ranges separately)
-            const skipRangesInGauge = componentName !== 'default';
-            trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, skipRangesInGauge);
+            // skipProgressBar=true when component has a separate progress zone
+            // skipRanges=true ALWAYS — band ranges are injected separately into #range-zone below
+            // so they sit under the progress bar and indicators in the SVG paint order
+            trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, true);
         } else if (effectiveMode === 'shaped') {
             trackContent = this._generateShapedContent(trackZone, orientation);
         }
@@ -2711,10 +2854,15 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        // Range rendering is ALWAYS handled internally:
-        // - Default component: Ranges integrated into pills colors or gauge background segments
-        // - Picard/other components: Ranges rendered by component's own render() function
-        // Therefore, NO external range injection needed here
+        // Inject gauge band ranges into #range-zone (bottom-most layer, always below ticks /
+        // progress bar / indicators).  Only for the default component — Picard and other
+        // advanced components render their own range zones inside their render() function.
+        if (effectiveMode === 'gauge' && componentName === 'default' && rangeZone) {
+            const rangeZoneEl = shellElement.querySelector('#range-zone');
+            if (rangeZoneEl) {
+                rangeZoneEl.innerHTML = this._generateGaugeBandRanges(rangeZone.width, rangeZone.height);
+            }
+        }
 
         // Inject borders if configured
         this._injectBordersToElement(shellElement, width, height);
@@ -2824,6 +2972,48 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Use existing _generateGaugeSVG - pass skip flags
         return this._generateGaugeSVG(zoneSpec.width, zoneSpec.height, skipProgressBar, skipRanges);
+    }
+
+    /**
+     * Generate SVG band-range background rects for injection into #range-zone.
+     * Only processes band ranges (those with min/max keys); marker ranges are rendered
+     * as indicator shapes in the progress zone instead.
+     * @param {number} zoneWidth - Width of the range zone
+     * @param {number} zoneHeight - Height of the range zone
+     * @returns {string} SVG markup (rect elements)
+     * @private
+     */
+    _generateGaugeBandRanges(zoneWidth, zoneHeight) {
+        const ranges = this._sliderStyle?.ranges || [];
+        const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
+        const isVertical = orientation === 'vertical';
+        const min = this._displayConfig.min;
+        const max = this._displayConfig.max;
+        const displayRange = max - min;
+        if (displayRange <= 0) return '';
+
+        let svg = '';
+        ranges.forEach((rangeConfig, idx) => {
+            if ('value' in rangeConfig) return; // Skip markers
+            const rangeMin = rangeConfig.min;
+            const rangeMax = rangeConfig.max;
+            if (rangeMin === undefined || rangeMax === undefined) return;
+            const rangeColor = this._resolveColorValue(rangeConfig.color);
+            const rangeOpacity = rangeConfig.opacity ?? 0.3;
+            const startPercent = Math.max(0, (rangeMin - min) / displayRange);
+            const endPercent   = Math.min(1, (rangeMax - min) / displayRange);
+
+            if (isVertical) {
+                const yStart = zoneHeight * (1 - endPercent);
+                const yEnd   = zoneHeight * (1 - startPercent);
+                svg += `<rect class="range-bg" x="0" y="${yStart}" width="${zoneWidth}" height="${yEnd - yStart}" fill="${rangeColor}" opacity="${rangeOpacity}" data-range-index="${idx}" data-range-label="${rangeConfig.label || ''}" />`;
+            } else {
+                const xStart = zoneWidth * startPercent;
+                const xEnd   = zoneWidth * endPercent;
+                svg += `<rect class="range-bg" x="${xStart}" y="0" width="${xEnd - xStart}" height="${zoneHeight}" fill="${rangeColor}" opacity="${rangeOpacity}" data-range-index="${idx}" data-range-label="${rangeConfig.label || ''}" />`;
+            }
+        });
+        return svg;
     }
 
     /**
@@ -3127,6 +3317,59 @@ export class LCARdSSlider extends LCARdSButton {
                         indicator.borderColor,
                         indicator.borderWidth,
                         false // isVertical = false for horizontal
+                    );
+                }
+            }
+
+            // Render marker indicators for value-based range entries
+            const markerRanges = (this._sliderStyle?.ranges || [])
+                .map((r, i) => ({ range: r, resolvedValue: this._resolvedMarkerValues[i] }))
+                .filter(({ range, resolvedValue }) => 'value' in range && resolvedValue !== null);
+
+            const dMin = this._displayConfig.min;
+            const dMax = this._displayConfig.max;
+
+            for (const { range, resolvedValue } of markerRanges) {
+                // Build indicator config: per-range settings override global indicator defaults
+                const globalIndicator = this._getIndicatorConfig(gaugeConfig);
+                const riCfg = range.indicator || {};
+                const markerColor = this._resolveColorValue(riCfg.color || range.color || 'var(--lcars-white, #ffffff)');
+                const markerIndicator = {
+                    type:         riCfg.type             || globalIndicator?.type        || 'line',
+                    color:        markerColor,
+                    width:        riCfg.size?.width      ?? globalIndicator?.width       ?? 4,
+                    height:       riCfg.size?.height     ?? globalIndicator?.height      ?? 25,
+                    rotation:     riCfg.rotation         ?? globalIndicator?.rotation    ?? 0,
+                    offsetX:      riCfg.offset?.x        ?? 0,
+                    offsetY:      riCfg.offset?.y        ?? 0,
+                    borderEnabled: riCfg.border?.enabled ?? globalIndicator?.borderEnabled ?? true,
+                    borderColor:  this._resolveColorValue(riCfg.border?.color ?? 'var(--lcars-black, #000000)'),
+                    borderWidth:  riCfg.border?.width    ?? globalIndicator?.borderWidth  ?? 1
+                };
+
+                const markerPercent = Math.max(0, Math.min(1, (resolvedValue - dMin) / ((dMax - dMin) || 1)));
+
+                if (isVertical) {
+                    let baseY = height * (1 - markerPercent);
+                    if (this._invertFill) baseY = height * markerPercent;
+                    const mX = x + (width / 2) + markerIndicator.offsetX;
+                    const mY = y + baseY + markerIndicator.offsetY;
+                    svg += this._renderIndicator(
+                        markerIndicator.type, mX, mY,
+                        markerIndicator.width, markerIndicator.height, markerIndicator.rotation,
+                        markerIndicator.color, markerIndicator.borderEnabled,
+                        markerIndicator.borderColor, markerIndicator.borderWidth, true
+                    );
+                } else {
+                    let baseX = width * markerPercent;
+                    if (this._invertFill) baseX = width * (1 - markerPercent);
+                    const mX = x + baseX + markerIndicator.offsetX;
+                    const mY = y + (height / 2) + markerIndicator.offsetY;
+                    svg += this._renderIndicator(
+                        markerIndicator.type, mX, mY,
+                        markerIndicator.width, markerIndicator.height, markerIndicator.rotation,
+                        markerIndicator.color, markerIndicator.borderEnabled,
+                        markerIndicator.borderColor, markerIndicator.borderWidth, false
                     );
                 }
             }

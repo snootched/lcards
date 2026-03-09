@@ -852,9 +852,8 @@ export function getSliderSchema(options = {}) {
                                 },
                                 color: {
                                     type: 'string',
-                                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                                    description: 'Range background colour (hex, rgba, theme token, or CSS variable)',
-                                    examples: ['var(--error-color)', '#ff0000', 'rgba(255,0,0,0.3)', 'theme:palette.danger']
+                                    description: 'Range background colour (hex, rgba, named colour, theme token, or CSS variable)',
+                                    examples: ['var(--error-color)', '#ff0000', 'rgba(255,0,0,0.3)', 'theme:palette.danger', 'orange', 'transparent']
                                 },
                                 label: {
                                     type: 'string',
@@ -867,9 +866,59 @@ export function getSliderSchema(options = {}) {
                                     maximum: 1,
                                     default: 0.3,
                                     description: 'Background opacity (0=transparent, 1=solid, default: 0.3)'
+                                },
+                                value: {
+                                    type: ['string', 'number'],
+                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.attributes.xxx}, {states.entity_id.state}, and [[[JS]]] templates.',
+                                    'x-ui-hints': {
+                                        label: 'Marker Value',
+                                        helper: 'Template or number — places a visual marker at this value rather than drawing a coloured band'
+                                    }
+                                },
+                                indicator: {
+                                    type: 'object',
+                                    description: 'Gauge mode: indicator shape for this marker (same schema as style.gauge.indicator). Falls back to style.gauge.indicator settings if omitted.',
+                                    properties: {
+                                        type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type' },
+                                        color: { type: 'string', description: 'Indicator fill color (defaults to range color)' },
+                                        size: {
+                                            type: 'object',
+                                            properties: {
+                                                width: { type: 'number', description: 'Width in pixels' },
+                                                height: { type: 'number', description: 'Height in pixels' }
+                                            }
+                                        },
+                                        offset: {
+                                            type: 'object',
+                                            properties: {
+                                                x: { type: 'number', description: 'Horizontal offset in pixels' },
+                                                y: { type: 'number', description: 'Vertical offset in pixels' }
+                                            }
+                                        },
+                                        rotation: { type: 'number', description: 'Rotation angle in degrees' },
+                                        border: {
+                                            type: 'object',
+                                            properties: {
+                                                enabled: { type: 'boolean', default: true },
+                                                color: { type: 'string' },
+                                                width: { type: 'number' }
+                                            }
+                                        }
+                                    }
+                                },
+                                pill_style: {
+                                    type: 'object',
+                                    description: 'Pills mode: visual appearance of the marker pill.',
+                                    properties: {
+                                        stroke: { type: 'boolean', default: true, description: 'Show an outline border on the marker pill to distinguish it from neighbours' },
+                                        stroke_width: { type: 'number', default: 2, description: 'Border thickness in pixels' }
+                                    },
+                                    'x-ui-hints': {
+                                        label: 'Pill Marker Style',
+                                        helper: 'Controls how the marker pill appears in pills mode'
+                                    }
                                 }
-                            },
-                            required: ['min', 'max', 'color']
+                            }
                         },
                         examples: [
                             [

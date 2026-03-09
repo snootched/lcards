@@ -642,17 +642,18 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Ranges Configuration - Color-coded value zones
+     * Ranges Configuration - Color-coded bands and value markers
      * @returns {TemplateResult}
      * @private
      */
     _renderRangesConfiguration() {
         const ranges = this.config?.style?.ranges || [];
+        const trackType = this._getSliderState().trackType;
 
         return html`
             <lcards-form-section
-                header="Colour-Coded Ranges"
-                description="Define visual zones for context (cold/comfort/hot, low/normal/high)"
+                header="Ranges &amp; Value Markers"
+                description="Colour-coded bands and live-value indicators on the track"
                 icon="mdi:palette"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -660,7 +661,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Ranges provide visual context: background segments in gauge mode, color overrides in pills mode">
+                    message="Band ranges colour a fixed zone on the track. Value markers track a live entity attribute (e.g. current temperature) — shown as an indicator shape in gauge mode and a highlighted pill in pills mode.">
                 </lcards-message>
 
                 <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -668,33 +669,44 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         <div style="text-align: center; padding: 32px 16px; color: var(--secondary-text-color);">
                             <ha-icon icon="mdi:palette-outline" style="font-size: 48px; opacity: 0.3; display: block; margin: 0 auto 12px;"></ha-icon>
                             <div style="font-weight: 600; margin-bottom: 4px;">No ranges defined</div>
-                            <div>Add a range to create color-coded zones</div>
+                            <div>Add a band range or a value marker</div>
                         </div>
                     ` : html`
-                        ${ranges.map((range, index) => this._renderRangeItem(range, index))}
+                        ${ranges.map((range, index) => this._renderRangeItem(range, index, trackType))}
                     `}
                 </div>
 
-                <!-- Add Button -->
-                <ha-button class="add-button" @click=${() => this._addRange()}>
-                    <ha-icon icon="mdi:plus" slot="start"></ha-icon>
-                    Add Range
-                </ha-button>
+                <!-- Add Buttons -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <ha-button @click=${() => this._addBandRange()}>
+                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                        Add Band Range
+                    </ha-button>
+                    <ha-button @click=${() => this._addMarkerRange()}>
+                        <ha-icon icon="mdi:map-marker-plus" slot="start"></ha-icon>
+                        Add Value Marker
+                    </ha-button>
+                </div>
             </lcards-form-section>
         `;
     }
 
     /**
-     * Render a single range item in the array editor
+     * Render a single range item — branches on band vs marker mode
      * @param {Object} range - Range configuration
      * @param {number} index - Range index
+     * @param {string} trackType - Current track type ('pills'|'gauge'|'shaped')
      * @returns {TemplateResult}
      * @private
      */
-    _renderRangeItem(range, index) {
+    _renderRangeItem(range, index, trackType = 'pills') {
         const basePath = `style.ranges.${index}`;
         const isExpanded = this._expandedRanges[index] || false;
-        const rangeDisplay = range.label || `${range.min || 0} - ${range.max || 100}`;
+        const isMarker = 'value' in range;
+
+        const rangeDisplay = isMarker
+            ? (range.label || `Marker: ${String(range.value).substring(0, 40)}`)
+            : (range.label || `Band: ${range.min ?? 0} – ${range.max ?? 100}`);
 
         const itemStyle = 'background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;';
         const headerStyle = 'display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; user-select: none; background: var(--secondary-background-color);';
@@ -703,18 +715,22 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const infoStyle = 'flex: 1; min-width: 0;';
         const labelStyle = 'font-weight: 600; font-size: 14px;';
         const valueStyle = 'font-size: 12px; color: var(--secondary-text-color); margin-top: 2px;';
-        const actionsStyle = 'display: flex; gap: 4px;';
+        const typeBadgeStyle = `font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 4px; background: ${isMarker ? 'var(--info-color, #4fc3f7)' : 'var(--success-color, #4caf50)'}22; color: ${isMarker ? 'var(--info-color, #4fc3f7)' : 'var(--success-color, #4caf50)'};`;
+        const actionsStyle = 'display: flex; gap: 4px; align-items: center;';
         const expandIconStyle = `transition: transform 0.2s;${isExpanded ? ' transform: rotate(180deg);' : ''}`;
-        const contentStyle = 'padding: 16px; border-top: 1px solid var(--divider-color);';
+        const contentStyle = 'padding: 16px; border-top: 1px solid var(--divider-color); display: flex; flex-direction: column; gap: 12px;';
 
         return html`
             <div class="range-item" style="${itemStyle}">
                 <!-- Range Header -->
                 <div class="range-header" style="${headerStyle}" @click=${() => this._toggleRangeExpanded(index)}>
-                    <ha-icon style="${iconStyle}" icon="mdi:chart-box"></ha-icon>
+                    <ha-icon style="${iconStyle}" icon="${isMarker ? 'mdi:map-marker' : 'mdi:chart-box'}"></ha-icon>
 
                     <div style="${infoStyle}">
-                        <div style="${labelStyle}">Range ${index + 1}</div>
+                        <div style="${labelStyle}">
+                            ${isMarker ? 'Value Marker' : 'Band Range'} ${index + 1}
+                            <span style="${typeBadgeStyle}">${isMarker ? 'MARKER' : 'BAND'}</span>
+                        </div>
                         <div style="${valueStyle}">${rangeDisplay}</div>
                     </div>
 
@@ -726,47 +742,220 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         </ha-icon-button>
                     </div>
 
-                    <ha-icon
-                        style="${expandIconStyle}"
-                        icon="mdi:chevron-down">
-                    </ha-icon>
+                    <ha-icon style="${expandIconStyle}" icon="mdi:chevron-down"></ha-icon>
                 </div>
 
-                <!-- Range Content (Expanded) -->
+                <!-- Expanded Content -->
                 ${isExpanded ? html`
-                    <div style="${contentStyle}"
-                        <lcards-grid-layout columns="2">
-                            ${FormField.renderField(this, `${basePath}.min`, {
-                                label: 'Min Value',
-                                helper: 'Range start (in display space)'
-                            })}
-
-                            ${FormField.renderField(this, `${basePath}.max`, {
-                                label: 'Max Value',
-                                helper: 'Range end (in display space)'
-                            })}
-                        </lcards-grid-layout>
-
-                        <lcards-color-section
-                            .editor=${this}
-                            .entityId=${this.config?.entity || ''}
-                            basePath="${basePath}.color"
-                            header="Range Colour"
-                            description="Background colour for this range"
-                            ?singleColor=${true}
-                            ?expanded=${true}
-                            ?useColorPicker=${true}>
-                        </lcards-color-section>
-
-                        <lcards-grid-layout columns="1">
-                            ${FormField.renderField(this, `${basePath}.opacity`, {
-                                label: 'Opacity',
-                                helper: 'Background opacity (0-1, default: 0.3)'
-                            })}
-                        </lcards-grid-layout>
+                    <div style="${contentStyle}">
+                        ${isMarker
+                            ? this._renderMarkerRangeContent(range, basePath, trackType)
+                            : this._renderBandRangeContent(range, basePath, trackType)
+                        }
                     </div>
                 ` : ''}
             </div>
+        `;
+    }
+
+    /**
+     * Render expanded content for band ranges (min/max/color/opacity/label)
+     * @private
+     */
+    _renderBandRangeContent(range, basePath, trackType = 'gauge') {
+        const opacityHelper = (trackType === 'pills' || trackType === 'shaped')
+            ? 'Gauge mode only. In pills mode use Track Settings › Appearance › Unfilled Opacity instead.'
+            : 'Background opacity (0–1, default: 0.3)';
+        return html`
+            ${FormField.renderField(this, `${basePath}.label`, {
+                label: 'Label',
+                helper: 'Optional descriptive name for this range'
+            })}
+
+            <lcards-grid-layout columns="2">
+                ${FormField.renderField(this, `${basePath}.min`, {
+                    label: 'Min Value',
+                    helper: 'Range start (in display space)'
+                })}
+                ${FormField.renderField(this, `${basePath}.max`, {
+                    label: 'Max Value',
+                    helper: 'Range end (in display space)'
+                })}
+            </lcards-grid-layout>
+
+            <lcards-color-section
+                .editor=${this}
+                .entityId=${this.config?.entity || ''}
+                basePath="${basePath}.color"
+                header="Band Colour"
+                description="Background colour for this zone"
+                ?singleColor=${true}
+                ?expanded=${true}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
+
+            ${FormField.renderField(this, `${basePath}.opacity`, {
+                label: 'Opacity',
+                helper: opacityHelper
+            })}
+        `;
+    }
+
+    /**
+     * Render expanded content for value markers
+     * Shows: value template, color, label, + mode-specific sub-sections
+     * @private
+     */
+    _renderMarkerRangeContent(range, basePath, trackType) {
+        const isGauge = trackType === 'gauge';
+        const isPills = trackType === 'pills' || trackType === 'shaped';
+        const indExpanded = this._expandedRanges[`${basePath}_ind`] || false;
+        const pillExpanded = this._expandedRanges[`${basePath}_pill`] || false;
+
+        return html`
+            <!-- Value template -->
+            <div>
+                <ha-textfield
+                    .label=${'Marker Value / Template'}
+                    .helper=${'Template resolving to a position on the track. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, [[[return hass.states["sensor.x"].state]]]'}
+                    .value=${String(range.value ?? '')}
+                    @change=${(e) => this._setConfigPath(`${basePath}.value`, e.target.value)}
+                    style="width: 100%;">
+                </ha-textfield>
+            </div>
+
+            ${FormField.renderField(this, `${basePath}.label`, {
+                label: 'Label',
+                helper: 'Optional descriptive name for this marker'
+            })}
+
+            <lcards-color-section
+                .editor=${this}
+                .entityId=${this.config?.entity || ''}
+                basePath="${basePath}.color"
+                header="Marker Colour"
+                description="Colour of the indicator shape (gauge) or highlighted pill (pills)"
+                ?singleColor=${true}
+                ?expanded=${true}
+                ?useColorPicker=${true}>
+            </lcards-color-section>
+
+            <!-- Indicator shape settings (gauge mode) -->
+            <lcards-form-section
+                header="Indicator Shape"
+                description="Gauge mode: shape used for this marker. Falls back to the global gauge indicator settings if not set."
+                icon="mdi:map-marker"
+                ?expanded=${indExpanded}
+                ?outlined=${true}
+                headerLevel="5"
+                @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_ind`] = e.detail.expanded; this.requestUpdate(); }}>
+
+                ${!isGauge ? html`
+                    <lcards-message type="info"
+                        message="These settings only apply in gauge mode. Switch the preset to a gauge style to use them.">
+                    </lcards-message>
+                ` : ''}
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.type`, {
+                        label: 'Shape',
+                        type: 'select',
+                        options: [
+                            { value: '', label: '— Inherit from gauge.indicator —' },
+                            { value: 'line', label: 'Line' },
+                            { value: 'round', label: 'Round (ellipse)' },
+                            { value: 'triangle', label: 'Triangle' }
+                        ],
+                        helper: 'Defaults to style.gauge.indicator.type'
+                    })}
+
+                    ${FormField.renderField(this, `${basePath}.indicator.rotation`, {
+                        label: 'Rotation (°)',
+                        helper: 'Rotation in degrees'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.size.width`, {
+                        label: 'Width (px)',
+                        helper: 'Indicator width'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.size.height`, {
+                        label: 'Height (px)',
+                        helper: 'Indicator height'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.offset.x`, {
+                        label: 'Offset X (px)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.offset.y`, {
+                        label: 'Offset Y (px)'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.color"
+                    header="Indicator Colour Override"
+                    description="Leave blank to use the marker colour above"
+                    ?singleColor=${true}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
+                        label: 'Show Border',
+                        type: 'boolean',
+                        helper: 'Outline border on the indicator shape'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.border.width`, {
+                        label: 'Border Width (px)'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.border.color"
+                    header="Border Colour"
+                    ?singleColor=${true}
+                    ?expanded=${false}
+                    ?useColorPicker=${true}>
+                </lcards-color-section>
+            </lcards-form-section>
+
+            <!-- Pill style settings (pills mode) -->
+            <lcards-form-section
+                header="Pill Marker Style"
+                description="Pills mode: how the highlighted pill looks."
+                icon="mdi:pill"
+                ?expanded=${pillExpanded}
+                ?outlined=${true}
+                headerLevel="5"
+                @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_pill`] = e.detail.expanded; this.requestUpdate(); }}>
+
+                ${!isPills ? html`
+                    <lcards-message type="info"
+                        message="These settings only apply in pills mode. Switch the preset to a pills style to use them.">
+                    </lcards-message>
+                ` : ''}
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.pill_style.stroke`, {
+                        label: 'Show Outline',
+                        type: 'boolean',
+                        helper: 'Draw a border on the marker pill to distinguish it from neighbours'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.pill_style.stroke_width`, {
+                        label: 'Outline Width (px)',
+                        helper: 'Border thickness (default: 2)'
+                    })}
+                </lcards-grid-layout>
+            </lcards-form-section>
         `;
     }
 
@@ -781,10 +970,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Add a new range to the configuration
+     * Add a new band range (min/max/color zone)
      * @private
      */
-    _addRange() {
+    _addBandRange() {
         const ranges = this.config?.style?.ranges || [];
         const newRange = {
             min: 0,
@@ -793,13 +982,57 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             label: '',
             opacity: 0.3
         };
-
         this._updateConfig({
-            style: {
-                ...this.config.style,
-                ranges: [...ranges, newRange]
-            }
+            style: { ...this.config.style, ranges: [...ranges, newRange] }
         });
+        // Auto-expand the new item
+        this._expandedRanges[ranges.length] = true;
+        this.requestUpdate();
+    }
+
+    /**
+     * Add a new value marker range
+     * @private
+     */
+    _addMarkerRange() {
+        const ranges = this.config?.style?.ranges || [];
+        const newRange = {
+            value: '',
+            color: 'var(--warning-color)',
+            label: ''
+        };
+        this._updateConfig({
+            style: { ...this.config.style, ranges: [...ranges, newRange] }
+        });
+        // Auto-expand the new item
+        this._expandedRanges[ranges.length] = true;
+        this.requestUpdate();
+    }
+
+    /**
+     * Helper to set a deeply-nested config value using a dot-path
+     * @param {string} path - Dot-separated path e.g. 'style.ranges.0.value'
+     * @param {*} value - Value to set
+     * @private
+     */
+    _setConfigPath(path, value) {
+        const parts = path.split('.');
+        const config = JSON.parse(JSON.stringify(this.config || {}));
+        let cursor = config;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const key = isNaN(parts[i]) ? parts[i] : parseInt(parts[i]);
+            if (cursor[key] === undefined || cursor[key] === null || typeof cursor[key] !== 'object') {
+                cursor[key] = isNaN(parts[i + 1]) ? {} : [];
+            }
+            cursor = cursor[key];
+        }
+        const lastKey = isNaN(parts[parts.length - 1]) ? parts[parts.length - 1] : parseInt(parts[parts.length - 1]);
+        if (value === '' || value === undefined || value === null) {
+            delete cursor[lastKey];
+        } else {
+            cursor[lastKey] = value;
+        }
+        this._updateConfig(config);
     }
 
     /**
