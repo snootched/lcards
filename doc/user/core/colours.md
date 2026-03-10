@@ -136,7 +136,7 @@ style:
     color:
       background:
         default: "var(--ha-card-background)"
-        active: "rgba(255, 153, 0, 0.08)"
+        active: "alpha(var(--lcards-orange), 0.08)"
   border:
     color:
       default: "var(--lcards-inactive)"

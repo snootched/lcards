@@ -354,7 +354,7 @@ background_animation:
   - preset: grid
     config:
       line_spacing: 40
-      color: "rgba(255, 153, 0, 0.3)"
+      color: "alpha(var(--lcards-orange), 0.3)"
 ```
 
 ---
