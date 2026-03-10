@@ -2,7 +2,7 @@
 
 `custom:lcards-slider`
 
-Interactive sliders and read-only gauges for entities like lights, covers, fans, climate, and sensors. Two visual styles: pill-segmented bars and ruler gauges.
+Interactive sliders and read-only gauges for entities like lights, covers, fans, climate, and sensors. Two main visual styles: segmented pill bars and ruler gauges.
 
 ---
 
@@ -44,11 +44,16 @@ style:
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
 | `control` | object | Control behavior |
-| `text` | object | Text label definitions |
-| `style` | object | Visual style overrides |
-| `actions` | object | Named action handlers |
-| `animations` | list | Card animations |
-| `data_sources` | object | DataSource definitions |
+| `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
+| `style` | object | Visual style overrides — see below |
+| `actions` | object | Named action handlers — see below |
+| `tap_action` | object | Tap action on the card border — see [Actions](../../core/actions.md) |
+| `hold_action` | object | Hold action |
+| `double_tap_action` | object | Double-tap action |
+| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
+| `background_animation` | list / object | Canvas background — see [Background Animations](../../core/effects/background-animations.md) |
+| `data_sources` | object | DataSource definitions — see [DataSources](../../core/datasources/README.md) |
+| `sounds` | object | Per-card sound overrides |
 
 ---
 
@@ -93,62 +98,103 @@ Set `control.locked: true` to force read-only for any domain.
 
 ---
 
-## Style Options
+## `style` Object
 
-### Track
+### `style.track` (pills)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | `pills` | `pills`, `gauge`, or `shaped` |
+| `height` | number / string | theme | Track height in px or CSS value |
+| `margin` | number / object | theme | Space around track — number (all sides) or `{ top, right, bottom, left }` |
+| `display.min` | number | `control.min` | Minimum value on visual scale |
+| `display.max` | number | `control.max` | Maximum value on visual scale |
+| `display.unit` | string | entity unit | Display unit label |
+| `invert_fill` | boolean | `false` | Fill from the opposite end |
+| `segments.count` | number | `15` | Number of pill segments |
+| `segments.gap` | number / string | `4` | Gap between pills in px |
+| `segments.shape.radius` | number | `4` | Pill corner radius in px |
+| `segments.gradient.start` | string | — | Gradient start colour |
+| `segments.gradient.end` | string | — | Gradient end colour |
+
+### `style.track` colour fields
+
+Colour fields in `style.track` accept plain colour strings or [state-based colour maps](../../core/colours.md):
+
+These are set inside the preset or component's colour configuration — consult the active preset's config for exact paths. Common areas:
+
+- Filled (active) pills: configured via the component's `color` or `fill_color` preset param
+- Unfilled (empty) pills: configured via `unfilled.opacity` or the component colour preset
+- Gauge progress bar: `style.gauge.progress_bar.color`
+- Gauge tick marks: `style.gauge.scale.tick_marks.major.color`, `.minor.color`
+- Gauge indicator: `style.gauge.indicator.color`
+
+### `style.gauge`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `progress_bar.color` | string / object | Filled bar colour — [state map](../../core/colours.md) supported |
+| `progress_bar.height` | number | Bar cross-sectional thickness in px |
+| `progress_bar.layer` | string | `background` (behind ticks) or `foreground` (in front) |
+| `scale.tick_marks.major.interval` | number | Major tick interval (value units) |
+| `scale.tick_marks.major.color` | string / object | Major tick colour |
+| `scale.tick_marks.major.height` | number | Major tick height in px |
+| `scale.tick_marks.major.width` | number | Major tick width in px |
+| `scale.tick_marks.minor.interval` | number | Minor tick interval |
+| `scale.tick_marks.minor.color` | string / object | Minor tick colour |
+| `scale.labels.enabled` | boolean | Show/hide scale labels |
+| `scale.labels.color` | string / object | Label colour |
+| `scale.labels.font_size` | number | Label font size |
+| `indicator.type` | string | `line`, `round`, or `triangle` |
+| `indicator.color` | string / object | Indicator colour — [state map](../../core/colours.md) supported |
+| `indicator.size.width` | number | Indicator width in px |
+| `indicator.size.height` | number | Indicator height in px |
 
 ```yaml
 style:
   track:
-    type: pills            # pills or gauge
-    height: 40             # Track height in px
-    margin: 8              # Space around track in px
+    type: gauge
+    height: 48
     display:
-      min: 0               # Visual scale minimum (default: control.min)
-      max: 100             # Visual scale maximum (default: control.max)
-      unit: "%"            # Display unit label
-    segments:              # Pills-specific
-      count: 20            # Number of pill segments
-      gap: 3               # Gap between pills in px
-      radius: 4            # Pill corner radius
-    color:
-      inactive: "#333"     # Color of inactive (unfilled) segments
-      active: "#FF9900"    # Color of active (filled) segments
-      progress: "#FF9900"  # Progress indicator color
-```
-
-### Gauge
-
-```yaml
-style:
+      min: -20
+      max: 45
+      unit: "°C"
   gauge:
+    progress_bar:
+      color:
+        default: "var(--lcards-blue)"
+        active: "var(--lcards-orange)"
+      layer: background
     scale:
       tick_marks:
         major:
-          interval: 20     # Major tick every 20 units
-          color: "#aaa"
+          interval: 10
+          color: "var(--lcards-moonlight)"
           height: 12
         minor:
           interval: 5
-          color: "#555"
+          color: "var(--lcards-inactive)"
           height: 6
       labels:
-        show: true
-        color: "#888"
+        enabled: true
+        color: "var(--lcards-moonlight)"
         font_size: 10
     indicator:
-      color: "#FF9900"
-      width: 3
+      type: line
+      color: "var(--lcards-orange)"
 ```
 
 ---
 
 ## Text Labels
 
-Full text system from button card:
+Sliders support the full text field system. See [Text Fields](../../core/text-fields.md) for the complete reference.
 
 ```yaml
 text:
+  default:
+    font_family: "Antonio, sans-serif"
+    color: "var(--lcards-moonlight)"
   label:
     content: Brightness
     position: top-left
@@ -161,69 +207,113 @@ text:
 
 ---
 
-## Borders and Card Background
+## `actions` Object
+
+Sliders use a named `actions` map for custom action handlers. Keys are arbitrary names; each value is a standard action config:
+
+```yaml
+actions:
+  tap:
+    action: more-info
+  hold:
+    action: call-service
+    service: input_number.set_value
+    service_data:
+      entity_id: input_number.brightness
+      value: 50
+```
+
+For standard card tap/hold/double-tap use `tap_action`, `hold_action`, `double_tap_action` at the top level.
+
+---
+
+## `style.card` and `style.border`
+
+Same structure as the [Button card](../button/README.md#style-object):
 
 ```yaml
 style:
   card:
     color:
-      background: "#111"
+      background: "var(--ha-card-background)"
   border:
     color:
-      default: "#444"
-      active: "#FF9900"
+      default: "var(--lcards-inactive)"
+      active: "var(--lcards-orange)"
     width: 2
     radius: 8
 ```
 
 ---
 
-## Examples
+## Annotated Example
 
-### Vertical cover position slider
-
-```yaml
-type: custom:lcards-slider
-entity: cover.blinds_bedroom
-preset: pills-basic
-orientation: vertical
-control:
-  attribute: position
-  min: 0
-  max: 100
-text:
-  label:
-    content: Blinds
-    position: top-center
-```
-
-### Fan speed with inverted display
-
-Some fans report 0–100 where 100 is the physical bottom — use `invert_value` to flip:
+A climate thermostat slider with custom track style, gauge ticks, text labels, and a tap action:
 
 ```yaml
 type: custom:lcards-slider
-entity: fan.ceiling
-preset: pills-basic
-control:
-  attribute: percentage
-  invert_value: true
-```
-
-### Climate temperature gauge
-
-```yaml
-type: custom:lcards-slider
-entity: sensor.outdoor_temperature
+entity: climate.living_room
 preset: gauge-basic
 control:
-  locked: true
+  attribute: temperature
+  min: 15
+  max: 30
+  step: 0.5
+
+text:
+  default:
+    font_family: "Antonio, sans-serif"
+    color: "var(--lcards-moonlight)"
+  label:
+    content: Living Room
+    position: top-left
+    font_size: 11
+    text_transform: uppercase
+  value:
+    content: "[[[return entity.attributes.current_temperature + '°C']]]"
+    position: top-right
+    font_size: 11
+
 style:
   track:
+    type: gauge
+    height: 52
     display:
-      min: -20
-      max: 45
+      min: 15
+      max: 30
       unit: "°C"
+  gauge:
+    progress_bar:
+      color:
+        default: "var(--lcards-blue)"
+        heating: "var(--lcards-alert-red)"
+        cooling: "var(--lcards-blue)"
+      layer: background
+    scale:
+      tick_marks:
+        major:
+          interval: 5
+          color: "var(--lcards-moonlight)"
+          height: 14
+        minor:
+          interval: 1
+          color: "var(--lcards-inactive)"
+          height: 7
+      labels:
+        enabled: true
+        color: "var(--lcards-moonlight)"
+        font_size: 10
+    indicator:
+      type: triangle
+      color: "var(--lcards-orange)"
+  border:
+    color:
+      default: "var(--lcards-inactive)"
+      active: "var(--lcards-orange)"
+    width: 1
+
+tap_action:
+  action: more-info
 ```
 
 ---
@@ -231,6 +321,9 @@ style:
 ## Related
 
 - [Button card](../button/README.md)
+- [Text Fields](../../core/text-fields.md)
+- [Colours](../../core/colours.md)
+- [Actions](../../core/actions.md)
 - [Templates](../../core/templates/README.md)
 - [DataSources](../../core/datasources/README.md)
 - [Animations](../../core/animations.md)
