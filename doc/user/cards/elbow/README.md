@@ -28,13 +28,13 @@ elbow:
 | `entity` | string | Entity to monitor (for state-based styling) |
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
-| `text` | object | Text labels (same as button card) |
-| `style` | object | Card background, border, text styles |
-| `tap_action` | object | Tap action |
+| `text` | object | Text labels — see [Text Fields](../../core/text-fields.md) |
+| `style` | object | Card background, border, text styles — see [Button card](../button/README.md#style-object) |
+| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
 | `hold_action` | object | Hold action |
 | `double_tap_action` | object | Double-tap action |
-| `animations` | list | Card animations |
-| `background_animation` | list | Canvas background animations |
+| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
+| `background_animation` | list / object | Canvas background animations — see below |
 | `shape_texture` | object | SVG texture inside the elbow shape fill |
 
 ---
@@ -67,8 +67,8 @@ elbow:
     bar_height: 20      # Horizontal bar thickness (px)
     outer_curve: auto   # Corner radius — 'auto' = bar_width / 2 (LCARS formula)
     color:
-      default: "#FF9900"
-      active: "#FFCC44"
+      default: "var(--lcards-orange)"
+      active: "var(--lcards-orange-medium)"
 ```
 
 ### Segmented (TNG / Picard style)
@@ -83,8 +83,8 @@ elbow:
     gap: 4              # Gap between inner and outer elbow
     factor: 4           # Size ratio: outer = 3/4, inner = 1/4
     colors:
-      outer: "#FF9900"
-      inner: "#FFCC99"
+      outer: "var(--lcards-orange)"
+      inner: "var(--lcards-moonlight)"
 ```
 
 ---
@@ -93,11 +93,11 @@ elbow:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `bar_width` | number / `"theme"` | 90 | Vertical bar thickness in px. Use `"theme"` to bind to `input_number.lcars_vertical` |
-| `bar_height` | number / `"theme"` | 20 | Horizontal bar thickness in px. Use `"theme"` to bind to `input_number.lcars_horizontal` |
+| `bar_width` | number / `"theme"` | `90` | Vertical bar thickness in px. Use `"theme"` to bind to `input_number.lcars_vertical` |
+| `bar_height` | number / `"theme"` | `20` | Horizontal bar thickness in px. Use `"theme"` to bind to `input_number.lcars_horizontal` |
 | `outer_curve` | number / `"auto"` | `"auto"` | Corner arc radius. `auto` = `bar_width / 2` |
 | `inner_curve` | number | — | Inner arc radius (omit for LCARS formula: `outer / 2`) |
-| `color` | color / object | — | Fill color, supports state-based map |
+| `color` | string / object | — | Fill colour — [state map](../../core/colours.md) supported |
 
 ---
 
@@ -105,16 +105,16 @@ elbow:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `gap` | number | 4 | Gap in px between outer and inner elbow |
-| `factor` | number | 4 | Size division factor |
-| `colors.outer` | color | main color | Outer elbow color |
-| `colors.inner` | color | main color | Inner elbow color |
+| `gap` | number | `4` | Gap in px between outer and inner elbow |
+| `factor` | number | `4` | Size division factor |
+| `colors.outer` | string | main colour | Outer elbow colour |
+| `colors.inner` | string | main colour | Inner elbow colour |
 
 ---
 
 ## HA-LCARS Theme Binding
 
-If you use the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars), bind bar dimensions to the theme helpers to keep all elbows synchronized:
+If you use the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars), bind bar dimensions to the theme helpers to keep all elbows synchronised:
 
 ```yaml
 elbow:
@@ -145,53 +145,10 @@ text:
     position: top-right
     font_size: 11
     font_weight: bold
+    color: "var(--lcards-moonlight)"
 ```
 
----
-
-## Examples
-
-### Standard header cap pair
-
-Two elbows framing a section header:
-
-```yaml
-# Left cap
-type: custom:lcards-elbow
-elbow:
-  type: header-left
-  segment:
-    bar_width: theme
-    bar_height: theme
-
----
-
-# Right cap
-type: custom:lcards-elbow
-elbow:
-  type: header-right
-  segment:
-    bar_width: theme
-    bar_height: theme
-```
-
-### State-reactive elbow
-
-Changes colour when a sensor is above threshold (using [Rules Engine](../../core/rules/README.md)):
-
-```yaml
-type: custom:lcards-elbow
-id: alert-cap
-elbow:
-  type: header-left
-  segment:
-    bar_width: 90
-    bar_height: 20
-    color:
-      default: "#FF9900"
-```
-
-Then define a rule that patches `id: alert-cap` when the sensor is high.
+See [Text Fields](../../core/text-fields.md) for the complete reference.
 
 ---
 
@@ -221,7 +178,7 @@ background_animation:
 
 ### Manual inset
 
-You can also supply explicit pixel values if you need precise control:
+Supply explicit pixel values when you need precise control:
 
 ```yaml
 background_animation:
@@ -248,9 +205,54 @@ See [Button card — Shape Texture](../button/README.md#shape-texture) for the f
 
 ---
 
+## Examples
+
+### Standard header cap pair
+
+```yaml
+# Left cap
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: theme
+    bar_height: theme
+
+# Right cap
+type: custom:lcards-elbow
+elbow:
+  type: header-right
+  segment:
+    bar_width: theme
+    bar_height: theme
+```
+
+### State-reactive elbow
+
+Changes colour when a sensor is above threshold (using [Rules Engine](../../core/rules/README.md)):
+
+```yaml
+type: custom:lcards-elbow
+id: alert-cap
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20
+    color:
+      default: "var(--lcards-orange)"
+```
+
+Then define a rule that patches `id: alert-cap` when the sensor is high.
+
+---
+
 ## Related
 
 - [Button card](../button/README.md)
+- [Text Fields](../../core/text-fields.md)
+- [Colours](../../core/colours.md)
+- [Actions](../../core/actions.md)
 - [Background Animations](../../core/effects/background-animations.md)
 - [Shape Texture System](../../architecture/subsystems/shape-texture-system.md)
 - [Themes — HA-LCARS binding](../../core/themes/README.md)

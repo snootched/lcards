@@ -85,7 +85,7 @@ style:
     color:
       background:
         default: "var(--ha-card-background)"
-        active: "rgba(255, 153, 0, 0.08)"
+        active: "alpha(var(--lcards-orange), 0.08)"
   border:
     color:
       default: "var(--lcards-inactive)"
@@ -305,6 +305,8 @@ svg:
 ```
 
 SVG elements with `id` attributes become interactive segments.
+
+> **Note**: When using CSS custom properties in SVG `fill` attributes, browser support can vary. Using `currentColor` in the SVG with CSS `color` styling via JavaScript is a reliable cross-browser alternative. The example above works in modern browsers and the HA web app.
 
 ---
 

@@ -21,16 +21,19 @@ The LCARdS fleet. Each card is independent but shares the same core systems.
 
 ## Core Features
 
-Features shared across all cards.
+Features and concepts shared across all cards.
 
 | Topic | What it covers |
 |-------|---------------|
+| [Colours](core/colours.md) | All accepted colour formats, state-based colour maps, resolution order |
+| [Actions](core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
+| [Text Fields](core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
+| [Templates](core/templates/README.md) | Dynamic content: JS, Jinja2, token, and DataSource templates |
 | [Animations](core/animations.md) | Per-card animations triggered by taps, hover, and state changes |
 | [Background Animations](core/effects/background-animations.md) | Canvas-based animated backgrounds (grid, zoom, starfield) |
 | [Sound Effects](core/sounds.md) | LCARS-style audio feedback for interactions and alerts |
 | [Rules Engine](core/rules/README.md) | Conditional styling applied across cards based on entity state |
 | [DataSources](core/datasources/README.md) | Entity subscriptions, history, and processing pipelines |
-| [Templates](core/templates/README.md) | Dynamic content: JS, Jinja2, token, and DataSource templates |
 | [Themes](core/themes/README.md) | Built-in themes and token-based colour/sizing system |
 
 ---
@@ -47,11 +50,28 @@ Features shared across all cards.
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
+
 text:
-  name:
+  label:
     content: Living Room
+    position: top-left
+    color: "var(--lcards-moonlight)"
+  value:
+    content: "{entity.state}"
+    position: center
+    color:
+      default: "var(--lcards-moonlight)"
+      active: "var(--lcards-orange)"
+
+style:
+  border:
+    color:
+      default: "var(--lcards-inactive)"
+      active: "var(--lcards-orange)"
+    width: 2
+
 tap_action:
   action: toggle
 ```
 
-All cards support [templates](core/templates/README.md), [state-based colours](core/themes/README.md), [rules](core/rules/README.md), and [animations](core/animations.md).
+All cards support [templates](core/templates/README.md), [state-based colours](core/colours.md), [rules](core/rules/README.md), and [animations](core/animations.md).

@@ -42,7 +42,7 @@ animations:
 |--------|------|---------|-------------|
 | `trigger` | string | — | When to run (required) |
 | `preset` | string | — | Animation preset name (required) |
-| `id` | string | — | Optional identifier for this animation (alphanumeric, hyphens, underscores) |
+| `id` | string | — | Optional identifier for this animation — alphanumeric, hyphens, and underscores only |
 | `enabled` | boolean | `true` | Set to `false` to disable without removing |
 | `duration` | number | preset default | Duration in ms (0–10 000) |
 | `delay` | number | `0` | Delay before starting (ms) |

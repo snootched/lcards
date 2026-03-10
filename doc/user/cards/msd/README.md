@@ -2,28 +2,7 @@
 
 `custom:lcards-msd`
 
-The Master Systems Display card renders a base SVG image (your ship, floor plan, or any diagram) and overlays interactive controls and animated routing lines on top. It's the centerpiece of an LCARS dashboard.
-
----
-
-## Concept
-
-```mermaid
-flowchart TD
-    SVG[Base SVG image] --> MSD[MSD Card]
-    MSD --> OC[Control overlays\n other HA cards]
-    MSD --> OL[Line overlays\n routing lines]
-    OC --> A[Anchor points]
-    OL --> A
-
-    style SVG fill:#37a6d1,stroke:#93e1ff,color:#fff
-    style MSD fill:#e7442a,stroke:#ffb399,color:#fff
-    style OC fill:#ffb399,stroke:#e7442a,color:#000
-    style OL fill:#ffb399,stroke:#e7442a,color:#000
-    style A fill:#2f3749,stroke:#52596e,color:#fff
-```
-
-The card is best configured through the **MSD Studio Editor** — the visual editor with drag-and-drop overlay placement and live preview.
+Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas. Supports rules-based automation of both overlay styles and base SVG filters.
 
 ---
 
@@ -35,50 +14,73 @@ msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
   anchors:
-    bridge: [50, 15]
-    engineering: [50, 65]
+    bridge: [520, 380]
+    engineering: [620, 520]
   overlays:
-    - id: warp-core
+    - id: bridge-status
       type: control
-      anchor: engineering
+      anchor: bridge
+      size: [180, 80]
       card:
-        type: custom:lcards-slider
-        entity: input_number.warp_power
-        preset: pills-basic
-    - id: conn-line
+        type: custom:lcards-button
+        entity: light.bridge
+        preset: lozenge
+    - id: engineering-line
       type: line
+      route: auto
       from: bridge
       to: engineering
 ```
 
 ---
 
-## Top-Level Structure
-
-```yaml
-type: custom:lcards-msd
-id: my-msd               # Optional card ID for rule targeting
-tags: [msd, main]        # Optional tags
-msd:
-  base_svg: ...
-  view_box: auto
-  anchors: {}
-  overlays: []
-  routing: {}
-  channels: {}
-```
-
----
-
-## `msd.base_svg`
+## Top-Level Options
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `source` | string | SVG source: `builtin:name`, `/local/path.svg`, or `none` |
-| `filter_preset` | string | CSS filter preset: `dimmed`, `subtle`, `backdrop`, `faded`, `monochrome`, `none` |
-| `filters` | list | Custom CSS/SVG filters |
+| `type` | string | `custom:lcards-msd` (required) |
+| `msd` | object | Full MSD configuration (required) |
+| `id` | string | Card ID for rule targeting |
+| `tags` | list | Tags for rule targeting |
+| `rules` | list | Rules for dynamic overlay styling — see [Rules Engine](../../core/rules/README.md) |
+| `data_sources` | object | DataSource definitions — see [DataSources](../../core/datasources/README.md) |
 
-Built-in SVGs are provided by packs. Browse available options in the card editor.
+---
+
+## `msd` Object
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `base_svg` | object | SVG source and filters (required) |
+| `view_box` | string / array | `"auto"` or `[minX, minY, width, height]` |
+| `anchors` | object | Named `[x, y]` anchor points for overlay placement |
+| `overlays` | list | Control and line overlays — see below |
+| `routing` | object | Global line routing settings |
+| `debug` | object | Debug visualisation options |
+
+---
+
+## `base_svg` Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, or `none` |
+| `filter_preset` | string | Named filter preset — see table below |
+| `filters` | list | Additional CSS/SVG filters — see [Button card — Filters](../button/README.md#filters-list) |
+
+### Filter Presets
+
+Filter presets apply a CSS filter combination to the base SVG to shift the visual weight, letting overlays stand out:
+
+| Preset | Opacity | Effect |
+|--------|---------|--------|
+| `dimmed` | 0.5 | Moderate de-emphasis, brightness 0.8 |
+| `subtle` | 0.6 | Gentle — slight blur + 20% desaturate |
+| `backdrop` | 0.3 | Heavy dimming, 3 px blur, brightness 0.6 |
+| `faded` | 0.4 | Washed-out — 50% desaturate, contrast 0.7 |
+| `red-alert` | 1.0 | Brightened with +10° hue rotation — a deliberate shift that warms the SVG palette slightly; combine with rules-based card colour changes for a full alert look |
+| `monochrome` | 0.6 | Full greyscale, contrast 0.8 |
+| `none` | — | Remove all filters |
 
 ```yaml
 base_svg:
@@ -86,212 +88,230 @@ base_svg:
   filter_preset: dimmed
 ```
 
----
-
-## `msd.view_box`
-
-Defines the SVG coordinate system. Use `auto` to extract from the base SVG, or specify manually:
-
-```yaml
-view_box: auto               # Extract from base_svg
-view_box: [0, 0, 1000, 600]  # [minX, minY, width, height]
-```
+Rules can change `filter_preset` dynamically — see the rules example below.
 
 ---
 
-## `msd.anchors`
+## `anchors` Object
 
-Named points in SVG coordinates. Overlays and lines reference anchors by name.
+Named points used for overlay placement and line routing. Values are `[x, y]` in SVG user units (matching the SVG `viewBox`). Percentages are also accepted.
 
 ```yaml
 anchors:
-  bridge: [500, 90]
-  engineering: [500, 380]
-  shuttlebay: [500, 520]
-  sickbay: [200, 200]
-```
-
-Anchors accept pixel values or percentages:
-
-```yaml
-anchors:
-  center: ["50%", "50%"]
+  bridge: [520, 380]
+  engineering: [620, 520]
+  sickbay: ["40%", "55%"]   # Percentage of viewBox dimensions
 ```
 
 ---
 
-## Overlays
+## Overlay Types
 
-Each overlay has a type: `control` or `line`.
+### Control Overlay
 
-### Control Overlays
+Embeds any HA card at a position on the canvas.
 
-Embed any HA card positioned by anchor:
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Overlay ID — required; used for rule targeting |
+| `type` | string | `control` |
+| `anchor` | string | Anchor name to centre on |
+| `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
+| `size` | array | `[width, height]` in px |
+| `card` | object | Any HA card config |
+| `visible` | boolean | Show/hide overlay (`true` by default) |
+| `z_index` | number | Stacking order (higher = in front) |
+| `tags` | list | Tags for rule targeting |
 
 ```yaml
-overlays:
-  - id: warp-status
-    type: control
-    anchor: engineering        # Anchor name (centers the card on this point)
-    # Or explicit position:
-    # position: [450, 350]
-    # size: [200, 80]          # Width x height in px
-    card:
-      type: custom:lcards-button
-      entity: input_boolean.warp_enabled
-      preset: lozenge
-      text:
-        name:
-          content: Warp Core
+- id: engine-status
+  type: control
+  anchor: engineering
+  size: [200, 90]
+  z_index: 10
+  card:
+    type: custom:lcards-button
+    entity: sensor.warp_core_status
+    preset: lozenge
 ```
 
-> [!NOTE]
-> Any HA card type works as a control overlay — not just LCARdS cards.
+### Line Overlay
 
-### Line Overlays
+Routes a line between two anchors on the canvas.
 
-Routing lines between anchor points. Lines are automatically routed to avoid controls.
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Line ID (required) |
+| `type` | string | `line` |
+| `from` | string | Source anchor name |
+| `to` | string | Target anchor name |
+| `route` | string | Routing algorithm — see table below |
+| `waypoints` | list | Intermediate `[x, y]` points or anchor names |
+| `route_hint` | string | Initial segment direction: `xy` (horizontal first) or `yx` |
+| `corner_style` | string | `miter`, `round`, or `bevel` |
+| `corner_radius` | number | Radius for `round` corners in px |
+| `route_channels` | list | Channel IDs this line routes through |
+| `clearance` | number | Min clearance around obstacles in px |
 
-```yaml
-overlays:
-  - id: power-line
-    type: line
-    from: bridge
-    to: engineering
-    style:
-      color: "#FF9900"
-      width: 2
-```
+#### Routing Algorithms
 
-#### Line Options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `from` | string / coords | Start anchor name or `[x, y]` |
-| `to` | string / coords | End anchor name or `[x, y]` |
-| `route` | string | `auto`, `manhattan`, `smart`, `grid`, `direct`, `manual` |
-| `waypoints` | list | Intermediate points `[[x,y], ...]` for manual routing |
-| `route_hint` | string | Initial direction: `xy` (horiz first), `yx` (vert first) |
-| `corner_style` | string | `miter`, `round`, `bevel` |
-| `corner_radius` | number | Rounding radius for round corners |
-| `route_channels` | list | Channel IDs this line should use |
-| `style.color` | string | Line color |
-| `style.width` | number | Line width in px |
-| `style.dash` | string | SVG stroke-dasharray |
-| `animations` | list | Line animations |
-
----
-
-## Routing
-
-Global routing settings for all lines:
+| `route` value | Description |
+|--------------|-------------|
+| `auto` | System decides (recommended) |
+| `direct` | Straight line |
+| `manhattan` | L-shaped (single bend) |
+| `smart` | Intelligent multi-bend pathfinding |
+| `grid` | A* on pixel grid |
+| `manual` | Explicit `waypoints` list |
 
 ```yaml
-routing:
-  default_mode: manhattan      # manhattan | smart | grid | auto
-  auto_upgrade_simple_lines: true
-  clearance: 10                # Obstacle clearance in px
-  smoothing_mode: chaikin      # none | chaikin
-  smoothing_iterations: 2
+- id: power-line
+  type: line
+  from: engineering
+  to: bridge
+  route: manhattan
+  route_hint: yx
+  corner_style: round
+  corner_radius: 6
 ```
 
 ---
 
-## Channels
+## `routing` Object
 
-Define routing corridors to bundle or separate lines:
+Global defaults that apply to all lines unless overridden per-line:
 
-```yaml
-channels:
-  spine:
-    bounds: [480, 100, 40, 400]  # [x, y, width, height]
-    mode: prefer                  # prefer | avoid | force
-    direction: vertical
-    line_spacing: 6               # Gap between bundled lines
-```
-
-Lines opt in to a channel with `route_channels: [spine]`.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `default_mode` | string | `manhattan` | Default routing mode |
+| `clearance` | number | `0` | Global obstacle clearance in px |
+| `auto_upgrade_simple_lines` | boolean | `true` | Auto-upgrade to smart routing when needed |
 
 ---
 
-## Examples
+## `debug` Object
 
-### Minimal ship diagram
+Visualisation aids — useful while building your layout:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable debug overlays |
+| `show_anchors` | boolean | `false` | Show anchor points as circles |
+| `show_grid` | boolean | `false` | Show routing grid |
+| `show_routing` | boolean | `false` | Show line routing paths |
+
+```yaml
+debug:
+  enabled: true
+  show_anchors: true
+```
+
+---
+
+## Rules Engine Integration
+
+The MSD card integrates with the global Rules Engine to dynamically restyle overlays and change the base SVG filter:
+
+```yaml
+rules:
+  - id: warp-alert
+    when:
+      entity: sensor.warp_core_temp
+      above: 95
+    apply:
+      base_svg:
+        filter_preset: red-alert
+        transition: 500          # Crossfade in ms
+      overlays:
+        engine-status:
+          style:
+            color: "var(--lcards-alert-red)"
+      animations:
+        - overlay: engine-status
+          preset: pulse
+          loop: true
+```
+
+See [Rules Engine](../../core/rules/README.md) for the full condition and apply reference.
+
+---
+
+## Annotated Example
+
+An MSD card with three anchors, a control overlay, a line, and a rule that changes the base SVG filter on alert:
 
 ```yaml
 type: custom:lcards-msd
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
+    filter_preset: dimmed
+
+  view_box: auto
+
   anchors:
-    bridge: [500, 80]
-    main: [500, 300]
+    bridge: [520, 380]
+    engineering: [620, 520]
+    sickbay: [410, 460]
+
   overlays:
-    - id: alert
+    - id: bridge-card
       type: control
       anchor: bridge
+      size: [180, 80]
+      tags: [status-displays]
       card:
         type: custom:lcards-button
-        component: alert
-        entity: input_select.lcards_alert_mode
-    - id: status-line
+        entity: sensor.bridge_status
+        preset: lozenge
+        text:
+          name:
+            content: Bridge
+        tap_action:
+          action: more-info
+
+    - id: power-line
       type: line
-      from: bridge
-      to: main
-      style:
-        color: "{theme:palette.moonlight}"
-        width: 1.5
-```
+      from: engineering
+      to: bridge
+      route: manhattan
+      route_hint: yx
+      corner_style: round
+      corner_radius: 6
 
-### Floor plan with room controls
+  routing:
+    default_mode: manhattan
+    clearance: 10
 
-```yaml
-type: custom:lcards-msd
-msd:
-  base_svg:
-    source: /local/floorplan.svg
-    filter_preset: dimmed
-  view_box: [0, 0, 1200, 800]
-  anchors:
-    living: [300, 400]
-    kitchen: [700, 250]
-    bedroom: [1000, 400]
-  overlays:
-    - id: living-light
-      type: control
-      anchor: living
-      card:
-        type: custom:lcards-button
-        entity: light.living_room
-        preset: lozenge
-    - id: kitchen-light
-      type: control
-      anchor: kitchen
-      card:
-        type: custom:lcards-button
-        entity: light.kitchen
-        preset: lozenge
-```
-
----
-
-## Debug Mode
-
-Enable visual debugging to see anchors and routing:
-
-```yaml
-msd:
   debug:
-    enabled: true
-    show_anchors: true
-    show_routing: false
+    enabled: false
+    show_anchors: false
+
+rules:
+  - id: reactor-alert
+    when:
+      entity: sensor.reactor_temp
+      above: 90
+    apply:
+      base_svg:
+        filter_preset: red-alert
+        transition: 500
+      overlays:
+        bridge-card:
+          style:
+            color: "var(--lcards-alert-red)"
+      animations:
+        - tag: status-displays
+          preset: pulse
+          loop: true
 ```
 
 ---
 
 ## Related
 
-- [Button card](../button/README.md)
-- [Slider card](../slider/README.md)
 - [Rules Engine](../../core/rules/README.md)
-- [Animations](../../core/animations.md)
+- [DataSources](../../core/datasources/README.md)
+- [Colours](../../core/colours.md)
+- [Templates](../../core/templates/README.md)
+- [Button card](../button/README.md)

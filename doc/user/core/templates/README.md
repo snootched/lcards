@@ -131,11 +131,12 @@ Templates are evaluated in most string-valued config properties:
 
 ## Template Evaluation Order
 
-When a value could match multiple syntaxes, evaluation proceeds:
+When a value could match multiple syntaxes, evaluation proceeds in this order:
 
-```
-[[[...]]] (JavaScript) → {ds:...} (DataSource) → {{...}} (Jinja2) → {...} (Token)
-```
+1. `[[[...]]]` — JavaScript (evaluated first)
+2. `{ds:...}` / `{datasource:...}` — DataSource
+3. `{{...}}` — Jinja2 (HA server-evaluated)
+4. `{token}` — Token substitution (evaluated last)
 
 ---
 

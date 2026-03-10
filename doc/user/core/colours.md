@@ -76,9 +76,9 @@ style:
 | Key | Matched entity states |
 |-----|-----------------------|
 | `default` | Fallback for any unmatched state, or cards without an entity |
-| `active` | `on`, `open`, `playing`, `home`, `heat`, `cool`, `auto`, `fan_only`, `dry`, `locked`, `armed_home`, `armed_away`, `armed_night`, `armed_vacation`, `armed_custom_bypass`, `cleaning`, `mowing`, `docked`, `returning`, `paused`, `active`, `above_horizon` |
-| `inactive` | `off`, `closed`, `away`, `idle`, `stopped`, `standby`, `unlocked`, `disarmed`, `inactive` — and any state not in the active or unavailable lists |
-| `unavailable` | `unavailable`, `unknown` |
+| `active` | `on` · `open` · `playing` · `home` · `heat` · `cool` · `auto` · `fan_only` · `dry` · `locked` · `armed_home` · `armed_away` · `armed_night` · `armed_vacation` · `armed_custom_bypass` · `cleaning` · `mowing` · `docked` · `returning` · `paused` · `active` · `above_horizon` |
+| `inactive` | `off` · `closed` · `away` · `idle` · `stopped` · `standby` · `unlocked` · `disarmed` · `inactive` — and any state not in the `active` or `unavailable` lists |
+| `unavailable` | `unavailable` · `unknown` |
 | Any custom string | Exact match — e.g. `heat`, `cool`, `buffering`, `charging` |
 
 ### Resolution Order

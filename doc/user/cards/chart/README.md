@@ -35,22 +35,22 @@ series_names: [Temperature, Humidity]
 | `source` | string | Single entity ID (simple mode) |
 | `attribute` | string | Entity attribute to track |
 | `sources` | list | Multiple entities or DataSource references |
-| `data_sources` | object | Named DataSource definitions |
-| `chart_type` | string | Chart type (see below) |
+| `data_sources` | object | Named DataSource definitions — see [DataSources](../../core/datasources/README.md) |
+| `chart_type` | string | Chart type (see table below) |
 | `series_names` | list | Display names for each series |
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
-| `title` | object | Chart title config |
-| `colors` | list | Array of series colors |
+| `title` | object | Chart title config — see below |
+| `colors` | list | Array of series colours |
 | `stroke` | object | Line stroke options |
 | `fill` | object | Area fill options |
 | `markers` | object | Data point markers |
 | `legend` | object | Legend config |
 | `grid` | object | Grid lines config |
-| `xaxis` | object | X-axis config |
-| `yaxis` | object / list | Y-axis config (list for multiple axes) |
+| `xaxis` | object | X-axis config — see below |
+| `yaxis` | object / list | Y-axis config (list for multiple axes) — see below |
 | `tooltip` | object | Tooltip config |
-| `animation` | object | Chart render animation |
+| `animation` | object | Chart render animation — see below |
 
 ---
 
@@ -70,6 +70,11 @@ series_names: [Temperature, Humidity]
 | `radar` | Radar/spider chart |
 | `candlestick` | OHLC candlestick |
 | `rangeBar` | Range bar (for time spans) |
+| `polarArea` | Polar area chart |
+| `treemap` | Treemap chart |
+| `boxPlot` | Box plot |
+
+> **Note**: `candlestick`, `rangeBar`, `polarArea`, `treemap`, and `boxPlot` require datasource data in the ApexCharts-specific format for those types (e.g. OHLC arrays for `candlestick`). They are advanced chart types — refer to the [ApexCharts documentation](https://apexcharts.com/docs) for data format details.
 
 ---
 
@@ -121,13 +126,36 @@ See [DataSources](../../core/datasources/README.md) for full processing options.
 
 ---
 
+## `title` Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | string | Title text |
+| `align` | string | `left`, `center`, `right` |
+| `style.fontSize` | string | CSS font size, e.g. `"14px"` |
+| `style.color` | string | Title colour |
+| `style.fontFamily` | string | CSS font family |
+| `offsetY` | number | Vertical offset in px |
+
+```yaml
+title:
+  text: "Outdoor Temperature"
+  align: left
+  style:
+    fontSize: "14px"
+    color: "var(--lcards-moonlight)"
+    fontFamily: "Antonio, sans-serif"
+```
+
+---
+
 ## Colours and Styling
 
 ```yaml
 colors:
-  - "#FF9900"
-  - "#99CCFF"
-  - "#FFCC00"
+  - "var(--lcards-blue-light)"
+  - "var(--lcards-orange)"
+  - "var(--lcards-moonlight)"
 
 stroke:
   curve: smooth          # smooth, straight, stepline, monotoneCubic
@@ -144,35 +172,56 @@ markers:
   size: 0                # 0 = no markers
 ```
 
+Colour values accept all formats supported by [Colours](../../core/colours.md) — `var(--lcards-*)`, `{theme:...}`, hex, and rgba.
+
 ---
 
-## Axes
+## `xaxis` Object
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | `category` | `datetime`, `category`, or `numeric` |
+| `labels.show` | boolean | `true` | Show/hide axis labels |
+| `labels.rotate` | number | `0` | Label rotation in degrees |
+| `border.show` | boolean | `true` | Show/hide axis border line |
+| `ticks.show` | boolean | `true` | Show/hide tick marks |
 
 ```yaml
 xaxis:
-  type: datetime         # datetime, category, numeric
+  type: datetime
   labels:
-    format: "HH:mm"      # d3 time format
-
-yaxis:
-  min: 0
-  max: 100
-  decimalsInFloat: 1
-  labels:
-    formatter: "{value}°C"
+    show: true
+    rotate: -45
 ```
 
-For multiple Y-axes:
+## `yaxis` Object (single)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `min` | number | Axis minimum value |
+| `max` | number | Axis maximum value |
+| `decimalsInFloat` | number | Decimal places on labels |
+| `labels.show` | boolean | Show/hide labels |
+| `labels.formatter` | string | Label format string: `"{value}°C"` |
+| `opposite` | boolean | Place axis on the right side |
+| `seriesName` | string | Tie this axis to a series by name |
+
+### Multiple Y-axes
 
 ```yaml
 yaxis:
   - seriesName: Temperature
     min: -10
     max: 40
+    decimalsInFloat: 1
+    labels:
+      formatter: "{value}°C"
   - seriesName: Humidity
     min: 0
     max: 100
-    opposite: true       # Second axis on right side
+    opposite: true        # Second axis on right side
+    labels:
+      formatter: "{value}%"
 ```
 
 ---
@@ -197,20 +246,36 @@ tooltip:
 
 ```yaml
 animation:
-  preset: lcars_standard   # lcars_standard, lcars_dramatic, lcars_minimal, lcars_realtime, none
+  preset: lcars_standard
 ```
+
+| Preset | Description |
+|--------|-------------|
+| `lcars_standard` | Smooth LCARS entrance with slight elastic ease |
+| `lcars_dramatic` | Longer, more theatrical entrance |
+| `lcars_minimal` | Quick, subtle fade-in |
+| `lcars_realtime` | Optimised for frequently updating real-time data |
+| `lcars_alert` | Rapid entrance for alert/status displays |
+| `none` | Disable animation |
 
 ---
 
-## Examples
+## Annotated Example
 
-### 24-hour temperature with smoothing
+24-hour dual-series chart with named DataSource, custom colours, dual Y-axes, gradient fill, and animation preset:
 
 ```yaml
 type: custom:lcards-chart
+title:
+  text: "Living Room Climate"
+  align: left
+  style:
+    color: "var(--lcards-moonlight)"
+    fontSize: "13px"
+
 data_sources:
-  temp:
-    entity: sensor.outdoor_temperature
+  climate:
+    entity: sensor.living_room_temperature
     history:
       hours: 24
     processing:
@@ -218,38 +283,58 @@ data_sources:
         type: smooth
         method: exponential
         alpha: 0.2
+
 sources:
-  - datasource: temp
-    buffer: smooth
+  - datasource: climate
+    buffer: main
+    name: Temperature
+  - sensor.living_room_humidity
+series_names: [Temperature, Humidity]
+
 chart_type: area
+
 colors:
-  - "#99CCFF"
+  - "var(--lcards-orange)"
+  - "var(--lcards-blue-light)"
+
+stroke:
+  curve: smooth
+  width: 2
+
 fill:
   type: gradient
   gradient:
     opacityFrom: 0.5
     opacityTo: 0.05
+
+markers:
+  size: 0
+
 xaxis:
   type: datetime
-```
+  labels:
+    show: true
 
-### Power usage pie chart
+yaxis:
+  - seriesName: Temperature
+    min: 15
+    max: 30
+    decimalsInFloat: 1
+    labels:
+      formatter: "{value}°C"
+  - seriesName: Humidity
+    min: 0
+    max: 100
+    opposite: true
+    labels:
+      formatter: "{value}%"
 
-```yaml
-type: custom:lcards-chart
-sources:
-  - sensor.lights_power
-  - sensor.hvac_power
-  - sensor.appliances_power
-series_names: [Lights, HVAC, Appliances]
-chart_type: donut
-colors:
-  - "#FF9900"
-  - "#99CCFF"
-  - "#FFCC00"
 legend:
   show: true
   position: bottom
+
+animation:
+  preset: lcars_standard
 ```
 
 ---
@@ -258,4 +343,5 @@ legend:
 
 - [DataSources](../../core/datasources/README.md)
 - [Templates](../../core/templates/README.md)
+- [Colours](../../core/colours.md)
 - [Rules Engine](../../core/rules/README.md)

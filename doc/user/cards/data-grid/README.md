@@ -2,7 +2,7 @@
 
 `custom:lcards-data-grid`
 
-A grid of cells displaying real entity data, templates, or decorative auto-generated data — with cascade colour animations for that authentic LCARS data display look.
+A grid of cells displaying real entity data, templates, or decorative auto-generated data — with cascade colour animations for an authentic LCARS data display look.
 
 ---
 
@@ -41,9 +41,9 @@ animation:
   type: cascade
   pattern: default
   colors:
-    start: "#FF9900"
-    text: "#884400"
-    end: "#FFCC44"
+    start: "var(--lcards-blue-light)"
+    text: "var(--lcards-blue-darkest)"
+    end: "var(--lcards-moonlight)"
 ```
 
 ---
@@ -58,8 +58,8 @@ animation:
 | `format` | string | Random data format (decorative mode) |
 | `refresh_interval` | number | Auto-refresh interval in ms (decorative mode, 0 = off) |
 | `grid` | object | CSS Grid layout config |
-| `style` | object | Cell and grid styles |
-| `animation` | object | Cascade and change animations |
+| `style` | object | Cell and header row styles — see below |
+| `animation` | object | Cascade and change animations — see below |
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
 
@@ -69,8 +69,8 @@ animation:
 
 Each row is an array of cell values. Cells are auto-detected:
 
-| Cell value | Type | How it's shown |
-|------------|------|---------------|
+| Cell value | Type | How it is shown |
+|------------|------|----------------|
 | `"Static text"` | Static | Displayed as-is |
 | `sensor.entity_id` | Entity | Live entity state (auto-subscribed) |
 | `"{{ jinja2 }}"` | Template | HA-evaluated template |
@@ -91,8 +91,8 @@ Add per-row style overrides using the object form:
 rows:
   - values: [Header, Value, Unit]
     style:
-      background: "#1a1a2e"
-      color: "#FF9900"
+      background: "var(--ha-card-background)"
+      color: "var(--lcards-orange)"
       font_weight: bold
 ```
 
@@ -127,6 +127,53 @@ grid:
 
 ---
 
+## `style` Object
+
+### `style.cell`
+
+Applied to every data cell:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `background` | string | Cell background colour |
+| `color` | string | Text colour |
+| `font_size` | number | Font size in px |
+| `font_family` | string | CSS font family |
+| `padding` | string | CSS padding shorthand, e.g. `"4px 8px"` |
+| `border_radius` | number | Corner radius in px |
+| `text_align` | string | `left`, `center`, `right` |
+
+### `style.header_row`
+
+Applied to the first row when it is used as a header:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `background` | string | Header row background colour |
+| `color` | string | Header text colour |
+| `font_weight` | string / number | CSS font-weight (`bold`, `700`, etc.) |
+| `font_size` | number | Header font size in px |
+| `text_align` | string | `left`, `center`, `right` |
+
+```yaml
+style:
+  cell:
+    background: "var(--ha-card-background)"
+    color: "var(--lcards-moonlight)"
+    font_size: 12
+    font_family: "Antonio, sans-serif"
+    padding: "4px 8px"
+    border_radius: 4
+    text_align: left
+  header_row:
+    background: "rgba(255, 153, 0, 0.08)"
+    color: "var(--lcards-orange)"
+    font_weight: bold
+    font_size: 13
+```
+
+---
+
 ## Cascade Animation
 
 The cascade effect cycles colours through each row in sequence, creating a waterfall effect.
@@ -137,9 +184,9 @@ animation:
   pattern: default       # default | niagara | fast | custom
   speed_multiplier: 1.5  # Multiply speed (1.0 = normal)
   colors:
-    start: "#FF9900"
-    text: "#884400"
-    end: "#FFCC44"
+    start: "var(--lcards-blue-light)"
+    text: "var(--lcards-blue-darkest)"
+    end: "var(--lcards-moonlight)"
 ```
 
 ### Patterns
@@ -162,9 +209,9 @@ animation:
     - { duration: 2000, delay: 0.2 }   # Row 1
     - { duration: 4000, delay: 0.3 }   # Row 2 (repeats)
   colors:
-    start: "#99CCFF"
-    text: "#4466AA"
-    end: "#AACCFF"
+    start: "var(--lcards-blue-light)"
+    text: "var(--lcards-blue-darkest)"
+    end: "var(--lcards-moonlight)"
 ```
 
 ---
@@ -180,70 +227,72 @@ animation:
   change_duration: 500
   change_params:
     max_scale: 1.08        # For pulse
-    # color: "#FF9900"     # For glow
-    # blur_max: 12         # For glow
+    # color: "var(--lcards-orange)"   # For glow
+    # blur_max: 12                    # For glow
 ```
 
 ---
 
-## Style
+## Consolidated Example
 
-```yaml
-style:
-  cell:
-    background: "#111"
-    color: "#cccccc"
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    padding: "4px 8px"
-    border_radius: 4
-  header_row:
-    background: "#1a1a2e"
-    color: "#FF9900"
-    font_weight: bold
-```
-
----
-
-## Examples
-
-### System status panel
+A system status panel with header row, entity cells, a template cell, a DataSource cell, cascade animation, and change highlight:
 
 ```yaml
 type: custom:lcards-data-grid
 data_mode: data
+
 rows:
-  - values: [SYSTEM STATUS]
-    style:
-      color: "#FF9900"
-      font_weight: bold
-      font_size: 13
-  - [CPU, sensor.cpu_usage, "{{ states('sensor.cpu_usage') }}%"]
-  - [RAM, sensor.memory_used_percent, "{{ states('sensor.memory_used_percent') }}%"]
+  # Header row — styled via style.header_row
+  - values: [SUBSYSTEM, VALUE, STATUS]
+
+  # Entity cells — auto-subscribed live values
+  - [CPU, sensor.cpu_usage, "{{ 'OK' if states('sensor.cpu_usage')|float < 80 else 'WARN' }}"]
+  - [RAM, sensor.memory_used_percent, "{{ 'OK' if states('sensor.memory_used_percent')|float < 90 else 'WARN' }}"]
+
+  # Template cell
   - [Disk, sensor.disk_use_percent, "{{ states('sensor.disk_use_percent') }}%"]
+
+  # DataSource cell with format specifier (note: datasource template syntax for dynamic values)
+  - [Net TX, "{datasource:net_tx:.1f} MB/s", "var(--lcards-moonlight)"]
+
+data_sources:
+  net_tx:
+    entity: sensor.network_transmit
+    processing:
+      scaled:
+        type: scale
+        input_range: [0, 1000000]
+        output_range: [0, 1]
+
 grid:
-  grid-template-columns: "80px 1fr 60px"
+  grid-template-columns: "100px 1fr 80px"
   gap: 6px
-```
 
-### Decorative data wall
+style:
+  cell:
+    background: "var(--ha-card-background)"
+    color: "var(--lcards-moonlight)"
+    font_size: 12
+    font_family: "Antonio, sans-serif"
+    padding: "4px 8px"
+  header_row:
+    background: "rgba(255, 153, 0, 0.08)"
+    color: "var(--lcards-orange)"
+    font_weight: bold
+    text_align: center
 
-```yaml
-type: custom:lcards-data-grid
-data_mode: decorative
-format: hex
-refresh_interval: 3000
-grid:
-  grid-template-columns: repeat(20, 1fr)
-  grid-template-rows: repeat(10, auto)
-  gap: 3px
 animation:
   type: cascade
   pattern: niagara
   colors:
-    start: "#3377CC"
-    text: "#112244"
-    end: "#99CCFF"
+    start: "var(--lcards-blue-light)"
+    text: "var(--lcards-blue-darkest)"
+    end: "var(--lcards-moonlight)"
+  highlight_changes: true
+  change_preset: glow
+  change_params:
+    color: "var(--lcards-orange)"
+    blur_max: 8
 ```
 
 ---
@@ -252,4 +301,5 @@ animation:
 
 - [DataSources](../../core/datasources/README.md)
 - [Templates](../../core/templates/README.md)
+- [Colours](../../core/colours.md)
 - [Animations](../../core/animations.md)
