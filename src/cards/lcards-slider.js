@@ -2,7 +2,7 @@
  * LCARdS Slider Card
  *
  * Interactive slider and gauge card using SVG component templates with dynamic
- * zone injection. Supports sliders for lights, covers, fans, and input_number
+ * zone injection. Supports sliders for lights, covers, fans, climate, and input_number
  * entities, as well as read-only gauge displays for sensors.
  *
  * Architecture:
@@ -26,7 +26,7 @@
  * Features:
  * - Preset-based styling matching button card pattern
  * - Separate visual style (pills/gauge) from interactivity (locked state)
- * - Support for light, cover, fan, input_number, number, sensor domains
+ * - Support for light, cover, fan, climate, input_number, number, sensor domains
  * - Configurable control attribute (e.g., brightness, temperature, etc.)
  * - Dynamic pill generation with count, gap, radius, color interpolation
  * - Gauge mode with ruler, ticks, labels, and progress indicator
@@ -534,7 +534,7 @@ export class LCARdSSlider extends LCARdSButton {
             this._mode = trackType;
         } else {
             // Default based on domain (fallback if no preset or style.track.type)
-            const interactiveDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
+            const interactiveDomains = ['light', 'cover', 'fan', 'input_number', 'number', 'climate'];
             this._mode = interactiveDomains.includes(this._domain) ? 'pills' : 'gauge';
         }
 
@@ -559,6 +559,7 @@ export class LCARdSSlider extends LCARdSButton {
             case 'light': return 'brightness';
             case 'cover': return 'current_position';
             case 'fan': return 'percentage';
+            case 'climate': return 'temperature';
             default: return null;
         }
     }
@@ -573,17 +574,29 @@ export class LCARdSSlider extends LCARdSButton {
         const entity = this._entity;
 
         // Determine if entity is controllable based on domain
-        const controllableDomains = ['light', 'cover', 'fan', 'input_number', 'number'];
+        const controllableDomains = ['light', 'cover', 'fan', 'input_number', 'number', 'climate'];
         const isControllable = controllableDomains.includes(this._domain);
 
         // Value inversion (explicit only, no auto-detection)
         const invertValue = config.control?.invert_value ?? false;
 
+        // Domain-specific attribute min/max/step defaults
+        let defaultMin, defaultMax, defaultStep;
+        if (this._domain === 'climate') {
+            defaultMin = entity?.attributes?.min_temp ?? 15;
+            defaultMax = entity?.attributes?.max_temp ?? 30;
+            defaultStep = entity?.attributes?.target_temp_step ?? 0.5;
+        } else {
+            defaultMin = entity?.attributes?.min ?? 0;
+            defaultMax = entity?.attributes?.max ?? 100;
+            defaultStep = entity?.attributes?.step ?? 1;
+        }
+
         // CONTROL CONFIG: What user can set via slider input
         this._controlConfig = {
-            min: config.control?.min ?? entity?.attributes?.min ?? 0,
-            max: config.control?.max ?? entity?.attributes?.max ?? 100,
-            step: config.control?.step ?? entity?.attributes?.step ?? 1,
+            min: config.control?.min ?? defaultMin,
+            max: config.control?.max ?? defaultMax,
+            step: config.control?.step ?? defaultStep,
             attribute: config.control?.attribute ?? this._getDefaultAttribute(),
             locked: config.control?.locked ?? !isControllable,
             invertValue: !!invertValue  // NEW: Store inversion flag
@@ -2655,6 +2668,11 @@ export class LCARdSSlider extends LCARdSButton {
                 await this.hass.callService(domain, 'set_value', {
                     entity_id: entityId,
                     value: entityValue
+                });
+            } else if (domain === 'climate') {
+                await this.hass.callService('climate', 'set_temperature', {
+                    entity_id: entityId,
+                    temperature: entityValue
                 });
             } else {
                 lcardsLog.warn(`[LCARdSSlider] Unsupported domain for value setting: ${domain}`);
