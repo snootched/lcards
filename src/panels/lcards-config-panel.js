@@ -623,6 +623,36 @@ export class LCARdSConfigPanel extends LitElement {
     }
   }
 
+  async _resetCategoryToDefaults(category) {
+    if (!window.lcards?.core?.helperManager) {
+      this._showError('Helper Manager not available');
+      return;
+    }
+
+    const helperManager = window.lcards.core.helperManager;
+
+    try {
+      const results = await helperManager.resetCategoryToDefaults(category);
+
+      if (results.success > 0) {
+        this._showSuccess(`Reset ${results.success} helper(s) to defaults`);
+      } else if (results.skipped > 0 && results.failed === 0) {
+        this._showSuccess('All helpers already at defaults (or none exist yet)');
+      }
+
+      if (results.failed > 0) {
+        this._showError(`Failed to reset ${results.failed} helper(s)`);
+      }
+
+      // Reload helper status to reflect new values
+      await this._loadHelperStatus();
+      this.requestUpdate();
+    } catch (error) {
+      lcardsLog.error('[ConfigPanel] Failed to reset category to defaults:', error);
+      this._showError(`Error: ${error.message}`);
+    }
+  }
+
   async _setHelperValue(key, value) {
     if (!window.lcards?.core?.helperManager) {
       return;
@@ -895,6 +925,14 @@ export class LCARdSConfigPanel extends LitElement {
               .totalCount=${totalCount}
               ?expanded=${isExpanded}
               @toggle=${() => this._toggleCategory(category)}>
+              <div class="category-actions" style="display: flex; justify-content: flex-end; padding: 4px 0 8px;">
+                <ha-button
+                  @click=${(e) => { e.stopPropagation(); this._resetCategoryToDefaults(category); }}
+                  title="Reset all helpers in this section to their registry default values">
+                  <ha-icon slot="start" icon="mdi:restore"></ha-icon>
+                  Reset to Defaults
+                </ha-button>
+              </div>
               <table class="helper-table">
                 <thead>
                   <tr>
@@ -1033,7 +1071,14 @@ export class LCARdSConfigPanel extends LitElement {
           ${helper.exists ? this._renderValueControl(helper) : '-'}
         </td>
         <td>
-          ${!helper.exists ? html`
+          ${helper.exists ? html`
+            <ha-button
+              @click=${() => this._showMoreInfo(helper.entity_id)}
+            >
+              <ha-icon slot="start" icon="mdi:magnify"></ha-icon>
+              Inspect
+            </ha-button>
+          ` : helper.ws_create_params !== null ? html`
             <ha-button
               @click=${() => this._createHelper(helper.key)}
             >
@@ -1041,12 +1086,7 @@ export class LCARdSConfigPanel extends LitElement {
               Create
             </ha-button>
           ` : html`
-            <ha-button
-              @click=${() => this._showMoreInfo(helper.entity_id)}
-            >
-              <ha-icon slot="start" icon="mdi:magnify"></ha-icon>
-              Inspect
-            </ha-button>
+            <span style="font-size: 12px; color: var(--secondary-text-color); font-style: italic;">Manual setup required</span>
           `}
         </td>
       </tr>

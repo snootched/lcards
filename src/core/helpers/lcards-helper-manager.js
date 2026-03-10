@@ -319,7 +319,8 @@ export class LCARdSHelperManager extends BaseService {
 
     for (const helper of allHelpers) {
       try {
-        const result = await ensureHelper(this.hass, helper);
+        // Delegate to this.ensureHelper so default values are set on creation
+        const result = await this.ensureHelper(helper.key);
 
         if (result.exists) {
           results.existing++;
@@ -358,7 +359,76 @@ export class LCARdSHelperManager extends BaseService {
       throw new Error(`[HelperManager] Helper not found in registry: ${key}`);
     }
 
-    return await ensureHelper(this.hass, definition);
+    // Helpers with ws_create_params === null cannot be created via the API
+    // (e.g. template sensors — must be configured manually in configuration.yaml)
+    if (definition.ws_create_params === null) {
+      lcardsLog.debug(`[HelperManager] Skipping non-creatable helper: ${key} (${definition.entity_id})`);
+      return {
+        exists: apiHelperExists(this.hass, definition.entity_id),
+        created: false,
+        skipped: true,
+        entity_id: definition.entity_id
+      };
+    }
+
+    const result = await ensureHelper(this.hass, definition);
+
+    // Set the registry default_value whenever a helper is freshly created
+    if (result.created && definition.default_value !== undefined && definition.default_value !== null) {
+      try {
+        // Small delay to let HA register the entity before we write to it
+        await new Promise(resolve => setTimeout(resolve, 300));
+        await apiSetHelperValue(this.hass, definition.entity_id, definition.default_value);
+        lcardsLog.info(`[HelperManager] Set default value for new helper ${key}: ${definition.default_value}`);
+      } catch (error) {
+        lcardsLog.warn(`[HelperManager] Could not set default value for ${key}:`, error);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Reset all helpers in a category (or all helpers) to their registry default values.
+   * Only affects helpers that already exist in Home Assistant.
+   *
+   * @param {string|null} category - Category name, or null to reset all
+   * @returns {Promise<{success: number, failed: number, skipped: number}>}
+   */
+  async resetCategoryToDefaults(category = null) {
+    if (!this.hass) {
+      throw new Error('[HelperManager] Cannot reset helpers - HASS not available');
+    }
+
+    const helpers = category ? getHelpersByCategory(category) : getAllHelpers();
+    const results = { success: 0, failed: 0, skipped: 0 };
+
+    for (const helper of helpers) {
+      // Skip helpers that don't exist yet
+      if (!apiHelperExists(this.hass, helper.entity_id)) {
+        results.skipped++;
+        continue;
+      }
+
+      // Skip helpers with no defined default
+      if (helper.default_value === undefined || helper.default_value === null) {
+        results.skipped++;
+        continue;
+      }
+
+      try {
+        await apiSetHelperValue(this.hass, helper.entity_id, helper.default_value);
+        this._valueCache.set(helper.key, helper.default_value);
+        lcardsLog.debug(`[HelperManager] Reset ${helper.key} -> ${helper.default_value}`);
+        results.success++;
+      } catch (error) {
+        lcardsLog.error(`[HelperManager] Failed to reset ${helper.key}:`, error);
+        results.failed++;
+      }
+    }
+
+    lcardsLog.info(`[HelperManager] Reset complete: ${results.success} reset, ${results.skipped} skipped, ${results.failed} failed`);
+    return results;
   }
 
   // ===== PUBLIC API: STATE ACCESS =====
