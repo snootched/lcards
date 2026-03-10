@@ -179,10 +179,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
         /* Dialog styles */
         ha-dialog {
-          --mdc-dialog-min-width: 90vw;
-          --mdc-dialog-max-width: 1400px;
-          --mdc-dialog-min-height: 80vh;
-          --mdc-dialog-max-height: 80vh;
+          --ha-dialog-width-md: 90vw;
+          --ha-dialog-min-height: 80vh;
+          --ha-dialog-max-height: 80vh;
         }
 
       .dialog-content {
@@ -1202,17 +1201,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     return html`
       <ha-dialog
         open
-        @closed=${this._closeDialog}
-        .heading=${this._renderDialogTitle()}>
+        @closed=${(e) => { e.stopPropagation(); this._closeDialog(); }}
+        .headerTitle=${this._renderDialogTitle()}>
         ${this._renderInlineContent()}
-        <ha-button
-          slot="primaryAction"
-          variant="brand"
-          appearance="accent"
-          @click=${this._closeDialog}
-          dialogAction="close">
-          Close
-        </ha-button>
+        <div slot="footer">
+          <ha-button
+            variant="brand"
+            appearance="accent"
+            @click=${this._closeDialog}
+            data-dialog="close">
+            Close
+          </ha-button>
+        </div>
       </ha-dialog>
     `;
   }

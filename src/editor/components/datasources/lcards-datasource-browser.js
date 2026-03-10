@@ -869,9 +869,8 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
       /* Dialog styles matching Provenance Inspector */
       ha-dialog {
-        --mdc-dialog-min-width: 90vw;
-        --mdc-dialog-max-width: 90vw;
-        --mdc-dialog-min-height: 600px;
+        --ha-dialog-width-md: 90vw;
+        --ha-dialog-min-height: 600px;
       }
 
       .dialog-content {
@@ -1244,8 +1243,8 @@ export class LCARdSDataSourceBrowser extends LitElement {
     return html`
       <ha-dialog
         open
-        @closed=${this._handleClose}
-        .heading=${'DataSource Browser'}>
+        @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+        header-title="DataSource Browser">
         <div class="dialog-content">
           <div class="dialog-header">
             <h2>🔍 DataSource Browser</h2>
@@ -1273,14 +1272,15 @@ export class LCARdSDataSourceBrowser extends LitElement {
           </div>
         </div>
 
-        <ha-button
-          slot="primaryAction"
-          variant="brand"
-          appearance="accent"
-          @click=${this._handleClose}
-          dialogAction="close">
-          Close
-        </ha-button>
+        <div slot="footer">
+          <ha-button
+            variant="brand"
+            appearance="accent"
+            @click=${this._handleClose}
+            data-dialog="close">
+            Close
+          </ha-button>
+        </div>
       </ha-dialog>
     `;
   }

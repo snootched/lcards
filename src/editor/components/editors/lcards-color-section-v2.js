@@ -711,7 +711,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -720,7 +720,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'primaryAction';
+            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
                 dialog.close();
@@ -747,7 +747,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -756,9 +756,8 @@ export class LCARdSColorSectionV2 extends LitElement {
             dialog.appendChild(content);
 
             const cancelButton = document.createElement('ha-button');
-            cancelButton.slot = 'secondaryAction';
+            cancelButton.slot = 'footer';
             cancelButton.textContent = 'Cancel';
-            cancelButton.dialogAction = 'cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
                 dialog.close();
@@ -766,9 +765,8 @@ export class LCARdSColorSectionV2 extends LitElement {
             });
 
             const confirmButton = document.createElement('ha-button');
-            confirmButton.slot = 'primaryAction';
+            confirmButton.slot = 'footer';
             confirmButton.textContent = 'Delete';
-            confirmButton.dialogAction = 'delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
                 dialog.close();

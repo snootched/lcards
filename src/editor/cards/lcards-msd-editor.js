@@ -149,9 +149,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         // Create ha-dialog (runs in editor context - simple DOM)
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = 'Select Card Type';
-        dialog.scrimClickAction = 'close';
-        dialog.escapeKeyAction = 'close';
+        dialog.headerTitle = 'Select Card Type';
 
         // Build lovelace object for hui-card-picker
         const lovelace = this._getLovelace();
@@ -211,7 +209,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                 document.dispatchEvent(resultEvent);
 
                 // Close picker dialog
-                dialog.close();
+                dialog.open = false;
             });
         } else {
             lcardsLog.error('[MSDEditor] Failed to create hui-card-picker');

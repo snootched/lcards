@@ -900,7 +900,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         return new Promise((resolve) => {
             // Create dialog element
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
             // Create content
@@ -911,28 +911,29 @@ export class LCARdSChartStudioDialog extends LitElement {
 
             // Cancel button
             const cancelButton = document.createElement('ha-button');
-            cancelButton.slot = 'secondaryAction';
+            cancelButton.slot = 'footer';
             cancelButton.textContent = 'Cancel';
-            cancelButton.dialogAction = 'cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(false);
             });
 
             // Discard button
             const confirmButton = document.createElement('ha-button');
-            confirmButton.slot = 'primaryAction';
             confirmButton.textContent = 'Discard';
-            confirmButton.dialogAction = 'discard';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(true);
             });
 
-            dialog.appendChild(cancelButton);
-            dialog.appendChild(confirmButton);
+            // Wrap both buttons in a single footer container
+            const footerDiv = document.createElement('div');
+            footerDiv.slot = 'footer';
+            footerDiv.appendChild(cancelButton);
+            footerDiv.appendChild(confirmButton);
+            dialog.appendChild(footerDiv);
 
             // Handle dialog close
             dialog.addEventListener('closed', () => {
@@ -3100,8 +3101,8 @@ yaxis:
         return html`
             <ha-dialog
                 open
-                @closed=${this._handleClose}
-                .heading=${'Chart Studio'}>
+                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                header-title="Chart Studio">
 
                 <div class="dialog-content">
                     <!-- Split Layout: Config (40%) | Preview (60%) -->

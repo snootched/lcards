@@ -16,12 +16,12 @@
 import { css } from 'lit';
 
 export const studioDialogStyles = css`
-    /* Dialog Sizing */
+    /* Dialog Sizing - Web Awesome ha-dialog uses --ha-dialog-* CSS properties */
     ha-dialog {
-        --mdc-dialog-min-width: 95vw;
-        --mdc-dialog-max-width: 95vw;
-        --mdc-dialog-min-height: 90vh;
-        --mdc-dialog-max-height: 90vh;
+        --ha-dialog-width-md: min(95vw, 95vw);
+        --ha-dialog-width-lg: min(95vw, 95vw);
+        --ha-dialog-min-height: 90vh;
+        --ha-dialog-max-height: 90vh;
     }
 
     /* Ensure ha-dialog's internal structure respects height */
@@ -31,7 +31,8 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
-    ha-dialog::part(content) {
+    /* ha-dialog::part(body) is the scrollable body container in WA-based ha-dialog */
+    ha-dialog::part(body) {
         flex: 1;
         overflow: hidden;
         display: flex;

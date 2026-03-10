@@ -54,8 +54,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
             :host { display: block; }
 
             lcards-dialog {
-                --mdc-dialog-min-width: 680px;
-                --mdc-dialog-max-width: 900px;
+                --ha-dialog-width-md: 900px;
             }
 
             .form-content {
@@ -98,7 +97,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
             @media (max-width: 600px) {
                 lcards-dialog {
-                    --mdc-dialog-min-width: 95vw;
+                    --ha-dialog-width-md: 95vw;
                 }
                 .identity-grid {
                     grid-template-columns: 1fr;

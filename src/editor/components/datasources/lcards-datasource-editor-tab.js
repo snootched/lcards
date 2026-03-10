@@ -385,9 +385,8 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   _showDependencyWarningDialog(sourceName, dependents) {
     return new Promise((resolve) => {
       const dialog = document.createElement('ha-dialog');
-      dialog.heading = 'Destructive Action';
-      dialog.scrimClickAction = '';
-      dialog.escapeKeyAction = '';
+      dialog.headerTitle = 'Destructive Action';
+      dialog.setAttribute('prevent-scrim-close', '');
 
       // Create content div (light DOM, no slot)
       const content = document.createElement('div');
@@ -418,10 +417,9 @@ export class LCARdSDataSourceEditorTab extends LitElement {
 
       // Cancel button (secondary action - plain appearance)
       const cancelButton = document.createElement('ha-button');
-      cancelButton.setAttribute('slot', 'secondaryAction');
+      cancelButton.setAttribute('slot', 'footer');
       cancelButton.setAttribute('appearance', 'plain');
       cancelButton.textContent = 'Cancel';
-      cancelButton.setAttribute('dialogAction', 'cancel');
       cancelButton.addEventListener('click', () => {
         lcardsLog.trace('[LCARdS] Delete dialog: Cancel clicked');
         dialog.close();
@@ -430,11 +428,10 @@ export class LCARdSDataSourceEditorTab extends LitElement {
 
       // Delete button (primary action - warning/destructive style)
       const deleteButton = document.createElement('ha-button');
-      deleteButton.setAttribute('slot', 'primaryAction');
+      deleteButton.setAttribute('slot', 'footer');
       deleteButton.setAttribute('variant', 'warning');
       deleteButton.setAttribute('appearance', 'accent');
       deleteButton.textContent = 'Delete and Break Dependencies';
-      deleteButton.setAttribute('dialogAction', 'ok');
       deleteButton.addEventListener('click', () => {
         lcardsLog.trace('[LCARdS] Delete dialog: Delete clicked');
         dialog.close();

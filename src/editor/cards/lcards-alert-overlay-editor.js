@@ -594,9 +594,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         this._activePickerCondition = condKey;
 
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = 'Select Content Card Type';
-        dialog.scrimClickAction = 'close';
-        dialog.escapeKeyAction = 'close';
+        dialog.headerTitle = 'Select Content Card Type';
 
         this._cardPickerDialogRef = dialog;
         document.body.appendChild(dialog);
@@ -622,7 +620,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 detail: { condKey, config: selected }
             }));
 
-            dialog.close();
+            dialog.open = false;
         });
 
         dialog.addEventListener('closed', () => {
@@ -663,9 +661,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         this._activeEditorCondition = condKey;
 
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = `Edit: ${currentCard.type}`;
-        dialog.scrimClickAction = '';
-        dialog.escapeKeyAction = 'close';
+        dialog.headerTitle = `Edit: ${currentCard.type}`;
+        dialog.setAttribute('prevent-scrim-close', '');
         this._cardEditorDialogRef = dialog;
 
         const container = document.createElement('div');
@@ -688,12 +685,12 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         dialog.appendChild(container);
 
         const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'primaryAction';
+        actionsDiv.slot = 'footer';
         actionsDiv.style.cssText = 'display:flex; gap:8px;';
 
         const cancelBtn = document.createElement('ha-button');
-        cancelBtn.setAttribute('dialogAction', 'cancel');
         cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', () => { dialog.open = false; });
 
         const saveBtn = document.createElement('ha-button');
         saveBtn.textContent = 'Save';
@@ -702,7 +699,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 this._setConditionProp(condKey, 'content', JSON.parse(JSON.stringify(tempConfig)));
                 lcardsLog.debug('[AlertOverlayEditor] Content card saved from editor:', tempConfig.type);
             }
-            dialog.close();
+            dialog.open = false;
         });
 
         actionsDiv.appendChild(cancelBtn);

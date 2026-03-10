@@ -559,8 +559,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._handleCancel}
-                .heading=${'Data Grid Studio'}>
+                @closed=${(e) => { e.stopPropagation(); this._handleCancel(); }}
+                header-title="Data Grid Studio">
 
                 <div class="dialog-content">
                     <!-- Split Layout: Config (33%) | Preview (66%) -->
@@ -621,20 +621,19 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </div>
 
                 <!-- Dialog Actions -->
-                <ha-button
-                    slot="primaryAction"
-                    variant="brand"
-                    @click=${this._handleSave}>
-                    <ha-icon icon="mdi:check" slot="start"></ha-icon>
-                    Save
-                </ha-button>
-
-                <ha-button
-                    slot="secondaryAction"
-                    appearance="plain"
-                    @click=${this._handleCancel}>
-                    Cancel
-                </ha-button>
+                <div slot="footer">
+                    <ha-button
+                        appearance="plain"
+                        @click=${this._handleCancel}>
+                        Cancel
+                    </ha-button>
+                    <ha-button
+                        variant="brand"
+                        @click=${this._handleSave}>
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
             </ha-dialog>
         `;
     }

@@ -68,8 +68,7 @@ export class LCARdSProcessorEditor extends LitElement {
       }
 
       lcards-dialog {
-        --mdc-dialog-min-width: 700px;
-        --mdc-dialog-max-width: 900px;
+        --ha-dialog-width-md: 900px;
       }
 
       .form-content {
@@ -191,14 +190,13 @@ export class LCARdSProcessorEditor extends LitElement {
       <lcards-dialog
         .heading="${this.mode === 'add' ? 'Add Processor' : 'Edit Processor'}"
         .open="${this.open}"
-        @closed="${this._handleCancel}"
+        @closed="${(e) => { e.stopPropagation(); this._handleCancel(); }}"
       >
         ${this._renderForm()}
         <div slot="primaryAction">
           <ha-button
             appearance="plain"
             @click="${this._handleCancel}"
-            dialogAction="close"
           >
             Cancel
           </ha-button>
@@ -207,7 +205,6 @@ export class LCARdSProcessorEditor extends LitElement {
             variant="brand"
             @click="${this._handleSave}"
             .disabled="${!this._isValid()}"
-            dialogAction="close"
           >
             ${this.mode === 'add' ? 'Add' : 'Save'}
           </ha-button>

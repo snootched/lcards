@@ -19,11 +19,12 @@ export const msdStudioStyles = css`
         font-family: var(--lcars-font-family, 'Antonio', sans-serif);
     }
 
-    /* ha-dialog Sizing */
+    /* ha-dialog Sizing - Web Awesome ha-dialog uses --ha-dialog-* CSS properties */
     ha-dialog {
-        --mdc-dialog-min-width: 95vw;
-        --mdc-dialog-max-width: 95vw;
-        --mdc-dialog-min-height: 90vh;
+        --ha-dialog-width-md: min(95vw, 95vw);
+        --ha-dialog-width-lg: min(95vw, 95vw);
+        --ha-dialog-min-height: 90vh;
+        --ha-dialog-max-height: 90vh;
     }
 
     /* Dialog Content */

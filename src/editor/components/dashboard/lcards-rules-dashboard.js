@@ -1080,8 +1080,8 @@ export class LCARdSRulesDashboard extends LitElement {
         return html`
             <ha-dialog
                 .open=${this._previewDialogOpen}
-                @closed=${this._closePreviewDialog}
-                .heading=${'Rule Details'}>
+                @closed=${(e) => { e.stopPropagation(); this._closePreviewDialog(); }}
+                header-title="Rule Details">
                 <div class="rule-preview-dialog">
                     <h3>${rule.id || 'Unnamed Rule'}</h3>
 
@@ -1120,14 +1120,15 @@ export class LCARdSRulesDashboard extends LitElement {
                         <div class="detail-value">${actions} action${actions !== 1 ? 's' : ''}</div>
                     </div>
                 </div>
-                <ha-button
-                    slot="primaryAction"
-                    variant="brand"
-                    appearance="accent"
-                    @click=${this._closePreviewDialog}
-                    dialogAction="close">
-                    Close
-                </ha-button>
+                <div slot="footer">
+                    <ha-button
+                        variant="brand"
+                        appearance="accent"
+                        @click=${this._closePreviewDialog}
+                        data-dialog="close">
+                        Close
+                    </ha-button>
+                </div>
             </ha-dialog>
         `;
     }
@@ -1302,26 +1303,26 @@ rules:
         return html`
             <ha-dialog
                 .open=${true}
-                @closed=${this._cancelDelete}
-                .heading=${'Delete Rule?'}>
+                @closed=${(e) => { e.stopPropagation(); this._cancelDelete(); }}
+                header-title="Delete Rule?">
                 <div style="padding: 8px 0;">
                     <p>Are you sure you want to delete rule <strong>${rule.id}</strong>?</p>
                     <p style="color: var(--secondary-text-color, #666); font-size: 13px;">This action cannot be undone.</p>
                 </div>
-                <ha-button
-                    slot="secondaryAction"
-                    appearance="plain"
-                    @click=${this._cancelDelete}>
-                    Cancel
-                </ha-button>
-                <ha-button
-                    slot="primaryAction"
-                    variant="brand"
-                    appearance="accent"
-                    style="--mdc-theme-primary: var(--error-color, #f44336);"
-                    @click=${this._confirmDelete}>
-                    Delete
-                </ha-button>
+                <div slot="footer">
+                    <ha-button
+                        appearance="plain"
+                        @click=${this._cancelDelete}>
+                        Cancel
+                    </ha-button>
+                    <ha-button
+                        variant="brand"
+                        appearance="accent"
+                        style="--mdc-theme-primary: var(--error-color, #f44336);"
+                        @click=${this._confirmDelete}>
+                        Delete
+                    </ha-button>
+                </div>
             </ha-dialog>
         `;
     }

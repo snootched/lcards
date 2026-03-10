@@ -61,10 +61,9 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                 }
 
                 ha-dialog {
-                    --mdc-dialog-min-width: 90vw;
-                    --mdc-dialog-max-width: 90vw;
-                    --mdc-dialog-min-height: 75vh;
-                    --mdc-dialog-max-height: 85vh;
+                    --ha-dialog-width-md: 90vw;
+                    --ha-dialog-min-height: 75vh;
+                    --ha-dialog-max-height: 85vh;
                 }
 
                 ha-dialog::part(dialog) {
@@ -72,7 +71,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                     flex-direction: column;
                 }
 
-                ha-dialog::part(content) {
+                ha-dialog::part(body) {
                     flex: 1;
                     overflow: hidden;
                     display: flex;
@@ -112,8 +111,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                     }
 
                     ha-dialog {
-                        --mdc-dialog-min-width: 95vw;
-                        --mdc-dialog-max-width: 95vw;
+                        --ha-dialog-width-md: 95vw;
                     }
                 }
 
@@ -171,7 +169,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             <ha-dialog
                 open
                 @closed=${this._handleDialogClosed}
-                .heading=${this.mode === 'add' ? 'Add DataSource' : `Edit DataSource: ${this.sourceName}`}>
+                .headerTitle=${this.mode === 'add' ? 'Add DataSource' : `Edit DataSource: ${this.sourceName}`}>
 
                 <div class="dialog-content">
                     <!-- Validation Errors -->
@@ -215,7 +213,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                 </div>
 
                 <!-- Dialog Actions -->
-                <div slot="primaryAction">
+                <div slot="footer">
                     <ha-button
                         appearance="plain"
                         @click=${this._handleCancel}>
@@ -497,20 +495,21 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
     }
 
     /**
-     * Handle dialog closed event
-     * Only respond to actual dialog closure, not child component events
+     * Handle dialog closed event.
+     * Always stop propagation so the event doesn't bubble into ancestor editors.
+     * Only dispatch 'cancel' when the ha-dialog itself closed (not a child component).
      */
     _handleDialogClosed(event) {
-        // Check if this is from the ha-dialog itself, not a child component
+        // Always stop the closed event from bubbling into parent editors/dialogs.
+        event.stopPropagation();
+
+        // Only react when ha-dialog itself closed (not a child like ha-select).
         if (event.target.tagName === 'HA-DIALOG') {
             this.open = false;
             this.dispatchEvent(new CustomEvent('cancel', {
                 bubbles: true,
                 composed: true
             }));
-        } else {
-            // From child component (like ha-select) - stop it
-            event.stopPropagation();
         }
     }
 

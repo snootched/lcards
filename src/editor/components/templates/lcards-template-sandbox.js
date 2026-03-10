@@ -107,9 +107,8 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       /* Dialog sizing (matching DataSource Browser) */
       ha-dialog {
-        --mdc-dialog-min-width: 90vw;
-        --mdc-dialog-max-width: 90vw;
-        --mdc-dialog-min-height: 600px;
+        --ha-dialog-width-md: 90vw;
+        --ha-dialog-min-height: 600px;
       }
 
       /* Dialog structure */
@@ -789,22 +788,23 @@ export class LCARdSTemplateSandbox extends LitElement {
     return html`
       <ha-dialog
         open
-        @closed=${this._handleClose}
-        .heading=${'🧪 Template Sandbox'}>
+        @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+        header-title="🧪 Template Sandbox">
         <div class="dialog-content">
           <div class="split-pane-container">
             ${this._renderEditorPane()}
             ${this._renderContentPane()}
           </div>
         </div>
-        <ha-button
-          slot="primaryAction"
-          variant="brand"
-          appearance="accent"
-          @click=${this._handleClose}
-          dialogAction="close">
-          Close
-        </ha-button>
+        <div slot="footer">
+          <ha-button
+            variant="brand"
+            appearance="accent"
+            @click=${this._handleClose}
+            data-dialog="close">
+            Close
+          </ha-button>
+        </div>
       </ha-dialog>
     `;
   }

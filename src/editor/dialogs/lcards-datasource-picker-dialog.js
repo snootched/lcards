@@ -58,8 +58,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
       }
 
       lcards-dialog {
-        --mdc-dialog-min-width: 600px;
-        --mdc-dialog-max-width: 800px;
+        --ha-dialog-width-md: 800px;
       }
 
       .dialog-content {
@@ -224,7 +223,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
 
       @media (max-width: 600px) {
         lcards-dialog {
-          --mdc-dialog-min-width: 90vw;
+          --ha-dialog-width-md: 90vw;
         }
 
         .mode-selector {
@@ -272,9 +271,8 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
     return html`
       <lcards-dialog
         .open=${this.open}
-        scrimClickAction=""
-        escapeKeyAction=""
-        @closed=${this._handleClose}>
+        prevent-scrim-close
+        @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}>
 
         <span slot="heading">Select Data Source</span>
 

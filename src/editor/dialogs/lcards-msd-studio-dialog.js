@@ -1988,9 +1988,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._closeAnchorForm}
-                .heading=${title}
-                style="--mdc-dialog-max-width: 500px; --mdc-dialog-min-width: 500px; --mdc-dialog-min-height: auto;">
+                @closed=${(e) => { e.stopPropagation(); this._closeAnchorForm(); }}
+                .headerTitle=${title}
+                style="--ha-dialog-width-md: 500px;">
                 <div style="padding: 12px 8px;">
                     ${wouldOverride ? html`
                         <lcards-message type="info" style="margin-bottom: 16px;">
@@ -2026,17 +2026,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="primaryAction">
-                    <ha-button @click=${this._saveAnchor}>
-                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
-                    </ha-button>
-                </div>
-
-                <div slot="secondaryAction">
+                <div slot="footer">
                     <ha-button @click=${this._closeAnchorForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
+                    </ha-button>
+                    <ha-button @click=${this._saveAnchor}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -7119,9 +7116,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._closeControlForm}
-                .heading=${title}
-                style="--mdc-dialog-min-width: 80vw; --mdc-dialog-max-width: 90vw;">
+                @closed=${(e) => { e.stopPropagation(); this._closeControlForm(); }}
+                .headerTitle=${title}
+                style="--ha-dialog-width-md: 80vw;">
 
                 <!-- Two-Column Layout: Config (Left) + Preview (Right) -->
                 <div style="display: grid; grid-template-columns: 1fr 35vw; gap: 24px; padding: 16px;">
@@ -7150,17 +7147,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 </div>
 
-                <div slot="primaryAction">
-                    <ha-button @click=${this._saveControl}>
-                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
-                    </ha-button>
-                </div>
-
-                <div slot="secondaryAction">
+                <div slot="footer">
                     <ha-button @click=${this._closeControlForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
+                    </ha-button>
+                    <ha-button @click=${this._saveControl}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -8145,12 +8139,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _openCardEditorModal() {
         // Create dialog element
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = 'Edit Card Configuration';
-        dialog.scrimClickAction = 'close';
+        dialog.headerTitle = 'Edit Card Configuration';
 
         // Style the dialog to be large enough for editors
-        dialog.style.setProperty('--mdc-dialog-min-width', '600px');
-        dialog.style.setProperty('--mdc-dialog-max-width', '90vw');
+        dialog.style.setProperty('--ha-dialog-width-md', '90vw');
 
         // Create container for editor
         const container = document.createElement('div');
@@ -8210,7 +8202,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Add action buttons
         const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'primaryAction';
+        actionsDiv.slot = 'footer';
 
         const saveButton = document.createElement('ha-button');
         saveButton.textContent = 'Save';
@@ -8231,12 +8223,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lcardsLog.debug('[MSDStudio] Card config saved:', this._controlFormCard);
 
             this.requestUpdate();
-            dialog.close();
+            dialog.open = false;
         });
 
         const cancelButton = document.createElement('ha-button');
-        cancelButton.setAttribute('dialogAction', 'cancel');
         cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => { dialog.open = false; });
 
         actionsDiv.appendChild(cancelButton);
         actionsDiv.appendChild(saveButton);
@@ -9209,9 +9201,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._closeChannelForm}
-                .heading=${isNew ? 'Add Routing Channel' : `Edit Channel: ${channelId}`}
-                style="--mdc-dialog-max-width: 700px; --mdc-dialog-min-width: 700px;">
+                @closed=${(e) => { e.stopPropagation(); this._closeChannelForm(); }}
+                .headerTitle=${isNew ? 'Add Routing Channel' : `Edit Channel: ${channelId}`}
+                style="--ha-dialog-width-md: 700px;">
 
                 <div style="padding: 8px 16px;">
                     <!-- Two-column layout for compact display -->
@@ -9373,14 +9365,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Dialog Actions -->
-                <div slot="primaryAction">
-                    <ha-button @click=${this._saveChannel}>
-                        ${isNew ? 'Add' : 'Save'}
-                    </ha-button>
-                </div>
-                <div slot="secondaryAction">
+                <div slot="footer">
                     <ha-button @click=${this._closeChannelForm} appearance="plain">
                         Cancel
+                    </ha-button>
+                    <ha-button @click=${this._saveChannel}>
+                        ${isNew ? 'Add' : 'Save'}
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -10205,10 +10195,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._closeLineForm}
-                .heading=${title}
-                .scrimClickAction=${''}
-                style="--mdc-dialog-max-width: 90vw; --mdc-dialog-min-width: 90vw; --mdc-dialog-min-height: 80vh; --mdc-dialog-max-height: 80vh;">
+                @closed=${(e) => { e.stopPropagation(); this._closeLineForm(); }}
+                .headerTitle=${title}
+                prevent-scrim-close
+                style="--ha-dialog-width-md: 90vw; --ha-dialog-min-height: 80vh; --ha-dialog-max-height: 80vh;">
 
                 <!-- Split Layout: Content Left, Preview Right -->
                 <div style="display: grid; grid-template-columns: 70% 30%; height: 70vh; overflow: hidden;">
@@ -10237,17 +10227,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="primaryAction">
-                    <ha-button @click=${() => this._saveLine()}>
-                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
-                    </ha-button>
-                </div>
-
-                <div slot="secondaryAction">
+                <div slot="footer">
                     <ha-button @click=${this._closeLineForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
+                    </ha-button>
+                    <ha-button @click=${() => this._saveLine()}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -11980,19 +11967,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${this._handleClose}
-                .scrimClickAction=${''}
-                .escapeKeyAction=${''}
-                .heading=${'MSD Configuration Studio'}>
+                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                prevent-scrim-close
+                header-title="MSD Configuration Studio">
 
-                <div slot="primaryAction">
-                    <ha-button @click=${this._handleSave}>
-                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
-                    </ha-button>
-                </div>
-
-                <div slot="secondaryAction">
+                <div slot="footer">
                     <ha-button @click=${() => window.open('https://github.com/snootched/LCARdS', '_blank')} appearance="plain">
                         <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                         Documentation
@@ -12004,6 +11983,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <ha-button @click=${this._handleCancel} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
+                    </ha-button>
+                    <ha-button @click=${this._handleSave}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
                     </ha-button>
                 </div>
 

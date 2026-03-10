@@ -121,8 +121,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       /* Dialog Sizing */
       ha-dialog {
-        --mdc-dialog-min-width: 90vw;
-        --mdc-dialog-max-width: 1400px;
+        --ha-dialog-width-md: 90vw;
       }
 
       /* Dialog Content */
@@ -1956,20 +1955,21 @@ export class LCARdSProvenanceTab extends LitElement {
     return html`
       <ha-dialog
         open
-        @closed=${this._closeDialog}
-        .heading=${'Provenance Inspector'}>
+        @closed=${(e) => { e.stopPropagation(); this._closeDialog(); }}
+        header-title="Provenance Inspector">
         <div class="dialog-content">
           ${this._renderDialogHeader()}
           ${this._renderDialogBody()}
         </div>
-        <ha-button
-          slot="primaryAction"
-          variant="brand"
-          appearance="accent"
-          @click=${this._closeDialog}
-          dialogAction="close">
-          Close
-        </ha-button>
+        <div slot="footer">
+          <ha-button
+            variant="brand"
+            appearance="accent"
+            @click=${this._closeDialog}
+            data-dialog="close">
+            Close
+          </ha-button>
+        </div>
       </ha-dialog>
     `;
   }

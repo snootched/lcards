@@ -52,8 +52,7 @@ export class LCARdSDataSourceDialog extends LitElement {
       }
 
       lcards-dialog {
-        --mdc-dialog-min-width: 600px;
-        --mdc-dialog-max-width: 800px;
+        --ha-dialog-width-md: 800px;
       }
 
       .form-content {

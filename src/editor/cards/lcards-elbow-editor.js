@@ -243,9 +243,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = 'Select Symbiont Card Type';
-        dialog.scrimClickAction = 'close';
-        dialog.escapeKeyAction = 'close';
+        dialog.headerTitle = 'Select Symbiont Card Type';
 
         this._symbioCardPickerDialogRef = dialog;
         document.body.appendChild(dialog);
@@ -272,7 +270,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 detail: { config: selectedConfig }
             }));
 
-            dialog.close();
+            dialog.open = false;
         });
 
         dialog.addEventListener('closed', () => {
@@ -316,9 +314,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        dialog.heading = `Edit: ${currentCard.type}`;
-        dialog.scrimClickAction = '';
-        dialog.escapeKeyAction = 'close';
+        dialog.headerTitle = `Edit: ${currentCard.type}`;
+        dialog.setAttribute('prevent-scrim-close', '');
         this._symbioCardEditorDialogRef = dialog;
 
         const container = document.createElement('div');
@@ -346,12 +343,12 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         dialog.appendChild(container);
 
         const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'primaryAction';
+        actionsDiv.slot = 'footer';
         actionsDiv.style.cssText = 'display:flex; gap:8px;';
 
         const cancelButton = document.createElement('ha-button');
-        cancelButton.setAttribute('dialogAction', 'cancel');
         cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => { dialog.open = false; });
 
         const saveButton = document.createElement('ha-button');
         saveButton.textContent = 'Save';
@@ -360,7 +357,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 this._setConfigValue('symbiont.card', JSON.parse(JSON.stringify(tempConfig)));
                 lcardsLog.debug('[ElbowEditor] Symbiont card config saved from editor:', tempConfig.type);
             }
-            dialog.close();
+            dialog.open = false;
         });
 
         actionsDiv.appendChild(cancelButton);

@@ -51,8 +51,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             }
 
             lcards-dialog {
-                --mdc-dialog-min-width: 800px;
-                --mdc-dialog-max-width: 1000px;
+                --ha-dialog-width-md: 1000px;
             }
 
             .dialog-content {
@@ -243,7 +242,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
         return html`
             <lcards-dialog
                 open
-                @closed=${this._handleClose}
+                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
                 .heading=${'Configure Template Rows'}>
 
                 <div class="dialog-content">
@@ -270,19 +269,19 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             ${this._confirmDialog ? html`
                 <ha-dialog
                     open
-                    .heading=${this._confirmDialog.title}
-                    @closed=${() => { this._confirmDialog = null; this.requestUpdate(); }}>
+                    .headerTitle=${this._confirmDialog.title}
+                    @closed=${(e) => { e.stopPropagation(); this._confirmDialog = null; this.requestUpdate(); }}>
                     <div>${this._confirmDialog.text}</div>
-                    <ha-button
-                        slot="primaryAction"
-                        @click=${() => this._confirmDialog.confirmAction()}>
-                        Delete
-                    </ha-button>
-                    <ha-button
-                        slot="secondaryAction"
-                        @click=${() => { this._confirmDialog = null; this.requestUpdate(); }}>
-                        Cancel
-                    </ha-button>
+                    <div slot="footer">
+                        <ha-button
+                            @click=${() => this._confirmDialog.confirmAction()}>
+                            Delete
+                        </ha-button>
+                        <ha-button
+                            @click=${() => { this._confirmDialog = null; this.requestUpdate(); }}>
+                            Cancel
+                        </ha-button>
+                    </div>
                 </ha-dialog>
             ` : ''}
         `;
