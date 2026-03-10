@@ -166,7 +166,7 @@ style:
     border_radius: 4
     text_align: left
   header_row:
-    background: "rgba(255, 153, 0, 0.08)"
+    background: "alpha(var(--lcards-orange), 0.08)"
     color: "var(--lcards-orange)"
     font_weight: bold
     font_size: 13
@@ -276,7 +276,7 @@ style:
     font_family: "Antonio, sans-serif"
     padding: "4px 8px"
   header_row:
-    background: "rgba(255, 153, 0, 0.08)"
+    background: "alpha(var(--lcards-orange), 0.08)"
     color: "var(--lcards-orange)"
     font_weight: bold
     text_align: center

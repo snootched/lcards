@@ -6,7 +6,7 @@ LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, a
 
 ---
 
-## 🚀 Setup
+## Setup
 
 Open any LCARdS card editor → **Config Panel** → **Sound** tab → click **Create All Helpers**.
 
@@ -48,7 +48,7 @@ input_select:
 
 ---
 
-## 🔊 Enabling Sounds
+## Enabling Sounds
 
 Sounds won't play until `input_boolean.lcards_sound_enabled` is turned on. Toggle it from:
 
@@ -60,7 +60,7 @@ The three category toggles (`lcards_sound_cards`, `lcards_sound_ui`, `lcards_sou
 
 ---
 
-## 🎵 Sound Schemes
+## Sound Schemes
 
 A scheme maps every event to an audio file. Select your scheme from the **Sound Scheme** dropdown in the Sound tab (or via the `input_select.lcards_sound_scheme` entity).
 
@@ -72,7 +72,7 @@ Set to **none** to disable all sounds without turning off the helpers.
 
 ---
 
-## 🎛️ Per-Event Overrides
+## Per-Event Overrides
 
 You can assign a different sound (or silence) to any individual event, independent of the active scheme.
 
@@ -82,7 +82,7 @@ In the Sound tab, find the event in the overrides table and pick an asset from t
 
 ---
 
-## 📋 What Events Are Covered
+## What Events Are Covered
 
 ### Card Interactions
 | Event | When |
@@ -120,13 +120,13 @@ In the Sound tab, find the event in the overrides table and pick an asset from t
 
 ---
 
-## 🔕 Silencing a Specific Event
+## Silencing a Specific Event
 
 In the overrides table, set the event's asset to **Silence** (the explicit silence option, distinct from "use scheme default"). The active scheme may also silence events — `slider_change` is silenced in `lcards_default` to avoid sound on every value tick.
 
 ---
 
-## 📝 Notes
+## Notes
 
 - Sounds require at least one user click before they'll play (browser autoplay policy). The first tap on any card unlocks audio.
 - Volume is shared across all events — there's no per-event volume.
