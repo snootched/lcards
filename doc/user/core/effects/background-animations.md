@@ -61,24 +61,8 @@ background_animation:
 
 ## 📋 Schema Structure
 
-Background animations support two equivalent forms. Both can be used with the same presets.
-
-### Bare array (backward-compatible default)
-
-Effects are rendered in order (first effect = bottom layer):
-
-```yaml
-background_animation:
-  - preset: <preset_name>
-    config:
-      # Preset-specific configuration
-    zoom:
-      # Optional zoom wrapper
-```
-
-### Envelope form (with canvas inset)
-
-Use when you need to constrain the animation canvas to a sub-area of the card:
+Effects are rendered in order (first effect = bottom layer)
+Combine with canvas inset to create an envelope to constrain the animatin to a sub-area of the card
 
 ```yaml
 background_animation:
@@ -140,12 +124,12 @@ The canvas minimum dimension is clamped to 1 px.
 
 ### `grid`
 
-Unified configurable grid with major/minor line divisions. Supports both cell-based and spacing-based sizing.
-
-**When to use:**
-- Standard grid backgrounds
+Unified configurable grid with major/minor line divisions.
+- Standard orthoganal grid backgrounds
 - Both simple grids and enhanced grids with major line divisions
-- Scrolling grid effects
+- Scrolling effects
+
+<details>
 
 **Configuration:**
 
@@ -208,6 +192,7 @@ config:
     line_width: 1
     line_width_major: 2
 ```
+</details>
 
 ---
 
@@ -215,11 +200,8 @@ config:
 
 Diagonal hatch pattern at 45° angle.
 
-**When to use:**
-- Diagonal striped backgrounds
-- Warning/caution visual effects
-- Layered with other patterns for complexity
-
+<details>
+  
 **Configuration:**
 
 ```yaml
@@ -243,6 +225,7 @@ config:
     color: "rgba(255, 153, 102, 0.5)"
     scroll_speed_x: 40
 ```
+</details>
 
 ---
 
@@ -250,11 +233,8 @@ config:
 
 Honeycomb hexagonal pattern with major/minor hex support.
 
-**When to use:**
-- Honeycomb backgrounds
-- Organic, sci-fi aesthetics
-- Complex tessellation patterns
-
+<details>
+  
 **Configuration:**
 
 ```yaml
@@ -301,17 +281,16 @@ Major hexagons are determined by global tile position (row, column) modulo the i
     line_width_major: 3
 ```
 
+</details>
+
 ---
 
 ### `grid-filled`
 
 Grid with cell background fills in addition to line strokes.
 
-**When to use:**
-- Solid cell backgrounds
-- Checkerboard patterns
-- Colour-blocked grids
-
+<details>
+  
 **Configuration:**
 
 ```yaml
@@ -337,6 +316,7 @@ config:
     fill_color: "rgba(102, 204, 255, 0.08)"
     line_width: 2
 ```
+</details>
 
 ---
 
@@ -344,11 +324,7 @@ config:
 
 Scrolling starfield with parallax layers and multi-colour support.
 
-**When to use:**
-- Space/sci-fi backgrounds
-- Subtle animated depth
-- Combined with zoom for dynamic star movement
-
+<details>
 **Configuration:**
 
 ```yaml
@@ -447,17 +423,16 @@ Each starfield instance uses a seeded random number generator for reproducible p
 
 > **💡 Tip:** Starfield works exceptionally well with zoom effects. Each zoom layer gets a unique seed, creating 6 different star patterns that zoom independently, producing a compelling "flying through space" effect.
 
+</details>
+
 ---
 
 ### `nebula`
 
 Layered nebula clouds with Perlin noise turbulence and organic movement.
 
-**When to use:**
-- Space/sci-fi atmospheric backgrounds
-- Organic, flowing visual effects
-- Colourful cosmic backgrounds
-
+<details>
+  
 **Configuration:**
 
 ```yaml
@@ -562,17 +537,16 @@ Each nebula instance uses a seeded random number generator for reproducible clou
 
 > **💡 Tip:** Nebula works beautifully with slow scroll speeds (3-10 px/sec) to create a drifting cosmic effect. Combine with zoom for mesmerizing depth.
 
+</details>
+
 ---
 
 ### `cascade`
 
 LCARS data-waterfall colour-cycling background. Renders cascading rows of random data cells that cycle through three configurable colour stops, replicating the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
 
-**When to use:**
-- Backgrounds for elbow cards and symbiont combos without occupying the symbiont slot
-- Any card where the CB-LCARS cascade decoration is desired
-- Stacked behind grid or starfield effects for layered data-display aesthetics
-
+<details>
+  
 **Configuration:**
 
 ```yaml
@@ -697,6 +671,8 @@ The colour cycle for each row follows the CB-LCARS / data-grid keyframe structur
 
 > **💡 Tip:** Use `opacity: 0.4–0.7` for cascade backgrounds so card content remains readable. Combine with `grid` or `starfield` for layered depth effects.
 
+</details>
+  
 ---
 
 ## 🔍 Zoom Wrapper
@@ -862,7 +838,7 @@ color: "orange"
 
 ---
 
-## � Entity Binding
+## 🔗 Entity Binding
 
 Effect config parameters can react to live HA entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
 
