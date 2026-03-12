@@ -1689,10 +1689,12 @@ export class LCARdSElbow extends LCARdSButton {
             const tokenPath = resolved.replace('theme:', '');
             const tokenValue = this.getThemeToken(tokenPath, resolved);
             lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${resolved}" -> "${tokenValue}"`);
-            return tokenValue;
+            // Resolve match-light token after theme resolution
+            return this._resolveMatchLightColor(tokenValue);
         }
 
-        return resolved;
+        // Resolve match-light token → var(--lcards-light-color-{guid})
+        return this._resolveMatchLightColor(resolved);
     }
 
     /**
