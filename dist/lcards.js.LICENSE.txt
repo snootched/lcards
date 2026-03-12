@@ -31,3 +31,59 @@
  * Copyright 2020 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
+
+/**
+ * Anime.js - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - animatable - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - animation - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - core - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - layout - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - scope - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - timeline - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - utils - ESM
+ * @version v4.3.6
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */

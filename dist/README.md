@@ -1,28 +1,18 @@
-> [!WARNING]
-> Greetings.
->
-> If you have come across this repo feel free to have a look around!
->
-> **But please note: this code is not yet complete and is not ready for general usage.**
-
-<br>
-
-# LCARdS
-*A STAR TREK FAN PRODUCTION*
+![LCARdS Banner](doc/img/lcards-banner.gif)
 
 <!--
-![LCARdS Banner](doc/img/lcards-banner.png)
 IMAGE PLACEHOLDER: Hero banner
 Suggested: Animated MSD showing cards, lines, animations, and effects
 File: docs/assets/lcards-banner.gif
 -->
 
-**A unified card system for Home Assistant inspired by the iconic LCARS interface from Star Trek.
-<br>Build your own LCARS-style dashboards and Master Systems Display (MSD) with realistic controls and animations.**
+**A unified card system for Home Assistant inspired by the iconic Star Trek LCARS interfaces.
+<br>Build your own LCARS-style dashboards and Master Systems Display (MSD) with realistic controls, reactivity and animations.**
 
 [![GitHub release](https://img.shields.io/github/v/release/snootched/LCARdS?display_name=release&logo=startrek&color=37a6d1")](https://github.com/snootched/LCARdS/releases)
 [![License](https://img.shields.io/github/license/snootched/LCARdS?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1)](https://github.com/snootched/LCARdS/commits/main)
+[![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1)](https://github.com/snootched/LCARdS/commits/msd-globalisation)
 
 <br>
 
@@ -129,7 +119,7 @@ The **LCARdS Config Panel** is a standalone sidebar entry in Home Assistant — 
 To enable the panel, add the following to `configuration.yaml` and restart Home Assistant:
 
 
-```yaml 
+```yaml
 panel_custom:
   - name: lcards-config-panel
     sidebar_title: LCARdS Config
@@ -261,7 +251,7 @@ File: docs/assets/card-slider-samples.png
 <table>
 <tr>
 <td width="40%">
-  
+
 ### Data Grid Card [`lcards-data-grid`]
 
 LCARS data grids with configurable data modes and cascade animations.
@@ -299,7 +289,7 @@ File: docs/assets/card-data-grid-sample.gif
 <table>
 <tr>
 <td width="40%">
-  
+
 ### Chart Card [`lcards-chart`]
 
 LCARdS integrated charting card powered by ApexCharts library.
