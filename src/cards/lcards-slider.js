@@ -432,6 +432,18 @@ export class LCARdSSlider extends LCARdSButton {
      * Handle HASS updates
      * @protected
      */
+    /**
+     * Bust the SVG memoization cache whenever the light-colour CSS variable
+     * changes so subsequent renders pick up the new resolved colour instead
+     * of the stale cached SVG (which may have been built before the variable
+     * was set on the first render after a card reload).
+     * @protected
+     * @override
+     */
+    _onLightColorChanged() {
+        this._invalidateMemoization();
+    }
+
     _handleHassUpdate(newHass, oldHass) {
         // Call parent to handle state-based color resolution
         super._handleHassUpdate(newHass, oldHass);
@@ -926,6 +938,16 @@ export class LCARdSSlider extends LCARdSButton {
         let value = rawValue;
         // Step 0: 'match-light' special token → per-card CSS variable
         value = this._resolveMatchLightColor(value);
+
+        // If the value resolved to our dynamic per-card light-colour variable,
+        // return the already-computed colour value stored on the instance.
+        // This avoids relying on CSS-var reactivity in SVG presentation attributes
+        // (which is unreliable) and ensures the memoization hash always reflects
+        // the actual current colour, causing the cache to bust when it changes.
+        if (typeof value === 'string' && value.includes('--lcards-light-color-')) {
+            return this._lightColorValue || fallback;
+        }
+
         // Step 1: computed tokens and theme: tokens
         const resolver = window.lcards?.core?.themeManager?.resolver;
         if (resolver) {
@@ -1541,7 +1563,8 @@ export class LCARdSSlider extends LCARdSButton {
             `${trackConfig?.size?.height || 12}|${trackConfig?.gradient?.start || ''}|${trackConfig?.gradient?.end || ''}|` +
             `${orientation}|${width}|${height}|` +
             `${JSON.stringify(this._sliderStyle?.ranges || [])}|` +
-            `${JSON.stringify(this._resolvedMarkerValues)}`; // Include resolved marker values for reactivity
+            `${JSON.stringify(this._resolvedMarkerValues)}|` +
+            `${this._lightColorValue || ''}`; // Bust cache when light colour changes
 
         // Check memoization cache
         if (this._memoizedTrack && this._memoizedTrackConfig === configHash) {
@@ -1926,7 +1949,8 @@ export class LCARdSSlider extends LCARdSButton {
             value: this._sliderValue,
             ranges: skipRanges ? [] : (this._sliderStyle?.ranges || []),
             skipRanges,
-            entityState: this._entity?.state  // Include state for reactive tick colors
+            entityState: this._entity?.state,  // Include state for reactive tick colors
+            lightColor: this._lightColorValue || null  // Bust cache when light colour changes
         });
 
         if (this._memoizedGauge && this._memoizedGaugeConfig === configHash) {

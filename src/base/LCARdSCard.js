@@ -2868,6 +2868,8 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (this._entity.state !== 'on') {
             // Light is off, remove variable or set to default
             document.documentElement.style.removeProperty(varName);
+            this._lightColorValue = null;
+            this._onLightColorChanged();
             return;
         }
 
@@ -2893,11 +2895,31 @@ export class LCARdSCard extends LCARdSNativeCard {
             color = '#ffd89b';
         }
 
-        // Set the CSS variable
+        // Set the CSS variable and cache the value on the instance so subclasses
+        // can embed the resolved colour directly in generated markup (e.g. slider
+        // SVG) without relying on browser CSS-var re-evaluation in SVG attributes.
         if (color) {
             document.documentElement.style.setProperty(varName, color);
+            this._lightColorValue = color;
             lcardsLog.trace(`[LCARdSCard] Set light color variable ${varName} = ${color}`);
         }
+
+        // Notify subclasses that the light colour may have changed so they can
+        // bust any render caches that embedded the old resolved value.
+        this._onLightColorChanged();
+    }
+
+    /**
+     * Hook called whenever _updateLightColorVariable() changes (or clears) the
+     * per-card CSS variable for a light entity's current colour.
+     *
+     * Override in subclasses that cache resolved colours (e.g. slider memoization)
+     * to invalidate those caches so the next render picks up the new value.
+     *
+     * @protected
+     */
+    _onLightColorChanged() {
+        // Default no-op — subclasses override as needed.
     }
 
     /**

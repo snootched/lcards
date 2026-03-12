@@ -511,7 +511,7 @@ export function getElbowSchema(options = {}) {
                         properties: {
                             background: {
                                 type: 'string',
-                                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                                 description: 'Background colour override (deprecated - use segment.color instead)'
                             }
                         }

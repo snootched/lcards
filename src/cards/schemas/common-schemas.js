@@ -364,7 +364,7 @@ export const filterSchema = {
  */
 export const simpleColorSchema = {
     type: 'string',
-    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
     description: 'Colour value (hex, rgb, theme token, or CSS variable)',
     examples: ['#FF9900', 'transparent', 'theme:palette.moonlight', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
 };
@@ -377,7 +377,7 @@ export const stateColorSchema = {
         {
             type: 'string',
             title: 'Simple Colour',
-            pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+            pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
             description: 'Single colour value for all states (hex, rgb, theme token, or CSS variable)',
             examples: ['#FF9900', 'transparent', 'theme:color.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
         },
@@ -393,32 +393,32 @@ export const stateColorSchema = {
             properties: {
                 default: {
                     type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Default colour (fallback)',
                     examples: ['#888888', 'theme:color.ui.default']
                 },
                 active: {
                     type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is on/active',
                     examples: ['#FF9900', 'theme:color.ui.active']
                 },
                 inactive: {
                     type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is off/inactive',
                     examples: ['#444444', 'theme:color.ui.inactive']
                 },
                 unavailable: {
                     type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is unavailable',
                     examples: ['#666666', 'theme:color.ui.unavailable']
                 }
             },
             additionalProperties: {
                 type: 'string',
-                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                 description: 'Custom state colour (e.g., "heating", "cooling")'
             }
         }

@@ -627,12 +627,15 @@ export class ValueValidator {
     // - Named colors (basic validation)
 
     const colorPatterns = [
-      /^#([0-9A-Fa-f]{3}){1,2}$/,  // Hex
+      /^#([0-9A-Fa-f]{3}){1,2}$/,  // Hex short/full
       /^#([0-9A-Fa-f]{8})$/,         // Hex with alpha
       /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/,  // RGB
       /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)$/,  // RGBA
       /^var\(--[\w-]+.*\)$/,  // CSS variable
-      /^[a-z]+$/i  // Named color
+      /^[a-z]+$/i,  // Named color
+      /^match-light$/,  // LCARdS: match entity light colour
+      /^theme:/,  // LCARdS: theme token (e.g. theme:palette.moonlight)
+      /^(lighten|darken|alpha|mix)\(/i,  // LCARdS: computed color functions
     ];
 
     const isValid = colorPatterns.some(pattern => pattern.test(value));
@@ -645,7 +648,7 @@ export class ValueValidator {
         message: `Field "${meta.field}" has invalid color format`,
         value: value,
         severity: 'error',
-        suggestion: 'Use hex (#RRGGBB), rgb(), rgba(), or CSS variable format'
+        suggestion: 'Use hex (#RRGGBB), rgb(), rgba(), CSS variable, theme token (theme:*), or match-light'
       });
     }
 
