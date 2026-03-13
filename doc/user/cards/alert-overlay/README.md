@@ -2,10 +2,10 @@
 
 `custom:lcards-alert-overlay`
 
-The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and displays a full-screen backdrop and content card whenever the system enters an alert state. It is a **singleton infrastructure card** — add one instance to every dashboard that should show overlays, place it last in the view so it stacks above other cards, and leave it alone. It has no visual presence when the alert mode is `green_alert` or `default`.
+The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and displays a full-screen backdrop and content card whenever the system enters an alert state. It is a **singleton infrastructure card** — add one instance to every dashboard that should show overlays.  You can place it out of the way in the view - in normal dashboard mode it has no visual presence.  In edit mode it will show an info box so you can identify it in the editor.
 
 ```
-green_alert / default  →  overlay is hidden
+green_alert            →  overlay is hidden
 red_alert              →  full-screen red backdrop + content card
 yellow_alert           →  full-screen yellow backdrop + content card
 blue_alert             →  full-screen blue backdrop + content card
@@ -17,7 +17,9 @@ gray_alert             →  full-screen grey backdrop + content card
 
 ## Prerequisites
 
-The `input_select.lcards_alert_mode` helper entity must exist in Home Assistant. This is created automatically when the LCARdS helper pack is installed, or can be created manually with the options: `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_alert`, `default`.
+The `input_select.lcards_alert_mode` helper entity must exist in Home Assistant. This can be created automatically from the LCARdS Config Panel, or can be created manually with the options: `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_alert`.
+
+Optionally, create the `input_select.lcards_alert_transition_style` helper to enable screen transition effects when the alert mode changes. This can also be created from the Config Panel — see [Transition Effects](#transition-effects).
 
 ---
 
@@ -34,7 +36,7 @@ The built-in defaults display an LCARS shield symbol styled for the active condi
 
 ## Placement
 
-Add the card as the last item in a Lovelace view. The overlay renders in a portal attached to `document.body` rather than inside the card slot, so it always covers the full viewport regardless of where in the grid the card element sits.
+Add the card to the Lovelace view to use. When active, the card renders the overlay in a portal attached to `document.body` rather than inside the card slot, so it always covers the full viewport regardless of where in the grid the card element sits.
 
 ```yaml
 views:
@@ -54,8 +56,8 @@ views:
 | `type` | string | — | `custom:lcards-alert-overlay` (required) |
 | `dismiss_mode` | string | `dismiss` | What happens when the user taps the backdrop — see [Dismiss](#dismiss) |
 | `position` | string | `center` | Where to place the content card within the overlay — see [Position](#position) |
-| `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`) |
-| `height` | string | `auto` | Global content card height (CSS value) |
+| `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`). For the default alert button and other SVG component cards, width alone is sufficient — height is computed automatically from the SVG's aspect ratio. |
+| `height` | string | `auto` | Global content card height (CSS value). Only needed when the content card cannot determine its own height from width (e.g. custom cards that don't embed a component SVG). |
 | `backdrop` | object | — | Global backdrop styling — see [Backdrop](#backdrop) |
 | `conditions` | object | — | Per-condition overrides — see [Conditions](#conditions) |
 
@@ -84,7 +86,7 @@ backdrop:
 
 ## Position
 
-Where within the viewport the content card is placed.
+Where within the viewport the content card is placed - uses the standard 9-point positioning system:
 
 | Value | Description |
 |-------|-------------|
@@ -108,6 +110,35 @@ When the user taps the backdrop tint:
 |----------------|-----------|
 | `dismiss` | Hides the overlay on this dashboard only. Alert mode stays active — other dashboards still show overlays. The overlay will reappear if the mode changes again. |
 | `reset` | Hides the overlay **and** calls `input_select.select_option` to set `lcards_alert_mode` back to `green_alert`, clearing the alert system-wide. |
+
+---
+
+## Transition Effects
+
+When the alert mode changes, LCARdS can play a full-screen animation effect while the new alert colours are applied. This is controlled by the `input_select.lcards_alert_transition_style` helper.
+
+The helper is **optional**. If it does not exist, or if its value is `off`, the colour swap happens immediately with no visual effect.
+
+### Setup
+
+Create the helper from the **LCARdS Config Panel → Alert System section**, or add it manually in HA with the entity ID `input_select.lcards_alert_transition_style` and the options listed below.
+
+Once the helper exists you can change the active effect at any time — from the Config Panel, a dashboard dropdown, or an automation.
+
+### Available Effects
+
+| Value | Description |
+|-------|-------------|
+| `off` | No transition — colours swap instantly (default) |
+| `blur_fade` | The main view blurs and dims, colours swap, then sharpens back |
+| `fade_only` | The main view fades to near-black, colours swap, then fades back in |
+| `flash` | A full-screen accent-coloured flash fades in and out over the swap |
+| `color_bleed` | The hue rotates a full 360° and brightness dips while colours are applied |
+| `flicker` | The main view flickers at irregular opacity steps, swapping mid-sequence |
+| `static` | A canvas-based pixelated noise overlay (tinted to the alert accent) plays over the swap |
+| `wipe` | A translucent accent-coloured panel wipes across the screen and back |
+
+> **Note**: Transition effects apply globally to the entire page — they are not specific to any one dashboard or overlay instance. The effect plays on every alert mode change regardless of which dashboard triggered it.
 
 ---
 
@@ -138,8 +169,8 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 | `alert_button` | object | Patch merged onto the default alert button — override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
 | `backdrop` | object | Backdrop overrides merged on top of the global `backdrop` setting |
 | `position` | string | Position override for this condition |
-| `width` | string | Content card width override |
-| `height` | string | Content card height override |
+| `width` | string | Content card width override. SVG component cards (e.g. the default alert button) derive their height from this automatically. |
+| `height` | string | Content card height override, for custom cards that cannot self-size from width alone. |
 
 ---
 
@@ -396,3 +427,4 @@ window.lcards.setAlertMode('green_alert') // Clear alert
 - [Alert Mode System](../../core/themes/alert-modes.md)
 - [Button Card](../button/README.md)
 - [Templates](../../core/templates/README.md)
+- [LCARdS Config Panel](../../configuration/config-panel.md)
