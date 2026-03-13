@@ -19,6 +19,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
+import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 
 // Import editor component so getConfigElement() works (bundled together)
@@ -338,10 +339,46 @@ export class LCARdSAlertOverlay extends LitElement {
             applyHassToCard(el, this._hass, 'alert-overlay-mount');
         }
 
-        // Now configure — card is in the real DOM, singletons available
-        await applyCardConfig(el, cardConfig, 'alert-overlay');
+        // Now configure — card is in the real DOM, singletons available.
+        // Pre-evaluate any Jinja2 templates in text content fields using the
+        // overlay's own hass connection (more reliable than evaluating inside
+        // the newly-mounted child card whose websocket path may not be settled).
+        const resolvedConfig = await this._resolveTextTemplates(cardConfig);
+        await applyCardConfig(el, resolvedConfig, 'alert-overlay');
 
         this.requestUpdate();
+    }
+
+    /**
+     * Walk the text fields of a card config, evaluate any Jinja2 content
+     * strings using this overlay's hass, and return an updated config copy.
+     *
+     * @param {Object} cardConfig
+     * @returns {Promise<Object>}
+     */
+    async _resolveTextTemplates(cardConfig) {
+        if (!this._hass || !cardConfig?.text) return cardConfig;
+
+        const evaluator = new HATemplateEvaluator({ hass: this._hass });
+        const resolvedText = {};
+
+        for (const [fieldId, fieldCfg] of Object.entries(cardConfig.text)) {
+            const content = fieldCfg?.content;
+            if (typeof content === 'string' &&
+                (content.includes('{{') || content.includes('{%'))) {
+                try {
+                    resolvedText[fieldId] = { ...fieldCfg, content: await evaluator.evaluate(content) };
+                    lcardsLog.debug(`[LCARdSAlertOverlay] Resolved Jinja2 in '${fieldId}'`);
+                } catch (e) {
+                    lcardsLog.warn(`[LCARdSAlertOverlay] Jinja2 eval failed for '${fieldId}':`, e);
+                    resolvedText[fieldId] = fieldCfg;
+                }
+            } else {
+                resolvedText[fieldId] = fieldCfg;
+            }
+        }
+
+        return { ...cardConfig, text: resolvedText };
     }
 
     _unmountContentCard() {

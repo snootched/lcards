@@ -3242,9 +3242,9 @@ export class LCARdSButton extends LCARdSCard {
 
         // If we have a preset but haven't resolved styles yet, wait
         // This prevents rendering with default/incomplete values
-        if (this.config.preset && !this._buttonStyle) {
-            lcardsLog.debug(`[LCARdSButton] Delaying render - waiting for preset resolution: ${this.config.preset}`);
-            return html`<div class="lcards-card">Loading preset...</div>`;
+        if (!this._buttonStyle) {
+            lcardsLog.debug(`[LCARdSButton] Delaying render - _buttonStyle not yet resolved`);
+            return html`<div class="lcards-card"></div>`;
         }
 
         // Return a promise-based template for async rendering
