@@ -492,14 +492,20 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         const ab = condCfg.alert_button ?? {};
         const alertLabel  = ab.text?.alert_text?.content ?? '';
         const subTextVal  = ab.text?.sub_text?.content ?? '';
-        const isEntityMode = /^\{entity:[^:]+:state\}$/.test(subTextVal);
+        // Jinja2 entity template: {{states('sensor.foo')}}
+        const isEntityMode = /^\{\{states\('([^']+)'\)\}\}$/.test(subTextVal);
 
-        // Extract entity ID from token if in entity mode
-        const entityMatch = isEntityMode ? subTextVal.match(/^\{entity:([^:]+):state\}$/) : null;
+        // Extract entity ID from Jinja2 token if in entity mode
+        const entityMatch = isEntityMode ? subTextVal.match(/^\{\{states\('([^']+)'\)\}\}$/) : null;
         const entityId    = entityMatch ? entityMatch[1] : '';
 
         const subTextMode = isEntityMode ? 'entity' : 'static';
-        const hasOverrides = Object.keys(ab).length > 0;
+        // Recursively check for non-empty leaf values — avoids false positives from
+        // empty ancestor objects left behind after individual leaf removals.
+        const _hasLeaf = (o) => o && typeof o === 'object'
+            ? Object.values(o).some(_hasLeaf)
+            : (o !== undefined && o !== '' && o !== null);
+        const hasOverrides = _hasLeaf(ab);
 
         /** Default entity for the alert message helper */
         const DEFAULT_ALERT_ENTITY = 'input_text.lcards_alert_message';
@@ -542,7 +548,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         if (mode === 'entity') {
                             // Switch to entity mode — pre-fill with default helper entity if blank
                             const defaultEntity = entityId || DEFAULT_ALERT_ENTITY;
-                            this._setAlertButtonProp(condKey, 'text.sub_text.content', `{entity:${defaultEntity}:state}`);
+                            this._setAlertButtonProp(condKey, 'text.sub_text.content', `{{states('${defaultEntity}')}}`);
                         } else {
                             // Switch to static mode — clear the token
                             this._setAlertButtonProp(condKey, 'text.sub_text.content', '');
@@ -556,12 +562,12 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         .hass=${this.hass}
                         .label=${'Sub-text Entity'}
                         .helper=${'Entity whose state is shown as the sub-text message (e.g. input_text.lcards_alert_message)'}
-                        .selector=${{ entity: { domain: ['input_text'] } }}
+                        .selector=${{ entity: {} }}
                         .value=${entityId || DEFAULT_ALERT_ENTITY}
                         @value-changed=${(e) => {
                             const eid = e.detail.value;
                             if (eid) {
-                                this._setAlertButtonProp(condKey, 'text.sub_text.content', `{entity:${eid}:state}`);
+                                this._setAlertButtonProp(condKey, 'text.sub_text.content', `{{states('${eid}')}}`);
                             }
                         }}>
                     </ha-selector>

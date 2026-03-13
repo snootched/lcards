@@ -132,7 +132,7 @@ export const alertOverlaySchema = {
                     width:  { type: 'string', description: 'Per-condition content card width' },
                     height: { type: 'string', description: 'Per-condition content card height' },
                 },
-                additionalProperties: true,
+                additionalProperties: false,
             },
         },
     },

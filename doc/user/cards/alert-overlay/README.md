@@ -219,7 +219,7 @@ conditions:
     alert_button:
       text:
         sub_text:
-          content: '{entity:input_text.lcards_alert_message:state}'
+          content: "{{states('input_text.lcards_alert_message')}}"
 ```
 
 Set the message from an automation or script:
