@@ -112,7 +112,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                 header="Card Identification"
                 description="Unique identifier for rules engine targeting"
                 icon="mdi:tag"
-                ?expanded=${true}
+                ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
 

@@ -77,9 +77,9 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
                 </div>
             </div>
 
-            <!-- Card Metadata -->
+            <!-- Card Identification -->
             <lcards-form-section
-                header="Card Metadata"
+                header="Card Identification"
                 description="Identification for rules engine targeting"
                 icon="mdi:tag"
                 ?expanded=${false}
@@ -89,11 +89,6 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
                 ${FormField.renderField(this, 'id', {
                     label: 'Card ID',
                     helper: 'Unique identifier for rules engine targeting'
-                })}
-
-                ${FormField.renderField(this, 'name', {
-                    label: 'Name',
-                    helper: 'Display name for the chart (optional)'
                 })}
 
                 ${FormField.renderField(this, 'tags', {

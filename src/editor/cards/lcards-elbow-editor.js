@@ -462,7 +462,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     header: 'Elbow Configuration',
                     description: 'Choose elbow position and style',
                     icon: 'mdi:vector-polyline',
-                    expanded: true,
+                    expanded: false,
                     outlined: true,
                     children: [
                         {

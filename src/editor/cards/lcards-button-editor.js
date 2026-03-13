@@ -444,7 +444,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             modeSections: [
                 {
                     type: 'section',
-                    header: 'Configuration Mode',
+                    header: 'Button Configuration',
                     description: 'Choose between preset buttons, custom SVG, or interactive components',
                     icon: 'mdi:cog',
                     expanded: true,
@@ -534,13 +534,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         });
 
         // Add custom entity section with attribute selector
-        // Insert at position 1 (after info message, before mode sections)
-        baseConfig.splice(1, 0, {
+        // Insert at position 2 (after info message and configuration mode section)
+        baseConfig.splice(2, 0, {
             type: 'section',
             header: 'Entity Configuration',
             description: 'Entity to control and attributes',
             icon: 'mdi:home-automation',
-            expanded: true,
+            expanded: false,
             outlined: true,
             children: [
                 {
@@ -572,8 +572,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         // Add basic configuration section (ID and tags)
         baseConfig.push({
             type: 'section',
-            header: 'Basic Configuration',
-            description: 'Card identification and tagging',
+            header: 'Card Identification',
+            description: 'Identification for rules engine targeting',
             icon: 'mdi:tag',
             expanded: false,
             outlined: true,

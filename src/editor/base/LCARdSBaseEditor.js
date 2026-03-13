@@ -1044,10 +1044,10 @@ export class LCARdSBaseEditor extends LitElement {
                 { path: 'tags', label: 'Tags', helper: 'Select existing tags or type new ones for rule targeting' }
             ],
             showBasicSection = true,
-            basicSectionHeader = 'Basic Configuration',
-            basicSectionDescription = 'Core card settings',
+            basicSectionHeader = 'Card Identification',
+            basicSectionDescription = 'Identification for rules engine targeting',
             basicSectionIcon = 'mdi:cog',
-            basicSectionExpanded = true
+            basicSectionExpanded = false
         } = options;
 
         const config = [

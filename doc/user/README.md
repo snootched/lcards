@@ -25,6 +25,7 @@ Features and concepts shared across all cards.
 
 | Topic | What it covers |
 |-------|---------------|
+| [Common Card Properties](cards/common.md) | `id`, `tags`, `height`, `width`, `grid_options` — properties shared by every card |
 | [Colours](core/colours.md) | All accepted colour formats, state-based colour maps, resolution order |
 | [Actions](core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
 | [Text Fields](core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
