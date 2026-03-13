@@ -309,6 +309,13 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         const cardYaml   = hasContent ? configToYaml(condCfg.content) : '';
         const condKey    = cond.key;
 
+        // Determine whether any alert_button override leaf values exist so we can
+        // mutually hide the Content Card and Alert Button Overrides sections.
+        const _hasLeaf = (o) => o && typeof o === 'object'
+            ? Object.values(o).some(_hasLeaf)
+            : (o !== undefined && o !== '' && o !== null);
+        const hasAlertButtonOverrides = _hasLeaf(condCfg.alert_button ?? {});
+
         // Per-condition backdrop overrides
         const bd      = condCfg.backdrop ?? {};
         const bdBlur  = bd.blur    ?? '';
@@ -335,55 +342,73 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 ?outlined=${true}>
 
                 <!-- ── Content Card ── -->
-                <lcards-form-section
-                    header="Content Card"
-                    description="HA card rendered inside the overlay for this condition"
-                    icon="mdi:card-multiple-outline"
-                    ?expanded=${true}
-                    ?outlined=${true}>
+                <!-- Hidden when alert_button overrides are active and no custom card is set.
+                     In that case a compact mode-switch hint is shown instead. -->
+                ${(hasContent || !hasAlertButtonOverrides) ? html`
+                    <lcards-form-section
+                        header="Content Card"
+                        description="HA card rendered inside the overlay for this condition"
+                        icon="mdi:card-multiple-outline"
+                        ?expanded=${true}
+                        ?outlined=${true}>
 
-                    ${hasContent ? html`
-                        <div style="display:flex; align-items:center; gap:8px; padding:4px 0 8px;">
-                            <ha-icon icon="mdi:card-outline" style="color:var(--primary-color);"></ha-icon>
-                            <span style="font-weight:500;">${condCfg.content.type}</span>
-                        </div>
-                    ` : html`
-                        <lcards-message
-                            type="info"
-                            message="No custom card set — the built-in lcards-button default will be used for this condition.">
-                        </lcards-message>
-                    `}
-
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; padding-bottom:8px;">
-                        <ha-button @click=${() => this._openContentCardPicker(condKey)}>
-                            <ha-icon icon="mdi:cards-playing-outline" slot="start"></ha-icon>
-                            ${hasContent ? 'Change Card Type' : 'Select Card Type'}
-                        </ha-button>
                         ${hasContent ? html`
-                            <ha-button @click=${() => this._openContentCardEditor(condKey)}>
-                                <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
-                                Edit Card
-                            </ha-button>
-                            <ha-button @click=${() => this._removeConditionContent(condKey)}>
-                                <ha-icon icon="mdi:close" slot="start"></ha-icon>
-                                Remove
-                            </ha-button>
-                        ` : ''}
-                    </div>
+                            <div style="display:flex; align-items:center; gap:8px; padding:4px 0 8px;">
+                                <ha-icon icon="mdi:card-outline" style="color:var(--primary-color);"></ha-icon>
+                                <span style="font-weight:500;">${condCfg.content.type}</span>
+                            </div>
+                        ` : html`
+                            <lcards-message
+                                type="info"
+                                message="No custom card set — the built-in lcards-button default will be used for this condition.">
+                            </lcards-message>
+                        `}
 
-                    ${hasContent ? html`
-                        <lcards-message
-                            type="info"
-                            message="Edit the full card config as YAML below. Use 'Change Card Type' or 'Edit Card' buttons above for a guided editor.">
-                        </lcards-message>
-                        <ha-code-editor
-                            .hass=${this.hass}
-                            .value=${cardYaml}
-                            mode="yaml"
-                            @value-changed=${(e) => this._handleConditionYamlChange(condKey, e.detail.value)}>
-                        </ha-code-editor>
-                    ` : ''}
-                </lcards-form-section>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; padding-bottom:8px;">
+                            <ha-button @click=${() => this._openContentCardPicker(condKey)}>
+                                <ha-icon icon="mdi:cards-playing-outline" slot="start"></ha-icon>
+                                ${hasContent ? 'Change Card Type' : 'Select Card Type'}
+                            </ha-button>
+                            ${hasContent ? html`
+                                <ha-button @click=${() => this._openContentCardEditor(condKey)}>
+                                    <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
+                                    Edit Card
+                                </ha-button>
+                                <ha-button @click=${() => this._removeConditionContent(condKey)}>
+                                    <ha-icon icon="mdi:close" slot="start"></ha-icon>
+                                    Remove
+                                </ha-button>
+                            ` : ''}
+                        </div>
+
+                        ${hasContent ? html`
+                            <lcards-message
+                                type="info"
+                                message="Edit the full card config as YAML below. Use 'Change Card Type' or 'Edit Card' buttons above for a guided editor.">
+                            </lcards-message>
+                            <ha-code-editor
+                                .hass=${this.hass}
+                                .value=${cardYaml}
+                                mode="yaml"
+                                @value-changed=${(e) => this._handleConditionYamlChange(condKey, e.detail.value)}>
+                            </ha-code-editor>
+                        ` : ''}
+                    </lcards-form-section>
+                ` : html`
+                    <!-- Compact mode-switch hint shown when alert_button overrides are active -->
+                    <div style="display:flex; align-items:center; gap:8px; padding:4px 0 8px; color:var(--secondary-text-color); font-size:0.9em;">
+                        <ha-icon icon="mdi:pencil-box-outline" style="flex-shrink:0; color:var(--primary-color);"></ha-icon>
+                        <span style="flex:1;">Using default button with overrides (see below). Clear overrides to use a custom card, or:</span>
+                        <ha-button @click=${async () => {
+                            this._clearAlertButton(condKey);
+                            await this.updateComplete;
+                            this._openContentCardPicker(condKey);
+                        }}>
+                            <ha-icon icon="mdi:cards-playing-outline" slot="start"></ha-icon>
+                            Switch to Custom Card
+                        </ha-button>
+                    </div>
+                `}
 
                 <!-- ── Default Alert Button Overrides ── -->
                 ${!hasContent ? this._renderAlertButtonOverridesSection(condKey, condCfg) : ''}

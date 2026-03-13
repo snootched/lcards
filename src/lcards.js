@@ -323,7 +323,7 @@ window.customCards.push(...LCARdSCardClasses);
  * Set alert mode (console/testing API)
  * @param {string} mode - Alert mode name
  */
-window.lcards.setAlertMode = async (mode) => {
+window.lcards.setAlertMode = async (mode, opts = {}) => {
   if (!window.lcards?.core?.themeManager) {
     lcardsLog.warn('⚠️ [LCARdS] ThemeManager not initialized');
     return;
@@ -343,9 +343,14 @@ window.lcards.setAlertMode = async (mode) => {
     });
   }
 
+  // Resolve transition style: skip on init/programmatic calls, otherwise read the helper.
+  const transitionStyle = opts.skipTransition
+    ? 'off'
+    : (window.lcards.core.helperManager?.getHelperValue('alert_transition_style') ?? 'off');
+
   // Apply theme change immediately.
   const previousMode = window.lcards.core.themeManager.getAlertMode?.();
-  await window.lcards.core.themeManager.setAlertMode(mode);
+  await window.lcards.core.themeManager.setAlertMode(mode, { transitionStyle });
 
   // Sync the input_select helper if it exists.
   // This keeps the HA state in sync when called from the JS console or Config Panel,

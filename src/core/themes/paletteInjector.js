@@ -176,6 +176,7 @@ export function isPaletteInjected(rootElement = null) {
 // ============================================================================
 
 import { transformColorToAlertMode, ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+import { runTransitionEffect } from './alertTransitions.js';
 
 // Re-export ALERT_MODE_TRANSFORMS for external use
 export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
@@ -266,8 +267,9 @@ export function captureOriginalColors(root = null) {
  * @param {Element} [rootElement] - Target element (default: document.documentElement)
  * @returns {Promise<void>}
  */
-export async function setAlertMode(mode, hass, rootElement = null) {
+export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
   const root = rootElement || document.documentElement;
+  const { transitionStyle = 'off' } = opts;
 
   // Validate mode
   if (!ALERT_MODE_TRANSFORMS[mode]) {
@@ -275,58 +277,33 @@ export async function setAlertMode(mode, hass, rootElement = null) {
     mode = 'green_alert';
   }
 
+  // Locate the main HA view element that transitions will animate.
+  const mainView = document.querySelector('home-assistant')
+    ?.shadowRoot?.querySelector('home-assistant-main');
 
-  // Apply blur transition effect during mode switch
-  const mainView = document.querySelector('home-assistant')?.shadowRoot?.querySelector('home-assistant-main');
-  if (mainView) {
-    mainView.style.transition = 'filter 0.3s ease, opacity 0.3s ease';
-    mainView.style.filter = 'blur(8px)';
-    mainView.style.opacity = '0.6';
-  }
-
-  try {
-    // Handle green_alert (normal mode) - restore original theme
+  // Wrap all colour-variable work in a callback so each transition effect
+  // can call it at the moment the screen is most obscured.
+  const colorApplyFn = async () => {
     if (mode === 'green_alert') {
-      // Restore HA-LCARS theme variables (--lcars-*) by reloading theme
+      // Restore HA-LCARS theme variables (--lcars-*) by reloading the HA theme
       await reloadHATheme(hass);
-
-      // Capture original colors for future transformations
+      // Capture original colours for future transformations
       originalLcarsColors = captureOriginalColors(root);
-
       // Restore LCARdS fallback palette variables (--lcards-*)
       injectPalette(GREEN_ALERT_PALETTE, root);
-
-      lcardsLog.info('[PaletteInjector] ✅ Restored to normal mode');
     } else {
-      // Transform from ORIGINAL colors (prevents drift when switching modes)
-      // Colors are captured at theme init, so no need to reload here
+      // Transform from ORIGINAL colours (prevents drift when switching modes)
       await transformAndApplyAlertMode(mode, root, originalLcarsColors);
-
       // Transform LCARdS fallback variables (--lcards-*) from green_alert baseline
       injectTransformedPalette(mode, root);
-
-      lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
     }
-
-    // Wait for next animation frame to ensure styles are applied
+    // Wait one frame to ensure styles are applied before transition reveals them
     await new Promise(resolve => requestAnimationFrame(resolve));
+  };
 
-  } finally {
-    // Clear blur transition effect
-    if (mainView) {
-      // Trigger reflow to ensure transition animates back
-      void mainView.offsetHeight;
-      mainView.style.filter = '';
-      mainView.style.opacity = '';
+  await runTransitionEffect(transitionStyle, mainView, mode, colorApplyFn);
 
-      // Clean up transition after animation completes
-      setTimeout(() => {
-        if (mainView) {
-          mainView.style.transition = '';
-        }
-      }, 300);
-    }
-  }
+  lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
 }
 
 /**

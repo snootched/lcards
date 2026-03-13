@@ -601,7 +601,7 @@ export class ThemeManager extends BaseService {
    * @param {string} mode - Alert mode ('red_alert', 'blue_alert', etc.)
    * @returns {Promise<void>}
    */
-  async setAlertMode(mode) {
+  async setAlertMode(mode, opts = {}) {
     if (!ALERT_MODE_TRANSFORMS[mode]) {
       lcardsLog.warn(`[ThemeManager] Unknown alert mode: ${mode}`);
       return;
@@ -617,8 +617,8 @@ export class ThemeManager extends BaseService {
     // Load user-customized transform parameters from persistent HA helpers (before injection)
     loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
 
-    // Apply alert mode (injectAlertMode handles CSS variable updates and event dispatch)
-    await injectAlertMode(mode, hass);
+    // Apply alert mode — opts.transitionStyle selects the visual transition effect
+    await injectAlertMode(mode, hass, undefined, opts);
 
     // Update state
     this.currentAlertMode = mode;

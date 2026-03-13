@@ -192,6 +192,14 @@ export class LCARdSHelperManager extends BaseService {
     this.subscribeToHelper('alert_mode', (newMode, oldMode) => {
       lcardsLog.info(`[HelperManager] Alert mode changed to: ${newMode}`);
 
+      // Guard: if ThemeManager already applied this mode it means window.lcards.setAlertMode
+      // fired first and synced the helper itself — don't run the transition a second time.
+      const alreadyApplied = window.lcards?.core?.themeManager?.getAlertMode?.() === newMode;
+      if (alreadyApplied) {
+        lcardsLog.debug('[HelperManager] Alert mode already applied by ThemeManager — skipping duplicate call');
+        return;
+      }
+
       // Ensure HASS is available (critical for green_alert)
       if (this.hass && window.lcards?.core) {
         window.lcards.core.ingestHass(this.hass);
@@ -256,8 +264,9 @@ export class LCARdSHelperManager extends BaseService {
 
         // Apply the mode
         if (window.lcards?.setAlertMode) {
-          lcardsLog.info(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load`);
-          window.lcards.setAlertMode(currentMode).catch(error => {
+          lcardsLog.info(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
+          // Skip transition on initial load — there is nothing visible to transition from.
+          window.lcards.setAlertMode(currentMode, { skipTransition: true }).catch(error => {
             lcardsLog.error('[HelperManager] Failed to apply initial alert mode:', error);
           });
         } else {

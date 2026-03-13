@@ -82,6 +82,33 @@ export const HELPER_REGISTRY = {
     icon: mdi:message-alert`
   },
 
+  alert_transition_style: {
+    entity_id: 'input_select.lcards_alert_transition_style',
+    domain: 'input_select',
+    name: 'LCARdS Alert Transition Style',
+    description: 'Visual screen-transition effect played when switching alert modes. Defaults to off.',
+    icon: 'mdi:transition',
+    category: 'alert_system',
+    ws_create_params: {
+      options: ['off', 'blur_fade', 'fade_only', 'flash', 'color_bleed', 'flicker', 'static', 'wipe']
+    },
+    default_value: 'off',
+    yaml_config: `input_select:
+  lcards_alert_transition_style:
+    name: LCARdS Alert Transition Style
+    options:
+      - off
+      - blur_fade
+      - fade_only
+      - flash
+      - color_bleed
+      - flicker
+      - static
+      - wipe
+    initial: off
+    icon: mdi:transition`
+  },
+
   // ===== RED ALERT HSL =====
 
   alert_lab_red_hue: {
