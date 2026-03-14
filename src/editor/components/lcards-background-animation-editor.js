@@ -549,8 +549,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     const fields = [];
 
     // Size/spacing fields
-    if (preset === 'grid' || preset === 'grid-diagonal' || preset === 'grid-filled') {
-      fields.push({ key: 'line_spacing', label: preset === 'grid-filled' ? 'Cell Size (px)' : 'Line Spacing (px)', type: 'number', min: 10, max: 200, step: 5, default: 40 });
+    if (preset === 'grid' || preset === 'grid-diagonal') {
+      fields.push({ key: 'line_spacing', label: 'Line Spacing (px)', type: 'number', min: 10, max: 200, step: 5, default: 40 });
     }
     if (preset === 'grid-hexagonal') {
       fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 10, max: 100, step: 5, default: 30 });
@@ -558,11 +558,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
     // Line width fields
     if (preset !== 'grid-hexagonal') {
-      fields.push({ key: 'line_width', label: preset === 'grid-filled' ? 'Border Width' : 'Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 });
+      fields.push({ key: 'line_width', label: 'Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 });
     }
 
     // Pattern selector
-    if (preset === 'grid' || preset === 'grid-filled') {
+    if (preset === 'grid') {
       fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' });
     }
 
@@ -844,8 +844,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
     }
 
-    if (preset === 'grid-filled') {
-      colorPaths.push({ path: 'fill_color', label: 'Fill Colour', helper: 'Cell background fill colour' });
+    if (preset === 'grid' || preset === 'grid-diagonal' || preset === 'grid-hexagonal') {
+      colorPaths.push({ path: 'fill_color', label: 'Fill Colour', helper: 'Cell/area background fill (leave empty for transparent)' });
     }
 
     return html`
@@ -1171,7 +1171,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'grid': 'mdi:grid',
       'grid-diagonal': 'mdi:grid-large',
       'grid-hexagonal': 'mdi:hexagon-multiple',
-      'grid-filled': 'mdi:grid',
       'starfield': 'mdi:star-circle',
       'nebula': 'mdi:cloud',
       'cascade': 'mdi:format-columns',
@@ -1210,6 +1209,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'major_col_interval', label: 'Major Col Interval (0=off)', type: 'number', min: 0, max: 20, step: 1, default: 0 },
           { key: 'line_width_major', label: 'Major Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 },
           { key: 'color_major', label: 'Major Line Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as colour' },
+          { key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Cell background fill (leave empty for transparent)' },
           { key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' },
           ...commonFields.scrolling,
           ...commonFields.styling
@@ -1219,6 +1219,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         return [
           { key: 'line_spacing', label: 'Line Spacing (px)', type: 'number', min: 10, max: 200, step: 5, default: 60 },
           { key: 'line_width', label: 'Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 },
+          { key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Cell background fill (leave empty for transparent)' },
           ...commonFields.scrolling,
           ...commonFields.styling
         ];
@@ -1231,16 +1232,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           { key: 'major_row_interval', label: 'Major Row Interval (0=off)', type: 'number', min: 0, max: 10, step: 1, default: 0 },
           { key: 'major_col_interval', label: 'Major Col Interval (0=off)', type: 'number', min: 0, max: 10, step: 1, default: 0 },
           { key: 'color_major', label: 'Major Hex Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty to use same as colour' },
-          ...commonFields.scrolling,
-          ...commonFields.styling
-        ];
-
-      case 'grid-filled':
-        return [
-          { key: 'line_spacing', label: 'Cell Size (px)', type: 'number', min: 10, max: 200, step: 5, default: 50 },
-          { key: 'line_width', label: 'Border Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 },
-          { key: 'fill_color', label: 'Fill Colour', type: 'color', default: 'rgba(255, 153, 102, 0.1)', fullWidth: true },
-          { key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' },
+          { key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Cell background fill (leave empty for transparent)' },
           ...commonFields.scrolling,
           ...commonFields.styling
         ];
@@ -1473,7 +1465,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       case 'grid':
       case 'grid-diagonal':
       case 'grid-hexagonal':
-      case 'grid-filled':
         return {}; // All values come from theme tokens
 
       case 'starfield':

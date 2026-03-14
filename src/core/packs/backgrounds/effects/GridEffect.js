@@ -232,6 +232,16 @@ export class GridEffect extends BaseEffect {
     const tilesX = Math.ceil(canvasWidth / patternWidth) + 3;
     const tilesY = Math.ceil(canvasHeight / patternHeight) + 3;
 
+    // For diagonal and hexagonal patterns, draw fill as a single full-canvas rect
+    // before the tile loop to avoid sub-pixel seams between tiles.
+    // Orthogonal grids handle fill per-tile (tile edges align with grid lines, no seams).
+    if (this.fillColor && this.fillColor !== 'transparent' &&
+        (this.pattern === 'diagonal' || this.pattern === 'hexagonal')) {
+      ctx.fillStyle = this.fillColor;
+      // Offset by inverse of scroll translate to fill the whole viewport
+      ctx.fillRect(-this.scrollX, -this.scrollY, canvasWidth, canvasHeight);
+    }
+
     // Draw tiled pattern
     for (let ty = 0; ty < tilesY; ty++) {
       for (let tx = 0; tx < tilesX; tx++) {
@@ -348,11 +358,7 @@ export class GridEffect extends BaseEffect {
   _drawDiagonalPattern(ctx, offsetX, offsetY, patternWidth, patternHeight) {
     const spacing = Math.max(this._colWidth, this._rowHeight);
 
-    // Draw fill first if specified
-    if (this.fillColor && this.fillColor !== 'transparent') {
-      ctx.fillStyle = this.fillColor;
-      ctx.fillRect(offsetX, offsetY, patternWidth, patternHeight);
-    }
+    // Fill is handled at canvas level in draw() to avoid tile seams
 
     ctx.strokeStyle = this.color;
     ctx.lineWidth = this.lineWidthMinor;
@@ -384,11 +390,7 @@ export class GridEffect extends BaseEffect {
     const hexRadius = this.hexRadius;
     const hexHeight = Math.sqrt(3) * hexRadius;
 
-    // Draw fill background if specified
-    if (this.fillColor && this.fillColor !== 'transparent') {
-      ctx.fillStyle = this.fillColor;
-      ctx.fillRect(offsetX, offsetY, patternWidth, patternHeight);
-    }
+    // Fill is handled at canvas level in draw() to avoid tile seams
 
     // Calculate which tile we're in (for major/minor determination)
     const tileCol = Math.floor(offsetX / patternWidth);

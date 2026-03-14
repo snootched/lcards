@@ -246,17 +246,16 @@ export const BACKGROUND_PRESETS = {
 ### Preset Naming Conventions
 
 - **Base preset**: `grid`, `starfield`, `nebula`
-- **Variants**: `grid-diagonal`, `grid-hexagonal`, `grid-filled`
+- **Variants**: `grid-diagonal`, `grid-hexagonal`
 - **No zoom presets**: Zoom is applied via wrapper, not dedicated presets
 
 ### Current Presets
 
 | Preset | Effect(s) | Description |
 |--------|-----------|-------------|
-| `grid` | GridEffect | Unified grid with spacing/cell-based sizing and major/minor divisions |
-| `grid-diagonal` | GridEffect | 45° diagonal hatch pattern |
-| `grid-hexagonal` | GridEffect | Honeycomb hexagonal tessellation |
-| `grid-filled` | GridEffect | Grid with cell background fills |
+| `grid` | GridEffect | Unified grid with spacing/cell-based sizing, major/minor divisions, optional cell fill |
+| `grid-diagonal` | GridEffect | 45° diagonal hatch pattern with optional background fill |
+| `grid-hexagonal` | GridEffect | Honeycomb hexagonal tessellation with optional cell fill |
 
 ---
 

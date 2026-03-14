@@ -161,6 +161,7 @@ config:
   # Pattern
   pattern: "both"           # "both", "horizontal", "vertical"
   show_border_lines: true   # Draw lines at canvas edges
+  fill_color: ""            # Optional cell background fill (leave empty for transparent)
 ```
 
 **Modes:**
@@ -194,6 +195,17 @@ config:
     line_width: 1
     line_width_major: 2
 ```
+
+**Example - Filled Grid:**
+
+```yaml
+- preset: grid
+  config:
+    line_spacing: 60
+    color: "rgba(102, 204, 255, 0.5)"
+    fill_color: "rgba(102, 204, 255, 0.08)"
+    line_width: 2
+```
 </details>
 
 ---
@@ -215,6 +227,7 @@ config:
   scroll_speed_x: 30        # Horizontal scroll speed
   scroll_speed_y: 0         # Vertical scroll speed
   show_border_lines: true
+  fill_color: ""            # Optional background fill (leave empty for transparent)
 ```
 
 **Example:**
@@ -226,6 +239,16 @@ config:
     line_width: 2
     color: "rgba(255, 153, 102, 0.5)"
     scroll_speed_x: 40
+```
+
+**Example - Diagonal with fill:**
+
+```yaml
+- preset: grid-diagonal
+  config:
+    line_spacing: 60
+    color: "rgba(255, 153, 102, 0.4)"
+    fill_color: "rgba(255, 153, 102, 0.06)"
 ```
 </details>
 
@@ -252,6 +275,7 @@ config:
   scroll_speed_x: 10        # Horizontal scroll speed
   scroll_speed_y: 10        # Vertical scroll speed
   show_border_lines: true
+  fill_color: ""            # Optional cell background fill (leave empty for transparent)
 ```
 
 **Major/Minor Logic:**
@@ -283,41 +307,18 @@ Major hexagons are determined by global tile position (row, column) modulo the i
     line_width_major: 3
 ```
 
-</details>
-
----
-
-### `grid-filled`
-
-Grid with cell background fills in addition to line strokes.
-
-<details>
-
-**Configuration:**
+**Example - Filled Honeycomb:**
 
 ```yaml
-preset: grid-filled
-config:
-  line_spacing: 50          # Cell size
-  line_width: 1             # Border line width
-  color: "rgba(255, 153, 102, 0.4)"      # Line color
-  fill_color: "rgba(255, 153, 102, 0.1)" # Cell background fill
-  scroll_speed_x: 20
-  scroll_speed_y: 20
-  pattern: "both"
-  show_border_lines: true
-```
-
-**Example:**
-
-```yaml
-- preset: grid-filled
+- preset: grid-hexagonal
   config:
-    line_spacing: 60
-    color: "rgba(102, 204, 255, 0.5)"
-    fill_color: "rgba(102, 204, 255, 0.08)"
-    line_width: 2
+    hex_radius: 40
+    color: "rgba(102, 204, 255, 0.4)"
+    fill_color: "rgba(102, 204, 255, 0.07)"
+    major_row_interval: 0
+    major_col_interval: 0
 ```
+
 </details>
 
 ---
@@ -960,8 +961,8 @@ background_animation:
 
 ```yaml
 background_animation:
-  # Base layer: filled grid
-  - preset: grid-filled
+  # Base layer: grid with fill
+  - preset: grid
     config:
       line_spacing: 80
       color: "rgba(255, 153, 102, 0.3)"

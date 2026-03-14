@@ -65,6 +65,7 @@ export const BACKGROUND_PRESETS = {
         scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
         pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
+        fillColor: config.fill_color ?? 'transparent',
 
         opacity: config.opacity ?? 1
       };
@@ -98,6 +99,7 @@ export const BACKGROUND_PRESETS = {
         scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
         scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
         pattern: 'diagonal',
+        fillColor: config.fill_color ?? 'transparent',
         opacity: config.opacity ?? 1
       };
 
@@ -134,40 +136,7 @@ export const BACKGROUND_PRESETS = {
         scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20),
         scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
         pattern: 'hexagonal',
-        opacity: config.opacity ?? 1
-      };
-
-      return [new GridEffect(gridConfig)];
-    }
-  },
-
-  /**
-   * Grid with filled cells
-   */
-  'grid-filled': {
-    name: 'Filled Grid',
-    description: 'Grid with coloured cell backgrounds',
-
-    createEffects(config, cardInstance = null) {
-      lcardsLog.debug('[Preset:grid-filled] Creating filled grid effect');
-
-      // Helper function to resolve theme token or use fallback
-      const resolveToken = (tokenPath, fallback) => {
-        if (cardInstance && cardInstance.getThemeToken) {
-          return cardInstance.getThemeToken(tokenPath, fallback);
-        }
-        return fallback;
-      };
-
-      const gridConfig = {
-        lineSpacing: config.line_spacing ?? resolveToken('components.backgroundAnimation.grid.spacing.filled', 50),
-        lineWidthMinor: config.line_width ?? resolveToken('components.backgroundAnimation.grid.line.widthMajor', 2),
-        color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.4)'),
-        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.grid.fill.color', 'rgba(255, 153, 102, 0.05)'),
-        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedFilled', 25),
-        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedFilled', 25),
-        pattern: config.pattern ?? 'both',
-        showBorderLines: config.show_border_lines ?? true,
+        fillColor: config.fill_color ?? 'transparent',
         opacity: config.opacity ?? 1
       };
 
