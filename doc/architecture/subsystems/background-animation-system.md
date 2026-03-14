@@ -438,9 +438,28 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 | Threshold | Default | Behaviour |
 |-----------|---------|----------|
 | `reduceEffects` | 24 fps | `Canvas2DRenderer` skips every other render frame — halves draw work while keeping the RAF loop alive |
-| `disable3D` | 12 fps | `Canvas2DRenderer.stop()` is called after **3 consecutive** checks below this level — animation stops entirely until page reload |
+| `disable3D` | 12 fps | `Canvas2DRenderer.stop()` is called after **3 consecutive** checks below this level — recovery probe is scheduled automatically (see below) |
 
 Note: these thresholds measure **device-level FPS** (the PM's own RAF loop), not the per-card capped output rate configured via `fps:`. A card capped at 30fps on a 60fps device will show 60fps in the PM.
+
+### Recovery Mechanism
+
+When `shouldDisable3D` triggers, the animation does not stop permanently. A recovery probe is scheduled automatically using exponential backoff:
+
+| Attempt | Delay before probe |
+|---------|--------------------|
+| 1st kill | 5 min |
+| 2nd kill | 10 min |
+| 3rd kill | 20 min |
+| 4th+ kill | 30 min (cap) |
+
+When the probe fires:
+- If the tab is hidden or the card is off-screen, the probe is deferred (without consuming the backoff slot) and rescheduled at the same delay.
+- Otherwise, `start()` is called — the PM's 5-second settle window resets so stale low-FPS readings are discarded, and the device gets a fresh evaluation.
+- If FPS recovers: the renderer runs normally and the backoff counter resets on the next `clear()` / card destruction.
+- If FPS is still too low: PM fires `shouldDisable3D` again → another stop + the next (longer) backoff delay.
+
+This means a device that temporarily spikes under load (e.g. a heavy page load on an Android tablet) will automatically resume animations 5 minutes later, while a device that is genuinely overloaded will progressively back off to a 30-minute retry cadence rather than hammering start/stop.
 
 ### Relationship to the per-card `fps:` cap
 
@@ -465,6 +484,16 @@ window.lcards.core.performanceMonitor.setThresholds({ reduceEffects: 50, disable
 
 // Number of active Canvas2DRenderer subscribers
 window.lcards.core.performanceMonitor._refCount
+
+// Check / inspect recovery state on a renderer instance
+renderer._disabledByPerformance  // true = currently stopped by PM, recovery pending
+renderer._recoveryAttempts        // how many times PM has killed this renderer
+renderer._recoveryTimer           // non-null = probe is scheduled
+
+// Force an immediate recovery restart (cancels any pending timer)
+if (renderer._recoveryTimer) { clearTimeout(renderer._recoveryTimer); renderer._recoveryTimer = null; }
+renderer._disabledByPerformance = false;
+renderer.start();
 
 // Enable verbose animation logging to trace PM events
 window.lcards.setGlobalLogLevel('debug')

@@ -40,6 +40,11 @@ export class Canvas2DRenderer {
     this._isSuspended = false;         // true when externally suspended (e.g. IntersectionObserver)
     this._pmPaused = false;            // true when we have decremented the PerformanceMonitor ref count
 
+    // Performance recovery state
+    this._disabledByPerformance = false; // true when stopped by PerformanceMonitor (not deliberately)
+    this._recoveryAttempts = 0;          // backoff counter — increments on each kill, resets on clean start
+    this._recoveryTimer = null;          // setTimeout handle for the next recovery probe
+
     // FPS cap: compute the minimum interval between rendered frames.
     // targetFps=0 disables the cap (render at the native browser rate).
     this._targetFps = options.targetFps ?? 30;
@@ -91,6 +96,14 @@ export class Canvas2DRenderer {
     lcardsLog.debug('[Canvas2DRenderer] Clearing all effects');
     this.effects.forEach(effect => effect.destroy());
     this.effects = [];
+    // Cancel any pending performance-recovery probe so a destroyed renderer
+    // cannot be accidentally restarted by its own timer.
+    if (this._recoveryTimer) {
+      clearTimeout(this._recoveryTimer);
+      this._recoveryTimer = null;
+    }
+    this._disabledByPerformance = false;
+    this._recoveryAttempts = 0;
     this.stop();
   }
 
@@ -98,6 +111,12 @@ export class Canvas2DRenderer {
    * Start animation loop
    */
   start() {
+    // Clear the performance-stop flag on any explicit start() so that a
+    // deliberate restart is treated as a clean start.
+    // _recoveryAttempts is intentionally NOT reset here — it persists across
+    // recovery probes so the exponential backoff grows correctly.
+    this._disabledByPerformance = false;
+
     if (this._isRunning) {
       lcardsLog.warn('[Canvas2DRenderer] Already running, ignoring start()');
       return;
@@ -182,6 +201,17 @@ export class Canvas2DRenderer {
     }
     this._pausedForVisibility = false;
 
+    // If this is a deliberate stop (not triggered by the PerformanceMonitor),
+    // cancel any pending recovery probe and reset the backoff counter so the
+    // renderer starts fresh if it is ever restarted.
+    if (!this._disabledByPerformance) {
+      if (this._recoveryTimer) {
+        clearTimeout(this._recoveryTimer);
+        this._recoveryTimer = null;
+      }
+      this._recoveryAttempts = 0;
+    }
+
     lcardsLog.info('[Canvas2DRenderer] Animation stopped');
   }
 
@@ -201,10 +231,48 @@ export class Canvas2DRenderer {
 
     if (shouldDisable3D && this._isRunning) {
       lcardsLog.warn(`[Canvas2DRenderer] FPS too low (${fps.toFixed(1)}fps), pausing animation`);
-      this.stop();
+      this._disabledByPerformance = true;
+      this._recoveryAttempts++;
+      this.stop(); // stop() skips recovery cleanup because _disabledByPerformance is true
+      this._scheduleRecovery();
     } else if (shouldReduceEffects) {
       lcardsLog.debug(`[Canvas2DRenderer] Reduced quality mode (${fps.toFixed(1)}fps)`);
     }
+  }
+
+  /**
+   * Schedule a performance-recovery probe after an exponential backoff delay.
+   * On success the renderer restarts with a fresh PM settle window; if FPS is
+   * still too low the PM will fire shouldDisable3D again and another probe is
+   * scheduled (with a longer backoff).
+   *
+   * Backoff schedule: 5 min → 10 min → 20 min, capped at 30 min.
+   * @private
+   */
+  _scheduleRecovery() {
+    if (this._recoveryTimer) return; // already scheduled
+
+    const delayMin = Math.min(5 * Math.pow(2, this._recoveryAttempts - 1), 30);
+    const delayMs = delayMin * 60_000;
+
+    lcardsLog.info(`[Canvas2DRenderer] Performance recovery probe in ${delayMin}min (attempt ${this._recoveryAttempts})`);
+
+    this._recoveryTimer = setTimeout(() => {
+      this._recoveryTimer = null;
+
+      if (document.hidden || this._isSuspended) {
+        // Tab is hidden or card is off-screen — defer without consuming the
+        // backoff budget so the full delay is applied next time.
+        lcardsLog.debug('[Canvas2DRenderer] Recovery deferred — tab hidden or card off-screen');
+        this._recoveryAttempts = Math.max(1, this._recoveryAttempts - 1);
+        this._scheduleRecovery();
+        return;
+      }
+
+      lcardsLog.info(`[Canvas2DRenderer] Attempting performance recovery (attempt ${this._recoveryAttempts})`);
+      this._disabledByPerformance = false; // allow stop() to do full cleanup if needed
+      this.start(); // PM settle window resets — fresh FPS evaluation after 5s
+    }, delayMs);
   }
 
   /**
