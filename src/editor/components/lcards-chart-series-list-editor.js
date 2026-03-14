@@ -399,6 +399,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               .selector=${{
                 select: {
                   options: [
+                    { value: '', label: 'Auto (inherit chart type)' },
                     { value: 'line', label: 'Line' },
                     { value: 'area', label: 'Area' },
                     { value: 'bar', label: 'Bar' },
@@ -406,7 +407,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
                   ]
                 }
               }}
-              .value=${item.type || 'line'}
+              .value=${item.type || ''}
               .label=${'Type'}
               @value-changed=${(e) => this._updateSeriesField(index, 'type', e.detail.value)}>
             </ha-selector>
@@ -621,19 +622,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       }
     });
 
-    // Clean up any transient series_N datasources that shouldn't be in config
-    if (this._seriesItems && Array.isArray(this._seriesItems)) {
-      Object.keys(newConfig.data_sources).forEach(dsName => {
-        if (dsName.match(/^series_\d+$/) && !this._seriesItems.some(item => {
-          const sourceName = item.useExistingDataSource ? item.existingDataSource : `series_${this._seriesItems.indexOf(item) + 1}`;
-          return sourceName === dsName;
-        })) {
-          lcardsLog.debug('[ChartSeriesListEditor] Removing orphaned series DataSource:', dsName);
-          delete newConfig.data_sources[dsName];
-        }
-      });
-    }
-
     // Get global DataSource names to avoid conflicts
     const globalDataSourcesMap = window.lcards?.core?.dataSourceManager?.sources;
     const globalNames = new Set();
@@ -691,7 +679,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
             attribute: 'state',
             history: { preload: true, hours: 1 },
             name: `Series ${index + 1}`,
-            type: 'line',
             yaxis: 0
           };
           newConfig.sources.push(sourceName);
@@ -715,12 +702,18 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         // Don't modify global DataSources - only card-local
         if (newConfig.data_sources[sourceName]) {
           // Update card-local DataSource with chart-specific options
-          newConfig.data_sources[sourceName] = {
+          const updatedDs = {
             ...newConfig.data_sources[sourceName],
             name: item.name || newConfig.data_sources[sourceName].name || `Series ${index + 1}`,
-            type: item.type || newConfig.data_sources[sourceName].type || 'line',
             yaxis: item.yaxis || 0
           };
+          // item.type === '' means "Auto" — explicitly remove any stored type
+          if (item.type) {
+            updatedDs.type = item.type;
+          } else {
+            delete updatedDs.type;
+          }
+          newConfig.data_sources[sourceName] = updatedDs;
         }
         // If it's a global DataSource, just reference it (don't create card-local copy)
       } else {
@@ -748,7 +741,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
             hours: Math.round((item.window_seconds || 3600) / 3600)
           },
           name: item.name || `Series ${index + 1}`,
-          type: item.type || 'line',
+          ...(item.type ? { type: item.type } : {}),
           yaxis: item.yaxis || 0
         };
       }

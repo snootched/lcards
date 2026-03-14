@@ -443,7 +443,7 @@ export function getChartSchema(options = {}) {
                                 }
                             },
 
-                            data_labels: simpleColorSchema
+                            data_labels: colorArraySchema
                         }
                     },
 
@@ -1019,7 +1019,7 @@ export function getChartSchema(options = {}) {
                                 properties: {
                                     show: {
                                         type: 'boolean',
-                                        default: true,
+                                        default: false,
                                         description: 'Show/hide x-axis border',
                                         'x-ui-hints': {
                                             label: 'Show Border',
@@ -1036,7 +1036,7 @@ export function getChartSchema(options = {}) {
                                 properties: {
                                     show: {
                                         type: 'boolean',
-                                        default: true,
+                                        default: false,
                                         description: 'Show/hide x-axis tick marks',
                                         'x-ui-hints': {
                                             label: 'Show Ticks',
@@ -1087,7 +1087,7 @@ export function getChartSchema(options = {}) {
                                 properties: {
                                     show: {
                                         type: 'boolean',
-                                        default: true,
+                                        default: false,
                                         description: 'Show/hide y-axis border',
                                         'x-ui-hints': {
                                             label: 'Show Border',
@@ -1104,13 +1104,30 @@ export function getChartSchema(options = {}) {
                                 properties: {
                                     show: {
                                         type: 'boolean',
-                                        default: true,
+                                        default: false,
                                         description: 'Show/hide y-axis tick marks',
                                         'x-ui-hints': {
                                             label: 'Show Ticks',
                                             selector: {
                                                 boolean: {}
                                             }
+                                        }
+                                    }
+                                }
+                            },
+                            decimals: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 10,
+                                description: 'Round displayed values to N decimal places (axis labels, tooltips, and data labels)',
+                                'x-ui-hints': {
+                                    label: 'Decimal Places',
+                                    helper: 'Round values to N decimal places. Leave unset for full precision.',
+                                    selector: {
+                                        number: {
+                                            min: 0,
+                                            max: 10,
+                                            step: 1
                                         }
                                     }
                                 }

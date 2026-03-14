@@ -2,73 +2,54 @@
  * LCARdS Chart Card
  *
  * Data visualization using ApexCharts library (already bundled).
- * Ported from ApexChartsOverlay to standalone LCARdSCard.
+ * Supports real-time and historical data via the unified DataSource + ProcessorManager pipeline.
  *
  * Features:
  * - Real-time data updates via DataSourceManager
- * - Multiple chart types (line, area, bar, pie, etc.)
- * - Theme token integration
- * - Rules-based dynamic styling
- * - Time-series support
- * - Chart templates support
- * - DataSource buffer selection (main, transformations, aggregations)
+ * - Multiple chart types (line, area, bar, column, pie, donut, scatter, radar, etc.)
+ * - Theme token integration via resolveThemeTokensRecursive
+ * - Rules-engine dynamic styling
+ * - Per-series processor buffer selection (main buffer or any processor output)
+ * - Full ApexCharts style control via nested style config
  *
  * @example Basic Usage
  * ```yaml
  * type: custom:lcards-chart
- * source: sensor.temperature
  * chart_type: line
- * ```
- *
- * @example With Theme Tokens
- * ```yaml
- * type: custom:lcards-chart
- * source: sensor.temperature
- * chart_type: area
- * style:
- *   colors: [colors.accent.primary, colors.accent.secondary]
- *   curve: smooth
- * ```
- *
- * @example Multi-Series
- * ```yaml
- * type: custom:lcards-chart
  * sources:
- *   - sensor.temperature
- *   - sensor.humidity
- * chart_type: line
- * series_names: [Temperature, Humidity]
- * ```
- *
- * @example Buffer Selection (Transformations/Aggregations)
- * ```yaml
- * type: custom:lcards-chart
+ *   - my_temp_sensor
  * data_sources:
- *   temp_sensor:
- *     entity_id: sensor.temperature
- *     aggregations:
- *       - type: rolling_statistics_series
- *         key: hourly_stats
- *         stats: [min, max, avg]
- *         window: 1h
- *         max_points: 24
- * sources:
- *   - datasource: temp_sensor
- *     buffer: main
- *   - datasource: temp_sensor
- *     buffer: aggregation.hourly_stats
- * chart_type: line
- * series_names: [Raw Data, Hourly Stats]
+ *   my_temp_sensor:
+ *     entity: sensor.temperature
+ *     history:
+ *       preload: true
+ *       hours: 24
  * ```
  *
- * Buffer selector format:
- * - 'main' or omitted: Main RollingBuffer (historical sensor data, default)
- * - 'aggregation.key': Time-series aggregation (rolling_statistics_series)
- * - 'transformation.key': Latest transformation value (single point, not ideal for charts)
- * - 'key': Auto-detect (checks aggregations first, then transformations)
+ * @example Multi-Series with Processor Buffer
+ * ```yaml
+ * type: custom:lcards-chart
+ * chart_type: line
+ * sources:
+ *   - temp_ds
+ *   - datasource: temp_ds
+ *     buffer: smoothed
+ * data_sources:
+ *   temp_ds:
+ *     entity: sensor.temperature
+ *     history:
+ *       preload: true
+ *       hours: 24
+ *     processing:
+ *       smoothed:
+ *         type: smooth
+ *         method: moving_average
+ *         window: 5
+ * ```
  *
- * Note: For time-series charting, use 'rolling_statistics_series' aggregation type.
- * Standard transformations provide only latest values, not historical data.
+ * Buffer selector format (in sources array objects):
+ * - Omit or 'main': Main RollingBuffer (raw historical data)
+ * - 'processorKey': Output buffer from a processor defined in processing.*
  */
 
 import { html, css } from 'lit';
@@ -227,20 +208,15 @@ export class LCARdSChart extends LCARdSCard {
     super.updated(changedProperties);
 
     // Only initialize once, after data is ready, when not in preview mode
-    if (this._chartInitialized || this._isPreviewMode || !this._chartData.length) {
+    if (this._chartInitialized || this._isPreviewMode) {
       return;
     }
 
-    // For multi-series: wait for ALL series to have data before initializing
-    const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-    const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-    const expectedSeriesCount = sources.length;
-
-    // Count how many series have data
-    const seriesWithData = this._chartData.filter(data => data && data.length > 0).length;
-
-    if (seriesWithData < expectedSeriesCount) {
-      return; // Wait for all series to have data
+    // Wait until at least one series has data before initializing
+    const hasAnyData = Array.isArray(this._chartData) &&
+      this._chartData.some(d => Array.isArray(d) && d.length > 0);
+    if (!hasAnyData) {
+      return;
     }
 
     // Get the container and check if it has dimensions
@@ -293,188 +269,33 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
-   * Cleanup when card is removed from DOM
-   * @protected
-   */
-  disconnectedCallback() {
-    // Cleanup datasource tracking
-    if (this._singletons?.dataSourceManager && this._registeredDataSources) {
-      this._registeredDataSources.forEach(sourceName => {
-        this._singletons.dataSourceManager.removeCardFromSource(
-          sourceName,
-          this._cardGuid
-        );
-      });
-      this._registeredDataSources.clear();
-    }
-
-    // Unsubscribe from data sources
-    if (this._dataSubscriptions) {
-      this._dataSubscriptions.forEach(unsubscribe => {
-        try {
-          unsubscribe();
-        } catch (error) {
-          lcardsLog.warn('[LCARdSChart] Error unsubscribing:', error);
-        }
-      });
-      this._dataSubscriptions = [];
-    }
-
-    // Destroy chart
-    if (this._chart) {
-      try {
-        this._chart.destroy();
-      } catch (error) {
-        lcardsLog.warn('[LCARdSChart] Error destroying chart:', error);
-      }
-      this._chart = null;
-    }
-
-    // Call parent cleanup
-    super.disconnectedCallback();
-  }
-
-  /**
-   * Extract data from the selected buffer
+   * Extract data from the selected buffer.
+   * Supports main RollingBuffer or any processor output buffer by key.
+   *
    * @private
-   * @param {Object} data - DataSource emission object {buffer, transformations, aggregations, ...}
+   * @param {Object} data - DataSource emission object with {buffer: RollingBuffer, ...}
    * @param {Object} dataSourceRef - Reference to the actual DataSource instance
-   * @param {string|null} bufferSelector - Buffer path (e.g., 'main', 'transformation.moving_avg', 'aggregation.hourly_stats')
-   * @returns {Array} Array of {t, v} data points for ApexCharts
+   * @param {string|null} bufferSelector - 'main' (or falsy) for raw history, or a processor key
+   * @returns {Array} Array of {t, v} data points
    */
   _getBufferData(data, dataSourceRef, bufferSelector) {
-    // Default to main buffer for backward compatibility
+    // Main (raw historical) buffer
     if (!bufferSelector || bufferSelector === 'main') {
       return data.buffer.getAll();
     }
 
-    // Parse buffer selector (format: 'type.key' or 'key')
-    const parts = bufferSelector.split('.');
+    // Processor buffer: use the last segment so 'type.key' notation still resolves the key
+    const key = bufferSelector.split('.').pop();
 
-    if (parts.length === 1) {
-      // Simple key - check NEW unified processing first
-      const key = parts[0];
-
-      // NEW: Check unified processing output (processor buffers from ProcessorManager)
-      if (dataSourceRef?.processorManager?.processorBuffers?.has(key)) {
-        const processorBuffer = dataSourceRef.processorManager.processorBuffers.get(key);
-        const bufferData = processorBuffer.getAll();
-        lcardsLog.debug(`[LCARdSChart] Using processor buffer: ${key} (${bufferData.length} points)`);
-        return bufferData;
-      }
-
-      // DEPRECATED: Check aggregations first (time-series aggregations are main chart use case)
-      if (data.aggregations?.[key] !== undefined) {
-        return this._formatAggregationData(data.aggregations[key], key, data.t);
-      }
-
-      // DEPRECATED: Check transformed buffers for historical transformation data
-      if (dataSourceRef?.transformedBuffers?.has(key)) {
-        const transformBuffer = dataSourceRef.transformedBuffers.get(key);
-        const bufferData = transformBuffer.getAll();
-        lcardsLog.debug(`[LCARdSChart] Using transformation buffer: ${key} (${bufferData.length} points)`);
-        return bufferData;
-      }
-
-      // DEPRECATED: Fallback: Check transformations (latest value only - not ideal for time-series)
-      if (data.transformations?.[key] !== undefined) {
-        lcardsLog.debug(`[LCARdSChart] Using transformation value: ${key} (single point only - buffer not available)`);
-        return [{ t: data.t, v: data.transformations[key] }];
-      }
-
-      lcardsLog.warn(`[LCARdSChart] Buffer not found: ${key}, falling back to main buffer`);
-      return data.buffer.getAll();
+    if (dataSourceRef?.processorManager?.processorBuffers?.has(key)) {
+      const processorBuffer = dataSourceRef.processorManager.processorBuffers.get(key);
+      const bufferData = processorBuffer.getAll();
+      lcardsLog.debug(`[LCARdSChart] Using processor buffer: ${key} (${bufferData.length} points)`);
+      return bufferData;
     }
 
-    if (parts.length === 2) {
-      // Explicit type.key format
-      const [type, key] = parts;
-
-      if (type === 'aggregation' || type === 'agg') {
-        if (data.aggregations?.[key] !== undefined) {
-          return this._formatAggregationData(data.aggregations[key], key, data.t);
-        }
-        lcardsLog.warn(`[LCARdSChart] Aggregation not found: ${key}, falling back to main buffer`);
-        return data.buffer.getAll();
-      }
-
-      if (type === 'transformation' || type === 'transform') {
-        // Try transformed buffer first (full history)
-        if (dataSourceRef?.transformedBuffers?.has(key)) {
-          const transformBuffer = dataSourceRef.transformedBuffers.get(key);
-          const bufferData = transformBuffer.getAll();
-          lcardsLog.debug(`[LCARdSChart] Using transformation buffer: ${key} (${bufferData.length} points)`);
-          return bufferData;
-        }
-
-        // Fallback to latest value only
-        if (data.transformations?.[key] !== undefined) {
-          lcardsLog.debug(`[LCARdSChart] Using transformation value: ${key} (single point only - buffer not available)`);
-          return [{ t: data.t, v: data.transformations[key] }];
-        }
-
-        lcardsLog.warn(`[LCARdSChart] Transformation not found: ${key}, falling back to main buffer`);
-        return data.buffer.getAll();
-      }
-    }
-
-    lcardsLog.warn(`[LCARdSChart] Invalid buffer selector: ${bufferSelector}, falling back to main buffer`);
+    lcardsLog.warn(`[LCARdSChart] Buffer not found: '${bufferSelector}', falling back to main buffer`);
     return data.buffer.getAll();
-  }
-
-  /**
-   * Format aggregation data for charting
-   * @private
-   * @param {*} aggValue - Aggregation value (from processor.getValue())
-   * @param {string} key - Aggregation key (for logging)
-   * @param {number} timestamp - Current timestamp
-   * @returns {Array} Array of {t, v} data points
-   */
-  _formatAggregationData(aggValue, key, timestamp) {
-    // Handle null/undefined
-    if (aggValue === null || aggValue === undefined) {
-      lcardsLog.debug(`[LCARdSChart] Aggregation ${key} has no value`);
-      return [];
-    }
-
-    // Case 1: Time-series aggregation [[t, values], ...]
-    // From RollingStatisticsSeriesAggregation
-    if (Array.isArray(aggValue) && aggValue.length > 0 && Array.isArray(aggValue[0])) {
-      lcardsLog.debug(`[LCARdSChart] Using aggregation time-series: ${key} (${aggValue.length} points)`);
-
-      // Convert [[t, values], ...] to [{t, v}, ...]
-      // For multi-value results (min/max/etc), we'll take first value or entire array
-      return aggValue.map(([t, values]) => ({
-        t,
-        v: Array.isArray(values) ? values[0] : values  // Use first stat if array
-      }));
-    }
-
-    // Case 2: Single aggregation value (current window result)
-    // From RollingStatisticsAggregation
-    if (typeof aggValue === 'number') {
-      lcardsLog.debug(`[LCARdSChart] Using aggregation single value: ${key}`);
-      return [{ t: timestamp, v: aggValue }];
-    }
-
-    // Case 3: Object with properties (e.g., {min, max, avg})
-    if (typeof aggValue === 'object') {
-      // Try to extract a chartable value
-      const value = aggValue.avg ?? aggValue.value ?? aggValue.last ?? aggValue.current;
-      if (value !== undefined) {
-        lcardsLog.debug(`[LCARdSChart] Using aggregation object value: ${key}`);
-        return [{ t: timestamp, v: value }];
-      }
-    }
-
-    // Case 4: Array of numbers (multi-value aggregation result)
-    if (Array.isArray(aggValue) && typeof aggValue[0] === 'number') {
-      lcardsLog.debug(`[LCARdSChart] Using aggregation array: ${key} (first value)`);
-      return [{ t: timestamp, v: aggValue[0] }];
-    }
-
-    lcardsLog.warn(`[LCARdSChart] Unsupported aggregation format for ${key}:`, typeof aggValue);
-    return [];
   }
 
   /**
@@ -531,12 +352,9 @@ export class LCARdSChart extends LCARdSCard {
             {
               entity: sourceId,
               history: {
-                enabled: true,
+                preload: true,
                 hours: this.config.history_hours || 24  // Allow config override
-              },
-              windowSeconds: 3600,   // 1 hour window
-              minEmitMs: 1000,       // 1 second minimum between updates
-              coalesceMs: 200        // 200ms coalescing for chart updates
+              }
             },
             this._cardGuid,          // Pass card identifier
             true                     // Mark as auto-created (CHART ONLY)
@@ -760,13 +578,28 @@ export class LCARdSChart extends LCARdSCard {
     // Merge chart_type from config root into style for adapter
     let enhancedStyle = {
       chart_type: this.config.chart_type || 'line',
-      xaxis_type: this.config.xaxis_type || 'datetime',
-      show_legend: this.config.show_legend,
-      series_names: this.config.series_names || this.config.seriesNames,
-      time_window: this.config.time_window,
-      max_points: this.config.max_points,
       ...style
     };
+
+    // Map xaxis_type into chart_options so it passes through the adapter's
+    // highest-precedence override path (deepMerge with style.chart_options).
+    if (this.config.xaxis_type) {
+      enhancedStyle = {
+        ...enhancedStyle,
+        chart_options: {
+          xaxis: { type: this.config.xaxis_type },
+          ...(enhancedStyle.chart_options || {})
+        }
+      };
+    }
+
+    // If any series uses type 'scatter', ensure markers are visible.
+    // In a mixed chart (e.g. line+scatter), ApexCharts defaults markers.size to 0
+    // for line-type charts, making scatter dots invisible.
+    const hasScatterSeries = Object.values(this.config.data_sources || {}).some(ds => ds.type === 'scatter');
+    if (hasScatterSeries && !enhancedStyle.markers?.size) {
+      enhancedStyle = { ...enhancedStyle, markers: { ...enhancedStyle.markers, size: 6 } };
+    }
 
     // CRITICAL: Resolve all theme tokens recursively BEFORE passing to adapter
     // This handles tokens like 'theme:colors.chart.grid' and color manipulation
@@ -815,42 +648,68 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
-   * Get series data from DataSourceManager
+   * Get series data formatted for ApexCharts.
+   * Name resolution order: config.series_names[i] → data_sources[id].name → source ID.
+   * Per-series type override is read from data_sources[id].type if set.
    * @private
    * @returns {Array} Series array for ApexCharts
    */
   _getSeriesData() {
-    // Get source(s) for naming
     const sourceRef = this.config.source || this.config.data_source || this.config.sources;
     if (!sourceRef) {
       return [];
     }
 
     const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-    const seriesNames = this.config.series_names || this.config.series_name;
-    const names = Array.isArray(seriesNames) ? seriesNames : (seriesNames ? [seriesNames] : []);
 
-    // Build series array from stored _chartData
-    const series = [];
+    // Explicit series_names array still respected for backward compat
+    const explicitNames = this.config.series_names;
+    const nameOverrides = Array.isArray(explicitNames) ? explicitNames
+      : (explicitNames ? [explicitNames] : []);
 
-    sources.forEach((sourceConfig, index) => {
-      // Get data from our stored _chartData array (populated by _handleDataUpdate)
+    return sources.map((sourceConfig, index) => {
       const data = this._chartData?.[index] || [];
-
-      // Transform data
       const seriesData = this._transformDataForSeries(data);
 
-      // Extract datasource ID for naming
-      const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.name || sourceConfig.id);
+      const sourceId = typeof sourceConfig === 'string'
+        ? sourceConfig
+        : (sourceConfig.datasource || sourceConfig.name || sourceConfig.id);
 
-      // Add to series
-      series.push({
-        name: names[index] || sourceId,
-        data: seriesData
-      });
+      // Resolve display name: explicit override > DS config name > source ID
+      const dsConfig = this.config.data_sources?.[sourceId];
+      const displayName = nameOverrides[index] || dsConfig?.name || sourceId;
+
+      const seriesEntry = { name: displayName, data: seriesData };
+
+      // Optional per-series chart type override (e.g., mixed line+bar)
+      if (dsConfig?.type) {
+        seriesEntry.type = dsConfig.type;
+      }
+
+      return seriesEntry;
     });
+  }
 
-    return series;
+  /**
+   * Override setConfig to destroy and reinitialize chart when config changes.
+   * Without this, changes to legend, axes, markers, etc. in the editor/YAML
+   * have no effect until the page is reloaded, because _chartInitialized stays true.
+   * @override
+   */
+  setConfig(config) {
+    // Destroy existing chart so updated() will reinitialize it with new options
+    if (this._chart) {
+      try {
+        this._chart.destroy();
+      } catch (e) {
+        lcardsLog.warn('[LCARdSChart] Error destroying chart on config change:', e);
+      }
+      this._chart = null;
+    }
+    this._chartReady = false;
+    this._chartInitialized = false;
+
+    super.setConfig(config);
   }
 
   /**
@@ -863,12 +722,19 @@ export class LCARdSChart extends LCARdSCard {
     try {
       const newOptions = this._buildChartOptions();
 
-      // Update only the style-related options to avoid data re-fetch
+      // Pass all style-related options so changes to legend, axes,
+      // markers, tooltip, etc. are reflected without a full reinit
       this._chart.updateOptions({
         colors: newOptions.colors,
         stroke: newOptions.stroke,
         fill: newOptions.fill,
-        grid: newOptions.grid
+        grid: newOptions.grid,
+        legend: newOptions.legend,
+        markers: newOptions.markers,
+        dataLabels: newOptions.dataLabels,
+        tooltip: newOptions.tooltip,
+        xaxis: newOptions.xaxis,
+        yaxis: newOptions.yaxis
       }, false, false);
 
       lcardsLog.trace(`[LCARdSChart] Updated chart options for ${this._cardGuid}`);
@@ -1012,21 +878,27 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
-   * Cleanup on disconnect
+   * Cleanup on disconnect — called by LCARdSCard.disconnectedCallback()
    * @protected
    */
   _onDisconnected() {
-    // Unsubscribe from data sources
-    this._dataSubscriptions.forEach(subscription => {
-      if (typeof subscription === 'function') {
-        subscription(); // Call unsubscribe function
-      } else if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
-      }
-    });
-    this._dataSubscriptions = [];
+    // Unsubscribe from chart-specific data source subscriptions
+    if (this._dataSubscriptions) {
+      this._dataSubscriptions.forEach(subscription => {
+        try {
+          if (typeof subscription === 'function') {
+            subscription();
+          } else if (typeof subscription?.unsubscribe === 'function') {
+            subscription.unsubscribe();
+          }
+        } catch (error) {
+          lcardsLog.warn('[LCARdSChart] Error unsubscribing:', error);
+        }
+      });
+      this._dataSubscriptions = [];
+    }
 
-    // Destroy chart
+    // Destroy ApexCharts instance
     if (this._chart) {
       try {
         this._chart.destroy();
@@ -1037,6 +909,7 @@ export class LCARdSChart extends LCARdSCard {
     }
 
     this._chartReady = false;
+    this._chartInitialized = false;
 
     super._onDisconnected();
   }
@@ -1057,9 +930,6 @@ export class LCARdSChart extends LCARdSCard {
     return {
       type: 'custom:lcards-chart',
       chart_type: 'line',
-      style: {
-        colors: ['#FF9900']
-      },
       // Note: No source - chart will show "No data configured" message
       // This avoids creating data source subscriptions in preview
     };
@@ -1090,7 +960,6 @@ export class LCARdSChart extends LCARdSCard {
     configManager.registerCardDefaults('chart', {
         chart_type: 'line',           // Default chart type
         height: 300,                  // Default height in pixels
-        show_legend: false,           // Legend off by default
         xaxis_type: 'datetime',       // Default x-axis type
         max_points: 0                 // No point limit by default (0 = unlimited)
     });

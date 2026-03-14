@@ -36,7 +36,6 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/lcards-chart-series-list-editor.js';
 import '../../cards/lcards-chart.js';  // Import card directly for manual instantiation
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
-import '../components/editors/lcards-color-section.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/shared/lcards-color-list.js';
 
@@ -76,14 +75,12 @@ export class LCARdSChartStudioDialog extends LitElement {
         this._previewError = null;
 
         // Initialize state
-        this._dataSourceLevel = 'quick';
         this._selectedEntity = '';
         this._renderKey = 0; // Plain property, not reactive
         this._showDataSourceEditor = false;
 
         // Data Sources tab state
         this._dataSourceLevel = 'simple';
-        this._selectedEntity = '';
 
         // Initialize chart schema
         this._chartSchema = getChartSchema();
@@ -585,7 +582,11 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         lcardsLog.debug(`[ChartStudio] Updated ${path} =`, value);
 
-        // Trigger preview update (debounced) - this will also trigger requestUpdate() after DOM is ready
+        // Re-render Lit template immediately so UI (e.g. chart type tiles, form values) reflects
+        // the new config. Preview update is debounced separately below.
+        this.requestUpdate();
+
+        // Trigger debounced preview card rebuild
         this._schedulePreviewUpdate();
     }
 
@@ -1276,7 +1277,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _renderDataSourceInlineConfig(name, config) {
         const windowSeconds = config.window_seconds || 3600;
-        const minEmitMs = config.minEmitMs || 0;
+        const minEmitMs = config.min_emit_ms || 0;
         const historyPreload = config.history?.preload || false;
         const historyHours = config.history?.hours || 0;
 
@@ -1302,7 +1303,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                     helper: 'Minimum time between updates (throttling)',
                     selector: { number: { min: 0, max: 10000, mode: 'box' } },
                     value: minEmitMs,
-                    onChange: (value) => this._updateDataSourceConfig(name, 'minEmitMs', value)
+                    onChange: (value) => this._updateDataSourceConfig(name, 'min_emit_ms', value)
                 })}
 
                 <div class="form-field">
@@ -1400,19 +1401,99 @@ export class LCARdSChartStudioDialog extends LitElement {
         const currentType = this._workingConfig.chart_type || 'line';
         const seriesCount = this._getSeriesCount();
 
-        // Chart type compatibility matrix
+        // Chart type definitions
+        // special: true  = requires non-standard data format (not plain entity history)
+        // infoText        = shown in the info panel when this type is selected
         const chartTypes = [
-            { value: 'line', label: 'Line', icon: 'mdi:chart-line', minSeries: 1, desc: 'Trends over time' },
-            { value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', minSeries: 1, desc: 'Volume visualization' },
-            { value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', minSeries: 1, desc: 'Horizontal comparisons' },
-            { value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', minSeries: 1, desc: 'Vertical comparisons' },
-            { value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', minSeries: 1, desc: 'Correlations' },
-            { value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', minSeries: 2, desc: 'Proportions (requires 2+ series)' },
-            { value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', minSeries: 2, desc: 'Proportions (requires 2+ series)' },
-            { value: 'radar', label: 'Radar', icon: 'mdi:radar', minSeries: 1, desc: 'Spider chart' },
-            { value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', minSeries: 1, desc: 'Gauges' },
-            { value: 'polarArea', label: 'Polar', icon: 'mdi:chart-donut-variant', minSeries: 1, desc: 'Directional data' },
-            { value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', minSeries: 1, desc: 'Matrix/density' }
+            {
+                value: 'line', label: 'Line', icon: 'mdi:chart-line', minSeries: 1,
+                desc: 'Trends over time',
+                infoText: 'Plots a continuous line from entity history. Works out of the box with any DataSource — each {t, v} point becomes a data point. Best for temperature, power, or any value that changes over time.'
+            },
+            {
+                value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', minSeries: 1,
+                desc: 'Volume visualization',
+                infoText: 'Like Line, but fills the area below the curve. Works directly with entity history. Good for showing volume or magnitude over time.'
+            },
+            {
+                value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', minSeries: 1,
+                desc: 'Horizontal comparisons',
+                infoText: 'Horizontal bars from entity history. Each data point becomes a bar. Good for comparing values across time intervals or when you have discrete categories.'
+            },
+            {
+                value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', minSeries: 1,
+                desc: 'Vertical comparisons',
+                infoText: 'Vertical bars (classic bar chart) from entity history. Works the same as Bar but oriented vertically. Good for time-bucketed comparisons.'
+            },
+            {
+                value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', minSeries: 1,
+                desc: 'Correlations',
+                infoText: 'Plots individual data points as dots without connecting lines. Works with entity history. Useful for spotting patterns and outliers. Add multiple series to compare two sensors side-by-side. Tip: increase Marker Size in Appearance if dots are too small to see.'
+            },
+            {
+                value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', minSeries: 1,
+                desc: 'Matrix / density',
+                infoText: 'Grid of color-intensity cells. Each series becomes one row, and values over time form the columns. Works with entity history — great for showing daily/weekly patterns across multiple entities.'
+            },
+            {
+                value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', minSeries: 2,
+                desc: 'Proportions (2+ series)',
+                special: true,
+                infoText: 'Shows proportional slices of a whole. Requires 2+ series, each holding a single numeric value (not a time-series). Use sensors that naturally return a single current value — e.g., energy usage per zone. Time-series history buffers are not suited for this type.'
+            },
+            {
+                value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', minSeries: 2,
+                desc: 'Proportions (2+ series)',
+                special: true,
+                infoText: 'Like Pie but with an open centre. Same data requirements — 2+ series each with a single numeric value. The centre can display a total or label.'
+            },
+            {
+                value: 'radar', label: 'Radar', icon: 'mdi:radar', minSeries: 1,
+                desc: 'Spider chart',
+                special: true,
+                infoText: 'Plots values along multiple named axes arranged in a polygon. Each series provides values for each axis. Best when you have multiple entities each contributing one value (e.g., room-by-room energy breakdown). Not suited for time-series history.'
+            },
+            {
+                value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', minSeries: 1,
+                desc: 'Circular gauges',
+                infoText: 'Circular gauge arcs, one per series. Works well if your entity returns 0–100 values (percent). Each series arc shows the latest value. Great for battery %, CPU %, or humidity sensors.'
+            },
+            {
+                value: 'polarArea', label: 'Polar', icon: 'mdi:chart-donut-variant', minSeries: 1,
+                desc: 'Directional data',
+                special: true,
+                infoText: 'Equal-angle segments with varying radius. Similar to Pie — requires category counts, one value per series. Each series becomes one segment, sized by its value. Not suited for time-series history buffers.'
+            },
+            {
+                value: 'treemap', label: 'Treemap', icon: 'mdi:view-grid', minSeries: 1,
+                desc: 'Hierarchical data',
+                special: true,
+                infoText: 'Nested rectangles where box area = value. Requires one numeric value per series (category label + value). Not suited for time-series history. Good for showing proportional breakdowns like storage or energy cost by category.'
+            },
+            {
+                value: 'rangeBar', label: 'Range Bar', icon: 'mdi:chart-gantt', minSeries: 1,
+                desc: 'Timelines / Gantt',
+                special: true,
+                infoText: 'Gantt-style horizontal bars spanning a start–end range. Each data point must be { x: "Label", y: [startMs, endMs] }. Use a DataSource processor with rolling_statistics or build a custom datasource to produce range arrays. Not compatible with standard entity history.'
+            },
+            {
+                value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', minSeries: 1,
+                desc: 'Confidence bands',
+                special: true,
+                infoText: 'Shaded band between two values over time (e.g., min/max, confidence intervals). Each point must be { x: timestamp, y: [low, high] }. Use a rolling_statistics processor that outputs a [min, max] array per window.'
+            },
+            {
+                value: 'candlestick', label: 'Candlestick', icon: 'mdi:chart-candlestick', minSeries: 1,
+                desc: 'OHLC financial data',
+                special: true,
+                infoText: 'Classic OHLC chart for financial or volatility data. Each point must be { x: timestamp, y: [open, high, low, close] }. Use a rolling_statistics processor configured to output OHLC arrays, or wire a custom datasource.'
+            },
+            {
+                value: 'boxPlot', label: 'Box Plot', icon: 'mdi:chart-box-outline', minSeries: 1,
+                desc: 'Statistical distribution',
+                special: true,
+                infoText: 'Shows statistical distribution per category. Each point needs { x: label, y: [min, q1, median, q3, max] }. Use a rolling_statistics processor set to produce boxplot-format arrays from a window of entity readings.'
+            }
         ];
 
         return html`
@@ -1422,11 +1503,45 @@ export class LCARdSChartStudioDialog extends LitElement {
                 icon="mdi:chart-line-variant"
                 ?expanded=${true}>
 
+                <!-- Contextual info panel - shown ABOVE tiles so it's immediately visible -->
+                ${(() => {
+                    const selected = chartTypes.find(t => t.value === currentType);
+                    if (!selected) return '';
+                    return html`
+                        <div style="
+                            margin-bottom: 14px;
+                            padding: 12px 14px;
+                            border-radius: 8px;
+                            border-left: 3px solid ${selected.special ? 'var(--warning-color, #f59e0b)' : 'var(--info-color, var(--primary-color))'} ;
+                            background: ${selected.special ? 'rgba(245,158,11,0.08)' : 'rgba(var(--rgb-primary-color, 33,150,243), 0.07)'};
+                            display: flex;
+                            gap: 10px;
+                            align-items: flex-start;">
+                            <ha-icon
+                                icon="${selected.special ? 'mdi:alert-circle-outline' : 'mdi:information-outline'}"
+                                style="
+                                    --mdc-icon-size: 20px;
+                                    color: ${selected.special ? 'var(--warning-color, #f59e0b)' : 'var(--primary-color)'};
+                                    flex-shrink: 0;
+                                    margin-top: 1px;">
+                            </ha-icon>
+                            <div>
+                                <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+                                    ${selected.label}
+                                    ${selected.special ? html`<span style="font-size: 11px; font-weight: 400; opacity: 0.8;"> — requires custom data format</span>` : ''}
+                                </div>
+                                <div style="font-size: 13px; line-height: 1.5; color: var(--secondary-text-color);">
+                                    ${selected.infoText}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })()}
+
                 <div style="
                     display: grid;
                     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-                    gap: 10px;
-                    margin-top: 12px;">
+                    gap: 10px;">
                     ${chartTypes.map(type => {
                         const isCompatible = seriesCount >= type.minSeries;
                         const isSelected = currentType === type.value;
@@ -1457,6 +1572,9 @@ export class LCARdSChartStudioDialog extends LitElement {
                                 <div style="font-weight: 600; font-size: 13px; margin-bottom: 2px;">
                                     ${type.label}
                                 </div>
+                                <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+                                    ${type.desc}
+                                </div>
                                 ${type.minSeries > 1 ? html`
                                     <div style="
                                         font-size: 10px;
@@ -1476,7 +1594,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${seriesCount < 2 ? html`
                     <lcards-message type="info" style="margin-top: 12px;">
-                        <strong>💡 Tip:</strong> Pie and Donut charts require 2+ series. Add more series above to unlock these chart types.
+                        <strong>Tip:</strong> Pie and Donut charts require 2+ series. Add more series in the Data Sources tab to unlock them.
                     </lcards-message>
                 ` : ''}
             </lcards-form-section>
@@ -2076,7 +2194,10 @@ export class LCARdSChartStudioDialog extends LitElement {
             lcardsLog.debug(`[ChartStudio] Color config updated: ${path} =`, value);
         }
 
-        // Use debounced update to avoid race conditions
+        // Re-render Lit template immediately so UI reflects the new value
+        this.requestUpdate();
+
+        // Debounced preview card rebuild
         this._schedulePreviewUpdate();
     }
 
@@ -2104,7 +2225,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
-     * Render single color picker using lcards-color-section
+     * Render single color picker using lcards-color-picker
      * @private
      * @param {string} path - Config path
      * @param {string} label - Field label
@@ -2217,6 +2338,11 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ${FormField.renderField(this, 'style.stroke.curve', {
                     label: 'Curve Type',
                     helper: 'Choose straight lines or smooth curves between data points'
+                })}
+
+                ${FormField.renderField(this, 'style.stroke.dash_array', {
+                    label: 'Dash Pattern',
+                    helper: 'Dashed line pattern length (0 = solid line)'
                 })}
 
                 ${this._renderColorList('style.colors.stroke', 'Stroke Colors', 'Outline/line colors - cycles through array')}
@@ -2334,6 +2460,10 @@ export class LCARdSChartStudioDialog extends LitElement {
                     helper: 'Size of data point circles (0 to hide markers)'
                 })}
 
+                ${FormField.renderField(this, 'style.markers.shape', {
+                    label: 'Marker Shape'
+                })}
+
                 ${FormField.renderField(this, 'style.markers.stroke.width', {
                     label: 'Marker Stroke Width',
                     helper: 'Border width around markers'
@@ -2405,6 +2535,11 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${FormField.renderField(this, 'style.yaxis.ticks.show', {
                     label: 'Show Y-Axis Ticks'
+                })}
+
+                ${FormField.renderField(this, 'style.yaxis.decimals', {
+                    label: 'Value Decimal Places',
+                    helper: 'Round displayed values to N decimal places (applies to axis labels, tooltips, and data labels). Leave empty for full precision.'
                 })}
             </lcards-form-section>
 
@@ -2479,400 +2614,6 @@ export class LCARdSChartStudioDialog extends LitElement {
         return this._renderAnimationTab();
     }
 
-    // ============================================================================
-    // LEGACY TAB RENDERERS (kept for backward compatibility with existing code)
-    // ============================================================================
-
-    _renderChartTypeTab() {
-        const chartTypes = [
-            { value: 'line', label: 'Line', icon: 'mdi:chart-line', desc: 'Trends over time' },
-            { value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', desc: 'Volume/magnitude' },
-            { value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', desc: 'Comparisons' },
-            { value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', desc: 'Vertical bars' },
-            { value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', desc: 'Correlations' },
-            { value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', desc: 'Proportions (circle)' },
-            { value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', desc: 'Proportions (ring)' },
-            { value: 'radar', label: 'Radar', icon: 'mdi:radar', desc: 'Spider chart' },
-            { value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', desc: 'Gauges' },
-            { value: 'rangeBar', label: 'Range Bar', icon: 'mdi:chart-gantt', desc: 'Timelines' },
-            { value: 'polarArea', label: 'Polar Area', icon: 'mdi:chart-donut-variant', desc: 'Directional' },
-            { value: 'treemap', label: 'Treemap', icon: 'mdi:view-grid', desc: 'Hierarchical' },
-            { value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', desc: 'Ranges' },
-            { value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', desc: 'Matrix data' },
-            { value: 'candlestick', label: 'Candlestick', icon: 'mdi:chart-candlestick', desc: 'OHLC data' },
-            { value: 'boxPlot', label: 'Box Plot', icon: 'mdi:chart-box-outline', desc: 'Distributions' }
-        ];
-
-        const currentType = this._workingConfig.chart_type || 'line';
-
-        return html`
-            <lcards-form-section
-                header="Chart Type Selection"
-                description="Choose the visualization type for your data"
-                icon="mdi:chart-line-variant"
-                ?expanded=${true}>
-
-                <div class="chart-type-grid" style="
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                    gap: 12px;
-                    margin-top: 16px;
-                ">
-                    ${chartTypes.map(type => html`
-                        <div
-                            class="chart-type-card ${currentType === type.value ? 'selected' : ''}"
-                            style="
-                                padding: 16px;
-                                border: 2px solid ${currentType === type.value ? 'var(--primary-color)' : 'var(--divider-color)'};
-                                border-radius: 8px;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                background: ${currentType === type.value ? 'var(--primary-color)' : 'var(--card-background-color)'};
-                                color: ${currentType === type.value ? 'white' : 'var(--primary-text-color)'};
-                                text-align: center;
-                            "
-                            @click=${() => this._setConfigValue('chart_type', type.value)}>
-                            <ha-icon
-                                icon="${type.icon}"
-                                style="font-size: 32px; margin-bottom: 8px;">
-                            </ha-icon>
-                            <div style="font-weight: 600; margin-bottom: 4px;">
-                                ${type.label}
-                            </div>
-                            <div style="font-size: 12px; opacity: 0.9;">
-                                ${type.desc}
-                            </div>
-                        </div>
-                    `)}
-                </div>
-            </lcards-form-section>
-
-            <!-- Dimensions -->
-            <lcards-form-section
-                header="Chart Dimensions"
-                description="Configure chart size and data limits"
-                icon="mdi:resize"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'height', {
-                    label: 'Height',
-                    helper: 'Chart height in pixels'
-                })}
-
-                ${FormField.renderField(this, 'max_points', {
-                    label: 'Max Data Points',
-                    helper: 'Limit data points for performance (0 = unlimited)'
-                })}
-            </lcards-form-section>
-
-            <!-- X-Axis Type -->
-            <lcards-form-section
-                header="X-Axis Configuration"
-                description="Configure horizontal axis type"
-                icon="mdi:axis-x-arrow"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'xaxis_type', {
-                    label: 'X-Axis Type',
-                    helper: 'Type of x-axis scaling'
-                })}
-            </lcards-form-section>
-        `;
-    }
-
-    _renderColorsTab() {
-        return html`
-            <!-- Series Colors (Primary) -->
-            <lcards-form-section
-                header="Series Colors"
-                description="Primary colors for data series (array of colors)"
-                icon="mdi:palette"
-                ?expanded=${true}>
-
-                ${this._renderColorList('style.colors.series', 'Series Colors', 'Colors for each data series - cycles through array')}
-            </lcards-form-section>
-
-            <!-- Stroke & Fill Colors -->
-            <lcards-form-section
-                header="Stroke & Fill Colors"
-                description="Line and area fill colors (arrays)"
-                icon="mdi:brush"
-                ?expanded=${true}>
-
-                ${this._renderColorList('style.colors.stroke', 'Stroke Colors', 'Outline/line colors - cycles through array')}
-                ${this._renderColorList('style.colors.fill', 'Fill Colors', 'Area fill colors - cycles through array')}
-            </lcards-form-section>
-
-            <!-- Background & Foreground (Single Colors) -->
-            <lcards-form-section
-                header="Background & Foreground"
-                description="Base chart colors (single values)"
-                icon="mdi:format-color-fill"
-                ?expanded=${true}>
-
-                <div style="display: grid; gap: 12px;">
-                    ${this._renderSingleColorPicker('style.colors.background', 'Background', 'Chart background')}
-                    ${this._renderSingleColorPicker('style.colors.foreground', 'Foreground', 'Text and labels')}
-                    ${this._renderSingleColorPicker('style.colors.grid', 'Grid Lines', 'Grid line color')}
-                </div>
-            </lcards-form-section>
-
-            <!-- Marker Colors (Collapsed by default) -->
-            <lcards-form-section
-                header="Marker Colors"
-                description="Data point marker styling (arrays)"
-                icon="mdi:circle"
-                ?expanded=${false}>
-
-                ${this._renderColorList('style.colors.marker.fill', 'Marker Fill', 'Fill colors for markers')}
-                ${this._renderColorList('style.colors.marker.stroke', 'Marker Stroke', 'Stroke colors for markers')}
-            </lcards-form-section>
-
-            <!-- Axis Colors (Collapsed) -->
-            <lcards-form-section
-                header="Axis Colors"
-                description="X and Y axis styling (single values)"
-                icon="mdi:axis-arrow"
-                ?expanded=${false}>
-
-                <div style="display: grid; gap: 12px;">
-                    ${this._renderSingleColorPicker('style.colors.axis.x', 'X-Axis', 'X-axis color')}
-                    ${this._renderSingleColorPicker('style.colors.axis.y', 'Y-Axis', 'Y-axis color')}
-                    ${this._renderSingleColorPicker('style.colors.axis.border', 'Axis Border', 'Border around chart')}
-                    ${this._renderSingleColorPicker('style.colors.axis.ticks', 'Axis Ticks', 'Tick mark color')}
-                </div>
-            </lcards-form-section>
-
-            <!-- Legend Colors (Collapsed) -->
-            <lcards-form-section
-                header="Legend Colors"
-                description="Legend text styling"
-                icon="mdi:label"
-                ?expanded=${false}>
-
-                <div style="display: grid; gap: 12px;">
-                    ${this._renderSingleColorPicker('style.colors.legend.default', 'Legend Text', 'Default legend text')}
-                </div>
-                ${this._renderColorList('style.colors.legend.items', 'Legend Items', 'Per-item legend colors (optional)')}
-            </lcards-form-section>
-
-            <!-- Data Label Colors (Collapsed) -->
-            <lcards-form-section
-                header="Data Label Colors"
-                description="On-chart data label styling (array)"
-                icon="mdi:label-variant"
-                ?expanded=${false}>
-
-                ${this._renderColorList('style.colors.data_labels', 'Data Label Colors', 'Colors for data point labels')}
-            </lcards-form-section>
-        `;
-    }
-
-    _renderStrokeFillTab() {
-        const strokeWidth = this._getNestedValue('style.stroke.width') || 2;
-        const strokeCurve = this._getNestedValue('style.stroke.curve') || 'smooth';
-        const fillType = this._getNestedValue('style.fill.type') || 'solid';
-        const fillOpacity = this._getNestedValue('style.fill.opacity') ?? 0.7;
-
-        return html`
-            <!-- Stroke Configuration -->
-            <lcards-form-section
-                header="Stroke Configuration"
-                description="Line and border styling"
-                icon="mdi:brush"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.stroke.width', {
-                    label: 'Stroke Width'
-                })}
-
-                ${FormField.renderField(this, 'style.stroke.curve', {
-                    label: 'Curve Type'
-                })}
-            </lcards-form-section>
-
-            <!-- Fill Configuration -->
-            <lcards-form-section
-                header="Fill Configuration"
-                description="Area and background fill styling"
-                icon="mdi:format-color-fill"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.fill.type', {
-                    label: 'Fill Type'
-                })}
-
-                ${FormField.renderField(this, 'style.fill.opacity', {
-                    label: 'Fill Opacity'
-                })}
-
-                ${fillType === 'gradient' ? this._renderGradientConfig() : ''}
-            </lcards-form-section>
-        `;
-    }
-
-    _renderMarkersGridTab() {
-        const markerSize = this._getNestedValue('style.markers.size') ?? 4;
-        const markerStrokeWidth = this._getNestedValue('style.markers.stroke.width') ?? 2;
-        const showGrid = this._getNestedValue('style.grid.show') ?? true;
-        const gridOpacity = this._getNestedValue('style.grid.opacity') ?? 0.3;
-
-        return html`
-            <!-- Markers Configuration -->
-            <lcards-form-section
-                header="Markers Configuration"
-                description="Data point marker styling"
-                icon="mdi:circle"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.markers.size', {
-                    label: 'Marker Size'
-                })}
-
-                ${FormField.renderField(this, 'style.markers.stroke.width', {
-                    label: 'Marker Stroke Width'
-                })}
-            </lcards-form-section>
-
-            <!-- Grid Configuration -->
-            <lcards-form-section
-                header="Grid Configuration"
-                description="Background grid styling"
-                icon="mdi:grid"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.grid.show', {
-                    label: 'Show Grid'
-                })}
-
-                ${showGrid ? html`
-                    ${FormField.renderField(this, 'style.grid.opacity', {
-                        label: 'Grid Opacity'
-                    })}
-
-                    ${this._renderColorList('style.grid.row_colors', 'Grid Row Colors', 'Alternating row background colors')}
-                    ${this._renderColorList('style.grid.column_colors', 'Grid Column Colors', 'Alternating column background colors')}
-                ` : ''}
-            </lcards-form-section>
-        `;
-    }
-
-    _renderAxesTab() {
-        return html`
-            <!-- X-Axis Configuration -->
-            <lcards-form-section
-                header="X-Axis Configuration"
-                description="Horizontal axis styling and labels"
-                icon="mdi:axis-x-arrow"
-                ?expanded=${true}>
-
-                <!-- X-Axis Labels -->
-                ${FormField.renderField(this, 'style.xaxis.labels.show', {
-                    label: 'Show X-Axis Labels'
-                })}
-
-                ${FormField.renderField(this, 'style.xaxis.labels.rotate', {
-                    label: 'Label Rotation (degrees)'
-                })}
-
-                <!-- X-Axis Border -->
-                ${FormField.renderField(this, 'style.xaxis.border.show', {
-                    label: 'Show X-Axis Border'
-                })}
-
-                <!-- X-Axis Ticks -->
-                ${FormField.renderField(this, 'style.xaxis.ticks.show', {
-                    label: 'Show X-Axis Ticks'
-                })}
-            </lcards-form-section>
-
-            <!-- Y-Axis Configuration -->
-            <lcards-form-section
-                header="Y-Axis Configuration"
-                description="Vertical axis styling and labels"
-                icon="mdi:axis-y-arrow"
-                ?expanded=${true}>
-
-                <!-- Y-Axis Labels -->
-                ${FormField.renderField(this, 'style.yaxis.labels.show', {
-                    label: 'Show Y-Axis Labels'
-                })}
-
-                <!-- Y-Axis Border -->
-                ${FormField.renderField(this, 'style.yaxis.border.show', {
-                    label: 'Show Y-Axis Border'
-                })}
-
-                <!-- Y-Axis Ticks -->
-                ${FormField.renderField(this, 'style.yaxis.ticks.show', {
-                    label: 'Show Y-Axis Ticks'
-                })}
-            </lcards-form-section>
-        `;
-    }
-
-    _renderLegendLabelsTab() {
-        return html`
-            <!-- Legend Configuration -->
-            <lcards-form-section
-                header="Legend Configuration"
-                description="Chart legend positioning and styling"
-                icon="mdi:label-multiple"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.legend.show', {
-                    label: 'Show Legend'
-                })}
-
-                ${this._getNestedValue('style.legend.show') ? html`
-                    ${FormField.renderField(this, 'style.legend.position', {
-                        label: 'Legend Position'
-                    })}
-
-                    ${FormField.renderField(this, 'style.legend.horizontalAlign', {
-                        label: 'Horizontal Alignment'
-                    })}
-                ` : ''}
-            </lcards-form-section>
-
-            <!-- Data Labels Configuration -->
-            <lcards-form-section
-                header="Data Labels"
-                description="Labels displayed on data points"
-                icon="mdi:label-variant"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.data_labels.show', {
-                    label: 'Show Data Labels'
-                })}
-
-                ${this._getNestedValue('style.data_labels.show') ? html`
-                    ${FormField.renderField(this, 'style.data_labels.offsetY', {
-                        label: 'Vertical Offset'
-                    })}
-                ` : ''}
-            </lcards-form-section>
-
-            <!-- Tooltip Configuration -->
-            <lcards-form-section
-                header="Tooltip Configuration"
-                description="Interactive tooltip settings"
-                icon="mdi:tooltip-text"
-                ?expanded=${true}>
-
-                ${FormField.renderField(this, 'style.display.tooltip.show', {
-                    label: 'Show Tooltip'
-                })}
-
-                ${this._getNestedValue('style.display.tooltip.show') !== false ? html`
-                    ${FormField.renderField(this, 'style.display.tooltip.theme', {
-                        label: 'Tooltip Theme'
-                    })}
-                ` : ''}
-            </lcards-form-section>
-        `;
-    }
-
     _renderThemeTab() {
         const monochromeEnabled = this._getNestedValue('style.theme.monochrome.enabled') ?? false;
 
@@ -2925,12 +2666,11 @@ export class LCARdSChartStudioDialog extends LitElement {
                 })}
 
                 ${monochromeEnabled ? html`
-                    <lcards-color-section
-                        .colors=${[this._getNestedValue('style.theme.monochrome.color') || '#FF9900']}
-                        .label=${"Monochrome Base Color"}
-                        .maxColors=${1}
-                        @colors-changed=${(e) => this._setNestedValue('style.theme.monochrome.color', e.detail.colors[0])}>
-                    </lcards-color-section>
+                    <lcards-color-picker
+                        .hass=${this.hass}
+                        .value=${this._getNestedValue('style.theme.monochrome.color') || '#FF9900'}
+                        @value-changed=${(e) => this._setNestedValue('style.theme.monochrome.color', e.detail.value)}>
+                    </lcards-color-picker>
 
                     ${FormField.renderField(this, 'style.theme.monochrome.shade_to', {
                         label: 'Shade Direction'
@@ -3185,20 +2925,19 @@ yaxis:
                 </div>
 
                 <!-- Dialog Actions -->
-                <ha-button
-                    slot="primaryAction"
-                    variant="brand"
-                    @click=${this._handleSave}>
-                    <ha-icon icon="mdi:check" slot="start"></ha-icon>
-                    Save
-                </ha-button>
-
-                <ha-button
-                    slot="secondaryAction"
-                    appearance="plain"
-                    @click=${this._handleCancel}>
-                    Cancel
-                </ha-button>
+                <div slot="footer">
+                    <ha-button
+                        appearance="plain"
+                        @click=${this._handleCancel}>
+                        Cancel
+                    </ha-button>
+                    <ha-button
+                        variant="brand"
+                        @click=${this._handleSave}>
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
             </ha-dialog>
         `;
     }

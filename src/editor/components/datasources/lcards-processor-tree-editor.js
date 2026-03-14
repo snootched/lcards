@@ -370,7 +370,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       key,
       config,
       type: config.type || 'unknown',
-      from: config.from || null
+      from: config.input_source || null
     }));
   }
 

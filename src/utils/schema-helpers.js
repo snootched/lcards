@@ -131,10 +131,11 @@ export function isPositionEnum(propertySchema) {
     if (!hasEnum(propertySchema)) return false;
 
     const enum_values = propertySchema.enum;
-    const position_values = ['top-left', 'top-center', 'top-right', 'left-center', 'center', 'right-center', 'bottom-left', 'bottom-center', 'bottom-right', 'top', 'bottom', 'left', 'right'];
 
-    // Check if enum contains position values
-    return enum_values && enum_values.some(val => position_values.includes(val));
+    // Only trigger the 9-point picker when the enum contains hyphenated compound positions
+    // (e.g. 'top-left', 'bottom-center'). Schemas with only cardinal directions
+    // (top/bottom/left/right) or alignment values (left/center/right) use a plain select.
+    return enum_values && enum_values.some(val => typeof val === 'string' && val.includes('-'));
 }
 
 /**

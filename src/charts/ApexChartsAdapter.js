@@ -35,16 +35,14 @@ export class ApexChartsAdapter {
    * @constant {string[]}
    */
   static VALID_CHART_TYPES = [
-    // Existing types (7)
     'line',
     'area',
     'bar',
+    'column',       // Alias: vertical bars (maps to ApexCharts 'bar' with horizontal: false)
     'pie',
     'donut',
     'radar',
     'heatmap',
-
-    // NEW: Additional chart types (8)
     'radialBar',    // Gauges, completion indicators
     'rangeBar',     // Timelines, schedules
     'polarArea',    // Directional data
@@ -295,6 +293,10 @@ export class ApexChartsAdapter {
       chartType = 'line';
     }
 
+    // 'column' is an alias for vertical bar chart.
+    // ApexCharts only has 'bar'; we use plotOptions.bar.horizontal to distinguish.
+    const apexChartType = chartType === 'column' ? 'bar' : chartType;
+
     // Helper: convert null to undefined for ApexCharts compatibility
     // ApexCharts doesn't handle null gracefully for optional color arrays
     const nullToUndefined = (value) => value === null ? undefined : value;
@@ -350,6 +352,7 @@ export class ApexChartsAdapter {
     let strokeColors = normalizeColorArray(style.colors?.stroke);
     const strokeWidth = style.stroke?.width ?? 2;
     const curve = style.stroke?.curve ?? 'smooth';
+    const strokeDashArray = style.stroke?.dash_array ?? 0;
 
     // Fill colors (for area/bar charts)
     const fillColors = normalizeColorArray(style.colors?.fill);
@@ -379,16 +382,42 @@ export class ApexChartsAdapter {
     const legendColor = style.colors?.legend?.default ?? foregroundColor;
     const legendColors = normalizeColorArray(style.colors?.legend?.items);
     const showLegend = style.legend?.show ?? false;
+    const legendPosition = (() => {
+        const pos = style.legend?.position ?? 'bottom';
+        return ['top', 'bottom', 'left', 'right'].includes(pos) ? pos : 'bottom';
+    })();
+    const legendHorizontalAlign = (() => {
+        const align = style.legend?.horizontalAlign ?? 'center';
+        return ['left', 'center', 'right'].includes(align) ? align : 'center';
+    })();
 
     // Marker colors (data points)
     // Note: markerColors defaults to series colors if not specified
     const markerColors = normalizeColorArray(style.colors?.marker?.fill ?? colors);
     const markerStrokeColors = normalizeColorArray(style.colors?.marker?.stroke) ?? [foregroundColor];
     const markerStrokeWidth = style.markers?.stroke?.width ?? 2;
+    const markerSize = style.markers?.size ?? 0;
+    const markerShape = style.markers?.shape ?? 'circle';
 
     // Data label colors
     const dataLabelColors = normalizeColorArray(style.colors?.data_labels) ?? [foregroundColor];
     const showDataLabels = style.data_labels?.show ?? false;
+    const dataLabelOffsetY = style.data_labels?.offsetY ?? 0;
+
+    // Axis visibility / geometry
+    const showXAxisLabels = style.xaxis?.labels?.show ?? true;
+    const rotateXAxisLabels = style.xaxis?.labels?.rotate ?? 0;
+    const showXAxisBorder = style.xaxis?.border?.show ?? false;
+    const showXAxisTicks = style.xaxis?.ticks?.show ?? false;
+    const showYAxisLabels = style.yaxis?.labels?.show ?? true;
+    const showYAxisBorder = style.yaxis?.border?.show ?? false;
+    const showYAxisTicks = style.yaxis?.ticks?.show ?? false;
+
+    // Value rounding (decimals = null means no formatter applied)
+    const valueDecimals = style.yaxis?.decimals ?? null;
+    const valueFormatter = valueDecimals !== null
+      ? (val) => (typeof val === 'number' ? val.toFixed(valueDecimals) : val)
+      : undefined;
 
     // Theme settings
     const themeMode = style.theme?.mode ?? 'dark';
@@ -422,7 +451,7 @@ export class ApexChartsAdapter {
 
     const baseOptions = {
       chart: {
-        type: chartType,
+        type: apexChartType,
         width: size[0],
         height: size[1],
         animations: {
@@ -452,6 +481,7 @@ export class ApexChartsAdapter {
       stroke: {
         width: strokeWidth,
         curve: curve,
+        dashArray: strokeDashArray,
         colors: nullToUndefined(strokeColors)
       },
 
@@ -466,8 +496,8 @@ export class ApexChartsAdapter {
       grid: {
         show: showGrid,
         borderColor: gridColor,
-        strokeDashArray: 4,
-        opacity: 0.3,
+        strokeDashArray: style.grid?.stroke_dash_array ?? 4,
+        opacity: style.grid?.opacity ?? 0.3,
         ...(gridRowColors && { row: { colors: gridRowColors } }),
         ...(gridColumnColors && { column: { colors: gridColumnColors } })
       },
@@ -475,6 +505,9 @@ export class ApexChartsAdapter {
       // X-axis
       xaxis: {
         labels: {
+          show: showXAxisLabels,
+          rotate: rotateXAxisLabels,
+          rotateAlways: rotateXAxisLabels !== 0,
           style: {
             colors: nullToUndefined(xaxisColors) || xaxisColor,
             fontSize: `${fontSize}px`,
@@ -482,9 +515,11 @@ export class ApexChartsAdapter {
           }
         },
         axisBorder: {
+          show: showXAxisBorder,
           color: axisBorderColor
         },
         axisTicks: {
+          show: showXAxisTicks,
           color: axisTicksColor
         }
       },
@@ -492,16 +527,20 @@ export class ApexChartsAdapter {
       // Y-axis
       yaxis: {
         labels: {
+          show: showYAxisLabels,
           style: {
             colors: nullToUndefined(yaxisColors) || yaxisColor,
             fontSize: `${fontSize}px`,
             fontFamily: fontFamily
-          }
+          },
+          ...(valueFormatter && { formatter: valueFormatter })
         },
         axisBorder: {
+          show: showYAxisBorder,
           color: axisBorderColor
         },
         axisTicks: {
+          show: showYAxisTicks,
           color: axisTicksColor
         }
       },
@@ -509,15 +548,22 @@ export class ApexChartsAdapter {
       // Legend
       legend: {
         show: showLegend,
+        showForSingleSeries: showLegend, // ApexCharts hides legend for 1 series by default
+        position: legendPosition,
+        horizontalAlign: legendHorizontalAlign,
         fontSize: `${fontSize + 2}px`,
         fontFamily: fontFamily,
         labels: {
-          colors: nullToUndefined(legendColors) || legendColor
+          // Use explicit color array if provided, otherwise fall back to
+          // foregroundColor as a string so ApexCharts always has a concrete value
+          colors: legendColors?.length ? legendColors : foregroundColor
         }
       },
 
       // Markers (data points)
       markers: {
+        size: markerSize,
+        shape: markerShape,
         colors: nullToUndefined(markerColors),
         strokeColors: nullToUndefined(markerStrokeColors),
         strokeWidth: markerStrokeWidth
@@ -526,11 +572,13 @@ export class ApexChartsAdapter {
       // Data labels
       dataLabels: {
         enabled: showDataLabels,
+        offsetY: dataLabelOffsetY,
         style: {
           colors: nullToUndefined(dataLabelColors),
           fontSize: `${fontSize}px`,
           fontFamily: fontFamily
-        }
+        },
+        ...(valueFormatter && { formatter: valueFormatter })
       },
 
       // Tooltip
@@ -540,7 +588,8 @@ export class ApexChartsAdapter {
         style: {
           fontSize: `${fontSize}px`,
           fontFamily: fontFamily
-        }
+        },
+        ...(valueFormatter && { y: { formatter: valueFormatter } })
       },
 
       // Theme
@@ -790,15 +839,25 @@ export class ApexChartsAdapter {
    * @returns {Object} ApexCharts options specific to chart type
    */
   static _getChartTypeDefaults(chartType, style) {
+    // Use themeManager resolver if available; otherwise fall back to CSS variable strings
+    // (which are resolved in the final _resolveAllCssVariables pass)
     const resolveToken = (tokenPath, fallback) => {
       try {
-        return themeTokenResolver?.resolve(tokenPath) || fallback;
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        return resolver ? (resolver.resolve(tokenPath, fallback) || fallback) : fallback;
       } catch {
         return fallback;
       }
     };
 
     switch (chartType) {
+      // 'column' = vertical bar: apply horizontal: false to distinguish from 'bar' (horizontal)
+      case 'column':
+        return { plotOptions: { bar: { horizontal: false } } };
+
+      // 'bar' = horizontal bar chart
+      case 'bar':
+        return { plotOptions: { bar: { horizontal: true } } };
       case 'radialBar':
         return {
           plotOptions: {

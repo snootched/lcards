@@ -255,7 +255,7 @@ export class LCARdSProcessorEditor extends LitElement {
           <div class="helper-text">Cannot change processor type after creation</div>
         ` : ''}
 
-        <!-- Dependency Selection (FROM field) -->
+        <!-- Dependency Selection (input_source field) -->
         ${this.existingProcessors.length > 0 && this._selectedType ? html`
           <ha-selector
             .hass="${this.hass}"
@@ -269,8 +269,8 @@ export class LCARdSProcessorEditor extends LitElement {
               }
             }}"
             .label="${'Depends On (Optional)'}"
-            .value="${this._config.from || ''}"
-            @value-changed="${(e) => this._updateConfig('from', e.detail.value)}"
+            .value="${this._config.input_source || ''}"
+            @value-changed="${(e) => this._updateConfig('input_source', e.detail.value)}"
           ></ha-selector>
           <div class="helper-text">
             Process output from another processor instead of raw sensor value
@@ -344,40 +344,95 @@ export class LCARdSProcessorEditor extends LitElement {
         <ha-selector
           .hass="${this.hass}"
           .selector="${{ number: { mode: 'box', step: 0.01 } }}"
-          .label="${'Multiply By'}"
-          .value="${this._config.multiply ?? 1}"
-          @value-changed="${(e) => this._updateConfig('multiply', e.detail.value)}"
+          .label="${'Input Min'}"
+          .value="${this._config.input_range?.[0] ?? 0}"
+          @value-changed="${(e) => this._updateRangeConfig('input_range', 0, e.detail.value)}"
         ></ha-selector>
 
         <ha-selector
           .hass="${this.hass}"
           .selector="${{ number: { mode: 'box', step: 0.01 } }}"
-          .label="${'Add Offset'}"
-          .value="${this._config.offset ?? 0}"
-          @value-changed="${(e) => this._updateConfig('offset', e.detail.value)}"
+          .label="${'Input Max'}"
+          .value="${this._config.input_range?.[1] ?? 100}"
+          @value-changed="${(e) => this._updateRangeConfig('input_range', 1, e.detail.value)}"
         ></ha-selector>
       </div>
 
+      <div class="form-row">
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', step: 0.01 } }}"
+          .label="${'Output Min'}"
+          .value="${this._config.output_range?.[0] ?? 0}"
+          @value-changed="${(e) => this._updateRangeConfig('output_range', 0, e.detail.value)}"
+        ></ha-selector>
+
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', step: 0.01 } }}"
+          .label="${'Output Max'}"
+          .value="${this._config.output_range?.[1] ?? 1}"
+          @value-changed="${(e) => this._updateRangeConfig('output_range', 1, e.detail.value)}"
+        ></ha-selector>
+      </div>
+
+      <ha-selector
+        .hass="${this.hass}"
+        .selector="${{ select: { options: [
+          { value: 'linear', label: 'Linear' },
+          { value: 'exponential', label: 'Exponential' },
+          { value: 'logarithmic', label: 'Logarithmic' },
+          { value: 'sigmoid', label: 'Sigmoid' }
+        ] } }}"
+        .label="${'Curve Type'}"
+        .value="${this._config.curve ?? 'linear'}"
+        @value-changed="${(e) => this._updateConfig('curve', e.detail.value)}"
+      ></ha-selector>
+
       <div class="helper-text">
-        Formula: <code>(value × multiply) + offset</code> — Example: 1.8 × + 32 for °C to °F
+        Maps values from input range to output range — e.g. sensor 0–100 → display 0–1
       </div>
     `;
   }
 
   _renderSmoothForm() {
+    const method = this._config.method ?? 'exponential';
     return html`
       <ha-selector
         .hass="${this.hass}"
-        .selector="${{ number: { mode: 'box', min: 2, step: 1 } }}"
-        .label="${'Window Size'}"
-        .value="${this._config.window ?? 5}"
-        .required="${true}"
-        @value-changed="${(e) => this._updateConfig('window', e.detail.value)}"
+        .selector="${{ select: { options: [
+          { value: 'exponential', label: 'Exponential (EMA)' },
+          { value: 'moving_average', label: 'Moving Average (SMA)' },
+          { value: 'gaussian', label: 'Gaussian' }
+        ] } }}"
+        .label="${'Smoothing Method'}"
+        .value="${method}"
+        @value-changed="${(e) => { this._updateConfig('method', e.detail.value); this.requestUpdate(); }}"
       ></ha-selector>
 
-      <div class="helper-text">
-        Computes moving average over last N values (higher = smoother, slower response)
-      </div>
+      ${method === 'exponential' ? html`
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'slider', min: 0.01, max: 1, step: 0.01 } }}"
+          .label="${'Alpha (smoothing factor)'}"
+          .value="${this._config.alpha ?? 0.3}"
+          @value-changed="${(e) => this._updateConfig('alpha', e.detail.value)}"
+        ></ha-selector>
+        <div class="helper-text">
+          Lower α = smoother (more lag); higher α = more responsive (less smooth)
+        </div>
+      ` : html`
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', min: 2, step: 1 } }}"
+          .label="${'Window Size (samples)'}"
+          .value="${this._config.window ?? 10}"
+          @value-changed="${(e) => this._updateConfig('window', e.detail.value)}"
+        ></ha-selector>
+        <div class="helper-text">
+          Number of samples in the smoothing window
+        </div>
+      `}
     `;
   }
 
@@ -409,17 +464,31 @@ export class LCARdSProcessorEditor extends LitElement {
 
   _renderRoundForm() {
     return html`
-      <ha-selector
-        .hass="${this.hass}"
-        .selector="${{ number: { mode: 'box', min: 0, max: 10, step: 1 } }}"
-        .label="${'Decimal Places'}"
-        .value="${this._config.decimals ?? 0}"
-        .required="${true}"
-        @value-changed="${(e) => this._updateConfig('decimals', e.detail.value)}"
-      ></ha-selector>
+      <div class="form-row">
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', min: 0, max: 10, step: 1 } }}"
+          .label="${'Decimal Places'}"
+          .value="${this._config.precision ?? 0}"
+          .required="${true}"
+          @value-changed="${(e) => this._updateConfig('precision', e.detail.value)}"
+        ></ha-selector>
+
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ select: { options: [
+            { value: 'round', label: 'Round (nearest)' },
+            { value: 'floor', label: 'Floor (always down)' },
+            { value: 'ceil', label: 'Ceil (always up)' }
+          ] } }}"
+          .label="${'Method'}"
+          .value="${this._config.method ?? 'round'}"
+          @value-changed="${(e) => this._updateConfig('method', e.detail.value)}"
+        ></ha-selector>
+      </div>
 
       <div class="helper-text">
-        Number of decimal places to round to (0 for integers)
+        Rounds to specified decimal places (0 = integers)
       </div>
     `;
   }
@@ -466,35 +535,68 @@ export class LCARdSProcessorEditor extends LitElement {
     return html`
       <ha-selector
         .hass="${this.hass}"
-        .selector="${{ number: { mode: 'box', min: 2, step: 1 } }}"
-        .label="${'Window Size'}"
-        .value="${this._config.window ?? 10}"
+        .selector="${{ select: { options: [
+          { value: 'session', label: 'Session (since load)' },
+          { value: '1h', label: 'Last 1 hour' },
+          { value: '6h', label: 'Last 6 hours' },
+          { value: '12h', label: 'Last 12 hours' },
+          { value: '24h', label: 'Last 24 hours' },
+          { value: '48h', label: 'Last 48 hours' },
+          { value: '7d', label: 'Last 7 days' }
+        ], custom_value: true } }}"
+        .label="${'Time Window'}"
+        .value="${this._config.window ?? 'session'}"
         .required="${true}"
         @value-changed="${(e) => this._updateConfig('window', e.detail.value)}"
       ></ha-selector>
 
+      <ha-selector
+        .hass="${this.hass}"
+        .selector="${{ select: { multiple: true, options: [
+          { value: 'min', label: 'Minimum' },
+          { value: 'max', label: 'Maximum' },
+          { value: 'mean', label: 'Mean (average)' },
+          { value: 'median', label: 'Median' },
+          { value: 'std_dev', label: 'Std Deviation' },
+          { value: 'q1', label: 'Q1 (25th percentile)' },
+          { value: 'q3', label: 'Q3 (75th percentile)' },
+          { value: 'range', label: 'Range (max − min)' },
+          { value: 'count', label: 'Count' }
+        ] } }}"
+        .label="${'Statistics to Compute'}"
+        .value="${this._config.stats ?? ['min', 'max', 'mean']}"
+        @value-changed="${(e) => this._updateConfig('stats', e.detail.value)}"
+      ></ha-selector>
+
       <div class="helper-text">
-        Outputs object with: <code>min</code>, <code>max</code>, <code>avg</code>, <code>sum</code>, <code>range</code>
+        Outputs an object — access values with <code>{ds:name.proc_key.min}</code> etc.
       </div>
     `;
   }
 
   _renderRateForm() {
     return html`
-      <ha-selector
-        .hass="${this.hass}"
-        .selector="${{          select: {
-            options: [
-              { value: 'second', label: 'Per Second' },
-              { value: 'minute', label: 'Per Minute' },
-              { value: 'hour', label: 'Per Hour' }
-            ]
-          }
-        }}"
-        .label="${'Time Unit'}"
-        .value="${this._config.unit ?? 'second'}"
-        @value-changed="${(e) => this._updateConfig('unit', e.detail.value)}"
-      ></ha-selector>
+      <div class="form-row">
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ select: { options: [
+            { value: 'per_second', label: 'Per Second' },
+            { value: 'per_minute', label: 'Per Minute' },
+            { value: 'per_hour', label: 'Per Hour' }
+          ] } }}"
+          .label="${'Time Unit'}"
+          .value="${this._config.unit ?? 'per_second'}"
+          @value-changed="${(e) => this._updateConfig('unit', e.detail.value)}"
+        ></ha-selector>
+
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ boolean: {} }}"
+          .label="${'Enable Smoothing'}"
+          .value="${this._config.smoothing ?? false}"
+          @value-changed="${(e) => this._updateConfig('smoothing', e.detail.value)}"
+        ></ha-selector>
+      </div>
 
       <div class="helper-text">
         Rate of change = (current − previous) / time difference
@@ -504,17 +606,27 @@ export class LCARdSProcessorEditor extends LitElement {
 
   _renderTrendForm() {
     return html`
-      <ha-selector
-        .hass="${this.hass}"
-        .selector="${{ number: { mode: 'box', min: 2, step: 1 } }}"
-        .label="${'Window Size'}"
-        .value="${this._config.window ?? 5}"
-        .required="${true}"
-        @value-changed="${(e) => this._updateConfig('window', e.detail.value)}"
-      ></ha-selector>
+      <div class="form-row">
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', min: 2, step: 1 } }}"
+          .label="${'Samples'}"
+          .value="${this._config.samples ?? 5}"
+          .required="${true}"
+          @value-changed="${(e) => this._updateConfig('samples', e.detail.value)}"
+        ></ha-selector>
+
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', min: 0, step: 0.001 } }}"
+          .label="${'Threshold (min slope)'}"
+          .value="${this._config.threshold ?? 0.01}"
+          @value-changed="${(e) => this._updateConfig('threshold', e.detail.value)}"
+        ></ha-selector>
+      </div>
 
       <div class="helper-text">
-        Outputs: <code>1</code> (rising), <code>0</code> (stable), <code>−1</code> (falling)
+        Returns: <code>"increasing"</code>, <code>"decreasing"</code>, or <code>"stable"</code>
       </div>
     `;
   }
@@ -523,30 +635,24 @@ export class LCARdSProcessorEditor extends LitElement {
     return html`
       <ha-selector
         .hass="${this.hass}"
-        .selector="${{ number: { mode: 'box', step: 0.01 } }}"
-        .label="${'Threshold Value'}"
-        .value="${this._config.threshold ?? 0}"
+        .selector="${{ text: {} }}"
+        .label="${'Condition Expression'}"
+        .value="${this._config.condition ?? ''}"
         .required="${true}"
-        @value-changed="${(e) => this._updateConfig('threshold', e.detail.value)}"
+        @value-changed="${(e) => this._updateConfig('condition', e.detail.value)}"
       ></ha-selector>
+      <div class="helper-text">JavaScript condition on the value — e.g. <code>&gt; 20</code>, <code>!== 0</code></div>
 
       <ha-selector
         .hass="${this.hass}"
-        .selector="${{          select: {
-            options: [
-              { value: 'above', label: 'Above' },
-              { value: 'below', label: 'Below' },
-              { value: 'equal', label: 'Equal' }
-            ]
-          }
-        }}"
-        .label="${'Comparison'}"
-        .value="${this._config.comparison ?? 'above'}"
-        @value-changed="${(e) => this._updateConfig('comparison', e.detail.value)}"
+        .selector="${{ text: {} }}"
+        .label="${'Reset Condition (optional)'}"
+        .value="${this._config.reset_on ?? ''}"
+        @value-changed="${(e) => this._updateConfig('reset_on', e.detail.value)}"
       ></ha-selector>
 
       <div class="helper-text">
-        Tracks how long value stays in specified condition (seconds)
+        Returns: <code>{ duration_ms, duration_human, in_condition }</code>
       </div>
     `;
   }
@@ -562,36 +668,70 @@ export class LCARdSProcessorEditor extends LitElement {
         @value-changed="${(e) => this._updateConfig('threshold', e.detail.value)}"
       ></ha-selector>
 
+      <div class="form-row">
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', step: 0.01 } }}"
+          .label="${'Value When Above'}"
+          .value="${this._config.above ?? 1}"
+          @value-changed="${(e) => this._updateConfig('above', e.detail.value)}"
+        ></ha-selector>
+
+        <ha-selector
+          .hass="${this.hass}"
+          .selector="${{ number: { mode: 'box', step: 0.01 } }}"
+          .label="${'Value When Below'}"
+          .value="${this._config.below ?? 0}"
+          @value-changed="${(e) => this._updateConfig('below', e.detail.value)}"
+        ></ha-selector>
+      </div>
+
       <ha-selector
         .hass="${this.hass}"
-        .selector="${{          select: {
-            options: [
-              { value: 'rising', label: 'Rising (crosses above)' },
-              { value: 'falling', label: 'Falling (crosses below)' },
-              { value: 'both', label: 'Both directions' }
-            ]
-          }
-        }}"
-        .label="${'Direction'}"
-        .value="${this._config.direction ?? 'both'}"
-        @value-changed="${(e) => this._updateConfig('unit', e.detail.value)}"
+        .selector="${{ number: { mode: 'box', min: 0, step: 0.01 } }}"
+        .label="${'Hysteresis (prevents flapping)'}"
+        .value="${this._config.hysteresis ?? 0}"
+        @value-changed="${(e) => this._updateConfig('hysteresis', e.detail.value)}"
       ></ha-selector>
 
       <div class="helper-text">
-        Outputs: <code>1</code> when crossing detected, <code>0</code> otherwise
+        Outputs <code>above</code> value when above threshold, <code>below</code> value when below
       </div>
     `;
   }
 
   _renderConvertUnitForm() {
     const unitOptions = [
-      { value: '°C', label: 'Celsius (°C)' },
-      { value: '°F', label: 'Fahrenheit (°F)' },
-      { value: 'K', label: 'Kelvin (K)' },
+      // Temperature
+      { value: 'c', label: 'Celsius (°C)' },
+      { value: 'f', label: 'Fahrenheit (°F)' },
+      { value: 'k', label: 'Kelvin (K)' },
+      // Power
+      { value: 'w', label: 'Watts (W)' },
+      { value: 'kw', label: 'Kilowatts (kW)' },
+      { value: 'mw', label: 'Megawatts (MW)' },
+      { value: 'gw', label: 'Gigawatts (GW)' },
+      // Energy
+      { value: 'wh', label: 'Watt-hours (Wh)' },
+      { value: 'kwh', label: 'Kilowatt-hours (kWh)' },
+      { value: 'mwh', label: 'Megawatt-hours (MWh)' },
+      { value: 'j', label: 'Joules (J)' },
+      { value: 'cal', label: 'Calories (cal)' },
+      // Distance (metric)
+      { value: 'mm', label: 'Millimeters (mm)' },
+      { value: 'cm', label: 'Centimeters (cm)' },
       { value: 'm', label: 'Meters (m)' },
+      { value: 'km', label: 'Kilometers (km)' },
+      // Distance (imperial)
+      { value: 'in', label: 'Inches (in)' },
       { value: 'ft', label: 'Feet (ft)' },
-      { value: 'kg', label: 'Kilograms (kg)' },
-      { value: 'lb', label: 'Pounds (lb)' }
+      { value: 'mi', label: 'Miles (mi)' },
+      { value: 'yd', label: 'Yards (yd)' },
+      // Speed
+      { value: 'ms', label: 'Meters/second (m/s)' },
+      { value: 'kmh', label: 'Km/hour (km/h)' },
+      { value: 'mph', label: 'Miles/hour (mph)' },
+      { value: 'knot', label: 'Knots (kn)' }
     ];
 
     return html`
@@ -600,19 +740,22 @@ export class LCARdSProcessorEditor extends LitElement {
           .hass="${this.hass}"
           .selector="${{ select: { options: unitOptions } }}"
           .label="${'From Unit'}"
-          .value="${this._config.from_unit ?? ''}"
+          .value="${this._config.from ?? ''}"
           .required="${true}"
-          @value-changed="${(e) => this._updateConfig('from_unit', e.detail.value)}"
+          @value-changed="${(e) => this._updateConfig('from', e.detail.value)}"
         ></ha-selector>
 
         <ha-selector
           .hass="${this.hass}"
           .selector="${{ select: { options: unitOptions } }}"
           .label="${'To Unit'}"
-          .value="${this._config.to_unit ?? ''}"
+          .value="${this._config.to ?? ''}"
           .required="${true}"
-          @value-changed="${(e) => this._updateConfig('to_unit', e.detail.value)}"
+          @value-changed="${(e) => this._updateConfig('to', e.detail.value)}"
         ></ha-selector>
+      </div>
+      <div class="helper-text">
+        Unit codes must be compatible (e.g. temperature: c/f/k, power: w/kw/mw, distance: m/ft)
       </div>
     `;
   }
@@ -633,10 +776,10 @@ export class LCARdSProcessorEditor extends LitElement {
 
   _handleTypeChange(event) {
     this._selectedType = event.detail.value;
-    // Reset config when type changes, keeping only type and from
+    // Reset config when type changes, keeping only type and input_source
     this._config = {
       type: this._selectedType,
-      ...(this._config.from && { from: this._config.from })
+      ...(this._config.input_source && { input_source: this._config.input_source })
     };
   }
 
@@ -651,6 +794,12 @@ export class LCARdSProcessorEditor extends LitElement {
     if (value === null || value === undefined || value === '') {
       delete this._config[key];
     }
+  }
+
+  _updateRangeConfig(key, index, value) {
+    const current = this._config[key] ? [...this._config[key]] : [0, 100];
+    current[index] = value;
+    this._updateConfig(key, current);
   }
 
   _isValid() {
@@ -669,17 +818,19 @@ export class LCARdSProcessorEditor extends LitElement {
       switch (this._selectedType) {
         case 'smooth':
         case 'statistics':
+          return true; // all fields have safe defaults
         case 'trend':
-          return this._config.window && this._config.window >= 2;
+          return this._config.samples !== undefined && this._config.samples >= 2;
         case 'round':
-          return this._config.decimals !== undefined && this._config.decimals >= 0;
+          return this._config.precision !== undefined && this._config.precision >= 0;
         case 'expression':
           return this._config.expression && this._config.expression.trim() !== '';
         case 'duration':
+          return this._config.condition && this._config.condition.trim() !== '';
         case 'threshold':
           return this._config.threshold !== undefined;
         case 'convert_unit':
-          return this._config.from_unit && this._config.to_unit;
+          return !!(this._config.from && this._config.to);
       }
     }
 
