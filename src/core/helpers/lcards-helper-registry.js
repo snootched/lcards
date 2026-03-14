@@ -851,7 +851,7 @@ export const HELPER_REGISTRY = {
       mode: 'slider',
       unit_of_measurement: '%'
     },
-    default_value: 30,
+    default_value: 70,
     yaml_config: `input_number:
   lcards_alert_lab_black_lightness:
     name: Alert Lab Black Lightness
@@ -878,7 +878,7 @@ export const HELPER_REGISTRY = {
       step: 1,
       mode: 'slider'
     },
-    default_value: 50,
+    default_value: 69,
     yaml_config: `input_number:
   lcards_alert_lab_black_threshold:
     name: Alert Lab Black Threshold
@@ -926,7 +926,7 @@ export const HELPER_REGISTRY = {
       step: 0.01,
       mode: 'slider'
     },
-    default_value: 1.4,
+    default_value: 1.0,
     yaml_config: `input_number:
   lcards_alert_lab_black_light_multiplier:
     name: Alert Lab Black Light Multiplier

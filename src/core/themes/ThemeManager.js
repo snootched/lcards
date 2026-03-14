@@ -623,7 +623,11 @@ export class ThemeManager extends BaseService {
     }
 
     // Load user-customized transform parameters from persistent HA helpers (before injection)
-    loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
+    // Skip this when called from the Alert Lab editor, which has already set the live values
+    // via setAlertModeTransformParameter() and does NOT want them overwritten by saved helpers.
+    if (!opts.skipHelperLoad) {
+      loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
+    }
 
     // Apply alert mode — opts.transitionStyle selects the visual transition effect
     await injectAlertMode(mode, hass, undefined, opts);

@@ -3514,8 +3514,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         // Update HASS reference in ThemeManager
         window.lcards.core.themeManager.updateHass(hass);
 
-        // Apply alert mode via ThemeManager directly
-        await window.lcards.core.themeManager.setAlertMode(this._selectedAlertMode);
+        // Apply alert mode via ThemeManager directly.
+        // Pass skipHelperLoad:true so the ThemeManager does NOT reload values from
+        // the saved HA helpers — we want the live in-editor parameters to take effect.
+        await window.lcards.core.themeManager.setAlertMode(this._selectedAlertMode, { skipHelperLoad: true });
         lcardsLog.info('[AlertLab] Alert mode applied successfully');
 
         // Force preview update
