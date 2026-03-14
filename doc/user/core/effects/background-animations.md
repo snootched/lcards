@@ -66,6 +66,7 @@ Combine with canvas inset to create an envelope to constrain the animatin to a s
 
 ```yaml
 background_animation:
+  fps: 30           # Max render FPS (default: 30). Use 60 for high-refresh/desktop displays.
   inset:            # Canvas-level inset (optional) — all sides default to 0
     top: 0
     right: 0
@@ -98,10 +99,11 @@ background_animation:
       config: {}
 ```
 
-### Canvas Inset
+### Canvas Settings
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `fps` | number | Maximum frames per second for the animation render loop. Default `30` — half the native browser rate, sufficient for ambient animations and conserves CPU on low-end devices (Android tablets etc). Set to `60` for smoother feel on desktop or high-refresh displays. |
 | `inset` | object \| `'auto'` | Canvas-level offset applied to all effects. `'auto'` is only meaningful on elbow cards; on other card types it resolves to all-zero. |
 | `inset.top` | number | Pixels to inset from top (default: 0) |
 | `inset.right` | number | Pixels to inset from right (default: 0) |
@@ -201,7 +203,7 @@ config:
 Diagonal hatch pattern at 45° angle.
 
 <details>
-  
+
 **Configuration:**
 
 ```yaml
@@ -234,7 +236,7 @@ config:
 Honeycomb hexagonal pattern with major/minor hex support.
 
 <details>
-  
+
 **Configuration:**
 
 ```yaml
@@ -290,7 +292,7 @@ Major hexagons are determined by global tile position (row, column) modulo the i
 Grid with cell background fills in addition to line strokes.
 
 <details>
-  
+
 **Configuration:**
 
 ```yaml
@@ -432,7 +434,7 @@ Each starfield instance uses a seeded random number generator for reproducible p
 Layered nebula clouds with Perlin noise turbulence and organic movement.
 
 <details>
-  
+
 **Configuration:**
 
 ```yaml
@@ -546,7 +548,7 @@ Each nebula instance uses a seeded random number generator for reproducible clou
 LCARS data-waterfall colour-cycling background. Renders cascading rows of random data cells that cycle through three configurable colour stops, replicating the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
 
 <details>
-  
+
 **Configuration:**
 
 ```yaml
@@ -672,7 +674,7 @@ The colour cycle for each row follows the CB-LCARS / data-grid keyframe structur
 > **💡 Tip:** Use `opacity: 0.4–0.7` for cascade backgrounds so card content remains readable. Combine with `grid` or `starfield` for layered depth effects.
 
 </details>
-  
+
 ---
 
 ## 🔍 Zoom Wrapper
@@ -800,6 +802,7 @@ background_animation:
 
 ### Performance Tips
 
+- **FPS cap**: Default is 30fps — suitable for most devices. Set `fps: 60` only on desktop/high-refresh displays where the extra smoothness is noticeable.
 - **Limit layers**: 2-3 effects is usually sufficient
 - **Use opacity**: Lower alpha values reduce visual noise
 - **Disable scroll on zoom**: Set `scroll_speed_x: 0` and `scroll_speed_y: 0` when using zoom

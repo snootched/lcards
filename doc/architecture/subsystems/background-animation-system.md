@@ -423,6 +423,58 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 
 ---
 
+## 🏎️ Animation Governor (PerformanceMonitor)
+
+`AnimationPerformanceMonitor` (`src/core/animation/PerformanceMonitor.js`) is a global singleton (`window.lcards.core.performanceMonitor`) that runs a single RAF loop to measure device FPS independently of any card's render loop. It is ref-counted: it starts when the first `Canvas2DRenderer` starts and stops when the last one stops.
+
+### How It Works
+
+1. Maintains a rolling 60-frame window of inter-frame deltas
+2. Every 60 frames, computes average FPS and emits a `lcards:performance-check` window event
+3. Each `Canvas2DRenderer` subscribes to this event and acts on the payload
+4. A 5-second settle window is applied on start/restart to discard startup jank
+
+### Thresholds
+
+| Threshold | Default | Behaviour |
+|-----------|---------|----------|
+| `reduceEffects` | 24 fps | `Canvas2DRenderer` skips every other render frame — halves draw work while keeping the RAF loop alive |
+| `disable3D` | 12 fps | `Canvas2DRenderer.stop()` is called after **3 consecutive** checks below this level — animation stops entirely until page reload |
+
+Note: these thresholds measure **device-level FPS** (the PM's own RAF loop), not the per-card capped output rate configured via `fps:`. A card capped at 30fps on a 60fps device will show 60fps in the PM.
+
+### Relationship to the per-card `fps:` cap
+
+- The `fps:` config key (default `30`) is a **render budget** — the canvas is only cleared and redrawn when at least `1000/fps` ms have elapsed since the last drawn frame. This is the primary throttle for CPU budget on low-end devices.
+- The PM thresholds are **emergency degradation** — they activate only when the device genuinely cannot sustain even the capped rate.
+- The thresholds are intentionally set below the default 30fps cap so that normal 30fps operation never spuriously triggers frame-skipping.
+
+### Console Troubleshooting
+
+All PM state is exposed via the browser console:
+
+```javascript
+// Current measured FPS
+window.lcards.core.performanceMonitor.getFPS()
+
+// Current thresholds
+window.lcards.core.performanceMonitor.thresholds
+// → { disable3D: 12, reduceEffects: 24 }
+
+// Override thresholds for a session (e.g. to test behaviour on fast hardware)
+window.lcards.core.performanceMonitor.setThresholds({ reduceEffects: 50, disable3D: 30 })
+
+// Number of active Canvas2DRenderer subscribers
+window.lcards.core.performanceMonitor._refCount
+
+// Enable verbose animation logging to trace PM events
+window.lcards.setGlobalLogLevel('debug')
+```
+
+Threshold changes via `setThresholds()` are session-only — they reset on page reload. To make them permanent, update the defaults in `src/core/animation/PerformanceMonitor.js`.
+
+---
+
 ## 🚀 Adding New Effects
 
 ### 1. Create Effect Class
