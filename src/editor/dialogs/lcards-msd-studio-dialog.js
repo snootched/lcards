@@ -2140,51 +2140,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
-            // Create dialog element
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
-            // Create content
             const content = document.createElement('div');
-            content.textContent = message;
+            content.innerHTML = message;
             content.style.padding = '16px';
             content.style.lineHeight = '1.5';
             dialog.appendChild(content);
 
-            // Create button container
-            const buttonContainer = document.createElement('div');
-            buttonContainer.slot = 'secondaryAction';
-            buttonContainer.style.display = 'flex';
-            buttonContainer.style.gap = '8px';
-
             // Cancel button
             const cancelButton = document.createElement('ha-button');
+            cancelButton.slot = 'footer';
             cancelButton.textContent = 'Cancel';
+            cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(false);
             });
 
             // Confirm button
             const confirmButton = document.createElement('ha-button');
-            confirmButton.textContent = 'Continue';
-            confirmButton.setAttribute('raised', '');
+            confirmButton.slot = 'footer';
+            confirmButton.textContent = 'Delete';
+            confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(true);
             });
 
-            buttonContainer.appendChild(cancelButton);
-            buttonContainer.appendChild(confirmButton);
-            dialog.appendChild(buttonContainer);
+            const footerDiv = document.createElement('div');
+            footerDiv.slot = 'footer';
+            footerDiv.appendChild(cancelButton);
+            footerDiv.appendChild(confirmButton);
+            dialog.appendChild(footerDiv);
 
-            // Handle dialog close (ESC key or backdrop click)
             dialog.addEventListener('closed', () => {
-                setTimeout(() => dialog.remove(), 100);
+                dialog.remove();
             });
 
-            // Append to body
             document.body.appendChild(dialog);
         });
     }
@@ -11868,7 +11863,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -11877,10 +11872,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'primaryAction';
+            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve();
             });
 
@@ -11904,7 +11899,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            dialog.heading = title;
+            dialog.headerTitle = title;
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -11913,27 +11908,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
             dialog.appendChild(content);
 
             const cancelButton = document.createElement('ha-button');
-            cancelButton.slot = 'secondaryAction';
             cancelButton.textContent = 'Cancel';
-            cancelButton.dialogAction = 'cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(false);
             });
 
             const confirmButton = document.createElement('ha-button');
-            confirmButton.slot = 'primaryAction';
             confirmButton.textContent = 'Discard';
-            confirmButton.dialogAction = 'discard';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                dialog.close();
+                dialog.open = false;
                 resolve(true);
             });
 
-            dialog.appendChild(cancelButton);
-            dialog.appendChild(confirmButton);
+            const footerDiv = document.createElement('div');
+            footerDiv.slot = 'footer';
+            footerDiv.appendChild(cancelButton);
+            footerDiv.appendChild(confirmButton);
+            dialog.appendChild(footerDiv);
 
             dialog.addEventListener('closed', () => {
                 dialog.remove();
