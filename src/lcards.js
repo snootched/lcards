@@ -32,6 +32,7 @@ import { LCARdSSlider } from './cards/lcards-slider.js';
 import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 import { LCARdSMSDCard } from './cards/lcards-msd.js';
 import { LCARdSAlertOverlay } from './cards/lcards-alert-overlay.js';
+import { LCARdSSelectMenu } from './cards/lcards-select-menu.js';
 import { LCARdSConfigPanel } from './panels/lcards-config-panel.js';
 
 
@@ -234,6 +235,7 @@ initializeCustomCard()
         customElements.define('lcards-data-grid', LCARdSDataGrid);
         customElements.define('lcards-msd-card', LCARdSMSDCard);
         customElements.define('lcards-alert-overlay', LCARdSAlertOverlay);
+        customElements.define('lcards-select-menu', LCARdSSelectMenu);
         //customElements.define('lcards-config-panel', LCARdSConfigPanel);
 
         lcardsLog.debug('[lcards.js] All custom elements registered after core initialization');
@@ -248,6 +250,7 @@ initializeCustomCard()
             if (LCARdSDataGrid.registerSchema) LCARdSDataGrid.registerSchema();
             if (LCARdSMSDCard.registerSchema) LCARdSMSDCard.registerSchema();
             if (LCARdSAlertOverlay.registerSchema) LCARdSAlertOverlay.registerSchema();
+            if (LCARdSSelectMenu.registerSchema) LCARdSSelectMenu.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
         } else {
@@ -303,6 +306,13 @@ const LCARdSCardClasses = [
         preview: true,
         description: 'LCARdS Master Systems Display (MSD) card',
         documentationURL: "https://cb-lcars.unimatrix01.ca",
+    },
+    {
+        type: 'lcards-select-menu',
+        name: 'LCARdS Select Menu',
+        preview: true,
+        description: 'Renders an input_select entity as a grid of LCARS-styled option buttons',
+        documentationURL: 'https://cb-lcars.unimatrix01.ca',
     },
     {
         type: 'lcards-alert-overlay',

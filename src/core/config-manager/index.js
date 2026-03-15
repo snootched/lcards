@@ -807,7 +807,7 @@ export class CoreConfigManager {
     const mapping = {
       'simple-button': 'button',  // Legacy alias
       'simple-label': 'text',     // Legacy alias
-      'simple-gauge': 'gauge'     // Legacy alias
+      'simple-gauge': 'gauge',    // Legacy alias
     };
     return mapping[cardType] || cardType;
   }

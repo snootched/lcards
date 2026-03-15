@@ -2552,6 +2552,15 @@ export class LCARdSCard extends LCARdSNativeCard {
         targetElement.addEventListener('touchstart', handleMouseDown, { passive: true });
         targetElement.addEventListener('touchend', handleMouseUp);
 
+        // Pre-set style.fill immediately so it wins over the SVG attribute from
+        // the very first render. Without this, a prior hover cycle's style.fill
+        // persists after config-driven re-renders (e.g. select-menu rebuilding
+        // btnConfig), causing the old colour to linger until the next hover.
+        const initialRestoreColor = getRestoreColor();
+        if (initialRestoreColor) {
+            applyColor(initialRestoreColor);
+        }
+
         lcardsLog.debug('[LCARdSCard] Interaction listeners attached', {
             hasHover: !!hoverStyle,
             hasPressed: !!pressedStyle,

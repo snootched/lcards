@@ -12,6 +12,7 @@ The LCARdS fleet. Each card is independent but shares the same core systems.
 |------|------|---------|
 | [Button](cards/button/README.md) | `custom:lcards-button` | Buttons, labels, D-pad, multi-segment SVG |
 | [Elbow](cards/elbow/README.md) | `custom:lcards-elbow` | LCARS corner/cap decorations |
+| [Select Menu](cards/select-menu/README.md) | `custom:lcards-select-menu` | Grid of option buttons for input_select / select entities |
 | [Slider](cards/slider/README.md) | `custom:lcards-slider` | Interactive sliders and gauge displays |
 | [Chart](cards/chart/README.md) | `custom:lcards-chart` | Data visualization (ApexCharts) |
 | [Data Grid](cards/data-grid/README.md) | `custom:lcards-data-grid` | Tabular entity data with cascade animations |
