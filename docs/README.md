@@ -40,5 +40,5 @@ Output goes to `docs/site/` (gitignored).
 
 ## Deploy
 
-Deployment is automatic via GitHub Actions on push to `main` when files in `doc/` or `docs/` change.
-PRs trigger a build-only check (no deployment) to catch errors early.
+Deployment is automatic via GitHub Actions on push to `msd-globalisation` when files in `doc/` or `docs/` change.
+PRs targeting `msd-globalisation` trigger a build-only check (no deployment) to catch errors early.
