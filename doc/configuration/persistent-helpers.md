@@ -321,5 +321,5 @@ The helper system is designed to support additional configuration:
 ## See Also
 
 - [Developer Guide: Helpers API](../development/helpers-api.md)
-- [Architecture: Alert Mode System](../architecture/subsystems/alert-mode.md)
-- [CHANGELOG.md](../../CHANGELOG.md) - Version history
+- Architecture: Alert Mode System _(documentation coming soon)_
+- See [GitHub Releases](https://github.com/snootched/lcards/releases) for version history

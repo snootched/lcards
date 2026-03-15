@@ -1,3 +1,7 @@
+# Systems Architecture
+
+The diagram below shows how LCARdS cards, core singletons, and Home Assistant relate at runtime.
+
 ```mermaid
 graph LR
     subgraph HA["Home Assistant"]
@@ -47,7 +51,7 @@ graph LR
     7@{ animate: slow }
 
     linkStyle 0,1,2,3,4,5,6,7 stroke:#00eeee,stroke-width:3px
-   
+
     classDef lcardsStyle fill:#ffb399,stroke:#e7442a,color:#000
     classDef coreStyle fill:#6d748c,stroke:#d2d5df
 

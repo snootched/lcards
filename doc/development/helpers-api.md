@@ -265,7 +265,7 @@ Add to `HELPER_REGISTRY` in `lcards-helper-registry.js`:
 ```javascript
 export const HELPER_REGISTRY = {
   // ... existing helpers
-  
+
   my_new_helper: {
     entity_id: 'input_boolean.lcards_my_feature_enabled',
     domain: 'input_boolean',
@@ -344,12 +344,12 @@ The Alert Lab loads and saves helper values:
 // On open: Load from helpers
 _loadAlertLabFromHelpers() {
   const helperManager = window.lcards.core.helperManager;
-  
+
   ['red', 'yellow', 'blue', 'white'].forEach(mode => {
     const hue = helperManager.getHelperValue(`alert_lab_${mode}_hue`);
     const saturation = helperManager.getHelperValue(`alert_lab_${mode}_saturation`);
     const lightness = helperManager.getHelperValue(`alert_lab_${mode}_lightness`);
-    
+
     // Apply values
     setAlertModeTransformParameter(`${mode}_alert`, 'hueShift', hue);
     setAlertModeTransformParameter(`${mode}_alert`, 'saturationMultiplier', saturation / 100);
@@ -362,7 +362,7 @@ async _saveToHelpers() {
   const helperManager = window.lcards.core.helperManager;
   const transform = getAlertModeTransform(this._selectedAlertMode);
   const mode = this._selectedAlertMode.replace('_alert', '');
-  
+
   await helperManager.setHelperValue(`alert_lab_${mode}_hue`, transform.hueShift);
   await helperManager.setHelperValue(`alert_lab_${mode}_saturation`, transform.saturationMultiplier * 100);
   await helperManager.setHelperValue(`alert_lab_${mode}_lightness`, transform.lightnessMultiplier * 100);
@@ -408,12 +408,12 @@ const mockHass = {
 // Test creation
 test('creates helper via WebSocket', async () => {
   mockHass.callWS.mockResolvedValue({ id: 'helper_id' });
-  
+
   const result = await createHelper(mockHass, 'input_number', 'Test Helper', {
     min: 0,
     max: 100
   });
-  
+
   expect(mockHass.callWS).toHaveBeenCalledWith({
     type: 'input_number/create',
     name: 'Test Helper',
@@ -499,23 +499,3 @@ Planned features for helper system:
    - Helper validation rules
    - Inter-helper dependencies
    - Conditional helper enablement
-
-## Related Documentation
-
-- [User Guide: Persistent Helpers](../configuration/persistent-helpers.md)
-- [Architecture: Core Services](../architecture/core-services.md)
-- [API Reference: Helper Manager](../api/helper-manager.md)
-
-## API Reference
-
-### Helper API
-
-See [lcards-helper-api.js](../../src/core/helpers/lcards-helper-api.js) for complete API.
-
-### Helper Manager
-
-See [lcards-helper-manager.js](../../src/core/helpers/lcards-helper-manager.js) for complete API.
-
-### Helper Registry
-
-See [lcards-helper-registry.js](../../src/core/helpers/lcards-helper-registry.js) for registry structure.

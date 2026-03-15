@@ -1042,15 +1042,3 @@ background_animation:
 | 3+ stacked effects + zoom | High | ❌ Avoid unless necessary |
 
 ---
-
-## Related Documentation
-
-- [User Docs Index](../../README.md)
-- [Button Card](../../cards/button/README.md) — applies background animations to buttons
-- [Animations](../animations.md) — card element animations
-- [Theme System](../themes/README.md) — colour token system
-- [Template System](../templates/README.md) — dynamic value resolution
-
----
-
-*Last Updated: February 15, 2026*

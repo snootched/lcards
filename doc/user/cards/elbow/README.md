@@ -246,15 +246,3 @@ elbow:
 Then define a rule that patches `id: alert-cap` when the sensor is high.
 
 ---
-
-## Related
-
-- [Button card](../button/README.md)
-- [Text Fields](../../core/text-fields.md)
-- [Colours](../../core/colours.md)
-- [Actions](../../core/actions.md)
-- [Background Animations](../../core/effects/background-animations.md)
-- [Shape Texture System](../../architecture/subsystems/shape-texture-system.md)
-- [Themes — HA-LCARS binding](../../core/themes/README.md)
-- [Rules Engine](../../core/rules/README.md)
-- [Animations](../../core/animations.md)

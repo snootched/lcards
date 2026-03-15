@@ -1,0 +1,6 @@
+title: User Guide
+nav:
+  - README.md
+  - cards
+  - core
+  - config-panel.md

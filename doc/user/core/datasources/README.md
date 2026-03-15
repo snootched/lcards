@@ -183,8 +183,3 @@ sources:
 ```
 
 ---
-
-## Related
-
-- [Templates](../templates/README.md)
-- [Chart card](../../cards/chart/README.md)

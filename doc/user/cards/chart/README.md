@@ -338,10 +338,3 @@ animation:
 ```
 
 ---
-
-## Related
-
-- [DataSources](../../core/datasources/README.md)
-- [Templates](../../core/templates/README.md)
-- [Colours](../../core/colours.md)
-- [Rules Engine](../../core/rules/README.md)

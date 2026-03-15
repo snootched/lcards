@@ -149,10 +149,3 @@ style:
 ```
 
 ---
-
-## Related
-
-- [Themes](themes/README.md)
-- [Templates](templates/README.md)
-- [Text Fields](text-fields.md)
-- [Rules Engine](rules/README.md)

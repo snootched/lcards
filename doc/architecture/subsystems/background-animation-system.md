@@ -662,17 +662,17 @@ const isMajor = globalRow % majorRowInterval === 0;
 
 ### Key Files
 
-- **[BackgroundAnimationRenderer.js](../../../../../../src/core/packs/backgrounds/BackgroundAnimationRenderer.js)** - Main renderer
-- **[BaseEffect.js](../../../../../../src/core/packs/backgrounds/effects/BaseEffect.js)** - Effect interface
-- **[GridEffect.js](../../../../../../src/core/packs/backgrounds/effects/GridEffect.js)** - Grid effect implementation
-- **[StarfieldEffect.js](../../../../../../src/core/packs/backgrounds/effects/StarfieldEffect.js)** - Starfield effect with parallax
-- **[ZoomEffect.js](../../../../../../src/core/packs/backgrounds/effects/ZoomEffect.js)** - Zoom wrapper
-- **[presets/index.js](../../../../../../src/core/packs/backgrounds/presets/index.js)** - Preset registry
+- **[BackgroundAnimationRenderer.js](../../../src/core/packs/backgrounds/BackgroundAnimationRenderer.js)** - Main renderer
+- **[BaseEffect.js](../../../src/core/packs/backgrounds/effects/BaseEffect.js)** - Effect interface
+- **[GridEffect.js](../../../src/core/packs/backgrounds/effects/GridEffect.js)** - Grid effect implementation
+- **[StarfieldEffect.js](../../../src/core/packs/backgrounds/effects/StarfieldEffect.js)** - Starfield effect with parallax
+- **[ZoomEffect.js](../../../src/core/packs/backgrounds/effects/ZoomEffect.js)** - Zoom wrapper
+- **[presets/index.js](../../../src/core/packs/backgrounds/presets/index.js)** - Preset registry
 
 ### Related Systems
 
-- **[Pack System](../pack-system.md)** - Background pack architecture
-- **[Canvas2DRenderer](../../../../../../src/core/packs/Canvas2DRenderer.js)** - Base canvas renderer
+- **[Pack System](pack-system.md)** - Background pack architecture
+- **[Canvas2DRenderer](../../../src/core/packs/backgrounds/renderers/Canvas2DRenderer.js)** - Base canvas renderer
 
 ---
 

@@ -141,8 +141,3 @@ In any card editor, the **Rules** tab shows:
 - Which patches are being applied to this card
 
 ---
-
-## Related
-
-- [Templates](../templates/README.md)
-- [Config Panel](../../config-panel.md)

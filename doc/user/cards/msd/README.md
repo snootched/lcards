@@ -307,11 +307,3 @@ rules:
 ```
 
 ---
-
-## Related
-
-- [Rules Engine](../../core/rules/README.md)
-- [DataSources](../../core/datasources/README.md)
-- [Colours](../../core/colours.md)
-- [Templates](../../core/templates/README.md)
-- [Button card](../button/README.md)

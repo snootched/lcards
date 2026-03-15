@@ -1,0 +1,265 @@
+/* Antonio — tall, condensed, LCARS-aesthetic heading font */
+@import url('https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&display=swap');
+
+/* ==========================================================================
+   LCARdS — Material for MkDocs custom colour schemes
+   Colour palette sourced from the LCARdS LCARS design language
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   LCARdS colour palette reference
+   Orange:   base #ff6753  |  medium-dark #e7442a  |  dark #ef1d10
+   Blue:     base #37a6d1  |  dark #1c3c55          |  darkest #002241
+   Gray:     darkest #1e2229 (page bg) | dark #2f3749 (surface) | medium-dark #52596e
+             medium #6d748c | medium-light #9ea5ba  | light #d2d5df
+   Moonlight (near-white text): #dfe1e8
+   Cyan:     #00eeee
+   Yellow:   #f9ef97
+   -------------------------------------------------------------------------- */
+
+/* ==========================================================================
+   Dark scheme — lcards-dark (default)
+   ========================================================================== */
+[data-md-color-scheme="lcards-dark"] {
+  /* Primary — deep navy header/chrome */
+  --md-primary-fg-color:        #002241;
+  --md-primary-fg-color--light: #1c3c55;
+  --md-primary-fg-color--dark:  #001528;
+  --md-primary-bg-color:        #dfe1e8;
+  --md-primary-bg-color--light: #dfe1e8cc;
+
+  /* Accent — LCARS orange (interactive highlights, hover, search) */
+  --md-accent-fg-color:         #ff6753;
+  --md-accent-fg-color--transparent: #ff675320;
+  --md-accent-bg-color:         #1e2229;
+
+  /* Page background — gray-darkest */
+  --md-default-bg-color:        #1e2229;
+  --md-default-bg-color--light: #2f3749;
+  --md-default-bg-color--lighter: #52596e40;
+  --md-default-bg-color--lightest: #52596e20;
+
+  /* Default text — moonlight. MUST be set here or Material falls back to near-black. */
+  --md-default-fg-color:        #dfe1e8;
+  --md-default-fg-color--light: #9ea5ba;
+  --md-default-fg-color--lighter: #6d748c;
+  --md-default-fg-color--lightest: #52596e;
+
+  /* Typeset (content body) text — explicitly needed for Material */
+  --md-typeset-color:           #dfe1e8;
+
+  /* Code blocks — blue-darkest */
+  --md-code-bg-color:           #000000;
+  --md-code-fg-color:           #d2d5df;
+  --md-code-hl-color:           #37a6d120;
+  --md-code-hl-number-color:    #f9ef97;
+  --md-code-hl-special-color:   #00eeee;
+  --md-code-hl-function-color:  #37a6d1;
+  --md-code-hl-constant-color:  #ff8470;
+  --md-code-hl-keyword-color:   #ff6753;
+  --md-code-hl-string-color:    #9ea5ba;
+  --md-code-hl-name-color:      #dfe1e8;
+  --md-code-hl-operator-color:  #9ea5ba;
+  --md-code-hl-punctuation-color: #6d748c;
+  --md-code-hl-comment-color:   #52596e;
+  --md-code-hl-generic-color:   #dfe1e8;
+  --md-code-hl-variable-color:  #dfe1e8;
+
+  /* Links — LCARS blue */
+  --md-typeset-a-color:         #37a6d1;
+
+  /* Tables */
+  --md-typeset-table-color:     #2f3749;
+  --md-typeset-table-color--light: #2f374980;
+
+  /* Admonitions */
+  --md-admonition-bg-color:     #2f3749;
+
+  /* Footer */
+  --md-footer-bg-color:         #1c3c55;
+  --md-footer-bg-color--dark:   #002241;
+  --md-footer-fg-color:         #dfe1e8;
+  --md-footer-fg-color--light:  #9ea5ba;
+  --md-footer-fg-color--lighter: #6d748c;
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   Content body text — belt-and-suspenders fallback
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-content,
+[data-md-color-scheme="lcards-dark"] .md-typeset {
+  color: #dfe1e8;
+}
+
+/* --------------------------------------------------------------------------
+   Heading colour hierarchy + Antonio font
+     H1  — moonlight (clean page title, no color noise)
+     H2  — LCARS blue (major section)
+     H3  — medium-light gray (subsection)
+     H4+ — medium gray (detail)
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-typeset h1,
+[data-md-color-scheme="lcards-dark"] .md-typeset h2,
+[data-md-color-scheme="lcards-dark"] .md-typeset h3,
+[data-md-color-scheme="lcards-dark"] .md-typeset h4,
+[data-md-color-scheme="lcards-dark"] .md-typeset h5,
+[data-md-color-scheme="lcards-dark"] .md-typeset h6 {
+  font-family: 'Antonio', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h1 {
+  color: #dfe1e8;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h2 {
+  color: #37a6d1;
+  border-bottom: 1px solid #2f3749;
+  padding-bottom: 0.2em;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h3 {
+  color: #9ea5ba;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h4 {
+  color: #6d748c;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h5,
+[data-md-color-scheme="lcards-dark"] .md-typeset h6 {
+  color: #52596e;
+}
+
+/* --------------------------------------------------------------------------
+   Navigation sidebar — left (primary)
+   Material uses .md-nav__link--active on the <a> for the currently active page.
+   .md-nav__item--active is the parent <li> (may be set for ancestor items too).
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-nav__item .md-nav__link {
+  color: #9ea5ba;
+}
+
+/* Active page link — orange text + left border indicator */
+[data-md-color-scheme="lcards-dark"] .md-nav__link--active,
+[data-md-color-scheme="lcards-dark"] .md-nav__item--active > .md-nav__link {
+  color: #ff6753 !important;
+  font-weight: 600;
+  border-left: 2px solid #ff6753;
+  padding-left: calc(0.6rem - 2px);
+  margin-left: 0;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-nav__link:focus,
+[data-md-color-scheme="lcards-dark"] .md-nav__link:hover {
+  color: #ff6753;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-nav__title {
+  color: #dfe1e8;
+}
+
+/* --------------------------------------------------------------------------
+   Table of contents — right sidebar (secondary nav)
+   Vertical section bars: each TOC link gets a faint left border, active gets
+   the orange accent border to show current scroll position.
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-nav--secondary .md-nav__link {
+  color: #6d748c;
+  border-left: 2px solid #2f3749;
+  padding-left: 0.6rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-nav--secondary .md-nav__link:hover {
+  color: #9ea5ba;
+  border-left-color: #52596e;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-nav--secondary .md-nav__link--active {
+  color: #ff6753 !important;
+  border-left: 2px solid #ff6753 !important;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   Top nav tabs
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-tabs__link {
+  color: rgba(223, 225, 232, 0.7);
+}
+
+[data-md-color-scheme="lcards-dark"] .md-tabs__link--active,
+[data-md-color-scheme="lcards-dark"] .md-tabs__link:hover {
+  color: #dfe1e8;
+}
+
+/* --------------------------------------------------------------------------
+   Search
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-search__input {
+  background-color: #2f3749;
+  color: #dfe1e8;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-search__input::placeholder {
+  color: #6d748c;
+}
+
+/* --------------------------------------------------------------------------
+   Tables
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-typeset table:not([class]) th {
+  background-color: #1c3c55;
+  color: #dfe1e8;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset table:not([class]) tr:nth-child(even) {
+  background-color: #2f374940;
+}
+
+/* --------------------------------------------------------------------------
+   Mermaid diagram wrapper — force dark canvas background
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .mermaid,
+[data-md-color-scheme="lcards-dark"] pre.mermaid,
+[data-md-color-scheme="lcards-dark"] .highlight .mermaid {
+  background: #1c3c55;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Admonition accent colours
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="lcards-dark"] .md-typeset .admonition,
+[data-md-color-scheme="lcards-dark"] .md-typeset details {
+  background-color: #2f3749;
+  border-color: #37a6d1;
+}
+
+/* tip / note in LCARdS orange */
+[data-md-color-scheme="lcards-dark"] .md-typeset .admonition.tip,
+[data-md-color-scheme="lcards-dark"] .md-typeset details.tip {
+  border-color: #ff6753;
+}
+
+/* ==========================================================================
+   Light scheme — default (uses LCARdS orange primary + blue accent)
+   ========================================================================== */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:        #e7442a;
+  --md-primary-fg-color--light: #ff6753;
+  --md-primary-fg-color--dark:  #c43520;
+  --md-primary-bg-color:        #ffffff;
+  --md-primary-bg-color--light: #ffffffcc;
+
+  --md-accent-fg-color:         #37a6d1;
+  --md-accent-fg-color--transparent: #37a6d11a;
+
+  --md-code-bg-color:           #f0f4f8;
+
+  --md-typeset-a-color:         #1c3c55;
+}

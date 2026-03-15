@@ -309,9 +309,3 @@ animations:
     alternate: true
 ```
 ---
-
-## Related
-
-- [Background Animations](effects/background-animations.md)
-- [Rules Engine](rules/README.md)
-- [Colours](colours.md)

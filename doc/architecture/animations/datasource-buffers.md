@@ -215,7 +215,7 @@ The `_extractValueFromPath()` method in AnimationManager handles buffer extracti
 /**
  * Extract value from datasource using dot notation path
  * NEW: Updated for datasource buffer structure (main buffer + processor buffers)
- * 
+ *
  * @param {Object} data - Datasource data object
  * @param {Array<string>} pathParts - Path parts (e.g., ['celsius'])
  * @returns {*} Extracted value
@@ -228,7 +228,7 @@ _extractValueFromPath(data, pathParts) {
 
   // Single path part - look for processor buffer
   const processorKey = pathParts[0];
-  
+
   if (data[processorKey] !== undefined) {
     // Found processor buffer - return its value
     return data[processorKey];
@@ -425,10 +425,3 @@ Look for AnimationManager warnings:
 ```
 [AnimationManager] Processor buffer 'unknown_key' not found in datasource. Available: v, celsius, rolling_avg, t. Falling back to main buffer.
 ```
-
-## Related Documentation
-
-- [Rule-Based Animations](./rule-based-animations.md) - Using datasources in rule conditions
-- [Entity Change Triggers](./entity-change-triggers.md) - Simple entity monitoring
-- [DataSource System](../subsystems/datasource-system.md) - Complete datasource architecture
-- [Template System](../subsystems/template-system.md) - Template evaluation with datasources

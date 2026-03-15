@@ -402,10 +402,3 @@ console.log(window.lcards.core.systemsManager._entitySubscriptions);
 ```
 
 Subscriptions should be cleaned up when overlays are destroyed.
-
-## Related Documentation
-
-- [Rule-Based Animations](./rule-based-animations.md) - Complex condition-based animations
-- [Datasource Buffers](./datasource-buffers.md) - Datasource structure reference
-- [Animation System Overview](../subsystems/animation-system.md) - Complete animation architecture
-- [SystemsManager Reference](../subsystems/systems-manager.md) - Entity subscription system

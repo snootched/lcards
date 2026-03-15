@@ -341,7 +341,7 @@ shape_texture:
 
 All `color` fields accept `var(--lcards-*)`, `{theme:...}`, `rgba()`, hex, or a state-based map.
 
-For full parameter reference see [Shape Texture System](../../architecture/subsystems/shape-texture-system.md).
+For full parameter reference see [Shape Texture System](../../../architecture/subsystems/shape-texture-system.md).
 
 ---
 
@@ -427,16 +427,3 @@ animations:
 ```
 
 ---
-
-## Related
-
-- [Text Fields](../../core/text-fields.md)
-- [Colours](../../core/colours.md)
-- [Actions](../../core/actions.md)
-- [Templates](../../core/templates/README.md)
-- [Themes](../../core/themes/README.md)
-- [Rules Engine](../../core/rules/README.md)
-- [Animations](../../core/animations.md)
-- [Background Animations](../../core/effects/background-animations.md)
-- [Shape Texture System](../../architecture/subsystems/shape-texture-system.md)
-- [Elbow card](../elbow/README.md)

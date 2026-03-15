@@ -185,10 +185,3 @@ text:
 ```
 
 ---
-
-## Related
-
-- [Colours](colours.md)
-- [Templates](templates/README.md)
-- [Button card](../cards/button/README.md)
-- [Slider card](../cards/slider/README.md)

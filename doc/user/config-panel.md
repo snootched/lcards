@@ -114,8 +114,3 @@ Alert mode can be triggered from the Helpers tab or via automations. Six modes a
 Each mode fires a dedicated sound event (`alert_red`, `alert_yellow`, etc.) when a sound scheme is active. See [Sound Effects](core/sounds.md) for details.
 
 ---
-
-## Related
-
-- [Sound Effects](core/sounds.md)
-- [Themes](core/themes/README.md)

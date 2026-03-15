@@ -421,10 +421,3 @@ window.lcards.setAlertMode('green_alert') // Clear alert
 ```
 
 ---
-
-## Related
-
-- [Alert Mode System](../../core/themes/alert-modes.md)
-- [Button Card](../button/README.md)
-- [Templates](../../core/templates/README.md)
-- [LCARdS Config Panel](../../configuration/config-panel.md)

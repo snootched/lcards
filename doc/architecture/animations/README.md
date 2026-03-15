@@ -343,9 +343,9 @@ rules:
 
 ## Additional Resources
 
-- [Animation Presets Reference](../subsystems/animation-presets.md) - Available animation presets
-- [RulesEngine Documentation](../subsystems/rules-engine.md) - Rule condition syntax
-- [SystemsManager Reference](../subsystems/systems-manager.md) - Entity subscription system
+- Animation Presets Reference - Available animation presets _(documentation coming soon)_
+- RulesEngine Documentation - Rule condition syntax _(documentation coming soon)_
+- SystemsManager Reference - Entity subscription system _(documentation coming soon)_
 - [anime.js v4 Documentation](https://animejs.com) - Animation library documentation
 
 ## Support

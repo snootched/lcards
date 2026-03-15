@@ -296,10 +296,3 @@ animation:
 ```
 
 ---
-
-## Related
-
-- [DataSources](../../core/datasources/README.md)
-- [Templates](../../core/templates/README.md)
-- [Colours](../../core/colours.md)
-- [Animations](../../core/animations.md)

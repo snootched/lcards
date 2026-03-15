@@ -164,9 +164,3 @@ color: var(--lcars-orange, var(--lcards-orange-medium));
 color: var(--lcards-orange-medium, #ff6753);
 ```
 ---
-
-## Related
-
-- [Config Panel — Theme Browser](../../config-panel.md)
-- [Templates](../templates/README.md)
-- [Elbow card — HA-LCARS binding](../../cards/elbow/README.md#ha-lcars-theme-binding)

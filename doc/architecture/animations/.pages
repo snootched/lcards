@@ -1,0 +1,6 @@
+title: Animations
+nav:
+  - README.md
+  - datasource-buffers.md
+  - entity-change-triggers.md
+  - rule-based-animations.md

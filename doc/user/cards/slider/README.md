@@ -294,13 +294,3 @@ tap_action:
 ```
 
 ---
-
-## Related
-
-- [Button card](../button/README.md)
-- [Text Fields](../../core/text-fields.md)
-- [Colours](../../core/colours.md)
-- [Actions](../../core/actions.md)
-- [Templates](../../core/templates/README.md)
-- [DataSources](../../core/datasources/README.md)
-- [Animations](../../core/animations.md)
