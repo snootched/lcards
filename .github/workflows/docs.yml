@@ -40,7 +40,8 @@ jobs:
           pip install \
             mkdocs-material \
             mkdocs-glightbox \
-            mkdocs-git-revision-date-localized-plugin
+            mkdocs-git-revision-date-localized-plugin \
+            mkdocs-awesome-pages-plugin
 
       - name: Configure GitHub Pages base URL
         uses: actions/configure-pages@v5
