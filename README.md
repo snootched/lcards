@@ -12,6 +12,15 @@ File: docs/assets/lcards-banner.gif
 [![GitHub release](https://img.shields.io/github/v/release/snootched/LCARdS?display_name=release)](https://github.com/snootched/LCARdS/releases)
 [![License](https://img.shields.io/github/license/snootched/LCARdS)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS)](https://github.com/snootched/LCARdS/commits/main)
+[![Docs](https://img.shields.io/badge/docs-snootched.github.io%2Flcards-ff6753)](https://snootched.github.io/lcards/)
+
+<br>
+
+## 📖 Documentation
+
+Full documentation is available at **https://snootched.github.io/lcards/**
+
+> The `doc/` folder contains the Markdown source — browse it directly on GitHub or visit the docs site for the full rendered experience with search, navigation, and diagrams.
 
 <br>
 

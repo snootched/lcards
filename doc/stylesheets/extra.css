@@ -1,0 +1,112 @@
+/* ==========================================================================
+   LCARdS — Material for MkDocs custom colour schemes
+   Colour palette sourced from the LCARdS LCARS design language
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   LCARdS colour palette reference
+   Orange:   base #ff6753  |  medium-dark #e7442a  |  dark #ef1d10
+   Blue:     base #37a6d1  |  dark #1c3c55          |  darkest #002241
+   Gray:     darkest #1e2229 (page bg) | dark #2f3749 (surface) | medium-dark #52596e
+             medium #6d748c | medium-light #9ea5ba  | light #d2d5df
+   Moonlight (near-white text): #dfe1e8
+   Cyan:     #00eeee
+   Yellow:   #f9ef97
+   -------------------------------------------------------------------------- */
+
+/* ==========================================================================
+   Dark scheme — lcards-dark (default)
+   ========================================================================== */
+[data-md-color-scheme="lcards-dark"] {
+  /* Primary — LCARS orange */
+  --md-primary-fg-color:        #ff6753;
+  --md-primary-fg-color--light: #ff8470;
+  --md-primary-fg-color--dark:  #e7442a;
+  --md-primary-bg-color:        #dfe1e8;
+  --md-primary-bg-color--light: #dfe1e8cc;
+
+  /* Accent — cyan */
+  --md-accent-fg-color:         #00eeee;
+  --md-accent-fg-color--transparent: #00eeee1a;
+  --md-accent-bg-color:         #1e2229;
+
+  /* Page background — gray-darkest */
+  --md-default-bg-color:        #1e2229;
+  --md-default-bg-color--light: #2f3749;
+  --md-default-bg-color--lighter: #52596e40;
+  --md-default-bg-color--lightest: #52596e20;
+
+  /* Default text — moonlight */
+  --md-default-fg-color:        #dfe1e8;
+  --md-default-fg-color--light: #9ea5ba;
+  --md-default-fg-color--lighter: #6d748c;
+  --md-default-fg-color--lightest: #52596e;
+
+  /* Code blocks — blue-darkest */
+  --md-code-bg-color:           #002241;
+  --md-code-fg-color:           #d2d5df;
+  --md-code-hl-color:           #37a6d120;
+
+  /* Links — blue */
+  --md-typeset-a-color:         #37a6d1;
+
+  /* Tables */
+  --md-typeset-table-color:     #2f3749;
+  --md-typeset-table-color--light: #2f374980;
+
+  /* Admonitions */
+  --md-admonition-bg-color:     #2f3749;
+
+  /* Footer */
+  --md-footer-bg-color:         #1c3c55;
+  --md-footer-bg-color--dark:   #002241;
+  --md-footer-fg-color:         #dfe1e8;
+  --md-footer-fg-color--light:  #9ea5ba;
+  --md-footer-fg-color--lighter: #6d748c;
+
+  /* Header / nav */
+  color-scheme: dark;
+}
+
+/* Heading colour in dark scheme */
+[data-md-color-scheme="lcards-dark"] .md-typeset h1,
+[data-md-color-scheme="lcards-dark"] .md-typeset h2 {
+  color: #ff6753;
+}
+
+[data-md-color-scheme="lcards-dark"] .md-typeset h3,
+[data-md-color-scheme="lcards-dark"] .md-typeset h4 {
+  color: #ff8470;
+}
+
+/* Nav active item highlight */
+[data-md-color-scheme="lcards-dark"] .md-nav__item--active > .md-nav__link {
+  color: #ff6753;
+}
+
+/* Tabs active */
+[data-md-color-scheme="lcards-dark"] .md-tabs__link--active {
+  color: #ff6753;
+}
+
+/* ==========================================================================
+   Light scheme — default (uses LCARdS orange primary + blue accent)
+   ========================================================================== */
+[data-md-color-scheme="default"] {
+  /* Primary — LCARS orange */
+  --md-primary-fg-color:        #e7442a;
+  --md-primary-fg-color--light: #ff6753;
+  --md-primary-fg-color--dark:  #c43520;
+  --md-primary-bg-color:        #ffffff;
+  --md-primary-bg-color--light: #ffffffcc;
+
+  /* Accent — blue */
+  --md-accent-fg-color:         #37a6d1;
+  --md-accent-fg-color--transparent: #37a6d11a;
+
+  /* Code block background — very light blue tint */
+  --md-code-bg-color:           #f0f4f8;
+
+  /* Links — blue */
+  --md-typeset-a-color:         #1c3c55;
+}

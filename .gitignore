@@ -412,3 +412,6 @@ dist/cb-lcars.js.LICENSE.txt
 dist/cb-lcars.js.map
 todo.txt
 src/TODO:.md
+
+# MkDocs build output
+docs/site/

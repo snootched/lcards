@@ -1,0 +1,135 @@
+site_name: LCARdS
+site_url: https://snootched.github.io/lcards/
+docs_dir: ../doc
+site_dir: site
+repo_url: https://github.com/snootched/lcards
+repo_name: snootched/lcards
+edit_uri: blob/main/doc/
+
+theme:
+  name: material
+  palette:
+    - scheme: lcards-dark
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - toc.integrate
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotation
+    - content.action.edit
+    - content.action.view
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+plugins:
+  - search
+  - glightbox
+  - git-revision-date-localized:
+      enable_creation_date: true
+      fallback_to_build_date: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.blocks.caption
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Overview: user-guide/README.md
+      - Getting Started:
+          - Installation: user-guide/getting-started/installation.md
+          - Quick Start: user-guide/getting-started/quickstart.md
+          - First Card: user-guide/getting-started/first-card.md
+      - Configuration:
+          - Data Sources: user-guide/configuration/datasources.md
+          - Rules: user-guide/configuration/rules.md
+          - Computed Sources: user-guide/configuration/computed-sources.md
+          - Data Transformations: user-guide/configuration/datasource-transformations.md
+          - Data Aggregations: user-guide/configuration/datasource-aggregations.md
+          - Base SVG Filters: user-guide/configuration/base-svg-filters.md
+          - Bulk Overlay Selectors: user-guide/configuration/bulk-overlay-selectors.md
+          - Overlays:
+              - Overview: user-guide/configuration/overlays/README.md
+              - Button Overlay: user-guide/configuration/overlays/button-overlay.md
+              - Line Overlay: user-guide/configuration/overlays/line-overlay.md
+              - Text Overlay: user-guide/configuration/overlays/text-overlay.md
+              - Status Grid Overlay: user-guide/configuration/overlays/status-grid-overlay.md
+              - Control Overlay: user-guide/configuration/overlays/control-overlay.md
+              - ApexCharts Overlay: user-guide/configuration/overlays/apexcharts-overlay.md
+      - Advanced:
+          - Overview: user-guide/advanced/README.md
+          - Configuration Layers: user-guide/advanced/configuration-layers.md
+          - MSD Actions: user-guide/advanced/msd-actions.md
+          - MSD Controls: user-guide/advanced/msd-controls.md
+          - Style Priority: user-guide/advanced/style-priority.md
+          - Theme Creation: user-guide/advanced/theme_creation_tutorial.md
+          - Token Reference: user-guide/advanced/token_reference_card.md
+          - Validation Guide: user-guide/advanced/validation_guide.md
+      - Guides:
+          - Animations: user-guide/guides/animations.md
+      - Examples:
+          - DataSource Examples: user-guide/examples/datasource-examples.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Subsystems:
+          - Overview: architecture/subsystems/README.md
+          - Advanced Renderer: architecture/subsystems/advanced-renderer.md
+          - Animation Registry: architecture/subsystems/animation-registry.md
+          - Attachment Point Manager: architecture/subsystems/attachment-point-manager.md
+          - Bulk Overlay Selectors: architecture/subsystems/bulk-overlay-selectors.md
+          - Control Overlay System: architecture/subsystems/control-overlay-system.md
+          - DataSource System: architecture/subsystems/datasource-system.md
+          - Pack System: architecture/subsystems/pack-system.md
+          - Router Core: architecture/subsystems/router-core.md
+          - Rules Engine: architecture/subsystems/rules-engine.md
+          - Style Resolver: architecture/subsystems/style-resolver.md
+          - Systems Manager: architecture/subsystems/systems-manager.md
+          - Template Processor: architecture/subsystems/template-processor.md
+          - Theme System: architecture/subsystems/theme-system.md
+          - Validation System: architecture/subsystems/validation-system.md
+  - API Reference:
+      - Overview: api/README.md
+      - API Reference: api/API_REFERENCE.md
+      - Debug API: api/debug-api.md
+      - Runtime API: api/runtime-api.md
