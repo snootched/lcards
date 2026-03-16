@@ -2,6 +2,7 @@ nav:
   - index.md
   - getting-started
   - user
-  - core
   - configuration
+  - core
   - architecture
+  - development

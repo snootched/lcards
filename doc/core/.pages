@@ -1,13 +1,13 @@
 title: Core Concepts
 nav:
-  - alert-mode.md
   - colours.md
-  - actions.md
-  - animations.md
-  - sounds.md
-  - text-fields.md
-  - themes
   - templates
   - datasources
   - rules
+  - actions.md
+  - animations.md
   - effects
+  - themes
+  - sounds.md
+  - text-fields.md
+  - alert-mode.md

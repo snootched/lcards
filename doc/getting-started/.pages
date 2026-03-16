@@ -2,4 +2,5 @@ title: Getting Started
 nav:
   - what-is-lcards.md
   - installation.md
+  - first-card.md
   - cb-lcars-migration.md
