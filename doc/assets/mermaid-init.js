@@ -181,8 +181,11 @@
         });
 
         var promises = nodes.map(function (node, i) {
-          var source = node.textContent.trim();
-          // Save original source before mermaid clobbers innerHTML
+          // HTML-decode innerHTML to preserve newlines (textContent collapses whitespace in <div>)
+          var ta = document.createElement('textarea');
+          ta.innerHTML = node.innerHTML;
+          var source = ta.value.trim();
+          // Save decoded source before mermaid clobbers innerHTML
           node.dataset.mermaidOriginal = source;
           var id = 'lcards-mermaid-' + (++_diagramCounter);
           return window.mermaid.render(id, source)
@@ -227,7 +230,12 @@
     });
     // Also reset any .mermaid nodes that were rendered but not wrapped
     document.querySelectorAll('.mermaid[data-pz-done]').forEach(function (el) {
-      var source = el.dataset.mermaidOriginal || el.textContent.trim();
+      var source = el.dataset.mermaidOriginal;
+      if (!source) {
+        var ta = document.createElement('textarea');
+        ta.innerHTML = el.innerHTML;
+        source = ta.value.trim();
+      }
       el.removeAttribute('data-pz-done');
       el.textContent = source;
     });

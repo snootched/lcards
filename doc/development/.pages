@@ -1,3 +1,7 @@
 title: Developer Guide
 nav:
+  - index.md
+  - custom-card.md
   - helpers-api.md
+  - contributing.md
+  - changelog.md

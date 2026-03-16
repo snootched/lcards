@@ -38,12 +38,12 @@ panel_custom:
     module_url: /hacsfiles/lcards/lcards.js
 ```
 
-See [LCARdS Config Panel](../user/config-panel.md) for full details.
+See [LCARdS Config Panel](../configuration/config-panel.md) for full details.
 
 ---
 
 ## Next Steps
 
 - [What is LCARdS?](what-is-lcards.md) — understand the architecture
-- [The Cards](../user/README.md) — start with the Button card
+- [The Cards](../cards/index.md) — start with the Button card
 - [Coming from CB-LCARS](cb-lcars-migration.md) — quick feature mapping if migrating

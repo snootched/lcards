@@ -35,10 +35,10 @@ Build your own LCARS-style dashboards and Master Systems Display (MSD) with real
 
     Buttons, elbows, sliders, charts, data grids, MSD, and more.
 
-    [:octicons-arrow-right-24: Button](user/cards/button/README.md)
-    [:octicons-arrow-right-24: MSD](user/cards/msd/README.md)
-    [:octicons-arrow-right-24: Slider](user/cards/slider/README.md)
-    [:octicons-arrow-right-24: Chart](user/cards/chart/README.md)
+    [:octicons-arrow-right-24: Button](cards/cards/button/README.md)
+    [:octicons-arrow-right-24: MSD](cards/cards/msd/README.md)
+    [:octicons-arrow-right-24: Slider](cards/cards/slider/README.md)
+    [:octicons-arrow-right-24: Chart](cards/cards/chart/README.md)
 
 -   :material-cog:{ .lg .middle } **Core Concepts**
 
@@ -164,7 +164,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - Canvas-based **background animations** — stackable layers with zoom and pan
     - Rules Engine integration — styles hot-patched at runtime
 
-    [Button Documentation](user/cards/button/README.md)
+    [Button Documentation](cards/cards/button/README.md)
 
 === "Elbow"
 
@@ -175,7 +175,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - Authentic LCARS arc geometry or diagonal-cut corners with configurable angle
     - Symbiont support — embed other HA cards inside the elbow area
 
-    [Elbow Documentation](user/cards/elbow/README.md)
+    [Elbow Documentation](cards/cards/elbow/README.md)
 
 === "Slider"
 
@@ -186,7 +186,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - Separate min/max for display range vs. control range
     - Domain auto-detection — interactive for controllable domains, display-only for sensors
 
-    [Slider Documentation](user/cards/slider/README.md)
+    [Slider Documentation](cards/cards/slider/README.md)
 
 === "Data Grid"
 
@@ -197,7 +197,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - LCARS-style cascade animation with built-in speed presets
     - CSS Grid layout with full style cascading
 
-    [Data Grid Documentation](user/cards/data-grid/README.md)
+    [Data Grid Documentation](cards/cards/data-grid/README.md)
 
 === "Chart"
 
@@ -207,7 +207,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - Single entity, multi-entity, or DataSource with processor buffers
     - Moving averages, min/max, rolling statistics from DataSource integration
 
-    [Chart Documentation](user/cards/chart/README.md)
+    [Chart Documentation](cards/cards/chart/README.md)
 
 === "MSD"
 
@@ -218,7 +218,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - **Studio Editor** — visual configuration with live preview and drag-to-reposition
     - Animate lines independently with rules
 
-    [MSD Documentation](user/cards/msd/README.md)
+    [MSD Documentation](cards/cards/msd/README.md)
 
 === "Alert Overlay"
 
@@ -229,7 +229,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - Configurable per-condition content card, position, and size
     - Portal rendering — appended to `document.body` above all HA stacking
 
-    [Alert Overlay Documentation](user/cards/alert-overlay/README.md)
+    [Alert Overlay Documentation](cards/cards/alert-overlay/README.md)
 
 ---
 
@@ -280,7 +280,7 @@ See [What is LCARdS?](getting-started/what-is-lcards.md) for the full core servi
     - **Main Engineering tab** — data sources, rules browser, theme token browser, provenance tracking
     - **Provenance tracking** — see which system contributed each config value at runtime
 
-    [Config Panel](user/config-panel.md)
+    [Config Panel](configuration/config-panel.md)
 
 ---
 

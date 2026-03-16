@@ -42,7 +42,7 @@ Features and concepts shared across all cards.
 
 ## Config Panel
 
-[LCARdS Config Panel](config-panel.md) — Central hub for managing helpers, alert settings, sounds, and more.
+[LCARdS Config Panel](../configuration/config-panel.md) — Central hub for managing helpers, alert settings, sounds, and more.
 
 ---
 
