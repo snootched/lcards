@@ -1,274 +1,164 @@
 /**
- * LCARdS MkDocs — Mermaid initialisation with svg-pan-zoom
+ * LCARdS MkDocs — Mermaid pan/zoom + fullscreen controls
  *
- * Loads Mermaid + svg-pan-zoom from CDN, renders all .mermaid divs,
- * then wraps each rendered SVG in a pan/zoom container with
- * GitHub-style inline controls (zoom in / zoom out / reset / fit).
+ * Material for MkDocs renders Mermaid natively — this script only adds
+ * pan/zoom controls and a fullscreen modal to already-rendered SVGs.
  *
- * Hooks:
- *  - Material document$ observable (instant navigation / SPA)
- *  - Fallback: DOMContentLoaded for non-instant builds
- *  - MutationObserver on body[data-md-color-scheme] for theme toggle re-render
+ * Hooks into Material's document$ observable so it runs after every
+ * page load including SPA (instant) navigation.
+ *
+ * Requires: @panzoom/panzoom loaded before this script (via extra_javascript CDN entry).
  */
 (function () {
   'use strict';
 
-  var MERMAID_CDN    = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
-  var SVGPANZOOM_CDN = 'https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js';
-
-  /* ------------------------------------------------------------------
-     LCARdS palette — dark scheme mermaid theme variables
-     ------------------------------------------------------------------ */
-  var DARK_THEME_VARS = {
-    darkMode:             true,
-    background:           '#0d1117',
-    mainBkg:              '#1c3c55',
-    nodeBorder:           '#37a6d1',
-    clusterBkg:           '#2f3749',
-    clusterBorder:        '#52596e',
-    titleColor:           '#dfe1e8',
-    edgeLabelBackground:  '#2f3749',
-    lineColor:            '#37a6d1',
-    primaryColor:         '#1c3c55',
-    primaryTextColor:     '#dfe1e8',
-    primaryBorderColor:   '#37a6d1',
-    secondaryColor:       '#2f3749',
-    tertiaryColor:        '#002241',
-    tertiaryTextColor:    '#dfe1e8',
-    // Sequence diagrams
-    actorBkg:             '#1c3c55',
-    actorBorder:          '#37a6d1',
-    actorTextColor:       '#dfe1e8',
-    actorLineColor:       '#6d748c',
-    signalColor:          '#ff6753',
-    signalTextColor:      '#dfe1e8',
-    // Git graph
-    git0:                 '#ff6753',
-    git1:                 '#37a6d1',
-    git2:                 '#00eeee',
-    git3:                 '#f9ef97',
-    gitBranchLabel0:      '#dfe1e8',
-    gitBranchLabel1:      '#dfe1e8',
-    // Fonts
-    fontFamily:           '"Antonio", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize:             '14px'
-  };
-
-  /* ------------------------------------------------------------------
-     Helpers
-     ------------------------------------------------------------------ */
-
-  /** Returns true when the lcards-dark scheme is active */
-  function isDark() {
-    return document.body &&
-      document.body.getAttribute('data-md-color-scheme') === 'lcards-dark';
-  }
-
-  /** Dynamically load a script once; returns a Promise */
-  function loadScript(src) {
-    return new Promise(function (resolve, reject) {
-      if (document.querySelector('script[src="' + src + '"]')) {
-        resolve();
-        return;
-      }
-      var s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.onload = resolve;
-      s.onerror = function () { reject(new Error('Failed to load: ' + src)); };
-      document.head.appendChild(s);
-    });
-  }
-
-  /* ------------------------------------------------------------------
-     Pan/zoom wrapper
-     ------------------------------------------------------------------ */
-
   /**
-   * Wrap a rendered SVG element with GitHub-style pan/zoom controls.
-   * The original .mermaid div is replaced by a .mermaid-panzoom-wrapper
-   * that contains the SVG plus the control overlay.
+   * Attach pan/zoom controls to a single rendered Mermaid SVG.
+   * The SVG is wrapped in .mpz-wrapper; 4 control buttons are added.
+   * A fullscreen dialog is created for the enlarge button.
    *
-   * @param {SVGElement} svgEl   - The rendered SVG element
-   * @param {string}     source  - Original mermaid source (for re-render on theme switch)
+   * @param {SVGElement} svg
    */
-  function applyPanZoom(svgEl, source) {
+  function attachControls(svg) {
+    // Guard: already processed
+    if (svg.closest('.mpz-wrapper')) return;
+
+    // The .mermaid container that Material rendered into
+    var container = svg.parentElement;
+
+    // ── Wrapper ──────────────────────────────────────────────────────────────
     var wrapper = document.createElement('div');
-    wrapper.className = 'mermaid-panzoom-wrapper';
-    // Store original source so theme toggle can re-render
-    wrapper.dataset.mermaidSource = source || '';
+    wrapper.className = 'mpz-wrapper';
 
-    var controls = document.createElement('div');
-    controls.className = 'mermaid-panzoom-controls';
-    controls.setAttribute('aria-label', 'Diagram controls');
-    controls.innerHTML =
-      '<button class="mpz-btn" data-action="zoom-in"  title="Zoom in"  aria-label="Zoom in">+</button>'  +
-      '<button class="mpz-btn" data-action="zoom-out" title="Zoom out" aria-label="Zoom out">\u2212</button>' +
-      '<button class="mpz-btn" data-action="reset"    title="Reset"    aria-label="Reset">\u2299</button>'    +
-      '<button class="mpz-btn" data-action="fit"      title="Fit"      aria-label="Fit to view">\u2922</button>';
+    container.insertBefore(wrapper, svg);
+    wrapper.appendChild(svg);
 
-    // Insert wrapper before the SVG's current parent position
-    svgEl.parentNode.insertBefore(wrapper, svgEl);
-    wrapper.appendChild(svgEl);
-    wrapper.appendChild(controls);
-
-    // Give the SVG dimensions that svg-pan-zoom needs
-    svgEl.style.display = 'block';
-    svgEl.style.width   = '100%';
-    if (!svgEl.style.height) {
-      svgEl.style.height = 'auto';
-    }
-
-    var pz;
-    try {
-      pz = window.svgPanZoom(svgEl, {
-        zoomEnabled:              true,
-        controlIconsEnabled:      false,
-        fit:                      true,
-        center:                   true,
-        minZoom:                  0.2,
-        maxZoom:                  15,
-        zoomScaleSensitivity:     0.3,
-        mouseWheelZoomEnabled:    true,
-        dblClickZoomEnabled:      true,
-        preventMouseEventsDefault: true
+    // ── Pan/zoom via @panzoom/panzoom ────────────────────────────────────────
+    // Panzoom works on the SVG element directly; we contain it in the wrapper.
+    var pz = null;
+    if (window.Panzoom) {
+      // Remove any fixed dimensions so panzoom can control the viewport
+      svg.style.maxWidth  = 'none';
+      svg.style.maxHeight = 'none';
+      pz = window.Panzoom(svg, {
+        maxScale:    8,
+        minScale:    0.2,
+        contain:     'outside',
+        canvas:      true,
       });
-    } catch (e) {
-      // svg-pan-zoom failed (e.g. zero-size SVG) — leave diagram as-is
-      console.warn('[LCARdS Docs] svg-pan-zoom init failed:', e);
-      return;
+      // Enable mouse-wheel zoom on the wrapper
+      wrapper.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        pz.zoomWithWheel(e);
+      }, { passive: false });
     }
 
-    controls.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-action]');
-      if (!btn || !pz) return;
-      switch (btn.dataset.action) {
-        case 'zoom-in':  pz.zoomIn();            break;
-        case 'zoom-out': pz.zoomOut();           break;
-        case 'reset':    pz.reset();             break;
-        case 'fit':      pz.fit(); pz.center();  break;
-      }
+    // ── Controls overlay ─────────────────────────────────────────────────────
+    var controls = document.createElement('div');
+    controls.className = 'mpz-controls';
+
+    function makeBtn(label, title, action) {
+      var b = document.createElement('button');
+      b.className  = 'mpz-btn';
+      b.title      = title;
+      b.setAttribute('aria-label', title);
+      b.textContent = label;
+      b.addEventListener('click', action);
+      return b;
+    }
+
+    if (pz) {
+      controls.appendChild(makeBtn('+',    'Zoom in',   function () { pz.zoomIn();  }));
+      controls.appendChild(makeBtn('\u2212', 'Zoom out',  function () { pz.zoomOut(); }));
+      controls.appendChild(makeBtn('\u2299', 'Reset',     function () { pz.reset();   }));
+    }
+
+    // ── Fullscreen / enlarge dialog ──────────────────────────────────────────
+    var dialog = document.createElement('dialog');
+    dialog.className = 'mpz-dialog';
+
+    var dialogClose = document.createElement('button');
+    dialogClose.className   = 'mpz-dialog-close';
+    dialogClose.title       = 'Close';
+    dialogClose.setAttribute('aria-label', 'Close fullscreen view');
+    dialogClose.textContent = '\u2715';
+    dialogClose.addEventListener('click', function () { dialog.close(); });
+
+    var dialogContent = document.createElement('div');
+    dialogContent.className = 'mpz-dialog-content';
+
+    dialog.appendChild(dialogClose);
+    dialog.appendChild(dialogContent);
+    document.body.appendChild(dialog);
+
+    // Close on backdrop click
+    dialog.addEventListener('click', function (e) {
+      if (e.target === dialog) dialog.close();
     });
+
+    // Close on Escape (browsers do this natively for <dialog>, but be explicit)
+    dialog.addEventListener('cancel', function () { dialog.close(); });
+
+    controls.appendChild(makeBtn('\u2922', 'Fullscreen / enlarge', function () {
+      // Clone the SVG so the original stays in the page
+      dialogContent.innerHTML = '';
+      var clone = svg.cloneNode(true);
+      clone.style.cssText = 'width:100%;height:100%;max-width:none;max-height:none;';
+      dialogContent.appendChild(clone);
+      dialog.showModal();
+    }));
+
+    wrapper.appendChild(controls);
   }
-
-  /* ------------------------------------------------------------------
-     Main render pass
-     ------------------------------------------------------------------ */
-
-  var _renderInProgress = false;
-  var _diagramCounter = 0;
 
   /**
-   * Find all unrendered .mermaid divs, render them with Mermaid,
-   * then apply svg-pan-zoom controls to each resulting SVG.
+   * Find all rendered Mermaid SVGs on the current page and attach controls.
+   * Material renders Mermaid into: .mermaid > svg  (after fence_code_format rendering)
+   * We poll briefly after document$ fires to let Mermaid finish its async render.
    */
-  function renderDiagrams() {
-    if (_renderInProgress) return;
+  function processDiagrams() {
+    // Mermaid renders asynchronously after Material triggers it.
+    // Poll briefly (up to 3 s) for SVGs to appear.
+    var attempts = 0;
+    var maxAttempts = 30;  // 30 × 100 ms = 3 s
 
-    var nodes = Array.from(document.querySelectorAll('.mermaid:not([data-pz-done])'));
-    if (!nodes.length) return;
-
-    _renderInProgress = true;
-
-    loadScript(MERMAID_CDN)
-      .then(function () { return loadScript(SVGPANZOOM_CDN); })
-      .then(function () {
-        window.mermaid.initialize({
-          startOnLoad:   false,
-          securityLevel: 'loose',
-          theme:         isDark() ? 'base' : 'default',
-          themeVariables: isDark() ? DARK_THEME_VARS : {}
-        });
-
-        var promises = nodes.map(function (node, i) {
-          // HTML-decode innerHTML to preserve newlines (textContent collapses whitespace in <div>)
-          var ta = document.createElement('textarea');
-          ta.innerHTML = node.innerHTML;
-          var source = ta.value.trim();
-          // Save decoded source before mermaid clobbers innerHTML
-          node.dataset.mermaidOriginal = source;
-          var id = 'lcards-mermaid-' + (++_diagramCounter);
-          return window.mermaid.render(id, source)
-            .then(function (result) {
-              node.innerHTML = result.svg;
-              node.dataset.pzDone = 'true';
-              node.setAttribute('data-pz-done', 'true');
-              var svgEl = node.querySelector('svg');
-              if (svgEl) {
-                applyPanZoom(svgEl, source);
-              }
-            })
-            .catch(function (err) {
-              console.warn('[LCARdS Docs] Mermaid render error for diagram ' + i + ':', err);
-              node.setAttribute('data-pz-done', 'error');
-            });
-        });
-
-        return Promise.all(promises);
-      })
-      .catch(function (err) {
-        console.error('[LCARdS Docs] Failed to load Mermaid or svg-pan-zoom:', err);
-      })
-      .finally(function () {
-        _renderInProgress = false;
+    function tryAttach() {
+      var svgs = document.querySelectorAll('.mermaid svg');
+      svgs.forEach(function (svg) {
+        if (!svg.closest('.mpz-wrapper')) {
+          attachControls(svg);
+        }
       });
-  }
-
-  /* ------------------------------------------------------------------
-     Theme toggle — re-render all diagrams with new theme
-     ------------------------------------------------------------------ */
-
-  function reRenderAll() {
-    // Tear down pan/zoom wrappers and restore bare .mermaid divs
-    document.querySelectorAll('.mermaid-panzoom-wrapper').forEach(function (wrapper) {
-      var source = wrapper.dataset.mermaidSource || '';
-      var replacement = document.createElement('div');
-      replacement.className = 'mermaid';
-      replacement.textContent = source;
-      wrapper.parentNode.insertBefore(replacement, wrapper);
-      wrapper.parentNode.removeChild(wrapper);
-    });
-    // Also reset any .mermaid nodes that were rendered but not wrapped
-    document.querySelectorAll('.mermaid[data-pz-done]').forEach(function (el) {
-      var source = el.dataset.mermaidOriginal;
-      if (!source) {
-        var ta = document.createElement('textarea');
-        ta.innerHTML = el.innerHTML;
-        source = ta.value.trim();
+      attempts++;
+      // Keep polling while there are unprocessed .mermaid elements without SVGs yet
+      var pending = document.querySelectorAll('.mermaid:not(:empty)');
+      var unprocessed = Array.from(pending).filter(function (el) {
+        return !el.querySelector('svg') && !el.closest('.mpz-wrapper');
+      });
+      if (unprocessed.length > 0 && attempts < maxAttempts) {
+        setTimeout(tryAttach, 100);
       }
-      el.removeAttribute('data-pz-done');
-      el.textContent = source;
-    });
-    renderDiagrams();
+    }
+
+    // Small initial delay to let Mermaid's async render settle
+    setTimeout(tryAttach, 150);
   }
 
-  /* ------------------------------------------------------------------
-     Bootstrap
-     ------------------------------------------------------------------ */
+  // ── Bootstrap ───────────────────────────────────────────────────────────────
 
   function setup() {
-    // Material instant-navigation hook
     if (window.document$ && typeof window.document$.subscribe === 'function') {
+      // Material SPA: fires on every page including instant navigation
       window.document$.subscribe(function () {
-        renderDiagrams();
+        processDiagrams();
       });
     } else {
+      // Fallback for non-Material or local static builds
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', renderDiagrams);
+        document.addEventListener('DOMContentLoaded', processDiagrams);
       } else {
-        renderDiagrams();
+        processDiagrams();
       }
-    }
-
-    // Re-render on dark/light toggle
-    if (document.body) {
-      new MutationObserver(function (mutations) {
-        mutations.forEach(function (m) {
-          if (m.attributeName === 'data-md-color-scheme') {
-            reRenderAll();
-          }
-        });
-      }).observe(document.body, { attributes: true });
     }
   }
 
