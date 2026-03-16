@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.03.15-alpha",
+  "version": "2026.03.15a-alpha",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -21,7 +21,9 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "create-editor": "node tools/create-editor.js",
-    "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json"
+    "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json",
+    "docs:build": "cd docs && ../.venv/bin/mkdocs build --strict",
+    "docs:serve": "cd docs && ../.venv/bin/mkdocs serve"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",
