@@ -48,7 +48,8 @@ function vPreBracesRule(md: any) {
 export default withMermaid(defineConfig({
   title: 'LCARdS',
   description: 'LCARS-inspired card components for Home Assistant',
-  base: '/lcards/',
+  // Custom domain (lcards.unimatrix01.ca) — GitHub Pages serves from root, no subpath needed
+  base: '/',
 
   // Same pre-existing broken cross-references that MkDocs tolerates.
   // Track and fix separately; don't block CI.
