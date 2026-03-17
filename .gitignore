@@ -413,4 +413,6 @@ dist/lcards.js.map
 
 # VitePress build output & cache
 docs/site/
+doc/.vitepress/dist/
 doc/.vitepress/cache/
+

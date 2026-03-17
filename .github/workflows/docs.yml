@@ -49,7 +49,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/site
+          path: doc/.vitepress/dist
 
   deploy:
     name: Deploy to GitHub Pages

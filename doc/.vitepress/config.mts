@@ -57,8 +57,7 @@ export default withMermaid(defineConfig({
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
 
-  // docs are in doc/, config is in doc/.vitepress/ — srcDir is implicitly doc/
-  outDir: '../../docs/site',
+  // Output goes to doc/.vitepress/dist (VitePress default — consistent across environments)
 
 
   head: [
