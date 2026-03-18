@@ -311,7 +311,7 @@ export class ThemeTokenResolver {
 
       // Resolve each argument
       const resolvedArgs = args.map(arg => {
-        // If argument is a token reference, resolve it
+        // If argument is a theme: token reference, resolve it
         if (this._isTokenReference(arg)) {
           const resolved = this.resolve(arg, arg, context);
           // Warn if token reference didn't resolve (returned unchanged)
@@ -319,6 +319,13 @@ export class ThemeTokenResolver {
             lcardsLog.warn(`[ThemeTokenResolver] Token reference in computed expression not found: '${arg}' in '${expression}'`);
           }
           return resolved;
+        }
+        // If argument is a CSS variable, resolve it to a concrete value so
+        // that ColorUtils receives a hex/rgb string rather than var(--name).
+        // e.g. lighten(var(--lcards-green), 0.3) — Canvas / anime.js cannot
+        // use color-mix() output, so we must materialise the value here.
+        if (typeof arg === 'string' && arg.includes('var(')) {
+          return ColorUtils.resolveCssVariable(arg, arg);
         }
         // If argument is a number string (possibly with %), parse it
         const trimmedArg = typeof arg === 'string' ? arg.trim() : arg;

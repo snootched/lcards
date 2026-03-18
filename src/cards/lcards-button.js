@@ -3894,11 +3894,11 @@ export class LCARdSButton extends LCARdSCard {
             resolvedConfig = resolveThemeTokensRecursive(rawConfig, themeManager);
         }
 
-        // Resolve any remaining CSS variables (var(--name)) in color fields so presets
-        // always receive a concrete color string — consistent with ColorUtils usage elsewhere.
-        // edge_glow_color must be included here: Canvas2D cannot resolve CSS variables
-        // (unlike CSS), so strokeStyle/shadowColor assignments silently fail when given a
-        // var(--token) string, leaving the default white glow regardless of the user's pick.
+        // Resolve any remaining CSS variables in color fields so presets always receive a
+        // concrete color string — Canvas2D cannot resolve var() or color-mix() at paint time.
+        // Computed colour expressions (lighten/darken/alpha/etc.) are already resolved above
+        // by resolveThemeTokensRecursive, which now handles var() args via ThemeTokenResolver.
+        // edge_glow_color must also be included: strokeStyle/shadowColor silently fail with var().
         const colorKeys = ['color', 'color_a', 'color_b', 'edge_glow_color'];
         for (const key of colorKeys) {
             if (resolvedConfig[key] && typeof resolvedConfig[key] === 'string') {

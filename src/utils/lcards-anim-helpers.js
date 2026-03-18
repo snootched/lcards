@@ -72,18 +72,23 @@ function resolveAnimationCssVariables(params) {
   // Properties that commonly contain color values for anime.js
   const colorProperties = ['fill', 'stroke', 'background', 'backgroundColor', 'color', 'borderColor'];
 
-  // Helper: resolve a single color string through theme: → CSS var → hex chain
+  // Helper: resolve a single color string.
+  // Delegates the full chain (theme: token → computed expression with var()/theme: args → CSS var)
+  // to ThemeTokenResolver via the themeManager singleton — the canonical resolution path.
   const resolveColorValue = (value) => {
     if (typeof value !== 'string') return value;
-    let resolved = value;
-    if (resolved.startsWith('theme:')) {
-      const tokenPath = resolved.replace('theme:', '');
-      resolved = window.lcards?.core?.themeManager?.getToken(tokenPath, resolved) ?? resolved;
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolver) {
+      const out = resolver.resolve(value, value);
+      // resolver.resolve returns the input unchanged for plain var() strings
+      // (those aren't token/computed expressions), so fall through to resolveCssVariable.
+      if (out !== value) return out;
     }
-    if (typeof resolved === 'string' && resolved.includes('var(')) {
-      resolved = ColorUtils.resolveCssVariable(resolved);
+    // Plain CSS variable — resolve via getComputedStyle
+    if (value.includes('var(')) {
+      return ColorUtils.resolveCssVariable(value);
     }
-    return resolved;
+    return value;
   };
 
   colorProperties.forEach(prop => {

@@ -254,17 +254,22 @@ export const STAGGER_PRESETS = {
     const trailOpacity = p.trail_opacity !== undefined ? p.trail_opacity : 0.25;
     const loop         = p.loop !== undefined ? p.loop : true;
 
-    // Resolve theme: tokens and CSS vars at registration time so WAAPI gets hex values.
+    // Resolve theme: tokens, computed colour expressions (including those with var() args),
+    // and plain CSS variables at registration time so WAAPI gets concrete hex/rgb values.
+    // Delegates to ThemeTokenResolver (the canonical resolution path) which handles
+    // theme: tokens and computed expressions; falls back to resolveCssVariable for plain var().
     const resolveColor = (c) => {
       if (typeof c !== 'string') return c;
-      let out = c;
-      if (out.startsWith('theme:')) {
-        out = window.lcards?.core?.themeManager?.getToken(out.replace('theme:', ''), out) ?? out;
+      const resolver = window.lcards?.core?.themeManager?.resolver;
+      if (resolver) {
+        const out = resolver.resolve(c, c);
+        if (out !== c) return out;
       }
-      if (typeof out === 'string' && out.includes('var(')) {
-        out = window.lcards?.utils?.ColorUtils?.resolveCssVariable?.(out) ?? out;
+      // Plain CSS variable (resolver doesn't handle bare var() strings)
+      if (c.includes('var(')) {
+        return window.lcards?.utils?.ColorUtils?.resolveCssVariable?.(c) ?? c;
       }
-      return out;
+      return c;
     };
 
     const rLead  = resolveColor(leadColor);
