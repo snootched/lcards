@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.03.15a-alpha",
+  "version": "2026.03.17-alpha",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -24,7 +24,7 @@
     "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json",
     "docs:build": "vitepress build doc",
     "docs:serve": "vitepress dev doc",
-    "docs:preview": "vitepress preview doc --base /lcards/"
+    "docs:preview": "vitepress preview doc"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",
