@@ -1,0 +1,7 @@
+{
+  "name": "LCARdS",
+  "content_in_root": false,
+  "filename": "lcards.js",
+  "render_readme": true,
+  "homeassistant": "2026.3.0"
+}
