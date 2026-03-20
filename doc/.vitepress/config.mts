@@ -197,8 +197,9 @@ export default withMermaid(defineConfig({
           {
             text: 'API Reference',
             items: [
-              { text: 'Runtime API', link: '/development/runtime-api' },
-              { text: 'Debug API',   link: '/development/debug-api' },
+              { text: 'Runtime API',       link: '/development/runtime-api' },
+              { text: 'MSD Debug API',     link: '/development/debug-api' },
+              { text: 'DataSources Debug', link: '/development/datasources-api' },
             ],
           },
         ],
@@ -393,8 +394,9 @@ export default withMermaid(defineConfig({
           text: 'API Reference',
           collapsed: false,
           items: [
-            { text: 'Runtime API',  link: '/development/runtime-api' },
-            { text: 'Debug API',    link: '/development/debug-api' },
+            { text: 'Runtime API',       link: '/development/runtime-api' },
+            { text: 'MSD Debug API',     link: '/development/debug-api' },
+            { text: 'DataSources Debug', link: '/development/datasources-api' },
           ],
         },
       ],

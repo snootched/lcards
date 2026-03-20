@@ -1,11 +1,63 @@
-# Debug API Reference
+# Debug API
 
-Developer introspection and debugging tools, accessed via `window.lcards.debug.msd`.
+Browser console tools for LCARdS development, accessed via `window.lcards.debug`.
+
+---
+
+## General Debug Utilities
+
+### `setLevel(level)` — Log level
+
+Sets the global log level for all LCARdS output.
+
+```javascript
+window.lcards.debug.setLevel('error')   // errors only
+window.lcards.debug.setLevel('warn')
+window.lcards.debug.setLevel('info')    // default
+window.lcards.debug.setLevel('debug')
+window.lcards.debug.setLevel('trace')   // maximum verbosity
+```
+
+> Also available as `window.lcards.setGlobalLogLevel(level)` for backward compatibility.
+
+### `getLevel()` — Current log level
+
+Returns the current global log level string.
+
+```javascript
+window.lcards.debug.getLevel()
+// Returns: 'info'
+```
+
+### `perf` — Performance monitor
+
+Shortcuts to the internal performance monitor.
+
+| Property / Method | Description |
+|---|---|
+| `perf.fps()` | Current measured FPS |
+| `perf.status()` | Full status object |
+| `perf.thresholds` | Active threshold config `{ disable3D, reduceEffects }` |
+
+```javascript
+window.lcards.debug.perf.fps()
+window.lcards.debug.perf.status()
+// { fps: 60, isMonitoring: true, settled: true, thresholds: { ... }, ... }
+```
+
+> **Note:** `window.lcards.perf` no longer exists — use `window.lcards.debug.perf`.
+
+---
+
+## MSD Debug Namespace (`debug.msd`)
+
+Introspection tools for MSD cards, accessed via `window.lcards.debug.msd`.
 
 ::: tip Discover the API in the console
 ```javascript
 window.lcards.debug.msd.help()           // list all namespaces
 window.lcards.debug.msd.help('routing')  // show methods in a namespace
+window.lcards.debug.msd.usage('data')    // show usage examples for a namespace
 ```
 :::
 
@@ -17,9 +69,13 @@ window.lcards.debug.msd.help('routing')  // show methods in a namespace
 
 Prints all available namespaces (no args) or the methods in a specific namespace.
 
+### `usage([namespace])`
+
+Shows detailed usage examples for a namespace.
+
 ### `listMsdCards()`
 
-Lists all MSD cards registered with SystemsManager — useful for multi-card dashboards.
+Lists all MSD cards registered with SystemsManager.
 
 ```javascript
 window.lcards.debug.msd.listMsdCards()
@@ -32,7 +88,7 @@ Returns debug info from `window.lcards.core.getDebugInfo()`.
 
 ### `singleton(manager)`
 
-Returns debug info from a specific core singleton, e.g. `singleton('dataSourceManager')`.
+Returns debug info for a specific core singleton, e.g. `singleton('dataSourceManager')`.
 
 ### `singletons()`
 
@@ -44,77 +100,84 @@ Lists all singleton managers that expose a `getDebugInfo()` method.
 
 All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method>()`.
 
-### `routing` — Routing & resolution
+### `routing` — Routing resolution
 
 | Method | Description |
 |--------|-------------|
-| `inspect(guid)` | Inspect routing resolution for an overlay |
-| `trace(guid)` | Trace routing path through the resolver |
-| `analyze(guid)` | Detailed routing analysis |
-| `listActive()` | List all active routing channels |
-| `testMatch()` | Test route matching |
+| `inspect(overlayId, cardId?)` | Inspect routing resolution for an overlay |
+| `stats(cardId?)` | Routing statistics |
+| `invalidate(id, cardId?)` | Invalidate cached routing for an overlay |
+| `inspectAs(overlayId, mode, cardId?)` | Inspect routing as a specific mode |
+| `visualize(overlayId)` | Visualize routing (not yet implemented) |
 
 ```javascript
 window.lcards.debug.msd.routing.inspect('my_overlay')
-window.lcards.debug.msd.routing.listActive()
+window.lcards.debug.msd.routing.stats()
 ```
 
-### `data` — Data context & subscriptions
+### `data` — DataSource state
 
 | Method | Description |
 |--------|-------------|
-| `context()` | Current data context snapshot |
-| `subscriptions()` | All active entity subscriptions |
-| `inspect(entityId)` | Inspect a specific entity's data |
-| `entities()` | List all tracked entities |
-| `trace(entityId)` | Trace data flow for an entity |
-| `validate()` | Validate current data context |
+| `stats()` | DataSource statistics |
+| `list()` | List all active DataSources |
+| `get(sourceName)` | Get a specific DataSource instance |
+| `dump()` | Dump all DataSource data |
+| `trace(entityId, cardId?)` | Trace data flow for an entity (not yet implemented) |
+| `history(entityId, n)` | Get history for an entity (not yet implemented) |
 
 ```javascript
-window.lcards.debug.msd.data.subscriptions()
-window.lcards.debug.msd.data.inspect('sensor.cpu_temp')
+window.lcards.debug.msd.data.list()
+window.lcards.debug.msd.data.get('sensor_temp')
 ```
 
-### `styles` — Style computation
+### `styles` — Style resolution
 
 | Method | Description |
 |--------|-------------|
-| `computed(guid)` | Fully computed style for an overlay |
-| `effective(guid)` | Effective styles after cascade |
-| `overrides(guid)` | Active style overrides |
-| `inheritance(guid)` | Style inheritance chain |
-| `cascade(guid)` | Full cascade breakdown |
-| `validate(guid)` | Validate style config for an overlay |
+| `resolutions(overlayId)` | Show style token resolutions for an overlay |
+| `findByToken(tokenPath)` | Find overlays using a specific token |
+| `provenance()` | Show style provenance information |
+| `listTokens()` | List all registered style tokens |
+| `getTokenValue(tokenPath)` | Get the current value of a style token |
 
-### `charts` — Chart data processing
+```javascript
+window.lcards.debug.msd.styles.resolutions('my_overlay')
+window.lcards.debug.msd.styles.findByToken('palette.alert-red')
+```
+
+### `charts` — Chart configuration
 
 | Method | Description |
 |--------|-------------|
-| `inspect(guid)` | Inspect chart data pipeline for an overlay |
-| `trace(guid)` | Trace chart data processing |
-| `validate(guid)` | Validate chart configuration |
-| `compareSnapshots()` | Compare chart data snapshots |
+| `validate(guid)` | Validate chart config for an overlay |
+| `validateAll()` | Validate all chart configurations |
+| `getFormatSpec(guid)` | Get the format specification for a chart overlay |
+| `listTypes()` | List all registered chart types |
 
 ### `rules` — Rules engine
 
 | Method | Description |
 |--------|-------------|
-| `listActive(options)` | List currently active rules |
-| `trace()` | Trace rule evaluation |
-| `validate()` | Validate all rule configurations |
+| `trace(overlayId?)` | Trace rule evaluation |
+| `evaluate(overlayId?)` | Evaluate rules and return results |
+| `listActive(options?)` | List currently active rules |
+| `debugRule(ruleId)` | Debug a specific rule |
 
 ### `animations` — Animation state
 
 | Method | Description |
 |--------|-------------|
-| `list()` | List all registered animations |
-| `inspect(id)` | Inspect animation state for an overlay |
-| `control(id, action)` | Control playback: `play`, `pause`, `stop`, `resume` |
-| `registry()` | Dump the full animation registry |
+| `active()` | List currently active animations |
+| `dump()` | Dump full animation state |
+| `registryStats()` | Animation registry statistics |
+| `inspect(id)` | Inspect a specific animation instance |
+| `timeline(id)` | Show timeline details for an animation |
+| `trigger(id)` | Manually trigger an animation |
 
 ```javascript
-window.lcards.debug.msd.animations.list()
-window.lcards.debug.msd.animations.control('my_overlay', 'pause')
+window.lcards.debug.msd.animations.active()
+window.lcards.debug.msd.animations.inspect('my_anim_id')
 ```
 
 ### `packs` — Pack management
@@ -122,58 +185,75 @@ window.lcards.debug.msd.animations.control('my_overlay', 'pause')
 | Method | Description |
 |--------|-------------|
 | `list()` | List all registered packs |
-| `inspect(packId)` | Inspect a specific pack |
-| `compile()` | Trigger pack recompilation |
-| `validate()` | Validate all pack configurations |
+| `get(packId)` | Get details for a specific pack |
+| `issues(packId?)` | Show issues with pack(s) |
+| `order()` | Show pack load order |
 
 ### `visual` — Visual debugging
 
 | Method | Description |
 |--------|-------------|
-| `hud()` | Toggle debug HUD overlay |
-| `highlight(guid)` | Highlight an overlay visually |
-| `inspect(guid)` | Visual inspection of an overlay |
-| `snapshot()` | Capture current render snapshot |
-| `diff(before, after)` | Diff two snapshots |
-| `validate(guid)` | Validate visual output for an overlay |
-| `toggleBorders()` | Toggle overlay border visualization |
+| `enable()` | Enable visual debug mode |
+| `disable()` | Disable visual debug mode |
+| `toggle()` | Toggle visual debug mode |
+| `status()` | Current visual debug status |
+| `getActive()` | Get active visual debug elements |
+| `refresh()` | Refresh visual debug state |
 
-### `overlays` — Overlay management
+### `overlays` — Overlay inspection
 
 | Method | Description |
 |--------|-------------|
-| `list(filter?)` | List overlays, optionally filtered |
 | `inspect(id)` | Full overlay inspection |
-| `create()` | Create overlay (debug mode) |
-| `update(id, changes)` | Update overlay properties |
-| `remove(id)` | Remove overlay |
-| `bulkUpdate(selector, changes)` | Update multiple overlays by selector |
-| `bulkRemove(selector)` | Remove multiple overlays |
-| `bulkApplyTags(selector, tags)` | Apply tags to multiple overlays |
-| `validate(id)` | Validate overlay configuration |
-| `export(filter?)` | Export overlay configuration |
-| `import(data)` | Import overlay configuration |
+| `getBBox(id)` | Get bounding box for an overlay |
+| `getTransform(id)` | Get transform info for an overlay |
+| `getState(id)` | Get current state of an overlay |
+| `findByType(type)` | Find overlays by type |
+| `findByEntity(entityId)` | Find overlays bound to an entity |
+| `tree()` | Show overlay hierarchy tree |
+| `list()` | List all overlays |
+
+```javascript
+window.lcards.debug.msd.overlays.list()
+window.lcards.debug.msd.overlays.findByEntity('sensor.temperature')
+```
 
 ### `pipeline` — Pipeline lifecycle
 
 | Method | Description |
 |--------|-------------|
-| `status()` | Current pipeline status |
-| `lifecycle()` | Pipeline lifecycle events |
-| `trace()` | Trace pipeline execution |
-| `rerun()` | Force pipeline re-execution |
-| `getInstance()` | Get pipeline instance reference |
+| `stages(cardId?)` | Show pipeline stages |
+| `timing(cardId?)` | Pipeline execution timing |
+| `config(cardId?)` | Pipeline configuration |
+| `errors(cardId?)` | Pipeline errors |
+| `rerun(cardId?)` | Force pipeline re-execution |
+| `getInstance(cardId?)` | Get pipeline instance reference |
 
 ```javascript
-window.lcards.debug.msd.pipeline.status()
+window.lcards.debug.msd.pipeline.stages()
 window.lcards.debug.msd.pipeline.rerun()
+```
+
+### `anchors` — Anchor system
+
+| Method | Description |
+|--------|-------------|
+| `getAll(cardId?)` | Get all anchors |
+| `get(anchorId, cardId?)` | Get a specific anchor |
+| `trace(anchorId, cardId?)` | Trace anchor resolution |
+| `list(cardId?)` | List all anchor IDs |
+| `print(cardId?)` | Print formatted anchor summary |
+
+```javascript
+window.lcards.debug.msd.anchors.list()
+window.lcards.debug.msd.anchors.trace('my_anchor')
 ```
 
 ---
 
 ## See Also
 
+- [DataSources Debug API](datasources-api.md)
 - [Runtime API](runtime-api.md)
 - [Systems Manager](../architecture/subsystems/systems-manager.md)
 - [Rules Engine](../architecture/subsystems/rules-engine.md)
-- [Animation Manager](../architecture/subsystems/animation-manager.md)

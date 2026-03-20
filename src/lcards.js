@@ -93,6 +93,7 @@ async function initializeCustomCard() {
     // Expose debug helpers (the module already attaches API; this ensures references exist)
     window.lcards.debug = window.lcards.debug || {};
     window.lcards.debug.setLevel = lcardsSetGlobalLogLevel;
+    window.lcards.debug.getLevel = lcardsGetGlobalLogLevel;
 
     // Animation namespace organization
     window.lcards.anim = {
@@ -158,10 +159,7 @@ async function initializeCustomCard() {
     window.lcards.debug.singletons = lcardsCore;
 
     // === PERFORMANCE MONITOR DEBUG SHORTCUT ===
-    // window.lcards.perf.fps()       → current FPS
-    // window.lcards.perf.status()    → full status object
-    // window.lcards.perf.thresholds  → {disable3D, reduceEffects}
-    window.lcards.perf = {
+    window.lcards.debug.perf = {
       fps() {
         return window.lcards.core.performanceMonitor?.getFPS() ?? null;
       },
@@ -183,7 +181,6 @@ async function initializeCustomCard() {
         return window.lcards.core.performanceMonitor?.thresholds ?? null;
       }
     };
-
     lcardsLog.debug('[lcards.js] LCARdSCore singleton attached to window.lcards.core');
     lcardsLog.debug('[lcards.js] ✅ Singleton reference added to debug.singletons');
 
