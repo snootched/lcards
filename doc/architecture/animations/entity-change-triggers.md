@@ -22,7 +22,7 @@ overlays:
 
 Whenever `light.bedroom` changes state, the fade-in animation plays.
 
-> **⚠️ Important:** Looping animations triggered by `on_entity_change` do NOT automatically stop when state changes back. They will loop indefinitely. For auto-stopping looping animations, use rule-based animations instead. See [Best Practices](#best-practices) for details.
+> **Important:** Looping animations triggered by `on_entity_change` do NOT automatically stop when state changes back. They will loop indefinitely. For auto-stopping looping animations, use rule-based animations instead. See [Best Practices](#best-practices) for details.
 
 ## State Transition Filtering
 

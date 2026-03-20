@@ -6,7 +6,7 @@ The Background Animation System provides a modular, preset-based framework for r
 
 ---
 
-## 🏗️ System Overview
+## System Overview
 
 ### Architecture Components
 
@@ -38,7 +38,7 @@ BackgroundAnimationRenderer (Canvas2DRenderer)
 
 ---
 
-## 📊 Data Flow
+## Data Flow
 
 ### 1. Configuration → Effects
 
@@ -85,7 +85,7 @@ background_animation:
 
 ---
 
-## 🎨 Effect Interface (BaseEffect)
+## Effect Interface (BaseEffect)
 
 All effects must implement the `BaseEffect` interface:
 
@@ -129,7 +129,7 @@ class BaseEffect {
 
 ---
 
-## 🔍 ZoomEffect Wrapper Architecture
+## ZoomEffect Wrapper Architecture
 
 `ZoomEffect` is a **compositor** (not a BaseEffect subclass) that wraps any effect with layered scaling.
 
@@ -192,7 +192,7 @@ class ZoomEffect {
 
 ---
 
-## 🎯 Preset System
+## Preset System
 
 ### Preset Structure
 
@@ -260,7 +260,7 @@ export const BACKGROUND_PRESETS = {
 
 ---
 
-## 🎭 Effect Stacking
+## Effect Stacking
 
 ### Rendering Order
 
@@ -292,7 +292,7 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 
 ---
 
-## 🏎️ Animation Governor (PerformanceMonitor)
+## Animation Governor (PerformanceMonitor)
 
 `AnimationPerformanceMonitor` (`src/core/animation/PerformanceMonitor.js`) is a global singleton (`window.lcards.core.performanceMonitor`) that runs a single RAF loop to measure device FPS independently of any card's render loop. It is ref-counted: it starts when the first `Canvas2DRenderer` starts and stops when the last one stops.
 

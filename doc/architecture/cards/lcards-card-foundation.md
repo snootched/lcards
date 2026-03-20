@@ -16,7 +16,7 @@ The LCARdS Card foundation provides a minimal, clear base for building single-pu
 - Card owns its rendering logic
 - Simple template processing
 
-**Singleton Integration** ⭐
+**Singleton Integration**
 - Direct access to CoreSystemsManager, theme, rules, animations
 - Entity caching with 80-90% performance improvement
 - Reactive subscriptions via `subscribeToEntity()` API
@@ -202,7 +202,7 @@ Style Resolution Priority:
 2. Preset styles
 3. Theme token resolution
 4. State overrides
-5. Rule patches (highest) ⭐
+5. Rule patches (highest)
 ```
 
 #### Basic Setup
@@ -497,8 +497,7 @@ segments.forEach(segment => {
 - This enables cross-card coordination and shared entity state
 - Rules engine, theme manager, CoreSystemsManager get updated HASS data
 
-### Entity Caching via CoreSystemsManager ⭐
-- CoreSystemsManager maintains global entity state cache
+### Entity Caching via CoreSystemsManager - CoreSystemsManager maintains global entity state cache
 - First entity access: Cache miss → Direct HASS lookup → Cache population
 - Subsequent accesses: Cache hit (~80-90% faster)
 - Cache automatically updated on HASS changes
