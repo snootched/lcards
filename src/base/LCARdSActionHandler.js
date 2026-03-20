@@ -761,6 +761,18 @@ export class LCARdSActionHandler {
     }
 
     /**
+     * Get debug information about the action handler state
+     * @returns {Object} Debug information
+     */
+    getDebugInfo() {
+        return {
+            type: 'LCARdSActionHandler',
+            activeHandlers: this._activeHandlers?.size || 0,
+            initialized: true
+        };
+    }
+
+    /**
      * Handle URL action
      * @private
      */

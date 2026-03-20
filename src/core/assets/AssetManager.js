@@ -580,6 +580,32 @@ export class AssetManager extends BaseService {
   }
 
   /**
+   * Get debug information about the asset manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    try {
+      const registries = {};
+      this.listTypes().forEach(type => {
+        const registry = this.getRegistry(type);
+        registries[type] = {
+          assetCount: registry.assets?.size || 0,
+          loadingCount: registry.loadingPromises?.size || 0,
+          assets: registry.list()
+        };
+      });
+      return {
+        type: 'AssetManager',
+        registriesCount: this.registries?.size || 0,
+        supportedTypes: this.listTypes(),
+        registries
+      };
+    } catch (error) {
+      return { type: 'AssetManager', error: error.message };
+    }
+  }
+
+  /**
    * Cleanup on destroy
    */
   async destroy() {

@@ -677,6 +677,21 @@ export class SoundManager extends BaseService {
   }
 
   /**
+   * Get debug information about the sound manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'SoundManager',
+      schemesCount: this._soundSchemes?.size || 0,
+      schemeNames: this.getSchemeNames(),
+      audioCacheSize: this._audioCache?.size || 0,
+      userInteracted: this._userInteracted || false,
+      schemesOptionsSynced: this._schemesOptionsSynced || false
+    };
+  }
+
+  /**
    * Sync the sound_scheme input_select options to match all registered schemes.
    * Non-fatal if helper doesn't exist yet.
    * @private

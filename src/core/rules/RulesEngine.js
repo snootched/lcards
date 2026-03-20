@@ -1763,6 +1763,27 @@ export class RulesEngine extends BaseService {
   }
 
   /**
+   * Get debug information about the rules engine state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    try {
+      return {
+        type: 'RulesEngine',
+        rulesCount: this.rules?.length || 0,
+        rulesById: this.rulesById?.size || 0,
+        dirtyRules: this.dirtyRules?.size || 0,
+        evalCounts: this.evalCounts || {},
+        hasDataSourceManager: !!this.dataSourceManager,
+        recentMatches: this.getRecentMatches(10000),
+        trace: this.getTrace()
+      };
+    } catch (error) {
+      return { type: 'RulesEngine', error: error.message };
+    }
+  }
+
+  /**
    * Get all rules in the system
    * @returns {Array} Array of rule objects
    */

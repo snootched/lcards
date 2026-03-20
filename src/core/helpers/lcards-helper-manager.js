@@ -671,6 +671,20 @@ export class LCARdSHelperManager extends BaseService {
   }
 
   /**
+   * Get debug information about the helper manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'HelperManager',
+      subscriptionsCount: this._subscriptions?.size || 0,
+      stateListeners: this._stateUnsubscribers?.size || 0,
+      cachedValues: this._valueCache?.size || 0,
+      autoSwitchInitialized: this._autoSwitchInitialized || false
+    };
+  }
+
+  /**
    * Cleanup - unsubscribe from all state listeners
    */
   destroy() {

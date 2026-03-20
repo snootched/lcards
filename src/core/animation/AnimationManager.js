@@ -1382,4 +1382,22 @@ export class AnimationManager extends BaseService {
       lcardsLog.debug(`[AnimationManager] 🗑️ Destroyed ${keysToDestroy.length} segment scopes for card: ${cardId}`);
     }
   }
+
+  /**
+   * Get debug information about the animation manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'AnimationManager',
+      initialized: this.initialized || false,
+      scopesCount: this.scopes?.size || 0,
+      customPresetsCount: this.customPresets?.size || 0,
+      timelinesCount: this.timelines?.size || 0,
+      activeAnimationsCount: this.activeAnimations?.size || 0,
+      registeredAnimationsCount: this.registeredAnimations?.size || 0,
+      hasMountEl: !!this.mountEl,
+      hasSystemsManager: !!this.systemsManager
+    };
+  }
 }

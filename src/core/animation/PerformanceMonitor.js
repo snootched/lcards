@@ -116,6 +116,20 @@ export class AnimationPerformanceMonitor {
   }
 
   /**
+   * Get debug information about the performance monitor state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'AnimationPerformanceMonitor',
+      isMonitoring: this.isMonitoring || false,
+      currentFPS: this.currentFPS || 0,
+      refCount: this._refCount || 0,
+      thresholds: this.thresholds || {}
+    };
+  }
+
+  /**
    * Update performance thresholds
    * @param {Object} thresholds - New threshold values
    */

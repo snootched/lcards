@@ -381,6 +381,20 @@ export class AnimationRegistry {
 
     return rows.join('\n');
   }
+
+  /**
+   * Get debug information about the animation registry state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'AnimationRegistry',
+      cacheSize: this.cache?.size || 0,
+      maxCacheSize: this.maxCacheSize || 0,
+      perfStats: this.perfStats || {},
+      usageStats: this.usageStats?.size || 0
+    };
+  }
 }
 
 // Create global registry instance
