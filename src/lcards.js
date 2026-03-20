@@ -66,9 +66,9 @@ window.lcards.info = function () {
             'lcards-alert-overlay',
         ],
         core: {
-            initialized: !!core?._initialized,
+            initialized: !!core?._coreInitialized,
             alertMode:   core?.themeManager?.getAlertMode?.() ?? null,
-            theme:       core?.themeManager?.getCurrentTheme?.()?.id ?? null,
+            theme:       core?.themeManager?.getActiveTheme?.()?.id ?? null,
             dataSources: core?.dataSourceManager ? Object.keys(core.dataSourceManager.sources ?? {}).length : null,
         },
     };
@@ -181,6 +181,21 @@ async function initializeCustomCard() {
         return window.lcards.core.performanceMonitor?.thresholds ?? null;
       }
     };
+
+    // === THEME DEBUG SHORTCUT ===
+    // window.lcards.debug.theme.current()         → active theme object
+    // window.lcards.debug.theme.alertMode()       → current alert mode name
+    // window.lcards.debug.theme.list()            → all registered theme IDs
+    // window.lcards.debug.theme.token('path')     → resolve a token path
+    // window.lcards.debug.theme.info()            → full ThemeManager debug snapshot
+    window.lcards.debug.theme = {
+      current:   () => window.lcards.core.themeManager?.getActiveTheme() ?? null,
+      alertMode: () => window.lcards.core.themeManager?.getAlertMode() ?? null,
+      list:      () => window.lcards.core.themeManager?.listThemes() ?? [],
+      token:     (path, fallback) => window.lcards.core.themeManager?.getToken(path, fallback) ?? null,
+      info:      () => window.lcards.core.themeManager?.getDebugInfo() ?? null,
+    };
+
     lcardsLog.debug('[lcards.js] LCARdSCore singleton attached to window.lcards.core');
     lcardsLog.debug('[lcards.js] ✅ Singleton reference added to debug.singletons');
 
@@ -474,6 +489,22 @@ window.lcards.alertConfig = {
     const { loadRuntimeTransformOverrides } = await import('./core/themes/alertModeTransform.js');
     loadRuntimeTransformOverrides(overrides);
   }
+};
+
+// === ALERT NAMESPACE ===
+// Scoped console API — cleaner alias set for interactive use.
+// Root-level shortcuts (window.lcards.redAlert, etc.) are kept for backward compatibility.
+window.lcards.alert = {
+  set:    (mode, opts) => window.lcards.setAlertMode(mode, opts),
+  get:    () => window.lcards.getAlertMode(),
+  red:    () => window.lcards.setAlertMode('red_alert'),
+  yellow: () => window.lcards.setAlertMode('yellow_alert'),
+  blue:   () => window.lcards.setAlertMode('blue_alert'),
+  gray:   () => window.lcards.setAlertMode('gray_alert'),
+  black:  () => window.lcards.setAlertMode('black_alert'),
+  green:  () => window.lcards.setAlertMode('green_alert'),
+  off:    () => window.lcards.setAlertMode('green_alert'),  // reset to normal
+  config: window.lcards.alertConfig,
 };
 
 // === SOUND DEBUG API ===

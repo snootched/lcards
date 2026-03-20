@@ -2,6 +2,16 @@
 
 Browser console tools for LCARdS development, accessed via `window.lcards.debug`.
 
+::: tip Runtime snapshot
+```javascript
+window.lcards.info()   // prints version, build date, log level, core status
+```
+:::
+
+::: tip URL log level override
+Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level before the page fully loads — useful for catching early init errors.
+:::
+
 ---
 
 ## General Debug Utilities
@@ -46,6 +56,41 @@ window.lcards.debug.perf.status()
 ```
 
 > **Note:** `window.lcards.perf` no longer exists — use `window.lcards.debug.perf`.
+
+### `theme` — Theme inspection
+
+Shortcuts to `ThemeManager` state.
+
+| Method | Description |
+|---|---|
+| `theme.current()` | Active theme object (id, name, tokens) |
+| `theme.alertMode()` | Current alert mode name |
+| `theme.list()` | All registered theme IDs |
+| `theme.token(path, fallback?)` | Resolve a token path against the active theme |
+| `theme.info()` | Full `ThemeManager.getDebugInfo()` snapshot |
+
+```javascript
+window.lcards.debug.theme.alertMode()
+// → 'red_alert'
+
+window.lcards.debug.theme.token('colors.accent.primary')
+// → '#7EB6E8'
+
+window.lcards.debug.theme.list()
+// → ['lcards-default', 'lcars-ds9', ...]
+```
+
+---
+
+## Other Console APIs
+
+These live on the root `window.lcards` namespace rather than `debug.*`:
+
+| API | Description |
+|---|---|
+| `window.lcards.info()` | Runtime snapshot — version, build date, log level, core status |
+| `window.lcards.alert.*` | Alert mode control — see [Alert Mode](../core/alert-mode.md) |
+| `window.lcards.sound.*` | Sound system debug — `play(event)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` |
 
 ---
 

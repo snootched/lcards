@@ -57,13 +57,29 @@ action:
 
 === Browser Console
 
-Trigger directly from the browser dev console:
+Use the `window.lcards.alert` console API from the browser dev tools:
 
 ```javascript
+// Mode shortcuts
 window.lcards.alert.red();
 window.lcards.alert.yellow();
-window.lcards.alert.off();    // Reset to green
+window.lcards.alert.blue();
+window.lcards.alert.gray();
+window.lcards.alert.black();
+window.lcards.alert.off();       // Reset to normal (green)
+
+// Set / get by mode name
+window.lcards.alert.set('red_alert');
+window.lcards.alert.get();       // → 'red_alert'
+
+// Live parameter tuning (see also Alert Mode Lab)
+window.lcards.alert.config.setParam('red_alert', 'saturationMultiplier', 1.5, true);
+await window.lcards.alert.config.getTransform('red_alert');
+await window.lcards.alert.config.reset('red_alert', true);
+await window.lcards.alert.config.export();  // Export runtime overrides as JSON
 ```
+
+> Root-level shortcuts `window.lcards.redAlert()`, `.yellowAlert()` etc. still exist and are kept for backward compatibility.
 
 === Config Panel
 
