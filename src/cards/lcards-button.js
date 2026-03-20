@@ -1156,7 +1156,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Setup segment animations after interactivity is established
      * Called after _setupSegmentInteractivity() in updated()
-     * @private
+     * @protected
      */
     _setupSegmentAnimations() {
         if (!this._processedSegments || this._processedSegments.length === 0) {
@@ -2389,7 +2389,7 @@ export class LCARdSButton extends LCARdSCard {
      * **CRITICAL:** Always call `this.requestUpdate()` after style changes
      * to trigger Lit re-render. Without this, visual updates won't happen.
      *
-     * @private
+     * @protected
      */
     _resolveButtonStyleSync() {
         // 1. Start with preset (if specified)
@@ -3359,7 +3359,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} buttonWidth - Button width
      * @param {number} buttonHeight - Button height
      * @returns {Object} { markup: string, widthUsed: 0 } - Icon markup and width (always 0 for flexible positioning)
-     * @private
+     * @protected
      */
     _generateFlexibleIconMarkup(iconConfig, buttonWidth, buttonHeight) {
         if (!iconConfig) return { markup: '', widthUsed: 0 };
@@ -3437,7 +3437,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} buttonWidth - Button width
      * @param {number} buttonHeight - Button height
      * @returns {Object} { markup: string, widthUsed: number } - Icon markup and horizontal space used
-     * @private
+     * @protected
      */
     _generateAreaBasedIconMarkup(iconConfig, buttonWidth, buttonHeight) {
         // Handle null/undefined iconConfig
@@ -4059,7 +4059,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {Object} border - Resolved border config
      * @param {string|null} shapePath - SVG path d= string for complex shapes, null for rect
      * @returns {string} Always returns '' — canvas is managed separately
-     * @private
+     * @protected
      */
     _generateTextureMarkup(width, height, border, shapePath = null) {
         this._currentShapePath = shapePath || null;
@@ -4167,7 +4167,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} height - SVG height
      * @param {Object} config - Button configuration (preset, label)
      * @returns {string} SVG markup string
-     * @private
+     * @protected
      */
     _generateButtonSVG(width, height, config) {
         // Read styling from _buttonStyle (resolved from preset/tokens)

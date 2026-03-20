@@ -122,6 +122,7 @@ export class LCARdSNativeCard extends LitElement {
         super();
         this.hass = null;
         this.config = {};
+        /** @type {boolean|'picker'|'editor'} */
         this._isPreviewMode = false;
         this._mountResolved = false;
         this._cardGuid = this._generateGuid();
@@ -421,6 +422,7 @@ export class LCARdSNativeCard extends LitElement {
     /**
      * Render the card content - MUST be overridden in subclasses
      * @protected
+     * @returns {import('lit').TemplateResult}
      */
     _renderCard() {
         return html`<div>Override _renderCard() in subclass</div>`;
@@ -502,7 +504,8 @@ export class LCARdSNativeCard extends LitElement {
 
     /**
      * Detect if running in preview mode
-     * @private
+     * @protected
+     * @returns {boolean|'picker'|'editor'}
      */
     _detectPreviewMode() {
         // Heuristics for preview mode detection

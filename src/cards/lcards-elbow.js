@@ -58,7 +58,6 @@
  *       inner: '#FFCC99'       # Inner segment color (optional, uses main color if omitted)
  * ```
  *
- * @extends {LCARdSButton}
  */
 
 import { html, css } from 'lit';
@@ -605,7 +604,7 @@ export class LCARdSElbow extends LCARdSButton {
     /**
      * Lit lifecycle - called after every render when DOM updates
      * Setup interactivity on the rendered elbow element
-     * @protected
+     * @public
      */
     updated(changedProps) {
         super.updated?.(changedProps);
@@ -874,7 +873,7 @@ export class LCARdSElbow extends LCARdSButton {
 
     /**
      * Disconnect callback - cleanup theme entity subscriptions
-     * @protected
+     * @public
      */
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
@@ -1610,7 +1609,7 @@ export class LCARdSElbow extends LCARdSButton {
 
         if (isSegmented) {
             // Setup interactivity for OUTER segment
-            const elbowOuter = this.shadowRoot?.querySelector('.elbow-outer');
+            const elbowOuter = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.elbow-outer'));
             if (elbowOuter && (this._elbowOuterHoverStyle || this._elbowOuterPressedStyle)) {
                 lcardsLog.debug('[LCARdSElbow] Setting up outer segment interactivity', {
                     hasHoverStyle: !!this._elbowOuterHoverStyle,
@@ -1631,7 +1630,7 @@ export class LCARdSElbow extends LCARdSButton {
             }
 
             // Setup interactivity for INNER segment
-            const elbowInner = this.shadowRoot?.querySelector('.elbow-inner');
+            const elbowInner = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.elbow-inner'));
             if (elbowInner && (this._elbowInnerHoverStyle || this._elbowInnerPressedStyle)) {
                 lcardsLog.debug('[LCARdSElbow] Setting up inner segment interactivity', {
                     hasHoverStyle: !!this._elbowInnerHoverStyle,
@@ -1652,7 +1651,7 @@ export class LCARdSElbow extends LCARdSButton {
             }
         } else {
             // Simple elbow - single segment
-            const elbowBg = this.shadowRoot?.querySelector('.elbow-bg');
+            const elbowBg = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.elbow-bg'));
 
             if (!elbowBg) {
                 lcardsLog.warn('[LCARdSElbow] Cannot setup interactivity - .elbow-bg element not found');
@@ -1701,11 +1700,11 @@ export class LCARdSElbow extends LCARdSButton {
             const tokenValue = this.getThemeToken(tokenPath, resolved);
             lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${resolved}" -> "${tokenValue}"`);
             // Resolve match-light token after theme resolution
-            return this._resolveMatchLightColor(tokenValue);
+            return String(this._resolveMatchLightColor(tokenValue));
         }
 
         // Resolve match-light token → var(--lcards-light-color-{guid})
-        return this._resolveMatchLightColor(resolved);
+        return String(this._resolveMatchLightColor(resolved));
     }
 
     /**
@@ -1869,7 +1868,7 @@ export class LCARdSElbow extends LCARdSButton {
      * @param {number} height - SVG height
      * @param {Object} config - Button configuration
      * @returns {string} SVG markup string
-     * @private
+     * @protected
      */
     _generateButtonSVG(width, height, config) {
         // Route to frame rendering if type is 'frame'
@@ -2534,7 +2533,7 @@ export class LCARdSElbow extends LCARdSButton {
      *
      * The wrapper div provides the position:relative context that the
      * absolute-positioned symbiont container needs to anchor correctly.
-     * @protected
+     * @public
      */
     _renderCard() {
         const parentContent = super._renderCard();
@@ -2694,7 +2693,7 @@ export class LCARdSElbow extends LCARdSButton {
     _attachSymbiontToContainer() {
         if (!this._symbiotElement) return;
 
-        const container = this.renderRoot?.querySelector('#lcards-symbiont-host');
+        const container = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('#lcards-symbiont-host'));
         if (!container) return;
 
         if (!container.contains(this._symbiotElement)) {
@@ -2771,7 +2770,7 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Also propagate resolved colors as CSS custom-properties on the
         // container element as a fallback for light-DOM / slotted cards.
-        const container = this.renderRoot?.querySelector('#lcards-symbiont-host');
+        const container = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('#lcards-symbiont-host'));
         if (container && this.config?.symbiont?.imprint) {
             const imprint    = this.config.symbiont.imprint;
             const buttonState = this._getButtonState();
@@ -2784,7 +2783,7 @@ export class LCARdSElbow extends LCARdSButton {
                     colorConfig: imprint.background,
                     fallback: null
                 });
-                if (bg) container.style.setProperty('--ha-card-background', bg);
+                if (bg) container.style.setProperty('--ha-card-background', String(bg));
             }
 
             if (imprint.text?.color) {
@@ -2794,7 +2793,7 @@ export class LCARdSElbow extends LCARdSButton {
                     colorConfig: imprint.text.color,
                     fallback: null
                 });
-                if (tc) container.style.setProperty('--primary-text-color', tc);
+                if (tc) container.style.setProperty('--primary-text-color', String(tc));
             }
         }
 

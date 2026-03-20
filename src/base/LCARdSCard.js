@@ -1281,7 +1281,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Filters patches for this card's overlay and triggers efficient update
      *
      * @param {Array} overlayPatches - Array of overlay patches from RulesEngine
-     * @private
+     * @protected
      */
     _applyRulePatches(overlayPatches) {
         lcardsLog.trace(`[LCARdSCard] _applyRulePatches called for ${this._overlayId}`, {
@@ -2844,6 +2844,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Render the card content
      * @protected
+     * @returns {import('lit').TemplateResult}
      */
     _renderCard() {
         if (!this._initialized) {

@@ -859,7 +859,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     }
 
     // Find the grid container element
-    const gridElement = this.renderRoot?.querySelector('.data-grid');
+    const gridElement = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('.data-grid'));
     if (!gridElement) {
       lcardsLog.debug('[LCARdSDataGrid] Cannot apply filters - grid element not found yet');
       return;
@@ -1167,7 +1167,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     const targetSelector = `.grid-cell[data-row="${rowIndex}"][data-col="${colIndex}"]`;
 
     // Check if cell exists RIGHT NOW (no waiting, change happens during re-render)
-    const cellExists = this.renderRoot.querySelector(targetSelector);
+    const cellExists = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(targetSelector));
     if (!cellExists) {
       // Cell not rendered yet, skip animation silently
       return;
@@ -1807,7 +1807,7 @@ export class LCARdSDataGrid extends LCARdSCard {
   /**
    * Get configuration element for Home Assistant UI editor
    * @static
-   * @returns {string} Element tag name
+   * @returns {HTMLElement}
    */
   static getConfigElement() {
     // Static import - editor bundled with card (webpack config doesn't support splitting)

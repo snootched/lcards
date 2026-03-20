@@ -188,8 +188,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
         this._resolveMenuStyle();
     }
 
-    _onConnected() {
-        super._onConnected();
+    async _onConnected() {
+        await super._onConnected();
         // Re-resolve styles now that StylePresetManager is available
         this._resolveMenuStyle();
     }
@@ -317,7 +317,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
      *
      * @param {string} optValue      - Option value
      * @param {Object} optStyleOverride - Per-option style config overrides
-     * @returns {{ bgColor, textColor, borderRadius, borderWidthPx, borderColor, opacity, fontSizePx, textTransform, letterSpacing }}
+     * @returns {{ bgColor, textColor, borderRadius, borderWidthPx, borderColor, opacity, fontSizePx, textTransform, letterSpacing, fontWeight }}
      * @private
      */
     _resolveOptionCss(optValue, optStyleOverride) {
@@ -706,7 +706,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
      * @returns {boolean}
      */
     _checkForAncestor(selectors) {
-        let current = this;
+        let current = /** @type {Element | null} */ (this);
         const maxLevels = 20;
         for (let i = 0; i < maxLevels && current; i++) {
             for (const selector of selectors) {
@@ -714,7 +714,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     return true;
                 }
             }
-            current = current.parentElement || current.parentNode?.host || current.getRootNode()?.host;
+            current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
         }
         return false;
     }

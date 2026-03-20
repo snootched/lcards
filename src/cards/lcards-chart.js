@@ -52,7 +52,7 @@
  * - 'processorKey': Output buffer from a processor defined in processing.*
  */
 
-import { html, css } from 'lit';
+import { html, css, svg } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import ApexCharts from 'apexcharts';
@@ -141,6 +141,8 @@ export class LCARdSChart extends LCARdSCard {
     this._error = null;
     this._chartInitialized = false; // Track if we've tried to initialize
     this._registeredDataSources = new Set(); // Track datasources for cleanup
+    /** @type {string[]|undefined} */
+    this._seriesNames = undefined;
   }
 
   /**
@@ -202,7 +204,7 @@ export class LCARdSChart extends LCARdSCard {
 
   /**
    * Called after every render - initialize chart when container is ready
-   * @protected
+   * @public
    */
   updated(changedProperties) {
     super.updated(changedProperties);
@@ -220,7 +222,7 @@ export class LCARdSChart extends LCARdSCard {
     }
 
     // Get the container and check if it has dimensions
-    const container = this.renderRoot.querySelector('.chart-container');
+    const container = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector('.chart-container'));
     if (!container) {
       return;
     }
@@ -240,7 +242,7 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    */
   _checkForAncestor(selectors) {
-    let current = this;
+    let current = /** @type {Element | null} */ (this);
     const maxLevels = 20;
 
     for (let i = 0; i < maxLevels && current; i++) {
@@ -252,7 +254,7 @@ export class LCARdSChart extends LCARdSCard {
       }
 
       // Move up: try parentElement first, then host (shadow DOM)
-      current = current.parentElement || current.parentNode?.host || current.getRootNode()?.host;
+      current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
     }
 
     return false;
@@ -514,7 +516,7 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    */
   async _initializeChart() {
-    const container = this.renderRoot.querySelector('.chart-container');
+    const container = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector('.chart-container'));
     if (!container) {
       lcardsLog.error('[LCARdSChart] Chart container not found');
       this._error = 'Chart container not found';
@@ -835,7 +837,7 @@ export class LCARdSChart extends LCARdSCard {
    */
   _renderPreviewChart(chartType, color) {
     if (chartType === 'line') {
-      return html`
+      return svg`
         <path
           d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90"
           fill="none"
@@ -846,7 +848,7 @@ export class LCARdSChart extends LCARdSCard {
     }
 
     if (chartType === 'area') {
-      return html`
+      return svg`
         <path
           d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90 L 380,180 L 20,180 Z"
           fill="${color}"
@@ -858,7 +860,7 @@ export class LCARdSChart extends LCARdSCard {
     }
 
     if (chartType === 'bar') {
-      return html`
+      return svg`
         <rect x="40" y="120" width="40" height="60" fill="${color}" opacity="0.8"/>
         <rect x="120" y="100" width="40" height="80" fill="${color}" opacity="0.8"/>
         <rect x="200" y="80" width="40" height="100" fill="${color}" opacity="0.8"/>
@@ -867,7 +869,7 @@ export class LCARdSChart extends LCARdSCard {
     }
 
     // Default to line
-    return html`
+    return svg`
       <path
         d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90"
         fill="none"

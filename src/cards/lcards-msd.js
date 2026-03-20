@@ -141,7 +141,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                 before: this._isPreviewMode,
                 after: newPreviewMode
             });
-            this._isPreviewMode = newPreviewMode;
+            this._isPreviewMode = /** @type {any} */ (newPreviewMode);
             this.requestUpdate(); // Trigger re-render with correct mode
         }
     }
@@ -151,7 +151,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @returns {string} Card type identifier
      */
     getCardType() {
-        return this.constructor.CARD_TYPE;
+        return /** @type {any} */ (this.constructor).CARD_TYPE;
     }
 
     /**
@@ -750,7 +750,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.debug('[LCARdSMSDCard] SVG container rendered and mounted to DOM');
 
             // Get mount element
-            const mount = this.renderRoot;
+            const mount = /** @type {HTMLElement | ShadowRoot} */ (this.renderRoot);
             if (!mount) {
                 lcardsLog.error('[LCARdSMSDCard] Mount element not found');
                 this._msdInitialized = false;  // Reset on failure
@@ -895,7 +895,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _checkForAncestor(selectors) {
-        let current = this;
+        let current = /** @type {Element | null} */ (this);
         const maxLevels = 20;
 
         for (let i = 0; i < maxLevels && current; i++) {
@@ -905,7 +905,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                 }
             }
             // Traverse shadow DOM boundaries: try parentElement, then host
-            current = current.parentElement || current.parentNode?.host || current.getRootNode()?.host;
+            current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
         }
 
         return false;
@@ -914,7 +914,8 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Detect if running in preview mode with tiered strategy
      * Returns: false (full render), 'picker' (Tier 3), 'editor' (Tier 2)
-     * @private
+     * @returns {false|'picker'|'editor'}
+     * @protected
      */
     _detectPreviewMode() {
         if (!this.parentElement) {
@@ -948,7 +949,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const dashboardEl = this.parentElement.closest('hui-root, ha-panel-lovelace');
         if (dashboardEl) {
             lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render', {
-                editMode: dashboardEl.editMode
+                editMode: /** @type {any} */ (dashboardEl).editMode
             });
             return false;
         }
@@ -961,7 +962,7 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Override requestUpdate to block HASS-triggered updates
      * MSD manages its own updates internally
-     * @protected
+     * @public
      */
     requestUpdate(name, oldValue, options) {
         // Block HASS-related updates to prevent re-renders
@@ -1513,9 +1514,9 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // Apply style properties based on overlay type
             if (overlayType === 'line') {
-                this._applyLineStyleToDOM(overlayEl, patch.style);
+                this._applyLineStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
             } else if (overlayType === 'control') {
-                this._applyControlStyleToDOM(overlayEl, patch.style);
+                this._applyControlStyleToDOM(/** @type {HTMLElement} */ (overlayEl), patch.style);
             } else {
                 lcardsLog.warn(`[LCARdSMSDCard] Unknown overlay type for DOM patching: ${overlayType}`);            }
 
@@ -1532,11 +1533,11 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _applyLineStyleToDOM(lineEl, style) {
         // If element is a group, find child path/line elements
-        let targetElements = [lineEl];
+        let targetElements = /** @type {SVGElement[]} */ ([lineEl]);
         if (lineEl.tagName.toLowerCase() === 'g') {
             const children = lineEl.querySelectorAll('path, line, polyline, polygon');
             if (children.length > 0) {
-                targetElements = Array.from(children);
+                targetElements = /** @type {SVGElement[]} */ (Array.from(children));
             }
         }
 
@@ -1587,19 +1588,11 @@ export class LCARdSMSDCard extends LCARdSCard {
 
     /**
      * Get mount element for MSD pipeline
-     * @returns {HTMLElement|ShadowRoot} Mount element
-     * @protected
+     * @returns {ShadowRoot} Mount element
+     * @public
      */
     getMountElement() {
-        return this.renderRoot || this.shadowRoot;
-    }
-
-    /**
-     * Get config element (editor)
-     * @returns {HTMLElement} Editor element
-     */
-    static getConfigElement() {
-        return document.createElement('lcards-msd-editor');
+        return /** @type {ShadowRoot} */ (this.renderRoot || this.shadowRoot);
     }
 
     /**
