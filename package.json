@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.03.17-alpha",
+  "version": "2026.03.20a-alpha",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -18,15 +18,19 @@
     "Star Trek"
   ],
   "scripts": {
-    "build": "webpack --mode production",
-    "build:dev": "webpack --mode development",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "build:webpack": "webpack --mode production",
+    "build:webpack:dev": "webpack --mode development",
     "create-editor": "node tools/create-editor.js",
     "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json",
     "docs:build": "vitepress build doc",
     "docs:serve": "vitepress dev doc",
+    "docs:serve:network": "vitepress dev doc --host",
     "docs:preview": "vitepress preview doc"
   },
   "devDependencies": {
+    "vite": "^5.4.21",
     "clean-webpack-plugin": "^4.0.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",

@@ -81,8 +81,6 @@
  * preset: pills-basic
  * component: picard-vertical  # Advanced SVG component
  * ```
- *
- * @extends {LCARdSButton}
  */
 
 
@@ -513,27 +511,6 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Called after each render - update dynamic elements
-     * @protected
-     */
-    updated(changedProperties) {
-        super.updated(changedProperties);
-
-        // Update dynamic elements when slider value changes
-        // Lit's hasChanged() ensures this only fires when value actually changes
-        if (changedProperties.has('_sliderValue')) {
-            this._updateDynamicElements();
-        }
-
-        // Update pill opacities after render completes
-        // This ensures pills reflect current value on first load and subsequent updates
-        if (this._mode === 'pills') {
-            this._updatePillOpacities();
-        }
-        // Note: Gauge mode uses full re-render, no incremental updates needed
-    }
-
-    /**
      * Update entity context and determine track visual style
      * @private
      */
@@ -914,7 +891,7 @@ export class LCARdSSlider extends LCARdSButton {
      * Resolve state-based border color
      * Uses base class method for consistent color resolution across all cards
      * @param {Object|string} colorConfig - Color configuration (state object or string)
-     * @returns {string} Resolved color
+     * @returns {string|number|null} Resolved color
      * @private
      */
     _resolveStateBorderColor(colorConfig) {
@@ -943,7 +920,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (!rawValue) return fallback;
         let value = rawValue;
         // Step 0: 'match-light' special token → per-card CSS variable
-        value = this._resolveMatchLightColor(value);
+        value = /** @type {string} */(this._resolveMatchLightColor(value));
 
         // If the value resolved to our dynamic per-card light-colour variable,
         // return the already-computed colour value stored on the instance.
@@ -972,7 +949,7 @@ export class LCARdSSlider extends LCARdSButton {
 
     /**
      * Inject borders into an SVG element (works for both _componentSvg and component-based rendering)
-     * @param {SVGElement} svgElement - The SVG element to inject borders into
+     * @param {Element} svgElement - The SVG/HTML element to inject borders into
      * @param {number} width - Container width
      * @param {number} height - Container height
      * @private
@@ -1026,12 +1003,12 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('id', 'border-left');
             rect.setAttribute('x', '0');
             rect.setAttribute('y', '0');
-            rect.setAttribute('width', leftSize);
-            rect.setAttribute('height', height);
+            rect.setAttribute('width', String(leftSize));
+            rect.setAttribute('height', String(height));
             const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(leftColor);
+            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''));
             // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', resolvedColor || '#000000');
+            rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1042,12 +1019,12 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('id', 'border-top');
             rect.setAttribute('x', '0');
             rect.setAttribute('y', '0');
-            rect.setAttribute('width', width);
-            rect.setAttribute('height', topSize);
+            rect.setAttribute('width', String(width));
+            rect.setAttribute('height', String(topSize));
             const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(topColor);
+            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''));
             // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', resolvedColor || '#000000');
+            rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1056,12 +1033,12 @@ export class LCARdSSlider extends LCARdSButton {
         if (borderConfig.right?.enabled && rightSize > 0) {
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('id', 'border-right');
-            rect.setAttribute('x', width - rightSize);
+            rect.setAttribute('x', String(width - rightSize));
             rect.setAttribute('y', '0');
-            rect.setAttribute('width', rightSize);
-            rect.setAttribute('height', height);
+            rect.setAttribute('width', String(rightSize));
+            rect.setAttribute('height', String(height));
             const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', ColorUtils.resolveCssVariable(rightColor) || '#000000');
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? '')) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1071,11 +1048,11 @@ export class LCARdSSlider extends LCARdSButton {
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('id', 'border-bottom');
             rect.setAttribute('x', '0');
-            rect.setAttribute('y', height - bottomSize);
-            rect.setAttribute('width', width);
-            rect.setAttribute('height', bottomSize);
+            rect.setAttribute('y', String(height - bottomSize));
+            rect.setAttribute('width', String(width));
+            rect.setAttribute('height', String(bottomSize));
             const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', ColorUtils.resolveCssVariable(bottomColor) || '#000000');
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? '')) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1214,7 +1191,7 @@ export class LCARdSSlider extends LCARdSButton {
      * Wraps all visible SVG content in a <g clip-path="..."> keyed to _cardGuid.
      * Safe to call on a freshly-parsed SVG shell (no stale-state issues).
      * Must be called AFTER all other injection methods so every element is clipped.
-     * @param {SVGElement} svgElement - Parsed SVG root element
+     * @param {Element} svgElement - Parsed SVG/HTML element root
      * @param {number} width  - Container width in pixels
      * @param {number} height - Container height in pixels
      * @private
@@ -3737,7 +3714,7 @@ export class LCARdSSlider extends LCARdSButton {
      * Setup border interactivity after render
      * Re-attaches handlers on every render to ensure they target current DOM elements
      * (SVG elements are replaced during re-renders, creating stale references if attached once)
-     * @protected
+     * @override
      */
     updated(changedProps) {
         super.updated(changedProps);
@@ -3801,7 +3778,7 @@ export class LCARdSSlider extends LCARdSButton {
 
             // Register border with ActionHandler
             this._borderActionCleanups[side] = this.setupActions(
-                borderElement,
+                /** @type {HTMLElement} */(borderElement),
                 actions,
                 {
                     animationManager: getAnimationManager(),
@@ -3822,7 +3799,7 @@ export class LCARdSSlider extends LCARdSButton {
 
     /**
      * Cleanup on card removal
-     * @protected
+     * @override
      */
     disconnectedCallback() {
         super.disconnectedCallback();
@@ -3853,7 +3830,7 @@ export class LCARdSSlider extends LCARdSButton {
 
     /**
      * Render the card
-     * @protected
+     * @override
      */
     _renderCard() {
         const width = this._containerSize.width || 200;

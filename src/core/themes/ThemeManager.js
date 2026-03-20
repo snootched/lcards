@@ -616,6 +616,7 @@ export class ThemeManager extends BaseService {
     }
 
     // Get HASS instance
+    // @ts-ignore — _hass may be injected at runtime by ingestHass()
     const hass = this._hass || window.lcards?.core?._currentHass;
     if (!hass) {
       lcardsLog.error('[ThemeManager] Cannot set alert mode - HASS not available');

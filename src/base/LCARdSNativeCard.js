@@ -71,6 +71,7 @@ export class LCARdSNativeCard extends LitElement {
         };
     }
 
+    /** @returns {import('lit').CSSResultGroup} */
     static get styles() {
         return css`
             :host {

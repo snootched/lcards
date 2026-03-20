@@ -1,0 +1,48 @@
+{
+    "compilerOptions": {
+        // Check JS files without renaming anything to .ts
+        "allowJs": true,
+        "checkJs": true,
+
+        // Never emit compiled output — this is editor/IDE checking only
+        "noEmit": true,
+
+        // Browser + custom elements environment
+        "target": "ES2020",
+        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+
+        // Honour JSDoc types but don't require every variable to be typed
+        // (strict would produce too much noise in a JSDoc-only codebase)
+        "strict": false,
+        "noImplicitAny": false,
+
+        // Catch real bugs without being pedantic
+        "strictNullChecks": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+
+        // Allow default imports from CommonJS modules (animejs, apexcharts, etc.)
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+
+        // Preserve JSDoc comments in the language service
+        "preserveValueImports": false,
+
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/**/*.js",
+        "src/types/**/*.d.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "doc",
+        "doc-staging",
+        "doc-temp",
+        "cb-archive",
+        "test"
+    ]
+}
