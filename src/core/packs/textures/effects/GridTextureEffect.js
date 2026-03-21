@@ -17,7 +17,7 @@ import { BaseTextureEffect } from './BaseTextureEffect.js';
  */
 export class GridTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {number}  [config.line_spacing=40]    - Space between grid lines (px)
      * @param {number}  [config.line_width=1]       - Line width (px)
      * @param {string}  [config.color]              - Line/dot color
@@ -30,8 +30,8 @@ export class GridTextureEffect extends BaseTextureEffect {
      * @param {number}  [config.speed=1]            - Speed multiplier
      */
     constructor(config = {}) {
-        super(config);
-        this._grid = new GridEffect({
+        super(/** @type {any} */ (config));
+        this._grid = new GridEffect(/** @type {any} */ ({
             lineSpacing:    config.line_spacing  ?? 40,
             lineWidthMinor: config.line_width     ?? 1,
             color:          config.color          ?? 'rgba(255,255,255,0.3)',
@@ -42,7 +42,7 @@ export class GridTextureEffect extends BaseTextureEffect {
             dotRadius:      config.dot_radius      ?? 2,
             spacing:        config.spacing         ?? 20,
             speed:          config.speed           ?? 1,
-        });
+        }));
     }
 
     update(dt, w, h) {

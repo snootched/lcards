@@ -250,7 +250,7 @@ export class ThemeTokenResolver {
     if (value.startsWith('rgb')) return true;
 
     // Numbers as strings are direct values
-    if (!isNaN(value)) return true;
+    if (!isNaN(Number(value))) return true;
 
     return false;
   }
@@ -332,11 +332,11 @@ export class ThemeTokenResolver {
         if (typeof trimmedArg === 'string' && trimmedArg.endsWith('%')) {
           // Parse percentage and convert to decimal (30% -> 0.3)
           const numStr = trimmedArg.slice(0, -1);
-          if (!isNaN(numStr)) {
+          if (!isNaN(Number(numStr))) {
             return parseFloat(numStr) / 100;
           }
         }
-        if (!isNaN(trimmedArg)) {
+        if (!isNaN(Number(trimmedArg))) {
           return parseFloat(trimmedArg);
         }
         return arg;

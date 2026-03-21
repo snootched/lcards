@@ -18,13 +18,14 @@ import coreFontsJson from './core_fonts.json';
 
 const font_assets = {};
 Object.entries(coreFontsJson.fonts).forEach(([key, fontMeta]) => {
+  const fm = /** @type {any} */ (fontMeta);
   font_assets[key] = {
-    url:         fontMeta.external ? fontMeta.url : `/hacsfiles/lcards/fonts/${fontMeta.cssFile}`,
-    displayName: fontMeta.displayName,
-    category:    fontMeta.category,
-    legacyName:  fontMeta.legacyName,
-    description: fontMeta.description,
-    external:    fontMeta.external || false
+    url:         fm.external ? fm.url : `/hacsfiles/lcards/fonts/${fm.cssFile}`,
+    displayName: fm.displayName,
+    category:    fm.category,
+    legacyName:  fm.legacyName,
+    description: fm.description,
+    external:    fm.external || false
   };
 });
 

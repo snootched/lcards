@@ -140,7 +140,7 @@ export class DataSourceManager extends BaseService {
         const hassState = this.hass.states[enrichedConfig.entity];
 
         // Simulate initial state change to populate the data source
-        source._handleStateChange({
+        ;(/** @type {any} */ (source))._handleStateChange({
           entity_id: enrichedConfig.entity,
           new_state: hassState,
           old_state: null
@@ -571,7 +571,7 @@ export class DataSourceManager extends BaseService {
    * @returns {DataSource|null} The data source or null if not found
    */
   getDataSource(id) {
-    return this._dataSources.get(id) || null;
+    return (/** @type {any} */ (this))._dataSources?.get(id) || null;
   }
 
   getStats() {

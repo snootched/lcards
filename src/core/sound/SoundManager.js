@@ -105,31 +105,31 @@ export class SoundManager extends BaseService {
     /** @type {Map<string, HTMLAudioElement>} Cached Audio elements by asset key */
     this._audioCache = new Map();
 
-    /** @type {Function|null} Bound global click handler (for cleanup) */
+    /** @type {EventListener|null} Bound global click handler (for cleanup) */
     this._globalClickHandler = null;
 
-    /** @type {Function|null} Bound location-changed handler (for cleanup) */
+    /** @type {EventListener|null} Bound location-changed handler (for cleanup) */
     this._navHandler = null;
 
-    /** @type {Function|null} First-interaction tracker (for cleanup) */
+    /** @type {EventListener|null} First-interaction tracker (for cleanup) */
     this._interactionHandler = null;
 
-    /** @type {Function|null} hass-action event listener (for non-LCARdS HA cards) */
+    /** @type {EventListener|null} hass-action event listener (for non-LCARdS HA cards) */
     this._hassActionHandler = null;
 
-    /** @type {Function|null} show-dialog listener (general dialog open sounds) */
+    /** @type {EventListener|null} show-dialog listener (general dialog open sounds) */
     this._showDialogHandler = null;
 
-    /** @type {Function|null} hass-more-info listener (more-info panel sounds) */
+    /** @type {EventListener|null} hass-more-info listener (more-info panel sounds) */
     this._hassMoreInfoHandler = null;
 
-    /** @type {Function|null} Original history.replaceState (restored on destroy) */
+    /** @type {any} Original history.replaceState (restored on destroy) */
     this._historyReplaceStateOrig = null;
 
     /** @type {boolean} Last known lovelace edit mode state (for replaceState patch dedup) */
     this._lastEditMode = false;
 
-    /** @type {Function|null} dialog-closed listener (dialog save/cancel sounds) */
+    /** @type {EventListener|null} dialog-closed listener (dialog save/cancel sounds) */
     this._dialogClosedHandler = null;
 
     /** @type {boolean} Whether the user has interacted (browser autoplay policy) */
@@ -140,7 +140,6 @@ export class SoundManager extends BaseService {
 
     /** @type {boolean} Whether the sound_scheme input_select options have been successfully
      * synced to HA at least once.
-     * @type {boolean}
      */
     this._schemesOptionsSynced = false;
   }
@@ -193,7 +192,7 @@ export class SoundManager extends BaseService {
     // Navigation sounds (sidebar items, view changes) are handled by location-changed below.
     this._globalClickHandler = (e) => {
       if (!this._isCategoryEnabled('ui')) return;
-      const path = e.composedPath();
+      const path = /** @type {any[]} */ (e.composedPath());
       if (!path || path.length === 0) return;
 
       const inSidebar = path.some(el =>
@@ -227,9 +226,9 @@ export class SoundManager extends BaseService {
     this._hassActionHandler = (e) => {
       if (!this._isCategoryEnabled('cards')) return;
       // Skip if the event originated inside a LCARdS card shadow DOM
-      const path = e.composedPath?.() || [];
+      const path = /** @type {any[]} */ (e.composedPath?.() || []);
       if (path.some(el => el?.tagName?.startsWith?.('LCARDS-'))) return;
-      const action = e.detail?.action;
+      const action = /** @type {any} */ (e).detail?.action;
       if (action === 'tap') this.play('card_tap');
       else if (action === 'hold') this.play('card_hold');
       else if (action === 'double_tap') this.play('card_double_tap');
@@ -239,7 +238,7 @@ export class SoundManager extends BaseService {
     // show-dialog → dialog_open for any HA dialog EXCEPT more-info (handled separately below)
     this._showDialogHandler = (e) => {
       if (!this._isCategoryEnabled('ui')) return;
-      const tag = e.detail?.dialogTag;
+      const tag = /** @type {any} */ (e).detail?.dialogTag;
       // Skip more-info — hass-more-info listener handles it with its own event type
       if (tag === 'ha-more-info-dialog') return;
       this.play('dialog_open');
@@ -275,7 +274,7 @@ export class SoundManager extends BaseService {
     // Skip LCARdS-own elements to avoid double-sounds.
     this._dialogClosedHandler = (e) => {
       if (!this._isCategoryEnabled('ui')) return;
-      const dialog = e.detail?.dialog || '';
+      const dialog = /** @type {any} */ (e).detail?.dialog || '';
       if (!dialog || dialog.startsWith('lcards-')) return;
       this.play('dialog_close');
     };
@@ -364,7 +363,7 @@ export class SoundManager extends BaseService {
       this._hassMoreInfoHandler = null;
     }
     if (this._historyReplaceStateOrig) {
-      window.history.replaceState = this._historyReplaceStateOrig;
+      window.history.replaceState = /** @type {any} */ (this._historyReplaceStateOrig);
       this._historyReplaceStateOrig = null;
     }
     if (this._dialogClosedHandler) {

@@ -61,7 +61,7 @@ export class Canvas2DRenderer {
    * Add an effect to the renderer
    * Effects are rendered in the order they are added (first = bottom layer)
    *
-   * @param {BaseEffect} effect - Effect instance to add
+   * @param {Object} effect - Effect instance to add
    */
   addEffect(effect) {
     this.effects.push(effect);
@@ -75,7 +75,7 @@ export class Canvas2DRenderer {
   /**
    * Remove an effect from the renderer
    *
-   * @param {BaseEffect} effect - Effect instance to remove
+   * @param {Object} effect - Effect instance to remove
    */
   removeEffect(effect) {
     const index = this.effects.indexOf(effect);

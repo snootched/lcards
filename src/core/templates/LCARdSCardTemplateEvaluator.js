@@ -328,7 +328,7 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {Array<string>} Array of entity IDs
    */
   extractDependencies(content) {
-    return this._haEvaluator.extractDependencies(content);
+    return /** @type {any} */ (this._haEvaluator).extractDependencies(content);
   }
 
   /**
@@ -338,7 +338,7 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    */
   updateHass(newHass) {
     this.context.hass = newHass;
-    this._haEvaluator.updateHass(newHass);
+    /** @type {any} */ (this._haEvaluator).updateHass(newHass);
   }
 
   /**

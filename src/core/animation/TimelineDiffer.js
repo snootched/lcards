@@ -326,7 +326,7 @@ export class TimelineDiffer {
    * Derive an update strategy from a diff result.
    *
    * @param {Object} timelinesDiff  Result of {@link diffTimelines}.
-   * @returns {{ strategy: 'none'|'update_parameters'|'recreate', reason: string, [details]: Object }}
+   * @returns {Object} Update strategy result
    */
   getUpdateStrategy(timelinesDiff) {
     if (!timelinesDiff.added.length && !timelinesDiff.removed.length && !timelinesDiff.modified.length) {

@@ -264,7 +264,7 @@ export class AnimationRegistry {
    * Get performance statistics
    */
   getStats() {
-    const stats = { ...this.perfStats };
+    const stats = /** @type {any} */ ({ ...this.perfStats });
 
     stats.cacheSize = this.cache.size;
     stats.hitRate = stats.cacheHits / (stats.cacheHits + stats.cacheMisses) || 0;
@@ -353,7 +353,7 @@ export class AnimationRegistry {
    * Export cache statistics for analysis
    */
   exportStats(options = {}) {
-    const stats = this.getStats();
+    const stats = /** @type {any} */ (this.getStats());
 
     if (options.includeCache) {
       stats.cacheContents = this.getCacheContents();

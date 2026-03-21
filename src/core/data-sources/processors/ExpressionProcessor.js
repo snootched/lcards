@@ -94,7 +94,7 @@ export class ExpressionProcessor extends Processor {
    * @private
    * @param {number} value - Input value
    * @param {number} timestamp - Timestamp
-   * @param {RollingBuffer} mainBuffer - Main buffer
+   * @param {Object} mainBuffer - Main buffer
    * @param {Object} processingResults - Other processor results
    * @returns {Object} Context object
    */

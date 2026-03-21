@@ -17,7 +17,7 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  */
 export class FlowTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {string} [config.color='rgba(0,200,255,0.7)'] - Streak colour
      * @param {number} [config.num_streaks=8]              - Number of parallel bands
      * @param {number} [config.streak_width=0.8]           - Band height as fraction of slot (>1 = overlap/blend)
@@ -27,9 +27,10 @@ export class FlowTextureEffect extends BaseTextureEffect {
      * @param {number} [config.scroll_speed_y=0]           - Vertical drift speed (px/s)
      * @param {number} [config.base_frequency=0.012]       - Controls streak sine-wave density
      * @param {number} [config.speed=1]                    - Speed multiplier
+     * @param {number} [config.opacity=1] - Opacity (0-1)
      */
     constructor(config = {}) {
-        super(config);
+        super(/** @type {any} */ (config));
         this._color        = ColorUtils.resolveCssVariable(config.color ?? 'rgba(0,200,255,0.7)', 'rgba(0,200,255,0.7)');
         this._waveScale    = config.wave_scale       ?? 8;
         this._scrollSpeedX = config.scroll_speed_x  ?? 50;

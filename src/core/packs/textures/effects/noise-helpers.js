@@ -67,10 +67,10 @@ export function _fbm(x, y, octaves) {
  */
 export function parseColorToRgba(str, defaultColor) {
     const resolved = ColorUtils.resolveCssVariable(str ?? defaultColor, defaultColor);
-    const rgb = ColorUtils._parseColor(resolved);
+    const rgb = /** @type {any} */ (ColorUtils)._parseColor(resolved);
     if (!rgb) {
         // Parse the default directly so callers don't need a separate fallback value
-        const defRgb = ColorUtils._parseColor(defaultColor);
+        const defRgb = /** @type {any} */ (ColorUtils)._parseColor(defaultColor);
         if (defRgb) {
             const am = defaultColor.match(/rgba?\([^,]+,[^,]+,[^,]+,\s*([\d.]+)/);
             return { r: defRgb[0], g: defRgb[1], b: defRgb[2], a: am ? +am[1] : 1 };

@@ -212,6 +212,7 @@ export class ColorUtils {
   static resolveCssVariable(value, defaultValue = '#000000') {
     // Handle arrays recursively
     if (Array.isArray(value)) {
+      // @ts-ignore - returns string[] when input is array, string otherwise
       return value.map(v => this.resolveCssVariable(v, defaultValue));
     }
 

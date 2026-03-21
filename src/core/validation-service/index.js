@@ -200,6 +200,9 @@ export class CoreValidationService {
       validateEntities: true,     // Check entity existence in HASS
       cacheResults: true,         // Cache validation results
       debug: false,               // Enable debug logging
+      validateTokens: true,       // Validate theme tokens
+      validateDataSources: true,  // Validate data source references
+      stopOnError: false,         // Stop on first error in batch validation
       ...config
     };
 
@@ -834,6 +837,7 @@ export class CoreValidationService {
    * @param {Array} [context.viewBox] - SVG viewBox [x, y, width, height]
    * @param {Object} [context.anchors] - Available anchors
    * @param {Object} [context.overlays] - All overlays (for reference validation)
+   * @param {Object} [context.dataSourceManager] - DataSource manager instance
    * @returns {Object} Validation result
    *
    * @example

@@ -34,6 +34,7 @@ export class HATemplateEvaluator extends TemplateEvaluator {
    * // Conditional logic
    * await evaluate('{{states("light.living") == "on" ? "Active" : "Off"}}')
    */
+  // @ts-ignore - override with narrower signature than base TemplateEvaluator
   async evaluate(content) {
     if (!content || typeof content !== 'string') {
       return content;
@@ -48,7 +49,7 @@ export class HATemplateEvaluator extends TemplateEvaluator {
       return content;
     }
 
-    return this._safeEvaluate(async () => {
+    return /** @type {any} */ (this)._safeEvaluate(async () => {
       try {
         // Use Home Assistant's render_template API
         const result = await this._renderTemplate(content);
@@ -75,7 +76,7 @@ export class HATemplateEvaluator extends TemplateEvaluator {
    * @throws {Error} If hass connection is unavailable or API call fails
    */
   async _renderTemplate(template) {
-    const hass = this.context.hass || this.hass;
+    const hass = this.context.hass || /** @type {any} */ (this).hass;
     if (!hass) {
       throw new Error('Home Assistant object not available');
     }
@@ -139,7 +140,7 @@ export class HATemplateEvaluator extends TemplateEvaluator {
    * // { label: "72°F", secondary: "14:30" }
    */
   async evaluateBatch(templates) {
-    const results = {};
+    const results = /** @type {{[x:string]: any}} */ ({});
 
     for (const [key, template] of Object.entries(templates)) {
       results[key] = await this.evaluate(template);

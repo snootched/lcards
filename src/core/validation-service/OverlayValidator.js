@@ -24,7 +24,7 @@ export class OverlayValidator {
   /**
    * Create an OverlayValidator
    *
-   * @param {SchemaRegistry} schemaRegistry - Schema registry instance
+   * @param {Object} schemaRegistry - Schema registry instance
    */
   constructor(schemaRegistry) {
     this.schemaRegistry = schemaRegistry;

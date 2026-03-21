@@ -321,7 +321,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
      * @private
      */
     _strokeGlowPath(ctx, path) {
-        const gc = parseColorToRgba(this._edgeGlowColor, { r: 255, g: 255, b: 255, a: 0.7 });
+        const gc = parseColorToRgba(this._edgeGlowColor, /** @type {any} */ ({ r: 255, g: 255, b: 255, a: 0.7 }));
         const w  = this._edgeGlowWidth;
 
         // Passes: [widthMultiplier, alphaFraction] — outer→inner

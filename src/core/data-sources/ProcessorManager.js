@@ -130,7 +130,7 @@ export class ProcessorManager {
     }
 
     // Create instance with full config
-    return new ProcessorClass({
+    return new (/** @type {any} */ (ProcessorClass))({
       key,
       ...config,
       hass: this.dataSource.hass, // Pass HASS reference
@@ -142,7 +142,7 @@ export class ProcessorManager {
    * Get processor class by type name
    * @private
    * @param {string} type - Processor type
-   * @returns {Class} Processor class
+   * @returns {Function} Processor class
    */
   _getProcessorClass(type) {
     const typeMap = {

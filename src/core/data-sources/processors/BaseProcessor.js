@@ -45,7 +45,7 @@ export class Processor {
    * Process a value
    * @param {number} value - Input value
    * @param {number} timestamp - Timestamp
-   * @param {RollingBuffer} mainBuffer - Main data buffer
+   * @param {Object} mainBuffer - Main data buffer
    * @param {Object} processingResults - Results from other processors
    * @returns {number|Object} Processed value
    */
@@ -72,7 +72,7 @@ export class Processor {
    * Override this in subclasses
    * @param {number} value - Input value
    * @param {number} timestamp - Timestamp
-   * @param {RollingBuffer} mainBuffer - Main buffer
+   * @param {Object} mainBuffer - Main buffer
    * @param {Object} processingResults - Results from other processors
    * @returns {number|Object} Processed result
    */

@@ -107,7 +107,7 @@ export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null)
   let injectedCount = 0;
   Object.entries(palette).forEach(([key, value]) => {
     const cssVarName = `--lcards-${key}`;
-    root.style.setProperty(cssVarName, value);
+    /** @type {HTMLElement} */ (root).style.setProperty(cssVarName, value);
     injectedCount++;
   });
 
@@ -122,7 +122,7 @@ export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null)
   // Fix missing HA CSS variable: --mdc-select-label-ink-color
   // Some HA themes don't define this variable, causing ha-select helper text to be invisible
   // Copy from --mdc-text-field-label-ink-color which is properly defined
-  _fixMdcSelectLabelColor(root);
+  _fixMdcSelectLabelColor(/** @type {HTMLElement} */ (root));
 }
 
 /**
@@ -338,7 +338,7 @@ async function transformAndApplyAlertMode(mode, root, originalColors) {
   Object.entries(originalColors).forEach(([varName, originalColor]) => {
     const transformed = transformColorToAlertMode(originalColor, mode);
     if (transformed !== originalColor) {
-      root.style.setProperty(varName, transformed);
+      /** @type {HTMLElement} */ (root).style.setProperty(varName, transformed);
       transformCount++;
     }
   });
@@ -359,7 +359,7 @@ function injectTransformedPalette(mode, root) {
   let injectedCount = 0;
   Object.entries(GREEN_ALERT_PALETTE).forEach(([key, baseColor]) => {
     const transformed = transformColorToAlertMode(baseColor, mode);
-    root.style.setProperty(`--lcards-${key}`, transformed);
+    /** @type {HTMLElement} */ (root).style.setProperty(`--lcards-${key}`, transformed);
     injectedCount++;
   });
   lcardsLog.debug(`[PaletteInjector] Injected ${injectedCount} transformed --lcards-* vars for mode: ${mode}`);

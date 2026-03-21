@@ -27,7 +27,7 @@ export class NebulaEffect extends BaseEffect {
   /**
    * Create a new nebula effect
    *
-   * @param {Object} [config={}] - Configuration object
+   * @param {object} [config={}] - Configuration object
    *
    * Clouds:
    * @param {number} [config.cloudCount=4] - Number of nebula clouds (1-10)
@@ -36,6 +36,7 @@ export class NebulaEffect extends BaseEffect {
    * @param {number} [config.minOpacity=0.3] - Minimum cloud opacity (0-1)
    * @param {number} [config.maxOpacity=0.8] - Maximum cloud opacity (0-1)
    * @param {string|Array<string>} [config.colors] - Single color or array of colors
+   * @param {string} [config.color] - Alias for colors (single color string)
    * @param {number} [config.seed=1] - Random seed for cloud generation
    *
    * Turbulence:
@@ -45,7 +46,7 @@ export class NebulaEffect extends BaseEffect {
    * @param {number} [config.scrollSpeedY=5] - Vertical drift speed (pixels/second)
    */
   constructor(config = {}) {
-    super(config);
+    super(/** @type {any} */ (config));
 
     // Cloud generation config
     this.seed = config.seed ?? 1;

@@ -29,8 +29,7 @@ import { TEXT_PRESETS } from './text-presets.js';
 /**
  * Helper function to resolve easing configuration
  * Handles both string easings and object-based parametric easings
- * @param {string|object} easeConfig - Either a string like 'spring' or an object with { ease, ease_params }
- * @param {object} params - Full params object containing ease and ease_params
+ * @param {any} params - Params object or ease string/config with {ease, ease_params}
  * @returns {string|function} Resolved easing value for anime.js
  */
 function getResolvedEasing(params) {

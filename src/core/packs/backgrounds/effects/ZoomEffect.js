@@ -16,8 +16,8 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
  */
 export class ZoomEffect {
   /**
-   * @param {Object} config - Zoom effect configuration
-   * @param {BaseEffect} config.baseEffect - The effect to apply zoom to
+   * @param {object} config - Zoom effect configuration
+   * @param {Object} [config.baseEffect] - The effect to apply zoom to
    * @param {number} [config.layers=3] - Number of zoom layers to render (can be 1 if using multiple ZoomEffect instances)
    * @param {number} [config.layerIndex] - Index of this layer in multi-instance setup (for timing offset)
    * @param {number} [config.totalLayers] - Total number of layers in multi-instance setup

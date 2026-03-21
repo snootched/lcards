@@ -361,13 +361,13 @@ class LCARdSCore {
             unsubscribeFromEntity: (entityId, callback) => this.systemsManager.unsubscribeFromEntity(entityId, callback),
 
             // Data source methods (for advanced use cases)
-            subscribeToDataSource: (entityId, callback) => this.dataSourceManager?.subscribeToEntity(entityId, callback),
-            getDataSourceState: (entityId) => this.dataSourceManager?.getEntityState(entityId),
+            subscribeToDataSource: (entityId, callback) => /** @type {any} */ (this.dataSourceManager)?.subscribeToEntity(entityId, callback),
+            getDataSourceState: (entityId) => /** @type {any} */ (this.dataSourceManager)?.getEntityState(entityId),
 
             // Rules methods (for advanced rule-based overlays)
-            addRule: (rule) => this.rulesManager?.addRule(rule),
-            removeRule: (ruleId) => this.rulesManager?.removeRule(ruleId),
-            evaluateRules: () => this.rulesManager?.evaluateAll((entityId) => this.systemsManager.getEntityState(entityId)),
+            addRule: (rule) => /** @type {any} */ (this.rulesManager)?.addRule(rule),
+            removeRule: (ruleId) => /** @type {any} */ (this.rulesManager)?.removeRule(ruleId),
+            evaluateRules: () => /** @type {any} */ (this.rulesManager)?.evaluateAll((entityId) => this.systemsManager.getEntityState(entityId)),
 
             // Lifecycle
             destroy: () => this.unregisterCard(cardId)
@@ -569,7 +569,7 @@ class LCARdSCore {
         if (!this.rulesManager) {
             return 0;
         }
-        return this.rulesManager.getRulesCount();
+        return /** @type {any} */ (this.rulesManager).getRulesCount();
     }
 
     /**
@@ -580,7 +580,7 @@ class LCARdSCore {
         if (!this.rulesManager) {
             return {};
         }
-        return this.rulesManager.getRulesInfo();
+        return /** @type {any} */ (this.rulesManager).getRulesInfo();
     }
 
     /**
@@ -696,7 +696,7 @@ class LCARdSCore {
         }
 
         if (this.animationManager) {
-            this.animationManager.destroy();
+            /** @type {any} */ (this.animationManager).destroy();
             this.animationManager = null;
         }
 

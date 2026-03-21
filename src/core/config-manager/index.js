@@ -54,8 +54,8 @@ export class CoreConfigManager {
    * Initialize CoreConfigManager with singleton dependencies
    * @param {Object} singletons - Required singleton instances
    * @param {Object} singletons.validationService - CoreValidationService instance
-   * @param {Object} singletons.themeManager - ThemeManager instance
-   * @param {Object} singletons.stylePresetManager - StylePresetManager instance
+   * @param {Object} [singletons.themeManager] - ThemeManager instance
+   * @param {Object} [singletons.stylePresetManager] - StylePresetManager instance
    */
   async initialize(singletons) {
     if (this.initialized) {
@@ -126,7 +126,7 @@ export class CoreConfigManager {
    * @param {Object} userConfig - Raw config from YAML/UI
    * @param {string} cardType - Card type identifier ('simple-button', 'msd', etc.)
    * @param {Object} context - Additional context { hass, entity, ... }
-   * @returns {Promise<ConfigResult>} Result with merged config, validation, provenance
+   * @returns {Promise<Object>} Result with merged config, validation, provenance
    *
    * @example
    * // With preset
@@ -186,7 +186,7 @@ export class CoreConfigManager {
    *
    * @param {Object} userConfig - Full user config with nested msd object
    * @param {Object} context - Processing context { hass, entity, ... }
-   * @returns {Promise<ConfigResult>} Result with merged config and provenance
+   * @returns {Promise<Object>} Result with merged config and provenance
    * @private
    *
    * @example
@@ -216,6 +216,7 @@ export class CoreConfigManager {
    *   warnings: []
    * }
    */
+  // @ts-ignore - first definition; second definition below overrides at runtime
   async _processMsdConfig(userConfig, context) {
     lcardsLog.debug('[CoreConfigManager] Processing MSD nested config', {
       hasId: !!userConfig.id,
@@ -293,7 +294,7 @@ export class CoreConfigManager {
    * @param {string} cardType - Card type identifier
    * @param {Object} schema - JSON schema object
    * @param {Object} options - Registration options
-   * @param {string} options.version - Schema version (default: '1.0')
+   * @param {string} [options.version] - Schema version (default: '1.0')
    */
   registerCardSchema(cardType, schema, options = {}) {
     const schemaEntry = {
@@ -395,9 +396,10 @@ export class CoreConfigManager {
    *
    * @param {Object} userConfig - Full user config with nested msd object
    * @param {Object} context - Processing context { hass, entity, ...  }
-   * @returns {Promise<ConfigResult>} Result with merged config and provenance
+   * @returns {Promise<Object>} Result with merged config and provenance
    * @private
    */
+  // @ts-ignore - duplicate method; second definition overrides first at runtime
   async _processMsdConfig(userConfig, context) {
     lcardsLog.debug('[CoreConfigManager] Processing MSD nested config', {
       hasId: !!userConfig.id,

@@ -25,7 +25,7 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  */
 export class StarfieldEffect extends BaseEffect {
   /**
-   * @param {Object} config - Effect configuration
+   * @param {object} config - Effect configuration
    *
    * Star generation:
    * @param {number} [config.seed=1] - Random seed for reproducible patterns
@@ -35,6 +35,7 @@ export class StarfieldEffect extends BaseEffect {
    * @param {number} [config.minOpacity=0.3] - Minimum star opacity (0-1)
    * @param {number} [config.maxOpacity=1.0] - Maximum star opacity (0-1)
    * @param {string|string[]} [config.color='#ffffff'] - Star color (single color or array of colors)
+   * @param {string|string[]} [config.colors] - Alias for color (array form)
    *
    * Scrolling:
    * @param {number} [config.scrollSpeedX=30] - Horizontal scroll speed (pixels/second)
@@ -45,7 +46,7 @@ export class StarfieldEffect extends BaseEffect {
    * @param {number} [config.depthFactor=0.5] - Speed multiplier between layers (0-1)
    */
   constructor(config = {}) {
-    super(config);
+    super(/** @type {any} */ (config));
 
     // Star generation config
     this.seed = config.seed ?? 1;

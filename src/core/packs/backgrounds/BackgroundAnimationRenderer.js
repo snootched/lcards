@@ -314,7 +314,7 @@ export class BackgroundAnimationRenderer {
       if (BackgroundAnimationRenderer._COMPUTED_COLOR_RE.test(val)) {
         // Replace all var(--name, fallback) occurrences inside the expression
         const concreteExpr = val.replace(/var\([^)]+\)/g, match =>
-          ColorUtils.resolveCssVariable(match, match)
+          /** @type {string} */ (ColorUtils.resolveCssVariable(match, match))
         );
         // Now evaluate the outer function
         const m = concreteExpr.match(/^(\w+)\((.+),\s*([\d.]+)\s*\)$/);

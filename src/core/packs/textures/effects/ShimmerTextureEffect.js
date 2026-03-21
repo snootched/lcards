@@ -17,14 +17,15 @@ import { BaseTextureEffect } from './BaseTextureEffect.js';
  */
 export class ShimmerTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {string} [config.color='rgba(255,255,255,0.55)'] - Highlight colour
      * @param {number} [config.highlight_width=0.35] - Width of highlight as fraction of diagonal
      * @param {number} [config.speed=2.5]            - Sweep speed (px/s along diagonal)
+     * @param {number} [config.opacity=1] - Opacity (0-1)
      * @param {number} [config.angle=30]             - Sweep angle in degrees (0=horiz, 90=vert)
      */
     constructor(config = {}) {
-        super(config);
+        super(/** @type {any} */ (config));
         this._color          = config.color           ?? 'rgba(255,255,255,0.55)';
         this._highlightWidth = config.highlight_width ?? 0.35;
         this._sweepSpeed     = config.speed           ?? 2.5;

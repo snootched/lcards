@@ -23,7 +23,7 @@ export {
 /**
  * Register all schemas with SchemaRegistry
  *
- * @param {SchemaRegistry} schemaRegistry - Schema registry instance
+ * @param {Object} schemaRegistry - Schema registry instance
  *
  * @example
  * import { registerAllSchemas } from './schemas/index.js';

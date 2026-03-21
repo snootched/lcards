@@ -34,8 +34,8 @@ export class UnifiedTemplateEvaluator {
    * Create unified template evaluator
    *
    * @param {Object} config - Configuration
-   * @param {Object} config.hass - Home Assistant connection object
-   * @param {Object} config.context - Template evaluation context
+   * @param {Object} [config.hass] - Home Assistant connection object
+   * @param {Object} [config.context] - Template evaluation context
    * @param {Object} [config.dataSourceManager] - Optional MSD data source manager
    */
   constructor(config = {}) {

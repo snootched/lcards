@@ -216,6 +216,7 @@ export class CoreSystemsManager {
    *
    * @param {string} overlayId - Unique overlay identifier (typically `${cardId}_${localOverlayId}`)
    * @param {Object} metadata - Overlay metadata
+   * @param {string} [metadata.type] - Overlay type for categorization
    * @param {string} metadata.id - Overlay ID
    * @param {Array<string>} metadata.tags - Tags for targeting
    * @param {string} metadata.sourceCardId - Card that owns this overlay
