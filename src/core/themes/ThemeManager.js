@@ -205,9 +205,8 @@ export class ThemeManager extends BaseService {
     }
 
     // Load theme CSS file if specified
-    if (theme.cssFile) {
-      this._loadThemeCss(theme.cssFile, themeId);
-    }
+    // (Reserved for future theme CSS override support - no themes currently ship cssFiles)
+    // if (theme.cssFile) { this._loadThemeCss(theme.cssFile, themeId); }
 
     this.activeThemeId = themeId;
     this.activeTheme = theme;
@@ -380,36 +379,6 @@ export class ThemeManager extends BaseService {
       packId: theme.packId,
       hasCssFile: !!theme.cssFile
     } : null;
-  }
-
-  /**
-   * Load theme CSS file into document
-   *
-   * @private
-   * @param {string} cssFile - CSS filename
-   * @param {string} themeId - Theme identifier
-   */
-  _loadThemeCss(cssFile, themeId) {
-    try {
-      // Check if already loaded
-      const existingLink = document.querySelector(`link[data-theme-id="${themeId}"]`);
-      if (existingLink) {
-        lcardsLog.debug('[ThemeManager] Theme CSS already loaded:', themeId);
-        return;
-      }
-
-      // Create link element
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = `/local/cb-lcars/themes/${cssFile}`;
-      link.setAttribute('data-theme-id', themeId);
-
-      document.head.appendChild(link);
-
-      lcardsLog.debug('[ThemeManager] Loaded theme CSS:', cssFile);
-    } catch (error) {
-      lcardsLog.warn('[ThemeManager] Failed to load theme CSS:', cssFile, error);
-    }
   }
 
   /**

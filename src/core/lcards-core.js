@@ -21,25 +21,25 @@
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { CoreSystemsManager } from './systems-manager/index.js';
-import { DataSourceManager } from './data-sources/DataSourceManager.js';  // ✅ Moved to Core
-import { RulesEngine } from './rules/RulesEngine.js';  // ✅ Moved to Core
-import { ThemeManager } from './themes/ThemeManager.js';  // ✅ Moved to Core
+import { DataSourceManager } from './data-sources/DataSourceManager.js';
+import { RulesEngine } from './rules/RulesEngine.js';
+import { ThemeManager } from './themes/ThemeManager.js';
 import { AnimationManager } from './animation/AnimationManager.js';
-import { AnimationPerformanceMonitor } from './animation/PerformanceMonitor.js';  // ✅ Performance monitoring
+import { AnimationPerformanceMonitor } from './animation/PerformanceMonitor.js';
 import { CoreValidationService } from './validation-service/index.js';
-import { ComponentManager } from './components/ComponentManager.js';  // ✅ Component registry
+import { ComponentManager } from './components/ComponentManager.js';
 
-import { StylePresetManager } from './presets/StylePresetManager.js';  // ✅ Moved to Core
-import { AnimationRegistry } from './animation/AnimationRegistry.js';  // ✅ Moved to Core
-import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';  // ✅ Unified action handling
-import { CoreConfigManager } from './config-manager/index.js';  // ✅ Unified config processing
-import { injectPalette } from './themes/paletteInjector.js';  // ✅ CB-LCARS palette injection
-import { PackManager } from './PackManager.js';  // ✅ Pack registration system
-import { AssetManager } from './assets/AssetManager.js';  // ✅ Asset management system
-import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';  // ✅ DataSource debug tools
-import { CoreDebugAPI } from '../api/CoreDebugAPI.js';               // ✅ Core singleton debug tools
-import { LCARdSHelperManager } from './helpers/lcards-helper-manager.js';  // ✅ Helper management system
-import { SoundManager } from './sound/SoundManager.js';  // ✅ Sound management system
+import { StylePresetManager } from './presets/StylePresetManager.js';
+import { AnimationRegistry } from './animation/AnimationRegistry.js';
+import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
+import { CoreConfigManager } from './config-manager/index.js';
+import { injectPalette } from './themes/paletteInjector.js';
+import { PackManager } from './PackManager.js';
+import { AssetManager } from './assets/AssetManager.js';
+import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';
+import { CoreDebugAPI } from '../api/CoreDebugAPI.js';
+import { LCARdSHelperManager } from './helpers/lcards-helper-manager.js';
+import { SoundManager } from './sound/SoundManager.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -131,10 +131,10 @@ class LCARdSCore {
             // Store HASS reference
             this._currentHass = hass;
 
-            // ✅ PHASE 1: Inject CB-LCARS palette as --lcards-* CSS variables
+            // ✅ PHASE 1: Inject LCARdS palette as --lcards-* CSS variables
             // This must happen BEFORE ThemeManager initialization so fallback colors are available
             injectPalette();
-            lcardsLog.debug('[LCARdSCore] ✅ CB-LCARS palette injected as --lcards-* CSS variables');
+            lcardsLog.debug('[LCARdSCore] ✅ LCARdS palette injected as --lcards-* CSS variables');
 
             // Initialize SystemsManager (Phase 1a)
             this.systemsManager = new CoreSystemsManager();

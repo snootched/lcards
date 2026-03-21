@@ -2,7 +2,7 @@
  * Button Style Presets
  *
  * Complete button presets for LCARdS cards and status grids.
- * All presets use nested CB-LCARS schema structure.
+ * All presets use nested schema structure.
  *
  * Schema: doc/architecture/button-schema-definition.md
  * Theme Tokens: src/core/packs/themes/tokens/lcarsClassicTokens.js

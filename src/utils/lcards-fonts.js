@@ -1,15 +1,14 @@
 /**
  * LCARdS Font Registry
- * 
+ *
  * Central registry of all fonts distributed with LCARdS.
  * Used by editor form components to populate font selectors.
- * 
+ *
  * Naming conventions:
  * - Core fonts: Loaded at module init (Antonio, Jeffries, Microgramma)
  * - Standard fonts: Common LCARS display fonts
  * - Alien fonts: Star Trek alien language fonts
- * - Legacy names (cb-lcars_*) auto-migrate to new names (lcards_*)
- * 
+ *
  * @module utils/lcards-fonts
  */
 
@@ -22,7 +21,6 @@ import { lcardsLog } from './lcards-logging.js';
  * @property {string} value - Actual font-family value for CSS
  * @property {string} category - Category for grouping
  * @property {string} [description] - Optional description
- * @property {string} [legacyName] - Old CB-LCARS name for migration
  */
 
 /**
@@ -30,25 +28,23 @@ import { lcardsLog } from './lcards-logging.js';
  * @type {FontMetadata[]}
  */
 export const CORE_FONTS = [
-    { 
-        name: 'Antonio (Default)', 
-        value: 'Antonio', 
-        category: 'Core', 
-        description: 'Primary LCARS display font' 
+    {
+        name: 'Antonio (Default)',
+        value: 'Antonio',
+        category: 'Core',
+        description: 'Primary LCARS display font'
     },
-    { 
-        name: 'Jeffries', 
-        value: 'lcards_jeffries', 
-        category: 'Core', 
-        description: 'Technical display font',
-        legacyName: 'cb-lcars_jeffries'
+    {
+        name: 'Jeffries',
+        value: 'lcards_jeffries',
+        category: 'Core',
+        description: 'Technical display font'
     },
-    { 
-        name: 'Microgramma', 
-        value: 'lcards_microgramma', 
-        category: 'Core', 
-        description: 'Bold extended variant',
-        legacyName: 'cb-lcars_microgramma'
+    {
+        name: 'Microgramma',
+        value: 'lcards_microgramma',
+        category: 'Core',
+        description: 'Bold extended variant'
     }
 ];
 
@@ -57,21 +53,21 @@ export const CORE_FONTS = [
  * @type {FontMetadata[]}
  */
 export const STANDARD_FONTS = [
-    { name: 'Tungsten', value: 'lcards_tungsten', category: 'Standard', legacyName: 'cb-lcars_tungsten' },
-    { name: 'Microgramma Regular', value: 'lcards_microgramma_regular', category: 'Standard', legacyName: 'cb-lcars_microgramma_regular' },
-    { name: 'Context Ultra Condensed', value: 'lcards_context_ultra_condensed', category: 'Standard', legacyName: 'cb-lcars_context_ultra_condensed' },
-    { name: 'Crillee', value: 'lcards_crillee', category: 'Standard', legacyName: 'cb-lcars_crillee' },
-    { name: 'Eurostile', value: 'lcards_eurostile', category: 'Standard', legacyName: 'cb-lcars_eurostile' },
-    { name: 'Eurostile Oblique', value: 'lcards_eurostile_oblique', category: 'Standard', legacyName: 'cb-lcars_eurostile_oblique' },
-    { name: 'Federation', value: 'lcards_federation', category: 'Standard', legacyName: 'cb-lcars_federation' },
-    { name: 'Galaxy', value: 'lcards_galaxy', category: 'Standard', legacyName: 'cb-lcars_galaxy' },
-    { name: 'Handel Gothic', value: 'lcards_handel_gothic', category: 'Standard', legacyName: 'cb-lcars_handel_gothic' },
-    { name: 'Millennium Extended Bold', value: 'lcards_millenium_extended_bold', category: 'Standard', legacyName: 'cb-lcars_millenium_extended_bold' },
-    { name: 'Sonic', value: 'lcards_sonic', category: 'Standard', legacyName: 'cb-lcars_sonic' },
-    { name: 'Square 721', value: 'lcards_sqaure_721', category: 'Standard', legacyName: 'cb-lcars_sqaure_721' },
-    { name: 'Stellar', value: 'lcards_stellar', category: 'Standard', legacyName: 'cb-lcars_stellar' },
-    { name: 'Swiss 911', value: 'lcards_swiss_911', category: 'Standard', legacyName: 'cb-lcars_swiss_911' },
-    { name: 'Trek Arrow Caps', value: 'lcards_trekarrowcaps', category: 'Standard', legacyName: 'cb-lcars_trekarrowcaps' }
+    { name: 'Tungsten', value: 'lcards_tungsten', category: 'Standard' },
+    { name: 'Microgramma Regular', value: 'lcards_microgramma_regular', category: 'Standard' },
+    { name: 'Context Ultra Condensed', value: 'lcards_context_ultra_condensed', category: 'Standard' },
+    { name: 'Crillee', value: 'lcards_crillee', category: 'Standard' },
+    { name: 'Eurostile', value: 'lcards_eurostile', category: 'Standard' },
+    { name: 'Eurostile Oblique', value: 'lcards_eurostile_oblique', category: 'Standard' },
+    { name: 'Federation', value: 'lcards_federation', category: 'Standard' },
+    { name: 'Galaxy', value: 'lcards_galaxy', category: 'Standard' },
+    { name: 'Handel Gothic', value: 'lcards_handel_gothic', category: 'Standard' },
+    { name: 'Millennium Extended Bold', value: 'lcards_millenium_extended_bold', category: 'Standard' },
+    { name: 'Sonic', value: 'lcards_sonic', category: 'Standard' },
+    { name: 'Square 721', value: 'lcards_sqaure_721', category: 'Standard' },
+    { name: 'Stellar', value: 'lcards_stellar', category: 'Standard' },
+    { name: 'Swiss 911', value: 'lcards_swiss_911', category: 'Standard' },
+    { name: 'Trek Arrow Caps', value: 'lcards_trekarrowcaps', category: 'Standard' }
 ];
 
 /**
@@ -79,22 +75,22 @@ export const STANDARD_FONTS = [
  * @type {FontMetadata[]}
  */
 export const ALIEN_FONTS = [
-    { name: '[Alien] Bajoran Ancient', value: 'lcards_bajoran_ancient', category: 'Alien', legacyName: 'cb-lcars_bajoran_ancient' },
-    { name: '[Alien] Bajoran Ideogram', value: 'lcards_bajoran_ideogram', category: 'Alien', legacyName: 'cb-lcars_bajoran_ideogram' },
-    { name: '[Alien] Binar', value: 'lcards_binar', category: 'Alien', legacyName: 'cb-lcars_binar' },
-    { name: '[Alien] Borg', value: 'lcards_borg', category: 'Alien', legacyName: 'cb-lcars_borg' },
-    { name: '[Alien] Cardassian', value: 'lcards_cardassian', category: 'Alien', legacyName: 'cb-lcars_cardassian' },
-    { name: '[Alien] Changeling', value: 'lcards_changeling', category: 'Alien', legacyName: 'cb-lcars_changeling' },
-    { name: '[Alien] Dominion', value: 'lcards_dominion', category: 'Alien', legacyName: 'cb-lcars_dominion' },
-    { name: '[Alien] Fabrini', value: 'lcards_fabrini', category: 'Alien', legacyName: 'cb-lcars_fabrini' },
-    { name: '[Alien] Ferengi (Left)', value: 'lcards_ferengi_left', category: 'Alien', legacyName: 'cb-lcars_ferengi_left' },
-    { name: '[Alien] Ferengi (Right)', value: 'lcards_ferengi_right', category: 'Alien', legacyName: 'cb-lcars_ferengi_right' },
-    { name: '[Alien] Klingon', value: 'lcards_klingon', category: 'Alien', legacyName: 'cb-lcars_klingon' },
-    { name: '[Alien] Romulan', value: 'lcards_romulan', category: 'Alien', legacyName: 'cb-lcars_romulan' },
-    { name: '[Alien] Tellarite', value: 'lcards_tellarite', category: 'Alien', legacyName: 'cb-lcars_tellarite' },
-    { name: '[Alien] Tholian', value: 'lcards_tholian', category: 'Alien', legacyName: 'cb-lcars_tholian' },
-    { name: '[Alien] Trill', value: 'lcards_trill', category: 'Alien', legacyName: 'cb-lcars_trill' },
-    { name: '[Alien] Vulcan', value: 'lcards_vulcan', category: 'Alien', legacyName: 'cb-lcars_vulcan' }
+    { name: '[Alien] Bajoran Ancient', value: 'lcards_bajoran_ancient', category: 'Alien' },
+    { name: '[Alien] Bajoran Ideogram', value: 'lcards_bajoran_ideogram', category: 'Alien' },
+    { name: '[Alien] Binar', value: 'lcards_binar', category: 'Alien' },
+    { name: '[Alien] Borg', value: 'lcards_borg', category: 'Alien' },
+    { name: '[Alien] Cardassian', value: 'lcards_cardassian', category: 'Alien' },
+    { name: '[Alien] Changeling', value: 'lcards_changeling', category: 'Alien' },
+    { name: '[Alien] Dominion', value: 'lcards_dominion', category: 'Alien' },
+    { name: '[Alien] Fabrini', value: 'lcards_fabrini', category: 'Alien' },
+    { name: '[Alien] Ferengi (Left)', value: 'lcards_ferengi_left', category: 'Alien' },
+    { name: '[Alien] Ferengi (Right)', value: 'lcards_ferengi_right', category: 'Alien' },
+    { name: '[Alien] Klingon', value: 'lcards_klingon', category: 'Alien' },
+    { name: '[Alien] Romulan', value: 'lcards_romulan', category: 'Alien' },
+    { name: '[Alien] Tellarite', value: 'lcards_tellarite', category: 'Alien' },
+    { name: '[Alien] Tholian', value: 'lcards_tholian', category: 'Alien' },
+    { name: '[Alien] Trill', value: 'lcards_trill', category: 'Alien' },
+    { name: '[Alien] Vulcan', value: 'lcards_vulcan', category: 'Alien' }
 ];
 
 /**
@@ -108,39 +104,21 @@ export const ALL_FONTS = [
 ];
 
 /**
- * Get font metadata by value (supports legacy names)
- * @param {string} fontValue - Font-family value (e.g., 'lcards_borg' or 'cb-lcars_borg')
+ * Get font metadata by value
+ * @param {string} fontValue - Font-family value (e.g., 'lcards_borg')
  * @returns {FontMetadata|null} Font metadata or null if not found
  */
 export function getFontMetadata(fontValue) {
-    return ALL_FONTS.find(f => 
-        f.value === fontValue || f.legacyName === fontValue
-    ) || null;
+    return ALL_FONTS.find(f => f.value === fontValue) || null;
 }
 
 /**
- * Check if a font value is a known LCARdS font (supports legacy names)
+ * Check if a font value is a known LCARdS font
  * @param {string} fontValue - Font-family value
  * @returns {boolean} True if font is in registry
  */
 export function isKnownFont(fontValue) {
-    return ALL_FONTS.some(f => 
-        f.value === fontValue || f.legacyName === fontValue
-    );
-}
-
-/**
- * Migrate legacy CB-LCARS font name to new LCARdS name
- * @param {string} fontValue - Font value (may be legacy)
- * @returns {string} Migrated font value
- */
-export function migrateFontName(fontValue) {
-    const font = ALL_FONTS.find(f => f.legacyName === fontValue);
-    if (font) {
-        lcardsLog.debug(`[lcards-fonts] Migrating font: ${fontValue} → ${font.value}`);
-        return font.value;
-    }
-    return fontValue;
+    return ALL_FONTS.some(f => f.value === fontValue);
 }
 
 /**
@@ -152,11 +130,11 @@ export function ensureFontLoaded(fontValue) {
     if (!fontValue) return;
 
     const core = window.lcards?.core;
-    
+
     if (core?.assetManager) {
         return core.assetManager.loadFont(fontValue);
     }
-    
+
     lcardsLog.warn('[ensureFontLoaded] DEPRECATED: Use assetManager.loadFont()');
 }
 
@@ -180,18 +158,18 @@ export function getFontsByCategory() {
  */
 export function getFontSelectorOptions(includeCustomOption = true) {
     const core = window.lcards?.core;
-    
+
     if (core?.assetManager) {
         const fonts = core.assetManager.listFonts();
         const options = fonts.map(f => ({ value: f.key, label: f.displayName }));
-        
+
         if (includeCustomOption) {
             options.push({ value: '__custom__', label: '🔧 Custom Font...' });
         }
-        
+
         return options;
     }
-    
+
     // Fallback to static registry (shouldn't happen after init)
     lcardsLog.warn('[getFontSelectorOptions] AssetManager not available, using static registry');
     const options = ALL_FONTS.map(font => ({

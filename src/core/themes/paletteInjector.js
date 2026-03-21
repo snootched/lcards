@@ -1,7 +1,7 @@
 /**
- * @fileoverview Palette Injector - Injects CB-LCARS green_alert palette as CSS variables
+ * @fileoverview Palette Injector - Injects LCARdS green_alert palette as CSS variables
  *
- * Converts CB-LCARS palette colors from themes YAML into --lcards-* CSS variables
+ * Converts LCARdS palette colors from themes YAML into --lcards-* CSS variables
  * that serve as fallbacks for HA-LCARS theme variables.
  *
  * Naming convention:
@@ -14,7 +14,7 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
- * Alert mode color palettes (from cb-lcars-themes.yaml)
+ * Alert mode color palettes
  *
  * Each palette provides complete color sets for all LCARdS components.
  * Naming convention: --lcards-<hue>-<shade> (e.g., --lcards-orange-darkest)
