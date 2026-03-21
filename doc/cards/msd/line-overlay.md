@@ -30,7 +30,7 @@ The **Line Overlay** connects other overlays with visual lines, creating diagram
 ✅ **Gap system** - Precise control over line offsets (anchor_gap, attach_gap)
 ✅ **Multiple routing modes** - Auto, direct, orthogonal, curved
 ✅ **Rich styling** - Colors, widths, dashes, arrows, animations
-✅ **DataSource integration** - Dynamic styling based on data
+✅ **Data Source integration** - Dynamic styling based on data
 ✅ **Auto-attach** - Automatically determines best attachment sides
 ✅ **Virtual anchors** - Pre-computed attachment points with gap offsets
 
@@ -840,7 +840,7 @@ overlays:
 
 ## Advanced Features
 
-### DataSource Integration
+### Data Source Integration
 
 Make line styling dynamic based on data:
 

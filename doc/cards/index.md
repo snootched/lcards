@@ -65,8 +65,8 @@ Classic LCARS corner designs.
 **`lcards-chart`** — LCARdS integrated charting via ApexCharts.
 
 - 15+ chart types: line, area, bar, pie, scatter, heatmap, radar, and more
-- Single entity, multi-entity, or DataSource with processor buffers
-- Moving averages, min/max, rolling statistics from DataSource integration
+- Single entity, multi-entity, or data source with processor buffers
+- Moving averages, min/max, rolling statistics from data source integration
 
 [Chart Documentation](chart/)
 
@@ -104,10 +104,10 @@ Features and concepts shared across all cards.
 | [Colours](../core/colours.md) | All accepted colour formats, state-based colour maps, resolution order |
 | [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
 | [Text Fields](../core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
-| [Templates](../core/templates/) | Dynamic content: JS, Jinja2, LCARdS token datasource templates |
+| [Templates](../core/templates/) | Dynamic content: JS, Jinja2, LCARdS token data source templates |
 | [Animations](../core/animations.md) | Per-card animations with multiple trigger types |
 | [Background Animations](../core/effects/background-animations.md) | Canvas-based animated backgrounds (grid, starfield, nebula, etc.) |
 | [Sound Effects](../core/sounds.md) | LCARS-style audio feedback for interactions and alerts |
 | [Rules Engine](../core/rules/) | Advanced conditional system for styling applied across cards |
-| [DataSources](../core/datasources/) | Subscribes to HA Entity to provide history and processing pipelines for cards to consume |
+| [Data Sources](../core/datasources/) | Subscribes to HA Entity to provide history and processing pipelines for cards to consume |
 | [Themes](../core/themes/) | Built-in token-based theming for providing colour, sizing etc. |

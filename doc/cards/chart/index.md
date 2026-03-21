@@ -2,7 +2,7 @@
 
 `custom:lcards-chart`
 
-Data visualization using ApexCharts. Plots entity history, real-time sensor data, and processed DataSource buffers as line, area, bar, pie, and many other chart types.
+Data visualization using ApexCharts. Plots entity history, real-time sensor data, and processed data source buffers as line, area, bar, pie, and many other chart types.
 
 ---
 
@@ -34,8 +34,8 @@ series_names: [Temperature, Humidity]
 | `type` | string | `custom:lcards-chart` (required) |
 | `source` | string | Single entity ID (simple mode) |
 | `attribute` | string | Entity attribute to track |
-| `sources` | list | Multiple entities or DataSource references |
-| `data_sources` | object | Named DataSource definitions — see [DataSources](../../core/datasources/) |
+| `sources` | list | Multiple entities or data source references |
+| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
 | `chart_type` | string | Chart type (see table below) |
 | `series_names` | list | Display names for each series |
 | `id` | string | Card ID for rule targeting |
@@ -88,7 +88,7 @@ Three levels of data configuration:
 source: sensor.temperature
 ```
 
-Auto-creates a DataSource with 6 hours of history.
+Auto-creates a data source with 6 hours of history.
 
 ### Level 2: Multiple entities
 
@@ -99,7 +99,7 @@ sources:
 series_names: [Temperature, Humidity]
 ```
 
-### Level 3: Named DataSources with processing
+### Level 3: Named Data Sources with processing
 
 ```yaml
 data_sources:
@@ -122,7 +122,7 @@ sources:
     name: Smoothed
 ```
 
-See [DataSources](../../core/datasources/) for full processing options.
+See [Data Sources](../../core/datasources/) for full processing options.
 
 ---
 
@@ -262,7 +262,7 @@ animation:
 
 ## Annotated Example
 
-24-hour dual-series chart with named DataSource, custom colours, dual Y-axes, gradient fill, and animation preset:
+24-hour dual-series chart with named data source, custom colours, dual Y-axes, gradient fill, and animation preset:
 
 ```yaml
 type: custom:lcards-chart

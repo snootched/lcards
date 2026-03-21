@@ -1203,9 +1203,9 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         return html`
             <lcards-form-section
-                header="DataSource Configuration"
+                header="Data Source Configuration"
                 icon="mdi:database-cog"
-                description="Configure individual DataSources with entities and settings">
+                description="Configure individual data sources with entities and settings">
                 <lcards-message
                     type="info"
                     message="Advanced mode provides full control over DataSource configuration including history preload, throttling, and transformations.">
@@ -1232,7 +1232,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ` : html`
                     <lcards-message
                         type="info"
-                        message="No DataSources configured. Click 'Add DataSource' to get started.">
+                        message="No data sources configured. Click 'Add Data Source' to get started.">
                     </lcards-message>
                 `}
 

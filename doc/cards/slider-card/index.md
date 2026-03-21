@@ -51,7 +51,7 @@ style:
 | `double_tap_action` | object | Double-tap action |
 | `animations` | list | Card animations — see [Animations](../../core/animations.md) |
 | `background_animation` | list / object | Canvas background — see [Background Animations](../../core/effects/background-animations.md) |
-| `data_sources` | object | DataSource definitions — see [DataSources](../../core/datasources/) |
+| `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
 | `sounds` | object | Per-card sound overrides |
 
 ---

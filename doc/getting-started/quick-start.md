@@ -43,6 +43,6 @@ Each LCARdS card has a built-in visual editor. Click the pencil icon on a card t
 
 ## Main Engineering
 
-Each card editor has a **Main Engineering** tab — a live window into the core systems powering that card. Use it to manage DataSources, inspect which rules are affecting the card, browse theme tokens, and trace the origin of every config value.
+Each card editor has a **Main Engineering** tab — a live window into the core systems powering that card. Use it to manage data sources, inspect which rules are affecting the card, browse theme tokens, and trace the origin of every config value.
 
 See [Main Engineering](../cards/main-engineering.md) for full details.

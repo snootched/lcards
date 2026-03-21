@@ -1287,7 +1287,7 @@ export class LCARdSBaseEditor extends LitElement {
         return html`
             <lcards-message
                 type="info"
-                message="Access and manage core LCARdS systems:\nData sources\nrules, templates, theme tokens, and provenance tracking.">
+                message="Access and manage core LCARdS systems:\nData Sources\nrules, templates, theme tokens, and provenance tracking.">
             </lcards-message>
 
             <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>

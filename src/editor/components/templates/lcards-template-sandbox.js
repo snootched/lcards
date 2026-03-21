@@ -1255,8 +1255,8 @@ export class LCARdSTemplateSandbox extends LitElement {
     return html`
       <div style="padding: 24px;">
         <lcards-form-section
-          header="🔸 Mock DataSources"
-          description="Define mock DataSource values for testing (IDs use underscores, e.g. sensor_temp)"
+          header="🔸 Mock Data Sources"
+          description="Define mock data source values for testing (IDs use underscores, e.g. sensor_temp)"
           ?expanded=${true}
           .collapsible=${false}>
 
@@ -1272,20 +1272,20 @@ export class LCARdSTemplateSandbox extends LitElement {
           </div>
 
           <div style="padding: 12px; background: rgba(255, 152, 0, 0.1); border-left: 3px solid #ff9800; border-radius: 4px; font-size: 13px;">
-            <strong style="color: #ff9800;">💡 Tip:</strong> Mock DataSources are used when referenced DataSources aren't configured in your card.
+            <strong style="color: #ff9800;">💡 Tip:</strong> Mock data sources are used when referenced data sources aren't configured in your card.
           </div>
         </lcards-form-section>
 
         ${dsManager && liveDataSources.length > 0 ? html`
           <lcards-form-section
-            header="⚡ Live DataSources"
+            header="⚡ Live Data Sources"
             .count=${liveDataSources.length}
             ?expanded=${true}>
 
             <ha-selector
               // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
-              .label=${'Available DataSources'}
+              .label=${'Available Data Sources'}
               .helper=${'Select DataSource to view details'}
               .selector=${{
                 select: {
@@ -1310,7 +1310,7 @@ export class LCARdSTemplateSandbox extends LitElement {
           </lcards-form-section>
         ` : html`
           <div style="padding: 16px; text-align: center; color: var(--secondary-text-color); font-size: 13px;">
-            No live DataSources configured in this card
+            No live data sources configured in this card
           </div>
         `}
       </div>
@@ -1350,7 +1350,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       ${result.usingMockDataSources ? html`
         <div class="info-banner mock">
           <ha-icon icon="mdi:test-tube"></ha-icon>
-          <span>Using mock DataSources (live DataSourceManager has no configured sources)</span>
+          <span>Using mock data sources (no live sources configured)</span>
         </div>
       ` : ''}
 
@@ -1404,7 +1404,7 @@ export class LCARdSTemplateSandbox extends LitElement {
               <div class="diagnostic-item error">
                 <ha-icon icon="mdi:database-off"></ha-icon>
                 <div>
-                  <strong>Missing DataSources:</strong><br>
+                  <strong>Missing data sources:</strong><br>
                   ${result.diagnostics.missingDataSources.join(', ')}
                 </div>
               </div>
@@ -1603,7 +1603,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         ${result.usingMockDataSources ? html`
           <div class="info-banner mock">
             <ha-icon icon="mdi:test-tube"></ha-icon>
-            <span>Using mock DataSources for evaluation (no live sources configured)</span>
+            <span>Using mock data sources for evaluation (no live sources configured)</span>
           </div>
         ` : ''}
       </div>
@@ -1796,7 +1796,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
         ${hasDatasources ? html`
           <div class="dep-section">
-            <h5>📊 DataSources</h5>
+            <h5>📊 Data Sources</h5>
             <ul>
               ${dependencies.datasources.map(ds => {
                 // Handle both string and object formats

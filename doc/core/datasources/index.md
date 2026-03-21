@@ -1,12 +1,12 @@
-# DataSources
+# Data Sources
 
-DataSources give cards access to entity history, real-time updates, and processed values — beyond the plain current state that HA cards normally see.
+Data Sources give cards access to entity history, real-time updates, and processed values — beyond the plain current state that HA cards normally see.
 
 ---
 
 ## What They Do
 
-A DataSource subscribes to an entity, optionally preloads history, and runs values through a processing pipeline. Results are available in templates as `{ds:name}` or as chart series.
+A data source subscribes to an entity, optionally preloads history, and runs values through a processing pipeline. Results are available in templates as `{ds:name}` or as chart series.
 
 ```mermaid
 flowchart LR
@@ -152,7 +152,7 @@ processing:
 
 ---
 
-## DataSources in Charts
+## Data Sources in Charts
 
 For chart series, use `buffer` to select which data series to plot:
 

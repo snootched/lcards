@@ -271,7 +271,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               select: {
                 options: [
                   { value: 'entity', label: '📊 New from Entity' },
-                  { value: 'existing', label: '🔗 Use Existing DataSource' }
+                  { value: 'existing', label: '🔗 Use Existing Data Source' }
                 ],
                 mode: 'dropdown'
               }
@@ -343,7 +343,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               .hass=${this.hass}
               .selector=${{ select: { options: this._getDataSourceOptions(), mode: 'dropdown' } }}
               .value=${existingDataSource}
-              .label=${'DataSource'}
+              .label=${'Data Source'}
               .required=${true}
               @value-changed=${(e) => this._updateSeriesField(index, 'existingDataSource', e.detail.value, true)}>
             </ha-selector>
@@ -860,7 +860,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       lcardsLog.warn('[ChartSeriesListEditor] Failed to get global datasources:', error);
     }
 
-    return options.length > 0 ? options : [{ value: '', label: 'No DataSources available' }];
+    return options.length > 0 ? options : [{ value: '', label: 'No data sources available' }];
   }
 
   _toggleDataSourceMode(index, useExisting) {

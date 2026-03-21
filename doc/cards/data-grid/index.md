@@ -10,7 +10,7 @@ A grid of cells displaying real entity data, templates, or decorative auto-gener
 
 | Mode | `data_mode` value | Use for |
 |------|------------------|---------|
-| **Data** | `data` | Real entity state, templates, or DataSource values |
+| **Data** | `data` | Real entity state, templates, or data source values |
 | **Decorative** | `decorative` | Auto-generated random data for visual filler |
 
 ---
@@ -235,7 +235,7 @@ animation:
 
 ## Consolidated Example
 
-A system status panel with header row, entity cells, a template cell, a DataSource cell, cascade animation, and change highlight:
+A system status panel with header row, entity cells, a template cell, a data source cell, cascade animation, and change highlight:
 
 ```yaml
 type: custom:lcards-data-grid

@@ -15,15 +15,15 @@
 
 ### Data Sources
 
-Manage the [DataSources](../core/datasources/) attached to this card.
+Manage the [Data Sources](../core/datasources/) attached to this card.
 
 - **Browse all registered sources** — see each source's current value, entity, update rate, and history buffer size
 - **Create a new source** — define a new entity subscription with history preloading and a processing pipeline
 - **Edit an existing source** — change entity, update interval, history settings, or add/modify processors
-- **Remove a source** — detach a DataSource from this card
+- **Remove a source** — detach a data source from this card
 - **Live values** — values update in real time as entity state changes
 
-This is the fastest way to set up a chart or gauge without hand-writing DataSource YAML. Create the source here, then reference it in your card config as `{ds:source_name}`.
+This is the fastest way to set up a chart or gauge without hand-writing data source YAML. Create the source here, then reference it in your card config as `{ds:source_name}`.
 
 ---
 
@@ -76,7 +76,7 @@ Use this when a card isn't rendering as expected and you need to see what the ef
 
 ## Related
 
-- [DataSources](../core/datasources/) — subscription config and processing pipeline reference
+- [Data Sources](../core/datasources/) — subscription config and processing pipeline reference
 - [Rules Engine](../core/rules/) — rule conditions, targets, and style patches
 - [Themes](../core/themes/) — token namespaces and colour palette
 - [Presets](../core/presets.md) — how presets compose with card config

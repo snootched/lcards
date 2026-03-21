@@ -1,10 +1,10 @@
-# Color Resolution — Developer Guide
+# Colour Resolution — Developer Guide
 
-LCARdS supports three forms of color expression throughout the theming, rules, and background animation systems. **Using the wrong resolution API is the most common source of computed colors silently not working.** This guide defines the correct pattern for each context.
+LCARdS supports three forms of colour expression throughout the theming, rules, and background animation systems. **Using the wrong resolution API is the most common source of computed colours silently not working.** This guide defines the correct pattern for each context.
 
 ---
 
-## Color Expression Forms
+## Colour Expression Forms
 
 | Form | Example | Notes |
 |------|---------|-------|
@@ -18,7 +18,7 @@ Supported computed functions: `lighten`, `darken`, `alpha`, `saturate`, `desatur
 
 ## The Resolution Chain
 
-Color resolution is a **two-step process**:
+Colour resolution is a **two-step process**:
 
 ```
 User config value
@@ -35,7 +35,7 @@ ColorUtils.resolveCssVariable(val, fallback)
   • Passes through concrete hex/rgb values unchanged
        │
        ▼
-Concrete color string usable by Canvas2D, anime.js, fillStyle, etc.
+Concrete colour string usable by Canvas2D, anime.js, fillStyle, etc.
 ```
 
 **Why two steps?**
@@ -58,13 +58,13 @@ const color = resolver ? resolver.resolve(rawValue, rawValue) : rawValue;
 this.style.setProperty('--my-color', color);
 ```
 
-Also used by `state-color-resolver.js` for all state-based color lookups.
+Also used by `state-color-resolver.js` for all state-based colour lookups.
 
 ---
 
 ### B. Canvas2D effect constructors and per-frame draw calls
 
-Always use **both steps** — the resolved value must be a concrete color.
+Always use **both steps** — the resolved value must be a concrete colour.
 
 ```javascript
 import { ColorUtils } from '../../../themes/ColorUtils.js';
@@ -79,7 +79,7 @@ this.resolvedColor = _resolve(config.color);
 // Works for: '#ff9900', 'var(--lcars-orange)', 'darken(var(--lcars-orange), 0.3)'
 ```
 
-For **arrays of colors** (e.g. Nebula, Starfield):
+For **arrays of colours** (e.g. Nebula, Starfield):
 
 ```javascript
 this.resolvedColors = this.colors.map(_resolve);
@@ -114,13 +114,13 @@ When effects are created via `BackgroundAnimationRenderer`, `_resolveConfigColor
 - Nested plain objects: `colors: { start: 'var(--lcars-blue)', text: '...' }`
 - Arrays of strings: `colors: ['darken(...)', '#ff0']`
 
-**You do not need to manually resolve colors inside `createEffects`** — the config passed in is already concrete. However, effect **constructors** still need to handle the case where they are instantiated directly (outside the preset pipeline), so they should always use the two-step pattern themselves (see **Context B**).
+**You do not need to manually resolve colours inside `createEffects`** — the config passed in is already concrete. However, effect **constructors** still need to handle the case where they are instantiated directly (outside the preset pipeline), so they should always use the two-step pattern themselves (see **Context B**).
 
 ---
 
 ## Anti-Patterns
 
-❌ **Bare `ColorUtils.resolveCssVariable()`** on user-facing color config
+❌ **Bare `ColorUtils.resolveCssVariable()`** on user-facing colour config
 This handles `var(--name)` but silently ignores computed expressions like `darken(var(--x), 0.3)`.
 
 ```javascript
@@ -154,7 +154,7 @@ ctx.fillStyle = ColorUtils.resolveCssVariable(resolver.resolve(config.color, '#0
 |-----|------|---------|
 | `ThemeTokenResolver.resolve()` | `src/core/themes/ThemeTokenResolver.js` | Computed expressions, token references, CSS var passthrough |
 | `ColorUtils.resolveCssVariable()` | `src/core/themes/ColorUtils.js` | CSS var materialisation |
-| `ColorUtils.darken/lighten/alpha/etc.` | `src/core/themes/ColorUtils.js` | Color math on concrete values |
-| `resolveStateColor()` | `src/utils/state-color-resolver.js` | State-based color lookup with full resolution chain |
+| `ColorUtils.darken/lighten/alpha/etc.` | `src/core/themes/ColorUtils.js` | Colour math on concrete values |
+| `resolveStateColor()` | `src/utils/state-color-resolver.js` | State-based colour lookup with full resolution chain |
 | `_resolveConfigColors()` | `src/core/packs/backgrounds/BackgroundAnimationRenderer.js` | Preprocessing for background effect configs |
 | `parseColorToRgba()` | `src/core/packs/textures/effects/noise-helpers.js` | Pixel-level effects needing numeric `{r,g,b,a}` |

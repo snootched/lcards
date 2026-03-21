@@ -1261,7 +1261,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
               <div class="tree-container">
                 ${this._treeData.length > 0
                   ? this._renderTreeNodes(this._treeData)
-                  : html`<p style="color: var(--secondary-text-color); text-align: center; padding: 24px;">No datasources found</p>`}
+                  : html`<p style="color: var(--secondary-text-color); text-align: center; padding: 24px;">No data sources found</p>`}
               </div>
             </div>
 

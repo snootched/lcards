@@ -8,7 +8,7 @@ LCARdS cards support dynamic content through four template syntaxes. You can mix
 
 ### 1. Token Templates `{...}`
 
-Simple substitutions for entity state, attributes, theme values, and DataSource values.
+Simple substitutions for entity state, attributes, theme values, and data source values.
 
 ```yaml
 text:
@@ -29,8 +29,8 @@ text:
 | `{entity.state}` | Current entity state string |
 | `{entity.attributes.NAME}` | Any entity attribute |
 | `{theme:token.path}` | Theme token value — see [Themes](../themes/) |
-| `{ds:source_name}` | DataSource current value |
-| `{datasource:source:.2f}` | DataSource with format specifier |
+| `{ds:source_name}` | data source current value |
+| `{datasource:source:.2f}` | data source with format specifier |
 | `{datasource:source.processor:.0f}` | Specific processor buffer with format |
 
 **Format specifiers** follow Python `str.format()` style:
@@ -95,9 +95,9 @@ text:
 
 ---
 
-### 4. DataSource Templates `{ds:...}` / `{datasource:...}`
+### 4. Data Source Templates `{ds:...}` / `{datasource:...}`
 
-For values from a named [DataSource](../datasources/). Supports format specifiers and processor buffer access.
+For values from a named [data source](../datasources/). Supports format specifiers and processor buffer access.
 
 ```yaml
 data_sources:
@@ -135,6 +135,6 @@ When a value could match multiple syntaxes, evaluation proceeds in this order:
 
 1. `[[[...]]]` — JavaScript (evaluated first)
 2. `{token}` — Token substitution
-3. `{ds:...}` / `{datasource:...}` — DataSource
+3. `{ds:...}` / `{datasource:...}` — data source
 4. `{{...}}` — Jinja2 (HA server-evaluated, async)
 

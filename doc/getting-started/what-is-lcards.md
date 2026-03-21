@@ -63,8 +63,8 @@ LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootc
 **`lcards-chart`** — LCARdS integrated charting via ApexCharts.
 
 - 15+ chart types: line, area, bar, pie, scatter, heatmap, radar, and more
-- Single entity, multi-entity, or DataSource with processor buffers
-- Moving averages, min/max, rolling statistics from DataSource integration
+- Single entity, multi-entity, or data source with processor buffers
+- Moving averages, min/max, rolling statistics from data source integration
 
 [Chart Documentation](chart/)
 
@@ -98,13 +98,13 @@ Every card shares a common set of core features — you get these without any ex
 
 **State-aware styling** — cards change colour and style in response to HA entity state, individually or in coordinated groups via the [Rules Engine](../core/rules/).
 
-**Templates everywhere** — any text field accepts entity state, attributes, theme tokens, DataSource values, JavaScript expressions, or Jinja2. [Learn more →](../core/templates/)
+**Templates everywhere** — any text field accepts entity state, attributes, theme tokens, data source values, JavaScript expressions, or Jinja2. [Learn more →](../core/templates/)
 
 **Alert Mode** — a single helper entity shifts the entire dashboard colour palette, plays sounds, and activates an overlay card simultaneously. [Learn more →](../core/alert-mode.md)
 
 **Animations** — Anime.js v4 is built in; animate any element in response to interactions or entity state changes. [Learn more →](../core/animations.md)
 
-**DataSources** — subscribe to entities, buffer history, run processing pipelines (moving averages, min/max), and use the results in any card field or chart. [Learn more →](../core/datasources/)
+**Data Sources** — subscribe to entities, buffer history, run processing pipelines (moving averages, min/max), and use the results in any card field or chart. [Learn more →](../core/datasources/)
 
 ## Next Steps
 

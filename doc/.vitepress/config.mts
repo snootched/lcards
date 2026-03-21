@@ -190,9 +190,9 @@ export default withMermaid(defineConfig({
             items: [
               { text: 'Overview',         link: '/development/' },
               { text: 'Custom Card',      link: '/development/custom-card' },
+              { text: 'Colour Resolution',        link: '/development/colour-resolution' },
               { text: 'Building an Editor', link: '/development/building-an-editor' },
               { text: 'Building a Pack',  link: '/development/building-a-pack' },
-              { text: 'Changelog',        link: '/development/changelog' },
             ],
           },
           {
@@ -387,6 +387,7 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Overview',           link: '/development/' },
             { text: 'Custom Card',        link: '/development/custom-card' },
+            { text: 'Colour Resolution',  link: '/development/colour-resolution' },
             { text: 'Building an Editor', link: '/development/building-an-editor' },
             { text: 'Building a Pack',    link: '/development/building-a-pack' },
           ],
