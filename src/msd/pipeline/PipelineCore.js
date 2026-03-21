@@ -55,7 +55,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
   // Initialize MsdCardCoordinator with theme loading BEFORE any overlay processing
   lcardsLog.trace('[PipelineCore] 🔧 Initializing MsdCardCoordinator and loading pack defaults');
-  const coordinator = new MsdCardCoordinator();
+  const coordinator = /** @type {any} */ (new MsdCardCoordinator());
 
   // CRITICAL: Initialize systems with pack defaults loading before overlay processing
   try {
@@ -205,7 +205,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   /**
    * Internal re-render function that recomputes the model
    * and triggers the AdvancedRenderer + debug visualization pipeline.
-   * @returns {Object|undefined} Renderer result object
+   * @returns {Promise<Object|undefined>} Renderer result object
    */
   async function reRender() {
     lcardsLog.info('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
@@ -334,11 +334,11 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     lcardsLog.trace('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
     try {
       // Target the base content group (__ prefix = internal/reserved ID, not an anchor)
-      const baseContentGroup = mountEl?.querySelector('#__msd-base-content');
+      const baseContentGroup = /** @type {HTMLElement|null} */ (mountEl?.querySelector('#__msd-base-content'));
 
       lcardsLog.trace('[PipelineCore] 🔍 Filter application details:', {
         hasMountEl: !!mountEl,
-        mountElTag: mountEl?.tagName,
+        mountElTag: (/** @type {any} */ (mountEl))?.tagName,
         baseContentGroup: !!baseContentGroup,
         baseContentId: baseContentGroup?.id,
         currentFilter: baseContentGroup?.style?.filter,
@@ -631,7 +631,7 @@ function createValidationErrorDisplay(issues, mergedConfig) {
  *
  * @param {Object} mergedConfig - Processed MSD config with flat structure: {base_svg, overlays, anchors, ...}
  * @param {Object} cardModel - Built card model
- * @param {MsdCardCoordinator} coordinator - Card coordinator instance
+ * @param {any} coordinator - Card coordinator instance
  * @param {ModelBuilder} modelBuilder - Model builder instance
  * @param {Function} reRender - Re-render callback function
  * @param {Object} fullUserConfig - Full card config with nested structure: {type, id, msd: {...}, __provenance}

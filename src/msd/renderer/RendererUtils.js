@@ -161,10 +161,10 @@ export class RendererUtils {
    * @param {number} lineHeight - Line height multiplier (default 1.2)
    * @param {boolean} useCache - Whether to use cached measurements
    * @param {Element} containerElement - SVG container for coordinate transformation
-   * @returns {{width: number, height: number, lines: Array, lineMetrics: Array}}
+   * @returns {{width: number, height: number, lines: Array, lineMetrics: Array, _transformApplied: boolean, _adjustedFontSize: number}}
    */
   static measureMultilineText(text, font = "16px Arial", lineHeight = 1.2, useCache = true, containerElement = null) {
-    if (!text) return { width: 0, height: 0, lines: [], lineMetrics: [] };
+    if (!text) return { width: 0, height: 0, lines: [], lineMetrics: [], _transformApplied: false, _adjustedFontSize: 0 };
 
     const lines = text.split('\n');
     const lineMetrics = lines.map(line => this.measureText(line, font, useCache, containerElement));
@@ -209,7 +209,7 @@ export class RendererUtils {
    * @param {string} textAnchor - SVG text-anchor value ('start', 'middle', 'end')
    * @param {string} dominantBaseline - SVG dominant-baseline value
    * @param {Element} containerElement - SVG container for coordinate transformation
-   * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number}}
+   * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number, centerX: number, centerY: number}}
    */
   static getTextBoundingBox(text, x, y, font = "16px Arial", textAnchor = 'start', dominantBaseline = 'auto', containerElement = null) {
     const metrics = this.measureText(text, font, true, containerElement);

@@ -34,6 +34,13 @@ declare global {
         __templateEvaluator: any;
         __templateParser: any;
         __unifiedTemplateEvaluator: any;
+        // MSD debug / test globals
+        __msdStatus: any;
+        __msdScenarios: any;
+        __msdDebug: any;
+        _msdCardInstance: any;
+        // Home Assistant global
+        hass: any;
     }
 }
 
