@@ -74,31 +74,113 @@ export const haFormatAttrParts = (hass, stateObj, key) =>
     safeCall(() => hass.formatEntityAttributeValueToParts(stateObj, key), [{ value: String(stateObj?.attributes?.[key] ?? '') }]);
 
 /**
+ * Resolve the Intl locale string for number formatting from hass.locale.number_format.
+ * Mirrors HA frontend's numberFormatToLocale() exactly.
+ * Returns a string, array of strings (Intl fallback chain), or undefined (system locale).
+ * @param {Object} hass - Home Assistant instance
+ * @returns {string|string[]|undefined}
+ * @private
+ */
+function _numberFormatToLocale(hass) {
+    const lang = hass?.locale?.language ?? 'en';
+    switch (hass?.locale?.number_format) {
+        case 'comma_decimal':  return ['en-US', 'en'];      // 1,234,567.89
+        case 'decimal_comma':  return ['de', 'es', 'it'];   // 1.234.567,89
+        case 'space_comma':    return ['fr', 'sv', 'cs'];   // 1 234 567,89
+        case 'quote_decimal':  return ['de-CH'];             // 1'234'567.89
+        case 'system':         return undefined;             // browser default
+        default:               return lang;                  // 'language' and 'none' both use lang
+    }
+}
+
+/**
  * Format a number using HA's locale settings.
- * Falls back to Intl.NumberFormat with the user's language if hass is unavailable.
- * @param {Object} hass - Home Assistant instance (used for locale.language)
+ * Respects hass.locale.number_format (comma_decimal, decimal_comma, space_comma,
+ * quote_decimal, system, none) in addition to hass.locale.language.
+ * Mirrors HA frontend's formatNumber() behaviour exactly.
+ * @param {Object} hass - Home Assistant instance
  * @param {number} value - Numeric value to format
  * @param {Object} [opts={}] - Intl.NumberFormat options
  * @returns {string} Formatted number string
  */
-export const haFormatNumber = (hass, value, opts = {}) =>
-    Number.isFinite(value)
-        ? new Intl.NumberFormat(hass?.locale?.language ?? 'en', opts).format(value)
-        : String(value);
+export const haFormatNumber = (hass, value, opts = {}) => {
+    if (!Number.isFinite(value)) return String(value);
+    const locale = _numberFormatToLocale(hass);
+    // 'none' → language locale with grouping disabled (mirrors HA behaviour)
+    const extra = hass?.locale?.number_format === 'none' ? { useGrouping: false } : {};
+    return new Intl.NumberFormat(locale, { ...opts, ...extra }).format(value);
+};
+
+/**
+ * Resolve the Intl locale string for date formatting.
+ * For system/language → let Intl use the natural locale order.
+ * For DMY/MDY/YMD → use the language locale but reorder parts via formatToParts.
+ * @param {Object} hass - Home Assistant instance
+ * @returns {{ locale: string|undefined, dateFormat: string|null }}
+ * @private
+ */
+function _dateLocaleInfo(hass) {
+    const lang = hass?.locale?.language ?? 'en';
+    const dateFormat = hass?.locale?.date_format ?? 'language';
+    const locale = dateFormat === 'system' ? undefined : lang;
+    const needsReorder = dateFormat === 'DMY' || dateFormat === 'MDY' || dateFormat === 'YMD';
+    return { locale, dateFormat: needsReorder ? dateFormat : null };
+}
+
+/**
+ * Reorder numeric date parts (DMY/MDY/YMD) using formatToParts().
+ * Mirrors HA frontend's formatDateNumeric() formatToParts approach exactly.
+ * Only called when opts contain year+month+day components.
+ * @private
+ */
+function _formatDateOrdered(date, locale, opts, dateFormat) {
+    const formatter = new Intl.DateTimeFormat(locale, opts);
+    const parts = formatter.formatToParts(date);
+
+    const literal  = parts.find(p => p.type === 'literal')?.value ?? '/';
+    const day      = parts.find(p => p.type === 'day')?.value;
+    const month    = parts.find(p => p.type === 'month')?.value;
+    const year     = parts.find(p => p.type === 'year')?.value;
+
+    // trailing literal (some locales append one — Bulgarian YMD needs it stripped)
+    const lastPart = parts[parts.length - 1];
+    let lastLiteral = lastPart?.type === 'literal' ? lastPart.value : '';
+    if (locale === 'bg' && dateFormat === 'YMD') lastLiteral = '';
+
+    if (!day || !month || !year) return formatter.format(date); // can't reorder, fall back
+
+    const ordered = {
+        DMY: `${day}${literal}${month}${literal}${year}${lastLiteral}`,
+        MDY: `${month}${literal}${day}${literal}${year}${lastLiteral}`,
+        YMD: `${year}${literal}${month}${literal}${day}${lastLiteral}`,
+    };
+    return ordered[dateFormat] ?? formatter.format(date);
+}
 
 /**
  * Format a timestamp using HA's locale settings.
- * Falls back to Intl.DateTimeFormat with the user's language if hass is unavailable.
- * @param {Object} hass - Home Assistant instance (used for locale settings)
+ * Respects hass.locale.language, hass.locale.time_format (12/24h),
+ * and hass.locale.date_format (DMY/MDY/YMD/language/system).
+ * Mirrors HA frontend's date formatting behaviour.
+ * @param {Object} hass - Home Assistant instance
  * @param {number|string|Date} ts - Timestamp, ISO string, or Date object
  * @param {Object} [opts={}] - Intl.DateTimeFormat options
  * @returns {string} Formatted date/time string
  */
-export const haFormatDate = (hass, ts, opts = {}) =>
-    new Intl.DateTimeFormat(
-        hass?.locale?.language ?? 'en',
-        { hour12: hass?.locale?.time_format === '12', ...opts }
-    ).format(new Date(ts));
+export const haFormatDate = (hass, ts, opts = {}) => {
+    const { locale, dateFormat } = _dateLocaleInfo(hass);
+    const hour12 = hass?.locale?.time_format === '12';
+    const baseOpts = { hour12, ...opts };
+    const date = new Date(ts);
+
+    // Only reorder when we have all three numeric date components
+    const hasAllDateParts = baseOpts.year && baseOpts.month && baseOpts.day;
+    if (dateFormat && hasAllDateParts) {
+        return _formatDateOrdered(date, locale, baseOpts, dateFormat);
+    }
+
+    return new Intl.DateTimeFormat(locale, baseOpts).format(date);
+};
 
 /**
  * Join a ToParts result into a single display string.

@@ -161,9 +161,13 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // Apply format if specified
     if (format) {
-      // Don't append unit for processor outputs - they may have converted units
-      const metadata = isProcessorOutput ? null : currentData.metadata;
-      value = this._applyFormat(value, format, metadata);
+      value = this._applyFormat(value, format);
+    }
+
+    // Append unit once — after formatting, unless it's a processor output
+    // (processor outputs may have converted units and should manage their own display)
+    if (!isProcessorOutput) {
+      value = this._appendUnit(value, currentData.metadata);
     }
 
     return value;
@@ -314,7 +318,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    * @param {Object} metadata - DataSource metadata (for units)
    * @returns {string} Formatted value
    */
-  _applyFormat(value, formatSpec, metadata = null) {
+  _applyFormat(value, formatSpec) {
     if (typeof value !== 'number') {
       return String(value);
     }
@@ -324,16 +328,14 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     switch (parsedFormat.type) {
       case 'float': {
-        const formatted = haFormatNumber(hass, value, {
+        return haFormatNumber(hass, value, {
           minimumFractionDigits: parsedFormat.precision,
           maximumFractionDigits: parsedFormat.precision
         });
-        return this._appendUnit(formatted, metadata);
       }
 
       case 'integer': {
-        const intValue = haFormatNumber(hass, Math.round(value), { maximumFractionDigits: 0 });
-        return this._appendUnit(intValue, metadata);
+        return haFormatNumber(hass, Math.round(value), { maximumFractionDigits: 0 });
       }
 
       case 'string':
@@ -368,7 +370,8 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    */
   _appendUnit(formattedValue, metadata) {
     if (metadata?.unit_of_measurement) {
-      return `${formattedValue}${metadata.unit_of_measurement}`;
+      // Use narrow no-break space (U+202F) before unit, matching HA's own formatEntityState output.
+      return `${formattedValue}\u202F${metadata.unit_of_measurement}`;
     }
     return formattedValue;
   }

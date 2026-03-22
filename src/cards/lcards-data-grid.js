@@ -129,7 +129,8 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
-import { haFormatNumber } from '../utils/ha-entity-display.js';
+import { haFormatNumber, haFormatState } from '../utils/ha-entity-display.js';
+import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-data-grid-editor.js';
@@ -713,22 +714,23 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Convert to string
     const cellStr = String(cell);
 
-    // Check if it's a template (contains {{ }} or {% %})
-    if (cellStr.includes('{{') || cellStr.includes('{%')) {
+    // Check if it contains any template syntax using the standard LCARdS detector.
+    // Covers: {token}/{datasource:...} tokens, {{Jinja2}}/{%...%}, and [[[JS]]] templates.
+    // Entity IDs (sensor.name) don't contain these markers so fall through correctly.
+    if (TemplateDetector.hasTemplates(cellStr)) {
       return await this.processTemplate(cellStr);
     }
 
     // Check if it's an entity ID (e.g., sensor.temperature)
+    // Uses haFormatState so device_class translations apply (door → Open/Closed etc.)
     const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(cellStr);
     if (isEntityId) {
       // Track this entity for updates
       if (!this._trackedEntities.includes(cellStr)) {
         this._trackedEntities.push(cellStr);
       }
-
-      // Return current state
-      const state = this.hass?.states?.[cellStr];
-      return state ? state.state : '—';
+      const stateObj = this.hass?.states?.[cellStr];
+      return stateObj ? haFormatState(this.hass, stateObj) : '—';
     }
 
     // Static text

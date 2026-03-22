@@ -22,8 +22,8 @@ Delegates entirely to the `hass.format*` public API family (stable since HA 2024
 | `haFormatAttrName(hass, stateObj, key)` | HA-formatted attribute name (e.g. `"battery_level"` → `"Battery Level"`) |
 | `haFormatStateParts(hass, stateObj)` | State as ToParts array: `[{value:'23.5'},{value:'°C'}]` |
 | `haFormatAttrParts(hass, stateObj, key)` | Attribute as ToParts array |
-| `haFormatNumber(hass, value, opts)` | Locale-aware number formatting via `Intl.NumberFormat` |
-| `haFormatDate(hass, ts, opts)` | Locale-aware date formatting via `Intl.DateTimeFormat` |
+| `haFormatNumber(hass, value, opts)` | Locale-aware number formatting — respects `hass.locale.number_format` (comma_decimal, decimal_comma, space_comma, quote_decimal, none, system) and `language`. Mirrors HA's `numberFormatToLocale()`. |
+| `haFormatDate(hass, ts, opts)` | Locale-aware date formatting — respects `hass.locale.language`, `time_format` (12/24h), and `date_format` (DMY/MDY/YMD) via `formatToParts()` reordering. Mirrors HA's `formatDateNumeric()`. |
 | `joinParts(parts)` | Join a ToParts array to a single display string |
 | `extractUnit(parts)` | Extract the unit portion from a ToParts array |
 

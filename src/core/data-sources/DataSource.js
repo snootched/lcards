@@ -1290,7 +1290,8 @@ export class DataSource {
       maximumFractionDigits: precision
     });
     return this.metadata.unit_of_measurement
-      ? `${formatted}${this.metadata.unit_of_measurement}`
+      // Use narrow no-break space (U+202F) before unit, matching HA's own formatEntityState output.
+      ? `${formatted}\u202F${this.metadata.unit_of_measurement}`
       : formatted;
   }
 

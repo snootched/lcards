@@ -415,9 +415,18 @@ export class ApexChartsAdapter {
     const showYAxisTicks = style.yaxis?.ticks?.show ?? false;
 
     // Value rounding (decimals = null means no formatter applied)
+    // haFormatNumber is used here so the decimal separator and grouping respect
+    // hass.locale.number_format (space_comma, decimal_comma, etc.).
+    // context.hass is captured via closure — it is the same reference passed
+    // into this method and is always available when valueFormatter is called.
     const valueDecimals = style.yaxis?.decimals ?? null;
     const valueFormatter = valueDecimals !== null
-      ? (val) => (typeof val === 'number' ? val.toFixed(valueDecimals) : val)
+      ? (val) => (typeof val === 'number'
+          ? haFormatNumber(context?.hass, val, {
+              minimumFractionDigits: valueDecimals,
+              maximumFractionDigits: valueDecimals
+            })
+          : val)
       : undefined;
 
     // Theme settings
@@ -680,6 +689,24 @@ export class ApexChartsAdapter {
     }
 
     // ============================================================================
+    // INJECT APEXCHARTS LOCALE
+    // ApexCharts has its own locale system (chart.locales + chart.defaultLocale)
+    // that drives month/day names in x-axis labels, tooltip headers, and toolbar
+    // text at every zoom level. We generate the locale object dynamically from
+    // Intl.DateTimeFormat using hass.locale.language — no external JSON files.
+    // This fires whenever hass is available; style.chart_options can still
+    // override chart.locales / chart.defaultLocale at highest precedence.
+    // ============================================================================
+
+    if (context?.hass) {
+      const apexLocale = ApexChartsAdapter._buildApexLocale(context.hass);
+      if (!optionsWithTypeDefaults.chart) optionsWithTypeDefaults.chart = {};
+      optionsWithTypeDefaults.chart.locales = [apexLocale];
+      optionsWithTypeDefaults.chart.defaultLocale = apexLocale.name;
+      lcardsLog.debug('[ApexChartsAdapter] Injected ApexCharts locale:', apexLocale.name);
+    }
+
+    // ============================================================================
     // APPLY CHART_OPTIONS OVERRIDES (Highest precedence)
     // ============================================================================
 
@@ -707,6 +734,58 @@ export class ApexChartsAdapter {
     lcardsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
 
     return finalOptions;
+  }
+
+  /**
+   * Build an ApexCharts locale object dynamically from hass.locale.language.
+   * Generates month and day names via Intl.DateTimeFormat so ApexCharts uses
+   * the correct language for x-axis labels, tooltip headers, and toolbar text
+   * at every zoom level — no external JSON locale files needed.
+   *
+   * @param {Object} hass - Home Assistant instance
+   * @returns {Object} ApexCharts locale configuration object
+   * @private
+   */
+  static _buildApexLocale(hass) {
+    const lang = hass?.locale?.language ?? 'en';
+
+    const months = [];
+    const shortMonths = [];
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(2021, m, 1);
+      months.push(new Intl.DateTimeFormat(lang, { month: 'long' }).format(d));
+      shortMonths.push(new Intl.DateTimeFormat(lang, { month: 'short' }).format(d));
+    }
+
+    // Jan 3 2021 is a Sunday — use it as day-0 anchor
+    const days = [];
+    const shortDays = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(2021, 0, 3 + d);
+      days.push(new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(date));
+      shortDays.push(new Intl.DateTimeFormat(lang, { weekday: 'short' }).format(date));
+    }
+
+    return {
+      name: lang,
+      options: {
+        months,
+        shortMonths,
+        days,
+        shortDays,
+        toolbar: {
+          exportToSVG: 'Download SVG',
+          exportToPNG: 'Download PNG',
+          menu: 'Menu',
+          selection: 'Selection',
+          selectionZoom: 'Selection Zoom',
+          zoomIn: 'Zoom In',
+          zoomOut: 'Zoom Out',
+          pan: 'Panning',
+          reset: 'Reset Zoom'
+        }
+      }
+    };
   }
 
   /**
