@@ -1,6 +1,7 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { TemplateParser } from './TemplateParser.js';
+import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
  * DataSourceTemplateEvaluator - Evaluates LCARdS datasource templates
@@ -318,16 +319,22 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
       return String(value);
     }
 
+    const hass = this.dataSourceManager?.hass;
     const parsedFormat = TemplateParser.parseFormatSpec(formatSpec);
 
     switch (parsedFormat.type) {
-      case 'float':
-        const formatted = value.toFixed(parsedFormat.precision);
+      case 'float': {
+        const formatted = haFormatNumber(hass, value, {
+          minimumFractionDigits: parsedFormat.precision,
+          maximumFractionDigits: parsedFormat.precision
+        });
         return this._appendUnit(formatted, metadata);
+      }
 
-      case 'integer':
-        const intValue = Math.round(value).toString();
+      case 'integer': {
+        const intValue = haFormatNumber(hass, Math.round(value), { maximumFractionDigits: 0 });
         return this._appendUnit(intValue, metadata);
+      }
 
       case 'string':
         return String(value);
@@ -343,7 +350,10 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
           const precision = precisionMatch ? parseInt(precisionMatch[1]) : 0;
           const isAlreadyPercent = metadata?.unit_of_measurement === '%';
           const percentValue = isAlreadyPercent ? value : value * 100;
-          return `${percentValue.toFixed(precision)}%`;
+          return haFormatNumber(hass, percentValue, {
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision
+          }) + '%';
         }
         return String(value);
 

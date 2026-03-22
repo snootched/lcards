@@ -52,6 +52,7 @@ import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplat
 import { TemplateParser } from '../../../core/templates/TemplateParser.js';
 import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { haFormatState } from '../../../utils/ha-entity-display.js';
 import { EXAMPLE_TEMPLATES, getExampleIds } from './template-examples.js';
 import '../shared/lcards-dialog.js';
 import '../shared/lcards-form-section.js';
@@ -1168,7 +1169,7 @@ export class LCARdSTemplateSandbox extends LitElement {
               <div class="form-row">
                 <label class="form-label">Current State</label>
                 <div class="entity-state-display">
-                  <div class="state-line"><strong>State:</strong> ${entityState.state}</div>
+                  <div class="state-line"><strong>State:</strong> ${haFormatState(this.hass, entityState)}</div>
                   ${Object.keys(entityState.attributes || {}).length > 0 ? html`
                     <div class="state-line"><strong>Attributes:</strong></div>
                     <ul class="attributes-list">

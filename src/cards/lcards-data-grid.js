@@ -129,6 +129,7 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { haFormatNumber } from '../utils/ha-entity-display.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-data-grid-editor.js';
@@ -785,11 +786,11 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     return format
       .replace('{value}', String(value))
-      .replace('{value:.0f}', isNumber ? Math.round(numValue).toString() : String(value))
-      .replace('{value:.1f}', isNumber ? numValue.toFixed(1) : String(value))
-      .replace('{value:.2f}', isNumber ? numValue.toFixed(2) : String(value))
-      .replace('{value:+.1f}', isNumber ? (numValue >= 0 ? '+' : '') + numValue.toFixed(1) : String(value))
-      .replace('{value:+.2f}', isNumber ? (numValue >= 0 ? '+' : '') + numValue.toFixed(2) : String(value));
+      .replace('{value:.0f}', isNumber ? haFormatNumber(this.hass, Math.round(numValue), { maximumFractionDigits: 0 }) : String(value))
+      .replace('{value:.1f}', isNumber ? haFormatNumber(this.hass, numValue, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : String(value))
+      .replace('{value:.2f}', isNumber ? haFormatNumber(this.hass, numValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(value))
+      .replace('{value:+.1f}', isNumber ? (numValue >= 0 ? '+' : '') + haFormatNumber(this.hass, numValue, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : String(value))
+      .replace('{value:+.2f}', isNumber ? (numValue >= 0 ? '+' : '') + haFormatNumber(this.hass, numValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(value));
   }
 
   // ============================================================================

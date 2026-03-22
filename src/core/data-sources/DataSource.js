@@ -1,4 +1,5 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
  * [DataSource] Data source implementation - provides real-time Home Assistant entity subscriptions
@@ -1284,7 +1285,10 @@ export class DataSource {
   getFormattedValue(value, precision = 1) {
     if (!Number.isFinite(value)) return 'N/A';
 
-    const formatted = value.toFixed(precision);
+    const formatted = haFormatNumber(this.hass, value, {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision
+    });
     return this.metadata.unit_of_measurement
       ? `${formatted}${this.metadata.unit_of_measurement}`
       : formatted;

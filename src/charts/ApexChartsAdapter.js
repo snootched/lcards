@@ -28,6 +28,7 @@
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { haFormatNumber } from '../utils/ha-entity-display.js';
 
 export class ApexChartsAdapter {
   /**
@@ -654,7 +655,7 @@ export class ApexChartsAdapter {
 
     // Apply X-Axis Label Formatter
     if (style.formatters?.xaxis_label) {
-      const formatter = this._createLabelFormatter(style.formatters.xaxis_label, 'xaxis');
+      const formatter = this._createLabelFormatter(style.formatters.xaxis_label, 'xaxis', context.hass);
       if (!optionsWithTypeDefaults.xaxis) optionsWithTypeDefaults.xaxis = {};
       if (!optionsWithTypeDefaults.xaxis.labels) optionsWithTypeDefaults.xaxis.labels = {};
       optionsWithTypeDefaults.xaxis.labels.formatter = formatter;
@@ -663,7 +664,7 @@ export class ApexChartsAdapter {
 
     // Apply Y-Axis Label Formatter
     if (style.formatters?.yaxis_label) {
-      const formatter = this._createLabelFormatter(style.formatters.yaxis_label, 'yaxis');
+      const formatter = this._createLabelFormatter(style.formatters.yaxis_label, 'yaxis', context.hass);
       if (!optionsWithTypeDefaults.yaxis) optionsWithTypeDefaults.yaxis = {};
       if (!optionsWithTypeDefaults.yaxis.labels) optionsWithTypeDefaults.yaxis.labels = {};
       optionsWithTypeDefaults.yaxis.labels.formatter = formatter;
@@ -672,7 +673,7 @@ export class ApexChartsAdapter {
 
     // Apply Tooltip Formatter
     if (style.formatters?.tooltip) {
-      const formatter = this._createTooltipFormatter(style.formatters.tooltip);
+      const formatter = this._createTooltipFormatter(style.formatters.tooltip, context.hass);
       if (!optionsWithTypeDefaults.tooltip) optionsWithTypeDefaults.tooltip = {};
       optionsWithTypeDefaults.tooltip.custom = formatter;
       lcardsLog.debug('[ApexChartsAdapter] Applied tooltip formatter:', style.formatters.tooltip);
@@ -1458,19 +1459,20 @@ static _getRawData(dataSource, config) {
    * @private
    * @param {number} value - Numeric value
    * @param {string|Function} format - Format specification
+   * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
    * @returns {string} Formatted value
    */
-  static _formatValue(value, format) {
+  static _formatValue(value, format, hass = null) {
     if (typeof format === 'function') {
       return format(value);
     }
 
     if (typeof format === 'string') {
       // Simple template replacement
-      return format.replace('{value}', value.toFixed(1));
+      return format.replace('{value}', haFormatNumber(hass, value, { maximumFractionDigits: 1 }));
     }
 
-    return value.toFixed(1);
+    return haFormatNumber(hass, value, { maximumFractionDigits: 1 });
   }
 
   /**
@@ -1478,15 +1480,16 @@ static _getRawData(dataSource, config) {
    * @private
    * @param {string} format - Format template (e.g., "MMM DD", "{value}°C")
    * @param {string} axis - Axis type ('xaxis' or 'yaxis')
+   * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
    * @returns {Function} ApexCharts formatter function
    */
-  static _createLabelFormatter(format, axis) {
+  static _createLabelFormatter(format, axis, hass = null) {
     // Check if it's a date format (no braces) or value template
     if (!format.includes('{')) {
       // Assume date format for x-axis
       return function(val) {
         if (axis === 'xaxis' && typeof val === 'number') {
-          return ApexChartsAdapter._formatDate(val, format);
+          return ApexChartsAdapter._formatDate(val, format, hass);
         }
         return val;
       };
@@ -1494,7 +1497,7 @@ static _getRawData(dataSource, config) {
 
     // Value template (e.g., "{value}°C")
     return function(val) {
-      const formatted = typeof val === 'number' ? val.toFixed(1) : val;
+      const formatted = typeof val === 'number' ? haFormatNumber(hass, val, { maximumFractionDigits: 1 }) : val;
       return format.replace('{value}', formatted);
     };
   }
@@ -1513,9 +1516,10 @@ static _getRawData(dataSource, config) {
    *
    * @private
    * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
+   * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
    * @returns {Function} ApexCharts tooltip formatter
    */
-  static _createTooltipFormatter(format) {
+  static _createTooltipFormatter(format, hass = null) {
     return function({ series, seriesIndex, dataPointIndex, w }) {
       const x = w.globals.seriesX[seriesIndex][dataPointIndex];
       const y = series[seriesIndex][dataPointIndex];
@@ -1526,16 +1530,16 @@ static _getRawData(dataSource, config) {
       const xMatch = output. match(/\{x\|([^}]+)\}/);
       if (xMatch) {
         const dateFormat = xMatch[1];
-        const formattedX = ApexChartsAdapter._formatDate(x, dateFormat);
+        const formattedX = ApexChartsAdapter._formatDate(x, dateFormat, hass);
         output = output.replace(xMatch[0], formattedX);
       } else if (output.includes('{x}')) {
-        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH: mm') : x;
+        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm', hass) : x;
         output = output.replace('{x}', formattedX);
       }
 
       // Handle {y} syntax for value
       if (output.includes('{y}')) {
-        const formattedY = typeof y === 'number' ? y.toFixed(1) : y;
+        const formattedY = typeof y === 'number' ? haFormatNumber(hass, y, { maximumFractionDigits: 1 }) : y;
         output = output.replace('{y}', formattedY);
       }
 
@@ -1553,18 +1557,24 @@ static _getRawData(dataSource, config) {
   }
 
   /**
-   * Format date using simple format string
+   * Format date using simple format string.
+   * Delegates to Intl.DateTimeFormat for locale-aware formatting when possible,
+   * falling back to manual token substitution for format strings not directly
+   * expressible via Intl options.
    * @private
    * @param {number|Date} timestamp - Timestamp or Date object
    * @param {string} format - Format string (e.g., "MMM DD", "HH:mm", "YYYY-MM-DD HH:mm")
+   * @param {Object} [hass] - Home Assistant instance for locale settings
    * @returns {string} Formatted date string
    */
-  static _formatDate(timestamp, format) {
+  static _formatDate(timestamp, format, hass = null) {
     const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
 
     if (!date || isNaN(date.getTime())) {
       return String(timestamp);
     }
+
+    const locale = hass?.locale?.language ?? 'en';
 
     // Simple format string replacement (common patterns)
     let formatted = format;
@@ -1573,19 +1583,19 @@ static _getRawData(dataSource, config) {
     formatted = formatted.replace('YYYY', String(date.getFullYear()));
     formatted = formatted.replace('YY', String(date.getFullYear()).slice(-2));
 
-    // Month
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    formatted = formatted.replace('MMMM', monthsFull[date.getMonth()]);
-    formatted = formatted.replace('MMM', months[date.getMonth()]);
+    // Month — use Intl for locale-aware short/long month names
+    const monthShort = new Intl.DateTimeFormat(locale, { month: 'short' }).format(date);
+    const monthLong = new Intl.DateTimeFormat(locale, { month: 'long' }).format(date);
+    formatted = formatted.replace('MMMM', monthLong);
+    formatted = formatted.replace('MMM', monthShort);
     formatted = formatted.replace('MM', String(date.getMonth() + 1).padStart(2, '0'));
     formatted = formatted.replace('M', String(date.getMonth() + 1));
 
-    // Day
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const daysFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    formatted = formatted.replace('dddd', daysFull[date.getDay()]);
-    formatted = formatted.replace('ddd', days[date.getDay()]);
+    // Day — use Intl for locale-aware short/long weekday names
+    const dayShort = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
+    const dayLong = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date);
+    formatted = formatted.replace('dddd', dayLong);
+    formatted = formatted.replace('ddd', dayShort);
     formatted = formatted.replace('DD', String(date.getDate()).padStart(2, '0'));
     formatted = formatted.replace('D', String(date.getDate()));
 

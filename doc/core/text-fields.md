@@ -67,6 +67,7 @@ text:
 | `stretch` | boolean / number | — | Stretch text to fill available width; `true` = 100%, `0.8` = 80% |
 | `text_area` | string | — | Named text area key (component mode only) |
 | `template` | boolean | `false` | Enable legacy template evaluation for `content` |
+| `display_format` | string | `"friendly"` | How to format entity state/attribute tokens — see [Display Format](#display-format) below |
 
 ### Position Values
 
@@ -183,5 +184,62 @@ text:
     font_size: 10
     color: "var(--lcards-gray)"
 ```
+
+---
+
+## Display Format
+
+The `display_format` option controls how entity state and attribute token values are rendered. It is valid on any individual text field or as a card-wide default in `text.default`.
+
+| Value | Description | Example (door sensor) |
+|-------|-------------|----------------------|
+| `friendly` | HA-translated display string — matches native HA cards (**default**) | `"Open"` |
+| `raw` | Unmodified state/attribute value from `hass.states` | `"on"` |
+| `parts` | Value and unit joined from HA's ToParts API | `"23.5 °C"` |
+| `unit` | Unit portion only from HA's ToParts API | `"°C"` |
+
+### YAML Examples
+
+**Door sensor — show friendly state:**
+```yaml
+text:
+  status:
+    content: "{entity.state}"
+    display_format: friendly   # "Open" or "Closed" instead of "on"/"off"
+```
+
+**Temperature sensor — show just the unit:**
+```yaml
+text:
+  unit_label:
+    content: "{entity.state}"
+    display_format: unit       # "°C"
+```
+
+**Raw value for logic in JS template (display_format not needed here):**
+```yaml
+text:
+  raw_debug:
+    content: "[[[return entity.state]]]"   # JS templates always receive raw values
+```
+
+**Card-wide default — all text fields use friendly display:**
+```yaml
+text:
+  default:
+    display_format: friendly
+  label:
+    content: "{entity.state}"     # inherits friendly from default
+  value:
+    content: "{entity.attributes.battery_level}"
+    display_format: parts         # overrides default for this field: "80 %"
+```
+
+### Notes
+
+- `display_format` only affects display strings. State classification logic (active/inactive/unavailable) always operates on raw state values.
+- `[[[JavaScript]]]` templates are **unaffected** — they always receive the raw entity object. Call `hass.formatEntityState(entity)` directly if needed.
+- Jinja2 templates (`{{ ... }}`) are server-evaluated and unaffected.
+- When `show_unit: true` is set on a slider or text field, the unit is derived from HA's ToParts API to ensure it matches HA's own display exactly.
 
 ---

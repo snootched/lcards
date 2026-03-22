@@ -633,7 +633,8 @@ export class LCARdSChart extends LCARdSCard {
         hasData,
         // Pass context for theme token resolution
         config: this.config,
-        card: this
+        card: this,
+        hass: this.hass
       }
     );
 

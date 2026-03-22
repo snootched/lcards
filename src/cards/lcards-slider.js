@@ -92,6 +92,7 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
+import { haFormatStateParts, extractUnit } from '../utils/ha-entity-display.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
@@ -618,10 +619,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         // DISPLAY CONFIG: What visual scale shows (from style.track.display)
         // Default to control range if not explicitly configured (no breaking changes)
+        // Unit preference: explicit config > HA ToParts unit (locale-correct) > unit_of_measurement fallback
+        const haUnit = extractUnit(haFormatStateParts(this.hass, entity));
         this._displayConfig = {
             min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
             max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
-            unit: this._sliderStyle?.track?.display?.unit ?? entity?.attributes?.unit_of_measurement ?? ''
+            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? ''
         };
 
         lcardsLog.debug('[LCARdSSlider] Config resolved:', {

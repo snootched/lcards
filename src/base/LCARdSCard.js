@@ -27,6 +27,12 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import {
+    haFormatState,
+    haFormatEntityName,
+    haFormatAttrValue,
+    haFormatAttrName
+} from '../utils/ha-entity-display.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -1647,6 +1653,60 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     // ============================================================================
+    // HA i18n / LOCALE-AWARE DISPLAY HELPERS
+    // ============================================================================
+
+    /**
+     * Get the HA-translated display state for an entity.
+     * Respects device_class: e.g. binary_sensor door → "Open"/"Closed" instead of "on"/"off".
+     * This matches what native HA cards (Entities, Tile, etc.) show.
+     *
+     * IMPORTANT: Never use this for state classification logic (active/inactive).
+     * State classification must always use the raw entity.state value.
+     *
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Human-readable state label
+     * @protected
+     */
+    _getStateDisplay(entity = null) {
+        return haFormatState(this.hass, entity || this._entity);
+    }
+
+    /**
+     * Get the HA-formatted friendly name for an entity.
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Entity display name
+     * @protected
+     */
+    _getEntityName(entity = null) {
+        return haFormatEntityName(this.hass, entity || this._entity);
+    }
+
+    /**
+     * Get the HA-formatted display value for an entity attribute.
+     * e.g. battery_level 80 → "80 %", duration 3600 → "1 hour"
+     * @param {string} key - Attribute key
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Formatted attribute value
+     * @protected
+     */
+    _getAttributeDisplay(key, entity = null) {
+        return haFormatAttrValue(this.hass, entity || this._entity, key);
+    }
+
+    /**
+     * Get the HA-formatted display name for an attribute key.
+     * e.g. "battery_level" → "Battery Level"
+     * @param {string} key - Attribute key
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Formatted attribute name
+     * @protected
+     */
+    _getAttributeName(key, entity = null) {
+        return haFormatAttrName(this.hass, entity || this._entity, key);
+    }
+
+    // ============================================================================
     // HELPER METHODS - Available to subclasses
     // ============================================================================
 
@@ -1667,7 +1727,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {Promise<string>} Processed template
      * @protected
      */
-    async processTemplate(template) {
+    async processTemplate(template, options = {}) {
         if (!template || typeof template !== 'string') {
             return template;
         }
@@ -1679,7 +1739,11 @@ export class LCARdSCard extends LCARdSNativeCard {
                 config: this.config,
                 hass: this.hass,
                 variables: this.config?.variables || {},
-                theme: this._singletons?.themeManager?.getCurrentTheme?.()
+                theme: this._singletons?.themeManager?.getCurrentTheme?.(),
+                // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
+                // are rendered. Defaults to 'friendly' (HA-translated display strings).
+                // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.
+                displayFormat: options.displayFormat ?? 'friendly'
             };
 
             // Get dataSourceManager from global singleton (if available)

@@ -876,6 +876,16 @@ export function getTextSchema(options = {}) {
                             'Mathematical center',
                             'Bottom of text (baseline)'
                         ]
+                    },
+                    display_format: {
+                        type: 'string',
+                        enum: ['friendly', 'raw', 'parts', 'unit'],
+                        default: 'friendly',
+                        description: 'Default display format for entity state/attribute tokens. "friendly" uses HA\'s translated display string. "raw" returns the unmodified value. "parts" joins value and unit. "unit" returns only the unit.',
+                        'x-ui-hints': {
+                            label: 'Display Format (Default)',
+                            helper: 'friendly = HA-translated (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
+                        }
                     }
                 }
             }
@@ -1068,6 +1078,17 @@ export function getTextSchema(options = {}) {
                     'x-ui-hints': {
                         label: 'Text Area',
                         helper: 'Which named area on the component this text field belongs to'
+                    }
+                },
+                display_format: {
+                    type: 'string',
+                    enum: ['friendly', 'raw', 'parts', 'unit'],
+                    default: 'friendly',
+                    description: 'How to format entity state or attribute values in this text field. "friendly" (default) uses HA\'s translated display string matching native cards. "raw" returns the unmodified state/attribute value. "parts" joins value and unit from HA\'s ToParts API. "unit" returns only the unit portion.',
+                    examples: ['friendly', 'raw', 'parts', 'unit'],
+                    'x-ui-hints': {
+                        label: 'Display Format',
+                        helper: 'friendly = HA-translated (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
                     }
                 }
             }

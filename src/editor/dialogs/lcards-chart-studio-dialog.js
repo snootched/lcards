@@ -27,6 +27,7 @@
 import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { haFormatState, haFormatEntityName } from '../../utils/ha-entity-display.js';
 import { editorStyles } from '../base/editor-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
@@ -1388,7 +1389,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 <div class="entity-preview-header">📋 Entity Preview</div>
                 <div class="entity-preview-item">
                     <span class="entity-preview-label">State:</span>
-                    <span class="entity-preview-value">${entityState.state}</span>
+                    <span class="entity-preview-value">${haFormatState(this.hass, entityState)}</span>
                 </div>
                 ${entityState.attributes?.unit_of_measurement ? html`
                     <div class="entity-preview-item">
@@ -1396,12 +1397,10 @@ export class LCARdSChartStudioDialog extends LitElement {
                         <span class="entity-preview-value">${entityState.attributes.unit_of_measurement}</span>
                     </div>
                 ` : ''}
-                ${entityState.attributes?.friendly_name ? html`
-                    <div class="entity-preview-item">
-                        <span class="entity-preview-label">Friendly Name:</span>
-                        <span class="entity-preview-value">${entityState.attributes.friendly_name}</span>
-                    </div>
-                ` : ''}
+                <div class="entity-preview-item">
+                    <span class="entity-preview-label">Friendly Name:</span>
+                    <span class="entity-preview-value">${haFormatEntityName(this.hass, entityState)}</span>
+                </div>
             </div>
         `;
     }

@@ -15,6 +15,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { haFormatState, haFormatEntityName } from '../../utils/ha-entity-display.js';
 import '../components/shared/lcards-dialog.js';
 import '../components/shared/lcards-message.js';
 import '../components/datasources/lcards-datasource-card.js';
@@ -448,7 +449,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
           </div>
           <div class="entity-preview-item">
             <span class="entity-preview-label">State:</span>
-            <span class="entity-preview-value">${entityState.state}</span>
+            <span class="entity-preview-value">${haFormatState(this.hass, entityState)}</span>
           </div>
           ${entityState.attributes?.unit_of_measurement ? html`
             <div class="entity-preview-item">
@@ -456,12 +457,10 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
               <span class="entity-preview-value">${entityState.attributes.unit_of_measurement}</span>
             </div>
           ` : ''}
-          ${entityState.attributes?.friendly_name ? html`
-            <div class="entity-preview-item">
-              <span class="entity-preview-label">Friendly Name:</span>
-              <span class="entity-preview-value">${entityState.attributes.friendly_name}</span>
-            </div>
-          ` : ''}
+          <div class="entity-preview-item">
+            <span class="entity-preview-label">Friendly Name:</span>
+            <span class="entity-preview-value">${haFormatEntityName(this.hass, entityState)}</span>
+          </div>
           <div class="entity-preview-item">
             <span class="entity-preview-label">Last Changed:</span>
             <span class="entity-preview-value">${this._formatDateTime(entityState.last_changed)}</span>
