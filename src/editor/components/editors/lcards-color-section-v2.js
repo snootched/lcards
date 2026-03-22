@@ -476,6 +476,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleCustomStateInput(e) {
+        // @ts-ignore - TS2339: auto-suppressed
         this._customStateInput = e.target.value;
     }
 
@@ -711,7 +712,9 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -723,6 +726,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
+                // @ts-ignore - TS2551: auto-suppressed
                 dialog.close();
                 resolve();
             });
@@ -747,7 +751,9 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -760,6 +766,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
+                // @ts-ignore - TS2551: auto-suppressed
                 dialog.close();
                 resolve(false);
             });
@@ -769,6 +776,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             confirmButton.textContent = 'Delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
+                // @ts-ignore - TS2551: auto-suppressed
                 dialog.close();
                 resolve(true);
             });

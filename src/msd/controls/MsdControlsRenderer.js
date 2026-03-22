@@ -296,7 +296,7 @@ export class MsdControlsRenderer {
   /**
    * Apply HASS context to a specific control card
    * @private
-   * @param {Element} card - The card element
+   * @param {any} card - The card element
    * @param {Object} hass - Home Assistant object
    * @param {string} controlId - Control identifier for logging
    */
@@ -547,7 +547,7 @@ export class MsdControlsRenderer {
     });
 
     try {
-      const controlElement = await this.createControlElement(overlay);
+      const controlElement = /** @type {any} */ (await this.createControlElement(overlay));
       if (!controlElement) {
         lcardsLog.warn('[MsdControlsRenderer] createControlElement returned null for', overlay. id);
         return;
@@ -659,7 +659,7 @@ export class MsdControlsRenderer {
 
     try {
       const cardType = cardDef.type;
-      let cardElement = null;
+      let cardElement = /** @type {any} */ (null);
 
       lcardsLog.debug('[MsdControls] Creating card element:', {
         cardType,

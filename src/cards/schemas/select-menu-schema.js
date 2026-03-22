@@ -22,8 +22,8 @@ import {
 
 /**
  * Get complete select menu card schema
- * @param {Object} options
- * @param {Array<string>} options.availablePresets - Available button preset names
+ * @param {Object} [options]
+ * @param {Array<string>} [options.availablePresets] - Available button preset names
  * @returns {Object} Complete schema
  */
 export function getSelectMenuSchema(options = {}) {

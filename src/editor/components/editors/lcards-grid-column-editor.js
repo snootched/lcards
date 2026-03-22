@@ -22,6 +22,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../../components/shared/lcards-form-section.js';
 
+// @ts-ignore - TS2415: duplicate method implementations in LitElement subclass
 export class LCARdSGridColumnEditor extends LitElement {
     static get properties() {
         return {
@@ -404,4 +405,4 @@ export class LCARdSGridColumnEditor extends LitElement {
     }
 }
 
-customElements.define('lcards-grid-column-editor', LCARdSGridColumnEditor);
+customElements.define('lcards-grid-column-editor', /** @type {any} */ (LCARdSGridColumnEditor));

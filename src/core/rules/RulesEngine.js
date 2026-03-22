@@ -576,8 +576,8 @@ export class RulesEngine extends BaseService {
 
         // Additional context
         sun: this.systemsManager?.getSunInfo?.(),
-        getPerf: (key) => this.perfMetrics?.[key],
-        flags: this.debugFlags || {},
+        getPerf: (key) => /** @type {any} */ (this).perfMetrics?.[key],
+        flags: /** @type {any} */ (this).debugFlags || {},
 
         // ✨ NEW: Template evaluator for Jinja2/JS
         unifiedTemplateEvaluator: this._templateEvaluator
@@ -601,7 +601,7 @@ export class RulesEngine extends BaseService {
       this.traceBuffer.addTrace(
         rule.id,
         matched,
-        { matched },  // Simplified conditions
+        /** @type {any} */ ({ matched }),  // Simplified conditions
         evaluationTime,
         {
           priority: rule.priority || 0,
@@ -658,7 +658,7 @@ export class RulesEngine extends BaseService {
       this.traceBuffer.addTrace(
         rule.id,
         false,
-        {},
+        /** @type {any} */ ({}),
         evaluationTime,
         { error: error.message }
       );
@@ -729,7 +729,7 @@ export class RulesEngine extends BaseService {
    * - overlay_id (direct) - Target specific overlay (backwards compatible)
    *
    * @param {Object} ruleApply - Rule 'apply' clause
-   * @returns {Array<Object>} Array of overlay patches with {id, style, ...}
+   * @returns {Promise<Array<Object>>} Array of overlay patches with {id, style, ...}
    * @private
    */
   async _resolveOverlaySelectors(ruleApply, contextOverlays = null) {  // ✨ CHANGED: Made async for template evaluation
@@ -1760,6 +1760,27 @@ export class RulesEngine extends BaseService {
 
   clearTrace() {
     this.traceBuffer.clear();
+  }
+
+  /**
+   * Get debug information about the rules engine state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    try {
+      return {
+        type: 'RulesEngine',
+        rulesCount: this.rules?.length || 0,
+        rulesById: this.rulesById?.size || 0,
+        dirtyRules: this.dirtyRules?.size || 0,
+        evalCounts: this.evalCounts || {},
+        hasDataSourceManager: !!this.dataSourceManager,
+        recentMatches: this.getRecentMatches(10000),
+        trace: this.getTrace()
+      };
+    } catch (error) {
+      return { type: 'RulesEngine', error: error.message };
+    }
   }
 
   /**

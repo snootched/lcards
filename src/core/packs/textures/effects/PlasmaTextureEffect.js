@@ -26,7 +26,7 @@ import { _fbm, parseColorToRgba } from './noise-helpers.js';
  */
 export class PlasmaTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {string} [config.color_a='rgba(80,0,255,0.9)']   - First plasma colour (RGBA)
      * @param {string} [config.color_b='rgba(255,40,120,0.9)'] - Second plasma colour (RGBA)
      * @param {number} [config.base_frequency=0.012]           - Noise frequency (lower = wider bands)
@@ -34,9 +34,10 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
      * @param {number} [config.scroll_speed_x=8]               - Horizontal scroll speed (px/s)
      * @param {number} [config.scroll_speed_y=5]               - Vertical scroll speed (px/s)
      * @param {number} [config.speed=1]                        - Global speed multiplier
+     * @param {number} [config.opacity=1] - Opacity (0-1)
      */
     constructor(config = {}) {
-        super(config);
+        super(/** @type {any} */ (config));
         this._colorA  = parseColorToRgba(config.color_a ?? 'rgba(80,0,255,0.9)',  'rgba(80,0,255,0.9)');
         this._colorB  = parseColorToRgba(config.color_b ?? 'rgba(255,40,120,0.9)', 'rgba(255,40,120,0.9)');
         this._freq    = config.base_frequency ?? 0.012;

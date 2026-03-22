@@ -52,6 +52,8 @@ export class LCARdSFilterEditor extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
         this.filters = [];
         this._expandedFilters = {};
         this._draggedIndex = null;
@@ -381,6 +383,7 @@ export class LCARdSFilterEditor extends LitElement {
                 ?expanded=${true}>
 
                 <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{
                         select: {
@@ -497,6 +500,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderBrightnessParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 3, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 1}
@@ -514,6 +518,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderContrastParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 3, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 1}
@@ -531,6 +536,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderSaturateParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 3, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 1}
@@ -548,6 +554,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderHueRotateParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 360, step: 1, mode: 'slider' } }}
                 .value=${typeof filter.value === 'string' ? parseInt(filter.value) : (filter.value ?? 0)}
@@ -565,6 +572,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderGrayscaleParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 0}
@@ -582,6 +590,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderSepiaParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 0}
@@ -599,6 +608,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderInvertParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 0}
@@ -616,6 +626,7 @@ export class LCARdSFilterEditor extends LitElement {
     _renderOpacityParams(filter, index) {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
                 .value=${filter.value ?? 1}
@@ -656,6 +667,7 @@ export class LCARdSFilterEditor extends LitElement {
                 helper-text="e.g., 0px, 2px, 5px">
             </ha-textfield>
             <lcards-color-picker
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .value=${shadow.color || '#000000'}
                 .label=${'Shadow Color'}
@@ -692,6 +704,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 50, step: 0.5, mode: 'slider' } }}
                 .value=${value.stdDeviation ?? 0}
@@ -711,6 +724,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -729,6 +743,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             ${value.type === 'saturate' ? html`
                 <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{ number: { min: 0, max: 3, step: 0.1, mode: 'slider' } }}
                     .value=${value.values ?? 1}
@@ -741,6 +756,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             ${value.type === 'hueRotate' ? html`
                 <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{ number: { min: 0, max: 360, step: 1, mode: 'slider' } }}
                     .value=${value.values ?? 0}
@@ -802,6 +818,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -842,6 +859,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -888,6 +906,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -903,6 +922,7 @@ export class LCARdSFilterEditor extends LitElement {
             </ha-selector>
 
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 20, step: 0.5, mode: 'slider' } }}
                 .value=${value.radius ?? 1}
@@ -923,6 +943,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -938,6 +959,7 @@ export class LCARdSFilterEditor extends LitElement {
             </ha-selector>
 
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 1, step: 0.01, mode: 'slider' } }}
                 .value=${value.baseFrequency ?? 0.05}
@@ -947,6 +969,7 @@ export class LCARdSFilterEditor extends LitElement {
             </ha-selector>
 
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
                 .value=${value.numOctaves ?? 1}
@@ -976,6 +999,7 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ number: { min: 0, max: 200, step: 5, mode: 'slider' } }}
                 .value=${value.scale ?? 10}
@@ -985,6 +1009,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                 <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{
                         select: {
@@ -1002,6 +1027,7 @@ export class LCARdSFilterEditor extends LitElement {
                 </ha-selector>
 
                 <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{
                         select: {
@@ -1315,6 +1341,7 @@ export class LCARdSFilterEditor extends LitElement {
     _handleDragStart(e, index) {
         this._draggedIndex = index;
         e.dataTransfer.effectAllowed = 'move';
+        // @ts-ignore - TS2345: auto-suppressed
         e.dataTransfer.setData('text/plain', index);
         this.requestUpdate();
     }

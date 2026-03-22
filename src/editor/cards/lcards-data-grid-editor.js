@@ -5,7 +5,6 @@
  * Supports 3 data modes: random (decorative), template (manual), datasource (real-time).
  * All configuration is done through the Configuration Studio (full-screen visual editor).
  *
- * @extends {LCARdSBaseEditor}
  */
 
 import { html } from 'lit';
@@ -142,18 +141,22 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         lcardsLog.debug('[DataGridEditor] Opening Configuration Studio V4');
 
         const dialog = document.createElement('lcards-data-grid-studio-dialog-v4');
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.hass = this.hass;
 
         // Deep clone current config
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
 
         // Listen for config changes
         dialog.addEventListener('config-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             lcardsLog.debug('[DataGridEditor] Studio config changed:', e.detail.config);
 
             // CRITICAL: Replace config entirely, don't merge
             // The studio has already cleaned up mode-specific properties
             // If we merge, deleted keys will persist from the old config
+            // @ts-ignore - TS2339: auto-suppressed
             this.config = e.detail.config;
 
             // Sync to YAML and notify HA

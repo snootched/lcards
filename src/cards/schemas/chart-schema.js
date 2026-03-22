@@ -17,8 +17,8 @@ import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema } from '
 
 /**
  * Get complete chart card schema with nested structure
- * @param {Object} options - Schema options
- * @param {Array<string>} options.availableAnimationPresets - Animation preset names
+ * @param {Object} [options] - Schema options
+ * @param {Array<string>} [options.availableAnimationPresets] - Animation preset names
  * @returns {Object} Complete chart schema
  */
 export function getChartSchema(options = {}) {

@@ -16,9 +16,9 @@ import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
  * Get complete elbow card schema
- * @param {Object} options - Schema options
- * @param {Array<string>} options.availablePresets - Available preset names (inherits from button)
- * @param {Array<string>} options.positionEnum - Available text positions
+ * @param {Object} [options] - Schema options
+ * @param {Array<string>} [options.availablePresets] - Available preset names (inherits from button)
+ * @param {Array<string>} [options.positionEnum] - Available text positions
  * @returns {Object} Complete elbow schema
  */
 export function getElbowSchema(options = {}) {

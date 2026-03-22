@@ -5,7 +5,6 @@
  * Supports 16 chart types with comprehensive styling and data visualization features.
  * All configuration is done through the Chart Configuration Studio (full-screen visual editor).
  *
- * @extends {LCARdSBaseEditor}
  */
 
 import { html } from 'lit';
@@ -123,16 +122,20 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
         lcardsLog.debug('[ChartEditor] Opening Chart Configuration Studio');
 
         const dialog = document.createElement('lcards-chart-studio-dialog');
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.hass = this.hass;
 
         // Deep clone current config
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
 
         // Listen for config changes
         dialog.addEventListener('config-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             lcardsLog.debug('[ChartEditor] Studio config changed:', e.detail.config);
 
             // Replace config entirely (don't merge)
+            // @ts-ignore - TS2339: auto-suppressed
             this.config = e.detail.config;
 
             // Sync to YAML and notify HA

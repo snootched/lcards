@@ -310,10 +310,11 @@ export async function runTransitionEffect(style, mainView, mode, applyColorsFn) 
     } catch (err) {
         lcardsLog.error(`[AlertTransitions] Transition '${style}' threw — applying palette directly:`, err);
         // Restore potentially-dirty state
-        mainView.style.filter     = '';
-        mainView.style.opacity    = '';
-        mainView.style.transition = '';
-        mainView.style.animation  = '';
+        const _mainViewEl = /** @type {HTMLElement} */ (mainView);
+        _mainViewEl.style.filter     = '';
+        _mainViewEl.style.opacity    = '';
+        _mainViewEl.style.transition = '';
+        _mainViewEl.style.animation  = '';
         await applyColorsFn();
     }
 

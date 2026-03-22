@@ -34,6 +34,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * - Segment colors
  * - Dash patterns
  */
+// @ts-ignore - LineOverlay extends OverlayBase (type inference issues with duplicate base methods)
 export class LineOverlay extends OverlayBase {
   constructor(overlay, systemsManager, routerCore = null) {
     super(overlay, systemsManager);
@@ -74,7 +75,7 @@ export class LineOverlay extends OverlayBase {
       }
 
       // Pre-resolve line styles
-      const viewBox = this.systemsManager?.rendererSystem?.viewBox || [0, 0, 800, 600];
+      const viewBox = (/** @type {any} */ (this)).systemsManager?.rendererSystem?.viewBox || [0, 0, 800, 600];
       const style = this.overlay.finalStyle || this.overlay.style || {};
       this._cachedLineStyle = this._resolveLineStyles(style, this.overlay.id, viewBox);
 

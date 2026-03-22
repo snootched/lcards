@@ -20,8 +20,8 @@ import {
 
 /**
  * Get complete MSD card schema
- * @param {Object} options - Schema options
- * @param {Array<string>} options.availableFilterPresets - Available filter preset names
+ * @param {Object} [options] - Schema options
+ * @param {Array<string>} [options.availableFilterPresets] - Available filter preset names
  * @returns {Object} Complete MSD schema
  */
 export function getMsdSchema(options = {}) {

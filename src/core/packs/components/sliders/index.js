@@ -23,7 +23,7 @@ import shapedComponent from './shaped.js';
  * Orientation is controlled by style.track.orientation config, NOT component choice.
  * Component determines visual shell (plain vs. decorated), not layout direction.
  *
- * @type {Object.<string, {svg: string, orientation: string, features: string[]}>}
+ * @type {Object.<string, any>}
  */
 export const sliderComponents = {
     // Default component - render function architecture

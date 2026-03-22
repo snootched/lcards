@@ -52,10 +52,10 @@ export class AnimationManager extends BaseService {
    * Called by SystemsManager after AdvancedRenderer is initialized
    *
    * @param {Array} overlays - Overlay configurations from merged config
-   * @param {Object} options - Additional options
-   * @param {Object} options.customPresets - User-defined animation_presets
-   * @param {Object} options.timelines - Timeline configurations
-   * @param {Object} options.suppressMountWarning - Suppress mount element warning (for core singleton init)
+   * @param {Object} [options] - Additional options
+   * @param {Object} [options.customPresets] - User-defined animation_presets
+   * @param {Object} [options.timelines] - Timeline configurations
+   * @param {Object} [options.suppressMountWarning] - Suppress mount element warning (for core singleton init)
    */
   async initialize(overlays = [], options = {}) {
     lcardsLog.debug('[AnimationManager] Initializing animation system');
@@ -653,7 +653,7 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition (already resolved)
-   * @returns {Object|null} Animation instance
+   * @returns {Promise<Object|null>} Animation instance
    */
   async playAnimation(overlayId, animDef) {
     const resolved = this._resolveScopeFromOverlay(overlayId);
@@ -878,7 +878,7 @@ export class AnimationManager extends BaseService {
    * Resolve datasource-driven parameters in animation definition
    *
    * @param {Object} animDef - Animation definition
-   * @returns {Object} Resolved parameters
+   * @returns {Promise<Object>} Resolved parameters
    */
   async resolveDatasourceParams(animDef) {
     const resolved = {};
@@ -1381,5 +1381,23 @@ export class AnimationManager extends BaseService {
     if (keysToDestroy.length > 0) {
       lcardsLog.debug(`[AnimationManager] 🗑️ Destroyed ${keysToDestroy.length} segment scopes for card: ${cardId}`);
     }
+  }
+
+  /**
+   * Get debug information about the animation manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'AnimationManager',
+      initialized: this.initialized || false,
+      scopesCount: this.scopes?.size || 0,
+      customPresetsCount: this.customPresets?.size || 0,
+      timelinesCount: this.timelines?.size || 0,
+      activeAnimationsCount: this.activeAnimations?.size || 0,
+      registeredAnimationsCount: this.registeredAnimations?.size || 0,
+      hasMountEl: !!this.mountEl,
+      hasSystemsManager: !!this.systemsManager
+    };
   }
 }

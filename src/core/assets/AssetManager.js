@@ -484,7 +484,7 @@ export class AssetManager extends BaseService {
   /**
    * Load a font CSS file (lazy-load if needed)
    * Handles legacy font name migration automatically.
-   * 
+   *
    * @param {string} fontKey - Font key (e.g., 'lcards_borg' or 'cb-lcars_borg')
    * @returns {Promise<void>}
    */
@@ -492,7 +492,7 @@ export class AssetManager extends BaseService {
     try {
       // Migrate legacy names
       const migratedKey = this._migrateLegacyFontName(fontKey);
-      
+
       // Get font asset (triggers lazy load if needed)
       const fontRegistry = this.getRegistry('font');
       const fontAsset = fontRegistry.assets.get(migratedKey);
@@ -531,7 +531,7 @@ export class AssetManager extends BaseService {
    */
   _migrateLegacyFontName(fontKey) {
     const fontRegistry = this.getRegistry('font');
-    
+
     // Find font by legacy name
     for (const [key, asset] of fontRegistry.assets.entries()) {
       if (asset.metadata.legacyName === fontKey) {
@@ -539,7 +539,7 @@ export class AssetManager extends BaseService {
         return key;
       }
     }
-    
+
     return fontKey;
   }
 
@@ -550,7 +550,7 @@ export class AssetManager extends BaseService {
   listFonts() {
     const fontRegistry = this.getRegistry('font');
     const fonts = [];
-    
+
     for (const [key, asset] of fontRegistry.assets.entries()) {
       fonts.push({
         key,
@@ -561,7 +561,7 @@ export class AssetManager extends BaseService {
         pack: asset.metadata.pack
       });
     }
-    
+
     return fonts;
   }
 
@@ -577,6 +577,32 @@ export class AssetManager extends BaseService {
       acc[cat].push(font);
       return acc;
     }, {});
+  }
+
+  /**
+   * Get debug information about the asset manager state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    try {
+      const registries = {};
+      this.listTypes().forEach(type => {
+        const registry = this.getRegistry(type);
+        registries[type] = {
+          assetCount: registry.assets?.size || 0,
+          loadingCount: registry.loadingPromises?.size || 0,
+          assets: registry.list()
+        };
+      });
+      return {
+        type: 'AssetManager',
+        registriesCount: this.registries?.size || 0,
+        supportedTypes: this.listTypes(),
+        registries
+      };
+    } catch (error) {
+      return { type: 'AssetManager', error: error.message };
+    }
   }
 
   /**

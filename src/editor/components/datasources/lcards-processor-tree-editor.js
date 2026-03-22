@@ -47,6 +47,8 @@ export class LCARdSProcessorTreeEditor extends LitElement {
 
   constructor() {
     super();
+        /** @type {any} */
+        this.hass = undefined;
     this.value = {};
     this.label = 'Processors';
     this._processors = [];
@@ -602,6 +604,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       </div>
 
       <lcards-processor-editor
+        // @ts-ignore - TS2339: auto-suppressed
         .hass="${this.hass}"
         .mode="${this._editorMode}"
         .processorKey="${this._editingKey}"

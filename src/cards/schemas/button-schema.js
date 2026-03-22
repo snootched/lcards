@@ -12,9 +12,9 @@ import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateCo
 
 /**
  * Get complete button card schema
- * @param {Object} options - Schema options
- * @param {Array<string>} options.availablePresets - Available preset names
- * @param {Array<string>} options.positionEnum - Available positions
+ * @param {Object} [options] - Schema options
+ * @param {Array<string>} [options.availablePresets] - Available preset names
+ * @param {Array<string>} [options.positionEnum] - Available positions
  * @returns {Object} Complete button schema
  */
 export function getButtonSchema(options = {}) {

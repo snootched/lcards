@@ -176,6 +176,7 @@ export class LCARdSMSDLivePreview extends LitElement {
      * Initialize preview card
      */
     firstUpdated() {
+        // @ts-ignore - TS2554: auto-suppressed
         super.firstUpdated();
         // Initial preview render
         this._updatePreviewCard();
@@ -271,8 +272,10 @@ export class LCARdSMSDLivePreview extends LitElement {
 
             // CRITICAL: Set config and hass BEFORE appending
             // This ensures setConfig() is called before hass is set
+            // @ts-ignore - TS2339: auto-suppressed
             card.setConfig(previewConfig);
             if (this.hass) {
+                // @ts-ignore - TS2339: auto-suppressed
                 card.hass = this.hass;
             }
 

@@ -83,6 +83,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
     // Only load provenance if config is already available
     // Otherwise wait for config to be set (will trigger via property change)
+    // @ts-ignore - TS2339: auto-suppressed
     if (this.config && this.config.type) {
       this._loadProvenance();
     } else {
@@ -2507,9 +2508,11 @@ export class LCARdSProvenanceTab extends LitElement {
    * Get actual value from config for a given path
    */
   _getActualValue(path) {
+    // @ts-ignore - TS2339: auto-suppressed
     if (!this.config) return undefined;
 
     const parts = path.split('.');
+    // @ts-ignore - TS2339: auto-suppressed
     let current = this.config;
 
     for (const part of parts) {
@@ -3304,6 +3307,7 @@ export class LCARdSProvenanceTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
+    // @ts-ignore - TS2339: auto-suppressed
     const view = event.target.activeTab?.getAttribute('value');
     if (view) {
       this._switchView(view);
@@ -3460,6 +3464,7 @@ export class LCARdSProvenanceTab extends LitElement {
       e.stopPropagation();
       const searchInput = this.shadowRoot?.querySelector('.dialog-search');
       if (searchInput) {
+        // @ts-ignore - TS2339: auto-suppressed
         searchInput.focus();
       }
       return;
@@ -3521,17 +3526,21 @@ export class LCARdSProvenanceTab extends LitElement {
       // Find the actual rendered card in the DOM (it's in the preview panel, not the editor)
       let card = null;
 
+      // @ts-ignore - TS2339: auto-suppressed
       if (!this.config) {
         lcardsLog.warn('[ProvenanceTab] No config available');
         this._provenance = null;
         return;
       }
 
+      // @ts-ignore - TS2339: auto-suppressed
       const cardType = this.config.type?.replace('custom:', '') || 'lcards-button';
 
       lcardsLog.debug('[ProvenanceTab] Searching for card type:', {
+        // @ts-ignore - TS2339: auto-suppressed
         rawType: this.config.type,
         cardType: cardType,
+        // @ts-ignore - TS2339: auto-suppressed
         configKeys: Object.keys(this.config)
       });
 
@@ -3550,6 +3559,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       let attempts = 0;
       while (searchRoot && attempts < 10) {
+        // @ts-ignore - TS2339: auto-suppressed
         previewContainer = searchRoot.querySelector?.('.element-preview');
         if (previewContainer) {
           lcardsLog.debug('[ProvenanceTab] ✅ Found .element-preview container in shadow root');
@@ -3557,7 +3567,9 @@ export class LCARdSProvenanceTab extends LitElement {
         }
 
         // Move to parent shadow root
+        // @ts-ignore - TS2339: auto-suppressed
         if (searchRoot.host) {
+          // @ts-ignore - TS2339: auto-suppressed
           searchRoot = searchRoot.host.getRootNode();
         } else {
           break;

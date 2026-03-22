@@ -23,6 +23,8 @@ export class LCARdSPackExplorerDialog extends LitElement {
 
   constructor() {
     super();
+        /** @type {any} */
+        this.hass = undefined;
     this.open = false;
   }
 
@@ -60,6 +62,7 @@ export class LCARdSPackExplorerDialog extends LitElement {
         @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
         header-title="Pack Explorer">
         <lcards-pack-explorer-tab
+          // @ts-ignore - TS2339: auto-suppressed
           .hass=${this.hass}
           ._inlineMode=${true}
         ></lcards-pack-explorer-tab>

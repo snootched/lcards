@@ -6,7 +6,7 @@ The Sound System provides event-driven audio feedback for all LCARdS interaction
 
 ---
 
-## 🏗️ System Overview
+## System Overview
 
 ### Architecture Components
 
@@ -46,7 +46,7 @@ SoundManager (BaseService singleton)
 
 ---
 
-## 🔊 Event Types & Categories
+## Event Types & Categories
 
 Event types are grouped into three categories, each controlled by an independent `input_boolean` helper.
 
@@ -89,7 +89,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 ---
 
-## ⚙️ HA Helper Integration
+## HA Helper Integration
 
 Six input helpers store sound configuration. They are created via the Sound Config Panel or manually via YAML.
 
@@ -108,7 +108,7 @@ Six input helpers store sound configuration. They are created via the Sound Conf
 
 ---
 
-## 🎵 Sound Resolution Order
+## Sound Resolution Order
 
 `play(eventType, context)` resolves the asset key in strict priority order:
 
@@ -129,7 +129,7 @@ Six input helpers store sound configuration. They are created via the Sound Conf
 
 ---
 
-## 🌐 Global Listener Architecture
+## Global Listener Architecture
 
 `mountGlobalUIListener()` attaches all Tier 2 listeners. It is idempotent (safe to call multiple times; exits early if already mounted). Called by `LCARdSCore` after initialization.
 
@@ -159,7 +159,7 @@ HA uses `history.replaceState` (not a DOM event) to toggle `?edit=1` in the URL 
 
 ---
 
-## 🎤 Audio Asset Resolution
+## Audio Asset Resolution
 
 Asset URLs are resolved synchronously from `AssetManager`'s internal registry:
 
@@ -178,7 +178,7 @@ No async preloading is required — the browser fetches the URL on first play.
 
 ---
 
-## 📦 Pack Integration
+## Pack Integration
 
 Sound packs declare `sound_schemes` and `audio_assets` in their pack definition:
 
@@ -212,7 +212,7 @@ export const MY_SOUND_PACK = {
 
 ---
 
-## 🗃️ Override Storage
+## Override Storage
 
 Per-event overrides are stored in `localStorage` under the key `lcards_sound_overrides` as a JSON object:
 
@@ -224,7 +224,7 @@ Per-event overrides are stored in `localStorage` under the key `lcards_sound_ove
 
 ---
 
-## ➕ Adding a New Event Type
+## Adding a New Event Type
 
 1. Add the key to `EVENT_CATEGORY` in `SoundManager.js` with the appropriate category (`'cards'`, `'ui'`, or `'alerts'`).
 2. Add a human-readable label to `SOUND_EVENT_LABELS`.
@@ -233,7 +233,7 @@ Per-event overrides are stored in `localStorage` under the key `lcards_sound_ove
 
 ---
 
-## 🔌 Public API
+## Public API
 
 ```javascript
 const sm = window.lcards.core.soundManager;
@@ -261,3 +261,25 @@ sm.mountGlobalUIListener();                        // called by LCARdSCore
 sm.subscribeToAlertMode();                         // called by LCARdSCore
 sm.destroy();                                      // cleanup
 ```
+
+---
+
+## Console Access
+
+::: code-group
+```javascript [Snapshot]
+window.lcards.debug.singleton('soundManager')
+// → { type: 'SoundManager', initialized: true, schemesCount: 3, activeScheme: 'lcards_default', overrideCount: 0 }
+```
+```javascript [Live object]
+const sm = window.lcards.core.soundManager
+
+sm.play('card_tap')                     // fire an event
+sm.preview('my_asset')                  // play a specific asset directly
+sm.getSchemeNames()                     // ['none', 'lcards_default', ...]
+sm.getEventTypes()                      // [{ key, label, category }, ...]
+sm.getOverrides()                       // current per-event overrides
+await sm.setOverride('card_tap', 'my') // set persistent override
+await sm.clearAllOverrides()            // wipe all overrides
+```
+:::

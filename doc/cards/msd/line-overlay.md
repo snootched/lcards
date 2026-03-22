@@ -30,7 +30,7 @@ The **Line Overlay** connects other overlays with visual lines, creating diagram
 ✅ **Gap system** - Precise control over line offsets (anchor_gap, attach_gap)
 ✅ **Multiple routing modes** - Auto, direct, orthogonal, curved
 ✅ **Rich styling** - Colors, widths, dashes, arrows, animations
-✅ **DataSource integration** - Dynamic styling based on data
+✅ **Data Source integration** - Dynamic styling based on data
 ✅ **Auto-attach** - Automatically determines best attachment sides
 ✅ **Virtual anchors** - Pre-computed attachment points with gap offsets
 
@@ -840,7 +840,7 @@ overlays:
 
 ## Advanced Features
 
-### DataSource Integration
+### Data Source Integration
 
 Make line styling dynamic based on data:
 
@@ -1233,10 +1233,11 @@ data_sources:
   router_traffic:
     type: entity
     entity: sensor.router_throughput
-    transformations:
-      - type: unit_conversion
-        conversion: "bytes_to_mbps"
-        key: "mbps"
+    processing:
+      mbps:
+        type: convert_unit
+        from: bytes_per_second
+        to: megabytes_per_second
 
 overlays:
   # Internet
@@ -1254,7 +1255,7 @@ overlays:
     position: [250, 100]
     size: [120, 50]
     label: "ROUTER"
-    content: "{router_traffic.transformations.mbps:.0f} Mbps"
+    content: "{router_traffic.processing.mbps:.0f} Mbps"
     style:
       color: var(--lcars-orange)
 

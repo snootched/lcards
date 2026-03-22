@@ -207,9 +207,9 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       return html`
         <div class="empty-state">
           <ha-icon icon="mdi:database-off"></ha-icon>
-          <p>No global datasources registered.</p>
+          <p>No global data sources registered.</p>
           <p class="helper-text">
-            Datasources appear here when cards create them.
+            Data sources appear here when cards create them.
           </p>
         </div>
       `;

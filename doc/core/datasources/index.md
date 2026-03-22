@@ -1,12 +1,12 @@
-# DataSources
+# Data Sources
 
-DataSources give cards access to entity history, real-time updates, and processed values — beyond the plain current state that HA cards normally see.
+Data Sources give cards access to entity history, real-time updates, and processed values — beyond the plain current state that HA cards normally see.
 
 ---
 
 ## What They Do
 
-A DataSource subscribes to an entity, optionally preloads history, and runs values through a processing pipeline. Results are available in templates as `{ds:name}` or as chart series.
+A data source subscribes to an entity, optionally preloads history, and runs values through a processing pipeline. Results are available in templates as `{ds:name}` or as chart series.
 
 ```mermaid
 flowchart LR
@@ -42,7 +42,8 @@ Use in a text template:
 ```yaml
 text:
   value:
-    content: "{ds:temp:.1f}°C"
+    content: "{ds:temp}"         # HA-native: locale-formatted + unit → "4,7 °C"
+    # content: "{ds:temp:.1f} °C"  # explicit precision + unit suffix
 ```
 
 Use as a chart series:
@@ -138,21 +139,23 @@ processing:
 ## Accessing Values in Templates
 
 ```yaml
-# Current value from primary buffer
-"{ds:temp}"
+# No format spec — HA-native: locale-formatted number + unit from entity metadata
+"{ds:temp}"                          # → "4,73 °C"  (locale + unit)
 
-# With format specifier (Python-style)
-"{ds:temp:.1f}°C"      # 1 decimal
-"{ds:temp:.0f}"        # No decimals
-"{ds:temp:>6.2f}"      # Right-aligned, 2 decimals
+# With format spec — you own the output: number only, no auto-unit
+"{ds:temp:.1f}"                      # → "4,7"  (1 decimal, no unit)
+"{ds:temp:.0f}"                      # → "5"    (integer, no unit)
+"{ds:temp:.1f} °C"                   # → "4,7 °C"  (explicit unit suffix)
 
 # From a specific processor buffer
-"{datasource:temp.fahrenheit:.0f}°F"
+"{datasource:temp.fahrenheit:.0f} °F"  # → "87 °F"
 ```
+
+> **Rule:** no format spec → HA displays it (locale + unit). With a spec → you control the output.
 
 ---
 
-## DataSources in Charts
+## Data Sources in Charts
 
 For chart series, use `buffer` to select which data series to plot:
 

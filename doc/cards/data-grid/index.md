@@ -10,7 +10,7 @@ A grid of cells displaying real entity data, templates, or decorative auto-gener
 
 | Mode | `data_mode` value | Use for |
 |------|------------------|---------|
-| **Data** | `data` | Real entity state, templates, or DataSource values |
+| **Data** | `data` | Real entity state, templates, or data source values |
 | **Decorative** | `decorative` | Auto-generated random data for visual filler |
 
 ---
@@ -72,9 +72,10 @@ Each row is an array of cell values. Cells are auto-detected:
 | Cell value | Type | How it is shown |
 |------------|------|----------------|
 | `"Static text"` | Static | Displayed as-is |
-| `sensor.entity_id` | Entity | Live entity state (auto-subscribed) |
+| `sensor.entity_id` | Entity | Live state — locale-formatted + unit via `haFormatState` |
 | `"{{ jinja2 }}"` | Template | HA-evaluated template |
-| `"{datasource:name}"` | DataSource | Value from a named DataSource |
+| `"{datasource:name}"` | DataSource | HA-native: locale-formatted + unit |
+| `"{datasource:name:.2f}"` | DataSource | Formatted number only — no auto-unit |
 
 ```yaml
 rows:
@@ -235,7 +236,7 @@ animation:
 
 ## Consolidated Example
 
-A system status panel with header row, entity cells, a template cell, a DataSource cell, cascade animation, and change highlight:
+A system status panel with header row, entity cells, a template cell, a data source cell, cascade animation, and change highlight:
 
 ```yaml
 type: custom:lcards-data-grid

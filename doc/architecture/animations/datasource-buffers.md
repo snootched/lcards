@@ -2,7 +2,7 @@
 
 ## Overview
 
-As of LCARdS v1.12+, datasources use a simplified buffer structure with **main buffers** and **processor buffers**. This replaces the older `transformations` and `aggregations` nested structure.
+Datasources use a buffer structure with **main buffers** and **processor buffers**.
 
 ## Buffer Structure
 
@@ -49,16 +49,19 @@ Processor buffers are named outputs from data processors. Each processor has a u
 Reference buffers using dot notation:
 
 ```yaml
-# Main buffer
+# Main buffer — no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
 text: "{datasource:temp_sensor}"        # Uses .v
 text: "{ds:temp_sensor}"                # Short form
 
-# Processor buffer
-text: "{datasource:temp_sensor.celsius}°C"
-text: "{ds:temp_sensor.rolling_avg:.1f}"
+# Processor buffer — no format spec: unit appended from entity metadata
+text: "{datasource:temp_sensor.celsius}"
 
-# Multiple processors
-text: "Temp: {ds:temp_sensor.celsius:.1f}°C (avg: {ds:temp_sensor.rolling_avg:.1f}°C)"
+# With format spec — you own the output (no auto-unit)
+text: "{ds:temp_sensor.rolling_avg:.1f}"           # "71.8"
+text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" — manual unit
+
+# Multiple in one string
+text: "Temp: {ds:temp_sensor.celsius:.1f} (avg: {ds:temp_sensor.rolling_avg:.1f})"
 ```
 
 ### In JavaScript
@@ -118,15 +121,15 @@ data_sources:
         from_unit: fahrenheit
         to_unit: celsius
 
-      # Moving average processor
-      - type: moving_average
+      # Smooth processor (default method is exponential; use method: moving_average for window-based)
+      - type: smooth
+        method: moving_average
         key: rolling_avg               # Output buffer key
         window: 10
 
       # Rate of change processor
-      - type: rate_of_change
+      - type: rate
         key: temp_rate                 # Output buffer key
-        window: 5
 ```
 
 **Result data structure:**
@@ -141,287 +144,7 @@ data_sources:
 }
 ```
 
-## Migration from Old Structure
+## See Also
 
-### Old Structure (Deprecated)
-
-```javascript
-{
-  v: 72.5,
-  transformations: {
-    celsius: 22.5
-  },
-  aggregations: {
-    rolling_avg: 71.8
-  }
-}
-```
-
-### New Structure (Current)
-
-```javascript
-{
-  v: 72.5,
-  celsius: 22.5,        // Flattened
-  rolling_avg: 71.8     // Flattened
-}
-```
-
-### Migration Examples
-
-#### Template Migration
-
-```yaml
-# Old (not supported - will fall back to main buffer with warning)
-text: "{datasource:temp.transformations.celsius}°C"
-
-# New (recommended)
-text: "{datasource:temp.celsius}°C"
-```
-
-#### Animation Migration
-
-```yaml
-# Old (not supported - will fall back to main buffer with warning)
-animations:
-  - trigger: on_datasource_change
-    datasource: temp.transformations.celsius
-    preset: pulse
-
-# New (recommended)
-animations:
-  - trigger: on_datasource_change
-    datasource: temp.celsius
-    preset: pulse
-```
-
-### Backward Compatibility
-
-The old nested paths (`transformations.key`, `aggregations.key`) are **no longer supported**.
-
-If you reference a processor buffer that doesn't exist (e.g., `temp.transformations.celsius` when only `temp.celsius` exists), AnimationManager will:
-1. Log a warning listing available buffers
-2. Fall back to the main buffer (`data.v`)
-
-**Migration Required:** Update all datasource references to use the flat structure:
-- ❌ Old: `datasource: temp.transformations.celsius`
-- ✅ New: `datasource: temp.celsius`
-
-## AnimationManager Implementation
-
-The `_extractValueFromPath()` method in AnimationManager handles buffer extraction:
-
-```javascript
-/**
- * Extract value from datasource using dot notation path
- * NEW: Updated for datasource buffer structure (main buffer + processor buffers)
- *
- * @param {Object} data - Datasource data object
- * @param {Array<string>} pathParts - Path parts (e.g., ['celsius'])
- * @returns {*} Extracted value
- */
-_extractValueFromPath(data, pathParts) {
-  // No path specified - return main buffer value
-  if (pathParts.length === 0) {
-    return data.v;
-  }
-
-  // Single path part - look for processor buffer
-  const processorKey = pathParts[0];
-
-  if (data[processorKey] !== undefined) {
-    // Found processor buffer - return its value
-    return data[processorKey];
-  }
-
-  // Processor buffer not found - fallback to main buffer
-  console.warn(`Processor buffer '${processorKey}' not found. Falling back to main buffer.`);
-  return data.v;
-}
-```
-
-### Extraction Examples
-
-```javascript
-const data = {
-  v: 72.5,
-  celsius: 22.5,
-  rolling_avg: 71.8,
-  t: 1707580800000
-};
-
-// No path → main buffer
-_extractValueFromPath(data, [])
-// Returns: 72.5
-
-// Path: ["celsius"] → processor buffer
-_extractValueFromPath(data, ["celsius"])
-// Returns: 22.5
-
-// Path: ["rolling_avg"] → processor buffer
-_extractValueFromPath(data, ["rolling_avg"])
-// Returns: 71.8
-
-// Path: ["unknown"] → fallback to main buffer
-_extractValueFromPath(data, ["unknown"])
-// Warns and returns: 72.5
-```
-
-## Best Practices
-
-### 1. Use Descriptive Processor Keys
-
-```yaml
-# Good: Clear, semantic keys
-processors:
-  - type: unit_conversion
-    key: celsius
-  - type: moving_average
-    key: avg_5min
-
-# Avoid: Generic keys
-processors:
-  - type: unit_conversion
-    key: proc1
-  - type: moving_average
-    key: proc2
-```
-
-### 2. Document Processor Outputs
-
-Add comments to clarify processor purposes:
-
-```yaml
-data_sources:
-  cpu_temp:
-    entity_id: sensor.cpu_temp
-    processors:
-      # Convert to Celsius for international users
-      - type: unit_conversion
-        key: celsius
-        from_unit: fahrenheit
-        to_unit: celsius
-
-      # Smooth out sensor noise
-      - type: moving_average
-        key: smoothed
-        window: 10
-```
-
-### 3. Fallback to Main Buffer
-
-Design templates to gracefully handle missing processors:
-
-```yaml
-# Template tries processor first, falls back to main buffer
-text: "{datasource:temp.celsius:.1f}°C"
-
-# If 'celsius' processor doesn't exist, AnimationManager logs warning
-# and returns data.v instead
-```
-
-### 4. Avoid Nested Paths
-
-The new structure does NOT support nested paths:
-
-```yaml
-# ❌ WRONG: Multi-level nesting not supported
-datasource: temp.processors.celsius
-
-# ✅ CORRECT: Flat structure
-datasource: temp.celsius
-```
-
-## Common Patterns
-
-### Temperature Conversion
-
-```yaml
-data_sources:
-  room_temp:
-    entity_id: sensor.temperature
-    processors:
-      - type: unit_conversion
-        key: celsius
-        from_unit: fahrenheit
-        to_unit: celsius
-
-overlays:
-  - id: temp_display
-    type: text
-    text: "{ds:room_temp.celsius:.1f}°C"
-```
-
-### Smoothed Sensor Data
-
-```yaml
-data_sources:
-  cpu_usage:
-    entity_id: sensor.cpu_percent
-    processors:
-      - type: moving_average
-        key: smoothed
-        window: 30
-
-overlays:
-  - id: cpu_gauge
-    type: gauge
-    value: "{ds:cpu_usage.smoothed}"
-```
-
-### Combined Processors
-
-```yaml
-data_sources:
-  power_usage:
-    entity_id: sensor.power
-    processors:
-      # Convert watts to kilowatts
-      - type: unit_conversion
-        key: kilowatts
-        from_unit: watt
-        to_unit: kilowatt
-
-      # Calculate rate of change
-      - type: rate_of_change
-        key: trend
-        source: kilowatts  # Apply to converted value
-        window: 5
-
-overlays:
-  - id: power_display
-    type: text
-    text: "{ds:power_usage.kilowatts:.2f} kW (trend: {ds:power_usage.trend:+.3f})"
-```
-
-## Debugging
-
-### Inspect Datasource Data
-
-Use browser console to inspect current buffer structure:
-
-```javascript
-// Get datasource
-const source = window.lcards.core.dataSourceManager.getSource('temp_sensor');
-
-// Get current data
-const data = source.getCurrentData();
-console.log(data);
-// Output: { v: 72.5, celsius: 22.5, rolling_avg: 71.8, t: 1707580800000 }
-
-// List available processor buffers
-Object.keys(data).filter(k => k !== 'v' && k !== 't');
-// Output: ['celsius', 'rolling_avg']
-```
-
-### Enable Detailed Logging
-
-```javascript
-window.lcards.setGlobalLogLevel('debug');
-```
-
-Look for AnimationManager warnings:
-
-```
-[AnimationManager] Processor buffer 'unknown_key' not found in datasource. Available: v, celsius, rolling_avg, t. Falling back to main buffer.
-```
+- [DataSource System](../subsystems/datasource-system.md)
+- [Template System](../subsystems/template-system.md)

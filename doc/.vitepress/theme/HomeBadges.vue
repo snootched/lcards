@@ -1,13 +1,13 @@
 <template>
   <div class="home-badges">
-    <a href="https://github.com/snootched/LCARdS/releases" target="_blank" rel="noopener">
-      <img src="https://img.shields.io/github/v/release/snootched/LCARdS?display_name=release&logo=startrek&color=37a6d1" alt="GitHub release" />
+    <a href="https://github.com/snootched/lcards/releases" target="_blank" rel="noopener">
+      <img src="https://img.shields.io/github/v/release/snootched/lcards?display_name=release&logo=startrek&color=37a6d1" alt="GitHub release" />
     </a>
     <a href="https://github.com/snootched/lcards/blob/main/LICENSE" target="_blank" rel="noopener">
-      <img src="https://img.shields.io/github/license/snootched/LCARdS?logo=opensourceinitiative&logoColor=white" alt="License" />
+      <img src="https://img.shields.io/github/license/snootched/lcards?logo=opensourceinitiative&logoColor=white" alt="License" />
     </a>
-    <a href="https://github.com/snootched/LCARdS/commits/main" target="_blank" rel="noopener">
-      <img src="https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1" alt="Last commit" />
+    <a href="https://github.com/snootched/lcards/commits/main" target="_blank" rel="noopener">
+      <img src="https://img.shields.io/github/last-commit/snootched/lcards?style=default&logo=git&logoColor=white&color=37a6d1" alt="Last commit" />
     </a>
   </div>
 </template>

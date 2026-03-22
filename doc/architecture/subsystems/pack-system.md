@@ -324,22 +324,37 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 ---
 
-## Roadmap
+## Public API
 
-The pack system has one known transitional inconsistency:
+| Method | Returns | Description |
+|---|---|---|
+| `getLoadedPacks()` | `Object[]` | All loaded pack definition objects in registration order |
+| `getPack(id)` | `Object\|null` | Specific pack definition by ID string |
+| `getPackIds()` | `string[]` | IDs of all loaded packs in load order |
+| `registerPack(pack)` | `void` | Register a pack definition object (called at init time) |
 
-### Phase 3 — Eliminate direct component imports in consumers
+---
 
-Currently, `lcards-elbow.js` and `lcards-elbow-editor.js` import elbow functions directly from `elbows/index.js`, bypassing `ComponentManager`. Similarly, `lcards-button-editor.js` imports `BUTTON_COMPONENTS` directly for its preset dropdown instead of querying `StylePresetManager`.
+## Console Access
 
-**Plan**:
-- `lcards-elbow.js` → `window.lcards.core.componentManager.getComponent(type)`
-- `lcards-elbow-editor.js` → `window.lcards.core.componentManager.getComponentsByType('elbow')`
-- `lcards-button-editor.js` → `window.lcards.core.stylePresetManager.getAvailablePresets('button')`
-- Remove `BUTTON_COMPONENTS` export from `components/buttons/index.js` once the editor migration is done
+::: code-group
+```javascript [Snapshot]
+window.lcards.debug.singleton('packManager')
+// → { type: 'PackManager', loadedPacks: 9, packIds: ['core', 'lcards_buttons', ...] }
+```
+```javascript [Live object]
+const pm = window.lcards.core.packManager
 
-After Phase 3, `ComponentManager.initialize()`'s direct import of `components/index.js` can be removed — all components will flow exclusively through PackManager.
+pm.getLoadedPacks()      // array of all loaded pack objects
+pm.getPack('lcards_buttons')  // specific pack by id
+pm.getPackIds()          // ['core', 'lcards_buttons', ...]
+```
+:::
 
-### Future — Component packs for sliders, dpad, alert
+---
 
-Sliders, dpad, and alert components are in the components registry but have no corresponding pack files. They should each get a pack wrapper (`lcards-sliders-components-pack.js`, etc.) following the same pattern as `lcards-elbows-pack.js`.
+## See Also
+
+- [Component Manager](component-manager.md)
+- [Style Preset Manager](style-preset-manager.md)
+- [Asset Manager](asset-manager.md)

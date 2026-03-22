@@ -401,6 +401,193 @@ export class MyCard extends LCARdSCard {
 
 ---
 
+## 🏷️ Required Card Properties
+
+Every card class **must** declare these two static members:
+
+```javascript
+export class MyCard extends LCARdSCard {
+
+  /** Used by CoreConfigManager for schema lookup & config processing */
+  static CARD_TYPE = 'my-card';
+
+  /** Returns a minimal config shown in the HA card picker */
+  static getStubConfig() {
+    return {
+      type: 'custom:lcards-my-card',
+      entity: 'light.example'
+    };
+  }
+}
+```
+
+**`CARD_TYPE`** must match the key registered in `CoreConfigManager`'s schema map. If absent, `processConfig()` cannot find the schema and silently skips validation and preset merging.
+
+**`getStubConfig()`** should return the *minimum viable config* for the card to render meaningfully in the card picker gallery. Always include `type` and `entity` if the card needs one.
+
+---
+
+## 📐 Card Size
+
+Override `_getCardSize()` to return the card's height in HA grid rows. Use the inherited `_pxToGridUnits()` helper for pixel-based configs:
+
+```javascript
+_getCardSize() {
+  const h = this.config.style?.height;
+  // _pxToGridUnits returns null for non-px values (%, em, etc.) → fall back to default
+  return this._pxToGridUnits(h) ?? 3;
+}
+```
+
+Returning the default `1` when a card is taller causes HA to clip the card in dashboard layout mode.
+
+---
+
+## 🎨 Color Resolution
+
+**The most commonly missed pattern.** LCARdS supports three color expression forms:
+- Concrete: `#93e1ff`, `rgba(255,153,0,0.5)`
+- CSS variable: `var(--lcars-blue, #93e1ff)`
+- Computed: `darken(var(--lcars-blue), 0.3)`, `alpha(#ff9900, 0.5)`
+
+### Always use the two-step pattern for Canvas2D contexts
+
+`ThemeTokenResolver` handles computed expressions but outputs `var()` strings. Canvas2D cannot use `var()` — `resolveCssVariable` materialises them.
+
+```javascript
+// ✅ CORRECT — works for all three expression forms
+const _resolver = window.lcards?.core?.themeManager?.resolver;
+const _resolve = (c) => ColorUtils.resolveCssVariable(
+  (_resolver ? _resolver.resolve(c, c) : c), c
+);
+this.resolvedColor = _resolve(config.color);
+this.resolvedColors = this.colors.map(_resolve); // for arrays
+```
+
+### In cards / CSS / Lit contexts
+
+`resolver.resolve()` alone is enough — the browser handles `var()` natively.
+
+```javascript
+const resolver = window.lcards?.core?.themeManager?.resolver;
+const color = resolver ? resolver.resolve(rawValue, rawValue) : rawValue;
+```
+
+### In `updateConfig()` methods
+
+Live config updates bypass the `_resolveConfigColors` preprocessing pipeline — apply the two-step pattern here too.
+
+```javascript
+// ✅ CORRECT in updateConfig
+const _res = window.lcards?.core?.themeManager?.resolver;
+this._color = ColorUtils.resolveCssVariable(
+  _res ? _res.resolve(cfg.color, cfg.color) : cfg.color, fallback
+);
+```
+
+### Anti-patterns
+
+❌ `ColorUtils.resolveCssVariable(config.color)` alone — silently ignores `darken/lighten/alpha` expressions
+❌ `resolver.resolve(config.color)` alone for canvas — `var()` strings break `fillStyle`
+❌ Writing a config preprocessor that only iterates top-level keys — always recurse into nested objects and arrays
+
+> Full reference: `doc/development/color-resolution.md`
+
+---
+
+## 🎮 Action Handling
+
+### setupActions()
+
+Use the inherited `setupActions()` for all tap/hold/double-tap interactions — never bind raw click/pointer listeners for HA actions.
+
+```javascript
+_handleFirstUpdate() {
+  super._handleFirstUpdate();
+
+  const el = this.shadowRoot.querySelector('.interactive');
+  if (el) {
+    // Returns cleanup function; base also cleans up on disconnect
+    this._actionsCleanup = this.setupActions(el, {
+      tap_action: this.config.tap_action,
+      hold_action: this.config.hold_action,
+      double_tap_action: this.config.double_tap_action
+    });
+  }
+}
+```
+
+`setupActions()` automatically handles HA actions (navigate, call-service, more-info, toggle, url, fire-event, assist), integrates card-level `sounds` config, and supports anime.js animation triggers.
+
+### callService()
+
+Use the inherited `callService()` helper — do **not** call `this.hass.callService()` directly:
+
+```javascript
+// ✅ CORRECT — wrapped with error handling and logging
+await this.callService('light', 'turn_on', {
+  entity_id: this.config.entity,
+  brightness: 255
+});
+
+// ❌ AVOID — bypasses base-class error handling
+await this.hass.callService('light', 'turn_on', { entity_id: ... });
+```
+
+---
+
+## 👁️ Preview Mode Guard
+
+`isPreviewMode()` returns `false`, `'editor'`, or `'picker'`. The `'picker'` state means the card is in the HA card picker gallery — skip any expensive initialisation.
+
+```javascript
+_handleFirstUpdate() {
+  super._handleFirstUpdate();
+
+  if (this.isPreviewMode() === 'picker') {
+    // Skip: SVG loading, DataSource subscriptions, animations, ResizeObservers
+    return;
+  }
+
+  // Full init — runs when live on dashboard or in the editor panel
+  this._initExpensiveSetup();
+}
+```
+
+**Do NOT** guard against `'editor'` — the editor preview should render normally so designers see live changes.
+
+---
+
+## 🧹 Disconnection & Cleanup
+
+`LCARdSCard._onDisconnected()` automatically handles all standard cleanup:
+
+| What | How it's cleaned up |
+|------|---------------------|
+| Core registration | `core.unregisterCard()` |
+| SystemsManager overlay | `systemsManager.unregisterOverlay()` |
+| `subscribeToEntity()` calls | Auto-tracked set, fully cleared |
+| Registered DataSources | Auto-deregistered |
+| ResizeObserver | Disconnected |
+| `setupActions()` handler | Cleanup fn called |
+
+**Cards must NOT duplicate these cleanup calls.** Only add an `_onDisconnected()` override for card-specific teardown:
+
+```javascript
+_onDisconnected() {
+  // Cancel own timers / abort controllers / 3rd-party instances
+  if (this._myInterval) {
+    clearInterval(this._myInterval);
+    this._myInterval = null;
+  }
+  super._onDisconnected(); // Always call super last
+}
+```
+
+**Key rule**: If you subscribed via `this.subscribeToEntity()`, do NOT also manually unsubscribe — that is double-cleanup.
+
+---
+
 ## 🚨 Critical Patterns
 
 ### Provenance Tracking
@@ -423,26 +610,124 @@ View provenance in editor's "Provenance" tab.
 
 ### Entity State Access
 
-**Use cached singleton access** (80-90% faster than direct HASS):
+`LCARdSCard` provides two first-class entity access helpers. Prefer them over direct `this.hass.states` access.
+
+#### Event-driven (preferred) — `subscribeToEntity()`
+
+Fires a callback whenever the entity changes. Subscriptions are **automatically unsubscribed** when the card disconnects — no manual cleanup needed.
 
 ```javascript
-// ❌ BAD: Direct HASS access on every render
+_handleFirstUpdate() {
+  super._handleFirstUpdate();
+
+  // Callback fires on initial load and on every state change
+  this.subscribeToEntity(this.config.entity, (entityId, newState, oldState) => {
+    this._entity = newState;
+    this.requestUpdate();
+  });
+}
+```
+
+#### Synchronous snapshot — `getEntityState()`
+
+Returns the current cached state without subscribing. Useful for one-time reads or after a `subscribeToEntity` callback already fired.
+
+```javascript
+const state = this.getEntityState('sensor.temperature');
+// or use the card's own entity:
+const state = this.getEntityState();
+```
+
+#### Anti-pattern — raw HASS access
+
+```javascript
+// ❌ BAD: bypasses caching, no auto-cleanup event-driven updates
 render() {
   const state = this.hass.states[this.config.entity_id];
   return html`${state.state}`;
 }
 
-// ✅ GOOD: Cache entity reference
-_handleHassUpdate(newHass, oldHass) {
-  super._handleHassUpdate(newHass, oldHass);
-  this._entity = newHass.states[this.config.entity_id];
-  this.requestUpdate();
+// ❌ BAD: manual systemsManager.subscribeToEntity() is not auto-tracked
+const unsub = this._singletons.systemsManager.subscribeToEntity(id, cb);
+// (you'd have to manually call unsub() in _onDisconnected)
+```
+
+---
+
+## ✏️ Editor Patterns
+
+### Committing Config Changes
+
+Always use `this._updateConfig(partial)` — it deep-merges, validates, syncs the YAML tab, and fires `config-changed` to HA with debounce:
+
+```javascript
+// In an editor field event handler:
+_handleColorChange(ev) {
+  this._updateConfig({ style: { color: ev.detail.value } });
 }
 
-render() {
-  return html`${this._entity?.state}`;
+// ❌ NEVER do this directly — breaks YAML sync and bypasses validation:
+this.config = { ...this.config, color: ev.detail.value };
+fireEvent(this, 'config-changed', { config: this.config });
+```
+
+### Firing Events to HA
+
+`fireEvent` comes from `custom-card-helpers`. Always use it, never `dispatchEvent(new CustomEvent(...))` for HA-facing events:
+
+```javascript
+import { fireEvent } from 'custom-card-helpers';
+fireEvent(this, 'config-changed', { config: this.config });
+```
+
+### Editor Field Types
+
+`LCARdSBaseEditor._getConfigTabConfig()` accepts these field types:
+
+| Type | Use Case |
+|------|----------|
+| `entity` | Entity ID picker |
+| `text` | Free-form text input |
+| `number` | Numeric with optional min/max/step |
+| `color` | Color picker (supports `var()` and computed expressions) |
+| `select` | Dropdown — pair with `options: [{ value, label }]` |
+| `checkbox` | Boolean toggle |
+| `custom` | Inject any Lit `html` template via `render` callback |
+
+---
+
+## 🎨 Shadow DOM & Styles
+
+All LCARdS cards use Lit's shadow DOM. Always define styles with the `static get styles()` pattern using the `css` tagged template:
+
+```javascript
+import { LitElement, html, css } from 'lit';
+
+export class MyCard extends LCARdSCard {
+
+  static get styles() {
+    return css`
+      :host {
+        display: block;
+        box-sizing: border-box;
+      }
+      .container {
+        /* Styles here are scoped to this element's shadow DOM */
+      }
+    `;
+  }
+
+  _renderCard() {
+    return html`<div class="container">...</div>`;
+  }
 }
 ```
+
+**Rules**:
+- `:host` styles the custom element itself (affects its layout in the HA grid)
+- Never inject `<style>` tags in `_renderCard()` — they leak across Lit updates
+- CSS custom properties (`var()`) **do** pierce shadow DOM — use them for theming
+- External stylesheets do **not** pierce shadow DOM — always use `static get styles()`
 
 ---
 
@@ -498,14 +783,22 @@ window.customCards.push({
 ### Adding a New Card
 
 1. Create `src/cards/lcards-mycard.js` extending `LCARdSCard`
-2. Create editor `src/editor/cards/lcards-mycard-editor.js` extending `LCARdSBaseEditor`
-3. Register in `src/lcards.js`:
+2. Add required static properties (see **Required Card Properties** section):
+   ```javascript
+   static CARD_TYPE = 'my-card';
+   static getStubConfig() { return { type: 'custom:lcards-my-card', entity: 'light.example' }; }
+   ```
+3. Create editor `src/editor/cards/lcards-mycard-editor.js` extending `LCARdSBaseEditor`
+4. Register in `src/lcards.js`:
    ```javascript
    import { MyCard } from './cards/lcards-mycard.js';
-   customElements.define('lcards-mycard', MyCard);
+   customElements.define('lcards-my-card', MyCard);
+   window.customCards = window.customCards || [];
+   window.customCards.push({ type: 'lcards-my-card', name: 'My Card', description: '...' });
    ```
-4. Add schema to CoreConfigManager if using validation
-5. Build and test
+5. Add schema to CoreConfigManager if using validation
+6. Override `_getCardSize()` if the card is taller than 1 grid row
+7. Build and test
 
 ### Adding a New Singleton Service
 
@@ -534,14 +827,22 @@ $0._singletons.rulesManager  // From any card element
 
 ## ⚠️ Anti-Patterns to Avoid
 
-❌ **Don't** pass HASS object manually between components - use singleton propagation
-❌ **Don't** create new template evaluators for each evaluation - reuse instances
-❌ **Don't** register custom elements in card files - centralize in `src/lcards.js`
-❌ **Don't** access `this.hass.states` on every render - cache entity references
+❌ **Don't** pass HASS object manually between components — use singleton propagation via `ingestHass()`
+❌ **Don't** create new template evaluators for each evaluation — reuse instances
+❌ **Don't** register custom elements in card files — centralize in `src/lcards.js`
+❌ **Don't** access `this.hass.states` on every render — use `this.subscribeToEntity()` or `this.getEntityState()`
+❌ **Don't** call `systemsManager.subscribeToEntity()` directly from a card — use `this.subscribeToEntity()` so it auto-tracks for cleanup
+❌ **Don't** manually call `core.unregisterCard()` or `systemsManager.unregisterOverlay()` — the base handles it
 ❌ **Don't** forget `requestUpdate()` after applying rule patches
-❌ **Don't** use `console.log()` - use `lcardsLog` with severity level
+❌ **Don't** use `console.log()` — use `lcardsLog` with severity level
 ❌ **Don't** skip provenance tracking for config changes
+❌ **Don't** bind raw click/pointer handlers for HA actions — use `setupActions()`
+❌ **Don't** call `this.hass.callService()` directly — use the inherited `callService()` helper
+❌ **Don't** run heavy init in picker preview — check `this.isPreviewMode() === 'picker'` first
+❌ **Don't** inject `<style>` tags inside `_renderCard()` — use `static get styles()` with `css` template
+❌ **Don't** update editor config with direct assignment — use `this._updateConfig(partial)` in editors
+❌ **Don't** call `ColorUtils.resolveCssVariable()` alone on color values — use the two-step resolver pattern for Canvas2D/SVG/anime.js contexts
 
 ---
 
-*Last Updated: December 2025 | LCARdS v1.12.01*
+*Last Updated: March 2026 | LCARdS v1.12.01*

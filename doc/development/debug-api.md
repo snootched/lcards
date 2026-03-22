@@ -1,757 +1,326 @@
-# LCARdS Debug API Documentation
+# Debug API
 
-**Phase:** 1 - Core Debug Functionality COMPLETE
-**Namespace:** `window.lcards.debug.msd`
+Browser console tools for LCARdS development, accessed via `window.lcards.debug`.
 
-## Overview
+::: tip Runtime snapshot
+```javascript
+window.lcards.info()   // prints version, build date, log level, core status
+```
+:::
 
-The Debug API provides comprehensive introspection and debugging tools for LCARdS MSD developers. It exposes internal state, performance metrics, routing details, data sources, styles, charts, rules, animations, and configuration packs.
-
-All Debug API methods delegate to existing, battle-tested DebugInterface methods, ensuring reliability and consistency.
+::: tip URL log level override
+Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level before the page fully loads — useful for catching early init errors.
+:::
 
 ---
 
-## Table of Contents
+## General Debug Utilities
 
-1. [Performance Introspection](#performance-introspection)
-2. [Routing Introspection](#routing-introspection)
-3. [Data Source Introspection](#data-source-introspection)
-4. [Style Introspection](#style-introspection)
-5. [Chart Validation](#chart-validation)
-6. [Rules Engine](#rules-engine)
-7. [Animations](#animations)
-8. [Configuration Packs](#configuration-packs)
+### `setLevel(level)` — Log level
 
----
+Sets the global log level for all LCARdS output.
 
-## Performance Introspection
-
-**Namespace:** `window.lcards.debug.msd.perf`
-
-Monitor render performance, identify bottlenecks, and analyze overlay rendering times.
-
-### Methods
-
-#### `perf.summary()`
-Get comprehensive performance summary from last render.
-
-**Returns:** `Object|null` - Performance summary with stage breakdowns
-
-**Example:**
 ```javascript
-const perf = window.lcards.debug.msd.perf.summary();
-console.log('Total render time:', perf.total_render_time_ms, 'ms');
-console.log('Overlays:', perf.overlay_count);
-console.log('Slowest:', perf.slowest_overlays);
+window.lcards.debug.setLevel('error')   // errors only
+window.lcards.debug.setLevel('warn')
+window.lcards.debug.setLevel('info')    // default
+window.lcards.debug.setLevel('debug')
+window.lcards.debug.setLevel('trace')   // maximum verbosity
 ```
 
-**Return Structure:**
+> Also available as `window.lcards.setGlobalLogLevel(level)` for backward compatibility.
+
+### `getLevel()` — Current log level
+
+Returns the current global log level string.
+
 ```javascript
-{
-  total_render_time_ms: 45.2,
-  overlay_count: 23,
-  stages: {
-    preparation: { duration_ms: 5.1, percentage: 11.3 },
-    overlay_rendering: { duration_ms: 35.6, percentage: 78.8 },
-    dom_injection: { duration_ms: 3.2, percentage: 7.1 },
-    action_attachment: { duration_ms: 1.3, percentage: 2.9 }
-  },
-  slowest_overlays: [
-    { overlay_id: 'status_grid_1', duration_ms: 12.4, percentage: 27.4 },
-    // ...
-  ]
-}
+window.lcards.debug.getLevel()
+// Returns: 'info'
 ```
 
----
+### `perf` — Performance monitor
 
-#### `perf.slowestOverlays(n)`
-Get N slowest rendering overlays.
+Shortcuts to the internal performance monitor.
 
-**Parameters:**
-- `n` (number, default: 5) - Number of slowest overlays to return
+| Property / Method | Description |
+|---|---|
+| `perf.fps()` | Current measured FPS |
+| `perf.status()` | Full status object |
+| `perf.thresholds` | Active threshold config `{ disable3D, reduceEffects }` |
 
-**Returns:** `Array|null` - Slowest overlay performance data
-
-**Example:**
 ```javascript
-const slowest = window.lcards.debug.msd.perf.slowestOverlays(10);
-slowest.forEach(ov => {
-  console.log(`${ov.overlay_id}: ${ov.duration_ms}ms (${ov.percentage}%)`);
-});
+window.lcards.debug.perf.fps()
+window.lcards.debug.perf.status()
+// { fps: 60, isMonitoring: true, settled: true, thresholds: { ... }, ... }
 ```
 
----
+> **Note:** `window.lcards.perf` no longer exists — use `window.lcards.debug.perf`.
 
-#### `perf.byRenderer()`
-Get performance breakdown by overlay type/renderer.
+### `theme` — Theme inspection
 
-**Returns:** `Object|null` - Performance data grouped by renderer type
+Shortcuts to `ThemeManager` state.
 
-**Example:**
+| Method | Description |
+|---|---|
+| `theme.current()` | Active theme object (id, name, tokens) |
+| `theme.alertMode()` | Current alert mode name |
+| `theme.list()` | All registered theme IDs |
+| `theme.token(path, fallback?)` | Resolve a token path against the active theme |
+| `theme.info()` | Full `ThemeManager.getDebugInfo()` snapshot |
+
 ```javascript
-const byType = window.lcards.debug.msd.perf.byRenderer();
-console.log('Line overlays:', byType.line);
-console.log('Control overlays:', byType.control);
-```
+window.lcards.debug.theme.alertMode()
+// → 'red_alert'
 
-**Return Structure:**
-```javascript
-{
-  line: { count: 5, total_ms: 18.5, avg_ms: 3.7 },
-  control: { count: 12, total_ms: 8.2, avg_ms: 0.68 },
-  // ...
-}
-```
+window.lcards.debug.theme.token('colors.accent.primary')
+// → '#7EB6E8'
+
+window.lcards.debug.theme.list()
+// → ['lcards-default', 'lcars-ds9', ...]
 ```
 
 ---
 
-#### `perf.byOverlay(overlayId)`
-Get performance data for a specific overlay.
+## Other Console APIs
 
-**Parameters:**
-- `overlayId` (string) - Overlay ID to inspect
+These live on the root `window.lcards` namespace rather than `debug.*`:
 
-**Returns:** `Object|null` - Performance data for the overlay
+| API | Description |
+|---|---|
+| `window.lcards.info()` | Runtime snapshot — version, build date, log level, core status |
+| `window.lcards.alert.*` | Alert mode control — see [Alert Mode](../core/alert-mode.md) |
+| `window.lcards.sound.*` | Sound system debug — `play(event)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` |
 
-**Example:**
+---
+
+## Core Systems Introspection
+
+Introspect the `window.lcards.core.*` singleton registry directly. These live on `window.lcards.debug` (wired by `CoreDebugAPI` at core init time) and have nothing to do with MSD.
+
+### `debug.core()`
+
+Returns `window.lcards.core.getDebugInfo()` — a snapshot of all core manager states.
+
 ```javascript
-const perf = window.lcards.debug.msd.perf.byOverlay('title_overlay');
-console.log('Duration:', perf.duration_ms, 'ms');
-console.log('Percentage:', perf.percentage_of_total, '%');
+window.lcards.debug.core()
+// → { systemsManager: {...}, dataSourceManager: {...}, rulesManager: {...}, ... }
+```
+
+### `debug.singleton(manager)`
+
+Returns `getDebugInfo()` for a specific core singleton by name.
+
+```javascript
+window.lcards.debug.singleton('dataSourceManager')
+window.lcards.debug.singleton('animationManager')
+window.lcards.debug.singleton('rulesManager')
+```
+
+**Valid names:**
+
+| Manager | What it tells you |
+|---|---|
+| `systemsManager` | Entity subscriptions, overlay registry |
+| `dataSourceManager` | Active sources, buffer sizes, subscribers |
+| `rulesManager` | Active rules, last evaluation results |
+| `animationManager` | Active animations, registry stats |
+| `themeManager` | Active theme, registered tokens |
+| `stylePresetManager` | Loaded presets, pack contributions |
+| `assetManager` | Loaded SVGs, font status |
+| `packManager` | Loaded packs, load order |
+| `soundManager` | Active scheme, event bindings |
+| `componentManager` | Registered SVG components |
+| `helperManager` | Helper entity states |
+| `validationService` | Validation rule cache |
+
+::: tip Full singleton API reference
+`debug.singleton()` returns a lightweight stats snapshot. Each singleton has a dedicated subsystem doc with all properties and methods:
+
+[Systems Manager](../architecture/subsystems/systems-manager.md) · [DataSource System](../architecture/subsystems/datasource-system.md) · [Rules Engine](../architecture/subsystems/rules-engine.md) · [Theme System](../architecture/subsystems/theme-system.md) · [Animation Manager](../architecture/subsystems/animation-manager.md) · [Pack System](../architecture/subsystems/pack-system.md) · [Asset Manager](../architecture/subsystems/asset-manager.md) · [Component Manager](../architecture/subsystems/component-manager.md) · [Style Preset Manager](../architecture/subsystems/style-preset-manager.md) · [Helper Manager](../architecture/subsystems/helper-manager.md) · [Sound System](../architecture/subsystems/sound-system.md) · [Validation Service](../architecture/subsystems/validation-service.md)
+:::
+
+### `debug.singletons()`
+
+Lists all managers that expose `getDebugInfo()` and returns a combined snapshot.
+
+```javascript
+window.lcards.debug.singletons()
+// → { managers: ['systemsManager', 'animationManager', ...], count: 12, coreInitialized: true }
 ```
 
 ---
 
-#### `perf.warnings()`
-Get performance warnings for slow overlays.
+## MSD Card API (`window.lcards.cards.msd`)
 
-**Returns:** `Object|null` - Performance warnings with details
+Production utilities for locating MSD card elements by config ID. These work in normal use — not just debug sessions.
 
-**Example:**
+| Method | Returns | Description |
+|---|---|---|
+| `getAll()` | `Element[]` | All MSD card elements registered with `SystemsManager` |
+| `getById(id)` | `Element\|null` | MSD card element whose config `id` matches, or `null` |
+
 ```javascript
-const warnings = window.lcards.debug.msd.perf.warnings();
-if (warnings.has_warnings) {
-  console.log('Warnings:', warnings.count);
-  warnings.warnings.forEach(w => console.warn(w.message, w.overlay_id));
-}
+window.lcards.cards.msd.getAll()
+window.lcards.cards.msd.getById('bridge')
+
+// Inspect any card's pipeline
+const card = window.lcards.cards.msd.getById('bridge')
+card._msdPipeline?.getResolvedModel()?.overlays
 ```
 
 ---
 
-#### `perf.timeline()`
-Get render timeline with stage-by-stage breakdown.
+## MSD Debug Namespace (`debug.msd`)
 
-**Returns:** `Object|null` - Timeline of render stages
+Introspection tools for MSD cards, accessed via `window.lcards.debug.msd`.
 
-**Example:**
+::: tip Discover the API in the console
 ```javascript
-const timeline = window.lcards.debug.msd.perf.timeline();
-console.log('Stages:', timeline.stages);
-timeline.stages.forEach(stage => {
-  console.log(`${stage.name}: ${stage.duration_ms}ms`);
-});
+window.lcards.debug.msd.help()           // list all namespaces
+window.lcards.debug.msd.help('routing')  // show methods in a namespace
+window.lcards.debug.msd.usage('data')    // show usage examples for a namespace
+```
+:::
+
+---
+
+## Root Methods
+
+### `help([topic])`
+
+Prints all available namespaces (no args) or the methods in a specific namespace.
+
+### `usage([namespace])`
+
+Shows detailed usage examples for a namespace.
+
+### `listMsdCards()`
+
+Lists all MSD cards registered with SystemsManager.
+
+```javascript
+window.lcards.debug.msd.listMsdCards()
+// Returns: [{ id, systemId, hasConfig, hasPipeline, overlayCount, routingChannels, element }]
+```
+
+> For singleton manager introspection, see [Core Systems Introspection](#core-systems-introspection) above.
+
+---
+
+## Namespaces
+
+All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method>()`.
+
+### `routing` — Routing resolution
+
+| Method | Description |
+|--------|-------------|
+| `inspect(overlayId, cardId?)` | Inspect routing resolution for an overlay |
+| `stats(cardId?)` | Routing statistics |
+| `invalidate(id, cardId?)` | Invalidate cached routing for an overlay |
+| `inspectAs(overlayId, mode, cardId?)` | Inspect routing as a specific mode |
+| `visualize(overlayId)` | Visualize routing (not yet implemented) |
+
+```javascript
+window.lcards.debug.msd.routing.inspect('my_overlay')
+window.lcards.debug.msd.routing.stats()
+```
+
+### `data` — DataSource state
+
+| Method | Description |
+|--------|-------------|
+| `trace(entityId, cardId?)` | Trace data flow for an entity through DataSource → overlay |
+
+```javascript
+window.lcards.debug.msd.data.trace('sensor.temperature')
+```
+
+> For broader DataSource introspection, use `window.lcards.debug.datasources.*`.
+
+### `rules` — Rules engine
+
+| Method | Description |
+|--------|-------------|
+| `listActive(options?, cardId?)` | List currently active/enabled rules |
+
+```javascript
+window.lcards.debug.msd.rules.listActive()
+window.lcards.debug.msd.rules.listActive({ includeDisabled: true, verbose: true })
+```
+
+> For full rules engine introspection, use `window.lcards.debug.singleton('rulesManager')`.
+
+### `animations` — Animation state
+
+| Method | Description |
+|--------|-------------|
+| `active()` | List currently active animations |
+| `dump()` | Dump full animation state |
+| `registryStats()` | Animation registry statistics |
+| `inspect(id)` | Inspect a specific animation instance |
+| `timeline(id)` | Show timeline details for an animation |
+| `trigger(id)` | Manually trigger an animation |
+
+```javascript
+window.lcards.debug.msd.animations.active()
+window.lcards.debug.msd.animations.inspect('my_anim_id')
+```
+
+### `overlays` — Overlay inspection
+
+| Method | Description |
+|--------|-------------|
+| `inspect(id)` | Full overlay inspection |
+| `getBBox(id)` | Get bounding box for an overlay |
+| `getTransform(id)` | Get transform info for an overlay |
+| `getState(id)` | Get current state of an overlay |
+| `findByType(type)` | Find overlays by type |
+| `findByEntity(entityId)` | Find overlays bound to an entity |
+| `tree()` | Show overlay hierarchy tree |
+| `list()` | List all overlays |
+
+```javascript
+window.lcards.debug.msd.overlays.list()
+window.lcards.debug.msd.overlays.findByEntity('sensor.temperature')
+```
+
+### `pipeline` — Pipeline lifecycle
+
+| Method | Description |
+|--------|-------------|
+| `stages(cardId?)` | Show pipeline stages |
+| `timing(cardId?)` | Pipeline execution timing |
+| `config(cardId?)` | Pipeline configuration |
+| `errors(cardId?)` | Pipeline errors |
+| `rerun(cardId?)` | Force pipeline re-execution |
+| `getInstance(cardId?)` | Get pipeline instance reference |
+
+```javascript
+window.lcards.debug.msd.pipeline.stages()
+window.lcards.debug.msd.pipeline.rerun()
+```
+
+### `anchors` — Anchor system
+
+| Method | Description |
+|--------|-------------|
+| `getAll(cardId?)` | Get all anchors |
+| `get(anchorId, cardId?)` | Get a specific anchor |
+| `trace(anchorId, cardId?)` | Trace anchor resolution |
+| `list(cardId?)` | List all anchor IDs |
+| `print(cardId?)` | Print formatted anchor summary |
+
+```javascript
+window.lcards.debug.msd.anchors.list()
+window.lcards.debug.msd.anchors.trace('my_anchor')
 ```
 
 ---
 
-## Routing Introspection
-
-**Namespace:** `window.lcards.debug.msd.routing`
-
-Inspect data routing paths, cache performance, and entity-to-overlay bindings.
-
-### Methods
-
-#### `routing.inspect(overlayId)`
-Inspect routing resolution for an overlay.
-
-**Parameters:**
-- `overlayId` (string) - Overlay ID to inspect
-
-**Returns:** `Object|null` - Routing inspection data
-
-**Example:**
-```javascript
-const routing = window.lcards.debug.msd.routing.inspect('button_1');
-console.log('Route mode:', routing.route_mode);
-console.log('Paths:', routing.paths);
-console.log('Entities:', routing.entities);
-```
-
----
-
-#### `routing.stats()`
-Get routing statistics.
-
-**Returns:** `Object|null` - Routing statistics
-
-**Example:**
-```javascript
-const stats = window.lcards.debug.msd.routing.stats();
-console.log('Cache hits:', stats.cacheHits);
-console.log('Paths computed:', stats.pathsComputed);
-console.log('Invalidations:', stats.invalidations);
-```
-
----
-
-#### `routing.invalidate(id)`
-Invalidate routing cache.
-
-**Parameters:**
-- `id` (string, default: '*') - Overlay ID or '*' for all
-
-**Returns:** `boolean` - Success status
-
-**Example:**
-```javascript
-// Invalidate all routing
-window.lcards.debug.msd.routing.invalidate();
-
-// Invalidate specific overlay
-window.lcards.debug.msd.routing.invalidate('button_1');
-```
-
----
-
-#### `routing.inspectAs(overlayId, mode)`
-Inspect overlay routing with different mode.
-
-**Parameters:**
-- `overlayId` (string) - Overlay ID to inspect
-- `mode` (string, default: 'smart') - Route mode ('smart', 'full', 'minimal')
-
-**Returns:** `Object|null` - Routing inspection with tested mode
-
-**Example:**
-```javascript
-const routing = window.lcards.debug.msd.routing.inspectAs('button_1', 'full');
-console.log('Full mode routing:', routing);
-```
-
----
-
-## Data Source Introspection
-
-**Namespace:** `window.lcards.debug.msd.data`
-
-Inspect data sources, entities, and data flow through the system.
-
-### Methods
-
-#### `data.stats()`
-Get data source statistics.
-
-**Returns:** `Object|null` - Data source statistics
-
-**Example:**
-```javascript
-const stats = window.lcards.debug.msd.data.stats();
-console.log('Sources:', stats.sources);
-console.log('Total entities:', stats.totalEntities);
-```
-
----
-
-#### `data.list()`
-List all data source names.
-
-**Returns:** `Array<string>` - Array of data source names
-
-**Example:**
-```javascript
-const sources = window.lcards.debug.msd.data.list();
-console.log('Available sources:', sources); // ['hass', 'manual', 'computed']
-```
-
----
-
-#### `data.get(sourceName)`
-Get data source details by name.
-
-**Parameters:**
-- `sourceName` (string) - Data source name
-
-**Returns:** `Object|null` - Data source details
-
-**Example:**
-```javascript
-const hass = window.lcards.debug.msd.data.get('hass');
-console.log('HASS entities:', hass.entityCount);
-console.log('Cache hits:', hass.cacheHits);
-```
-
----
-
-#### `data.dump()`
-Dump all data source information.
-
-**Returns:** `Object|null` - Complete data source dump
-
-**Example:**
-```javascript
-const dump = window.lcards.debug.msd.data.dump();
-console.log('Full data dump:', dump);
-```
-
----
-
-#### `data.trace(entityId)`
-Trace entity usage across overlays.
-
-**Parameters:**
-- `entityId` (string) - Entity ID to trace
-
-**Returns:** `Object|null` - Entity trace data
-
-**Example:**
-```javascript
-const trace = window.lcards.debug.msd.data.trace('sensor.temperature');
-console.log('Entity found:', trace.found);
-console.log('Used by overlays:', trace.usedByOverlays);
-trace.usedByOverlays.forEach(ov => {
-  console.log(`  ${ov.id} (${ov.type})`);
-});
-```
-
----
-
-## Style Introspection
-
-**Namespace:** `window.lcards.debug.msd.styles`
-
-Inspect style resolution, theme tokens, and CSS provenance.
-
-### Methods
-
-#### `styles.resolutions(overlayId)`
-Get style resolution details for an overlay.
-
-**Parameters:**
-- `overlayId` (string) - Overlay ID
-
-**Returns:** `Object|null` - Style resolution data
-
-**Example:**
-```javascript
-const styles = window.lcards.debug.msd.styles.resolutions('button_1');
-console.log('Total properties:', styles.total);
-console.log('By source:', styles.by_source);
-console.table(styles.properties);
-```
-
-**Return Structure:**
-```javascript
-{
-  total: 15,
-  by_source: {
-    theme: 8,
-    overlay: 5,
-    defaults: 2
-  },
-  properties: [
-    { property: 'fill', source: 'theme', token: 'colors.primary', value: '#ff9c00' },
-    { property: 'font-size', source: 'overlay', value: '14px' },
-    // ...
-  ]
-}
-```
-
----
-
-#### `styles.findByToken(tokenPath)`
-Find overlays using a specific theme token.
-
-**Parameters:**
-- `tokenPath` (string) - Token path (e.g., 'colors.primary')
-
-**Returns:** `Array|null` - Overlays using this token
-
-**Example:**
-```javascript
-const overlays = window.lcards.debug.msd.styles.findByToken('colors.primary');
-overlays.forEach(ov => {
-  console.log(`${ov.overlayId} uses token in:`, ov.properties);
-});
-```
-
----
-
-#### `styles.provenance()`
-Get global style resolution summary.
-
-**Returns:** `Object|null` - Global style summary
-
-**Example:**
-```javascript
-const summary = window.lcards.debug.msd.styles.provenance();
-console.log('Total overlays:', summary.total_overlays);
-console.log('Total resolutions:', summary.total_resolutions);
-console.log('By source:', summary.by_source);
-console.table(summary.by_renderer);
-```
-
----
-
-#### `styles.listTokens()`
-List all theme tokens.
-
-**Returns:** `Array|null` - Theme tokens with paths and values
-
-**Example:**
-```javascript
-const tokens = window.lcards.debug.msd.styles.listTokens();
-tokens.forEach(token => {
-  console.log(`${token.path}: ${token.value}`);
-});
-```
-
----
-
-#### `styles.getTokenValue(tokenPath)`
-Get resolved value for a theme token.
-
-**Parameters:**
-- `tokenPath` (string) - Token path (e.g., 'colors.primary')
-
-**Returns:** `*` - Token value
-
-**Example:**
-```javascript
-const color = window.lcards.debug.msd.styles.getTokenValue('colors.primary');
-console.log('Primary color:', color); // '#ff9c00'
-```
-
----
-
-## Chart Validation
-
-**Namespace:** `window.lcards.debug.msd.charts`
-
-Validate ApexChart data formats and configurations.
-
-### Methods
-
-#### `charts.validate(overlayId)`
-Validate a specific chart overlay.
-
-**Parameters:**
-- `overlayId` (string) - Chart overlay ID
-
-**Returns:** `Object|null` - Validation result with errors/warnings
-
-**Example:**
-```javascript
-const result = window.lcards.debug.msd.charts.validate('chart_1');
-console.log('Valid:', result.valid);
-if (!result.valid) {
-  result.errors.forEach(err => {
-    console.error(err.message);
-    console.log('  Fix:', err.suggestion);
-    console.log('  Example:', err.example);
-  });
-}
-```
-
----
-
-#### `charts.validateAll()`
-Validate all chart overlays.
-
-**Returns:** `Object|null` - Validation summary
-
-**Example:**
-```javascript
-const summary = window.lcards.debug.msd.charts.validateAll();
-console.log(`Valid: ${summary.validCount}, Invalid: ${summary.invalidCount}`);
-summary.results.forEach(result => {
-  console.log(`${result.overlayId}: ${result.valid ? '✅' : '❌'}`);
-});
-```
-
----
-
-#### `charts.getFormatSpec(chartType)`
-Get format specification for chart type.
-
-**Parameters:**
-- `chartType` (string) - Chart type (e.g., 'line', 'area', 'bar')
-
-**Returns:** `Object|null` - Format specification
-
-**Example:**
-```javascript
-const spec = window.lcards.debug.msd.charts.getFormatSpec('line');
-console.log('Required format:', spec.format);
-console.log('Example:', spec.example);
-```
-
----
-
-#### `charts.listTypes()`
-List supported chart types.
-
-**Returns:** `Array<string>` - Chart types
-
-**Example:**
-```javascript
-const types = window.lcards.debug.msd.charts.listTypes();
-console.log('Supported types:', types);
-// ['line', 'area', 'bar', 'scatter', 'heatmap', ...]
-```
-
----
-
-## Rules Engine
-
-**Namespace:** `window.lcards.debug.msd.rules`
-
-Debug rules evaluation and execution.
-
-### Methods
-
-#### `rules.trace()`
-Get rules execution trace.
-
-**Returns:** `Object|null` - Rules trace data
-
-**Example:**
-```javascript
-const trace = window.lcards.debug.msd.rules.trace();
-console.log('Rules evaluated:', trace.evaluated);
-console.log('Rules fired:', trace.fired);
-trace.fired.forEach(rule => {
-  console.log(`Rule ${rule.id}: ${rule.action}`);
-});
-```
-
----
-
-#### `rules.listActive()`
-List active rules.
-
-**Returns:** `Array` - Active rules
-
-**Example:**
-```javascript
-const active = window.lcards.debug.msd.rules.listActive();
-console.log('Active rules:', active.length);
-active.forEach(rule => {
-  console.log(`${rule.id}: ${rule.condition}`);
-});
-```
-
----
-
-## Animations
-
-**Namespace:** `window.lcards.debug.msd.animations`
-
-Debug animation system and timelines.
-
-### Methods
-
-#### `animations.active()`
-Get active animations.
-
-**Returns:** `Array|null` - Active animations
-
-**Example:**
-```javascript
-const active = window.lcards.debug.msd.animations.active();
-active.forEach(anim => {
-  console.log(`${anim.id}: ${anim.state} (${anim.progress}%)`);
-});
-```
-
----
-
-#### `animations.dump()`
-Dump animation registry.
-
-**Returns:** `Object|null` - Animation registry dump
-
-**Example:**
-```javascript
-const dump = window.lcards.debug.msd.animations.dump();
-console.log('Registered animations:', dump);
-```
-
----
-
-#### `animations.timeline(timelineId)`
-Get timeline details.
-
-**Parameters:**
-- `timelineId` (string) - Timeline ID
-
-**Returns:** `Object|null` - Timeline details
-
-**Example:**
-```javascript
-const timeline = window.lcards.debug.msd.animations.timeline('tl_1');
-console.log('Timeline:', timeline.id);
-console.log('Animations:', timeline.animations);
-```
-
----
-
-## Configuration Packs
-
-**Namespace:** `window.lcards.debug.msd.packs`
-
-Inspect configuration packs (animations, overlays, rules, profiles, timelines).
-
-### Methods
-
-#### `packs.list(type)`
-List packs by type or get counts.
-
-**Parameters:**
-- `type` (string, optional) - Pack type or omit for counts
-
-**Returns:** `Object|Array` - Pack counts or specific pack list
-
-**Example:**
-```javascript
-// Get counts
-const counts = window.lcards.debug.msd.packs.list();
-console.log('Overlays:', counts.overlays);
-console.log('Rules:', counts.rules);
-console.log('Animations:', counts.animations);
-
-// Get specific type
-const overlays = window.lcards.debug.msd.packs.list('overlays');
-overlays.forEach(ov => console.log(ov.id, ov.type));
-```
-
----
-
-#### `packs.get(type, id)`
-Get specific pack item.
-
-**Parameters:**
-- `type` (string) - Pack type (e.g., 'overlays', 'rules')
-- `id` (string) - Item ID
-
-**Returns:** `Object|null` - Pack item
-
-**Example:**
-```javascript
-const overlay = window.lcards.debug.msd.packs.get('overlays', 'button_1');
-console.log('Overlay config:', overlay);
-```
-
----
-
-#### `packs.issues()`
-Get configuration issues.
-
-**Returns:** `Array|null` - Configuration issues
-
-**Example:**
-```javascript
-const issues = window.lcards.debug.msd.packs.issues();
-if (issues && issues.length > 0) {
-  console.error('Configuration issues found:');
-  issues.forEach(issue => console.error(issue.message));
-}
-```
-
----
-
-## Common Patterns
-
-### Error Handling
-All methods return `null` when unavailable or on error. Check return values:
-
-```javascript
-const perf = window.lcards.debug.msd.perf.summary();
-if (!perf) {
-  console.warn('Performance data not available (MSD not rendered yet?)');
-  return;
-}
-```
-
-### Chaining Analysis
-Combine methods for comprehensive debugging:
-
-```javascript
-// Performance bottleneck analysis
-const slowest = window.lcards.debug.msd.perf.slowestOverlays(5);
-slowest.forEach(ov => {
-  const routing = window.lcards.debug.msd.routing.inspect(ov.overlay_id);
-  const styles = window.lcards.debug.msd.styles.resolutions(ov.overlay_id);
-
-  console.log(`\n${ov.overlay_id} (${ov.duration_ms}ms)`);
-  console.log('  Entities:', routing.entities.length);
-  console.log('  Styles:', styles.total);
-});
-```
-
-### Data Flow Tracing
-Trace entity from source to overlay:
-
-```javascript
-const entityId = 'sensor.temperature';
-const trace = window.lcards.debug.msd.data.trace(entityId);
-
-if (trace.found) {
-  console.log(`Entity ${entityId} used by:`);
-  trace.usedByOverlays.forEach(ov => {
-    const routing = window.lcards.debug.msd.routing.inspect(ov.id);
-    const perf = window.lcards.debug.msd.perf.byOverlay(ov.id);
-
-    console.log(`  ${ov.id}: ${perf.duration_ms}ms, ${routing.paths.length} paths`);
-  });
-}
-```
-
----
-
-## Architecture Notes
-
-### Delegation Pattern
-All Debug API methods delegate to existing `window.lcards.debug.msd` methods:
-
-```javascript
-summary() {
-  const dbg = window.lcards.debug.msd;
-  if (!dbg?.getPerformanceSummary) return null;
-  return dbg.getPerformanceSummary();
-}
-```
-
-This ensures:
-- **Reliability:** Battle-tested existing code
-- **Consistency:** Same behavior as legacy debug interface
-- **Maintainability:** Single source of truth for debug logic
-
-### Availability
-Debug API availability depends on:
-1. MSD instance rendered (creates `window.lcards.debug.msd`)
-2. Specific subsystems initialized (performance, routing, data, etc.)
-3. Feature enabled (some features require debug mode)
-
-### Performance
-Debug operations are read-only and lightweight. Performance introspection queries cached provenance data, not live metrics.
-
----
-
-## Next Steps (Phase 2+)
-
-Future enhancements planned:
-- Visual debug controls (enable/disable features)
-- CLI features (history, autocomplete, interactive mode)
-- Overlay introspection enhancements
-- Pipeline introspection
-- Real-time performance monitoring
-- Animation triggering/control
-- Rule evaluation testing
-
----
-
-**Status:** Phase 1 Complete ✅
-**Documentation:** Complete and comprehensive
+## See Also
+
+- [DataSource System](../architecture/subsystems/datasource-system.md)
+- [Systems Manager](../architecture/subsystems/systems-manager.md)
+- [Rules Engine](../architecture/subsystems/rules-engine.md)

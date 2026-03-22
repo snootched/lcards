@@ -32,6 +32,11 @@ export class LCARdSBaseEditor extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
+        /** @type {any} */
+        this.lovelace = undefined;
+        /** @type {any} */
         this.config = {};
         this.cardType = '';
         this._selectedTab = 0;
@@ -103,6 +108,15 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Override in subclasses to return tab definitions array.
+     * @protected
+     * @returns {Array}
+     */
+    _getTabDefinitions() {
+        return [];
+    }
+
+    /**
      * Render the editor
      */
     render() {
@@ -167,7 +181,7 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _handleTabChange(event) {
         // CRITICAL: Use getAttribute('value') not .value property (Issue #82)
-        const value = event.target.activeTab?.getAttribute('value');
+        const value = (/** @type {any} */ (event.target)).activeTab?.getAttribute('value');
         if (value !== null && value !== undefined) {
             this._selectedTab = parseInt(value, 10);
             this.requestUpdate();
@@ -299,7 +313,7 @@ export class LCARdSBaseEditor extends LitElement {
 
     /**
      * Validate configuration against schema
-     * @private
+     * @protected
      */
     _validateConfig() {
         const validationResult = this._validateConfigWithSingleton(this.config);
@@ -395,7 +409,7 @@ export class LCARdSBaseEditor extends LitElement {
 
         // For array paths (e.g., style.ranges.0.min), we need to clone the actual array
         // and update the specific index, not create nested objects
-        const hasArrayIndex = keys.some(key => !isNaN(key));
+        const hasArrayIndex = keys.some(key => !isNaN(Number(key)));
 
         if (hasArrayIndex) {
             // Deep clone the current config to avoid mutations
@@ -406,7 +420,7 @@ export class LCARdSBaseEditor extends LitElement {
             for (let i = 0; i < keys.length - 1; i++) {
                 const key = keys[i];
                 const nextKey = keys[i + 1];
-                const isNextNumeric = !isNaN(nextKey);
+                const isNextNumeric = !isNaN(Number(nextKey));
 
                 // If next key is numeric, ensure current[key] is an array
                 if (isNextNumeric) {
@@ -460,7 +474,7 @@ export class LCARdSBaseEditor extends LitElement {
     /**
      * Remove a config path and clean up empty parent objects
      * @param {string} path - Path like 'style.gauge.indicator.offset.x'
-     * @private
+     * @protected
      */
     _removeConfigPath(path) {
         if (!path) return;
@@ -530,7 +544,7 @@ export class LCARdSBaseEditor extends LitElement {
         for (const key of keys) {
             // Handle array indices (e.g., ranges.0.min)
             // If the key is numeric and currentSchema is an array type, use items schema
-            if (!isNaN(key) && currentSchema.type === 'array' && currentSchema.items) {
+            if (!isNaN(Number(key)) && currentSchema.type === 'array' && currentSchema.items) {
                 currentSchema = currentSchema.items;
                 continue;
             }
@@ -1032,8 +1046,10 @@ export class LCARdSBaseEditor extends LitElement {
      *     });
      * }
      *
+     * @param {any} [options]
      * @protected
      */
+    // @ts-ignore - TS2740: auto-suppressed
     _buildConfigTab(options = {}) {
         const {
             infoMessage = 'Configure your LCARdS card settings.',
@@ -1271,7 +1287,7 @@ export class LCARdSBaseEditor extends LitElement {
         return html`
             <lcards-message
                 type="info"
-                message="Access and manage core LCARdS systems:\nData sources\nrules, templates, theme tokens, and provenance tracking.">
+                message="Access and manage core LCARdS systems:\nData Sources\nrules, templates, theme tokens, and provenance tracking.">
             </lcards-message>
 
             <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
@@ -1300,7 +1316,7 @@ export class LCARdSBaseEditor extends LitElement {
         // CRITICAL: Stop propagation to prevent bubbling to main tab handler
         event.stopPropagation();
 
-        const value = event.target.activeTab?.getAttribute('value');
+        const value = (/** @type {any} */ (event.target)).activeTab?.getAttribute('value');
         if (value !== null) {
             this._developerSubTab = parseInt(value, 10);
             this.requestUpdate();

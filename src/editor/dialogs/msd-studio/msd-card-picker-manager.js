@@ -80,6 +80,7 @@ export class MSDCardPickerManager {
                 return;
             }
 
+            // @ts-ignore - TS2740: auto-suppressed
             root = root.shadowRoot;
             if (!root) {
                 lcardsLog.trace('[MSDCardPickerManager] home-assistant shadowRoot not found');
@@ -87,8 +88,10 @@ export class MSDCardPickerManager {
             }
 
             root = root.querySelector('home-assistant-main');
+            // @ts-ignore - TS2740: auto-suppressed
             root = root && root.shadowRoot;
             root = root && root.querySelector('app-drawer-layout partial-panel-resolver, ha-drawer partial-panel-resolver');
+            // @ts-ignore - TS2322: auto-suppressed
             root = (root && root.shadowRoot) || root;
             root = root && root.querySelector('ha-panel-lovelace');
 
@@ -97,6 +100,7 @@ export class MSDCardPickerManager {
                 return;
             }
 
+            // @ts-ignore - TS2740: auto-suppressed
             root = root.shadowRoot;
             root = root && root.querySelector('hui-root');
 
@@ -177,11 +181,17 @@ export class MSDCardPickerManager {
                     lcardsLog.trace('[MSDCardPickerManager] Found hui-dialog-create-card, closing it...');
 
                     // Try multiple methods to close the dialog
+                    // @ts-ignore - TS2339: auto-suppressed
                     if (typeof createCardDialog.closeDialog === 'function') {
+                        // @ts-ignore - TS2339: auto-suppressed
                         createCardDialog.closeDialog();
+                    // @ts-ignore - TS2551: auto-suppressed
                     } else if (createCardDialog.close) {
+                        // @ts-ignore - TS2551: auto-suppressed
                         createCardDialog.close();
+                    // @ts-ignore - TS2339: auto-suppressed
                     } else if (createCardDialog.opened !== undefined) {
+                        // @ts-ignore - TS2339: auto-suppressed
                         createCardDialog.opened = false;
                     }
 

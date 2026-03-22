@@ -59,11 +59,10 @@ export async function readYamlFile(url) {
  * Stores built-in SVG templates under window.lcards.assets to avoid
  * namespace collision with MSD runtime initialization.
  */
+const _svgTemplates = {};
+
 function ensureSVGCache() {
-    window.lcards = window.lcards || {};
-    window.lcards.assets = window.lcards.assets || {};
-    window.lcards.assets.svg_templates = window.lcards.assets.svg_templates || {};
-    return window.lcards.assets.svg_templates;
+    return _svgTemplates;
 }
 
 /**

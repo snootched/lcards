@@ -40,7 +40,7 @@ export class DataSourceDebugAPI {
       /**
        * Get DataSource instance by name
        * @param {string} name - DataSource name
-       * @returns {DataSource|null} DataSource instance or null
+       * @returns {Object|null} DataSource instance or null
        *
        * @example
        * const ds = window.lcards.debug.datasources.get('temperature');

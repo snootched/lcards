@@ -44,6 +44,8 @@ export class LCARdSConfigPanel extends LitElement {
 
   constructor() {
     super();
+    /** @type {any} */
+    this.hass = undefined;
     this._selectedTab = 0;
     this._helpers = [];
     this._missingHelpers = [];

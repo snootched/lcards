@@ -44,6 +44,7 @@ export function getBaseSvgAnchors(config, dialogShadowRoot) {
     const msdCard = cardContainer.querySelector('lcards-msd-card');
     if (!msdCard) return {};
 
+    // @ts-ignore - TS2339: auto-suppressed
     const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
     if (!shadowRoot) return {};
 

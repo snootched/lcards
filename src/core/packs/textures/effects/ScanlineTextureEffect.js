@@ -16,16 +16,17 @@ import { BaseTextureEffect } from './BaseTextureEffect.js';
  */
 export class ScanlineTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {string} [config.color='rgba(0,0,0,0.25)']   - Scanline colour
      * @param {number} [config.line_spacing=4]             - Pixels between lines (centre-to-centre)
      * @param {number} [config.line_width=1.5]             - Stroke width of each line (px)
      * @param {string} [config.direction='horizontal']     - 'horizontal' or 'vertical'
      * @param {number} [config.scroll_speed_x=0]           - Horizontal scroll speed (px/s)
      * @param {number} [config.scroll_speed_y=0]           - Vertical scroll speed (px/s)
+     * @param {number} [config.opacity=1] - Opacity (0-1)
      */
     constructor(config = {}) {
-        super(config);
+        super(/** @type {any} */ (config));
         this._color        = config.color           ?? 'rgba(0,0,0,0.25)';
         this._lineSpacing  = config.line_spacing     ?? 4;
         this._lineWidth    = config.line_width       ?? 1.5;

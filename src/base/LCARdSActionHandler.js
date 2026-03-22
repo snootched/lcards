@@ -45,16 +45,18 @@ export class LCARdSActionHandler {
      * @param {HTMLElement} element - Target element (can be in shadow DOM)
      * @param {Object} actions - Action configurations (tap_action, hold_action, double_tap_action)
      * @param {Object} hass - Home Assistant instance
-     * @param {Object} options - Additional options
+     * @param {object} [options] - Additional options
      * @param {Object} options.animationManager - AnimationManager instance for triggering animations
      * @param {string} options.elementId - Element ID for animation targeting
      * @param {Array} options.animations - Animation configurations for late-binding
      * @param {Function} options.getAnimationSetup - Callback to get animation setup (overlayId, elementSelector)
+     * @param {Function} [options.getAnimationManager] - Getter for AnimationManager (late-binding)
      * @param {Object} options.shadowRoot - Shadow root for element queries
      * @param {string} options.entity - Default entity ID for actions (fallback if action.entity not specified)
+     * @param {Object} [options.soundOverride] - Per-event sound override config
      * @returns {Function} Cleanup function
      */
-    setupActions(element, actions = {}, hass, options = {}) {
+    setupActions(element, actions = {}, hass, options = /** @type {any} */ ({})) {
         if (!element) {
             return () => {};
         }
@@ -109,7 +111,7 @@ export class LCARdSActionHandler {
                     triggerManager.register(trigger, animConfig);
                 });
 
-                lcardsLog.info(`[LCARdSActionHandler] ✅ TriggerManager created with ${animations.length} animations`);
+                lcardsLog.debug(`[LCARdSActionHandler] ✅ TriggerManager created with ${animations.length} animations`);
 
                 // Add cleanup for TriggerManager
                 cleanupFunctions.push(() => {
@@ -194,7 +196,7 @@ export class LCARdSActionHandler {
                 await currentAnimationManager.registerAnimation(overlayId, animConfig);
             }
 
-            lcardsLog.info(`[LCARdSActionHandler] ✅ TriggerManager created (late-binding) with ${animations.length} animations`);
+            lcardsLog.debug(`[LCARdSActionHandler] ✅ TriggerManager created (late-binding) with ${animations.length} animations`);
 
             // Clear pending setup
             pendingAnimationSetup = null;
@@ -432,7 +434,7 @@ export class LCARdSActionHandler {
 
         // Add visual indicator that handlers are attached
         element.setAttribute('data-lcards-actions-attached', 'true');
-        element.setAttribute('data-lcards-handler-count', cleanupFunctions.length);
+        element.setAttribute('data-lcards-handler-count', String(cleanupFunctions.length));
 
         lcardsLog.trace(`[LCARdSActionHandler] ✅ Actions setup complete - ${cleanupFunctions.length} handlers attached to ${element.tagName} element`, {
             elementId,
@@ -758,6 +760,18 @@ export class LCARdSActionHandler {
             bubbles: true,
             composed: true
         }));
+    }
+
+    /**
+     * Get debug information about the action handler state
+     * @returns {Object} Debug information
+     */
+    getDebugInfo() {
+        return {
+            type: 'LCARdSActionHandler',
+            activeHandlers: this._activeHandlers?.size || 0,
+            initialized: true
+        };
     }
 
     /**

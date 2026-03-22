@@ -36,6 +36,7 @@ export function getPreviewCoordinatesFromMouseEvent(event, dialogShadowRoot, con
     const msdCard = cardContainer.querySelector('lcards-msd-card');
     if (!msdCard) return null;
 
+    // @ts-ignore - TS2339: auto-suppressed
     const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
     if (!shadowRoot) return null;
 

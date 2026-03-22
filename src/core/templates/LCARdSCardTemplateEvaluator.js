@@ -3,6 +3,14 @@ import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { TemplateDetector } from './TemplateDetector.js';
 import { TemplateParser } from './TemplateParser.js';
 import { HATemplateEvaluator } from './HATemplateEvaluator.js';
+import {
+    haFormatState,
+    haFormatAttrValue,
+    haFormatStateParts,
+    haFormatAttrParts,
+    joinParts,
+    extractUnit
+} from '../../utils/ha-entity-display.js';
 
 /**
  * LCARdSCardTemplateEvaluator - Evaluates button-card style templates
@@ -262,6 +270,12 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
       return null;
     }
 
+    // Pre-classify entity-related tokens for display_format handling
+    // entity.state → state formatting
+    // entity.attributes.KEY → attribute formatting
+    const isEntityState = parts[0] === 'entity' && parts[1] === 'state' && parts.length === 2;
+    const isEntityAttr  = parts[0] === 'entity' && parts[1] === 'attributes' && parts.length === 3;
+
     // Start with the full context
     let current = this.context;
 
@@ -277,6 +291,43 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     // This prevents "null" text from appearing in the UI
     if (current === null || current === undefined) {
       return '';
+    }
+
+    // Apply display_format for entity-related tokens.
+    // display_format is set in context by processTemplate() from the text field config.
+    // Default is 'friendly' so {entity.state} shows HA-translated strings by default.
+    // JS templates ([[[...]]] ) are unaffected — they always receive raw values.
+    const displayFormat = this.context.displayFormat ?? 'friendly';
+    const entity = this.context.entity;
+    const hass   = this.context.hass;
+
+    if (isEntityState && entity && hass) {
+      switch (displayFormat) {
+        case 'raw':
+          return current;
+        case 'parts':
+          return joinParts(haFormatStateParts(hass, entity));
+        case 'unit':
+          return extractUnit(haFormatStateParts(hass, entity));
+        case 'friendly':
+        default:
+          return haFormatState(hass, entity);
+      }
+    }
+
+    if (isEntityAttr && entity && hass) {
+      const attrKey = parts[2];
+      switch (displayFormat) {
+        case 'raw':
+          return current;
+        case 'parts':
+          return joinParts(haFormatAttrParts(hass, entity, attrKey));
+        case 'unit':
+          return extractUnit(haFormatAttrParts(hass, entity, attrKey));
+        case 'friendly':
+        default:
+          return haFormatAttrValue(hass, entity, attrKey);
+      }
     }
 
     return current;
@@ -328,7 +379,7 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {Array<string>} Array of entity IDs
    */
   extractDependencies(content) {
-    return this._haEvaluator.extractDependencies(content);
+    return /** @type {any} */ (this._haEvaluator).extractDependencies(content);
   }
 
   /**
@@ -338,7 +389,7 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    */
   updateHass(newHass) {
     this.context.hass = newHass;
-    this._haEvaluator.updateHass(newHass);
+    /** @type {any} */ (this._haEvaluator).updateHass(newHass);
   }
 
   /**

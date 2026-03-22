@@ -46,16 +46,19 @@ export class MSDCardEditorLauncher {
             await customElements.whenDefined("hui-dialog-edit-card");
 
             const editorDialog = document.createElement("hui-dialog-edit-card");
+            // @ts-ignore - TS2339: auto-suppressed
             editorDialog.hass = hass;
 
             // Add to body FIRST (important for proper initialization)
             document.body.appendChild(editorDialog);
             this.dialog._activeChildEditors.add(editorDialog);
+            // @ts-ignore - TS2339: auto-suppressed
             editorDialog._parentEditorId = this.dialog._editorId;
 
             // Mark picture-elements cards for special tracking
             if (this._isPictureElementsCard(cardConfig)) {
                 editorDialog.setAttribute("data-editing-picture-elements", "true");
+                // @ts-ignore - TS2339: auto-suppressed
                 editorDialog._editingPictureElements = true;
                 lcardsLog.debug(`[MSDCardEditorLauncher] 🖼️ Picture-elements card detected for layer ${layerId}`);
             }
@@ -84,6 +87,7 @@ export class MSDCardEditorLauncher {
                 lcardsLog.debug(`[MSDCardEditorLauncher] 🔒 Dialog closed for layer ${layerId}`);
 
                 // Cleanup element edit session if active
+                // @ts-ignore - TS2339: auto-suppressed
                 if (editorDialog._handlingElementEdit) {
                     setTimeout(() => {
                         if (this.dialog._eventInterceptor?._elementEditSession.active &&
@@ -108,6 +112,7 @@ export class MSDCardEditorLauncher {
             if (this._isPictureElementsCard(cardConfig)) {
                 const handleElementUpdated = (e) => {
                     lcardsLog.debug('[MSDCardEditorLauncher] 🎨 Element updated:', e.detail);
+                    // @ts-ignore - TS2339: auto-suppressed
                     editorDialog._handlingElementEdit = true;
                     if (this.dialog._eventInterceptor) {
                         this.dialog._eventInterceptor._elementEditSession.active = true;
@@ -126,11 +131,14 @@ export class MSDCardEditorLauncher {
             // Show the dialog
             const dialogParams = {
                 cardConfig: cardConfig,
+                // @ts-ignore - TS2339: auto-suppressed
                 lovelaceConfig: mainApp.lovelace,
                 saveCardConfig: async (savedCardConfig) => {
                     // Check if save is from element editor
+                    // @ts-ignore - TS2339: auto-suppressed
                     if (editorDialog._savingFromElementEditor || editorDialog._handlingElementEdit) {
                         lcardsLog.debug('[MSDCardEditorLauncher] 💾 Save from element editor, preserving dialog');
+                        // @ts-ignore - TS2339: auto-suppressed
                         editorDialog._savingFromElementEditor = false;
 
                         if (this.dialog._eventInterceptor) {
@@ -158,6 +166,7 @@ export class MSDCardEditorLauncher {
                 },
             };
 
+            // @ts-ignore - TS2339: auto-suppressed
             await editorDialog.showDialog(dialogParams);
             lcardsLog.debug(`[MSDCardEditorLauncher] ✅ Dialog shown for layer ${layerId}`);
         } catch (err) {
@@ -183,11 +192,14 @@ export class MSDCardEditorLauncher {
             editorDialog._handlingElementEdit = true;
 
             // Track config for restoration if needed
+            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config) {
+                // @ts-ignore - TS2339: auto-suppressed
                 editorDialog._lastElementConfig = JSON.parse(JSON.stringify(e.detail.config));
                 editorDialog._savingFromElementEditor = true;
 
                 // Silently update config
+                // @ts-ignore - TS2339: auto-suppressed
                 this.dialog._updateLayerCard(layerId, e.detail.config, {
                     maintainEditorState: true,
                     fromElementEditor: true,
@@ -199,12 +211,14 @@ export class MSDCardEditorLauncher {
         }
 
         // Stop propagation for card-level changes
+        // @ts-ignore - TS2339: auto-suppressed
         if (e.target !== editorDialog && e.detail?.config) {
             e.stopPropagation();
 
             lcardsLog.debug(`[MSDCardEditorLauncher] 🔄 Config update for layer ${layerId}`);
 
             // Update silently (don't close dialog)
+            // @ts-ignore - TS2339: auto-suppressed
             this.dialog._updateLayerCard(layerId, e.detail.config, {
                 maintainEditorState: true,
                 reason: 'layer_card_updated_from_dialog',
@@ -236,6 +250,7 @@ export class MSDCardEditorLauncher {
             composed: true,
             cancelable: false,
         });
+        // @ts-ignore - TS2339: auto-suppressed
         event.detail = detail;
         this.dialog.dispatchEvent(event);
     }

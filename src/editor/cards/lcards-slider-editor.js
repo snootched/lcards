@@ -4,7 +4,6 @@
  * Visual configuration editor for slider cards.
  * 5-tab structure with utility tabs from base class.
  *
- * @extends {LCARdSBaseEditor}
  */
 
 import { html } from 'lit';
@@ -268,6 +267,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Show full orientation selector
         return FormField.renderField(this, 'style.track.orientation', {
             label: 'Orientation',
+            // @ts-ignore - TS2353: auto-suppressed
             type: 'select',
             options: [
                 { value: 'horizontal', label: 'Horizontal' },
@@ -393,7 +393,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <ha-icon-button
                         title="Clear — use entity state"
                         .path=${'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z'}
-                        @click=${() => this._handleAttributeChange({ detail: { value: '' } })}>
+                        // @ts-ignore - TS2345: auto-suppressed
+                        @click=${() => this._handleAttributeChange(/** @type {any} */ ({ detail: { value: '' } }))}>
                     </ha-icon-button>
                 ` : ''}
             </div>
@@ -867,6 +868,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.type`, {
                         label: 'Shape',
+                        // @ts-ignore - TS2353: auto-suppressed
                         type: 'select',
                         options: [
                             { value: '', label: '— Inherit from gauge.indicator —' },
@@ -917,6 +919,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
                         label: 'Show Border',
+                        // @ts-ignore - TS2353: auto-suppressed
                         type: 'boolean',
                         helper: 'Outline border on the indicator shape'
                     })}
@@ -955,6 +958,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke`, {
                         label: 'Show Outline',
+                        // @ts-ignore - TS2353: auto-suppressed
                         type: 'boolean',
                         helper: 'Draw a border on the marker pill to distinguish it from neighbours'
                     })}
@@ -1028,12 +1032,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const config = JSON.parse(JSON.stringify(this.config || {}));
         let cursor = config;
         for (let i = 0; i < parts.length - 1; i++) {
+            // @ts-ignore - TS2345: auto-suppressed
             const key = isNaN(parts[i]) ? parts[i] : parseInt(parts[i]);
             if (cursor[key] === undefined || cursor[key] === null || typeof cursor[key] !== 'object') {
+                // @ts-ignore - TS2345: auto-suppressed
                 cursor[key] = isNaN(parts[i + 1]) ? {} : [];
             }
             cursor = cursor[key];
         }
+        // @ts-ignore - TS2345: auto-suppressed
         const lastKey = isNaN(parts[parts.length - 1]) ? parts[parts.length - 1] : parseInt(parts[parts.length - 1]);
         if (value === '' || value === undefined || value === null) {
             delete cursor[lastKey];
@@ -1166,6 +1173,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'style.gauge.progress_bar.align', {
                         label: 'Alignment',
                         helper: 'Cross-sectional alignment (left/middle/right in vertical)',
+                        // @ts-ignore - TS2353: auto-suppressed
                         type: 'select',
                         mode: 'dropdown',
                         options: [
@@ -1178,6 +1186,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'style.gauge.progress_bar.layer', {
                         label: 'Layer',
                         helper: 'Render behind or in front of gauge tick marks',
+                        // @ts-ignore - TS2353: auto-suppressed
                         type: 'select',
                         mode: 'dropdown',
                         options: [

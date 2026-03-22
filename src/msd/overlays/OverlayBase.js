@@ -50,7 +50,6 @@ export class OverlayBase extends BaseRenderer {
 
     // Resource management
     this._subscriptions = [];
-    this._animationScope = null;
     this._timers = [];
 
     // Performance tracking
@@ -103,11 +102,6 @@ export class OverlayBase extends BaseRenderer {
         }
       } else {
         lcardsLog.trace(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
-      }
-
-      // Create animation scope if overlay has animations
-      if (this.overlay.animations || this.overlay.animate) {
-        this._createAnimationScope();
       }
 
       this._initialized = true;
@@ -189,9 +183,6 @@ export class OverlayBase extends BaseRenderer {
 
     // Cleanup subscriptions
     this._cleanupSubscriptions();
-
-    // Cleanup animations
-    this._cleanupAnimations();
 
     // Cleanup timers
     this._cleanupTimers();
@@ -313,22 +304,6 @@ export class OverlayBase extends BaseRenderer {
   }
 
   /**
-   * Create animation scope
-   * @protected
-   */
-  _createAnimationScope() {
-    // Check if anime.js is available
-    if (typeof window !== 'undefined' && window.lcards && window.lcards.anim) {
-      try {
-        this._animationScope = window.lcards.anim.createScope();
-        lcardsLog.trace(`[${this.rendererName}] Animation scope created`);
-      } catch (error) {
-        lcardsLog.warn(`[${this.rendererName}] Failed to create animation scope:`, error);
-      }
-    }
-  }
-
-  /**
    * Cleanup all subscriptions
    * @protected
    */
@@ -345,25 +320,6 @@ export class OverlayBase extends BaseRenderer {
       });
 
       this._subscriptions = [];
-    }
-  }
-
-  /**
-   * Cleanup animations
-   * @protected
-   */
-  _cleanupAnimations() {
-    if (this._animationScope) {
-      try {
-        if (typeof this._animationScope.destroy === 'function') {
-          this._animationScope.destroy();
-        }
-        lcardsLog.trace(`[${this.rendererName}] Animation scope destroyed`);
-      } catch (error) {
-        lcardsLog.warn(`[${this.rendererName}] Animation cleanup error:`, error);
-      }
-
-      this._animationScope = null;
     }
   }
 
@@ -398,8 +354,7 @@ export class OverlayBase extends BaseRenderer {
       initialized: this._initialized,
       destroyed: this._destroyed,
       subscriptions: this._subscriptions.length,
-      timers: this._timers.length,
-      hasAnimationScope: !!this._animationScope
+      timers: this._timers.length
     };
   }
 

@@ -71,6 +71,7 @@ export class LCARdSNativeCard extends LitElement {
         };
     }
 
+    /** @returns {import('lit').CSSResultGroup} */
     static get styles() {
         return css`
             :host {
@@ -121,10 +122,13 @@ export class LCARdSNativeCard extends LitElement {
         super();
         this.hass = null;
         this.config = {};
+        /** @type {boolean|'picker'|'editor'} */
         this._isPreviewMode = false;
         this._mountResolved = false;
         this._cardGuid = this._generateGuid();
         this._errorState = null;
+        /** @type {string[]} */
+        this._trackedEntities = [];
 
         lcardsLog.debug(`[LCARdSNativeCard] Created card with GUID: ${this._cardGuid}`);
     }
@@ -420,6 +424,7 @@ export class LCARdSNativeCard extends LitElement {
     /**
      * Render the card content - MUST be overridden in subclasses
      * @protected
+     * @returns {import('lit').TemplateResult}
      */
     _renderCard() {
         return html`<div>Override _renderCard() in subclass</div>`;
@@ -466,7 +471,7 @@ export class LCARdSNativeCard extends LitElement {
 
     /**
      * Return `true` when the card is running inside the HA editor card-picker preview.
-     * @returns {boolean}
+     * @returns {boolean|'picker'|'editor'}
      */
     isPreviewMode() {
         return this._isPreviewMode;
@@ -501,7 +506,8 @@ export class LCARdSNativeCard extends LitElement {
 
     /**
      * Detect if running in preview mode
-     * @private
+     * @protected
+     * @returns {boolean|'picker'|'editor'}
      */
     _detectPreviewMode() {
         // Heuristics for preview mode detection
@@ -513,7 +519,7 @@ export class LCARdSNativeCard extends LitElement {
 
         // Check for dashboard edit mode
         const dashboardEl = parentElement.closest('hui-root, ha-panel-lovelace');
-        if (dashboardEl && dashboardEl.editMode) {
+        if (dashboardEl && /** @type {any} */ (dashboardEl).editMode) {
             lcardsLog.debug(`[LCARdSNativeCard] Preview detection: dashboard edit mode detected`);
             return true;
         }
@@ -580,9 +586,7 @@ export class LCARdSNativeCard extends LitElement {
             lcardsLog.debug(`[LCARdSNativeCard] Fonts loaded, triggering re-render: ${this._cardGuid}`);
 
             // Invalidate text measurement cache so sizes are re-measured with real fonts
-            if (window.lcards?._textMeasureCache) {
-                window.lcards._textMeasureCache.clear();
-            }
+            window.lcards?.clearTextMeasureCache?.();
 
             this.requestUpdate();
         };
@@ -592,9 +596,7 @@ export class LCARdSNativeCard extends LitElement {
         // Backup: document.fonts.ready resolves when currently-loading fonts finish.
         // Handles the race where loadingdone already fired before our listener registered.
         document.fonts.ready.then(() => {
-            if (window.lcards?._textMeasureCache) {
-                window.lcards._textMeasureCache.clear();
-            }
+            window.lcards?.clearTextMeasureCache?.();
             this.requestUpdate();
         });
 

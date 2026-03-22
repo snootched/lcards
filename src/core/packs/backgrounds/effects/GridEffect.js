@@ -25,7 +25,7 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  */
 export class GridEffect extends BaseEffect {
   /**
-   * @param {Object} config - Effect configuration
+   * @param {object} config - Effect configuration
    *
    * Sizing (choose one approach):
    * @param {number} [config.lineSpacing=40] - Space between grid lines in pixels (simple mode)
@@ -51,6 +51,16 @@ export class GridEffect extends BaseEffect {
  * Hexagonal pattern (when pattern='hexagonal'):
  * @param {number} [config.hexRadius=40] - Radius of hexagonal cells
    *
+   * Dot grid pattern (when pattern='dots'):
+   * @param {number} [config.dotRadius=2] - Dot radius
+   * @param {number} [config.dot_radius=2] - Snake-case alias for dotRadius
+   * @param {number} [config.spacing] - Dot grid spacing (alias for lineSpacing)
+   *
+   * Legacy/alias properties:
+   * @param {number} [config.line_width] - Snake-case alias for lineWidthMinor
+   * @param {number} [config.scroll_speed_x] - Snake-case alias for scrollSpeedX
+   * @param {number} [config.scroll_speed_y] - Snake-case alias for scrollSpeedY
+   *
    * Scrolling:
    * @param {number} [config.scrollSpeedX=20] - Horizontal scroll speed (pixels/second)
    * @param {number} [config.scrollSpeedY=20] - Vertical scroll speed (pixels/second)
@@ -58,7 +68,7 @@ export class GridEffect extends BaseEffect {
    * @param {number} [config.scrollY=0] - Initial vertical scroll offset
    */
   constructor(config = {}) {
-    super(config);
+    super(/** @type {any} */ (config));
 
     // Sizing: cell-based or spacing-based
     this.numRows = config.numRows;

@@ -141,7 +141,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                 before: this._isPreviewMode,
                 after: newPreviewMode
             });
-            this._isPreviewMode = newPreviewMode;
+            this._isPreviewMode = /** @type {any} */ (newPreviewMode);
             this.requestUpdate(); // Trigger re-render with correct mode
         }
     }
@@ -151,7 +151,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @returns {string} Card type identifier
      */
     getCardType() {
-        return this.constructor.CARD_TYPE;
+        return /** @type {any} */ (this.constructor).CARD_TYPE;
     }
 
     /**
@@ -183,18 +183,30 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
-     * Called on first update after DOM is ready
-     * Initialize MSD pipeline
+     * Called on first update after DOM is ready.
+     * Delegates to _loadAndInitializeMsd() — shared with reconnect path.
      * @param {Map} changedProperties - Changed properties
      * @protected
      */
     async _onFirstUpdated(changedProperties) {
         lcardsLog.trace('[LCARdSMSDCard] _onFirstUpdated called');
-
-        // Call parent first
         await super._onFirstUpdated(changedProperties);
+        await this._loadAndInitializeMsd();
+    }
 
-        // ✅ FIX: Wait for async config processing to complete
+    /**
+     * Core MSD initialization logic: waits for config, loads SVG, generates GUID,
+     * and initializes the pipeline.
+     *
+     * Extracted so it can be called from both _onFirstUpdated (first mount) and
+     * _onConnected (reconnect after edit-mode toggle or view navigation), since
+     * Lit's firstUpdated only fires once per element lifetime.
+     * @private
+     */
+    async _loadAndInitializeMsd() {
+        lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd called');
+
+        // Wait for async config processing to complete.
         // LCARdSCard.setConfig() starts _processConfigAsync() in background.
         // We must wait for it before accessing this.config or derived properties.
         if (this._configProcessingPromise) {
@@ -216,12 +228,11 @@ export class LCARdSMSDCard extends LCARdSCard {
             return;
         }
 
-        // NOW _msdConfig is guaranteed to be set by _onConfigUpdated()
-        // Load SVG now that config is processed (skip if source is "none")
+        // Load SVG if not already loaded.
+        // _svgContent is intentionally preserved across reconnects so we don't re-fetch.
         if (this._msdConfig?.base_svg && !this._svgContent) {
             const svgSource = this._msdConfig.base_svg.source;
 
-            // Skip loading if source is "none" (viewBox-only mode)
             if (svgSource === 'none') {
                 lcardsLog.trace('[LCARdSMSDCard] Skipping SVG load - source is "none" (viewBox-only mode)');
             } else {
@@ -239,7 +250,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             }
         }
 
-        // Generate instance GUID
+        // Generate instance GUID (preserved across reconnects — do not regenerate).
         if (!this._msdInstanceGuid) {
             if (this.config.id) {
                 this._msdInstanceGuid = `msd-${this.config.id}`;
@@ -250,14 +261,13 @@ export class LCARdSMSDCard extends LCARdSCard {
             }
         }
 
-        // ✅ FIX: Wait for Lit's render to complete before initializing pipeline
-        // This ensures the SVG container from _renderSvgContainer() is mounted to DOM
-        // before MsdControlsRenderer tries to find it with getSvgControlsContainer()
+        // Wait for Lit's render cycle so the SVG container is actually mounted to DOM
+        // before MsdControlsRenderer tries to find it with getSvgControlsContainer().
         lcardsLog.trace('[LCARdSMSDCard] Waiting for Lit render to complete...');
         await this.updateComplete;
         lcardsLog.trace('[LCARdSMSDCard] Lit render complete');
 
-        // Initialize MSD pipeline (now with config guaranteed ready)
+        // Initialize MSD pipeline (config and SVG are now guaranteed ready).
         lcardsLog.trace('[LCARdSMSDCard] Initializing pipeline:', {
             hasConfig: !!this._msdConfig,
             hasSvg: !!this._svgContent,
@@ -587,6 +597,23 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
+     * Re-initialize pipeline after reconnect (edit mode toggle, view navigation, etc.).
+     * Lit's firstUpdated only fires once per element lifetime, so reconnects must
+     * trigger pipeline initialization here instead.
+     * @protected
+     */
+    async _onConnected() {
+        await super._onConnected();
+
+        // _initialized is set by LCARdSCard._onFirstUpdated — if it's true here, this is
+        // a reconnect (not the first mount), and the pipeline was torn down by disconnectedCallback.
+        if (this._initialized && !this._msdInitialized) {
+            lcardsLog.debug('[LCARdSMSDCard] Re-initializing MSD pipeline after reconnect');
+            await this._loadAndInitializeMsd();
+        }
+    }
+
+    /**
      * Cleanup when card is removed from DOM
      */
     disconnectedCallback() {
@@ -723,7 +750,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.debug('[LCARdSMSDCard] SVG container rendered and mounted to DOM');
 
             // Get mount element
-            const mount = this.renderRoot;
+            const mount = /** @type {HTMLElement | ShadowRoot} */ (this.renderRoot);
             if (!mount) {
                 lcardsLog.error('[LCARdSMSDCard] Mount element not found');
                 this._msdInitialized = false;  // Reset on failure
@@ -868,7 +895,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _checkForAncestor(selectors) {
-        let current = this;
+        let current = /** @type {Element | null} */ (this);
         const maxLevels = 20;
 
         for (let i = 0; i < maxLevels && current; i++) {
@@ -878,7 +905,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                 }
             }
             // Traverse shadow DOM boundaries: try parentElement, then host
-            current = current.parentElement || current.parentNode?.host || current.getRootNode()?.host;
+            current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
         }
 
         return false;
@@ -887,7 +914,8 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Detect if running in preview mode with tiered strategy
      * Returns: false (full render), 'picker' (Tier 3), 'editor' (Tier 2)
-     * @private
+     * @returns {false|'picker'|'editor'}
+     * @protected
      */
     _detectPreviewMode() {
         if (!this.parentElement) {
@@ -921,7 +949,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const dashboardEl = this.parentElement.closest('hui-root, ha-panel-lovelace');
         if (dashboardEl) {
             lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render', {
-                editMode: dashboardEl.editMode
+                editMode: /** @type {any} */ (dashboardEl).editMode
             });
             return false;
         }
@@ -934,7 +962,7 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Override requestUpdate to block HASS-triggered updates
      * MSD manages its own updates internally
-     * @protected
+     * @public
      */
     requestUpdate(name, oldValue, options) {
         // Block HASS-related updates to prevent re-renders
@@ -1486,9 +1514,9 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // Apply style properties based on overlay type
             if (overlayType === 'line') {
-                this._applyLineStyleToDOM(overlayEl, patch.style);
+                this._applyLineStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
             } else if (overlayType === 'control') {
-                this._applyControlStyleToDOM(overlayEl, patch.style);
+                this._applyControlStyleToDOM(/** @type {HTMLElement} */ (overlayEl), patch.style);
             } else {
                 lcardsLog.warn(`[LCARdSMSDCard] Unknown overlay type for DOM patching: ${overlayType}`);            }
 
@@ -1505,11 +1533,11 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _applyLineStyleToDOM(lineEl, style) {
         // If element is a group, find child path/line elements
-        let targetElements = [lineEl];
+        let targetElements = /** @type {SVGElement[]} */ ([lineEl]);
         if (lineEl.tagName.toLowerCase() === 'g') {
             const children = lineEl.querySelectorAll('path, line, polyline, polygon');
             if (children.length > 0) {
-                targetElements = Array.from(children);
+                targetElements = /** @type {SVGElement[]} */ (Array.from(children));
             }
         }
 
@@ -1527,8 +1555,11 @@ export class LCARdSMSDCard extends LCARdSCard {
             const svgAttr = styleMapping[configKey];
 
             if (svgAttr && value !== null && value !== undefined) {
-                // Resolve CSS variables if present
-                const resolvedValue = ColorUtils.resolveCssVariable(value);
+                // Resolve computed expressions and CSS variables.
+                // SVG setAttribute does not support var() natively — materialise to concrete value.
+                const _res = window.lcards?.core?.themeManager?.resolver;
+                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
+                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
 
                 // Apply to all target elements (group children or the element itself)
                 targetElements.forEach(el => {
@@ -1546,9 +1577,11 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _applyControlStyleToDOM(controlEl, style) {
         // Apply style properties to control container
+        const _resMSD = window.lcards?.core?.themeManager?.resolver;
         for (const [key, value] of Object.entries(style)) {
             if (value !== null && value !== undefined) {
-                const resolvedValue = ColorUtils.resolveCssVariable(value);
+                const afterResolver = (typeof value === 'string' && _resMSD) ? _resMSD.resolve(value, value) : value;
+                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
                 controlEl.style[key] = resolvedValue;
                 lcardsLog.trace(`[LCARdSMSDCard]   Set style.${key}=${resolvedValue}`);            }
         }
@@ -1560,19 +1593,11 @@ export class LCARdSMSDCard extends LCARdSCard {
 
     /**
      * Get mount element for MSD pipeline
-     * @returns {HTMLElement|ShadowRoot} Mount element
-     * @protected
+     * @returns {ShadowRoot} Mount element
+     * @public
      */
     getMountElement() {
-        return this.renderRoot || this.shadowRoot;
-    }
-
-    /**
-     * Get config element (editor)
-     * @returns {HTMLElement} Editor element
-     */
-    static getConfigElement() {
-        return document.createElement('lcards-msd-editor');
+        return /** @type {ShadowRoot} */ (this.renderRoot || this.shadowRoot);
     }
 
     /**

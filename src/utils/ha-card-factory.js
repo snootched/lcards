@@ -99,9 +99,9 @@ export function normalizeHACardType(cardType) {
  * Polls every 100 ms up to maxWait ms. Also tries customElements.upgrade()
  * and awaits updateComplete if present.
  *
- * @param {HTMLElement} element
+ * @param {any} element
  * @param {number} [maxWait=2000]
- * @returns {Promise<HTMLElement>} Same element (upgraded or timed-out)
+ * @returns {Promise<any>} Same element (upgraded or timed-out)
  */
 export async function waitForElementUpgrade(element, maxWait = 2000) {
     const start = Date.now();
@@ -166,7 +166,7 @@ export async function createCardElement(cardType, label = 'card') {
 
     // ── Strategy 2: document.createElement + upgrade wait ───────────────────
     try {
-        const el = document.createElement(normalizedType);
+        const el = /** @type {any} */ (document.createElement(normalizedType));
 
         // LCARdS cards are already registered — no meaningful upgrade wait needed
         if (isLCARdSCard) {
@@ -188,7 +188,7 @@ export async function createCardElement(cardType, label = 'card') {
 
     // ── Strategy 3: body attachment (forces upgrade for lazy hui-* elements) ─
     try {
-        const el = document.createElement(normalizedType);
+        const el = /** @type {any} */ (document.createElement(normalizedType));
         const tmp = document.createElement('div');
         tmp.style.cssText = 'position:absolute;left:-10000px;visibility:hidden;';
         document.body.appendChild(tmp);
@@ -226,8 +226,8 @@ export async function createCardElement(cardType, label = 'card') {
  * - lcards-* cards: property assignment + requestUpdate (Lit reactive)
  * - unknown:        setHass() → property assignment
  *
- * @param {HTMLElement} cardElement
- * @param {Object}      hass
+ * @param {any}      cardElement
+ * @param {any}      hass
  * @param {string}      [label]
  */
 export function applyHassToCard(cardElement, hass, label = 'card') {
@@ -275,7 +275,7 @@ export function applyHassToCard(cardElement, hass, label = 'card') {
  * Retries up to maxAttempts times, waiting progressively longer between
  * attempts, to handle elements that are still upgrading.
  *
- * @param {HTMLElement} cardElement
+ * @param {any} cardElement
  * @param {Object}      config
  * @param {string}      [label]
  * @param {number}      [maxAttempts=8]

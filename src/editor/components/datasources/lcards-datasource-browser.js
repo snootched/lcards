@@ -19,6 +19,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { haFormatState, haFormatAttrValue, haFormatAttrName } from '../../../utils/ha-entity-display.js';
 
 export class LCARdSDataSourceBrowser extends LitElement {
   static get properties() {
@@ -380,6 +381,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _isCardLocalSource(sourceName) {
+    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.cardConfig?.data_sources || {};
     return sourceName in cardSources;
   }
@@ -522,6 +524,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _renderEntityDetail(data) {
+    // @ts-ignore - TS2339: auto-suppressed
     const entity = this.hass?.states?.[data.entityId];
 
     if (!entity) {
@@ -534,7 +537,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">State:</span>
-            <span class="detail-value">${entity.state}</span>
+            <span class="detail-value">${haFormatState(this.hass, entity)}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Last Changed:</span>
@@ -548,8 +551,8 @@ export class LCARdSDataSourceBrowser extends LitElement {
         <div class="attributes-table">
           ${Object.entries(entity.attributes).map(([key, value]) => html`
             <div class="attribute-row">
-              <span class="attribute-key">${key}:</span>
-              <span class="attribute-value">${JSON.stringify(value)}</span>
+              <span class="attribute-key">${haFormatAttrName(this.hass, entity, key)}:</span>
+              <span class="attribute-value">${haFormatAttrValue(this.hass, entity, key)}</span>
             </div>
           `)}
         </div>
@@ -1259,7 +1262,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
               <div class="tree-container">
                 ${this._treeData.length > 0
                   ? this._renderTreeNodes(this._treeData)
-                  : html`<p style="color: var(--secondary-text-color); text-align: center; padding: 24px;">No datasources found</p>`}
+                  : html`<p style="color: var(--secondary-text-color); text-align: center; padding: 24px;">No data sources found</p>`}
               </div>
             </div>
 

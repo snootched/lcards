@@ -237,7 +237,7 @@ export class LCARdSObjectEditor extends LitElement {
             <ha-selector
                 .hass=${this.editor?.hass}
                 .selector=${{ number: config }}
-                .value=${value ?? config.min ?? 0}
+                .value=${value ?? (/** @type {any} */ (config)).min ?? 0}
                 .disabled=${this.disabled}
                 @value-changed=${(e) => this._handleValueChange(path, e)}>
             </ha-selector>

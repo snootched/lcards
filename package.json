@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.03.17-alpha",
+  "version": "2026.03.22-alpha.2",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -18,27 +18,25 @@
     "Star Trek"
   ],
   "scripts": {
-    "build": "webpack --mode production",
-    "build:dev": "webpack --mode development",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "typecheck": "tsc --pretty false 2>&1 | sort",
     "create-editor": "node tools/create-editor.js",
-    "analyze": "webpack --profile --json > stats.json && webpack-bundle-analyzer stats.json",
     "docs:build": "vitepress build doc",
     "docs:serve": "vitepress dev doc",
+    "docs:serve:network": "vitepress dev doc --host",
     "docs:preview": "vitepress preview doc"
   },
   "devDependencies": {
-    "clean-webpack-plugin": "^4.0.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^27.1.0",
     "mermaid": "^11.13.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "vitepress-plugin-tabs": "^0.8.0",
-    "webpack": "^5.94.0",
-    "webpack-bundle-analyzer": "^4.10.2",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4"
+    "vitepress-plugin-tabs": "^0.8.0"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",

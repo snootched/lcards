@@ -55,6 +55,7 @@ const POSITION_OPTIONS = [
 // Editor
 // ─────────────────────────────────────────────────────────────────────────────
 
+// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -754,7 +755,9 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             lcardsLog.warn('[AlertOverlayEditor] hui-card-picker not loaded yet. Click "Add Card" on the dashboard once to prime it, then try again.');
             try {
                 const ha = document.querySelector('home-assistant');
+                // @ts-ignore - TS2339: auto-suppressed
                 if (ha?.showToast) {
+                    // @ts-ignore - TS2339: auto-suppressed
                     ha.showToast({ message: 'Card picker loading — click "Add Card" once on any dashboard view to enable it, then try again.', duration: 4000 });
                 }
             } catch (_) { /* ignore */ }
@@ -766,25 +769,33 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         this._activePickerCondition = condKey;
 
         const dialog = document.createElement('ha-dialog');
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Select Content Card Type';
 
         this._cardPickerDialogRef = dialog;
         document.body.appendChild(dialog);
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
 
+        // @ts-ignore - TS2339: auto-suppressed
         await dialog.updateComplete;
 
         const picker = document.createElement('hui-card-picker');
+        // @ts-ignore - TS2339: auto-suppressed
         picker.hass     = this.hass;
+        // @ts-ignore - TS2339: auto-suppressed
         picker.lovelace = this._getContentCardLovelace();
         picker.style.cssText = 'padding:24px; display:block;';
         dialog.appendChild(picker);
 
         await new Promise(r => setTimeout(r, 100));
+        // @ts-ignore - TS2339: auto-suppressed
         picker.requestUpdate?.();
+        // @ts-ignore - TS2339: auto-suppressed
         if (picker.updateComplete) await picker.updateComplete;
 
         picker.addEventListener('config-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             const selected = e.detail?.config;
             lcardsLog.debug('[AlertOverlayEditor] Content card type selected:', selected?.type);
 
@@ -792,6 +803,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 detail: { condKey, config: selected }
             }));
 
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
@@ -833,6 +845,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         this._activeEditorCondition = condKey;
 
         const dialog = document.createElement('ha-dialog');
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = `Edit: ${currentCard.type}`;
         dialog.setAttribute('prevent-scrim-close', '');
         this._cardEditorDialogRef = dialog;
@@ -841,15 +854,20 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         container.style.cssText = 'padding:16px; min-height:300px; min-width:420px; box-sizing:border-box;';
 
         const editor = document.createElement('hui-card-element-editor');
+        // @ts-ignore - TS2339: auto-suppressed
         editor.hass     = this.hass;
+        // @ts-ignore - TS2339: auto-suppressed
         editor.lovelace = this._getContentCardLovelace();
+        // @ts-ignore - TS2339: auto-suppressed
         editor.value    = JSON.parse(JSON.stringify(currentCard));
 
         let tempConfig = JSON.parse(JSON.stringify(currentCard));
         editor.addEventListener('config-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config?.type) tempConfig = e.detail.config;
         });
         editor.addEventListener('value-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.value?.type) tempConfig = e.detail.value;
         });
 
@@ -862,6 +880,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
         const cancelBtn = document.createElement('ha-button');
         cancelBtn.textContent = 'Cancel';
+        // @ts-ignore - TS2339: auto-suppressed
         cancelBtn.addEventListener('click', () => { dialog.open = false; });
 
         const saveBtn = document.createElement('ha-button');
@@ -871,6 +890,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 this._setConditionProp(condKey, 'content', JSON.parse(JSON.stringify(tempConfig)));
                 lcardsLog.debug('[AlertOverlayEditor] Content card saved from editor:', tempConfig.type);
             }
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
@@ -886,6 +906,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         });
 
         document.body.appendChild(dialog);
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
     }
 

@@ -23,16 +23,17 @@ const CELL = 4; // px — grid tile size (performance vs quality trade-off)
  */
 export class FluidTextureEffect extends BaseTextureEffect {
     /**
-     * @param {Object} config
+     * @param {object} config
      * @param {string} [config.color='rgba(100,180,255,0.8)'] - Fill colour (RGBA)
      * @param {number} [config.base_frequency=0.010]          - Noise frequency (lower = larger features)
      * @param {number} [config.num_octaves=4]                 - fBm octave count
      * @param {number} [config.scroll_speed_x=7]              - Horizontal scroll speed (px/s)
      * @param {number} [config.scroll_speed_y=10]             - Vertical scroll speed (px/s)
      * @param {number} [config.speed=1]                       - Global speed multiplier
+     * @param {number} [config.opacity=1] - Opacity (0-1)
      */
     constructor(config = {}) {
-        super(config);
+        super(/** @type {any} */ (config));
         this._color    = parseColorToRgba(config.color ?? 'rgba(100,180,255,0.8)', 'rgba(100,180,255,0.8)');
         this._freq     = config.base_frequency   ?? 0.010;
         this._octaves  = config.num_octaves      ?? 4;

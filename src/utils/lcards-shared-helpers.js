@@ -6,7 +6,7 @@
  */
 export function resolveAnimationTargets(targets, root = document) {
   const out = [];
-  const searchRoot = root.shadowRoot || root || document;
+  const searchRoot = /** @type {any} */ (root).shadowRoot || root || document;
   (Array.isArray(targets) ? targets : [targets]).forEach(t => {
     if (typeof t === 'string') {
       out.push(...searchRoot.querySelectorAll(t));

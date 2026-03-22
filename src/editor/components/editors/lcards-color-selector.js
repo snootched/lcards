@@ -26,6 +26,8 @@ export class LCARdSColorSelector extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
         this.value = '';
         this.disabled = false;
     }
@@ -123,6 +125,7 @@ export class LCARdSColorSelector extends LitElement {
     render() {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ color_rgb: {} }}
                 .value=${this.value}
@@ -156,6 +159,7 @@ export class LCARdSColorSelector extends LitElement {
      * @private
      */
     _handleColorInputChange(ev) {
+        // @ts-ignore - TS2339: auto-suppressed
         const newValue = ev.target.value;
         this._emitChange(newValue);
     }

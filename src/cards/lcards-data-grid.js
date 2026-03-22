@@ -129,6 +129,8 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { haFormatNumber, haFormatState } from '../utils/ha-entity-display.js';
+import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-data-grid-editor.js';
@@ -712,22 +714,23 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Convert to string
     const cellStr = String(cell);
 
-    // Check if it's a template (contains {{ }} or {% %})
-    if (cellStr.includes('{{') || cellStr.includes('{%')) {
+    // Check if it contains any template syntax using the standard LCARdS detector.
+    // Covers: {token}/{datasource:...} tokens, {{Jinja2}}/{%...%}, and [[[JS]]] templates.
+    // Entity IDs (sensor.name) don't contain these markers so fall through correctly.
+    if (TemplateDetector.hasTemplates(cellStr)) {
       return await this.processTemplate(cellStr);
     }
 
     // Check if it's an entity ID (e.g., sensor.temperature)
+    // Uses haFormatState so device_class translations apply (door → Open/Closed etc.)
     const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(cellStr);
     if (isEntityId) {
       // Track this entity for updates
       if (!this._trackedEntities.includes(cellStr)) {
         this._trackedEntities.push(cellStr);
       }
-
-      // Return current state
-      const state = this.hass?.states?.[cellStr];
-      return state ? state.state : '—';
+      const stateObj = this.hass?.states?.[cellStr];
+      return stateObj ? haFormatState(this.hass, stateObj) : '—';
     }
 
     // Static text
@@ -785,11 +788,11 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     return format
       .replace('{value}', String(value))
-      .replace('{value:.0f}', isNumber ? Math.round(numValue).toString() : String(value))
-      .replace('{value:.1f}', isNumber ? numValue.toFixed(1) : String(value))
-      .replace('{value:.2f}', isNumber ? numValue.toFixed(2) : String(value))
-      .replace('{value:+.1f}', isNumber ? (numValue >= 0 ? '+' : '') + numValue.toFixed(1) : String(value))
-      .replace('{value:+.2f}', isNumber ? (numValue >= 0 ? '+' : '') + numValue.toFixed(2) : String(value));
+      .replace('{value:.0f}', isNumber ? haFormatNumber(this.hass, Math.round(numValue), { maximumFractionDigits: 0 }) : String(value))
+      .replace('{value:.1f}', isNumber ? haFormatNumber(this.hass, numValue, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : String(value))
+      .replace('{value:.2f}', isNumber ? haFormatNumber(this.hass, numValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(value))
+      .replace('{value:+.1f}', isNumber ? (numValue >= 0 ? '+' : '') + haFormatNumber(this.hass, numValue, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : String(value))
+      .replace('{value:+.2f}', isNumber ? (numValue >= 0 ? '+' : '') + haFormatNumber(this.hass, numValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(value));
   }
 
   // ============================================================================
@@ -859,7 +862,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     }
 
     // Find the grid container element
-    const gridElement = this.renderRoot?.querySelector('.data-grid');
+    const gridElement = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('.data-grid'));
     if (!gridElement) {
       lcardsLog.debug('[LCARdSDataGrid] Cannot apply filters - grid element not found yet');
       return;
@@ -939,13 +942,14 @@ export class LCARdSDataGrid extends LCARdSCard {
       return;
     }
 
-    // Resolve colors for anime.js: CSS vars must be converted to concrete values
-    // (hex/rgb) before being passed to keyframes — anime.js cannot interpolate
-    // between unresolved CSS variables.
-    // ColorUtils.resolveCssVariable handles var(--name, fallback), nested vars,
-    // and returns the fallback default if the property is not defined.
-    const resolveColorForAnime = (colorValue) =>
-      colorValue ? ColorUtils.resolveCssVariable(colorValue, null) : null;
+    // Resolve colors for anime.js: CSS vars and computed expressions (darken/lighten/alpha/etc.)
+    // must be converted to concrete values before being passed to keyframes.
+    const _resolver = window.lcards?.core?.themeManager?.resolver;
+    const resolveColorForAnime = (colorValue) => {
+      if (!colorValue) return null;
+      const afterResolver = _resolver ? _resolver.resolve(colorValue, colorValue) : colorValue;
+      return ColorUtils.resolveCssVariable(afterResolver, null);
+    };
 
     // Get cascade colors from config or theme
     // Standard format: cascadeAnim.params contains the preset parameters
@@ -1167,7 +1171,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     const targetSelector = `.grid-cell[data-row="${rowIndex}"][data-col="${colIndex}"]`;
 
     // Check if cell exists RIGHT NOW (no waiting, change happens during re-render)
-    const cellExists = this.renderRoot.querySelector(targetSelector);
+    const cellExists = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(targetSelector));
     if (!cellExists) {
       // Cell not rendered yet, skip animation silently
       return;
@@ -1807,7 +1811,7 @@ export class LCARdSDataGrid extends LCARdSCard {
   /**
    * Get configuration element for Home Assistant UI editor
    * @static
-   * @returns {string} Element tag name
+   * @returns {HTMLElement}
    */
   static getConfigElement() {
     // Static import - editor bundled with card (webpack config doesn't support splitting)

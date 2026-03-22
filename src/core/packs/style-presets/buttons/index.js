@@ -2,7 +2,7 @@
  * Button Style Presets
  *
  * Complete button presets for LCARdS cards and status grids.
- * All presets use nested CB-LCARS schema structure.
+ * All presets use nested schema structure.
  *
  * Schema: doc/architecture/button-schema-definition.md
  * Theme Tokens: src/core/packs/themes/tokens/lcarsClassicTokens.js
@@ -156,11 +156,6 @@ export const BUTTON_PRESETS = {
     extends: 'button.lozenge',
     show_icon: true,  // Enable icons by default for lozenge buttons
     icon_area: 'right',  // Icon area on right
-    text: {
-      default: {
-        position: 'left-center'  // Text on left when icon is on right
-      }
-    },
     icon_style: {
       position: 'center',  // Icon centered within left area
       padding: {

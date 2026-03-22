@@ -359,77 +359,8 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 | `src/core/packs/lcards-textures-pack.js` | Pack metadata |
 | `src/editor/components/lcards-shape-texture-editor.js` | Editor UI component |
 
-## Writing a Custom Texture Preset (Pack Authors)
 
-A preset is a plain object with four fields:
+## See Also
 
-```js
-export const MY_PRESETS = {
-    'my-pattern': {
-        name: 'My Pattern',
-        description: 'Short description for Pack Explorer',
-
-        /** Default config values merged with user config */
-        defaults: {
-            color: 'rgba(255,100,0,0.3)',
-            spacing: 30,
-            scroll_speed_x: 15,
-            scroll_speed_y: 0
-        },
-
-        /**
-         * Return SVG <defs> inner markup (no <defs> wrapper).
-         * Use `id` as a unique suffix for ALL element IDs to avoid collisions.
-         *
-         * @param {string} id   - Unique per-card suffix
-         * @param {Object} cfg  - Resolved config (tokens/state already resolved, colors concrete)
-         * @param {Object} ctx  - Shape context: { width: number, height: number }
-         *                        May be undefined for compat with old callers; default defensively.
-         * @returns {string} SVG defs inner markup
-         */
-        createDefs(id, cfg, ctx) {
-            const W       = ctx?.width  ?? 200;
-            const H       = ctx?.height ?? 60;
-            const spacing = cfg.spacing ?? 30;
-            const color   = cfg.color    ?? 'rgba(255,100,0,0.3)';
-            const sx      = cfg.scroll_speed_x ?? 15;
-
-            let animate = '';
-            if (sx !== 0) {
-                const dur = (spacing / Math.abs(sx)).toFixed(2);
-                const toX = sx > 0 ? spacing : -spacing;
-                animate = `<animateTransform attributeName="patternTransform" type="translate"
-                    from="0 0" to="${toX} 0"
-                    dur="${dur}s" repeatCount="indefinite"/>`;
-            }
-
-            return `<pattern id="stex-pattern-${id}" x="0" y="0" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse">
-                <circle cx="${spacing/2}" cy="${spacing/2}" r="3" fill="${color}"/>
-                ${animate}
-            </pattern>`;
-        },
-
-        /**
-         * Return the fill reference used on the texture element.
-         * For pattern-based presets: `url(#stex-pattern-${id})`
-         * @param {string} id
-         * @param {Object} cfg
-         * @returns {string}
-         */
-        getFillRef(id) {
-            return `url(#stex-pattern-${id})`;
-        }
-    }
-};
-```
-
-**Color handling rule**: Use `cfg.color` (or `cfg.color_a` / `cfg.color_b`) directly in SVG attributes (`fill`, `stroke`, `flood-color`, `stop-color`). Do **not** extract RGB components manually — the pipeline guarantees the value is a concrete color string by the time `createDefs` is called.
-
-**Turbulence presets**: Use the `_turbPattern` helper (not exported, for built-in presets only). Pack authors should implement the inner-filter-in-pattern approach manually or build on `<pattern>` primitives directly.
-
-To register additional presets, merge your object into `SHAPE_TEXTURE_PRESETS` before cards render (e.g., in your pack's init function):
-
-```js
-import { SHAPE_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
-Object.assign(SHAPE_TEXTURE_PRESETS, MY_PRESETS);
-```
+- [Pack System](pack-system.md)
+- [Asset Manager](asset-manager.md)

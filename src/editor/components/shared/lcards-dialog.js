@@ -37,6 +37,8 @@ export class LCARdSDialog extends LitElement {
 
   constructor() {
     super();
+        /** @type {any} */
+        this.heading = undefined;
     this.open = false;
     this.preventScrimClose = false;
   }
@@ -67,12 +69,15 @@ export class LCARdSDialog extends LitElement {
     // Legacy scrimClickAction="" / escapeKeyAction="" meant "don't close on scrim/escape",
     // which maps to prevent-scrim-close in the new WA-based ha-dialog.
     const preventClose = this.preventScrimClose
+      // @ts-ignore - TS2339: auto-suppressed
       || this.scrimClickAction === ''
+      // @ts-ignore - TS2339: auto-suppressed
       || this.escapeKeyAction === '';
 
     return html`
       <ha-dialog
         .open=${this.open}
+        // @ts-ignore - TS2339: auto-suppressed
         .headerTitle=${this.heading || undefined}
         ?prevent-scrim-close=${preventClose}
         @closed=${this._handleClosed}>

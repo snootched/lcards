@@ -133,6 +133,7 @@ function renderRangeSegments(zoneSpec, colors, style, config) {
  * @param {Object} context.style - Resolved style object (preset + user overrides)
  * @param {Object} context.state - Current card state (value, entity, min, max, domain)
  * @param {Object} context.hass - Home Assistant object
+ * @param {Object} [context.zones] - Pre-calculated zones (optional)
  * @returns {string} Complete SVG markup with zones marked for content injection
  */
 export function render(context) {

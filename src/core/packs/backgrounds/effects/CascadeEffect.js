@@ -380,10 +380,18 @@ export class CascadeEffect extends BaseEffect {
 
     if (!this._cellData || this._computedRows === 0 || this._computedCols === 0) return;
 
-    // Resolve CSS variables once per frame (ColorUtils caches results)
-    this._resolvedStart = ColorUtils.resolveCssVariable(this.colorStart);
-    this._resolvedText  = ColorUtils.resolveCssVariable(this.colorText);
-    this._resolvedEnd   = ColorUtils.resolveCssVariable(this.colorEnd);
+    // Resolve colour values once per frame.
+    // Step 1: ThemeTokenResolver handles computed expressions like darken(var(--x), 0.3)
+    //         and token references — mirrors the pattern in state-color-resolver.js.
+    // Step 2: resolveCssVariable materialises any remaining var() to a concrete hex/rgb
+    //         value that Canvas2D fillStyle can accept.
+    const _resolver = window.lcards?.core?.themeManager?.resolver;
+    const _resolve = (c) => ColorUtils.resolveCssVariable(
+      (_resolver ? _resolver.resolve(c, c) : c), c
+    );
+    this._resolvedStart = _resolve(this.colorStart);
+    this._resolvedText  = _resolve(this.colorText);
+    this._resolvedEnd   = _resolve(this.colorEnd);
 
     // Early-exit if colours are not yet parseable (e.g., DOM not ready for CSS var resolution)
     if (!ColorUtils.parseColor(this._resolvedStart) ||
@@ -427,7 +435,7 @@ export class CascadeEffect extends BaseEffect {
     ctx.restore();
 
     if (!this._hasLoggedFirstDraw) {
-      lcardsLog.info('[CascadeEffect] First draw', {
+      lcardsLog.debug('[CascadeEffect] First draw', {
         rows: this._computedRows,
         cols: this._computedCols,
         canvas: `${canvasWidth}×${canvasHeight}`,

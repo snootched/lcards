@@ -250,7 +250,7 @@ export class ThemeTokenResolver {
     if (value.startsWith('rgb')) return true;
 
     // Numbers as strings are direct values
-    if (!isNaN(value)) return true;
+    if (!isNaN(Number(value))) return true;
 
     return false;
   }
@@ -311,7 +311,7 @@ export class ThemeTokenResolver {
 
       // Resolve each argument
       const resolvedArgs = args.map(arg => {
-        // If argument is a token reference, resolve it
+        // If argument is a theme: token reference, resolve it
         if (this._isTokenReference(arg)) {
           const resolved = this.resolve(arg, arg, context);
           // Warn if token reference didn't resolve (returned unchanged)
@@ -320,16 +320,23 @@ export class ThemeTokenResolver {
           }
           return resolved;
         }
+        // If argument is a CSS variable, resolve it to a concrete value so
+        // that ColorUtils receives a hex/rgb string rather than var(--name).
+        // e.g. lighten(var(--lcards-green), 0.3) — Canvas / anime.js cannot
+        // use color-mix() output, so we must materialise the value here.
+        if (typeof arg === 'string' && arg.includes('var(')) {
+          return ColorUtils.resolveCssVariable(arg, arg);
+        }
         // If argument is a number string (possibly with %), parse it
         const trimmedArg = typeof arg === 'string' ? arg.trim() : arg;
         if (typeof trimmedArg === 'string' && trimmedArg.endsWith('%')) {
           // Parse percentage and convert to decimal (30% -> 0.3)
           const numStr = trimmedArg.slice(0, -1);
-          if (!isNaN(numStr)) {
+          if (!isNaN(Number(numStr))) {
             return parseFloat(numStr) / 100;
           }
         }
-        if (!isNaN(trimmedArg)) {
+        if (!isNaN(Number(trimmedArg))) {
           return parseFloat(trimmedArg);
         }
         return arg;

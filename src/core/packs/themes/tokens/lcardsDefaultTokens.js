@@ -1,7 +1,7 @@
 /**
  * @fileoverview LCARS Classic Theme Tokens
  *
- * Minimal, component-driven token schema with HA-LCARS integration and CB-LCARS fallbacks.
+ * Minimal, component-driven token schema with HA-LCARS integration and LCARdS fallbacks.
  *
  * Design principles:
  * - Only includes tokens actually used by LCARdS components
@@ -12,7 +12,7 @@
  * - Supports all typical LCARdS card states (default, active, inactive, unavailable)
  *
  * Color variable convention:
- * - Primary: var(--lcars-*, var(--lcards-*))  // HA-LCARS with CB-LCARS fallback
+ * - Primary: var(--lcars-*, var(--lcards-*))  // HA-LCARS with LCARdS fallback
  * - Fallback: --lcards-* variables injected by paletteInjector.js
  *
  * Computed tokens:
@@ -90,7 +90,7 @@ export const lcardsDefaultTokens = {
       quaternary: 'var(--lcars-ui-quaternary, var(--lcards-gray-dark))'
     },
 
-    // Card-specific colors (HA-LCARS variables with CB-LCARS fallbacks)
+    // Card-specific colors (HA-LCARS variables with LCARdS fallbacks)
     // Note: HA-LCARS 25C themes + Picard provide button-off/unavailable explicitly
     card: {
       button: 'var(--lcars-card-button, var(--lcards-gray-medium-light))',

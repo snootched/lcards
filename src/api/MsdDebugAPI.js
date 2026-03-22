@@ -43,7 +43,7 @@ function _getAllMsdCards() {
 /**
  * Get MSD card by config ID or return first card if no ID specified
  * @param {string|null} cardId - Config ID (e.g. 'bridge') or null for first card
- * @returns {Element|null} MSD card element
+ * @returns {any} MSD card element
  * @private
  */
 function _getMsdCard(cardId = null) {
@@ -158,94 +158,6 @@ export class MsdDebugAPI {
       // ==========================================
 
       /**
-       * Get singleton debug info (unified API access)
-       *
-       * Provides access to core singleton debug information through the
-       * structured API while preserving direct console access patterns.
-       *
-       * @returns {Object} Core singleton debug information
-       *
-       * @example
-       * // Structured API access
-       * window.lcards.debug.msd.core();
-       *
-       * // Direct access (still works)
-       * window.lcards.core.getDebugInfo();
-       * window.lcards.debug.singletons.getDebugInfo();
-       */
-      core() {
-        if (window.lcards?.core?.getDebugInfo) {
-          return window.lcards.core.getDebugInfo();
-        }
-        return { error: 'Core singletons not available', available: false };
-      },
-
-      /**
-       * Get specific singleton manager debug info
-       *
-       * @param {string} manager - Manager name (e.g., 'systemsManager', 'dataSourceManager')
-       * @returns {Object} Manager debug information
-       *
-       * @example
-       * window.lcards.debug.msd.singleton('systemsManager');
-       * window.lcards.debug.msd.singleton('dataSourceManager');
-       */
-      singleton(manager) {
-        const core = window.lcards?.core;
-        if (!core) {
-          return { error: 'Core singletons not available', manager, available: false };
-        }
-
-        const singletonManager = core[manager];
-        if (!singletonManager) {
-          return {
-            error: `Manager '${manager}' not found`,
-            manager,
-            available: Object.keys(core).filter(k => !k.startsWith('_'))
-          };
-        }
-
-        if (typeof singletonManager.getDebugInfo === 'function') {
-          return singletonManager.getDebugInfo();
-        }
-
-        return {
-          error: `Manager '${manager}' does not have getDebugInfo method`,
-          manager,
-          type: typeof singletonManager
-        };
-      },
-
-      /**
-       * List all available singleton managers
-       *
-       * @returns {Array} Array of available singleton manager names
-       *
-       * @example
-       * window.lcards.debug.msd.singletons();
-       */
-      singletons() {
-        const core = window.lcards?.core;
-        if (!core) {
-          return { error: 'Core singletons not available', available: false };
-        }
-
-        const managers = Object.keys(core).filter(key => {
-          return !key.startsWith('_') &&
-                 core[key] &&
-                 typeof core[key] === 'object' &&
-                 typeof core[key].getDebugInfo === 'function';
-        });
-
-        return {
-          managers,
-          count: managers.length,
-          coreInitialized: core._coreInitialized,
-          directAccess: 'window.lcards.core or window.lcards.debug.singletons'
-        };
-      },
-
-      /**
        * List all MSD cards on the page
        * Useful for discovering card IDs when debugging multiple instances
        * Uses SystemsManager for reliable card discovery
@@ -320,49 +232,33 @@ export class MsdDebugAPI {
        */
       help(topic) {
         const namespaces = {
-          core: {
-            desc: 'Core singleton access and debugging',
-            methods: ['core()', 'singleton(manager)', 'singletons()']
-          },
           routing: {
             desc: 'Routing and resolution debugging',
-            methods: ['inspect(guid)', 'trace(guid)', 'analyze(guid)', 'listActive()', 'testMatch()']
+            methods: ['inspect(overlayId, cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)', 'inspectAs(overlayId, mode, cardId?)']
           },
           data: {
-            desc: 'Data context and subscription inspection',
-            methods: ['context()', 'subscriptions()', 'inspect(entityId)', 'entities()', 'refresh()', 'trace(entityId)', 'history()', 'validate()']
-          },
-          styles: {
-            desc: 'Style computation and inspection',
-            methods: ['computed(guid)', 'effective(guid)', 'overrides(guid)', 'inheritance(guid)', 'cascade(guid)', 'validate(guid)']
-          },
-          charts: {
-            desc: 'Chart data processing inspection',
-            methods: ['inspect(guid)', 'trace(guid)', 'validate(guid)', 'compareSnapshots()']
+            desc: 'MSD entity data tracing across overlays',
+            methods: ['trace(entityId, cardId?)']
           },
           rules: {
-            desc: 'Rule evaluation and validation',
-            methods: ['listActive(options)', 'evaluate()', 'trace()', 'validate()']
+            desc: 'MSD card rules inspection',
+            methods: ['listActive(options?, cardId?)']
           },
           animations: {
             desc: 'Animation state and playback control',
-            methods: ['list()', 'inspect(id)', 'control(id, action)', 'registry()']
-          },
-          packs: {
-            desc: 'Pack compilation and management',
-            methods: ['list()', 'inspect(packId)', 'compile()', 'validate()']
-          },
-          visual: {
-            desc: 'Visual debugging and overlay inspection',
-            methods: ['hud()', 'highlight(guid)', 'inspect(guid)', 'snapshot()', 'diff(before, after)', 'validate(guid)', 'toggleBorders()']
+            methods: ['active(cardId?)', 'dump(cardId?)', 'registryStats(cardId?)', 'inspect(overlayId, cardId?)', 'timeline(id, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
           },
           overlays: {
-            desc: 'Overlay management and bulk operations',
-            methods: ['list(filter)', 'inspect(id)', 'create()', 'update(id, changes)', 'remove(id)', 'bulkUpdate(selector, changes)', 'bulkRemove(selector)', 'bulkApplyTags(selector, tags)', 'validate(id)', 'export(filter)', 'import(data)']
+            desc: 'Overlay introspection and search',
+            methods: ['inspect(id, cardId?)', 'getBBox(id, cardId?)', 'getTransform(id, cardId?)', 'getState(id, cardId?)', 'findByType(type, cardId?)', 'findByEntity(entityId, cardId?)', 'tree(cardId?)', 'list(cardId?)']
+          },
+          anchors: {
+            desc: 'Anchor tracing through MSD pipeline stages',
+            methods: ['getAll(cardId?)', 'get(name, cardId?)', 'trace(cardId?)', 'list(cardId?)', 'print(cardId?)']
           },
           pipeline: {
-            desc: 'Pipeline execution and lifecycle control',
-            methods: ['status()', 'lifecycle()', 'trace()', 'rerun()', 'getInstance()']
+            desc: 'MSD pipeline lifecycle and config inspection',
+            methods: ['stages(cardId?)', 'timing(cardId?)', 'config(cardId?)', 'errors(cardId?)', 'rerun(cardId?)', 'getInstance(cardId?)']
           }
         };
 
@@ -406,130 +302,68 @@ export class MsdDebugAPI {
        */
       usage(namespace) {
         const examples = {
-          core: [
-            '// Get complete core singleton debug info',
-            'const coreDebug = msd.core();',
-            'console.log("Systems:", coreDebug.systemsManager);',
-            '',
-            '// Inspect specific singleton manager',
-            'const dsm = msd.singleton("dataSourceManager");',
-            'console.log("Data sources:", dsm);',
-            '',
-            '// List all available singleton managers',
-            'const managers = msd.singletons();',
-            'console.log("Available:", managers.managers);',
-            '',
-            '// Direct console access (alternative)',
-            'window.lcards.core.getDebugInfo();',
-            'window.lcards.debug.singletons.systemsManager.getDebugInfo();'
-          ],
           routing: [
-            '// Inspect routing for a GUID',
-            'msd.routing.inspect("my-button-guid");',
+            '// Inspect routing for an overlay',
+            'msd.routing.inspect("my-overlay");',
             '',
-            '// Trace full resolution path',
-            'msd.routing.trace("my-button-guid");',
+            '// Get routing stats',
+            'msd.routing.stats();',
             '',
-            '// List all active routes',
-            'msd.routing.listActive();'
+            '// Force routing cache invalidation',
+            'msd.routing.invalidate("*");'
           ],
           data: [
-            '// View data context',
-            'const ctx = msd.data.context();',
-            'console.log("Entities:", ctx.entities);',
-            '',
-            '// Inspect specific entity',
-            'msd.data.inspect("sensor.temperature");',
-            '',
-            '// Refresh data sources',
-            'msd.data.refresh();'
-          ],
-          styles: [
-            '// Get computed styles for GUID',
-            'const styles = msd.styles.computed("my-button-guid");',
-            '',
-            '// Check style inheritance chain',
-            'msd.styles.inheritance("my-button-guid");',
-            '',
-            '// Validate style configuration',
-            'msd.styles.validate("my-button-guid");'
-          ],
-          charts: [
-            '// Inspect chart data processing',
-            'msd.charts.inspect("my-chart-guid");',
-            '',
-            '// Trace data transformation',
-            'msd.charts.trace("my-chart-guid");',
-            '',
-            '// Validate chart configuration',
-            'msd.charts.validate("my-chart-guid");'
+            '// Trace entity usage across MSD overlays',
+            'msd.data.trace("sensor.temperature");'
           ],
           rules: [
-            '// List all active rules',
+            '// List all active rules in this MSD card',
             'msd.rules.listActive();',
             '',
-            '// List with disabled rules included',
+            '// Include disabled rules',
             'msd.rules.listActive({ includeDisabled: true });',
             '',
-            '// Evaluate rules for current context',
-            'msd.rules.evaluate();'
+            '// Full rule detail',
+            'msd.rules.listActive({ verbose: true });'
           ],
           animations: [
-            '// List all animations',
-            'const anims = msd.animations.list();',
+            '// List active animations',
+            'msd.animations.active();',
             '',
-            '// Inspect specific animation',
-            'msd.animations.inspect("fade-in-1");',
+            '// Inspect animation scope for an overlay',
+            'msd.animations.inspect("cpu_status");',
             '',
-            '// Control animation playback',
-            'msd.animations.control("fade-in-1", "pause");',
-            'msd.animations.control("fade-in-1", "play");'
-          ],
-          packs: [
-            '// List all packs',
-            'const packs = msd.packs.list();',
-            '',
-            '// Inspect specific pack',
-            'msd.packs.inspect("my-pack-id");',
-            '',
-            '// Validate pack configuration',
-            'msd.packs.validate();'
-          ],
-          visual: [
-            '// Toggle HUD display',
-            'msd.visual.hud();',
-            '',
-            '// Highlight element by GUID',
-            'msd.visual.highlight("my-button-guid");',
-            '',
-            '// Take visual snapshot',
-            'const snapshot = msd.visual.snapshot();',
-            '',
-            '// Toggle debug borders',
-            'msd.visual.toggleBorders();'
+            '// Manually trigger animation',
+            'msd.animations.trigger("cpu_status", "pulse");'
           ],
           overlays: [
             '// List all overlays',
-            'const all = msd.overlays.list();',
+            'msd.overlays.list();',
             '',
-            '// Filter overlays by tag',
-            'const buttons = msd.overlays.list({ tags: ["button"] });',
+            '// Find overlays showing a specific entity',
+            'msd.overlays.findByEntity("sensor.temperature");',
             '',
-            '// Bulk update matching overlays',
-            'msd.overlays.bulkUpdate({ tags: ["button"] }, { label_color: "#ff9900" });',
+            '// Inspect single overlay',
+            'msd.overlays.inspect("button_1");'
+          ],
+          anchors: [
+            '// List all anchor names',
+            'msd.anchors.list();',
             '',
-            '// Bulk apply tags',
-            'msd.overlays.bulkApplyTags({ row: 1 }, ["top-row"]);'
+            '// Print anchor table to console',
+            'msd.anchors.print();',
+            '',
+            '// Trace anchor flow through pipeline',
+            'msd.anchors.trace();'
           ],
           pipeline: [
-            '// Get pipeline status',
-            'const status = msd.pipeline.status();',
-            'console.log("State:", status.state);',
+            '// Get pipeline config (merged YAML)',
+            'msd.pipeline.config();',
             '',
-            '// View lifecycle state',
-            'msd.pipeline.lifecycle();',
+            '// Get pipeline timing breakdown',
+            'msd.pipeline.timing();',
             '',
-            '// Re-run pipeline',
+            '// Force re-render',
             'msd.pipeline.rerun();'
           ]
         };
@@ -767,128 +601,22 @@ export class MsdDebugAPI {
       },
 
       // ==========================================
-      // DATA SOURCE INTROSPECTION
+      // DATA INTROSPECTION
       // ==========================================
 
       data: {
         /**
-         * Get data source statistics
+         * Trace entity usage across MSD overlays
          *
-         * Returns statistics for all data sources including entity counts,
-         * cache hits, updates, and source-specific metrics.
-         *
-         * @returns {Object|null} Data source statistics
-         *
-         * @example
-         * const stats = window.lcards.debug.msd.data.stats();
-         * console.log('Sources:', stats.sources);
-         * console.log('Total entities:', stats.totalEntities);
-         */
-        stats() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.dataSources?.stats) {
-              lcardsLog.warn('[DebugAPI] Data source stats not available');
-              return null;
-            }
-
-            return dbg.dataSources.stats();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting data stats:', error);
-            return null;
-          }
-        },
-
-        /**
-         * List all data source names
-         *
-         * Returns array of data source names (e.g., 'hass', 'manual', 'computed').
-         *
-         * @returns {Array<string>} Array of data source names
-         *
-         * @example
-         * const sources = window.lcards.debug.msd.data.list();
-         * console.log('Available sources:', sources);
-         */
-        list() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.dataSources?.list) {
-              lcardsLog.warn('[DebugAPI] Data source list not available');
-              return [];
-            }
-
-            return dbg.dataSources.list();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error listing data sources:', error);
-            return [];
-          }
-        },
-
-        /**
-         * Get data source details by name
-         *
-         * Returns statistics and details for a specific data source.
-         *
-         * @param {string} sourceName - Data source name
-         * @returns {Object|null} Data source details
-         *
-         * @example
-         * const hass = window.lcards.debug.msd.data.get('hass');
-         * console.log('HASS entities:', hass.entityCount);
-         */
-        get(sourceName) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.dataSources?.get) {
-              lcardsLog.warn('[DebugAPI] Data source get not available');
-              return null;
-            }
-
-            return dbg.dataSources.get(sourceName);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting data source:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Dump all data source information
-         *
-         * Returns comprehensive dump of all data sources with full details.
-         *
-         * @returns {Object|null} Complete data source dump
-         *
-         * @example
-         * const dump = window.lcards.debug.msd.data.dump();
-         * console.log('Full data dump:', dump);
-         */
-        dump() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.dataSources?.dump) {
-              lcardsLog.warn('[DebugAPI] Data source dump not available');
-              return null;
-            }
-
-            return dbg.dataSources.dump();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error dumping data sources:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Trace entity usage across overlays
-         *
-         * Shows which overlays reference a specific entity and how.
+         * Shows which MSD overlays reference a specific entity and how they route it.
          *
          * @param {string} entityId - Entity ID to trace
+         * @param {string|null} [cardId=null] - Config ID for target MSD card
          * @returns {Object|null} Entity trace data
          *
          * @example
-         * const trace = window.lcards.debug.msd.data.trace('sensor.temperature');
-         * console.log('Used by overlays:', trace.overlays);
+         * window.lcards.debug.msd.data.trace('sensor.temperature')
+         * // → { entityId, found, entity, usedByOverlays: [{ id, type, route }] }
          */
         trace(entityId, cardId = null) {
           try {
@@ -900,13 +628,11 @@ export class MsdDebugAPI {
               return null;
             }
 
-            // Get entity data
             const entity = dataManager.getEntity(entityId);
             if (!entity) {
               return { entityId, found: false, message: 'Entity not found' };
             }
 
-            // Find overlays using this entity
             const model = _getMsdModel(cardId);
             const overlays = model?.overlays.filter(ov => {
               const route = ov.route || ov._raw?.route;
@@ -927,323 +653,6 @@ export class MsdDebugAPI {
             lcardsLog.error('[DebugAPI] Error tracing entity:', error);
             return null;
           }
-        },
-
-        /**
-         * Get entity state history
-         *
-         * Returns recent state changes for an entity (if available).
-         *
-         * @param {string} entityId - Entity ID
-         * @param {number} [n=10] - Number of history entries
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const history = window.lcards.debug.msd.data.history('sensor.temp', 5);
-         */
-        history(entityId, n = 10) {
-          lcardsLog.warn('[DebugAPI] data.history() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will show historical entity state changes');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Track entity state history locally',
-              'Integration with HA history API',
-              'Show state change timeline'
-            ],
-            suggestion: 'Use Home Assistant history panel or logbook for now'
-          };
-        }
-      },
-
-      // ==========================================
-      // STYLE INTROSPECTION
-      // ==========================================
-
-      styles: {
-        /**
-         * Get style resolution details for an overlay
-         *
-         * Shows how each style property was resolved (from theme tokens,
-         * overlays, defaults, etc.) with full provenance.
-         *
-         * @param {string} overlayId - Overlay ID
-         * @returns {Object|null} Style resolution data
-         *
-         * @example
-         * const styles = window.lcards.debug.msd.styles.resolutions('button_1');
-         * console.log('Total properties:', styles.total);
-         * console.log('By source:', styles.by_source);
-         */
-        resolutions(overlayId) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.getStyleResolutions) {
-              lcardsLog.warn('[DebugAPI] Style resolutions not available');
-              return null;
-            }
-
-            return dbg.getStyleResolutions(overlayId);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting style resolutions:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Find overlays using a specific theme token
-         *
-         * Searches all overlays to find which ones reference a given
-         * theme token path.
-         *
-         * @param {string} tokenPath - Token path (e.g., 'colors.primary')
-         * @returns {Array|null} Overlays using this token
-         *
-         * @example
-         * const overlays = window.lcards.debug.msd.styles.findByToken('colors.primary');
-         * overlays.forEach(ov => console.log(ov.overlayId, ov.properties));
-         */
-        findByToken(tokenPath) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.findOverlaysByToken) {
-              lcardsLog.warn('[DebugAPI] findOverlaysByToken not available');
-              return null;
-            }
-
-            return dbg.findOverlaysByToken(tokenPath);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error finding overlays by token:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get global style resolution summary
-         *
-         * Returns aggregate statistics across all overlays showing
-         * resolution sources, renderer breakdown, and overlay type analysis.
-         *
-         * @returns {Object|null} Global style summary
-         *
-         * @example
-         * const summary = window.lcards.debug.msd.styles.provenance();
-         * console.log('Total overlays:', summary.total_overlays);
-         * console.log('By source:', summary.by_source);
-         */
-        provenance() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.getGlobalStyleSummary) {
-              lcardsLog.warn('[DebugAPI] Global style summary not available');
-              return null;
-            }
-
-            return dbg.getGlobalStyleSummary();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting style provenance:', error);
-            return null;
-          }
-        },
-
-        /**
-         * List all theme tokens (future enhancement)
-         *
-         * Will return all available theme tokens with their paths.
-         *
-         * @returns {Array|null} Theme tokens
-         *
-         * @example
-         * const tokens = window.lcards.debug.msd.styles.listTokens();
-         */
-        listTokens() {
-          try {
-            const theme = window.lcards?.core?.themeManager ?? window.lcards?.theme;
-            if (!theme) {
-              lcardsLog.warn('[DebugAPI] Theme manager not available');
-              return null;
-            }
-
-            // Get active theme and extract token paths
-            const activeTheme = theme.getActiveTheme?.();
-            if (!activeTheme) return null;
-
-            // Recursively collect token paths
-            const collectPaths = (obj, prefix = '') => {
-              const paths = [];
-              for (const [key, value] of Object.entries(obj)) {
-                const path = prefix ? `${prefix}.${key}` : key;
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                  paths.push(...collectPaths(value, path));
-                } else {
-                  paths.push({ path, value });
-                }
-              }
-              return paths;
-            };
-
-            return collectPaths(activeTheme);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error listing tokens:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get resolved value for a theme token
-         *
-         * Returns the current resolved value for a token path.
-         *
-         * @param {string} tokenPath - Token path (e.g., 'colors.primary')
-         * @returns {*} Token value
-         *
-         * @example
-         * const color = window.lcards.debug.msd.styles.getTokenValue('colors.primary');
-         */
-        getTokenValue(tokenPath) {
-          try {
-            const theme = window.lcards?.core?.themeManager ?? window.lcards?.theme;
-            if (!theme) {
-              lcardsLog.warn('[DebugAPI] Theme manager not available');
-              return null;
-            }
-
-            const activeTheme = theme.getActiveTheme?.();
-            if (!activeTheme) return null;
-
-            // Navigate token path
-            const parts = tokenPath.split('.');
-            let value = activeTheme;
-            for (const part of parts) {
-              if (value && typeof value === 'object') {
-                value = value[part];
-              } else {
-                return null;
-              }
-            }
-
-            return value;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting token value:', error);
-            return null;
-          }
-        }
-      },
-
-      // ==========================================
-      // CHART VALIDATION
-      // ==========================================
-
-      charts: {
-        /**
-         * Validate a specific chart overlay
-         *
-         * Validates ApexChart data format, series structure, and
-         * data source compatibility.
-         *
-         * @param {string} overlayId - Chart overlay ID
-         * @returns {Object|null} Validation result with errors/warnings
-         *
-         * @example
-         * const result = window.lcards.debug.msd.charts.validate('chart_1');
-         * if (!result.valid) {
-         *   result.errors.forEach(err => console.error(err.message));
-         * }
-         */
-        validate(overlayId) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.charts?.validate) {
-              lcardsLog.warn('[DebugAPI] Chart validation not available');
-              return null;
-            }
-
-            return dbg.charts.validate(overlayId);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error validating chart:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Validate all chart overlays
-         *
-         * Runs validation on all ApexChart overlays and returns
-         * summary of results.
-         *
-         * @returns {Object|null} Validation summary
-         *
-         * @example
-         * const summary = window.lcards.debug.msd.charts.validateAll();
-         * console.log(`Valid: ${summary.validCount}, Invalid: ${summary.invalidCount}`);
-         */
-        validateAll() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.charts?.validateAll) {
-              lcardsLog.warn('[DebugAPI] Chart validateAll not available');
-              return null;
-            }
-
-            return dbg.charts.validateAll();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error validating all charts:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get format specification for chart type
-         *
-         * Returns expected data format and structure requirements
-         * for a specific chart type.
-         *
-         * @param {string} chartType - Chart type (e.g., 'line', 'area', 'bar')
-         * @returns {Object|null} Format specification
-         *
-         * @example
-         * const spec = window.lcards.debug.msd.charts.getFormatSpec('line');
-         */
-        getFormatSpec(chartType) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.charts?.getFormatSpec) {
-              lcardsLog.warn('[DebugAPI] Chart getFormatSpec not available');
-              return null;
-            }
-
-            return dbg.charts.getFormatSpec(chartType);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting format spec:', error);
-            return null;
-          }
-        },
-
-        /**
-         * List supported chart types
-         *
-         * Returns array of supported ApexChart types.
-         *
-         * @returns {Array<string>} Chart types
-         *
-         * @example
-         * const types = window.lcards.debug.msd.charts.listTypes();
-         */
-        listTypes() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.charts?.listTypes) {
-              // Return known types as fallback
-              return ['line', 'area', 'bar', 'scatter', 'heatmap', 'candlestick',
-                      'boxplot', 'radar', 'radialBar', 'pie', 'donut', 'polarArea'];
-            }
-
-            return dbg.charts.listTypes();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error listing chart types:', error);
-            return [];
-          }
         }
       },
 
@@ -1252,59 +661,6 @@ export class MsdDebugAPI {
       // ==========================================
 
       rules: {
-        /**
-         * Get rules execution trace
-         *
-         * Returns trace of rules evaluation showing which rules fired,
-         * conditions checked, and actions taken.
-         *
-         * @returns {Object|null} Rules trace data
-         *
-         * @example
-         * const trace = window.lcards.debug.msd.rules.trace();
-         * console.log('Rules evaluated:', trace.evaluated);
-         * console.log('Rules fired:', trace.fired);
-         */
-        trace() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.rules?.trace) {
-              lcardsLog.warn('[DebugAPI] Rules trace not available');
-              return null;
-            }
-
-            return dbg.rules.trace();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting rules trace:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Evaluate specific rule (future enhancement)
-         *
-         * Test a rule against current state.
-         *
-         * @param {string} ruleId - Rule ID
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const result = window.lcards.debug.msd.rules.evaluate('rule_1');
-         */
-        evaluate(ruleId) {
-          lcardsLog.warn('[DebugAPI] rules.evaluate() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will test rule evaluation against current state');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Test rule evaluation in isolation',
-              'Preview rule outcomes',
-              'Debug rule conditions'
-            ]
-          };
-        },
-
         /**
          * List active rules
          *
@@ -1326,7 +682,7 @@ export class MsdDebugAPI {
          * // Get detailed rule information
          * const detailed = window.lcards.debug.msd.rules.listActive({ verbose: true });
          */
-        listActive(options = {}, cardId = null) {
+        listActive(options = /** @type {any} */ ({}), cardId = null) {
           try {
             const { includeDisabled = false, verbose = false } = options;
             const config = _getMsdConfig(cardId);
@@ -1355,30 +711,6 @@ export class MsdDebugAPI {
             lcardsLog.error('[DebugAPI] Error listing active rules:', error);
             return [];
           }
-        },
-
-        /**
-         * Debug specific rule with test state (future enhancement)
-         *
-         * @param {string} ruleId - Rule ID
-         * @param {Object} state - Test state
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const result = window.lcards.debug.msd.rules.debugRule('rule_1', testState);
-         */
-        debugRule(ruleId, state) {
-          lcardsLog.warn('[DebugAPI] rules.debugRule() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will enable step-by-step rule debugging with test state');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Test rules with mock state',
-              'Step through rule evaluation',
-              'Preview actions without executing'
-            ]
-          };
         }
       },
 
@@ -1578,308 +910,6 @@ export class MsdDebugAPI {
               error: 'EXCEPTION',
               message: error.message
             };
-          }
-        }
-      },
-
-      // ==========================================
-      // PACKS (Configuration Packs)
-      // ==========================================
-
-      packs: {
-        /**
-         * List packs by type
-         *
-         * Returns count/list of configuration packs (animations, overlays,
-         * rules, profiles, timelines).
-         *
-         * @param {string} [type] - Pack type or omit for counts
-         * @returns {Object|Array} Pack counts or specific pack list
-         *
-         * @example
-         * // Get counts
-         * const counts = window.lcards.debug.msd.packs.list();
-         * console.log('Overlays:', counts.overlays);
-         *
-         * // Get specific type
-         * const overlays = window.lcards.debug.msd.packs.list('overlays');
-         */
-        list(type) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.packs?.list) {
-              lcardsLog.warn('[DebugAPI] Packs list not available');
-              return type ? [] : {};
-            }
-
-            return dbg.packs.list(type);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error listing packs:', error);
-            return type ? [] : {};
-          }
-        },
-
-        /**
-         * Get specific pack item
-         *
-         * Returns a specific item from a pack by type and ID.
-         *
-         * @param {string} type - Pack type (e.g., 'overlays', 'rules')
-         * @param {string} id - Item ID
-         * @returns {Object|null} Pack item
-         *
-         * @example
-         * const overlay = window.lcards.debug.msd.packs.get('overlays', 'button_1');
-         */
-        get(type, id) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.packs?.get) {
-              lcardsLog.warn('[DebugAPI] Packs get not available');
-              return null;
-            }
-
-            return dbg.packs.get(type, id);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting pack item:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get configuration issues
-         *
-         * Returns validation issues found in configuration packs.
-         *
-         * @returns {Array|null} Configuration issues
-         *
-         * @example
-         * const issues = window.lcards.debug.msd.packs.issues();
-         * issues.forEach(issue => console.error(issue.message));
-         */
-        issues() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.packs?.issues) {
-              lcardsLog.warn('[DebugAPI] Packs issues not available');
-              return null;
-            }
-
-            return dbg.packs.issues();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting pack issues:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get pack loading order (future enhancement)
-         *
-         * Returns the order in which packs were loaded/merged.
-         *
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const order = window.lcards.debug.msd.packs.order();
-         */
-        order() {
-          lcardsLog.warn('[DebugAPI] packs.order() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will show pack merge order and provenance');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Show pack loading order',
-              'Track configuration provenance',
-              'Identify override sources'
-            ]
-          };
-        }
-      },
-
-      // ==========================================
-      // VISUAL DEBUG CONTROLS (Phase 2)
-      // ==========================================
-
-      visual: {
-        /**
-         * Enable visual debug feature
-         *
-         * Shows visual debug overlays for anchors, bounding boxes, routing,
-         * or performance metrics. Use 'all' to enable all features.
-         *
-         * @param {string} feature - Feature name or 'all'
-         * @returns {boolean} Success status
-         *
-         * @example
-         * // Enable bounding boxes
-         * window.lcards.debug.msd.visual.enable('bounding_boxes');
-         *
-         * // Enable all debug visuals
-         * window.lcards.debug.msd.visual.enable('all');
-         *
-         * // Enable specific feature
-         * window.lcards.debug.msd.visual.enable('anchors');
-         * window.lcards.debug.msd.visual.enable('routing');
-         * window.lcards.debug.msd.visual.enable('performance');
-         */
-        enable(feature) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.debug?.enable) {
-              lcardsLog.warn('[DebugAPI] Visual debug not available');
-              return false;
-            }
-
-            dbg.debug.enable(feature);
-            lcardsLog.debug(`[DebugAPI] Enabled visual debug: ${feature}`);
-            return true;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error enabling visual debug:', error);
-            return false;
-          }
-        },
-
-        /**
-         * Disable visual debug feature
-         *
-         * Hides visual debug overlays for specified feature or all features.
-         *
-         * @param {string} feature - Feature name or 'all'
-         * @returns {boolean} Success status
-         *
-         * @example
-         * // Disable bounding boxes
-         * window.lcards.debug.msd.visual.disable('bounding_boxes');
-         *
-         * // Disable all debug visuals
-         * window.lcards.debug.msd.visual.disable('all');
-         */
-        disable(feature) {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.debug?.disable) {
-              lcardsLog.warn('[DebugAPI] Visual debug not available');
-              return false;
-            }
-
-            dbg.debug.disable(feature);
-            lcardsLog.debug(`[DebugAPI] Disabled visual debug: ${feature}`);
-            return true;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error disabling visual debug:', error);
-            return false;
-          }
-        },
-
-        /**
-         * Toggle visual debug feature on/off
-         *
-         * Convenient method to toggle a debug feature without checking current state.
-         *
-         * @param {string} feature - Feature name to toggle
-         * @returns {boolean} New state (true = enabled, false = disabled)
-         *
-         * @example
-         * const newState = window.lcards.debug.msd.visual.toggle('bounding_boxes');
-         * console.log('Bounding boxes now:', newState ? 'enabled' : 'disabled');
-         */
-        toggle(feature) {
-          try {
-            const status = this.status();
-            if (!status) return false;
-
-            const isEnabled = status[feature];
-            if (isEnabled) {
-              this.disable(feature);
-              return false;
-            } else {
-              this.enable(feature);
-              return true;
-            }
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error toggling visual debug:', error);
-            return false;
-          }
-        },
-
-        /**
-         * Get visual debug status
-         *
-         * Returns current state of all visual debug features.
-         *
-         * @returns {Object|null} Debug feature status
-         *
-         * @example
-         * const status = window.lcards.debug.msd.visual.status();
-         * console.log('Anchors enabled:', status.anchors);
-         * console.log('Bounding boxes enabled:', status.bounding_boxes);
-         * console.table(status);
-         */
-        status() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.debug?.getStatus) {
-              lcardsLog.warn('[DebugAPI] Visual debug status not available');
-              return null;
-            }
-
-            return dbg.debug.getStatus();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting visual debug status:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get list of active visual debug features
-         *
-         * Returns array of currently enabled debug feature names.
-         *
-         * @returns {Array<string>} Active feature names
-         *
-         * @example
-         * const active = window.lcards.debug.msd.visual.getActive();
-         * console.log('Active debug features:', active);
-         * // ['bounding_boxes', 'anchors']
-         */
-        getActive() {
-          try {
-            const status = this.status();
-            if (!status) return [];
-
-            return Object.entries(status)
-              .filter(([key, value]) => value === true && key !== 'scale')
-              .map(([key]) => key);
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting active features:', error);
-            return [];
-          }
-        },
-
-        /**
-         * Refresh visual debug overlays
-         *
-         * Forces re-render of debug overlays to reflect current state.
-         *
-         * @returns {boolean} Success status
-         *
-         * @example
-         * window.lcards.debug.msd.visual.refresh();
-         */
-        refresh() {
-          try {
-            const dbg = window.lcards.debug.msd;
-            if (!dbg?.debug?.refresh) {
-              lcardsLog.warn('[DebugAPI] Visual debug refresh not available');
-              return false;
-            }
-
-            dbg.debug.refresh();
-            return true;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error refreshing visual debug:', error);
-            return false;
           }
         }
       },
@@ -2231,7 +1261,7 @@ export class MsdDebugAPI {
               { name: 'PipelineCore', status: 'complete', component: pipeline },
               { name: 'SystemsManager', status: 'complete', component: coordinator },
               { name: 'ModelBuilder', status: 'complete', component: coordinator?.modelBuilder },
-              { name: 'AdvancedRenderer', status: 'complete', component: pipelineInstance.systemsManager?.renderer }
+              { name: 'AdvancedRenderer', status: 'complete', component: coordinator?.renderer }
             ];
 
             return stages.map(stage => ({
@@ -2382,7 +1412,7 @@ export class MsdDebugAPI {
               return false;
             }
 
-            pipelineInstance.reRender();
+            pipeline.reRender();
             lcardsLog.debug('[DebugAPI] Pipeline re-run triggered');
             return true;
           } catch (error) {

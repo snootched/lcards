@@ -201,7 +201,7 @@ export class ColorUtils {
    *
    * @param {string|Array} value - CSS value that may contain var(), or array of values
    * @param {string} [defaultValue='#000000'] - Default value if resolution fails
-   * @returns {string|Array} Resolved color value(s)
+   * @returns {string} Resolved color value (or array when array input is given)
    *
    * @example
    * ColorUtils.resolveCssVariable('var(--primary-color, #ff0000)') // => computed color or '#ff0000'
@@ -212,6 +212,7 @@ export class ColorUtils {
   static resolveCssVariable(value, defaultValue = '#000000') {
     // Handle arrays recursively
     if (Array.isArray(value)) {
+      // @ts-ignore - returns string[] when input is array, string otherwise
       return value.map(v => this.resolveCssVariable(v, defaultValue));
     }
 

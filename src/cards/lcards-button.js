@@ -233,7 +233,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Handle HASS updates - process templates when entity changes
-     * @private
+     * @protected
      */
     _handleHassUpdate(newHass, oldHass) {
         // Process templates when entity state changes
@@ -626,7 +626,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Process SVG configuration from card config
      * Handles inline content, external URLs, data URIs, and component presets
-     * @private
+     * @protected
      */
     _processSvgConfig() {
         lcardsLog.debug(`[LCARdSButton] _processSvgConfig called`, {
@@ -1004,9 +1004,10 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Process SVG segment configuration
      * Sets up interactive regions with independent actions and styles
-     * @private
+     * @protected
      * @param {Array} segments - Array of segment configurations
      */
+    // @ts-ignore — intentional signature difference from LCARdSCard._processSegmentConfig
     _processSegmentConfig(segments) {
         if (!segments || !Array.isArray(segments) || segments.length === 0) {
             this._processedSegments = null;
@@ -1155,7 +1156,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Setup segment animations after interactivity is established
      * Called after _setupSegmentInteractivity() in updated()
-     * @private
+     * @protected
      */
     _setupSegmentAnimations() {
         if (!this._processedSegments || this._processedSegments.length === 0) {
@@ -1381,9 +1382,9 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Numeric range check — skip if value is null/undefined or non-numeric
-            if (rawVal !== null && rawVal !== undefined && !isNaN(numVal)) {
-                const aboveOk = range.above === undefined || numVal >= parseFloat(range.above);
-                const belowOk = range.below === undefined || numVal <  parseFloat(range.below);
+            if (rawVal !== null && rawVal !== undefined && !Number.isNaN(numVal)) {
+                const aboveOk = range.above === undefined || numVal >= Number(range.above);
+                const belowOk = range.below === undefined || numVal <  Number(range.below);
                 if (aboveOk && belowOk) {
                     return range;
                 }
@@ -2054,7 +2055,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Handle first update - setup initial state
-     * @private
+     * @protected
      */
     _handleFirstUpdate(changedProperties) {
         // Register this card (or subclass) with RulesEngine for dynamic styling.
@@ -2145,14 +2146,14 @@ export class LCARdSButton extends LCARdSCard {
         lcardsLog.debug('[LCARdSButton] Applying filters to button SVG:', this.config.filters);
 
         // Apply filters using BaseSvgFilters utility
-        applyBaseSvgFilters(svgElement, this.config.filters);
+        applyBaseSvgFilters(/** @type {HTMLElement} */(/** @type {unknown} */(svgElement)), this.config.filters);
     }
 
     /**
      * Hook called when connected to DOM (after singletons initialized)
      * @protected
      */
-    _onConnected() {
+    async _onConnected() {
         super._onConnected();
 
         // Restart background animation that was suspended during a disconnect/reconnect
@@ -2305,9 +2306,7 @@ export class LCARdSButton extends LCARdSCard {
             await document.fonts.load('100 56px Antonio');
 
             // Clear text measurement cache to force remeasure with loaded font
-            if (window.lcards?._textMeasureCache) {
-                window.lcards._textMeasureCache.clear();
-            }
+            RendererUtils.clearTextMeasureCache();
 
             // Trigger re-render with correct font measurements
             this.requestUpdate();
@@ -2390,7 +2389,7 @@ export class LCARdSButton extends LCARdSCard {
      * **CRITICAL:** Always call `this.requestUpdate()` after style changes
      * to trigger Lit re-render. Without this, visual updates won't happen.
      *
-     * @private
+     * @protected
      */
     _resolveButtonStyleSync() {
         // 1. Start with preset (if specified)
@@ -2740,7 +2739,7 @@ export class LCARdSButton extends LCARdSCard {
             const buttonState = this._getButtonState();
 
             // Get theme tokens for icons
-            const iconTokens = this._theme?.tokens?.components?.button?.icon || {};
+            const iconTokens = /** @type {any} */(this)._theme?.tokens?.components?.button?.icon || {};
 
             // Resolve icon color with state-based fallback chain
             // Priority: iconStyle > preset > theme token (state-based) > text color (state-based) > hardcoded
@@ -2939,7 +2938,6 @@ export class LCARdSButton extends LCARdSCard {
                 layoutSpacing: layoutSpacing, // Spacing around icon area for auto-size calculation
                 areaSize: iconAreaSize, // Area size (width for left/right, height for top/bottom) - optional, auto-calculated if not set
                 color: iconColor,    // State-resolved color
-                areaBackground: iconAreaBackground, // Icon area background color (state-resolved)
 
                 // Divider (legacy feature)
                 divider: {           // Renamed from "interior" for clarity
@@ -3046,8 +3044,15 @@ export class LCARdSButton extends LCARdSCard {
 
                     lcardsLog.trace(`[LCARdSButton] Processing template field '${fieldId}'`);
 
+                    // Resolve effective display_format: field-level > text.default > 'friendly'
+                    const defaultDisplayFormat = this.config.text?.default?.display_format ?? 'friendly';
+                    const fieldDisplayFormat = fieldConfig.display_format ?? defaultDisplayFormat;
+
                     // Always process from original template, not previously processed content
-                    const processedContent = await this.processTemplate(fieldConfig._originalContent);
+                    const processedContent = await this.processTemplate(
+                        fieldConfig._originalContent,
+                        { displayFormat: fieldDisplayFormat }
+                    );
 
                     // Store in _processedTemplates (survives config replacement)
                     const previousProcessed = this._processedTemplates[fieldId];
@@ -3132,7 +3137,7 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Use base class method to setup interactivity
-        this._buttonInteractivityCleanup = this._setupBaseInteractivity(buttonBg, {
+        this._buttonInteractivityCleanup = this._setupBaseInteractivity(/** @type {HTMLElement} */(buttonBg), {
             hoverStyle: this._buttonHoverStyle,
             pressedStyle: this._buttonPressedStyle,
             getRestoreColor: () => this._getCurrentEntityStateColor()
@@ -3144,7 +3149,7 @@ export class LCARdSButton extends LCARdSCard {
      * Used when returning from hover/pressed states to restore the correct color
      * Uses base class method for consistent color resolution
      * @private
-     * @returns {string} Current background color based on entity state
+     * @returns {string|number|null} Current background color based on entity state
      */
     _getCurrentEntityStateColor() {
         return this._resolveEntityStateColor(
@@ -3201,7 +3206,7 @@ export class LCARdSButton extends LCARdSCard {
 
         // Use base class method to setup actions
         this._actionCleanup = this.setupActions(
-            buttonElement,
+            /** @type {HTMLElement} */(buttonElement),
             actions,
             {
                 animationManager: getAnimationManager(),
@@ -3361,7 +3366,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} buttonWidth - Button width
      * @param {number} buttonHeight - Button height
      * @returns {Object} { markup: string, widthUsed: 0 } - Icon markup and width (always 0 for flexible positioning)
-     * @private
+     * @protected
      */
     _generateFlexibleIconMarkup(iconConfig, buttonWidth, buttonHeight) {
         if (!iconConfig) return { markup: '', widthUsed: 0 };
@@ -3439,7 +3444,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} buttonWidth - Button width
      * @param {number} buttonHeight - Button height
      * @returns {Object} { markup: string, widthUsed: number } - Icon markup and horizontal space used
-     * @private
+     * @protected
      */
     _generateAreaBasedIconMarkup(iconConfig, buttonWidth, buttonHeight) {
         // Handle null/undefined iconConfig
@@ -3894,11 +3899,11 @@ export class LCARdSButton extends LCARdSCard {
             resolvedConfig = resolveThemeTokensRecursive(rawConfig, themeManager);
         }
 
-        // Resolve any remaining CSS variables (var(--name)) in color fields so presets
-        // always receive a concrete color string — consistent with ColorUtils usage elsewhere.
-        // edge_glow_color must be included here: Canvas2D cannot resolve CSS variables
-        // (unlike CSS), so strokeStyle/shadowColor assignments silently fail when given a
-        // var(--token) string, leaving the default white glow regardless of the user's pick.
+        // Resolve any remaining CSS variables in color fields so presets always receive a
+        // concrete color string — Canvas2D cannot resolve var() or color-mix() at paint time.
+        // Computed colour expressions (lighten/darken/alpha/etc.) are already resolved above
+        // by resolveThemeTokensRecursive, which now handles var() args via ThemeTokenResolver.
+        // edge_glow_color must also be included: strokeStyle/shadowColor silently fail with var().
         const colorKeys = ['color', 'color_a', 'color_b', 'edge_glow_color'];
         for (const key of colorKeys) {
             if (resolvedConfig[key] && typeof resolvedConfig[key] === 'string') {
@@ -4025,7 +4030,7 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig: fpObj,
                     fallback: 50
                 }) ?? 50;
-                resolvedConfig = { ...resolvedConfig, fill_pct: parseFloat(raw) };
+                resolvedConfig = { ...resolvedConfig, fill_pct: parseFloat(String(raw)) };
             }
         } else if (typeof resolvedConfig.fill_pct === 'string') {
             // Form 1 was a string template — evaluated above, ensure it's numeric
@@ -4061,7 +4066,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {Object} border - Resolved border config
      * @param {string|null} shapePath - SVG path d= string for complex shapes, null for rect
      * @returns {string} Always returns '' — canvas is managed separately
-     * @private
+     * @protected
      */
     _generateTextureMarkup(width, height, border, shapePath = null) {
         this._currentShapePath = shapePath || null;
@@ -4169,7 +4174,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {number} height - SVG height
      * @param {Object} config - Button configuration (preset, label)
      * @returns {string} SVG markup string
-     * @private
+     * @protected
      */
     _generateButtonSVG(width, height, config) {
         // Read styling from _buttonStyle (resolved from preset/tokens)
@@ -4285,7 +4290,7 @@ export class LCARdSButton extends LCARdSCard {
             lcardsLog.trace(`[LCARdSButton] Using SVG background`);
             backgroundMarkup = this._renderSvgBackground(this._processedSvg, width, height);
         } else if (normalizedPath) {
-            backgroundMarkup = this._renderCustomPathBackground(normalizedPath, backgroundColor);
+            backgroundMarkup = this._renderCustomPathBackground(normalizedPath, /** @type {string} */(backgroundColor));
         } else if (needsComplexPath) {
             backgroundMarkup = this._renderComplexButtonPath(width, height, border, backgroundColor);
         } else {
@@ -4561,7 +4566,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Parse and resolve text configuration for multi-text label system
      * Supports both legacy `label` property and new `text` object with arbitrary field IDs
-     * @private
+     * @protected
      */
     _resolveTextConfiguration() {
         const config = this.config || {};
@@ -4712,7 +4717,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Calculate the available text area bounds excluding icon area and divider
-     * @private
+     * @protected
      */
     _calculateTextAreaBounds(buttonWidth, buttonHeight, iconConfig) {
         // No icon - text uses full button area
@@ -4906,7 +4911,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Process text fields and calculate final positions and styling
-     * @private
+     * @protected
      */
     _processTextFields(textFields, buttonWidth, buttonHeight, iconConfig) {
         const processedFields = [];
@@ -5045,7 +5050,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Generate SVG text elements from processed text fields
-     * @private
+     * @protected
      */
     _generateTextElements(processedFields) {
         if (!processedFields || processedFields.length === 0) return '';
@@ -5338,7 +5343,7 @@ export class LCARdSButton extends LCARdSCard {
                 `x="${x}"`,
                 `y="${y}"`,
                 `font-size="${fontSize}"`,
-                `fill="${escapeXmlAttribute(resolvedColor)}"`,
+                `fill="${escapeXmlAttribute(/** @type {string} */(resolvedColor))}"`,
                 `text-anchor="${anchor}"`,
                 `dominant-baseline="${baseline}"`,
                 `clip-path="url(#${clipId})"`,
@@ -5898,7 +5903,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {Object} hass - New HASS object
      * @param {Object} oldHass - Previous HASS object
      */
-    _onHassChanged(hass, oldHass) {
+    async _onHassChanged(hass, oldHass) {
         super._onHassChanged(hass, oldHass);
 
         // Skip if no segments with entities
@@ -5952,7 +5957,7 @@ export class LCARdSButton extends LCARdSCard {
      */
     _initializeBackgroundAnimation() {
         // Get the button container element
-        const container = this.shadowRoot?.querySelector('.button-container');
+        const container = /** @type {HTMLElement} */(this.shadowRoot?.querySelector('.button-container'));
         if (!container) {
             lcardsLog.warn('[LCARdSButton] Cannot initialize background - container not found');
             return;
@@ -6008,7 +6013,7 @@ export class LCARdSButton extends LCARdSCard {
             if (rawInset === 'auto') {
                 this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset(rawInset));
             }
-            lcardsLog.info('[LCARdSButton] Background animation initialized');
+            lcardsLog.debug('[LCARdSButton] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSButton] Background animation initialization failed');
         }

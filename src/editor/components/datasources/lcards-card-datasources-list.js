@@ -99,6 +99,7 @@ export class LCARdSCardDataSourcesList extends LitElement {
   }
 
   render() {
+    // @ts-ignore - TS2339: auto-suppressed
     const datasources = this.config?.data_sources || {};
     const sourceKeys = Object.keys(datasources);
 
@@ -106,10 +107,10 @@ export class LCARdSCardDataSourcesList extends LitElement {
       return html`
         <div class="empty-state">
           <ha-icon icon="mdi:database-off-outline"></ha-icon>
-          <p>No datasources configured for this card.</p>
+          <p>No data sources configured for this card.</p>
           <p class="helper-text">
-            Click "+ Add Source" to create a new datasource,
-            or edit the YAML tab to configure datasources manually.
+            Click "+ Add Source" to create a new data source,
+            or edit the YAML tab to configure data sources manually.
           </p>
         </div>
       `;

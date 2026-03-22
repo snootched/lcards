@@ -18,8 +18,8 @@
  * @param {string|null} options.actualState - The actual entity state (e.g., "heat", "cool", "playing")
  * @param {string} options.classifiedState - The classified/mapped state (e.g., "active", "inactive", "unavailable")
  * @param {Object|string} options.colorConfig - The color configuration (can be object with state keys or string)
- * @param {string} [options.fallback] - Optional fallback color value
- * @returns {string|null} The resolved color value or null if not found
+ * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example
  * // With actual state "heat" that exists in config
@@ -94,8 +94,8 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
  * @param {string|null} options.actualState - The actual entity state
  * @param {string} options.classifiedState - The classified/mapped state
  * @param {Object} options.configPath - The config object to navigate (e.g., border.color)
- * @param {string} [options.fallback] - Optional fallback color value
- * @returns {string|null} The resolved color value or null if not found
+ * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example
  * // Resolve border.color with actual state

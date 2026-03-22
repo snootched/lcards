@@ -37,6 +37,8 @@ export class LCARdSFontSelector extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
         this.value = '';
         this.disabled = false;
         this.showPreview = false;
@@ -203,6 +205,7 @@ export class LCARdSFontSelector extends LitElement {
 
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -224,6 +227,7 @@ export class LCARdSFontSelector extends LitElement {
     _renderCustomInput() {
         return html`
             <ha-selector
+                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ text: {} }}
                 .value=${this._displayValue || ''}

@@ -66,9 +66,9 @@ window.lcards.info = function () {
             'lcards-alert-overlay',
         ],
         core: {
-            initialized: !!core?._initialized,
+            initialized: !!core?._coreInitialized,
             alertMode:   core?.themeManager?.getAlertMode?.() ?? null,
-            theme:       core?.themeManager?.getCurrentTheme?.()?.id ?? null,
+            theme:       core?.themeManager?.getActiveTheme?.()?.id ?? null,
             dataSources: core?.dataSourceManager ? Object.keys(core.dataSourceManager.sources ?? {}).length : null,
         },
     };
@@ -93,6 +93,7 @@ async function initializeCustomCard() {
     // Expose debug helpers (the module already attaches API; this ensures references exist)
     window.lcards.debug = window.lcards.debug || {};
     window.lcards.debug.setLevel = lcardsSetGlobalLogLevel;
+    window.lcards.debug.getLevel = lcardsGetGlobalLogLevel;
 
     // Animation namespace organization
     window.lcards.anim = {
@@ -100,6 +101,7 @@ async function initializeCustomCard() {
         anime: anime.animate,          // shortcut for anime.animate
         stagger: anime.stagger,        // stagger function for animations
         spring: anime.createSpring,    // spring easing generator (v4 API)
+        createScope: anime.createScope, // scope factory for overlay-scoped animations
         utils: anime.utils,            // CENTRAL canonical utils reference
         splitText: anime.splitText,    // native text splitter (v4.1+)
         animateElement: animHelpers.animateElement,
@@ -157,10 +159,7 @@ async function initializeCustomCard() {
     window.lcards.debug.singletons = lcardsCore;
 
     // === PERFORMANCE MONITOR DEBUG SHORTCUT ===
-    // window.lcards.perf.fps()       → current FPS
-    // window.lcards.perf.status()    → full status object
-    // window.lcards.perf.thresholds  → {disable3D, reduceEffects}
-    window.lcards.perf = {
+    window.lcards.debug.perf = {
       fps() {
         return window.lcards.core.performanceMonitor?.getFPS() ?? null;
       },
@@ -181,6 +180,20 @@ async function initializeCustomCard() {
       get thresholds() {
         return window.lcards.core.performanceMonitor?.thresholds ?? null;
       }
+    };
+
+    // === THEME DEBUG SHORTCUT ===
+    // window.lcards.debug.theme.current()         → active theme object
+    // window.lcards.debug.theme.alertMode()       → current alert mode name
+    // window.lcards.debug.theme.list()            → all registered theme IDs
+    // window.lcards.debug.theme.token('path')     → resolve a token path
+    // window.lcards.debug.theme.info()            → full ThemeManager debug snapshot
+    window.lcards.debug.theme = {
+      current:   () => window.lcards.core.themeManager?.getActiveTheme() ?? null,
+      alertMode: () => window.lcards.core.themeManager?.getAlertMode() ?? null,
+      list:      () => window.lcards.core.themeManager?.listThemes() ?? [],
+      token:     (path, fallback) => window.lcards.core.themeManager?.getToken(path, fallback) ?? null,
+      info:      () => window.lcards.core.themeManager?.getDebugInfo() ?? null,
     };
 
     lcardsLog.debug('[lcards.js] LCARdSCore singleton attached to window.lcards.core');
@@ -270,56 +283,56 @@ const LCARdSCardClasses = [
         name: 'LCARdS Button',
         preview: true,
         description: 'Modern LCARS button with multi-text labels and flexible positioning',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/button/",
     },
     {
         type: 'lcards-elbow',
         name: 'LCARdS Elbow',
         preview: true,
         description: 'LCARS button with elbow/corner cap treatment for header and footer styles',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/elbow/",
     },
     {
         type: 'lcards-chart',
         name: 'LCARdS Chart',
         preview: true,
         description: 'Data visualization chart powered by ApexCharts',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/chart/",
     },
     {
         type: 'lcards-slider',
         name: 'LCARdS Slider',
         preview: true,
         description: 'Interactive slider/gauge for lights, covers, fans, and sensors with LCARS styling',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/slider-card/",
     },
     {
         type: 'lcards-data-grid',
         name: 'LCARdS Data Grid',
         preview: true,
         description: 'LCARS cascade text grid with random, template, or datasource data modes',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/data-grid/",
     },
     {
         type: 'lcards-msd-card',
         name: 'LCARdS MSD',
         preview: true,
         description: 'LCARdS Master Systems Display (MSD) card',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/msd/",
     },
     {
         type: 'lcards-select-menu',
         name: 'LCARdS Select Menu',
         preview: true,
         description: 'Renders an input_select entity as a grid of LCARS-styled option buttons',
-        documentationURL: 'https://cb-lcars.unimatrix01.ca',
+        documentationURL: 'https://lcards.unimatrix01.ca/cards/select-menu/',
     },
     {
         type: 'lcards-alert-overlay',
         name: 'LCARdS Alert Overlay',
         preview: false,
         description: 'Full-screen alert overlay that reacts to lcards_alert_mode with backdrop and content card',
-        documentationURL: "https://cb-lcars.unimatrix01.ca",
+        documentationURL: "https://lcards.unimatrix01.ca/cards/alert-overlay/",
     }
 ];
 
@@ -423,7 +436,7 @@ window.lcards.alertConfig = {
   /**
    * Get current transform configuration for a mode
    * @param {string} mode - Alert mode name
-   * @returns {Object} Transform configuration
+   * @returns {Promise<any>} Transform configuration
    */
   getTransform: async (mode) => {
     const { getAlertModeTransform } = await import('./core/themes/alertModeTransform.js');
@@ -461,7 +474,7 @@ window.lcards.alertConfig = {
 
   /**
    * Export current runtime overrides as JSON
-   * @returns {Object} Runtime overrides
+   * @returns {Promise<any>} Runtime overrides
    */
   export: async () => {
     const { getRuntimeTransformOverrides } = await import('./core/themes/alertModeTransform.js');
@@ -476,6 +489,22 @@ window.lcards.alertConfig = {
     const { loadRuntimeTransformOverrides } = await import('./core/themes/alertModeTransform.js');
     loadRuntimeTransformOverrides(overrides);
   }
+};
+
+// === ALERT NAMESPACE ===
+// Scoped console API — cleaner alias set for interactive use.
+// Root-level shortcuts (window.lcards.redAlert, etc.) are kept for backward compatibility.
+window.lcards.alert = {
+  set:    (mode, opts) => window.lcards.setAlertMode(mode, opts),
+  get:    () => window.lcards.getAlertMode(),
+  red:    () => window.lcards.setAlertMode('red_alert'),
+  yellow: () => window.lcards.setAlertMode('yellow_alert'),
+  blue:   () => window.lcards.setAlertMode('blue_alert'),
+  gray:   () => window.lcards.setAlertMode('gray_alert'),
+  black:  () => window.lcards.setAlertMode('black_alert'),
+  green:  () => window.lcards.setAlertMode('green_alert'),
+  off:    () => window.lcards.setAlertMode('green_alert'),  // reset to normal
+  config: window.lcards.alertConfig,
 };
 
 // === SOUND DEBUG API ===

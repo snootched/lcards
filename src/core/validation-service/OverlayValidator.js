@@ -24,7 +24,7 @@ export class OverlayValidator {
   /**
    * Create an OverlayValidator
    *
-   * @param {SchemaRegistry} schemaRegistry - Schema registry instance
+   * @param {Object} schemaRegistry - Schema registry instance
    */
   constructor(schemaRegistry) {
     this.schemaRegistry = schemaRegistry;
@@ -308,7 +308,7 @@ export class OverlayValidator {
             message: `Anchor "${value}" not found`,
             severity: 'error',
             suggestion: `Ensure anchor "${value}" is defined in your configuration or references a valid overlay ID`,
-            helpUrl: 'https://docs.cb-lcars.com/msd/anchors'
+            helpUrl: 'https://lcards.unimatrix01.ca/cards/msd/#anchors-object'
           });
         }
       }
@@ -342,7 +342,7 @@ export class OverlayValidator {
             message: `Target overlay "${value}" not found`,
             severity: 'error',
             suggestion: `Ensure overlay "${value}" is defined in your configuration`,
-            helpUrl: 'https://docs.cb-lcars.com/msd/attachments'
+            helpUrl: 'https://lcards.unimatrix01.ca/cards/msd'
           });
         }
 

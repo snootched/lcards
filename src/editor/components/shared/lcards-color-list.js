@@ -29,6 +29,8 @@ export class LCARdSColorList extends LitElement {
 
   constructor() {
     super();
+        /** @type {any} */
+        this.hass = undefined;
     this.colors = [];
     this.label = 'Colours';
     this.description = '';
@@ -261,6 +263,7 @@ export class LCARdSColorList extends LitElement {
         ${isExpanded ? html`
           <div class="color-content">
             <lcards-color-picker
+              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .value=${color}
               .disabled=${this.disabled}

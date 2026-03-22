@@ -21,7 +21,7 @@ LCARdS cards are driven by a set of shared singleton services. Understanding the
 
 | System | Description |
 |---|---|
-| [Templates](templates/) | Four template types — JavaScript, token, DataSource, and Jinja2 — evaluated uniformly across all properties |
+| [Templates](templates/) | Four template types — JavaScript, token, data source, and Jinja2 — evaluated uniformly across all properties |
 | [Data Sources](datasources/) | Live entity subscriptions, polling, history buffers, and transformations |
 | [Rules Engine](rules/) | Conditional styling engine — change colours, icons, labels, and trigger animations based on entity state |
 | [Themes](themes/) | Token-based colour palette shared across all cards |

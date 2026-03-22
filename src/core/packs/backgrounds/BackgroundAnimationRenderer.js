@@ -159,7 +159,7 @@ export class BackgroundAnimationRenderer {
         lcardsLog.debug('[BackgroundAnimation] IntersectionObserver attached');
       }
 
-      lcardsLog.info('[BackgroundAnimation] Renderer initialized and started');
+      lcardsLog.debug('[BackgroundAnimation] Renderer initialized and started');
       return true;
 
     } catch (error) {
@@ -286,20 +286,33 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
-   * Resolve any CSS custom property strings (var(--token)) in a config object
-   * to concrete colour values so Canvas2D APIs (gradients, fillStyle) receive
-   * valid input.  Delegates to ColorUtils.resolveCssVariable which handles
-   * fallbacks, recursive var() chains, and tracing.
+   * Resolve any CSS custom property strings (var(--token)) and computed colour
+   * expressions (lighten/darken/alpha/saturate/desaturate) in a config object to
+   * concrete colour values so Canvas2D APIs (gradients, fillStyle) receive valid
+   * input.  Recurses into nested plain objects so sub-configs like
+   * `{ colors: { start, text, end } }` are also fully resolved.
    *
    * @private
    * @param {Object} config - Raw effect config
-   * @returns {Object} New config object with var() strings resolved
+   * @returns {Object} New config object with var() strings and computed expressions resolved
    */
   _resolveConfigColors(config) {
     if (!config || typeof config !== 'object') return config;
 
     const resolved = { ...config };
     for (const [key, val] of Object.entries(resolved)) {
+      // Recurse into nested plain objects (e.g. config.colors = { start, text, end })
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        resolved[key] = this._resolveConfigColors(val);
+        continue;
+      }
+
+      // Resolve string elements in arrays (e.g. colors: ['darken(var(--x), 0.3)', '#ff0'])
+      if (Array.isArray(val)) {
+        resolved[key] = val.map(item => (typeof item === 'string' ? this._resolveConfigColors({ _: item })._ : item));
+        continue;
+      }
+
       if (typeof val !== 'string') continue;
 
       // Plain CSS variable — resolve directly
@@ -310,24 +323,22 @@ export class BackgroundAnimationRenderer {
 
       // Computed color function: lighten/darken/alpha/etc. — resolve any inner var() first,
       // then evaluate the function against the concrete colour value.
-      // e.g. "lighten(var(--lcards-green), 0.5)" → ColorUtils.lighten('#23c45e', 0.5)
+      // e.g. "lighten(var(--lcars-green), 0.5)" → ColorUtils.lighten('#23c45e', 0.5)
       if (BackgroundAnimationRenderer._COMPUTED_COLOR_RE.test(val)) {
-        // Replace all var(--name, fallback) occurrences inside the expression
         const concreteExpr = val.replace(/var\([^)]+\)/g, match =>
-          ColorUtils.resolveCssVariable(match, match)
+          /** @type {string} */ (ColorUtils.resolveCssVariable(match, match))
         );
-        // Now evaluate the outer function
         const m = concreteExpr.match(/^(\w+)\((.+),\s*([\d.]+)\s*\)$/);
         if (m) {
           const [, fn, colorArg, numArg] = m;
           const num = parseFloat(numArg);
           switch (fn) {
-            case 'lighten':   resolved[key] = ColorUtils.lighten(colorArg.trim(), num); break;
-            case 'darken':    resolved[key] = ColorUtils.darken(colorArg.trim(), num); break;
-            case 'alpha':     resolved[key] = ColorUtils.alpha(colorArg.trim(), num); break;
-            case 'saturate':  resolved[key] = ColorUtils.saturate?.(colorArg.trim(), num) ?? val; break;
-            case 'desaturate':resolved[key] = ColorUtils.desaturate?.(colorArg.trim(), num) ?? val; break;
-            default:          resolved[key] = val;
+            case 'lighten':    resolved[key] = ColorUtils.lighten(colorArg.trim(), num); break;
+            case 'darken':     resolved[key] = ColorUtils.darken(colorArg.trim(), num); break;
+            case 'alpha':      resolved[key] = ColorUtils.alpha(colorArg.trim(), num); break;
+            case 'saturate':   resolved[key] = ColorUtils.saturate?.(colorArg.trim(), num) ?? val; break;
+            case 'desaturate': resolved[key] = ColorUtils.desaturate?.(colorArg.trim(), num) ?? val; break;
+            default:           resolved[key] = val;
           }
         } else {
           resolved[key] = val;
@@ -484,7 +495,7 @@ export class BackgroundAnimationRenderer {
       return false;
     }
 
-    lcardsLog.info(`[BackgroundAnimation] Loaded ${loadedEffects} effect(s)`);
+    lcardsLog.debug(`[BackgroundAnimation] Loaded ${loadedEffects} effect(s)`);
     return true;
   }
 

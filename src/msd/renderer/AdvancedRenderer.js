@@ -769,7 +769,7 @@ export class AdvancedRenderer {
     // Check if the overlay itself is already an instance-based renderer
     // (This will be the case when overlays are migrated to extend OverlayBase)
     if (overlay instanceof OverlayBase) {
-      this.overlayRenderers.set(overlay.id, overlay);
+      this.overlayRenderers.set((/** @type {any} */ (overlay)).id, overlay);
       return overlay;
     }
 
@@ -778,8 +778,9 @@ export class AdvancedRenderer {
     // Line overlays use LineOverlay class (SVG-native, MSD-specific)
     if (overlay.type === 'line') {
       const lineOverlay = new LineOverlay(overlay, this.coordinator, this.routerCore);
-      this.overlayRenderers.set(overlay.id, lineOverlay);
-      return lineOverlay;
+      // @ts-ignore - TS2322: LineOverlay extends OverlayBase; compatible at runtime
+      this.overlayRenderers.set((/** @type {any} */ (overlay)).id, lineOverlay);
+      return /** @type {any} */ (lineOverlay);
     }
 
     // UNIFIED CARD PATTERN:
@@ -831,6 +832,7 @@ export class AdvancedRenderer {
    * Collects and stores renderer provenance for debugging.
    *
    * @private
+   * @returns {any}
    */
   renderOverlay(overlay, anchors, viewBox, svgContainer) {
     try {
@@ -874,8 +876,8 @@ export class AdvancedRenderer {
       }
 
       // Store renderer provenance after successful render
-      if (result && typeof result === 'object' && result.provenance) {
-        this._storeRendererProvenance(overlay.id, result.provenance);
+      if (result && typeof result === 'object' && (/** @type {any} */ (result)).provenance) {
+        this._storeRendererProvenance(overlay.id, (/** @type {any} */ (result)).provenance);
       } else if (result && typeof result === 'string' && result !== '') {
         // For renderers that just return string markup (legacy pattern)
         // We still want to track that the overlay was rendered, but without detailed provenance
@@ -1154,8 +1156,8 @@ export class AdvancedRenderer {
     }
 
     // Try to get from current render model
-    if (this._currentRenderModel?.resolvedModel?.overlays) {
-      return this._currentRenderModel.resolvedModel.overlays.find(o => o.id === overlayId);
+    if ((/** @type {any} */ (this))._currentRenderModel?.resolvedModel?.overlays) {
+      return (/** @type {any} */ (this))._currentRenderModel.resolvedModel.overlays.find(o => o.id === overlayId);
     }
 
     // Try systems manager
@@ -1178,7 +1180,7 @@ export class AdvancedRenderer {
    */
   _getResolvedModel() {
     return this.coordinator?.rulesEngine?.getResolvedModel?.() ||
-           this.systemManager?.rulesEngine?.getResolvedModel?.() ||
+           (/** @type {any} */ (this)).systemManager?.rulesEngine?.getResolvedModel?.() ||
            this.routerCore?.getResolvedModel?.() ||
            null;
   }

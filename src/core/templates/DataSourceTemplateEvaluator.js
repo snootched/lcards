@@ -1,6 +1,7 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { TemplateParser } from './TemplateParser.js';
+import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
  * DataSourceTemplateEvaluator - Evaluates LCARdS datasource templates
@@ -160,9 +161,17 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // Apply format if specified
     if (format) {
-      // Don't append unit for processor outputs - they may have converted units
-      const metadata = isProcessorOutput ? null : currentData.metadata;
-      value = this._applyFormat(value, format, metadata);
+      // Explicit format spec: caller owns the output — number only, no auto-unit.
+      // Analogous to {{states('sensor.temp')}} in HA Jinja2 — raw value, you control the suffix.
+      value = this._applyFormat(value, format);
+    } else if (!isProcessorOutput) {
+      // No format spec: HA-native display — locale-formatted number + unit from entity metadata.
+      // Analogous to haFormatEntityState() — consistent with how HA itself displays the value.
+      const hass = this.dataSourceManager?.hass;
+      const formatted = (typeof value === 'number' && Number.isFinite(value))
+        ? haFormatNumber(hass, value)
+        : String(value);
+      value = this._appendUnit(formatted, currentData.metadata);
     }
 
     return value;
@@ -313,21 +322,25 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    * @param {Object} metadata - DataSource metadata (for units)
    * @returns {string} Formatted value
    */
-  _applyFormat(value, formatSpec, metadata = null) {
+  _applyFormat(value, formatSpec) {
     if (typeof value !== 'number') {
       return String(value);
     }
 
+    const hass = this.dataSourceManager?.hass;
     const parsedFormat = TemplateParser.parseFormatSpec(formatSpec);
 
     switch (parsedFormat.type) {
-      case 'float':
-        const formatted = value.toFixed(parsedFormat.precision);
-        return this._appendUnit(formatted, metadata);
+      case 'float': {
+        return haFormatNumber(hass, value, {
+          minimumFractionDigits: parsedFormat.precision,
+          maximumFractionDigits: parsedFormat.precision
+        });
+      }
 
-      case 'integer':
-        const intValue = Math.round(value).toString();
-        return this._appendUnit(intValue, metadata);
+      case 'integer': {
+        return haFormatNumber(hass, Math.round(value), { maximumFractionDigits: 0 });
+      }
 
       case 'string':
         return String(value);
@@ -343,7 +356,10 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
           const precision = precisionMatch ? parseInt(precisionMatch[1]) : 0;
           const isAlreadyPercent = metadata?.unit_of_measurement === '%';
           const percentValue = isAlreadyPercent ? value : value * 100;
-          return `${percentValue.toFixed(precision)}%`;
+          return haFormatNumber(hass, percentValue, {
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision
+          }) + '%';
         }
         return String(value);
 
@@ -358,7 +374,8 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    */
   _appendUnit(formattedValue, metadata) {
     if (metadata?.unit_of_measurement) {
-      return `${formattedValue}${metadata.unit_of_measurement}`;
+      // Use narrow no-break space (U+202F) before unit, matching HA's own formatEntityState output.
+      return `${formattedValue}\u202F${metadata.unit_of_measurement}`;
     }
     return formattedValue;
   }

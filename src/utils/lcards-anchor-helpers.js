@@ -14,10 +14,10 @@ import { lcardsLog } from './lcards-logging.js';
  * Find anchor points in SVG content by parsing circle and text elements with IDs
  *
  * @param {string} svgContent - SVG markup as string
- * @returns {Object<string, [number, number]>} Map of anchor ID to [x, y] coordinates
+ * @returns {Object<string, [number, number]|null>} Map of anchor ID to [x, y] coordinates
  */
 export function findSvgAnchors(svgContent) {
-  const anchors = {};
+  const anchors = /** @type {Object.<string, [number, number]|null>} */ ({});
   // Improved <circle> extraction: match cx/cy in any order
   const circleRegex = /<circle[^>]*id="([^"]+)"[^>]*>/g;
   let m;

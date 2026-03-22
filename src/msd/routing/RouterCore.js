@@ -533,7 +533,7 @@ export class RouterCore {
     pathCells.reverse();
 
     // Compress straight runs into polyline world coords
-    const pts = [];
+    let pts = [];
     let lastDir = null;
     for (let i=0;i<pathCells.length;i++) {
       const [pc,pr] = pathCells[i];

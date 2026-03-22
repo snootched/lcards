@@ -11,7 +11,7 @@ LCARdS share a set of common top-level configuration properties regardless of ca
 | `height` | string | CSS height override applied to the card host element (see below) |
 | `width` | string | CSS width override applied to the card host element (see below) |
 | `grid_options` | object | HA grid sizing — `rows` and `columns` for the Lovelace grid (see below) |
-| `data_sources` | object | DataSource definitions — see [DataSources](../core/datasources/) |
+| `data_sources` | object | data source definitions — see [Data Sources](../core/datasources/) |
 
 ## Card Identification (`id` and `tags`)
 

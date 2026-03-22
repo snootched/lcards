@@ -50,6 +50,7 @@ export function calculateZones(width, height) {
  * @param {Object} context.style - Slider style configuration
  * @param {Object} context.state - Current state information
  * @param {Object} context.hass - Home Assistant object
+ * @param {Object} [context.zones] - Pre-calculated zones (optional)
  * @returns {string} SVG markup with zone placeholders
  */
 export function render(context) {

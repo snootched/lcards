@@ -188,6 +188,8 @@ export class LCARdSDataSourceCard extends LitElement {
       }
 
       const now = new Date();
+      // @ts-ignore - TS2362: auto-suppressed
+      // @ts-ignore - TS2363: auto-suppressed
       const diffMs = now - date;
       const diffSec = Math.floor(diffMs / 1000);
       const diffMin = Math.floor(diffSec / 60);

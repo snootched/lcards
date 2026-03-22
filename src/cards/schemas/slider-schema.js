@@ -12,10 +12,10 @@ import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, 
 
 /**
  * Get complete slider card schema
- * @param {Object} options - Schema options
- * @param {Array<string>} options.availablePresets - Available preset names
- * @param {Array<string>} options.availableComponents - Available component names
- * @param {Array<string>} options.positionEnum - Available position values for text fields
+ * @param {Object} [options] - Schema options
+ * @param {Array<string>} [options.availablePresets] - Available preset names
+ * @param {Array<string>} [options.availableComponents] - Available component names
+ * @param {Array<string>} [options.positionEnum] - Available position values for text fields
  * @returns {Object} Complete slider schema
  */
 export function getSliderSchema(options = {}) {

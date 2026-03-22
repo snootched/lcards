@@ -12,8 +12,6 @@
  *
  * Only one instance may be active per dashboard; duplicate instances
  * suppress themselves and log a warning.
- *
- * @extends LitElement
  */
 
 import { LitElement, html, css } from 'lit';
@@ -266,7 +264,7 @@ export class LCARdSAlertOverlay extends LitElement {
     _isInEditMode() {
         const dashboardEl = this.closest?.('hui-root, ha-panel-lovelace') ??
             document.querySelector('hui-root, ha-panel-lovelace');
-        if (dashboardEl?.editMode) return true;
+        if (/** @type {any} */ (dashboardEl)?.editMode) return true;
         if (this.closest?.('hui-card-picker, hui-card-preview')) return true;
         if (window.location.href.includes('edit=1')) return true;
         return false;
@@ -507,7 +505,7 @@ export class LCARdSAlertOverlay extends LitElement {
         const pos      = this._getEffectivePosition();
 
         this._blurEl.style.backdropFilter       = `blur(${backdrop.blur})`;
-        this._blurEl.style.webkitBackdropFilter = `blur(${backdrop.blur})`;
+        /** @type {any} */ (this._blurEl.style).webkitBackdropFilter = `blur(${backdrop.blur})`;
 
         this._tintEl.style.background = backdrop.color;
         this._tintEl.style.opacity    = String(backdrop.opacity);

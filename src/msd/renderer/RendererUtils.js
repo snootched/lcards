@@ -1,6 +1,11 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
+// Module-scoped text measurement state (private implementation detail)
+let _textMeasureCanvas = null;
+let _textMeasureContext = null;
+let _textMeasureCache = null;
+
 /**
  * [RendererUtils] Shared renderer utilities - common functionality for all renderers
  * 🛠️ Provides reusable components for gradients, patterns, filters, and effects
@@ -20,15 +25,13 @@ export class RendererUtils {
    * @returns {CanvasRenderingContext2D}
    */
   static _getTextMeasureContext() {
-    if (!window.lcards) window.lcards = {};
-
-    if (!window.lcards._textMeasureCanvas) {
-      window.lcards._textMeasureCanvas = document.createElement("canvas");
-      window.lcards._textMeasureContext = window.lcards._textMeasureCanvas.getContext("2d");
-      window.lcards._textMeasureCache = new Map();
+    if (!_textMeasureCanvas) {
+      _textMeasureCanvas = document.createElement("canvas");
+      _textMeasureContext = _textMeasureCanvas.getContext("2d");
+      _textMeasureCache = new Map();
     }
 
-    return window.lcards._textMeasureContext;
+    return _textMeasureContext;
   }
 
   /**
@@ -76,7 +79,7 @@ export class RendererUtils {
     if (!text) return { width: 0, height: 0, ascent: 0, descent: 0 };
 
     const cacheKey = `${text}::${font}`;
-    const cache = window.lcards?._textMeasureCache;
+    const cache = _textMeasureCache;
 
     if (useCache && cache && cache.has(cacheKey)) {
       const cached = cache.get(cacheKey);
@@ -158,10 +161,10 @@ export class RendererUtils {
    * @param {number} lineHeight - Line height multiplier (default 1.2)
    * @param {boolean} useCache - Whether to use cached measurements
    * @param {Element} containerElement - SVG container for coordinate transformation
-   * @returns {{width: number, height: number, lines: Array, lineMetrics: Array}}
+   * @returns {{width: number, height: number, lines: Array, lineMetrics: Array, _transformApplied: boolean, _adjustedFontSize: number}}
    */
   static measureMultilineText(text, font = "16px Arial", lineHeight = 1.2, useCache = true, containerElement = null) {
-    if (!text) return { width: 0, height: 0, lines: [], lineMetrics: [] };
+    if (!text) return { width: 0, height: 0, lines: [], lineMetrics: [], _transformApplied: false, _adjustedFontSize: 0 };
 
     const lines = text.split('\n');
     const lineMetrics = lines.map(line => this.measureText(line, font, useCache, containerElement));
@@ -206,7 +209,7 @@ export class RendererUtils {
    * @param {string} textAnchor - SVG text-anchor value ('start', 'middle', 'end')
    * @param {string} dominantBaseline - SVG dominant-baseline value
    * @param {Element} containerElement - SVG container for coordinate transformation
-   * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number}}
+   * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number, centerX: number, centerY: number}}
    */
   static getTextBoundingBox(text, x, y, font = "16px Arial", textAnchor = 'start', dominantBaseline = 'auto', containerElement = null) {
     const metrics = this.measureText(text, font, true, containerElement);
@@ -367,8 +370,8 @@ export class RendererUtils {
    * Clear text measurement cache
    */
   static clearTextMeasureCache() {
-    if (window.lcards?._textMeasureCache) {
-      window.lcards._textMeasureCache.clear();
+    if (_textMeasureCache) {
+      _textMeasureCache.clear();
     }
   }
 
@@ -376,10 +379,9 @@ export class RendererUtils {
    * Get text measurement cache statistics
    */
   static getTextMeasureCacheStats() {
-    const cache = window.lcards?._textMeasureCache;
     return {
-      size: cache?.size || 0,
-      keys: cache ? Array.from(cache.keys()) : []
+      size: _textMeasureCache?.size || 0,
+      keys: _textMeasureCache ? Array.from(_textMeasureCache.keys()) : []
     };
   }
 
@@ -1601,4 +1603,11 @@ export class RendererUtils {
       return null;
     }
   }
+}
+
+// Expose cache-clear for cross-module callers (e.g. LCARdSNativeCard font reload handler)
+// that cannot import MSD utilities directly.
+if (typeof window !== 'undefined') {
+  window.lcards = window.lcards || {};
+  window.lcards.clearTextMeasureCache = () => RendererUtils.clearTextMeasureCache();
 }

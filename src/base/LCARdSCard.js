@@ -27,6 +27,12 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import {
+    haFormatState,
+    haFormatEntityName,
+    haFormatAttrValue,
+    haFormatAttrName
+} from '../utils/ha-entity-display.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -107,6 +113,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         };
     }
 
+    /** @returns {import('lit').CSSResultGroup} */
     static get styles() {
         return [
             super.styles,
@@ -167,7 +174,11 @@ export class LCARdSCard extends LCARdSNativeCard {
             content: '',
             texts: []
         };
+        /** @type {{[key: string]: any} | null} */
         this._processedIcon = null; // Processed icon configuration
+
+        // SVG component reference (used by _extractZones; subclasses set this to their SVG element)
+        this._componentSvg = null;
 
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
@@ -269,7 +280,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         }
 
         try {
-            const cardType = this.constructor.CARD_TYPE || rawConfig.type || 'simple-card';
+            const cardType = /** @type {any} */(this.constructor).CARD_TYPE || rawConfig.type || 'simple-card';
 
             lcardsLog.trace(`[LCARdSCard] Processing config with CoreConfigManager`, {
                 cardType,
@@ -312,7 +323,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     hasMergedConfig: !!result.mergedConfig,
                     hasProvenanceInMerged: !!result.mergedConfig.__provenance,
                     mergedConfigKeys: Object.keys(result.mergedConfig),
-                    cardType: this.constructor.CARD_TYPE,
+                    cardType: /** @type {any} */(this.constructor).CARD_TYPE,
                     valid: result.valid
                 });
 
@@ -809,6 +820,46 @@ export class LCARdSCard extends LCARdSNativeCard {
         lcardsLog.trace(`[LCARdSCard] First updated: ${this._getDisplayId()}`);
     }
 
+    // ============================================================================
+    // Subclass Hook Stubs
+    // These are no-ops in LCARdSCard — subclasses override them as needed.
+    // Declaring them here gives TypeScript visibility so it doesn't flag the
+    // `typeof this._x === 'function'` guard calls in the base class as errors.
+    // ============================================================================
+
+    /**
+     * Called once after first render. Override in subclasses for setup.
+     * @param {import('lit').PropertyValues} _changedProperties
+     * @protected
+     */
+    _handleFirstUpdate(_changedProperties) {}
+
+    /**
+     * Called whenever the HASS object changes. Override in subclasses.
+     * @param {object} _newHass
+     * @param {object} _oldHass
+     * @protected
+     */
+    _handleHassUpdate(_newHass, _oldHass) {}
+
+    /**
+     * Called when rule patches change. Override in subclasses to re-resolve styles.
+     * @protected
+     */
+    _onRulePatchesChanged() {}
+
+    /**
+     * Called after config is processed by CoreConfigManager. Override in subclasses.
+     * @protected
+     */
+    _onConfigUpdated() {}
+
+    /**
+     * Called during template processing. Override in subclasses for custom template handling.
+     * @protected
+     */
+    _processCustomTemplates() {}
+
     /**
      * Setup ResizeObserver for automatic container size tracking
      * Enables cards to automatically respond to grid cell size changes
@@ -848,6 +899,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // where browser chrome (address bar) sliding in/out causes rapid small height changes.
         let _roDebounceTimer = null;
 
+        // @ts-ignore — ResizeObserver callback signature is correct; TS type inference quirk
         this._resizeObserver = new ResizeObserver(entries => {
             if (entries.length === 0) return;
 
@@ -1235,7 +1287,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Filters patches for this card's overlay and triggers efficient update
      *
      * @param {Array} overlayPatches - Array of overlay patches from RulesEngine
-     * @private
+     * @protected
      */
     _applyRulePatches(overlayPatches) {
         lcardsLog.trace(`[LCARdSCard] _applyRulePatches called for ${this._overlayId}`, {
@@ -1601,6 +1653,60 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     // ============================================================================
+    // HA i18n / LOCALE-AWARE DISPLAY HELPERS
+    // ============================================================================
+
+    /**
+     * Get the HA-translated display state for an entity.
+     * Respects device_class: e.g. binary_sensor door → "Open"/"Closed" instead of "on"/"off".
+     * This matches what native HA cards (Entities, Tile, etc.) show.
+     *
+     * IMPORTANT: Never use this for state classification logic (active/inactive).
+     * State classification must always use the raw entity.state value.
+     *
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Human-readable state label
+     * @protected
+     */
+    _getStateDisplay(entity = null) {
+        return haFormatState(this.hass, entity || this._entity);
+    }
+
+    /**
+     * Get the HA-formatted friendly name for an entity.
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Entity display name
+     * @protected
+     */
+    _getEntityName(entity = null) {
+        return haFormatEntityName(this.hass, entity || this._entity);
+    }
+
+    /**
+     * Get the HA-formatted display value for an entity attribute.
+     * e.g. battery_level 80 → "80 %", duration 3600 → "1 hour"
+     * @param {string} key - Attribute key
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Formatted attribute value
+     * @protected
+     */
+    _getAttributeDisplay(key, entity = null) {
+        return haFormatAttrValue(this.hass, entity || this._entity, key);
+    }
+
+    /**
+     * Get the HA-formatted display name for an attribute key.
+     * e.g. "battery_level" → "Battery Level"
+     * @param {string} key - Attribute key
+     * @param {Object} [entity] - Entity state object (defaults to this._entity)
+     * @returns {string} Formatted attribute name
+     * @protected
+     */
+    _getAttributeName(key, entity = null) {
+        return haFormatAttrName(this.hass, entity || this._entity, key);
+    }
+
+    // ============================================================================
     // HELPER METHODS - Available to subclasses
     // ============================================================================
 
@@ -1621,7 +1727,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {Promise<string>} Processed template
      * @protected
      */
-    async processTemplate(template) {
+    async processTemplate(template, options = {}) {
         if (!template || typeof template !== 'string') {
             return template;
         }
@@ -1633,7 +1739,11 @@ export class LCARdSCard extends LCARdSNativeCard {
                 config: this.config,
                 hass: this.hass,
                 variables: this.config?.variables || {},
-                theme: this._singletons?.themeManager?.getCurrentTheme?.()
+                theme: this._singletons?.themeManager?.getCurrentTheme?.(),
+                // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
+                // are rendered. Defaults to 'friendly' (HA-translated display strings).
+                // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.
+                displayFormat: options.displayFormat ?? 'friendly'
             };
 
             // Get dataSourceManager from global singleton (if available)
@@ -1730,7 +1840,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                 }
                 this._datasourceRetryScheduled = false;
 
-                lcardsLog.info('[LCARdSCard] DataSourceManager now available, re-processing templates', {
+                lcardsLog.debug('[LCARdSCard] DataSourceManager now available, re-processing templates', {
                     cardGuid: this._cardGuid
                 });
 
@@ -1764,11 +1874,14 @@ export class LCARdSCard extends LCARdSNativeCard {
             // Process templates (async for Jinja2 support)
             await this._processTemplates();
 
-            // Re-render only if we're not in an update cycle
-            if (!this.hasUpdated || this.updateComplete === Promise.resolve()) {
+            // Re-render: if first update hasn't happened yet call requestUpdate() directly,
+            // otherwise wait for the current Lit update cycle to finish first.
+            // NOTE: `this.updateComplete === Promise.resolve()` was previously here but
+            // always evaluated to false (two separate Promise objects are never ===),
+            // making that branch dead code. Simplified to just check hasUpdated.
+            if (!this.hasUpdated) {
                 this.requestUpdate();
             } else {
-                // Wait for current update to complete
                 this.updateComplete.then(() => {
                     this.requestUpdate();
                 });
@@ -1795,7 +1908,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Extract and track entities from Jinja2 templates
      * Base implementation tracks primary entity, animation trigger entities, and rule entities.
      * Subclasses should override to add their specific template sources.
-     * @private
+     * @protected
      */
     _updateTrackedEntities() {
         const trackedEntities = new Set();
@@ -1898,7 +2011,10 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Parse icon string into type and name
      * Supports: 'mdi:icon', 'si:icon', 'entity', plain names
      * Does not set defaults - those come from theme tokens in _processIconConfiguration
-     * @private
+     * @param {string} iconString - Icon string to parse
+     * @returns {Object|null} Parsed icon object with at minimum `type` and `icon` properties,
+     *   or null when input is empty/invalid
+     * @protected
      */
     _parseIconString(iconString) {
         if (!iconString) {
@@ -2347,7 +2463,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * @param {Object|string} colorConfig - Color config (state object or plain string)
      * @param {string} fallback - Fallback color if not resolved
-     * @returns {string|null} Resolved color value
+     * @returns {string|number|null} Resolved color value
      * @protected
      *
      * @example
@@ -2400,6 +2516,9 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Resolves theme tokens and returns ready-to-use color values
      *
      * @param {Object} resolvedStyle - Fully resolved style object
+     * @param {any} resolvedStyle - The fully resolved style object
+     * @param {string} [buttonState] - Optional button state (e.g. 'active', 'inactive')
+     * @param {string} [actualEntityState] - Optional raw entity state string
      * @returns {Object} { hover: { backgroundColor }, pressed: { backgroundColor } }
      * @protected
      *
@@ -2409,7 +2528,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      *     // Setup hover interactions
      * }
      */
-    _extractInteractionStyles(resolvedStyle) {
+    _extractInteractionStyles(resolvedStyle, buttonState, actualEntityState) {
         if (!resolvedStyle) {
             return { hover: null, pressed: null };
         }
@@ -2697,9 +2816,13 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * @param {HTMLElement} element - Target element (must be in shadow DOM)
      * @param {Object} actions - Action configurations (tap_action, hold_action, double_tap_action)
-     * @param {Object} options - Additional options
-     * @param {Object} options.animationManager - AnimationManager instance for triggering animations
-     * @param {string} options.elementId - Element ID for animation targeting
+     * @param {Object} [options={}] - Additional options
+     * @param {Object} [options.animationManager] - AnimationManager instance for triggering animations
+     * @param {Function} [options.getAnimationManager] - Lazy resolver for AnimationManager (called each time)
+     * @param {string} [options.elementId] - Element ID for animation targeting
+     * @param {string} [options.entity] - Entity ID for context
+     * @param {Array} [options.animations] - Animation configurations
+     * @param {Object} [options.soundOverride] - Sound override configuration
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, options = {}) {
@@ -2729,12 +2852,13 @@ export class LCARdSCard extends LCARdSNativeCard {
             ...(Object.keys(soundOverride).length > 0 && { soundOverride })
         };
 
-        // Delegate to unified action handler
+        // Delegate to unified action handler — animationManager/elementId are optional at the
+        // call site even though the handler JSDoc marks them required; cast to avoid false error.
         return this._actionHandler.setupActions(
             element,
             actions,
             this.hass,
-            actionOptions
+            /** @type {any} */(actionOptions)
         );
     }
 
@@ -2784,6 +2908,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Render the card content
      * @protected
+     * @returns {import('lit').TemplateResult}
      */
     _renderCard() {
         if (!this._initialized) {
@@ -2985,8 +3110,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      * the per-card CSS variable (`--lcards-light-color-{guid}`) set by
      * `_updateLightColorVariable()`.  All other values are returned unchanged.
      *
-     * @param {string} value - Raw color value (may be 'match-light' or any other string)
-     * @returns {string} Resolved CSS variable reference, or the original value
+     * @param {string|number|null} value - Raw color value (may be 'match-light' or any other string/number)
+     * @returns {string|number|null} Resolved CSS variable reference, or the original value
      * @protected
      */
     _resolveMatchLightColor(value) {
@@ -3067,6 +3192,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      * //   📋 Field Sources (Sample)
      * //     style.color: user_config
      * //     style.borderRadius: preset_lozenge
+     */
+
     /**
      * Get pretty-printed debug output of provenance information
      *
@@ -3624,6 +3751,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * @param {Element} element - SVG element
      * @param {Object} style - Style properties to apply
+     * @param {HTMLElement|SVGElement} element - SVG or HTML segment element
+     * @param {Object} style - Style properties to apply
      * @protected
      */
     _applySegmentStyle(element, style) {
@@ -3634,6 +3763,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             if (prop === 'stroke-width') {
                 element.setAttribute('stroke-width', value);
             } else {
+                // @ts-ignore — both HTMLElement and SVGElement have .style;
+                // Element base type doesn't declare it but runtime always has it here.
                 element.style[prop] = value;
             }
         });

@@ -2,7 +2,7 @@
  * @fileoverview LCARdS Buttons Pack
  *
  * Provides style presets for all button overlay types.
- * Presets use the nested CB-LCARS schema structure with theme token references.
+ * Presets use the nested schema structure with theme token references.
  *
  * Pack key:  lcards_buttons
  * Registry:  StylePresetManager → style_presets.button.*

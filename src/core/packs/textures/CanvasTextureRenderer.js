@@ -94,7 +94,7 @@ export class CanvasTextureRenderer {
             opacity:   resolvedConfig?.opacity ?? 1,
             _clipPath: this._clipPath,
         };
-        this._effect = new presetDef.effectClass(effectConfig);
+        this._effect = new (/** @type {any} */ (presetDef.effectClass))(effectConfig);
 
         // Set up Canvas2DRenderer.
         // monitorPerformance: false — canvas 2D texture effects are lightweight and
@@ -219,7 +219,7 @@ export class CanvasTextureRenderer {
             this._resizeObserver.observe(newHostEl);
         }
 
-        this._hostEl = newHostEl;
+        this._hostEl = /** @type {HTMLElement} */ (newHostEl);
         lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Canvas reattached to new host`);
     }
 

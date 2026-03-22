@@ -8,7 +8,7 @@ LCARdS cards support dynamic content through four template syntaxes. You can mix
 
 ### 1. Token Templates `{...}`
 
-Simple substitutions for entity state, attributes, theme values, and DataSource values.
+Simple substitutions for entity state, attributes, theme values, and data source values.
 
 ```yaml
 text:
@@ -19,7 +19,7 @@ text:
   title:
     content: "{theme:colors.text.onDark}"              # Theme token
   reading:
-    content: "{ds:temp:.1f}°C"                         # DataSource with format
+    content: "{ds:temp}"                              # DataSource: HA-native (locale-formatted + unit)
 ```
 
 **Available tokens:**
@@ -29,18 +29,21 @@ text:
 | `{entity.state}` | Current entity state string |
 | `{entity.attributes.NAME}` | Any entity attribute |
 | `{theme:token.path}` | Theme token value — see [Themes](../themes/) |
-| `{ds:source_name}` | DataSource current value |
-| `{datasource:source:.2f}` | DataSource with format specifier |
+| `{ds:source_name}` | data source current value |
+| `{datasource:source:.2f}` | data source with format specifier |
 | `{datasource:source.processor:.0f}` | Specific processor buffer with format |
 
-**Format specifiers** follow Python `str.format()` style:
+**No format specifier** → HA-native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Analogous to `haFormatEntityState()`.
 
-| Specifier | Example | Result |
+**With a format specifier** → you own the output. The number is formatted to spec and returned with **no auto-unit**. Analogous to `{{states('sensor.temp')}}` in Jinja2 — append any suffix you want.
+
+| Specifier | Example | Result (no auto-unit) |
 |-----------|---------|--------|
-| `:.1f` | `{ds:temp:.1f}` | `21.3` (1 decimal) |
-| `:.0f` | `{ds:temp:.0f}` | `21` (integer) |
-| `:.2f` | `{ds:temp:.2f}` | `21.34` (2 decimals) |
-| `:%` | `{ds:progress:%}` | `0.75%` (percentage) |
+| *(none)* | `{ds:temp}` | `4,73 °C` — HA-native, locale + unit |
+| `:.Nf` | `{ds:temp:.1f}` | `4,7` — N decimal places, locale-formatted |
+| `:int` | `{ds:temp:int}` | `5` — rounded integer, locale-formatted |
+| `:.N%` | `{ds:progress:.0%}` | `75%` — percentage |
+| `:str` | `{ds:label:str}` | raw string coercion |
 
 ---
 
@@ -95,9 +98,9 @@ text:
 
 ---
 
-### 4. DataSource Templates `{ds:...}` / `{datasource:...}`
+### 4. Data Source Templates `{ds:...}` / `{datasource:...}`
 
-For values from a named [DataSource](../datasources/). Supports format specifiers and processor buffer access.
+For values from a named [data source](../datasources/). Supports format specifiers and processor buffer access.
 
 ```yaml
 data_sources:
@@ -108,9 +111,12 @@ data_sources:
 
 text:
   value:
-    content: "{ds:temp:.1f}°C"              # Current value, 1 decimal
-    # Or from a specific processor buffer:
-    # content: "{datasource:temp.f:.0f}°F"
+    content: "{ds:temp}"                   # HA-native: locale-formatted + unit → "4,7 °C"
+    # Explicit precision (no auto-unit — you control the suffix):
+    # content: "{ds:temp:.2f} °C"          # → "4,73 °C"
+    # content: "{ds:temp:.1f}\'s temp"     # → "4,7's temp"
+    # Processor buffer:
+    # content: "{datasource:temp.f:.0f}"    # → "76" (Fahrenheit, no unit)
 ```
 
 ---
@@ -135,6 +141,6 @@ When a value could match multiple syntaxes, evaluation proceeds in this order:
 
 1. `[[[...]]]` — JavaScript (evaluated first)
 2. `{token}` — Token substitution
-3. `{ds:...}` / `{datasource:...}` — DataSource
+3. `{ds:...}` / `{datasource:...}` — data source
 4. `{{...}}` — Jinja2 (HA server-evaluated, async)
 

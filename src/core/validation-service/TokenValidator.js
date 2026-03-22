@@ -183,7 +183,7 @@ export class TokenValidator {
         value: tokenPath,
         severity: 'error',
         suggestion: suggestion ? `Did you mean "${suggestion}"?` : 'Check your theme configuration',
-        helpUrl: 'https://docs.cb-lcars.com/theming/tokens'
+        helpUrl: 'https://lcards.unimatrix01.ca/core/themes/'
       });
       return;
     }

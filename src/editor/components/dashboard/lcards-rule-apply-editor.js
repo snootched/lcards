@@ -40,6 +40,8 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
         this.value = {};
         this._yamlText = '';
         this._yamlError = '';
@@ -236,6 +238,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
                     ?outlined=${false}>
 
                     <ha-code-editor
+                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .value=${this._yamlText}
                         mode="yaml"

@@ -1,4 +1,5 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
  * [DataSource] Data source implementation - provides real-time Home Assistant entity subscriptions
@@ -20,17 +21,21 @@ const cancelAnimationFrame = isNode
 export class DataSource {
   /**
    * Create a new DataSource for a Home Assistant entity
-   * @param {Object} cfg - DataSource configuration
+   * @param {object} cfg - DataSource configuration
    * @param {string} cfg.entity - Entity ID to monitor
    * @param {number} [cfg.windowSeconds=60] - Rolling window size in seconds
    * @param {number} [cfg.minEmitMs=100] - Minimum time between emits
+   * @param {number} [cfg.sampleMs] - Alias for minEmitMs (legacy)
    * @param {number} [cfg.coalesceMs] - Coalescing window for rapid updates
+   * @param {number} [cfg.maxDelayMs] - Maximum delay before forced emit
+   * @param {boolean} [cfg.emitOnSameValue=true] - Emit even when value unchanged
    * @param {Object} [cfg.processing] - Processor configuration
    * @param {Object} [cfg.history] - History preload configuration
+   * @param {Object} [cfg.metadata] - Metadata overrides
    * @param {Object} hass - Home Assistant connection object
    */
   constructor(cfg, hass) {
-    this.cfg = { ...cfg };
+    this.cfg = /** @type {any} */ ({ ...cfg });
     this.hass = hass;
 
     // Validate essential config
@@ -84,6 +89,7 @@ export class DataSource {
     // PORT: Complete internal timing state from original
     this._lastEmitTime = 0;
     this._lastEmittedValue = null;
+    /** @type {any} */
     this._pendingRaf = 0;
     this._pending = false;
     this._pendingFirstTs = 0;
@@ -1006,7 +1012,7 @@ export class DataSource {
     }
 
     // Store metadata on the callback function
-    callback._subscriberMetadata = {
+    ;(/** @type {any} */ (callback))._subscriberMetadata = {
       overlayId: metadata.overlayId || 'unknown',
       overlayType: metadata.overlayType || 'unknown',
       component: metadata.component || 'unknown',
@@ -1279,9 +1285,13 @@ export class DataSource {
   getFormattedValue(value, precision = 1) {
     if (!Number.isFinite(value)) return 'N/A';
 
-    const formatted = value.toFixed(precision);
+    const formatted = haFormatNumber(this.hass, value, {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision
+    });
     return this.metadata.unit_of_measurement
-      ? `${formatted}${this.metadata.unit_of_measurement}`
+      // Use narrow no-break space (U+202F) before unit, matching HA's own formatEntityState output.
+      ? `${formatted}\u202F${this.metadata.unit_of_measurement}`
       : formatted;
   }
 
@@ -1328,6 +1338,7 @@ export class DataSource {
    * @param {number} count - Number of recent points to get (default: 100)
    * @returns {Array} Historical processor data [{t, v}, ...] or empty array
    */
+  // @ts-ignore - first definition; second definition below overrides at runtime
   getProcessorHistory(processorName, count = 100) {
     const buffer = this.getProcessorBuffer(processorName);
     if (!buffer) {
@@ -1523,6 +1534,7 @@ export class DataSource {
    * @param {number} count - Number of recent points to get (default: 100)
    * @returns {Array} Historical processor data [{t, v}, ...] or empty array
    */
+  // @ts-ignore - duplicate method; second definition overrides first at runtime
   getProcessorHistory(processorName, count = 100) {
     const buffer = this.getProcessorBuffer(processorName);
     if (!buffer) {

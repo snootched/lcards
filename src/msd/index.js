@@ -109,7 +109,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
 
   // Preserve legacy DOM-based helpers (will be replaced by SystemsManager internally)
   window.lcards.debug.msd.getProvenance = function(selector = 'lcards-msd') {
-    const card = document.querySelector(selector);
+    const card = /** @type {any} */ (document.querySelector(selector));
     if (!card?.getProvenance) {
       lcardsLog.warn(`[MSD Debug] ⚠️ Card not found or no provenance: ${selector}`);
       return null;
@@ -118,7 +118,7 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
   };
 
   window.lcards.debug.msd.debugProvenance = function(selector = 'lcards-msd') {
-    const card = document.querySelector(selector);
+    const card = /** @type {any} */ (document.querySelector(selector));
     if (!card?.debugProvenance) {
       lcardsLog.warn(`[MSD Debug] ⚠️ Card not found: ${selector}`);
       return;

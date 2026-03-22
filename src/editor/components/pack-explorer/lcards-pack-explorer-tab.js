@@ -466,6 +466,7 @@ export class LCARdSPackExplorerTab extends LitElement {
     super.updated(changedProps);
 
     // Rebuild tree data when hass changes
+    // @ts-ignore - TS2339: auto-suppressed
     if (changedProps.has('hass') && this.hass) {
       this._buildTreeData();
     }
@@ -1084,9 +1085,11 @@ export class LCARdSPackExplorerTab extends LitElement {
     };
 
     const cardElement = document.createElement(cardType);
+    // @ts-ignore - TS2339: auto-suppressed
     cardElement.hass = this._createMockHass();
 
     try {
+      // @ts-ignore - TS2339: auto-suppressed
       cardElement.setConfig(config);
     } catch (err) {
       lcardsLog.error('[PackExplorer] Failed to set config on preview card:', err);

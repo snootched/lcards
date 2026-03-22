@@ -207,6 +207,12 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
      */
     _renderDefaultsConfig() {
         return html`
+            <!-- Display Format (card-wide default) -->
+            ${FormField.renderField(this.editor, 'text.default.display_format', {
+                label: 'Default Display Format',
+                helper: 'How {entity.state} tokens are rendered across all fields: friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
+            })}
+
             <!-- Font Section -->
             <lcards-form-section
                 header="Font"
@@ -354,7 +360,15 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             <!-- Content -->
             ${FormField.renderField(this.editor, `text.${fieldName}.content`, {
                 label: 'Content',
-                helper: 'Text content - supports templates like {{entity.state}}'
+                helper: 'Text content - supports templates like {entity.state}'
+            })}
+
+            <!-- Display Format -->
+            ${FormField.renderField(this.editor, `text.${fieldName}.display_format`, {
+                label: 'Display Format',
+                helper: hasDefaults && !fieldConfig.display_format
+                    ? 'Inherits from defaults — friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
+                    : 'How entity state tokens are rendered: friendly, raw, parts, or unit'
             })}
 
             <!-- Position -->

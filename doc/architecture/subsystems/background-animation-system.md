@@ -6,7 +6,7 @@ The Background Animation System provides a modular, preset-based framework for r
 
 ---
 
-## 🏗️ System Overview
+## System Overview
 
 ### Architecture Components
 
@@ -38,7 +38,7 @@ BackgroundAnimationRenderer (Canvas2DRenderer)
 
 ---
 
-## 📊 Data Flow
+## Data Flow
 
 ### 1. Configuration → Effects
 
@@ -85,7 +85,7 @@ background_animation:
 
 ---
 
-## 🎨 Effect Interface (BaseEffect)
+## Effect Interface (BaseEffect)
 
 All effects must implement the `BaseEffect` interface:
 
@@ -129,7 +129,7 @@ class BaseEffect {
 
 ---
 
-## 🔍 ZoomEffect Wrapper Architecture
+## ZoomEffect Wrapper Architecture
 
 `ZoomEffect` is a **compositor** (not a BaseEffect subclass) that wraps any effect with layered scaling.
 
@@ -192,7 +192,7 @@ class ZoomEffect {
 
 ---
 
-## 🎯 Preset System
+## Preset System
 
 ### Preset Structure
 
@@ -257,140 +257,10 @@ export const BACKGROUND_PRESETS = {
 | `grid-diagonal` | GridEffect | 45° diagonal hatch pattern with optional background fill |
 | `grid-hexagonal` | GridEffect | Honeycomb hexagonal tessellation with optional cell fill |
 
----
-
-## 📐 GridEffect Deep Dive
-
-### Pattern Types
-
-```javascript
-const PATTERNS = {
-  both: 'both',           // Horizontal + vertical lines
-  horizontal: 'horizontal', // Horizontal lines only
-  vertical: 'vertical',   // Vertical lines only
-  diagonal: 'diagonal',   // 45° diagonal lines
-  hexagonal: 'hexagonal'  // Hexagonal tessellation
-};
-```
-
-### Sizing Modes
-
-#### Spacing-Based
-
-```javascript
-lineSpacing: 40  // 40px between lines
-```
-
-Calculates line count based on canvas dimensions:
-
-```javascript
-const numRows = Math.ceil(height / lineSpacing) + 1;
-const numCols = Math.ceil(width / lineSpacing) + 1;
-```
-
-#### Cell-Based
-
-```javascript
-numRows: 10
-numCols: 10
-```
-
-Calculates spacing based on canvas dimensions:
-
-```javascript
-const rowSpacing = height / numRows;
-const colSpacing = width / numCols;
-```
-
-### Major/Minor Line System
-
-Major lines are drawn at intervals over the base grid:
-
-```javascript
-// Configuration
-majorRowInterval: 5      // Major line every 5 rows
-majorColInterval: 5      // Major line every 5 columns
-
-// Drawing logic
-if (majorRowInterval > 0 && row % majorRowInterval === 0) {
-  ctx.strokeStyle = colorMajor;
-  ctx.lineWidth = lineWidthMajor;
-} else {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidthMinor;
-}
-```
-
-**Setting to 0 disables major lines** (simple mode).
-
-### Hexagonal Pattern Geometry
-
-Hexagons are drawn with proper tiling dimensions:
-
-```javascript
-const hexHeight = hexRadius * Math.sqrt(3);
-const patternWidth = 3 * hexRadius;   // 2 hexagon columns
-const patternHeight = 2 * hexHeight;  // 2 hexagon rows with stagger
-```
-
-Each pattern tile contains 3×3 hexagons to ensure seamless tiling:
-
-```javascript
-for (let row = 0; row < 3; row++) {
-  for (let col = 0; col < 3; col++) {
-    const globalRow = Math.floor(offsetY / hexHeight) + row;
-    const globalCol = Math.floor(offsetX / (1.5 * hexRadius)) + col;
-
-    const isMajor =
-      (majorRowInterval > 0 && globalRow % majorRowInterval === 0) &&
-      (majorColInterval > 0 && globalCol % majorColInterval === 0);
-
-    // Draw hexagon with major/minor styling
-  }
-}
-```
-
-### Infinite Scrolling
-
-Patterns use modulo arithmetic for seamless infinite scrolling:
-
-```javascript
-// Update scroll offset
-this._offsetX += (scrollSpeedX / 1000) * deltaTime;
-this._offsetY += (scrollSpeedY / 1000) * deltaTime;
-
-// Wrap offset to pattern dimensions
-this._offsetX %= patternWidth;
-this._offsetY %= patternHeight;
-
-// Tile pattern with offset
-for (let x = -patternWidth; x < width + patternWidth; x += patternWidth) {
-  for (let y = -patternHeight; y < height + patternHeight; y += patternHeight) {
-    ctx.drawImage(patternCanvas, x - offsetX, y - offsetY);
-  }
-}
-```
-
-### Fill Colour Support
-
-Fill colour renders cell backgrounds before line strokes:
-
-```javascript
-if (fillColor) {
-  ctx.fillStyle = ColorUtils.resolveCssVariable(fillColor, ctx.canvas);
-  for (let row = 0; row < numRows; row++) {
-    for (let col = 0; col < numCols; col++) {
-      const x = col * colSpacing;
-      const y = row * rowSpacing;
-      ctx.fillRect(x, y, colSpacing, rowSpacing);
-    }
-  }
-}
-```
 
 ---
 
-## 🎭 Effect Stacking
+## Effect Stacking
 
 ### Rendering Order
 
@@ -422,7 +292,7 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 
 ---
 
-## 🏎️ Animation Governor (PerformanceMonitor)
+## Animation Governor (PerformanceMonitor)
 
 `AnimationPerformanceMonitor` (`src/core/animation/PerformanceMonitor.js`) is a global singleton (`window.lcards.core.performanceMonitor`) that runs a single RAF loop to measure device FPS independently of any card's render loop. It is ref-counted: it starts when the first `Canvas2DRenderer` starts and stops when the last one stops.
 
@@ -501,206 +371,9 @@ window.lcards.setGlobalLogLevel('debug')
 
 Threshold changes via `setThresholds()` are session-only — they reset on page reload. To make them permanent, update the defaults in `src/core/animation/PerformanceMonitor.js`.
 
----
 
-## 🚀 Adding New Effects
+## See Also
 
-### 1. Create Effect Class
-
-```javascript
-// src/core/packs/backgrounds/effects/StarfieldEffect.js
-import { BaseEffect } from './BaseEffect.js';
-
-export class StarfieldEffect extends BaseEffect {
-  constructor(config) {
-    super();
-    this._stars = [];
-    this._numStars = config.numStars ?? 100;
-    this._speed = config.speed ?? 50;
-    // Initialize stars
-  }
-
-  isActive() {
-    return true;
-  }
-
-  update(deltaTime, width, height) {
-    // Update star positions
-    for (const star of this._stars) {
-      star.y += (this._speed / 1000) * deltaTime;
-      if (star.y > height) star.y = 0;
-    }
-  }
-
-  draw(ctx, width, height) {
-    ctx.fillStyle = 'white';
-    for (const star of this._stars) {
-      ctx.fillRect(star.x, star.y, star.size, star.size);
-    }
-  }
-
-  destroy() {
-    this._stars = [];
-  }
-}
-```
-
-### 2. Add Preset
-
-```javascript
-// src/core/packs/backgrounds/presets/index.js
-import { StarfieldEffect } from '../effects/StarfieldEffect.js';
-
-export const BACKGROUND_PRESETS = {
-  // ... existing presets
-
-  'starfield': {
-    name: 'Starfield',
-    description: 'Scrolling starfield effect',
-
-    createEffects(config) {
-      return [new StarfieldEffect({
-        numStars: config.num_stars ?? 100,
-        speed: config.speed ?? 50,
-        color: config.color ?? 'rgba(255, 255, 255, 0.8)'
-      })];
-    }
-  }
-};
-```
-
-### 3. Test Configuration
-
-```yaml
-background_animation:
-  - preset: starfield
-    config:
-      num_stars: 200
-      speed: 75
-      color: "rgba(255, 255, 255, 0.9)"
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Pattern Seams Visible
-
-**Cause**: Pattern dimensions don't tile correctly
-
-**Solution**: Ensure pattern width/height match geometry:
-
-```javascript
-// For hexagons
-patternWidth = 3 * hexRadius
-patternHeight = 2 * hexHeight
-
-// For grids
-patternWidth = lineSpacing
-patternHeight = lineSpacing
-```
-
-### Major Lines Not Aligning During Scroll
-
-**Cause**: Major line calculation uses local pattern coordinates instead of global
-
-**Solution**: Track global tile position:
-
-```javascript
-const globalRow = Math.floor(offsetY / lineSpacing) + row;
-const isMajor = globalRow % majorRowInterval === 0;
-```
-
-### Poor Performance
-
-**Optimization checklist**:
-- ✅ Use offscreen canvas for pattern generation
-- ✅ Cache patterns (don't regenerate each frame)
-- ✅ Skip inactive effects with `isActive()` check
-- ✅ Limit number of stacked effects
-- ✅ Reduce zoom layers (3-4 instead of 6-8)
-- ✅ Increase line spacing (fewer lines = better performance)
-
-### Zoom Effect Not Visible
-
-**Common issues**:
-- Base effect `isActive()` returns false
-- Opacity fade thresholds set incorrectly
-- `scale_from` and `scale_to` too similar
-- Layer count too low (use 3+ for smooth effect)
-
----
-
-## 📊 Performance Benchmarks
-
-### Test Configuration
-
-- Canvas size: 600×400px
-- Browser: Chrome 120 (hardware acceleration enabled)
-- Hardware: M1 MacBook Pro
-
-### Results
-
-| Configuration | FPS | CPU Usage |
-|--------------|-----|-----------|
-| Single grid, no zoom | 60 | ~5% |
-| Single grid + zoom (4 layers) | 60 | ~12% |
-| Single hexagonal + zoom | 58 | ~15% |
-| 2 effects stacked | 60 | ~10% |
-| 3 effects + zoom | 55 | ~22% |
-| 3 effects + 2 zooms | 45 | ~35% |
-
-### Recommendations
-
-- **Target 60 FPS**: Single effect or 2 simple stacked effects
-- **Target 30 FPS**: 2-3 stacked effects with zoom
-- **Avoid**: 3+ effects with multiple zooms (high CPU usage)
-
----
-
-## 🔍 Code References
-
-### Key Files
-
-- **[BackgroundAnimationRenderer.js](../../../src/core/packs/backgrounds/BackgroundAnimationRenderer.js)** - Main renderer
-- **[BaseEffect.js](../../../src/core/packs/backgrounds/effects/BaseEffect.js)** - Effect interface
-- **[GridEffect.js](../../../src/core/packs/backgrounds/effects/GridEffect.js)** - Grid effect implementation
-- **[StarfieldEffect.js](../../../src/core/packs/backgrounds/effects/StarfieldEffect.js)** - Starfield effect with parallax
-- **[ZoomEffect.js](../../../src/core/packs/backgrounds/effects/ZoomEffect.js)** - Zoom wrapper
-- **[presets/index.js](../../../src/core/packs/backgrounds/presets/index.js)** - Preset registry
-
-### Related Systems
-
-- **[Pack System](pack-system.md)** - Background pack architecture
-- **[Canvas2DRenderer](../../../src/core/packs/backgrounds/renderers/Canvas2DRenderer.js)** - Base canvas renderer
-
----
-
-## 📚 Future Enhancements
-
-### Planned Features
-
-- [ ] **StarfieldEffect**: Parallax scrolling star particles
-- [ ] **NebulaEffect**: Animated gradient clouds with SVG filters
-- [ ] **BracketEffect**: LCARS-style corner brackets
-- [ ] **GeometricArrayEffect**: Animated geometric shapes
-- [ ] **ScanLineEffect**: Horizontal/vertical scan line overlay
-
-### Editor Integration
-
-- [ ] Visual preset picker with thumbnails
-- [ ] Dynamic config form based on selected preset
-- [ ] Zoom toggle with sliders
-- [ ] Effect list builder for stacking
-- [ ] Live preview canvas
-
-### Performance
-
-- [ ] WebGL backend option for complex effects
-- [ ] Effect LOD (Level of Detail) based on performance
-- [ ] Adaptive layer count for zoom effects
-- [ ] Worker thread offloading for pattern generation
-
----
-
-*Last Updated: February 15, 2026*
+- [Pack System](pack-system.md)
+- [Animation Manager](animation-manager.md)
+- [DataSource System](datasource-system.md)

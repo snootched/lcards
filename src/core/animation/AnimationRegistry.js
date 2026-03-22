@@ -264,7 +264,7 @@ export class AnimationRegistry {
    * Get performance statistics
    */
   getStats() {
-    const stats = { ...this.perfStats };
+    const stats = /** @type {any} */ ({ ...this.perfStats });
 
     stats.cacheSize = this.cache.size;
     stats.hitRate = stats.cacheHits / (stats.cacheHits + stats.cacheMisses) || 0;
@@ -353,7 +353,7 @@ export class AnimationRegistry {
    * Export cache statistics for analysis
    */
   exportStats(options = {}) {
-    const stats = this.getStats();
+    const stats = /** @type {any} */ (this.getStats());
 
     if (options.includeCache) {
       stats.cacheContents = this.getCacheContents();
@@ -380,6 +380,20 @@ export class AnimationRegistry {
     ];
 
     return rows.join('\n');
+  }
+
+  /**
+   * Get debug information about the animation registry state
+   * @returns {Object} Debug information
+   */
+  getDebugInfo() {
+    return {
+      type: 'AnimationRegistry',
+      cacheSize: this.cache?.size || 0,
+      maxCacheSize: this.maxCacheSize || 0,
+      perfStats: this.perfStats || {},
+      usageStats: this.usageStats?.size || 0
+    };
   }
 }
 

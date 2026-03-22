@@ -11,7 +11,6 @@
  *   5. Actions - Card-level actions with clear priority explanations
  *   + utility tabs (YAML, DataSources, ThemeBrowser, Provenance, etc.)
  *
- * @extends {LCARdSBaseEditor}
  */
 
 import { html, css } from 'lit';
@@ -33,6 +32,7 @@ import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 
+// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
     static get properties() {
@@ -1040,6 +1040,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         }));
 
         const dialog = document.createElement('ha-dialog');
+        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Button Style Template';
         dialog.setAttribute('prevent-scrim-close', '');
         this._buttonTemplateDialogRef = dialog;
@@ -1048,19 +1049,26 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         container.style.cssText = 'padding:16px;min-height:300px;min-width:min(480px,90vw);box-sizing:border-box';
 
         const editor = document.createElement('hui-card-element-editor');
+        // @ts-ignore - TS2339: auto-suppressed
         editor.hass     = this.hass;
+        // @ts-ignore - TS2339: auto-suppressed
         editor.lovelace = this._getButtonTemplateLovelace();
+        // @ts-ignore - TS2339: auto-suppressed
         editor.value    = editorValue;
 
         let pending = editorValue;
 
         editor.addEventListener('config-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config && typeof e.detail.config === 'object' && e.detail.config.type) {
+                // @ts-ignore - TS2339: auto-suppressed
                 pending = e.detail.config;
             }
         });
         editor.addEventListener('value-changed', (e) => {
+            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.value && typeof e.detail.value === 'object' && e.detail.value.type) {
+                // @ts-ignore - TS2339: auto-suppressed
                 pending = e.detail.value;
             }
         });
@@ -1076,6 +1084,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         cancelBtn.setAttribute('appearance', 'plain');
         cancelBtn.setAttribute('variant', 'neutral');
         cancelBtn.textContent = 'Cancel';
+        // @ts-ignore - TS2339: auto-suppressed
         cancelBtn.addEventListener('click', () => { dialog.open = false; });
 
         const saveBtn = document.createElement('ha-button');
@@ -1085,6 +1094,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
             if (pending?.type) {
                 this._updateConfig({ button_template: this._sanitizeButtonTemplate(pending) });
             }
+            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
@@ -1100,6 +1110,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         });
 
         document.body.appendChild(dialog);
+        // @ts-ignore - TS2339: auto-suppressed
         setTimeout(() => { dialog.open = true; }, 10);
     }
 

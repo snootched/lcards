@@ -43,7 +43,7 @@ The card operates in one of three modes, selected by which top-level key is pres
 | `background_animation` | list / object | Canvas background animations — see [Background Animations](../../core/effects/background-animations.md) |
 | `shape_texture` | object | SVG texture inside the button fill — see below |
 | `filters` | list | CSS / SVG filters — see below |
-| `data_sources` | object | DataSource definitions — see [DataSources](../../core/datasources/) |
+| `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
 | `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
 | `grid_options` | object | HA grid layout (`columns`, `rows`) |
 

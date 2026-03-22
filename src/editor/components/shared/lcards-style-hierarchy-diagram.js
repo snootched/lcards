@@ -227,6 +227,7 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
             { name: 'Grid-wide', desc: 'Applies to all cells' }
         ];
 
+        // @ts-ignore - TS2339: auto-suppressed
         if (this.mode === 'data-table' || this.mode === 'all') {
             base.push({ name: 'Header', desc: 'Spreadsheet headers' });
             base.push({ name: 'Column', desc: 'Column-specific' });

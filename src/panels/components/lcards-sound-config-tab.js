@@ -49,6 +49,8 @@ export class LCARdSSoundConfigTab extends LitElement {
 
   constructor() {
     super();
+    /** @type {any} */
+    this.hass = undefined;
     this._helpers             = [];
     this._audioAssets         = [];
     this._overrides           = {};

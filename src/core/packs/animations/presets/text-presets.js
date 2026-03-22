@@ -356,7 +356,7 @@ export const TEXT_PRESETS = {
           });
         } else {
           // HTML path: hand targets to anim-helpers with CSS transform config
-          units.forEach(u => { u.style.display = 'inline-block'; });
+          units.forEach(u => { /** @type {HTMLElement} */ (u).style.display = 'inline-block'; });
           element._animTargets = units;
         }
 
@@ -400,7 +400,7 @@ export const TEXT_PRESETS = {
         element._animTargets  = splitter.units;
 
         // All chars start hidden; anime will fade each in
-        splitter.units.forEach(u => { u.style.opacity = '0'; });
+        splitter.units.forEach(u => { /** @type {HTMLElement} */ (u).style.opacity = '0'; });
 
         lcardsLog.debug('[text-typewriter] split complete', {
           tag: element.tagName, count: splitter.units.length, speed

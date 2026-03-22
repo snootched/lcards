@@ -43,7 +43,7 @@ msd:
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
 | `rules` | list | Rules for dynamic overlay styling — see [Rules Engine](../../core/rules/) |
-| `data_sources` | object | DataSource definitions — see [DataSources](../../core/datasources/) |
+| `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
 
 ---
 
