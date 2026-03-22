@@ -1233,10 +1233,11 @@ data_sources:
   router_traffic:
     type: entity
     entity: sensor.router_throughput
-    transformations:
-      - type: unit_conversion
-        conversion: "bytes_to_mbps"
-        key: "mbps"
+    processing:
+      mbps:
+        type: convert_unit
+        from: bytes_per_second
+        to: megabytes_per_second
 
 overlays:
   # Internet
@@ -1254,7 +1255,7 @@ overlays:
     position: [250, 100]
     size: [120, 50]
     label: "ROUTER"
-    content: "{router_traffic.transformations.mbps:.0f} Mbps"
+    content: "{router_traffic.processing.mbps:.0f} Mbps"
     style:
       color: var(--lcars-orange)
 

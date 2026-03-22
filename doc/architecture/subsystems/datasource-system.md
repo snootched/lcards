@@ -99,10 +99,13 @@ if (this._unsubscribe) this._unsubscribe();
 ## Template Access
 
 ```yaml
-text: "{ds:temp_sensor}"              # main buffer (.v)
-text: "{ds:temp_sensor.celsius:.1f}"  # processor buffer with format
-text: "{datasource:temp_sensor.rolling_avg}"  # explicit prefix
+text: "{ds:temp_sensor}"                   # HA-native: locale-formatted + unit
+text: "{ds:temp_sensor.celsius:.1f}"       # processor buffer: 1 decimal, no auto-unit
+text: "{ds:temp_sensor.celsius:.1f} °C"   # explicit unit suffix
+text: "{datasource:temp_sensor.rolling_avg}"  # explicit prefix, HA-native
 ```
+
+> **No format spec** → HA-native (locale + unit). **With format spec** → number only, you control the suffix.
 
 ---
 

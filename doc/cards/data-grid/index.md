@@ -72,9 +72,10 @@ Each row is an array of cell values. Cells are auto-detected:
 | Cell value | Type | How it is shown |
 |------------|------|----------------|
 | `"Static text"` | Static | Displayed as-is |
-| `sensor.entity_id` | Entity | Live entity state (auto-subscribed) |
+| `sensor.entity_id` | Entity | Live state — locale-formatted + unit via `haFormatState` |
 | `"{{ jinja2 }}"` | Template | HA-evaluated template |
-| `"{datasource:name}"` | DataSource | Value from a named DataSource |
+| `"{datasource:name}"` | DataSource | HA-native: locale-formatted + unit |
+| `"{datasource:name:.2f}"` | DataSource | Formatted number only — no auto-unit |
 
 ```yaml
 rows:

@@ -143,8 +143,10 @@ content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]
 # Jinja2 (server-evaluated)
 content: "{{ states('sensor.temperature') }}°C"
 
-# DataSource
-content: "{ds:temp:.1f}°C"
+# DataSource — HA-native (locale-formatted + unit)
+content: "{ds:temp}"
+# DataSource — explicit precision (no auto-unit, you control the suffix)
+# content: "{ds:temp:.1f} °C"
 ```
 
 See [Templates](templates/) for full details.

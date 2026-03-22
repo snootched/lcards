@@ -42,7 +42,8 @@ Use in a text template:
 ```yaml
 text:
   value:
-    content: "{ds:temp:.1f}°C"
+    content: "{ds:temp}"         # HA-native: locale-formatted + unit → "4,7 °C"
+    # content: "{ds:temp:.1f} °C"  # explicit precision + unit suffix
 ```
 
 Use as a chart series:
@@ -138,17 +139,19 @@ processing:
 ## Accessing Values in Templates
 
 ```yaml
-# Current value from primary buffer
-"{ds:temp}"
+# No format spec — HA-native: locale-formatted number + unit from entity metadata
+"{ds:temp}"                          # → "4,73 °C"  (locale + unit)
 
-# With format specifier (Python-style)
-"{ds:temp:.1f}°C"      # 1 decimal
-"{ds:temp:.0f}"        # No decimals
-"{ds:temp:>6.2f}"      # Right-aligned, 2 decimals
+# With format spec — you own the output: number only, no auto-unit
+"{ds:temp:.1f}"                      # → "4,7"  (1 decimal, no unit)
+"{ds:temp:.0f}"                      # → "5"    (integer, no unit)
+"{ds:temp:.1f} °C"                   # → "4,7 °C"  (explicit unit suffix)
 
 # From a specific processor buffer
-"{datasource:temp.fahrenheit:.0f}°F"
+"{datasource:temp.fahrenheit:.0f} °F"  # → "87 °F"
 ```
+
+> **Rule:** no format spec → HA displays it (locale + unit). With a spec → you control the output.
 
 ---
 

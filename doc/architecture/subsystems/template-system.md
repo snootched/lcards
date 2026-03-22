@@ -46,10 +46,13 @@ text: "{config.name}"
 ### 3 — DataSource `{ds:...}`
 
 ```yaml
-text: "{ds:sensor_name}"               # main buffer value
-text: "{ds:sensor_name.celsius:.1f}"   # processor buffer with format spec
-text: "{datasource:temp.rolling_avg}"  # explicit long prefix
+text: "{ds:sensor_name}"                    # HA-native: locale-formatted + unit
+text: "{ds:sensor_name.celsius:.1f}"        # processor buffer: 1 decimal, no auto-unit
+text: "{ds:sensor_name.celsius:.1f} °C"    # manual unit suffix
+text: "{datasource:temp.rolling_avg}"       # explicit long prefix
 ```
+
+**Rule:** no format spec → HA-native display with unit. With a format spec → number only, caller controls the suffix.
 
 ### 4 — Jinja2 `{{...}}` / `{% %}`
 

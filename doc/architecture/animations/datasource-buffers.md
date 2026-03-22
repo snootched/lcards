@@ -49,16 +49,19 @@ Processor buffers are named outputs from data processors. Each processor has a u
 Reference buffers using dot notation:
 
 ```yaml
-# Main buffer
+# Main buffer — no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
 text: "{datasource:temp_sensor}"        # Uses .v
 text: "{ds:temp_sensor}"                # Short form
 
-# Processor buffer
-text: "{datasource:temp_sensor.celsius}°C"
-text: "{ds:temp_sensor.rolling_avg:.1f}"
+# Processor buffer — no format spec: unit appended from entity metadata
+text: "{datasource:temp_sensor.celsius}"
 
-# Multiple processors
-text: "Temp: {ds:temp_sensor.celsius:.1f}°C (avg: {ds:temp_sensor.rolling_avg:.1f}°C)"
+# With format spec — you own the output (no auto-unit)
+text: "{ds:temp_sensor.rolling_avg:.1f}"           # "71.8"
+text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" — manual unit
+
+# Multiple in one string
+text: "Temp: {ds:temp_sensor.celsius:.1f} (avg: {ds:temp_sensor.rolling_avg:.1f})"
 ```
 
 ### In JavaScript
