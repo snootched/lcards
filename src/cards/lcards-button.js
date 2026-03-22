@@ -3044,8 +3044,15 @@ export class LCARdSButton extends LCARdSCard {
 
                     lcardsLog.trace(`[LCARdSButton] Processing template field '${fieldId}'`);
 
+                    // Resolve effective display_format: field-level > text.default > 'friendly'
+                    const defaultDisplayFormat = this.config.text?.default?.display_format ?? 'friendly';
+                    const fieldDisplayFormat = fieldConfig.display_format ?? defaultDisplayFormat;
+
                     // Always process from original template, not previously processed content
-                    const processedContent = await this.processTemplate(fieldConfig._originalContent);
+                    const processedContent = await this.processTemplate(
+                        fieldConfig._originalContent,
+                        { displayFormat: fieldDisplayFormat }
+                    );
 
                     // Store in _processedTemplates (survives config replacement)
                     const previousProcessed = this._processedTemplates[fieldId];

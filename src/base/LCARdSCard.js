@@ -1727,7 +1727,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {Promise<string>} Processed template
      * @protected
      */
-    async processTemplate(template) {
+    async processTemplate(template, options = {}) {
         if (!template || typeof template !== 'string') {
             return template;
         }
@@ -1739,7 +1739,11 @@ export class LCARdSCard extends LCARdSNativeCard {
                 config: this.config,
                 hass: this.hass,
                 variables: this.config?.variables || {},
-                theme: this._singletons?.themeManager?.getCurrentTheme?.()
+                theme: this._singletons?.themeManager?.getCurrentTheme?.(),
+                // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
+                // are rendered. Defaults to 'friendly' (HA-translated display strings).
+                // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.
+                displayFormat: options.displayFormat ?? 'friendly'
             };
 
             // Get dataSourceManager from global singleton (if available)
