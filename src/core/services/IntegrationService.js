@@ -41,14 +41,59 @@ export class IntegrationService extends BaseService {
          */
         this.options = null;
 
+        /**
+         * Set of capability strings advertised by the backend in the lcards/info
+         * response.  Check before using features that require a minimum backend
+         * version.
+         *
+         * Known capabilities:
+         *   - ``scoped_storage`` — per-user / per-device namespaced WS commands
+         *
+         * @type {Set<string>}
+         */
+        this.capabilities = new Set();
+
         /** @private — cached HASS reference updated on every updateHass() call */
         this._hass = null;
 
         /** @private — ensures we only probe once */
         this._probed = false;
 
+        /**
+         * @private
+         * Promise that resolves once the lcards/info probe has completed
+         * (regardless of whether the backend is available).  Consumers that
+         * need to wait before making API calls should use ``onReady()``
+         * rather than polling ``_probed`` directly.
+         */
+        this._readyPromise = new Promise((resolve) => {
+            this._readyResolve = resolve;
+        });
+
         /** @private — unsubscribe fn for the lcards_event HA event listener */
         this._eventUnsubscribe = null;
+    }
+
+    /**
+     * True once the initial lcards/info probe has completed.
+     * The probe outcome (available vs. unavailable) does not affect this flag.
+     * @type {boolean}
+     */
+    get isReady() {
+        return this._probed;
+    }
+
+    /**
+     * Returns a Promise that resolves once the lcards/info probe completes.
+     *
+     * Resolves immediately if the probe has already finished.  Other services
+     * should ``await integration.onReady()`` rather than polling ``_probed``
+     * directly, or checking ``available`` before it has been set.
+     *
+     * @returns {Promise<void>}
+     */
+    onReady() {
+        return this._readyPromise;
     }
 
     /**
@@ -92,9 +137,10 @@ export class IntegrationService extends BaseService {
             this.version = result?.version ?? null;
             this.storageKeyCount = result?.storage_key_count ?? null;
             this.options = result?.options ?? null;
+            this.capabilities = new Set(Array.isArray(result?.capabilities) ? result.capabilities : []);
 
             lcardsLog.info(
-                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys)`
+                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys, capabilities: [${[...this.capabilities].join(', ')}])`
             );
 
             // Subscribe to the lcards_event push channel now that we know
@@ -105,9 +151,14 @@ export class IntegrationService extends BaseService {
             this.version = null;
             this.storageKeyCount = null;
             this.options = null;
+            this.capabilities = new Set();
             lcardsLog.info(
                 '[IntegrationService] Backend not found — degraded mode (integration not installed)'
             );
+        } finally {
+            // Resolve the readiness promise regardless of probe outcome so that
+            // consumers awaiting onReady() are not left hanging.
+            this._readyResolve?.();
         }
     }
 

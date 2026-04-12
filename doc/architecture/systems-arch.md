@@ -86,19 +86,21 @@ These services start on page load and become accessible to all LCARdS cards via 
 
 | Service | `window.lcards.core.*` | What it does |
 |---|---|---|
-| **Integration Service** | `integrationService` | Probes the HA Python backend on startup; sets `available` flag so other services can gate on backend APIs. Falls back gracefully when the integration is absent. |
+| **Integration Service** | `integrationService` | Probes the HA Python backend on startup; sets `available` flag and `capabilities` Set so other services can gate on backend APIs. Falls back gracefully when the integration is absent. Exposes `onReady()` Promise API. |
 | **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications — no duplicate subscriptions |
 | **DataSource Manager** | `dataSourceManager` | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
 | **Rules Engine** | `rulesManager` | Evaluates conditions and hot-patches LCARd styles at runtime; target any card by tag, type, or ID |
 | **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field |
 | **Alert Mode** | `alertMode` | Coordinated alert states (green / red / yellow / blue / gray / black); drives palette shifts, triggers sounds, driven by `input_select.lcards_alert_mode` |
 | **Animation Manager** | `animationManager` | Coordinates Anime.js v4 animations; provides built-in configurable presets or accepts custom anime.js parameters |
-| **Sound Manager** | `soundManager` | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides |
+| **Sound Manager** | `soundManager` | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides; supports per-user and per-device scope via ScopedSettingsService |
 | **Style Preset Manager** | `stylePresetManager` | Central registry of named style presets for buttons, sliders, elbows; consumed from packs |
 | **Component Manager** | `componentManager` | Registry of SVG component definitions (D-pad, Alert, custom shapes) used in button component mode |
 | **Asset Manager** | `assetManager` | Loads and caches SVG and font assets for use across cards |
 | **Pack Manager** | `packManager` | Loads and distributes content from packs (themes, presets, animations, assets, etc.) to appropriate managers at startup |
 | **Helper Manager** | `helperManager` | Manages LCARdS and HA-LCARS `input_*` helper entities; auto-create from LCARdS Config Panel |
+| **Device Identity Manager** | `deviceIdentityManager` | Stable per-browser UUID + display name; heartbeat registration to backend; supports `?lcards_device=` URL param |
+| **Scoped Settings Service** | `scopedSettingsService` | Three-tier waterfall (Device → User → Global) for any LCARdS setting; requires backend `scoped_storage` capability; graceful degradation |
 
 **Template Support** — any text field in any card supports four syntaxes:
 JavaScript `[[[return ...]]]`, LCARdS tokens `{entity.state}` / `{theme:colors.card.button}`, DataSource `{ds:sensor_name}`, and Jinja2 `{{states("sensor.temp")}}` (Jinja2 evaluated by HA server).

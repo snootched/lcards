@@ -27,6 +27,7 @@ import '../editor/components/shared/lcards-collapsible-section.js';
 import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
+import './components/lcards-users-devices-tab.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -787,10 +788,14 @@ export class LCARdSConfigPanel extends LitElement {
             Sounds
           </ha-tab-group-tab>
           <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
+            <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
+            Users & Devices
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
           </ha-tab-group-tab>
-          <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
+          <ha-tab-group-tab value="6" ?active=${this._selectedTab === 6}>
             <ha-icon icon="mdi:database-cog"></ha-icon>
             Storage
           </ha-tab-group-tab>
@@ -823,8 +828,10 @@ export class LCARdSConfigPanel extends LitElement {
       case 3:
         return this._renderSoundTab();
       case 4:
-        return this._renderPackExplorerTab();
+        return this._renderUsersDevicesTab();
       case 5:
+        return this._renderPackExplorerTab();
+      case 6:
         return this._renderStorageTab();
       default:
         return html`<div>Unknown tab</div>`;
@@ -1187,6 +1194,14 @@ export class LCARdSConfigPanel extends LitElement {
         ._dialogOpen=${true}
         ._inlineMode=${true}
       ></lcards-theme-token-browser-tab>
+    `;
+  }
+
+  _renderUsersDevicesTab() {
+    return html`
+      <lcards-users-devices-tab
+        .hass=${this.hass}
+      ></lcards-users-devices-tab>
     `;
   }
 

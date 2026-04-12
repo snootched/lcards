@@ -5,14 +5,15 @@
  *   Tier 1 — Card interactions: Called from LCARdSActionHandler at tap/hold/double-tap/hover
  *   Tier 2 — Global HA UI:  Single document click listener + location-changed listener
  *
- * Configuration is stored in HA input helpers (read via HelperManager):
- *   input_boolean.lcards_sound_enabled    — Master on/off (default: false — opt-in)
- *   input_boolean.lcards_sound_cards      — Card interaction sounds
- *   input_boolean.lcards_sound_ui         — HA UI navigation sounds
- *   input_boolean.lcards_sound_alerts     — Alert/system event sounds
- *   input_number.lcards_sound_volume      — Master volume (0.0–1.0)
- *   input_select.lcards_sound_scheme      — Active sound scheme name
- *   backend storage 'sound_overrides'  — JSON per-event asset key overrides
+ * Configuration uses a three-tier waterfall (Card YAML → Device → User → Global):
+ *
+ * | Setting              | Scopes              | Global fallback (HA helper)                  |
+ * |----------------------|---------------------|----------------------------------------------|
+ * | sound_enabled        | device, user, global| input_boolean.lcards_sound_enabled           |
+ * | sound_{cat}_enabled  | global only         | input_boolean.lcards_sound_{cat}             |
+ * | sound_volume         | device, user, global| input_number.lcards_sound_volume             |
+ * | sound_scheme         | device, user, global| input_select.lcards_sound_scheme             |
+ * | sound_overrides      | device, user, global| backend flat key 'sound_overrides'           |
  *
  * Sound schemes are registered from pack definitions via PackManager.registerPack().
  * Audio asset URLs are resolved directly from AssetManager's internal registry.
@@ -22,6 +23,12 @@
 
 import { BaseService } from '../BaseService.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import {
+  STORAGE_KEY_SOUND_OVERRIDES,
+  STORAGE_KEY_SOUND_VOLUME,
+  STORAGE_KEY_SOUND_ENABLED,
+  STORAGE_KEY_SOUND_SCHEME,
+} from '../services/ScopedSettingsConstants.js';
 
 /**
  * Maps each event type to its helper sub-category key.
@@ -144,15 +151,43 @@ export class SoundManager extends BaseService {
     this._schemesOptionsSynced = false;
 
     /**
-     * In-memory cache of per-event sound overrides.
-     * Populated once by _ensureOverridesLoaded() on the first HASS update after
-     * IntegrationService has probed. Remains null until the backend load completes.
+     * In-memory cache of per-event sound overrides for the current user (user scope).
+     * Populated once by _ensureOverridesLoaded(). Remains null until the backend
+     * load completes. User-scope overrides beat global on a per-event basis during
+     * playback resolution.
      * @type {Object|null}
      */
     this._overridesCache = null;
 
+    /**
+     * In-memory cache of per-event sound overrides for the current device (device scope).
+     * Device-scope overrides beat both user and global on a per-event basis.
+     * @type {Object|null}
+     */
+    this._deviceOverridesCache = null;
+
+    /**
+     * In-memory cache of globally-shared per-event overrides (global / legacy flat
+     * backend key). These apply to all users unless a user-scope or device-scope
+     * override exists for the same event. Written by the Global Settings section.
+     * @type {Object|null}
+     */
+    this._globalOverridesCache = null;
+
     /** @type {boolean} True once the backend load has completed (or was attempted) */
     this._overridesLoaded = false;
+
+    /**
+     * Scoped-settings cache fields.
+     * Populated asynchronously by _ensureOverridesLoaded(). While undefined the
+     * synchronous getters fall back to the live HA helpers.
+     */
+    /** @type {boolean|undefined} */
+    this._cachedEnabled = undefined;
+    /** @type {string|undefined} */
+    this._cachedScheme = undefined;
+    /** @type {number|undefined} */
+    this._cachedVolume = undefined;
   }
 
   // ============================================================================
@@ -468,10 +503,13 @@ export class SoundManager extends BaseService {
       assetKey = context.cardOverride;
     }
 
-    // 2. Per-event helper override
+    // 2. Per-event override (user beats global; null = explicit mute)
     if (!assetKey) {
       const overrides = this._getOverrides();
-      assetKey = overrides[eventType] || null;
+      if (eventType in overrides) {
+        if (overrides[eventType] === null) return; // Explicitly silenced — do not fall through
+        assetKey = overrides[eventType] || null;
+      }
     }
 
     // 3. Active scheme
@@ -515,9 +553,13 @@ export class SoundManager extends BaseService {
    * @param {string} eventType - Event type key (e.g., 'card_tap')
    */
   previewEvent(eventType) {
-    // 1. Per-event override
+    // 1. Per-event override (null = explicit mute)
     const overrides = this._getOverrides();
-    let assetKey = overrides[eventType] || null;
+    let assetKey = null;
+    if (eventType in overrides) {
+      if (overrides[eventType] === null) return; // Explicitly silenced
+      assetKey = overrides[eventType] || null;
+    }
 
     // 2. Active scheme
     if (!assetKey) {
@@ -537,32 +579,103 @@ export class SoundManager extends BaseService {
    * Get current per-event overrides map.
    * @returns {Object} Map of eventType → assetKey
    */
-  getOverrides() {
-    return this._getOverrides();
+  /**
+   * Return per-event overrides for a given scope tier.
+   *
+   * Use ``'global'`` to read the globally-shared overrides — these are shown in
+   * the Global Settings section of the config panel and are shared across all
+   * users and browsers.
+   *
+   * Use ``'user'`` to read the current user's personal overrides.
+   * Use ``'device'`` to read this device's overrides.
+   *
+   * For determining the *effective* sound to play (device beats user beats global),
+   * use the private ``_getOverrides()`` instead.
+   *
+   * @param {'global'|'user'|'device'} [scope='global']
+   * @returns {Object}
+   */
+  getOverrides(scope = 'global') {
+    if (scope === 'user')   return this._overridesCache       ?? {};
+    if (scope === 'device') return this._deviceOverridesCache ?? {};
+    return this._globalOverridesCache ?? {};
   }
 
   /**
    * Set a per-event sound override.
    * @param {string} eventType - Event type key
    * @param {string|null} assetKey - Asset key to use, or null to clear override
+   * @param {'global'|'user'} [scope='user'] - Storage tier to write to
    * @returns {Promise<void>}
    */
-  async setOverride(eventType, assetKey) {
-    const current = this._getOverrides();
+  async setOverride(eventType, assetKey, scope = 'user') {
+    const current = scope === 'global'
+      ? { ...(this._globalOverridesCache ?? {}) }
+      : { ...(this._overridesCache ?? {}) };
     if (assetKey === null) {
       delete current[eventType];
     } else {
       current[eventType] = assetKey;
     }
-    await this._saveOverrides(current);
+    await this._saveOverrides(current, scope);
   }
 
   /**
-   * Clear all per-event overrides.
+   * Clear all per-event overrides for a given scope tier.
+   * @param {'global'|'user'} [scope='user']
    * @returns {Promise<void>}
    */
-  async clearAllOverrides() {
-    await this._saveOverrides({});
+  async clearAllOverrides(scope = 'user') {
+    await this._saveOverrides({}, scope);
+  }
+
+  /**
+   * Re-read all device/user scoped settings from the backend and update the
+   * in-memory caches (_cachedVolume, _cachedScheme, _cachedEnabled).
+   *
+   * Call this after writing new scoped values from the config panel so that
+   * playback immediately reflects the change without a page reload.  A write
+   * from the config panel updates the backend storage but SoundManager would
+   * otherwise keep the cached value from boot until the next full reload.
+   *
+   * @returns {Promise<void>}
+   */
+  async refreshScopedCache() {
+    const sss = window.lcards?.core?.scopedSettingsService;
+    if (!sss) return;
+
+    // Reset all scoped caches so _getVolume() / _isEnabled() / _getActiveScheme()
+    // fall through to the live helper until the re-read completes.
+    this._cachedVolume  = undefined;
+    this._cachedScheme  = undefined;
+    this._cachedEnabled = undefined;
+
+    // Re-read device + user tiers (same logic as _ensureOverridesLoaded but
+    // without the one-shot guard so it can be called any number of times).
+    const vol = await sss.read(STORAGE_KEY_SOUND_VOLUME, ['device', 'user']);
+    if (vol !== null && vol !== undefined) this._cachedVolume = parseFloat(vol);
+
+    const scheme = await sss.read(STORAGE_KEY_SOUND_SCHEME, ['device', 'user']);
+    if (scheme !== null && scheme !== undefined) this._cachedScheme = scheme;
+
+    const enabled = await sss.read(STORAGE_KEY_SOUND_ENABLED, ['device', 'user']);
+    if (enabled !== null && enabled !== undefined) {
+      this._cachedEnabled = (enabled === true || enabled === 'on');
+    }
+
+    // Re-read per-event overrides for all tiers so _setOverride changes take
+    // effect immediately without a page reload.
+    const globalRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['global']);
+    this._globalOverridesCache = (globalRaw !== null && globalRaw !== undefined) ? globalRaw : {};
+
+    const userRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['user']);
+    this._overridesCache = (userRaw !== null && userRaw !== undefined) ? userRaw : {};
+
+    const deviceRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['device']);
+    this._deviceOverridesCache = (deviceRaw !== null && deviceRaw !== undefined) ? deviceRaw : {};
+
+    lcardsLog.debug('[SoundManager] Scoped settings cache refreshed',
+      { volume: this._cachedVolume, scheme: this._cachedScheme, enabled: this._cachedEnabled });
   }
 
   // ============================================================================
@@ -571,11 +684,15 @@ export class SoundManager extends BaseService {
 
   /**
    * Check if the sound system is globally enabled.
+   * Returns the scoped cached value (populated async by _ensureOverridesLoaded) if
+   * available; otherwise falls back to the HA helper for synchronous callers.
    * Safe when helpers don't exist yet — returns false (opt-in).
    * @returns {boolean}
    * @private
    */
   _isEnabled() {
+    // Synchronous path: use cached scoped value if we have it, else fall back to helper
+    if (this._cachedEnabled !== undefined) return this._cachedEnabled;
     const val = this._core?.helperManager?.getHelperValue('sound_enabled');
     return val === true || val === 'on';
   }
@@ -596,22 +713,28 @@ export class SoundManager extends BaseService {
 
   /**
    * Get the active sound scheme event map.
+   * Returns cached scoped value if available, else falls back to HA helper.
    * @returns {Object}
    * @private
    */
   _getActiveScheme() {
-    const name = this._core?.helperManager?.getHelperValue('sound_scheme') || 'none';
+    const name = this._cachedScheme
+      ?? this._core?.helperManager?.getHelperValue('sound_scheme')
+      ?? 'none';
     return this._soundSchemes.get(name) || {};
   }
 
   /**
    * Get current master volume (0.0–1.0).
+   * Returns cached scoped value if available, else falls back to HA helper.
    * @returns {number}
    * @private
    */
   _getVolume() {
-    const val = this._core?.helperManager?.getHelperValue('sound_volume');
-    const num = parseFloat(val);
+    const raw = this._cachedVolume !== undefined
+      ? this._cachedVolume
+      : this._core?.helperManager?.getHelperValue('sound_volume');
+    const num = parseFloat(raw);
     return isNaN(num) ? 0.5 : Math.max(0, Math.min(1, num));
   }
 
@@ -625,31 +748,75 @@ export class SoundManager extends BaseService {
     if (this._overridesLoaded) return;
     const integration = this._core?.integrationService;
     if (!integration) return; // Core not ready yet — will retry on next updateHass()
-    // Only attempt once the probe has resolved (available true OR probe done)
-    if (!integration._probed) return;
+
+    // Wait for the probe to complete via the public API rather than accessing
+    // the private _probed flag directly.
+    await integration.onReady();
 
     this._overridesLoaded = true; // Claim the slot to prevent concurrent loads
 
+    // Load scoped sound settings (async, cached in _cached* fields for sync access)
+    const sss = this._core?.scopedSettingsService;
+
+    if (sss) {
+      // Volume: device > user only — no 'global' tier here so the cache is only
+      // populated when there is an actual scoped override.  When no override
+      // exists (null result) _cachedVolume stays undefined, and _getVolume()
+      // falls through to the live HA helper on every call, picking up any
+      // changes made through the global volume slider without a page reload.
+      const vol = await sss.read(STORAGE_KEY_SOUND_VOLUME, ['device', 'user']);
+      if (vol !== null && vol !== undefined) this._cachedVolume = parseFloat(vol);
+
+      // Scheme: same rationale — only cache when a real scoped override exists.
+      const scheme = await sss.read(STORAGE_KEY_SOUND_SCHEME, ['device', 'user']);
+      if (scheme !== null && scheme !== undefined) this._cachedScheme = scheme;
+
+      // Enabled: device > user — same rationale as volume/scheme. Only cache when
+      // a real scoped override exists so changes to the global helper are picked up
+      // via the live fallback in _isEnabled() when no scoped override is set.
+      const enabled = await sss.read(STORAGE_KEY_SOUND_ENABLED, ['device', 'user']);
+      if (enabled !== null && enabled !== undefined) this._cachedEnabled = (enabled === true || enabled === 'on');
+    }
+
     if (integration.available) {
-      const backendValue = await integration.readStorage('sound_overrides');
-      this._overridesCache = (backendValue !== undefined && backendValue !== null)
-        ? backendValue
-        : {};
-      lcardsLog.debug('[SoundManager] Overrides loaded from backend storage');
+      if (sss) {
+        // Load global, user and device overrides separately so each tier can be read/written
+        // independently from the config panel.  Playback merges them (device > user > global).
+        const globalRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['global']);
+        this._globalOverridesCache = (globalRaw !== null && globalRaw !== undefined) ? globalRaw : {};
+
+        const userRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['user']);
+        this._overridesCache = (userRaw !== null && userRaw !== undefined) ? userRaw : {};
+
+        const deviceRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['device']);
+        this._deviceOverridesCache = (deviceRaw !== null && deviceRaw !== undefined) ? deviceRaw : {};
+      } else {
+        // Legacy path (no scoped storage) — flat global key only.
+        const backendValue = await integration.readStorage(STORAGE_KEY_SOUND_OVERRIDES);
+        this._globalOverridesCache = (backendValue !== undefined && backendValue !== null) ? backendValue : {};
+        this._overridesCache = {};
+      }
+      lcardsLog.debug('[SoundManager] Overrides loaded from backend storage (scoped)');
     } else {
+      this._globalOverridesCache = {};
       this._overridesCache = {};
       lcardsLog.warn('[SoundManager] Integration unavailable — sound overrides will not be persisted');
     }
   }
 
   /**
-   * Return the current per-event overrides from the in-memory cache.
+   * Return effective per-event overrides for playback: global merged with user merged
+   * with device, where device-scope values win on a per-event basis.
    * Returns an empty object if the async load has not yet completed.
    * @returns {Object}
    * @private
    */
   _getOverrides() {
-    return this._overridesCache ?? {};
+    return {
+      ...(this._globalOverridesCache ?? {}),
+      ...(this._overridesCache       ?? {}),
+      ...(this._deviceOverridesCache ?? {}),
+    };
   }
 
   /**
@@ -659,16 +826,28 @@ export class SoundManager extends BaseService {
    * @returns {Promise<void>}
    * @private
    */
-  async _saveOverrides(overrides) {
+  async _saveOverrides(overrides, scope = 'user') {
     // 1. Update in-memory cache immediately (synchronous callers benefit)
-    this._overridesCache = overrides;
+    if (scope === 'global') {
+      this._globalOverridesCache = overrides;
+    } else {
+      this._overridesCache = overrides;
+    }
 
-    // 2. Backend storage (authoritative)
+    // 2. Backend storage
+    const sss = this._core?.scopedSettingsService;
     const integration = this._core?.integrationService;
-    if (integration?.available) {
-      const ok = await integration.writeStorage({ sound_overrides: overrides });
+
+    if (sss && integration?.available) {
+      const ok = await sss.write(STORAGE_KEY_SOUND_OVERRIDES, overrides, scope);
       if (ok) {
-        lcardsLog.debug('[SoundManager] Saved sound overrides to backend storage');
+        lcardsLog.debug(`[SoundManager] Saved sound overrides to ${scope}-scoped backend storage`);
+      }
+    } else if (integration?.available) {
+      // Legacy path (no scoped storage) — always flat global key
+      const ok = await integration.writeStorage({ [STORAGE_KEY_SOUND_OVERRIDES]: overrides });
+      if (ok) {
+        lcardsLog.debug('[SoundManager] Saved sound overrides to global backend storage (legacy path)');
       }
     } else {
       lcardsLog.warn('[SoundManager] Integration unavailable — sound overrides not persisted to backend');

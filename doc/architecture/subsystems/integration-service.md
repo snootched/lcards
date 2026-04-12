@@ -193,3 +193,51 @@ The probe hits the `lcards/info` command. The expanded response (since Phase 2C)
 
 → See [HA Integration Architecture](../ha-integration) for the full Python-side reference.
 → See [Backend WS API](../../development/backend-api) for the full storage command reference.
+
+---
+
+## `onReady()` Promise API
+
+> Added in v1.12 (Phase 3C)
+
+Other services that need to gate work on the probe completion should use the public `onReady()` method rather than accessing the private `_probed` flag:
+
+```javascript
+const integration = window.lcards.core.integrationService;
+
+// Resolves immediately if already probed; otherwise waits for the probe to finish
+await integration.onReady();
+
+// Boolean — true once probe has run (pass or fail)
+const alreadyRan = integration.isReady;
+```
+
+The promise **always resolves** (never rejects), even when the probe fails, so callers can proceed with graceful-degradation paths.
+
+---
+
+## `capabilities` Set
+
+After a successful probe the `capabilities` Set is populated with strings advertised by the backend's `lcards/info` response:
+
+```javascript
+integration.capabilities.has('scoped_storage')  // → true on v1.12+
+```
+
+The backend populates this via:
+
+```python
+connection.send_result(msg["id"], {
+    "available": True,
+    "capabilities": ["scoped_storage"],
+    ...
+})
+```
+
+---
+
+## See Also
+
+- [Scoped Settings Service](scoped-settings.md)
+- [Device Identity Manager](device-identity.md)
+- [Sound System](sound-system.md)

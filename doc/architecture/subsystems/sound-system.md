@@ -91,7 +91,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 ## HA Helper Integration
 
-Six input helpers store sound configuration. They are created via the Sound Config Panel or manually via YAML.
+Six input helpers store the **global** sound configuration. They are created via the Sound Config Panel or manually via YAML.
 
 | Helper key | Entity ID | Type | Purpose |
 |---|---|---|---|
@@ -108,6 +108,54 @@ Six input helpers store sound configuration. They are created via the Sound Conf
 
 ---
 
+## Per-User / Per-Device Overrides
+
+> **Requires**: LCARdS integration v1.12+ (`scoped_storage` capability)
+
+All four per-event settings support **user and device scopes** via the `ScopedSettingsService` waterfall:
+
+| Setting | Scopes | Global fallback |
+|---------|--------|----------------|
+| `sound_enabled` | device, user, global | `input_boolean.lcards_sound_enabled` |
+| `sound_volume` | device, user, global | `input_number.lcards_sound_volume` |
+| `sound_scheme` | device, user, global | `input_select.lcards_sound_scheme` |
+| `sound_overrides` | device, user, global | backend flat key |
+
+Note: Per-category toggles (`sound_cards_enabled`, etc.) are global-only — they cannot be scoped per user or device.
+
+### How it works
+
+`SoundManager._ensureOverridesLoaded()` is called once after the integration probe resolves. It loads all scoped settings asynchronously and populates five in-memory caches:
+
+| Cache | What it holds |
+|-------|---------------|
+| `_cachedEnabled` | Scoped `sound_enabled` value (device → user → global waterfall) |
+| `_cachedVolume` | Scoped `sound_volume` (device → user → global waterfall) |
+| `_cachedScheme` | Scoped `sound_scheme` (device → user → global waterfall) |
+| `_globalOverridesCache` | Per-event overrides from global scope (`sound_overrides`, global tier) |
+| `_overridesCache` | Per-event overrides from user scope (`sound_overrides`, user tier) |
+| `_deviceOverridesCache` | Per-event overrides from device scope (`sound_overrides`, device tier) |
+
+The synchronous read methods (`_isEnabled()`, `_getVolume()`, `_getActiveScheme()`) return the cached values when available, falling back to the live HA helper otherwise.
+
+`_getOverrides()` (private, used inside `play()`) returns the merged result: `{ ...globalOverridesCache, ...userOverridesCache, ...deviceOverridesCache }` — device-scope wins on a per-event basis.
+
+`refreshScopedCache()` (public) clears all five caches and re-reads from the backend. The config panel calls this after every write so `play()` picks up changes immediately without a page reload.
+
+This means:
+- First render: uses the HA helpers (synchronous, available instantly).
+- After first probe & cache load: uses the scoped values (highest-priority tier wins).
+
+### Config Panel
+
+Users configure their scoped overrides in **LCARdS Config Panel → Sounds → Per-User / Per-Device Overrides** (collapsible section at the bottom of the Sounds tab).
+
+Admins manage all users and devices from **LCARdS Config Panel → Users & Devices**.
+
+For a complete reference see the [Scoped Settings Service](scoped-settings.md) and [Device Identity Manager](device-identity.md) docs.
+
+---
+
 ## Sound Resolution Order
 
 `play(eventType, context)` resolves the asset key in strict priority order:
@@ -117,10 +165,13 @@ Six input helpers store sound configuration. They are created via the Sound Conf
    │  null  → explicitly silenced (return immediately)
    │  string → use this asset key directly
    │
-2. Integration persistent storage override (sound_overrides)
-   │  { eventType: assetKey } — per-event user override
+2. Merged per-event override (device-scope wins, then user, then global)
+   │  _getOverrides() = { ...globalOverridesCache, ...userOverridesCache, ...deviceOverridesCache }
+   │  eventType in overrides:
+   │    null   → explicitly muted (return immediately)
+   │    string → use this asset key
    │
-3. Active scheme mapping
+3. Active scheme mapping (scheme resolved from device/user/global waterfall)
    │  scheme[eventType] === null  → scheme-silenced (return)
    │  scheme[eventType] === string → use this asset key
    │
@@ -214,13 +265,17 @@ export const MY_SOUND_PACK = {
 
 ## Override Storage
 
-Per-event overrides are stored in the LCARdS integration's persistent storage under the key `lcards_sound_overrides` as a JSON object:
+Per-event overrides are stored as a flat `{ eventType: assetKey }` JSON object under the key `sound_overrides` in scoped storage. Two independent tiers exist:
 
-```json
-{ "card_tap": "my_tap", "nav_sidebar": null }
-```
+| Tier | Storage path | Who sees it |
+|------|-------------|-------------|
+| `global` | integration-level flat key | all users, all devices |
+| `user` | per-user scoped storage | that user only, all their devices |
+| `device` | per-device scoped storage | that device only, regardless of user |
 
-`null` values are not stored — `setOverride(eventType, null)` deletes the key. `_getOverrides()` returns `{}` on parse failure (never throws).
+User-scope overrides win on a per-event basis (individual events can be user-overridden while others fall through to global).
+
+`null` asset key values silence the event — they **are** stored (as `null`) in the override map. To remove an override entirely (revert to scheme), call `setOverride(eventType, undefined, scope)` or use the clear operation. `_getOverrides()` returns `{}` on any read failure (never throws).
 
 ---
 
@@ -246,11 +301,19 @@ sm.play('card_tap', { cardOverride: null });        // silence this event
 sm.preview('my_asset');                            // bypass enable checks
 sm.previewScheme('lcars_classic', 'card_tap');     // preview a scheme
 
-// Overrides
-const overrides = sm.getOverrides();               // { eventType: assetKey }
-await sm.setOverride('card_tap', 'my_asset');      // set override
-await sm.setOverride('card_tap', null);            // clear override
-await sm.clearAllOverrides();                       // clear all
+// Global overrides (shared across all users and devices)
+const overrides = sm.getOverrides('global');       // { eventType: assetKey }
+await sm.setOverride('card_tap', 'my_asset', 'global');  // set global override
+await sm.setOverride('card_tap', null, 'global');        // silence globally
+await sm.clearAllOverrides('global');                    // clear all global overrides
+
+// Device-scoped overrides
+const deviceOverrides = sm.getOverrides('device');   // { eventType: assetKey }
+await sm.setOverride('card_tap', 'my_asset', 'device');  // set device override
+await sm.clearAllOverrides('device');                    // clear all device overrides
+
+// Cache invalidation — call after any external storage write
+await sm.refreshScopedCache();                     // re-reads all 5 caches from backend
 
 // Scheme introspection
 const names = sm.getSchemeNames();                 // ['none', 'lcards_default', ...]
@@ -274,12 +337,15 @@ window.lcards.debug.singleton('soundManager')
 ```javascript [Live object]
 const sm = window.lcards.core.soundManager
 
-sm.play('card_tap')                     // fire an event
-sm.preview('my_asset')                  // play a specific asset directly
-sm.getSchemeNames()                     // ['none', 'lcards_default', ...]
-sm.getEventTypes()                      // [{ key, label, category }, ...]
-sm.getOverrides()                       // current per-event overrides
-await sm.setOverride('card_tap', 'my') // set persistent override
-await sm.clearAllOverrides()            // wipe all overrides
+sm.play('card_tap')                                      // fire an event
+sm.preview('my_asset')                                   // play a specific asset directly
+sm.getSchemeNames()                                      // ['none', 'lcards_default', ...]
+sm.getEventTypes()                                       // [{ key, label, category }, ...]
+sm.getOverrides('global')                                // global per-event overrides
+sm.getOverrides('user')                                  // user-scoped per-event overrides
+await sm.setOverride('card_tap', 'my', 'global')         // set global persistent override
+await sm.setOverride('card_tap', 'my', 'user')           // set user-scoped override
+await sm.clearAllOverrides('global')                     // wipe all global overrides
+await sm.refreshScopedCache()                            // force cache reload after admin writes
 ```
 :::

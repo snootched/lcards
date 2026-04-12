@@ -41,6 +41,8 @@ import { CoreDebugAPI } from '../api/CoreDebugAPI.js';
 import { LCARdSHelperManager } from './helpers/lcards-helper-manager.js';
 import { SoundManager } from './sound/SoundManager.js';
 import { IntegrationService } from './services/IntegrationService.js';
+import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
+import { ScopedSettingsService } from './services/ScopedSettingsService.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -72,6 +74,8 @@ class LCARdSCore {
         this.helperManager = null;       // Helper management system (Phase 5)
         this.soundManager = null;         // Sound management system (Phase 2g)
         this.integrationService = null;   // HA integration probe (available / version)
+        this.deviceIdentityManager = null; // Per-browser stable UUID + display name
+        this.scopedSettingsService = null; // Per-user / per-device settings waterfall
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -263,6 +267,14 @@ class LCARdSCore {
             // call where hass.connection is available, so no initialize() call here.
             this.integrationService = new IntegrationService();
             lcardsLog.debug('[LCARdSCore] ✅ IntegrationService created (will probe on first connection)');
+
+            // Create DeviceIdentityManager — initialises on first updateHass() call.
+            this.deviceIdentityManager = new DeviceIdentityManager();
+            lcardsLog.debug('[LCARdSCore] ✅ DeviceIdentityManager created');
+
+            // Create ScopedSettingsService — depends on integration + device identity.
+            this.scopedSettingsService = new ScopedSettingsService();
+            lcardsLog.debug('[LCARdSCore] ✅ ScopedSettingsService created');
 
             this._coreInitialized = true;
 
@@ -467,6 +479,14 @@ class LCARdSCore {
 
         if (this.integrationService) {
             this.integrationService.updateHass(hass);
+        }
+
+        if (this.deviceIdentityManager) {
+            this.deviceIdentityManager.updateHass(hass);
+        }
+
+        if (this.scopedSettingsService) {
+            this.scopedSettingsService.updateHass(hass);
         }
     }
 
