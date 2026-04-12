@@ -45,7 +45,7 @@ tap_action:
 
 === HA Automation
 
-Use the helper in any automation:
+Use the helper in any automation — changes all browsers simultaneously:
 
 ```yaml
 action:
@@ -54,6 +54,45 @@ action:
       entity_id: input_select.lcards_alert_mode
       option: yellow_alert
 ```
+
+=== LCARdS Services
+
+Use the dedicated `lcards.*` services to get **per-device or per-user targeting**.
+When targeting fields are present the `input_select` helper is **not** written — the
+alert is applied as a local, transient change on matching sessions only.
+
+```yaml
+# All devices (same as input_select route, but via the lcards service)
+action: lcards.red_alert
+
+# Specific devices by friendly display name
+action: lcards.red_alert
+data:
+  target_device_names:
+    - Kitchen Tablet
+    - Hallway Display
+
+# Specific device by UUID
+action: lcards.red_alert
+data:
+  target_device_ids:
+    - "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+# All sessions belonging to a specific HA user
+action: lcards.yellow_alert
+data:
+  target_user_names:
+    - jane
+
+# Clear alert on one device only
+action: lcards.clear_alert
+data:
+  target_device_names:
+    - Bedroom Kiosk
+```
+
+> Get your device's UUID and name via `window.lcards.targeting.getMyIds()` in the browser console.
+> See [HA Service Targeting](/development/backend-api#ha-service-targeting) for the full field reference.
 
 === Browser Console
 

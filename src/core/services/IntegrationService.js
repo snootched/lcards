@@ -268,8 +268,13 @@ export class IntegrationService extends BaseService {
      * subscribed.
      *
      * Handled actions:
-     *   reload         — perform a full page reload
-     *   set_log_level  — update JS log verbosity via window.lcards.setGlobalLogLevel
+     *   reload           — perform a full page reload
+     *   set_log_level    — update JS log verbosity via window.lcards.setGlobalLogLevel
+     *   set_alert_mode   — apply alert mode locally (used for targeted alerts only)
+     *
+     * All actions support optional targeting via ``target_device_ids`` /
+     * ``target_user_ids`` payload fields.  Events whose target lists do not
+     * include this device or user are silently ignored.
      *
      * @private
      */
@@ -311,6 +316,13 @@ export class IntegrationService extends BaseService {
         const payload = data ?? {};
         lcardsLog.debug('[IntegrationService] Received lcards_event:', payload);
 
+        // Silently drop events that carry a target list which does not include
+        // this device or user (broadcast events carry no target list at all).
+        if (!this._isEventTargetedAtMe(payload)) {
+            lcardsLog.debug('[IntegrationService] Event not targeted at this device/user — ignoring');
+            return;
+        }
+
         switch (payload.action) {
             case 'reload':
                 lcardsLog.info('[IntegrationService] Reload requested by backend — reloading page');
@@ -326,7 +338,63 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'set_alert_mode':
+                // Used for targeted (local-only) alert mode changes.
+                // skipHelperSync: true prevents setAlertMode() from writing back
+                // to input_select.lcards_alert_mode — that write-back would fire
+                // the HelperManager subscription on ALL tabs, defeating targeting.
+                // Sound is played directly by setAlertMode() when skipHelperSync
+                // is set (falls through to the soundManager.playAlertSound path).
+                if (payload.mode && typeof window.lcards?.setAlertMode === 'function') {
+                    lcardsLog.info(`[IntegrationService] Alert mode targeted event → ${payload.mode}`);
+                    window.lcards.setAlertMode(payload.mode, { skipHelperSync: true });
+                }
+                break;
+
             default:
                 lcardsLog.debug('[IntegrationService] Unknown lcards_event action:', payload.action);
         }
+    }
+
+    /**
+     * Determine whether this browser session is a target of the given event.
+     *
+     * Returns ``true`` (accept the event) when:
+     *   - Neither ``target_device_ids`` nor ``target_user_ids`` is present
+     *     in the payload (broadcast — no filtering applied).
+     *   - ``target_device_ids`` is present and contains this device's UUID.
+     *   - ``target_user_ids`` is present and contains the current HA user ID.
+     *
+     * Union semantics: the event is accepted if this session matches EITHER
+     * target list when both are present.
+     *
+     * @param {Object} payload - The lcards_event data dict
+     * @returns {boolean}
+     * @private
+     */
+    _isEventTargetedAtMe(payload) {
+        const deviceIds = payload.target_device_ids;
+        const userIds   = payload.target_user_ids;
+
+        // No targeting fields present → broadcast, always accept
+        const hasDeviceTarget = Array.isArray(deviceIds) && deviceIds.length > 0;
+        const hasUserTarget   = Array.isArray(userIds)   && userIds.length   > 0;
+        if (!hasDeviceTarget && !hasUserTarget) return true;
+
+        // Check device match
+        if (hasDeviceTarget) {
+            const myDeviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+            if (myDeviceId && deviceIds.includes(myDeviceId)) return true;
+        }
+
+        // Check user match — try the service's own _hass first, then the
+        // core's shared reference as a fallback (both should be identical but
+        // the fallback handles edge-cases where updateHass() hasn't fired yet).
+        if (hasUserTarget) {
+            const myUserId = this._hass?.user?.id
+                          || window.lcards?.core?._currentHass?.user?.id;
+            if (myUserId && userIds.includes(myUserId)) return true;
+        }
+
+        return false;
     }}

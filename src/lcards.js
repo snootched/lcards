@@ -401,17 +401,24 @@ window.lcards.setAlertMode = async (mode, opts = {}) => {
   // This keeps the HA state in sync when called from the JS console or Config Panel,
   // and is the trigger for the SoundManager subscription to fire.
   // If the helper doesn't exist, play the sound directly as a fallback.
+  //
+  // skipHelperSync: true suppresses the write-back.  This must be used when
+  // setAlertMode() is called from a targeted lcars_event (IntegrationService
+  // set_alert_mode case) so the change stays local to this tab — writing to
+  // input_select would re-trigger all other tabs via their HelperManager
+  // subscriptions, defeating the targeting entirely.
   const helperEntityId = 'input_select.lcards_alert_mode';
   const helperExists = hass?.states?.[helperEntityId] !== undefined;
 
-  if (helperExists && mode !== previousMode) {
+  if (helperExists && mode !== previousMode && !opts.skipHelperSync) {
     // Fire and forget — the HelperManager subscription will handle sound.
     hass.callService('input_select', 'select_option', {
       entity_id: helperEntityId,
       option: mode,
     }).catch(err => lcardsLog.warn('[LCARdS] Failed to sync alert_mode helper:', err));
-  } else if (!helperExists && mode !== previousMode) {
-    // No helper — play sound directly since the subscription won't fire.
+  } else if (mode !== previousMode && (!helperExists || opts.skipHelperSync)) {
+    // No helper OR helper sync explicitly skipped — play sound directly since
+    // the HelperManager subscription will not fire in this case.
     window.lcards.core.soundManager?.playAlertSound(mode);
   }
 };
@@ -544,3 +551,25 @@ window.lcards.sound = {
 };
 lcardsLog.debug('[lcards.js] Sound console API attached');
 lcardsLog.debug('[lcards.js] Alert mode console API attached');
+
+// === TARGETING DEBUG API ===
+// Returns the IDs needed for target_device_ids / target_user_ids service fields.
+// Usage in browser console:
+//   window.lcards.targeting.getMyIds()  →  { deviceId: '...', userId: '...' }
+window.lcards.targeting = {
+  /**
+   * Return the device ID and HA user ID for this browser session.
+   * Copy these values when constructing target_device_ids / target_user_ids
+   * service call data.
+   * @returns {{ deviceId: string|null, userId: string|null }}
+   */
+  getMyIds() {
+    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId() ?? null;
+    const userId   = window.lcards?.core?._currentHass?.user?.id
+                  || window.lcards?.core?.integrationService?._hass?.user?.id
+                  || null;
+    console.info('[LCARdS Targeting] Your IDs:', { deviceId, userId });
+    return { deviceId, userId };
+  },
+};
+lcardsLog.debug('[lcards.js] Targeting console API attached');
