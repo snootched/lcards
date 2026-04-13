@@ -244,9 +244,12 @@ Every card automatically divides its SVG surface into named **zones** — rectan
 | **Button** (preset mode, area icon) | `body` = card area excluding icon strip · `full` = full card area · `icon` = icon strip only |
 | **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition — these are declared by the component pack, not by your card config |
 | **Slider** | `track` (inner track bounds) + one zone per enabled border: `left`, `right`, `top`, `bottom` |
-| **Elbow** (simple) | `vertical_bar`, `horizontal_bar`, `body` (open corner area) |
-| **Elbow** (segmented) | `outer_vertical_bar`, `inner_vertical_bar`, `outer_horizontal_bar`, `inner_horizontal_bar`, `body` |
-| **Elbow** (frame) | `top`, `bottom`, `left`, `right`, `body` |
+| **Elbow** (simple, L-corner left) | `vertical_bar` · `left_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` |
+| **Elbow** (simple, L-corner right) | `vertical_bar` · `right_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` |
+| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full` — no vertical bar zone |
+| **Elbow** (simple, contained) | `left_bar` · `right_bar` · `horizontal_bar` · `body` · `full` |
+| **Elbow** (segmented) | `outer_vertical_bar` · `inner_vertical_bar` · `outer_horizontal_bar` · `inner_horizontal_bar` · `body` · `full` |
+| **Elbow** (frame) | `top` · `bottom` · `left` · `right` · `body` · `full` |
 
 ### Routing a field to a zone
 

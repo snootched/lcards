@@ -79,9 +79,12 @@ this._injectZoneDebugOverlay(svgEl)
 | Button (preset) | `body` |
 | Button (component) | Named `text_areas` from SVG def |
 | Slider | `track` + `left`/`right`/`top`/`bottom` when border enabled |
-| Elbow (simple) | `vertical_bar`, `horizontal_bar`, `body` |
-| Elbow (segmented) | `outer_*`, `inner_*` bars, `body` |
-| Elbow (frame) | `top`, `bottom`, `left`, `right`, `body` |
+| Elbow (simple, L-corner left) | `vertical_bar`, `left_bar` (alias), `horizontal_bar`, `body`, `full` |
+| Elbow (simple, L-corner right) | `vertical_bar`, `right_bar` (alias), `horizontal_bar`, `body`, `full` |
+| Elbow (simple, open) | `horizontal_bar`, `body`, `full` |
+| Elbow (simple, contained) | `left_bar`, `right_bar`, `horizontal_bar`, `body`, `full` |
+| Elbow (segmented) | `outer_*`, `inner_*` bars, `body`, `full` |
+| Elbow (frame) | `top`, `bottom`, `left`, `right`, `body`, `full` |
 
 ### User-defined zones
 
