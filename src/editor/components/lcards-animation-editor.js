@@ -2302,9 +2302,9 @@ export class LCARdSAnimationEditor extends LitElement {
         <ha-selector
           .hass=${this.hass}
           .selector=${{ boolean: {} }}
-          .value=${anim.check_on_load || false}
+          .value=${anim.check_on_load !== false}
           .label=${'Check on Load'}
-          .helper=${'Evaluate on card load too. For while conditions: starts immediately if condition already met. For to_state: fires if entity is already in that state.'}
+          .helper=${'Evaluate the condition when the card first loads (default: on). For while conditions: starts immediately if condition already met. For to_state: fires if entity is already in that state. Disable to only react to state transitions after load.'}
           @value-changed=${(e) => this._updateAnimation(index, 'check_on_load', e.detail.value)}
           style="margin-bottom: 12px;">
         </ha-selector>

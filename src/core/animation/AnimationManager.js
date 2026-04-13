@@ -145,15 +145,53 @@ export class AnimationManager extends BaseService {
 
       const preserveOnLoadFlag = existingScope?.onLoadFired && !isInitialSetup;
 
+      // Declared outside the if-block so it remains in scope when setting
+      // triggerManager._isRecreation below (const/let are block-scoped in JS).
+      let previouslyActiveWhileAnims = false;
+
       if (existingScope) {
         lcardsLog.debug(`[AnimationManager] Scope exists for ${overlayId}, age: ${scopeAge}ms, preserving onLoadFired: ${preserveOnLoadFlag} (initial setup: ${isInitialSetup})`);
+
+        // Teardown the old scope before overwriting it.  Without this, a looping
+        // animation started by the old TriggerManager (e.g. a while-gated strobe)
+        // keeps running on a detached DOM element after Lit re-renders the SVG
+        // subtree (which happens whenever entity state changes the SVG string).
+        // Destroying the old TriggerManager also removes its entity subscriptions
+        // so they don't fire against a scope that is no longer in this.scopes.
+        //
+        // Capture which while-animations were actively running BEFORE destroy(),
+        // because destroy() clears _whileActiveAnims.  The new TriggerManager uses
+        // this to decide whether to re-seed (restore) a running animation after the
+        // DOM element was replaced — without this guard the re-seed would fire even
+        // on the first page load where no animation was ever running.
+        previouslyActiveWhileAnims = existingScope.triggerManager?._whileActiveAnims?.size > 0;
+        existingScope.runningInstances.forEach((instances) => {
+          instances.forEach(instance => {
+            try { if (instance && !instance.completed) instance.revert?.(); } catch (e) {}
+          });
+        });
+        existingScope.runningInstances.clear();
+        if (existingScope.triggerManager) {
+          existingScope.triggerManager.destroy();
+        }
+        try { existingScope.scope?.revert?.(); } catch (e) {}
+        if (window.lcards?.anim?.scopes) {
+          window.lcards.anim.scopes.delete(overlayId);
+        }
+        lcardsLog.debug(`[AnimationManager] 🧹 Torn down old scope for ${overlayId} before recreation (hadActiveAnims: ${previouslyActiveWhileAnims})`);
       }
 
       // Create anime.js scope for this overlay
       const scope = this.createScopeForOverlay(overlayId, element);
 
-      // Create trigger manager for this overlay
+      // Create trigger manager for this overlay.
+      // _isRecreation is only true when while-animations were actively running in
+      // the old scope — this tells _setupEntityChangeListeners to re-seed
+      // _whileActiveAnims so the animation survives the DOM element replacement.
+      // It must NOT be true on initial page load (no previous running animations)
+      // as that would bypass the check_on_load: false guard.
       const triggerManager = new TriggerManager(overlayId, element, this);
+      triggerManager._isRecreation = !!existingScope && previouslyActiveWhileAnims;
 
       // Store scope and trigger manager
       this.scopes.set(overlayId, {
@@ -393,6 +431,14 @@ export class AnimationManager extends BaseService {
 
     // Execute each animation
     for (const animDef of animations) {
+      // Skip while-gated animations — their lifecycle (start AND stop) is fully
+      // managed by the TriggerManager's entity subscription.  Calling playAnimation
+      // here would bypass the while-condition check, restarting a looping animation
+      // even when the condition is not (or no longer) met.
+      if (animDef.while) {
+        lcardsLog.debug(`[AnimationManager] ⏭️ Skipping while-gated animation in triggerAnimations (handled by TriggerManager) for ${overlayId}`);
+        continue;
+      }
       try {
         await this.playAnimation(overlayId, animDef);
       } catch (error) {
@@ -792,7 +838,15 @@ export class AnimationManager extends BaseService {
       // Verify target elements are connected to DOM
       const connectedTargets = targetElements.filter(el => el && el.isConnected);
       if (connectedTargets.length === 0) {
-        lcardsLog.error(`[AnimationManager] All target elements disconnected from DOM for ${overlayId}`, {
+        // This is an expected transient condition during DOM transitions (e.g. Lit
+        // re-renders after a state change detaches the old element before the new
+        // one is ready).  A follow-up playAnimation on the new connected element
+        // will succeed moments later.  Only elevate to warn/error when the caller
+        // supplied an explicit target selector, which would indicate a real
+        // configuration mistake.
+        const hasExplicitTarget = !!(finalAnimDef.target || finalAnimDef.targets);
+        const logFn = hasExplicitTarget ? lcardsLog.warn.bind(lcardsLog) : lcardsLog.debug.bind(lcardsLog);
+        logFn(`[AnimationManager] All target elements disconnected from DOM for ${overlayId} — skipping (transient)`, {
           totalTargets: targetElements.length,
           targetSelectors: finalAnimDef.target || finalAnimDef.targets || 'default'
         });
