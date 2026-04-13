@@ -867,6 +867,7 @@ export class LCARdSConfigPanel extends LitElement {
       <div class="studio-layout">
         <lcards-about-tab
           .hass=${this.hass}
+          .previewEnabled=${this._isPreviewEnabled()}
           @lcards-navigate-tab=${(e) => {
             this._selectedTab = e.detail.tab;
             this.requestUpdate();

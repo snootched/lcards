@@ -16,12 +16,15 @@ import './lcards-preview-chip.js';
 export class LCARdSAboutTab extends LitElement {
   static properties = {
     hass: { type: Object },
+    previewEnabled: { type: Boolean },
   };
 
   constructor() {
     super();
     /** @type {any} */
     this.hass = undefined;
+    /** @type {boolean} */
+    this.previewEnabled = false;
   }
 
   // ============================================================================
@@ -49,13 +52,13 @@ export class LCARdSAboutTab extends LitElement {
         desc: 'Select sound schemes and customize/preview sounds for alert modes and interactions types',
       },
       {
-        index: 4,
+        index: 5,
         icon: 'mdi:package-variant',
         label: 'Pack Explorer',
         desc: 'Browse the pre-built content packs that add cards styles, fonts, sounds, images and more',
       },
       {
-        index: 5,
+        index: 6,
         icon: 'mdi:database-cog',
         label: 'Storage',
         desc: 'Advanced: Inspect and manage the raw key/value data LCARdS stores for persistent configuration (data that is not stored in HA helpers - use with caution)',
@@ -66,6 +69,11 @@ export class LCARdSAboutTab extends LitElement {
   // ============================================================================
   // NAVIGATION
   // ============================================================================
+
+  /** True when the user has opted into preview / experimental features. */
+  _isPreviewEnabled() {
+    return this.previewEnabled;
+  }
 
   /**
    * Fire a bubbling event so the parent config panel switches to the given tab.
@@ -145,6 +153,27 @@ export class LCARdSAboutTab extends LitElement {
               <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
             </div>
           `)}
+          ${this._isPreviewEnabled() ? html`
+            <div
+              class="tab-guide-card"
+              role="button"
+              tabindex="0"
+              @click=${() => this._navigateToTab(4)}
+              @keydown=${(e) => e.key === 'Enter' && this._navigateToTab(4)}
+            >
+              <div class="tab-guide-icon">
+                <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
+              </div>
+              <div class="tab-guide-body">
+                <span class="tab-guide-title">
+                  Users &amp; Devices
+                  <lcards-preview-chip></lcards-preview-chip>
+                </span>
+                <span class="tab-guide-desc">Manage registered devices and users with stored per-user / per-device overrides. Edit or clear scoped settings centrally (admin only).</span>
+              </div>
+              <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
+            </div>
+          ` : ''}
         </div>
       </div>
 
@@ -155,17 +184,50 @@ export class LCARdSAboutTab extends LitElement {
           Preview Features
           <lcards-preview-chip></lcards-preview-chip>
         </div>
-        <p class="section-intro">
-          Preview features are still under active development. These may change during development - Please provide your feedback, discuss or get help on GitHub Issues and Discussions.
-        </p>
-        <p class="section-intro">
-          They are opt-in and disabled by default.
-          When enabled, extra tabs and settings appear throughout the UI.
-        </p>
         <p class="section-intro" style="margin-bottom:0;">
-          To toggle, go to <strong>Settings → Devices &amp; Services → LCARdS → Configure</strong>
-          and enable <em>Enable Preview Features</em>.
+          To enable, go to <strong>Settings → Devices &amp; Services → LCARdS → Configure</strong>
+          and turn on <em>Enable Preview Features</em>.
         </p>
+
+        <p class="section-intro">
+          Preview features are already included in the release &mdash; by opting-in with this setting it will surface their configuration across the UI allowing you can control them.
+          By default, features will operate behind the scenes with established defaults &mdash; you simply won&rsquo;t see the settings.
+        </p>
+        <p class="section-intro">
+          Features in preview:
+        </p>
+
+        <ul class="preview-features-list">
+          <li>
+            <ha-icon icon="mdi:account-cog-outline"></ha-icon>
+            <div>
+              <span class="pf-title">Per-Device &amp; Per-User Sound Settings</span>
+              <span class="pf-desc">Three-tier hierarchy (global → user → device) for sound volume, scheme, enable/disable, and per-event overrides. Configurable centrally without needing to be on the target device.</span>
+            </div>
+          </li>
+          <li>
+            <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
+            <div>
+              <span class="pf-title">Users &amp; Devices Management Tab</span>
+              <span class="pf-desc">Admin-only tab in the Config Panel listing all registered devices and users with stored scoped settings. Edit or clear overrides for any session from one place.</span>
+            </div>
+          </li>
+          <li>
+            <ha-icon icon="mdi:bullseye-arrow"></ha-icon>
+            <div>
+              <span class="pf-title">Targeted HA Services</span>
+              <span class="pf-desc">All <code>lcards.*</code> services (alert modes, reload, log level) can target specific devices or users by ID or friendly name instead of broadcasting to everyone.</span>
+            </div>
+          </li>
+          <li>
+            <ha-icon icon="mdi:alert-decagram-outline"></ha-icon>
+            <div>
+              <span class="pf-title">Targeted Alert Modes</span>
+              <span class="pf-desc">Trigger red/yellow/blue alert on individual devices or users without changing the global alert state. Clears locally too.</span>
+            </div>
+          </li>
+        </ul>
+
       </div>
 
       <!-- ── Resources ─────────────────────────────────────────── -->
@@ -276,6 +338,58 @@ export class LCARdSAboutTab extends LitElement {
       margin: 0 0 12px 0;
       color: var(--secondary-text-color);
       line-height: 1.5;
+    }
+
+    /* ── Preview features list ───────────────────────── */
+    .preview-features-list {
+      list-style: none;
+      margin: 0 0 14px 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .preview-features-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--info-color, #03a9f4) 7%, rgba(40,40,40,0.5));
+      border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 20%, transparent);
+    }
+
+    .preview-features-list ha-icon {
+      flex-shrink: 0;
+      color: var(--info-color, #03a9f4);
+      margin-top: 2px;
+    }
+
+    .preview-features-list div {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .pf-title {
+      font-weight: 600;
+      color: var(--primary-text-color);
+      font-size: 0.92em;
+    }
+
+    .pf-desc {
+      color: var(--secondary-text-color);
+      font-size: 0.85em;
+      line-height: 1.5;
+    }
+
+    .pf-desc code {
+      font-family: monospace;
+      background: rgba(255,255,255,0.08);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 0.95em;
     }
 
     .steps-list {
